@@ -124,6 +124,7 @@ Das bestehende Requirement-Formular (Admin) erhält zwei optionale Zahlenfelder:
 | Check außerhalb des Fensters | sichtbar erfüllt, aber klar markiert (`LATE`/`TOO_EARLY`) mit Delta |
 | Spätere Runden noch nicht angelegt | erscheinen nicht (Matches existieren rundenweise) |
 | Funkloch / Fetch-Fehler | letzter Stand bleibt stehen + Warnhinweis |
+| Substitutionen | Werden in der Aufstellung derzeit nicht berücksichtigt — angezeigt wird die gemeldete Crew (bekannte Einschränkung, Entscheidung ausstehend) |
 
 ## 8. Tests & Verifikation
 
