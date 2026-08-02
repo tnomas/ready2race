@@ -63,6 +63,22 @@ Der Hinweispunkt am Live-Tab („es hat sich etwas getan") vergleicht die laufen
 Bleibt bei 10 Sekunden mit den vorhandenen Optionen 5/10/30/60. Nach diesen drei Änderungen ist
 nicht der Takt das Problem, sondern war es die Nutzlast.
 
+## Wirkung
+
+Nachgemessen am 2026-08-02 mit den Seed-Daten (5 Läufe, 30 Mannschaften, 150 Teilnehmer, drei
+Bedingungen je Person), beide Nutzlasten aus denselben Daten aufgebaut:
+
+| Antwort | roh | gzip |
+|---|---:|---:|
+| vorher, alle Läufe | 133.748 B | 19.857 B |
+| nachher, alle Läufe | 11.116 B | 1.728 B |
+| nachher, nur Live-Tab | 2.237 B | 712 B |
+
+Ein Abruf im Live-Tab kostet damit rund 712 statt 19.857 Byte — Faktor 28 gegenüber dem Stand
+nach gzip, Faktor 187 gegenüber dem ursprünglichen unkomprimierten Poll. Über drei Stunden im
+10-Sekunden-Takt sind das etwa 0,8 MB statt der ursprünglich beobachteten 200 MB, und
+unveränderte Abrufe fallen dank 304 noch einmal deutlich darunter.
+
 ## Tests
 
 - Backend: `LiveDashboardLogic` bekommt die Verdichtung der Bedingungen als reine Funktion, dazu
