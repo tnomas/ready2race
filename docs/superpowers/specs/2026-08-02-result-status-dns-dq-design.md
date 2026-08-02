@@ -1,4 +1,4 @@
-# Design: DNS und DQ neben DNF sichtbar machen (A3)
+# Design: DNS und DSQ neben DNF sichtbar machen (A3)
 
 **Stand:** 2026-08-02
 **Backlog-Punkt:** A3 aus `2026-07-30-schiedsrichter-dashboard-backlog.md`
@@ -34,14 +34,14 @@ eigene Anpassung.
 ```
 matchResultStatus(failedReason)
   "DNS"             → {status: 'DNS', note: null}
-  "dsq"             → {status: 'DQ',  note: null}
-  "DQ – Frühstart"  → {status: 'DQ',  note: 'Frühstart'}
+  "dsq"             → {status: 'DSQ', note: null}
+  "DQ – Frühstart"  → {status: 'DSQ', note: 'Frühstart'}
   "Boot gekentert"  → {status: null,  note: 'Boot gekentert'}
   null | ""         → {status: null,  note: null}
 ```
 
-Erkannt wird ein **führendes** Token aus `DNS | DNF | DQ | DSQ | DISQ`, unabhängig von
-Groß-/Kleinschreibung, gefolgt von einer Wortgrenze. `DSQ` und `DISQ` werden auf `DQ`
+Erkannt wird ein **führendes** Token aus `DNS | DNF | DSQ | DQ | DISQ`, unabhängig von
+Groß-/Kleinschreibung, gefolgt von einer Wortgrenze. `DQ` und `DISQ` werden auf `DSQ`
 normalisiert. Trennzeichen zwischen Kürzel und Notiz (Leerzeichen, `-`, `–`, `:`, `,`) fallen
 weg. Was nicht passt, bleibt unverändert Freitext.
 
@@ -50,7 +50,7 @@ gelten.
 
 ### 2. Eingabe — `CompetitionExecution.tsx`
 
-Beim Haken „Ausgeschieden" erscheint eine `ToggleButtonGroup` mit DNS/DNF/DQ und daneben das
+Beim Haken „Ausgeschieden" erscheint eine `ToggleButtonGroup` mit DNS/DNF/DSQ und daneben das
 bisherige Freitextfeld für die Notiz. Das Formular führt beide Werte getrennt
 (`failedStatus`, `failedReason`):
 
@@ -66,7 +66,7 @@ Notiz.
 | Ort | heute | künftig |
 |---|---|---|
 | `LiveDashboardMatchCard` | hart „DNF" | erkannter Status, sonst „DNF" |
-| `CompetitionExecutionRound` | „Ausgeschieden (Grund)" | „DQ (Frühstart)", ohne Status wie bisher |
+| `CompetitionExecutionRound` | „Ausgeschieden (Grund)" | „DSQ (Frühstart)", ohne Status wie bisher |
 | `ResultsMatchDialog` (öffentliche Ergebnisse) | dito | dito |
 
 Der Fallback ist Teil der Anforderung: Altbestände und freie Gründe sehen aus wie heute.
