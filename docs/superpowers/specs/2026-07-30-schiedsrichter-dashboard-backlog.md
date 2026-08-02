@@ -6,6 +6,10 @@
 Zeitstrafen und die Lauf-Kette gebaut wurden (siehe
 `2026-07-29-live-dashboard-schiedsrichter-design.md`).
 
+Wo RaceClocker eine Rolle spielt, stützen sich die Aussagen auf die Mail-Korrespondenz mit Cees
+(Juni–Juli 2026): Startzeiten gehören in den Wave-Namen, versteckte Teilnehmer-IDs gibt es nur für
+Integrationspartner, und Inhalte in „Extra info" sind für Endnutzer sichtbar.
+
 Jeder Punkt hat drei Teile: **Wunsch** (was gesagt wurde), **Ausgangslage** (was heute im Code
 existiert, damit die Recherche nicht neu anfängt) und **Offene Fragen** (was beim Brainstormen zu
 entscheiden ist).
@@ -56,7 +60,8 @@ Vorbereitung aktiv sehen wollen. Sauber aufräumen.
 - Zwei getrennte Zustände (z.B. „in Vorbereitung" / „gestartet") oder ein abgeleiteter Zustand aus
   Startzeit + Flag?
 - Woher käme der echte Start? Denkbar: RaceClocker liefert pro Teilnehmer eine `Start`-Zeit — daraus
-  ließe sich „ist wirklich losgefahren" ableiten.
+  ließe sich „ist wirklich losgefahren" ableiten. Seit Juli 2026 gibt es dort einen Countdown-Start
+  in der Wave-Startliste, der Startzeitpunkt ist also sauber gesetzt.
 - Was zeigt das Dashboard vor dem Start statt „Läuft seit 0 min" — Countdown bis Start?
 
 ### A3. DNS und DQ zusätzlich zu DNF
@@ -164,6 +169,9 @@ Damit löst sich das Problem, dass zu früh ein Qualifying aktiv gesetzt wird.
 - Wegen der Lücken ist die automatische Lauf-Kette pro Veranstaltung abschaltbar
   (`event.auto_activate_next_match`, Default aus). Mit einem Zeitstrahl könnte diese Krücke
   entfallen.
+- Für den Export zur Zeitnahme relevant: Laut Cees gehört die Startzeit **in den Wave-Namen** — nur
+  dort ist sie auch in der Timer-App sichtbar. Ein Zeitstrahl bei uns wäre damit zugleich die Quelle
+  für diesen Namensbestandteil.
 
 **Offene Fragen:**
 - Was ist ein Slot: fixe Uhrzeit, Dauer + Abstand, oder Reihenfolge mit abgeleiteten Zeiten?
