@@ -1,7 +1,8 @@
 # Backlog: Schiedsrichter-Dashboard & Zeitplanung
 
-**Stand:** 2026-07-30
-**Status:** Sammlung zum Brainstormen — nichts davon ist entschieden oder umgesetzt.
+**Stand:** 2026-07-30, fortgeschrieben am 2026-08-02
+**Status:** Sammlung zum Brainstormen. **A3, A4 und A5 sind inzwischen umgesetzt** (siehe die
+Design-Dokumente vom 2026-08-02 daneben); A1, A2, B1 und B2 sind weiter offen.
 **Kontext:** Entstanden am Ende der Session, in der das Schiedsrichter-Dashboard, Teilergebnisse,
 Zeitstrafen und die Lauf-Kette gebaut wurden (siehe
 `2026-07-29-live-dashboard-schiedsrichter-design.md`).
@@ -64,7 +65,12 @@ Vorbereitung aktiv sehen wollen. Sauber aufräumen.
   in der Wave-Startliste, der Startzeitpunkt ist also sauber gesetzt.
 - Was zeigt das Dashboard vor dem Start statt „Läuft seit 0 min" — Countdown bis Start?
 
-### A3. DNS und DQ zusätzlich zu DNF
+### A3. DNS und DQ zusätzlich zu DNF — **umgesetzt am 2026-08-02**
+
+Entschieden wurde gegen eine Enum-Spalte: `failed_reason` bleibt Freitext, der Status wird nur
+sichtbar gemacht. Angezeigt wird DSQ, erkannt werden auch DQ und DISQ. Siehe
+`2026-08-02-result-status-dns-dq-design.md`.
+
 
 **Wunsch:** Bei den Ergebnissen soll es nicht nur DNF geben, sondern auch DNS und DQ. RaceClocker
 kann das und liefert es; wir sollen es übernehmen.
@@ -82,7 +88,13 @@ kann das und liefert es; wir sollen es übernehmen.
 - Wie werden unbekannte Statustexte aus dem Feed behandelt — als Freitext behalten?
 - Zählen DNS-Boote bei der Platzberechnung anders als DNF (Startgeld, Wertung)?
 
-### A4. Beenden mit offenen Ergebnissen: nachfragen
+### A4. Beenden mit offenen Ergebnissen: nachfragen — **umgesetzt am 2026-08-02**
+
+Der Dialog bietet DNS, DNF, DSQ, offen lassen und abbrechen. Abmelden ist bewusst keine Option,
+das bleibt dem Regattabüro vorbehalten. Dabei fiel auf, dass abgemeldete Boote in Backend und
+Frontend als „Ergebnis fehlt" zählten — korrigiert. Siehe
+`2026-08-02-finish-match-open-results-design.md`.
+
 
 **Wunsch:** Wenn der Schiedsrichter ein Rennen beendet und es noch offene Ergebnisse gibt, soll er
 gefragt werden, was mit den restlichen passiert.
@@ -96,7 +108,13 @@ gefragt werden, was mit den restlichen passiert.
   abbrechen.
 - Hängt mit A3 zusammen: Die Auswahl braucht die Statuswerte.
 
-### A5. Datenvolumen des Pollings
+### A5. Datenvolumen des Pollings — **umgesetzt am 2026-08-02**
+
+Alle vier Ideen sind umgesetzt: gzip (am laufenden Server gemessen: Faktor 15), Teilnehmerdaten
+aus dem Listen-Poll heraus mit eigenem Detail-Endpoint, ETag mit 304, und `scope=LIVE` für den
+Live-Tab. Der Poll-Takt bleibt bei 10 Sekunden. Siehe
+`2026-08-02-live-dashboard-payload-design.md`.
+
 
 **Wunsch:** Das Dashboard hat bei 5-Sekunden-Takt in rund drei Stunden etwa 200 MB verbraucht. Das
 ist zu viel — insbesondere für Schiedsrichter im Mobilfunknetz. Schlanker machen.
@@ -191,3 +209,7 @@ Nicht entschieden, nur als Gesprächseinstieg: A5 Punkt 1 (gzip) ist eine Zeile 
 hängen beide am Zustandsmodell von `currently_running` und sollten zusammen gedacht werden. B2
 (Zeitstrahl) ist Voraussetzung dafür, dass die Kette ohne Abschalter verlässlich wird — und damit
 das eigentliche Fundament. B1 ist unabhängig und könnte jederzeit dazwischen.
+
+**Stand 2026-08-02:** A5, A3 und A4 sind in dieser Reihenfolge abgearbeitet. Offen bleiben A1, A2,
+B1 und B2. A2 berührt die Frage, woher der echte Startzeitpunkt kommt, und überschneidet sich damit
+mit B2 — beide sollten nicht parallel angefasst werden.
