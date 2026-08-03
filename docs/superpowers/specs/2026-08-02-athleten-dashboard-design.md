@@ -134,7 +134,11 @@ erfunden.
 - **Kiosk-Einbindung** — derselbe Baustein bekommt einen `case` in `InfoViewDisplay`, damit die
   Ansicht auch in der Rotation läuft. Er bekommt dort nur `eventId` übergeben und ignoriert die
   Felder der durchgereichten View-Zeile: Limits und Countdown-Schalter kommen aus der Antwort des
-  Endpoints, damit beide Träger dieselbe Konfiguration sehen.
+  Endpoints, damit beide Träger dieselbe Konfiguration sehen. Eine Ausnahme braucht die
+  Kiosk-Seite selbst: Ist die Athleten-Anzeige die einzige aktive View, entfällt ihr
+  „Einzelansicht im Takt neu laden"-Remount — die Komponente lädt sich selbst nach, und der
+  Remount würde ihren „letzter guter Stand bleibt stehen"-Mechanismus im Takt durch einen
+  Spinner ersetzen.
 - **Admin-Maske** — `ViewConfigurationForm` erhält den neuen Typ in der Auswahlliste und, nur für
   diesen Typ, drei Zahlenfelder und ein Häkchen. Anmerkung für die Umsetzung: `filters` wird vom
   Formular heute nur durchgereicht, nie bearbeitet; dies ist das erste Eingabefeld darauf.
