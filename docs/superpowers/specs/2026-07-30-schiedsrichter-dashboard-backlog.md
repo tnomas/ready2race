@@ -90,6 +90,11 @@ gefragt werden, was mit den restlichen passiert.
 **Ausgangslage:**
 - Heute nur ein Hinweistext in der Karte („Es fehlen noch Ergebnisse — beenden aktiviert trotzdem
   die nächsten Läufe"), keine Rückfrage. Der „Lauf beenden"-Button hat 5 s Undo.
+- Sichtbares Symptom (Funktionstest 03.08.): Ein so beendeter Lauf fällt in der Zustandsableitung
+  auf „Anstehend" zurück (nicht laufend, kein vollständiges Ergebnis) und taucht auf dem
+  Live-Tab wieder unter „Als Nächstes" auf, bis die restlichen Ergebnisse eingetragen sind. Die
+  Ableitung kennt kein „beendet ohne Ergebnis" — dasselbe Schema-Loch wie beim Follow-up
+  `finished_at` für die Lauf-Kette.
 
 **Offene Fragen:**
 - Welche Optionen bietet der Dialog? Denkbar: alle offenen als DNS/DNF markieren, offen lassen,
