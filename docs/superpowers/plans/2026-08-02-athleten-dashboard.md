@@ -619,7 +619,10 @@ In `EventInfoService.kt` unterhalb von `getRunningMatches` einfügen:
         KIO.comprehension {
             val eventName = !EventRepo.getName(eventId).orDie()
             if (eventName == null) {
-                KIO.fail<EventInfoProblem>(EventInfoProblem.EventNotFound(eventId))
+                // Das `!` ist zwingend: In einer KIO-Comprehension bindet nur dieser
+                // Operator den Wert. Ohne ihn wird das Fail-Objekt bloß erzeugt und
+                // verworfen, und eine unbekannte Event-ID ergäbe 500 statt 404.
+                !KIO.fail<EventInfoProblem>(EventInfoProblem.EventNotFound(eventId))
             }
 
             // findByEvent liefert nur aktive Zeilen, aufsteigend nach sort_order.
