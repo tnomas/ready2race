@@ -192,6 +192,48 @@ länger als 30 Minuten verstrichen (`AthleteBoardLogic.DEFAULT_OVERDUE_GRACE_MIN
 Nachfrist ist bewusst nicht konfigurierbar. Der Endpoint `/upcoming-matches` und die Kiosk-Ansicht
 bleiben davon unberührt.
 
+## Betriebshärtung (Nachtrag 2026-08-03)
+
+Ein Abschluss-Review fand fünf betriebliche Risiken für den Einsatz bei einer echten Regatta.
+Bewertung und Umsetzung:
+
+1. **Serverseitiger Zwischenspeicher** (umgesetzt). `EventInfoService` hält die fertige Antwort
+   je Veranstaltung für `AthleteBoardLogic.CACHE_TTL_SECONDS` (5 s) im Speicher. Das deckelt die
+   Datenbanklast auf eine Berechnung je Veranstaltung und TTL, unabhängig von der Zuschauerzahl.
+   `serverTime` wird je Antwort frisch gesetzt (`copy(serverTime = now)`), weil sie die
+   Bezugsgröße für den Countdown ist; die `startState`-Felder sind höchstens 5 s alt, das trägt
+   die Anzeige. Nur per `EventRepo` geprüfte Veranstaltungen landen im Speicher, unbekannte IDs
+   können ihn nicht füllen. Nachweis am Seed: eine Berechnung (9 Queries), fünf Folge-Abrufe
+   innerhalb der TTL lösten null Datenbank-Statements aus.
+
+2. **N+1-Abfragen** (bewusst nicht umgebaut). `getAthleteBoard` lädt weiterhin je Lauf eine eigene
+   Team-Abfrage — rund 9 Queries je Berechnung bei den Vorgabewerten. Mit dem Zwischenspeicher
+   zahlt die Datenbank das höchstens einmal je 5 s und Veranstaltung; ein Batch-Umbau der drei
+   Team-Abfragen würde davon nur noch ~4 Queries sparen und die Gruppierungslogik kurz vor dem
+   ersten Einsatz anfassen. Verhältnis von Risiko zu Nutzen spricht dagegen.
+
+3. **Kein ETag** (bewusst weggelassen). Ein ETag müsste `serverTime` ausklammern, sonst ist jede
+   Antwort einzigartig. Bei einem 304 alterte dann aber der mitgelieferte `serverTime`-Stand —
+   der Client zeigte „Stand von" fälschlich alt und der Countdown-Bezug verschöbe sich. Die
+   gzip-Antwort liegt ohnehin bei ~1,4 kB; das Sparpotenzial rechtfertigt die Komplexität nicht.
+
+4. **Rate-Limit** (umgesetzt, als Notbremse). `RateLimitName("publicInfo")` über allen
+   öffentlichen Info-Endpoints: 500 Anfragen je 5 s und Client-IP. Bewusst weit über jedem
+   legitimen Aufkommen (500 Telefone im 15-Sekunden-Takt sind ~33 Anfragen/s), weil sich auf
+   einer Regatta viele Geräte eine IP teilen (Vereins-WLAN, Carrier-NAT) und hinter einem Proxy
+   ohne Forwarded-Header sogar alle Zuschauer auf einen Schlüssel zusammenfallen. Gefangen wird
+   nur Amoklaufen und stumpfes Hämmern; die Lastdeckelung leistet der Zwischenspeicher.
+
+5. **Aktualisierungstakt vom Kiosk-Regler entkoppelt** (per Untergrenze).
+   `display_duration_seconds` bleibt die Quelle des Takts, aber
+   `AthleteBoardLogic.MIN_REFRESH_INTERVAL_SECONDS` (10 s) zieht eine Untergrenze ein: Ein Admin,
+   der die Kiosk-Rotation auf 5 s stellt, beschleunigt damit nicht mehr nebenbei alle Telefone.
+   Die Admin-Maske weist beim Typ `ATHLETE_BOARD` unter dem Regler darauf hin.
+
+6. **gzip** (in diesem Branch sichergestellt). Der Compression-Commit aus dem Payload-Worktree
+   ist per Cherry-pick übernommen (`Compress HTTP responses with gzip`), damit die Anzeige nicht
+   von der Merge-Reihenfolge abhängt. Gemessen: 7,8 kB → 1,4 kB am Seed-Szenario.
+
 ## Tests
 
 Die entscheidbare Logik wandert in ein `AthleteBoardLogic`-Objekt und wird mit `kotlin.test`
