@@ -122,9 +122,15 @@ erfunden.
 
 - **`AthleteBoard`** — eine Komponente ohne eigene Datenhoheit über die einzelnen Blöcke. Sie holt
   den Endpoint einmal und rendert daraus drei Bereiche.
-- **Route `/event/$eventId/board`** — neue öffentliche Seite ohne `beforeLoad`-Wächter, trägt die
+- **Route `/board/$eventId`** — neue öffentliche Seite ohne `beforeLoad`-Wächter, trägt die
   Komponente. Kein „Konfigurieren"-Button, kein Vollbild-Dialog, keine Maus-Timer, keine
   Tastatursteuerung.
+
+  Die Route hängt **direkt an `rootRoute`**, nicht unter `eventRoute`. Der Grund zeigte sich erst im
+  Sichttest: Unterhalb von `mainLayoutRoute` rendert `RootLayout` die App-Kopfleiste samt Logo,
+  Sprachwahl und Anmelde-Symbol sowie die linke Seitenleiste — auf einem montierten
+  Athletenbildschirm alles fehl am Platz. `resultsRoute` löst dasselbe Problem seit jeher genauso.
+  Deshalb `/board/$eventId` statt des ursprünglich vorgesehenen `/event/$eventId/board`.
 - **Kiosk-Einbindung** — derselbe Baustein bekommt einen `case` in `InfoViewDisplay`, damit die
   Ansicht auch in der Rotation läuft. Er bekommt dort nur `eventId` übergeben und ignoriert die
   Felder der durchgereichten View-Zeile: Limits und Countdown-Schalter kommen aus der Antwort des
@@ -172,7 +178,19 @@ Bildschirm hat keine Maus, und auf dem Telefon ist eine Seite, die nur zeigt, sc
 | Netzabbruch beim Aktualisieren | Letzter guter Stand bleibt stehen, „Stand von HH:MM" altert sichtbar mit und wird ab zwei verpassten Intervallen hervorgehoben. Nie zurück auf Spinner oder leeren Schirm. |
 | Leerer Block | Überschrift bleibt stehen, darunter eine neutrale Zeile („Zurzeit kein Lauf auf dem Wasser"), damit auf dem festen Schirm nichts springt. |
 | Lauf ohne Startzeit | Karte ohne Uhrzeit und ohne Countdown, einsortiert ans Ende. Kein Randfall: `competition_match.start_time` ist nullable und kann erst gepflegt werden, wenn die Runde gesetzt wurde — die Lücke, die Backlog-Punkt B2 beschreibt. |
+| Lauf im Verzug | Bleibt im Block „Nächster Lauf" stehen und zeigt „erwartet" statt einer Restzeit. |
 | Seite im Hintergrund | Polling pausiert über `document.visibilityState`, lädt beim Zurückkehren sofort einmal. |
+| Erster Abruf schlägt fehl | Eigene Meldung. Die Anzeige darf niemals „Zurzeit kein Lauf auf dem Wasser" behaupten, wenn sie in Wahrheit nichts weiß — das ist die gefährlichste Falschaussage, die ein Startbildschirm machen kann. |
+
+**Eigene Abfrage für den Block „Nächster Lauf".** Die beiden letztgenannten Fälle sind mit der
+vorhandenen `getUpcomingMatches` nicht erreichbar: Sie verlangt `start_time > now()` und schließt
+Läufe ohne Startzeit ganz aus. Ein verspäteter, noch nicht gestarteter Lauf erfüllt weder das noch
+`currently_running` und verschwände damit vollständig von der Anzeige — genau in dem Moment, in dem
+ein Athlet am Start wissen will, ob es weitergeht. Die Athleten-Anzeige bekommt deshalb eine eigene
+Abfrage: nicht laufend, noch ohne vollständiges Ergebnis, und Startzeit entweder leer oder nicht
+länger als 30 Minuten verstrichen (`AthleteBoardLogic.DEFAULT_OVERDUE_GRACE_MINUTES`). Die
+Nachfrist ist bewusst nicht konfigurierbar. Der Endpoint `/upcoming-matches` und die Kiosk-Ansicht
+bleiben davon unberührt.
 
 ## Tests
 
