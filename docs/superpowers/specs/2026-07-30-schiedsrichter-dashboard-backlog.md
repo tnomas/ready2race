@@ -285,3 +285,18 @@ Im Wettkampf fehlt ein Zurück-Button zur Veranstaltung; generell die Navigation
   ist — gewollt oder auf "alle beendet" warten?
 - DB-Integrationstests für die Ketten-Trigger (finishMatch/createNewRound).
 - Same-Day-Overlap-Prüfung bei negativen Shifts.
+
+**Entscheidungen 04.08.2026 (abends, Thomas):**
+- **C1 + A1 sind entschieden und verschmolzen:** Ein Lauf wird NUR durch aktiven Input beendet
+  (kein Auto-Beenden bei vollständigen Ergebnissen, kein Schalter). Begründung: Der Beenden-Klick
+  ist das Signal ans Regattabüro, dass der Stand final ist und der RaceClocker-Import starten
+  kann — beendet sich ein Rennen automatisch, drohen Fehlannahmen, wenn die Zeitnahme auf
+  Anweisung des Schiedsrichters noch eine Strafe nachträgt. Offen bleiben nur die
+  Ausgestaltungsfragen (siehe C1-Detailfragen im Chat: stille Deaktivierung bei
+  Ergebnis-Vollständigkeit abschaffen? Zwischenzustand "Ergebnisse vollständig — wartet auf
+  Beenden"? Beenden auch aus dem Zeitplan durch Orga?).
+- **C6/Parallelstart ist entschieden:** Die Kette rückt erst weiter, wenn ALLE Läufe derselben
+  Startzeit beendet sind (nicht schon beim ersten). Wird umgesetzt.
+- **A2 ist durch den Zeitstrahl erledigt** (geplant/real getrennt, keine "läuft seit 0 min"-Anzeige
+  mehr vor dem Start).
+- C4 klärt Thomas per Rückfrage (Ilka); C5 (Navigation, inkl. Zurück-Button) bewusst vertagt.
