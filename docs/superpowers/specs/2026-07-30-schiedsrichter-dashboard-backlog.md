@@ -218,3 +218,70 @@ das eigentliche Fundament. B1 ist unabhängig und könnte jederzeit dazwischen.
 **Stand 2026-08-02:** A5, A3 und A4 sind in dieser Reihenfolge abgearbeitet. Offen bleiben A1, A2,
 B1 und B2. A2 berührt die Frage, woher der echte Startzeitpunkt kommt, und überschneidet sich damit
 mit B2 — beide sollten nicht parallel angefasst werden.
+
+**Stand 2026-08-04:** B2 (Zeitstrahl) ist umgesetzt, inklusive `started_at`/`finished_at` (damit
+sind Teile von A2 erledigt: geplante vs. reale Startzeit existieren, "läuft seit" rechnet ab dem
+Ist-Start). B1 (Athleten-Board) war bereits vorher fertig. Offen bleiben A1 und die verbliebenen
+A2-Reste (Zustands-Aufräumen von `currently_running`); dazu kommt der neue Abschnitt C.
+
+---
+
+## C. Feedback aus dem Zeitstrahl-Funktionstest (04.08.2026)
+
+Gesammelt beim ersten Durchspielen des Zeitstrahls mit dem Task-20-Seed. Kleinigkeiten
+(Hilfetexte im Shift-Dialog, Hinweis bei komplett verplanten Läufen, Programmpunkte im
+Schiedsrichter-Dashboard, Buttons nebeneinander, Start-Button entfernt, Navigation Slot → Lauf)
+wurden direkt umgesetzt und stehen hier nicht mehr.
+
+### C1. Kette: Auto-Beenden bei vollständiger Ergebniseingabe — einstellbar
+
+**Beobachtung:** Trägt man über die Wettkampf-Durchführung alle Ergebnisse ein, setzt
+`prepareForNewPlaces` den Lauf automatisch inaktiv — aber ohne `finished_at` und ohne
+Ketten-Trigger. Der nächste Lauf startet also nicht, obwohl der Lauf faktisch fertig ist. Nur der
+"Lauf beenden"-Button im Schiedsrichter-Dashboard stempelt und zieht die Kette weiter.
+
+**Wunsch:** Die Kette sollte nur dann unterbrochen werden, wenn ein Lauf *manuell* deaktiviert
+wurde. Ob ein Schiedsrichter aktiv "Lauf beenden" drücken muss oder ob die vollständige
+Ergebniseingabe als Beenden gilt, muss **einstellbar** sein — noch unklar, ob die Schiedsrichter
+den Pflicht-Klick akzeptieren. Alternative Betriebsart: eine Person aus dem Orga-Team aktiviert
+und deaktiviert die Läufe über den Zeitplan.
+
+**Offene Fragen:**
+- Schalter pro Veranstaltung ("Beenden durch Schiedsrichter" vs. "automatisch bei vollständigen
+  Ergebnissen")? Wie verhält sich der RaceClocker-Pull dabei (der trägt auch Ergebnisse ein)?
+- Orga-Betriebsart: Aktivieren/Deaktivieren direkt aus dem Zeitplan-Tab heraus?
+
+### C2. Zeitstrahl-Indikator
+
+Ein durchgehender Fortschritts-Indikator ("wo stehen wir gerade, was ist aktiv, was kommt als
+Nächstes") — im Zeitplan-Tab und/oder als kompakte Leiste im Schiedsrichter-Dashboard. Ergänzt
+C1: Wer die Läufe über den Zeitplan steuert, braucht diese Sicht.
+
+### C3. Ganze Runde überspringen
+
+**Beobachtung:** Scheiden im Zeitfahren so viele Boote aus, dass die Folgerunde nicht stattfinden
+muss, kann man heute nur die einzelnen Slots überspringen. Eine Aktion "Runde überspringen"
+(alle Slots der Runde + die Runde selbst als übersprungen markieren, Kette läuft zur übernächsten
+Runde) fehlt.
+
+### C4. createNextRound-Trigger hinterfragen (mit Ilka besprechen)
+
+Warum braucht es den manuellen "Nächste Runde erstellen"-Klick noch? Eventuell gibt es keinen
+fachlichen Grund mehr — mit dem Zeitstrahl könnten Runden automatisch materialisieren, sobald die
+Vorrunde beendet ist. **Aber:** Der Export zu RaceClocker hat Latenz — der Lauf wäre in ready2race
+schon gesetzt, während er in RaceClocker noch nicht existiert. Klären, ob der manuelle Trigger
+genau diese Lücke bewusst offenhält.
+
+### C5. Navigation überarbeiten
+
+Im Wettkampf fehlt ein Zurück-Button zur Veranstaltung; generell die Navigationswege prüfen
+(Breadcrumbs? Zurück-Pfeile auf den Unterseiten?). Unabhängig vom Zeitstrahl, fiel beim Testen auf.
+
+### C6. Kleinere technische Follow-ups aus dem Final-Review
+
+- `maxReductionMinutes` als strukturiertes Feld im 422-Body statt Regex auf den Fehlertext.
+- Write-Through-Guard: `start_time` beendeter Läufe bei Import/Shift nicht mehr überschreiben.
+- Produktentscheidung Parallelstart-Paar: Kette rückt weiter, sobald *ein* Lauf des Paars beendet
+  ist — gewollt oder auf "alle beendet" warten?
+- DB-Integrationstests für die Ketten-Trigger (finishMatch/createNewRound).
+- Same-Day-Overlap-Prüfung bei negativen Shifts.
