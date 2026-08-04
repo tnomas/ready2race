@@ -300,3 +300,14 @@ Im Wettkampf fehlt ein Zurück-Button zur Veranstaltung; generell die Navigation
 - **A2 ist durch den Zeitstrahl erledigt** (geplant/real getrennt, keine "läuft seit 0 min"-Anzeige
   mehr vor dem Start).
 - C4 klärt Thomas per Rückfrage (Ilka); C5 (Navigation, inkl. Zurück-Button) bewusst vertagt.
+
+**C1-Ausgestaltung entschieden (04.08.2026, spät):** Drei-Wege-Modus `chain_progression_mode`
+pro Veranstaltung (ersetzt den Boolean `auto_activate_next_match`; Migration: false →
+DEAKTIVIERT, true → SCHIEDSRICHTER):
+- **SCHIEDSRICHTER:** Beenden + Kette über das Schiedsrichter-Dashboard (wie heute).
+- **REGATTABUERO:** Beenden/Aktivieren **exklusiv** über den Zeitplan-Tab (Beenden-Button
+  verschwindet vom Schiedsrichter-Dashboard); das Büro gibt nach Kontrolle frei, dann Kette.
+- **DEAKTIVIERT:** Beenden wirkt nur auf den Lauf, keine automatische Aktivierung.
+Zusätzlich: Die **stille Deaktivierung bei vollständiger Ergebniseingabe entfällt** — der Lauf
+bleibt aktiv, die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden", bis der zuständige
+Akteur klickt. Der RaceClocker-Pull meldet nur Daten und beendet nie.
