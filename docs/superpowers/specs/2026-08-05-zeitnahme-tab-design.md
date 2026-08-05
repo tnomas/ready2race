@@ -79,10 +79,15 @@ alter table competition
 `places_option` in `V202505301000__competition_setup.sql:32` auch. Die Werte werden im Backend als
 Enum geparst.
 
-**Nullable, ohne Default.** Das ist die wichtigste Eigenschaft dieser Migration: alle bestehenden
-Wettkämpfe stehen auf `null` und verhalten sich danach exakt wie vorher — Preset-Dialog bei jedem
-Download und Upload, alle drei Ergebnis-Optionen im Menü. Es ändert sich erst etwas, wenn jemand
-für einen Wettkampf ein System wählt. Kein Datenmigrations-Schritt, kein Stichtag.
+**Nullable, ohne Default** — kein Datenmigrations-Schritt, kein Stichtag. Bestehende Wettkämpfe
+stehen auf `null`, und dort bleibt fast alles wie vorher: das Ergebnis-Menü zeigt alle drei
+Optionen, der PDF-Startlisten-Download und die Ergebniseingabe per Formular sind unberührt.
+
+**Eine Verhaltensänderung an Altdaten gibt es aber**, und sie folgt aus Abschnitt 4.1: weil der
+Preset-Auswahldialog entfällt, brauchen CSV-Startliste und xlsx-Ergebnis-Import **einmalig einen
+Eintrag im Zeitnahme-Tab**, bevor sie wieder funktionieren. Vorher genügte die globale
+Preset-Liste. Der Hinweis im Durchführungs-Tab (Abschnitt 6.3) führt genau dorthin — er ist nicht
+nur Warnung, sondern der vorgesehene Weg für Wettkämpfe, die noch nichts konfiguriert haben.
 
 **`on delete set null`** bei den Preset-Referenzen: löscht jemand in der Konfiguration ein Preset,
 verliert der Wettkampf seine Vorbelegung und fällt auf den Dialog zurück. Kein Löschverbot in der
@@ -103,18 +108,22 @@ Die Regel steht damit neben der bestehenden URL-Regel im Backend
 (`RaceClockerMatchTarget.resultsUrl`) statt im Frontend verdoppelt zu werden — `CompetitionRoundDto`
 kennt `isQualification` heute gar nicht und soll es auch nicht bekommen müssen.
 
-### 4.1 Wirkung auf `/startList`
+### 4.1 Wirkung auf `/startList` und den Ergebnis-Import
 
-Der `config`-Query-Parameter ist heute Pflicht für CSV
-(`competitionExecution.kt:224`). Künftig **optional**:
+Der `config`-Query-Parameter ist heute Pflicht für CSV (`competitionExecution.kt:224`). Er
+**entfällt**. Das Preset kommt ausschließlich aus der Wettkampf-Konfiguration — ein Codeweg, kein
+zweiter, der nur noch für den Fall existiert, dass niemand konfiguriert hat:
 
-- Parameter gesetzt → wird verwendet wie heute (der Dialog-Weg bleibt vollständig funktionsfähig).
-- Parameter fehlt → Server löst nach der Regel aus Abschnitt 4 auf.
-- Parameter fehlt und beide Slots leer → eigener Fehlercode; das Frontend öffnet daraufhin den
-  `StartListConfigPicker` wie bisher.
+- Preset auflösbar → CSV wird erzeugt.
+- Beide Slots leer → eigener Fehlercode. Das Frontend zeigt eine Fehlermeldung mit Verweis auf den
+  Zeitnahme-Tab; ein Auswahldialog erscheint nicht mehr.
 
-Analog für den Ergebnis-Import: fehlt der Konfigurations-Parameter, greift
-`result_import_config`; ist der leer, erscheint der `MatchResultUploadDialog` mit Preset-Auswahl.
+Gleiches für den Ergebnis-Import: der Konfigurations-Parameter entfällt, `result_import_config` ist
+die einzige Quelle.
+
+Folgen im Frontend: **`StartListConfigPicker.tsx` wird gelöscht**, der CSV-Download wird eine
+direkte Aktion wie der PDF-Download. **`MatchResultUploadDialog.tsx` verliert seine Preset-Auswahl**
+und behält nur die Dateiauswahl.
 
 ## 5. API
 
@@ -200,15 +209,17 @@ Regatta, die URLs liegen bei der Vorbereitung noch nicht vor. Stattdessen zwei H
 - `MATCH_RESULT_OPTIONS` wird abhängig von `timingSystem`: `WEBSCORER` → ohne
   `RACECLOCKER`-Eintrag; `RACECLOCKER` und `null` → wie heute alle drei. (Bei `RACECLOCKER` bleibt
   `XLS` als Notausgang bestehen.)
-- Startlisten-CSV und Ergebnis-Import laden ohne Konfigurations-Parameter; die Dialoge erscheinen
-  nur noch beim Fehlercode aus Abschnitt 4.1.
+- Startlisten-CSV wird eine direkte Aktion ohne Zwischendialog; beim Fehlercode aus Abschnitt 4.1
+  erscheint eine Fehlermeldung mit Verweis auf den Zeitnahme-Tab. Der Ergebnis-Import-Dialog bleibt
+  für die Dateiauswahl, ohne Preset-Feld.
 
 ## 7. Tests
 
 **Backend** (`./mvnw test`, Stil wie `RaceClockerFeedTest`): Unit-Tests der Auflösungsregel —
 Quali-Runde mit gefülltem Quali-Slot; Quali-Runde mit leerem Quali-Slot (→ Runden-Slot);
-Nicht-Quali-Runde; beide Slots leer (→ Fehlercode); explizit übergebener Parameter überstimmt die
-Auflösung. Dazu die URL-Normalisierung beim Speichern, die aus dem alten Endpunkt übernommen wird.
+Nicht-Quali-Runde; beide Slots leer (→ Fehlercode). Die URL-Normalisierung beim Speichern braucht
+keinen neuen Test: sie zieht unverändert aus dem alten Endpunkt um und ist über
+`RaceClockerFeed.normalizeUrl` in `RaceClockerFeedTest` bereits abgedeckt.
 
 **Frontend** (`npm run test`, `npm run build`): die System-abhängige Sichtbarkeit im Tab und die
 Ableitung von `MATCH_RESULT_OPTIONS` als reine Funktionen, testbar ohne Rendering — analog zu
@@ -228,3 +239,6 @@ Bewusst nicht Teil dieses Designs:
   `text`-Feld; ein drittes System ergänzt man später ohne Migration.
 - **Veranstaltungsweite** Vorbelegung der Presets (etwa „alle Wettkämpfe dieser Regatta nutzen
   RaceClocker"). Sinnvoll bei vielen Wettkämpfen, aber nicht vor dem 14.08.
+- Ein **einmalig abweichendes Preset** pro Download. Das konnte der alte Auswahldialog, und diese
+  Möglichkeit fällt mit ihm weg: wer eine CSV in anderer Spaltenbelegung braucht, ändert dafür den
+  Zeitnahme-Tab. Bewusst akzeptiert, damit es nur einen Codeweg gibt.
