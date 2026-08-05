@@ -432,7 +432,7 @@ import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingConfigRequest
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
-import de.lambda9.ready2race.backend.database.onNullFail
+import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import java.time.LocalDateTime
