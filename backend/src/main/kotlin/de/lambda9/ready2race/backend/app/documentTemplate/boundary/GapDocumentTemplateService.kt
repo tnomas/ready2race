@@ -28,7 +28,6 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocume
 import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocumentTemplateFontRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocumentTemplateUsageRecord
 import de.lambda9.ready2race.backend.file.File
-import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.pdf.checkValidFont
@@ -226,7 +225,15 @@ object GapDocumentTemplateService {
         if (request.template == null) {
             !GapDocumentTemplateUsageRepo.delete(type).orDie()
         } else {
-            !GapDocumentTemplateRepo.exists(request.template).orDie().onFalseFail { GapDocumentTemplateError.NotFound }
+            val template = !GapDocumentTemplateRepo.get(request.template).orDie()
+                .onNullFail { GapDocumentTemplateError.NotFound }
+
+            // Ohne diese Prüfung ließe sich z. B. eine Teilnahmeurkunden-Vorlage unter
+            // AWARD_CERTIFICATE einhängen; die Generierung würde dann nur die zufällig
+            // überlappenden Platzhalter befüllen, ohne jede Fehlermeldung (siehe GapDocumentTemplateLogic).
+            !KIO.failOn(!GapDocumentTemplateLogic.templateTypeMatches(GapDocumentType.valueOf(template.type!!), type)) {
+                GapDocumentTemplateError.TemplateTypeMismatch
+            }
 
             !GapDocumentTemplateUsageRepo.upsert(
                 GapDocumentTemplateUsageRecord(

@@ -8,13 +8,20 @@ enum class GapDocumentTemplateError : ServiceError {
     NotFound,
     InvalidFont,
     PlaceholderPageNotSupported,
-    PlaceholderTypeNotSupported;
+    PlaceholderTypeNotSupported,
+    TemplateTypeMismatch;
 
     override fun respond(): ApiError = when(this) {
         NotFound ->
             ApiError(
                 status = HttpStatusCode.NotFound,
                 message = "Template not found"
+            )
+
+        TemplateTypeMismatch ->
+            ApiError(
+                status = HttpStatusCode.BadRequest,
+                message = "Template type does not match the document type it is assigned to"
             )
 
         InvalidFont ->

@@ -79,6 +79,28 @@ class GapDocumentTemplateLogicTest {
     }
 
     @Test
+    fun templateTypeMismatchIsRejected() {
+        // Eine Teilnahmeurkunden-Vorlage darf nicht unter AWARD_CERTIFICATE eingehängt werden - sonst
+        // würden beim Druck nur die zufällig überlappenden Platzhalter befüllt, ohne Fehlermeldung.
+        assertFalse(
+            GapDocumentTemplateLogic.templateTypeMatches(
+                GapDocumentType.CERTIFICATE_OF_PARTICIPATION,
+                GapDocumentType.AWARD_CERTIFICATE,
+            )
+        )
+    }
+
+    @Test
+    fun matchingTemplateTypeIsAccepted() {
+        assertTrue(
+            GapDocumentTemplateLogic.templateTypeMatches(
+                GapDocumentType.AWARD_CERTIFICATE,
+                GapDocumentType.AWARD_CERTIFICATE,
+            )
+        )
+    }
+
+    @Test
     fun certificateOfParticipationWithOnlyItsOwnTypesIsAccepted() {
         // Alle fünf für die Teilnahmeurkunde erlaubten Typen zusammen sind zulässig.
         assertTrue(
