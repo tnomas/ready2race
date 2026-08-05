@@ -520,6 +520,37 @@ Platzhalter auf Seite 1 **und** 2) — G22 laesst sich damit sofort pruefen, sob
 existiert. Nebenbei bestaetigt: die Einseitigkeits-Regel gilt nur fuer Siegerurkunden, die
 Teilnahme-Vorlage nimmt Platzhalter auf Seite 2 an.
 
+### Nachtrag: restliche Faelle
+
+| ID | Ergebnis | Notiz |
+|---|---|---|
+| A2 | ✓ | Kiosk: Uhr („00:12") und „Stand" stehen frei; „Konfigurieren"/„Vollbild" liegen darueber. Im Vollbild sitzt das Beenden-Symbol ebenfalls oberhalb und verdeckt nichts |
+| A3 | ✓ | Aktivierter Lauf ohne Ergebnisse: geplante Zeit gross, darunter „in Vorbereitung", keine Zeiten |
+| A11 | ✓ | Meldung ohne Namen erscheint als „Ruderclub Schleswig \| Team 2" aus `team_number` |
+| A16 | ✓ | Lauf ohne Startzeit: Zustand `UNSCHEDULED`, Anzeige „Zeit offen", Lauf bleibt mit seinen Booten sichtbar (sortiert ans Ende, deshalb nur bei hoeherem Limit sichtbar) |
+| A17 | ✓ | Nach ~45 s ohne Backend: „Stand 22:57 — Verbindung unterbrochen", letzter Stand bleibt vollstaendig stehen, nie „kein Lauf auf dem Wasser"; erholt sich selbst |
+| C9 | ✓ | Doppelte Zeile im Feed: 400 `RACECLOCKER_DUPLICATE_TEAMS` mit Wellenname und Bootsnamen |
+| D2 | ✓ | Intervall 5/10/30/60 s waehlbar, Auswahl liegt im `localStorage` (`live_dashboard_poll_interval`), bleibt am Geraet |
+| D3 | ✓ | Nach ~50 s ohne Backend: „Verbindung gestoert — Anzeige ist moeglicherweise nicht aktuell.", letzter Stand bleibt |
+| D5 | ✓ | Mannschafts-Dialog oeffnet mit Nummer, Name, Verein, Rechnungsstatus und uebersteht einen Nachlade-Takt |
+| D8 | teilweise | Rueckfrage kommt und wertet nichts stillschweigend („Offen lassen" laesst das Boot offen). **Aber:** sie sagt „Ein Boot hat noch kein Ergebnis" und **benennt das Boot nicht** |
+| F5 | ✓ | Rueckfall auf das Runden-Preset bei Webscorer **und** bei „nicht gesetzt" (Altdaten-Fall per DB hergestellt, ueber die API ist die Kombination nicht mehr speicherbar) |
+| F7 | ✓ (Backend) | Beide Slots leer: 400 mit `errorCode: STARTLIST_CONFIG_NOT_CONFIGURED` |
+| F8 | ✓ | Upload-Dialog hat nur die Dateiauswahl, kein Preset |
+| F9 | ✓ | Bei RaceClocker enthaelt das Ergebnis-Menue „von RaceClocker holen" **und** xlsx als Notausgang |
+| F11 | ✓ | Global geloeschtes Preset setzt die Referenz am Wettkampf auf NULL, der Wettkampf laedt weiter |
+| F13 | ✓ | Vollstaendiger Round-Trip: Presets hinterlegt, Startlisten fuer Quali **und** Laeufe-Runde geladen, beide in RaceClocker importiert, Ergebnisse gezogen |
+| F15 | ✓ | Tab, Feldnamen und alle Fehlermeldungen vollstaendig in de/en/da, inkl. der zwei heute ergaenzten Warnungen. Preset-Namen kommen aus der Datenbank und sind bewusst unuebersetzt |
+
+Beobachtung am Rande (kein Katalogfall): der CSV-Import in RaceClocker **ersetzt** die Startliste,
+er ergaenzt sie nicht. Der Kommentar in `CompetitionExecutionService` sagt das Gegenteil
+(„RaceClocker only ever inserts, it never updates: importing the same start list twice leaves
+duplicates"). Fuer C9 musste das Duplikat deshalb in der Datei stehen. Wert, bei Cees abzusichern.
+
+Zweite Beobachtung: die Kiosk-Seite `/event/{id}/info` laedt ihre Ansichten ueber `/info-views` und
+bekommt ohne Anmeldung 401 — sie braucht also eine Sitzung, anders als `/board/{eventId}`. Passt zu
+E4, steht aber so nicht im Katalog.
+
 ---
 
 ## Zusammenfassung der Nacht
