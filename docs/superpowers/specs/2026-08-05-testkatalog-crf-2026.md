@@ -44,6 +44,10 @@ nicht die Erwartung anpassen.
 6. **Seiten.** Athleten-Anzeige `/board/{eventId}` · Kiosk `/event/{eventId}/info` ·
    Schiedsrichter `/event/{eventId}/live-dashboard` · Zeitplan-Tab der Veranstaltung ·
    Wettkampf-Durchführung · Zeitnahme-Tab des Wettkampfs · Gap-Vorlagenverwaltung unter `/config`.
+7. **Seed-Daten für den Zeitstrahl.** Zwei gitignorierte Skripte im `zeitstrahl`-Worktree unter
+   `.superpowers/sdd/`: `seed-zeitstrahl.sql` (kleines Szenario, UUID-Präfix `5eed`) und
+   `seed-foerde.sql` (Nachbau der Regatta 2025, Präfix `f0de`: 7 Wettkämpfe, 2 Renntage, 21 Slots,
+   Sprint-Wettkämpfe mit Zeitfahren → Halbfinale → Finale A/B). Grundlage für die B-Fälle.
 
 ---
 
@@ -83,12 +87,22 @@ nicht die Erwartung anpassen.
 | B5 | Lauf absagen | Nur mit Audit; ein bereits gestarteter Lauf lässt sich nicht absagen | `bf3e47cd`, `0b56ebf2` | |
 | B6 | Wortwahl | Oberfläche spricht von „abgesagt", nicht von „übersprungen"; Umfang der Aktion ist benannt | `8bd94c1f`, `041bf03d` | |
 | B7 | Excel-Import | Zeilenweise Vorschau, echte Excel-Zeilennummern in Fehlermeldungen, Namensabgleich | `8cc599eb`, `01863020`, `8bf3ef04` | |
-| B8 | Kette: Fortschaltmodus | Drei Modi (aus / nur Runde / voll) greifen wie beschrieben | `ed7160d1`, `27080b8b` | |
+| B8 | Kette: Fortschaltmodus | Drei Modi am Event: **Schiedsrichter** (Beenden und Kette über das Dashboard), **Regattabüro** (Beenden/Aktivieren nur über den Zeitplan — im Dashboard fehlt der Beenden-Knopf, die API antwortet dort 409), **Deaktiviert** (Beenden wirkt nur auf den Lauf) | `ed7160d1`, `27080b8b` | |
 | B9 | Kette: Wartepunkt | Kette hält am wartenden Slot, ganze Startgruppe wird abgewartet | `6d6be623`, `cd83aed2` | |
 | B10 | Kette nach Absage | Nach Absage des gewarteten Slots läuft die Kette weiter | `41b808e9` | |
 | B11 | Läufe aus dem Zeitplan steuern | Büro kann Läufe direkt aus dem Zeitplan starten/beenden; beendete Läufe lassen sich nicht reaktivieren | `65406827`, `c9709773` | |
 | B12 | Startzeit von Slot-Läufen | Manuelle Startzeit-Änderung am Lauf wird abgelehnt, solange ein Slot ihn führt | `c8441e8c` | |
 | B13 | Zeitstrahl-Anzeige | Indikator „jetzt" im Plan-Tab und auf dem Schiedsrichter-Dashboard steht an der richtigen Stelle | `ba7e7bdb` | |
+| B14 | Runde entfällt (Durchführung) | Aktion sitzt in der Durchführung, nicht im Zeitplan, und erscheint nur, wenn die Runde nichts zu fahren hat (jeder Lauf ein Freilos) | `3ebbc959` | |
+| B15 | Runde entfällt: Schutzregel | Runde mit fahrbaren Läufen und noch nicht gesetzte Runde werden serverseitig mit 409 abgelehnt — auch bei direktem API-Aufruf | `748ade1c` | |
+| B16 | Umfang der Absage | Tooltip, Text und Knopf benennen „nur diesen Lauf" bzw. „alle N Läufe"; bei einer Runde aus einem einzigen Slot fehlt die Runden-Aktion ganz | `041bf03d` | |
+| B17 | Wartende Slots bearbeiten | Ein Slot ohne gesetzten Lauf lässt sich in Zeit und Dauer ändern | `19247b67` | |
+| B18 | Vom Zeitplan zum Lauf | Verknüpfte Slots springen in die Durchführung des Wettkampfs | `a05e644a`, `19247b67` | |
+| B19 | Stauchen unmöglich | Zu großer Verzug meldet die maximal aufholbare Zeit; der Wert kommt strukturiert aus der Antwort, nicht per Textanalyse | `0fb21aea` | |
+| B20 | Beendete Läufe bei Import/Verschieben | Ihre Startzeit bleibt unverändert — Historie wird nicht überschrieben | `0fb21aea` | |
+| B21 | Vorziehen (negativer Verzug) | Ein Shift, der den Vorgänger-Slot überholen würde, wird abgelehnt | `0fb21aea` | |
+| B22 | Import ersetzt alles | Vorschau schreibt nichts; erst „Importieren" ersetzt alle Slots; eine doppelte Zeile blockiert den Import | `8cc599eb`, `8bf3ef04` | |
+| B23 | Symbolspalten | Aktionssymbole stehen über alle Zeilen in festen Spalten untereinander | `bb39d7f7` | |
 
 ## C — RaceClocker
 
@@ -127,6 +141,10 @@ nicht die Erwartung anpassen.
 | D12 | Schiedsrichter-Modus | Warnung, wenn das Büro den Modus überschreibt | `b061c470` | |
 | D13 | Draußen lesbar | Große Schrift, hoher Kontrast, Vereinsnamen gekürzt, Karten als Spaltengitter | `211bbf4f`, `e45ce42f`, `95616793` | |
 | D14 | Freie Slots | Programmpunkte erscheinen im Dashboard an ihrer Stelle | `42d6b9f7` | |
+| D15 | Kein stiller Stopp | Vollständige Ergebnisse (Formular, Datei, RaceClocker) beenden den Lauf nicht; die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden" | `6b0a0f7d` | |
+| D16 | Geplant und echter Start | Karte zeigt „geplant HH:MM" und, sobald gestartet, „gestartet HH:MM"; „läuft seit" zählt ab dem echten Start | `e4cb8753` | |
+| D17 | Kein Start-Knopf | Das Dashboard bietet kein manuelles Starten an — der Ist-Start kommt aus der Zeitnahme | `2cfa9bad` | |
+| D18 | Wartende Läufe | Platzhalterkarte „Lauf noch nicht gesetzt" erscheint an ihrer Zeitposition und lässt sich von dort absagen | `e5744801`, `2cfa9bad` | |
 
 ## E — Betrieb
 
@@ -138,6 +156,8 @@ nicht die Erwartung anpassen.
 | E4 | Rechte | `LIVE_DASHBOARD` steuert den Zugang zum Dashboard; die Athleten-Anzeige braucht keine Anmeldung | `6d6c6431`, `8eda6dc1` | |
 | E5 | Nutzlast | Dashboard-Antwort enthält nur, was die Liste zeigt | `d189fe68` | |
 | E6 | Zeitzone | Postgres läuft auf UTC, die Anwendung auf Europe/Berlin — angezeigte Zeiten stimmen mit dem Zeitplan überein | — | |
+| E7 | Migration auf bestehender Datenbank | Der Moduswechsel (Boolean → drei Modi) läuft auf einer DB durch, die `event_view` schon trägt | `bb19b126` | |
+| E8 | Migrationen außer der Reihe | Die aus `issue/94` nachgezogenen Migrationen blockieren den Start nicht (`outOfOrder`) | `41b808e9` | |
 
 ## F — Zeitnahme-Einstellungen
 
