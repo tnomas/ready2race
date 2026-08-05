@@ -48,11 +48,25 @@ class GapPlaceholderLogicTest {
     )
 
     @Test
-    fun everyPlaceholderTypeIsMapped() {
-        // Schützt davor, dass ein neuer Platzhaltertyp beim Befüllen vergessen wird.
+    fun everyPlaceholderTypeYieldsNonBlankContentWhenEveryValueIsPopulated() {
+        // Der alte Test hier prüfte nur, dass die Ergebnisliste so viele Einträge hat wie es
+        // Platzhaltertypen gibt - das garantiert jede größenerhaltende `map`-Abbildung unabhängig
+        // vom tatsächlichen Inhalt, und dupliziert außerdem eine Garantie, die der Compiler durch
+        // das erschöpfende `when` in GapPlaceholderLogic.content ohnehin schon gibt. Stattdessen wird
+        // hier geprüft, dass jeder Platzhaltertyp echten (nicht-leeren) Inhalt liefert, wenn alle
+        // Werte gesetzt sind - das hätte einen vergessenen oder falsch verdrahteten Typ tatsächlich
+        // auffliegen lassen.
+        val fullyPopulatedValues = values.copy(teamName = "Flensburg I")
         val placeholders = GapDocumentPlaceholderType.entries.map { placeholder(it, staticText = "Fest") }
-        val filled = GapPlaceholderLogic.fill(placeholders, values)
-        assertEquals(GapDocumentPlaceholderType.entries.size, filled.size)
+
+        val filled = GapPlaceholderLogic.fill(placeholders, fullyPopulatedValues)
+
+        filled.forEachIndexed { index, additionalText ->
+            assertTrue(
+                additionalText.content.isNotBlank(),
+                "Platzhaltertyp ${GapDocumentPlaceholderType.entries[index]} lieferte leeren Inhalt",
+            )
+        }
     }
 
     @Test
