@@ -1429,6 +1429,7 @@ const trimmedOrNull = (value: string): string | null => value.trim() || null
  */
 export const mapTimingFormToRequest = (form: TimingForm): TimingConfigRequest => {
     const raceClocker = form.timingSystem === 'RACECLOCKER'
+    const configured = form.timingSystem !== 'NONE'
 
     return {
         timingSystem: form.timingSystem === 'NONE' ? null : form.timingSystem,
@@ -1437,10 +1438,26 @@ export const mapTimingFormToRequest = (form: TimingForm): TimingConfigRequest =>
         startlistConfigQualification: raceClocker
             ? (form.startlistConfigQualification?.id ?? null)
             : null,
-        startlistConfigRounds: form.startlistConfigRounds?.id ?? null,
-        resultImportConfig: form.resultImportConfig?.id ?? null,
+        startlistConfigRounds: configured ? (form.startlistConfigRounds?.id ?? null) : null,
+        resultImportConfig: configured ? (form.resultImportConfig?.id ?? null) : null,
     }
 }
+```
+
+**Korrektur am 05.08.2026 (Review Task 7):** die beiden letzten Zeilen waren zunächst ungeschützt und hätten bei `NONE` gespeicherte Presets durchgereicht, obwohl der Tab die Felder dort verbirgt. Besonders heikel, weil die serverseitige Auflösung `timing_system` gar nicht liest — ein unsichtbares Preset hätte also weiter exportiert. Dazu gehört der Testfall:
+
+```ts
+    it('verwirft alle Presets, wenn kein System gesetzt ist', () => {
+        const request = mapTimingFormToRequest({
+            ...emptyTimingForm,
+            timingSystem: 'NONE',
+            startlistConfigRounds: {id: roundsPreset, label: 'Läufe'},
+            resultImportConfig: {id: importPreset, label: 'Webscorer xlsx'},
+        })
+
+        expect(request.startlistConfigRounds).toBeNull()
+        expect(request.resultImportConfig).toBeNull()
+    })
 
 export type TimingWarning = 'heatsUrl' | 'startlistRounds'
 
