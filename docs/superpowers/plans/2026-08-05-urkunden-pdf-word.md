@@ -32,9 +32,15 @@ auf vorgedrucktes Papier gedruckt wird) und POI XWPF für DOCX (absolut position
   in `backend/src/main/resources/db/migration/afterMigrate.sql`, wo sie zuerst gedroppt und dann neu
   angelegt werden.
 - Nach jeder DB-Änderung: `cd backend && docker compose up -d` und `./mvnw jooq:generate`.
-- `JAVA_HOME` fehlt in der Shell — Maven-Aufrufe brauchen
-  `export JAVA_HOME=$(/usr/libexec/java_home -v 21)` (Version notfalls mit
-  `/usr/libexec/java_home -V` prüfen).
+- **Der jOOQ-Codegen teilt die `build-db` zwischen allen Worktrees**, weil der Compose-Projektname
+  aus dem Verzeichnisnamen `backend` kommt. Scheitert der Build mit Flyway-Validate- oder
+  Out-of-order-Fehlern, weil ein anderer Branch dort andere Migrationen angewendet hat: eine
+  Wegwerf-Postgres auf eigenem Port starten und dem Build per
+  `-Ddatabase.url=jdbc:postgresql://localhost:<port>/ready2race` unterschieben. Den geteilten
+  Container **nie** wipen — andere Worktrees hängen daran.
+- `JAVA_HOME` fehlt in der Shell, und `/usr/libexec/java_home` findet das JDK **nicht** — das
+  Homebrew-JDK 21 ist keg-only. Jeder Maven-Aufruf braucht deshalb wörtlich
+  `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`.
 - OpenAPI-Quelle ist `backend/src/main/resources/openapi/documentation.yaml` (handpflegt). Neue
   Pfade **vor** dem `components:`-Schlüssel einfügen, danach im Frontend `npm run generate`.
   Das Verzeichnis `api/*.tsp` wird nicht angefasst.
@@ -147,7 +153,7 @@ cd backend && docker compose up -d
 Dann:
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw jooq:generate
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw jooq:generate
 ```
 
 Erwartung: Build erfolgreich, `flyway` wendet `V202608051200` an, jOOQ generiert neu.
@@ -350,7 +356,7 @@ class GapPlaceholderLogicTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
 ```
 
 Erwartung: Compile-Fehler, `GapPlaceholder` und `GapPlaceholderLogic` existieren nicht.
@@ -538,7 +544,7 @@ data class AdditionalText(
 - [ ] **Step 8: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
 ```
 
 Erwartung: alle sieben Tests grün.
@@ -665,7 +671,7 @@ Importe `GapDocumentType`, `GapDocumentPlaceholderType`, `AdditionalText`, `Text
 - [ ] **Step 12: Gesamten Testlauf und Compile prüfen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
 ```
 
 Erwartung: Build erfolgreich, alle Tests grün.
@@ -867,7 +873,7 @@ class GapDocumentsTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
 ```
 
 Erwartung: Compile-Fehler, `gapDocuments` existiert nicht.
@@ -1041,7 +1047,7 @@ durch den Import.
 - [ ] **Step 4: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
 ```
 
 Erwartung: alle sieben Tests grün. Schlägt `multipleLinesAreRenderedSeparately` fehl, weil
@@ -1230,7 +1236,7 @@ class GapDocumentsDocxTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
 ```
 
 Erwartung: Compile-Fehler, `gapDocumentsDocx` existiert nicht.
@@ -1375,7 +1381,7 @@ als `BigInteger` übergeben und nur den deklarierten Parametertyp beachten — k
 - [ ] **Step 4: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
 ```
 
 Erwartung: alle acht Tests grün.
@@ -1386,7 +1392,7 @@ Ein Testlauf schreibt kein Artefakt; für die Sichtprüfung einmalig ein Dokumen
 rendern:
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
 soffice --headless --convert-to pdf --outdir /tmp/docxcheck backend/testOutputs/*.docx 2>/dev/null || true
 ```
 
@@ -1613,7 +1619,7 @@ class AwardCertificateLogicTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
 ```
 
 Erwartung: Compile-Fehler, die Typen existieren nicht.
@@ -1755,7 +1761,7 @@ object AwardCertificateLogic {
 - [ ] **Step 5: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
 ```
 
 Erwartung: alle Tests grün.
@@ -2167,7 +2173,7 @@ import de.lambda9.ready2race.backend.app.certificate.boundary.awardCertificate
 - [ ] **Step 5: Kompilieren**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q compile
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q compile
 ```
 
 Erwartung: erfolgreich. Fehler zu Feldnamen aus den generierten Records oder aus
@@ -2457,7 +2463,7 @@ Bei `/event/{eventId}/certificatesOfParticipation` und
 - [ ] **Step 5: Kompilieren, Tests, Client generieren**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
 ```
 
 ```bash
@@ -2632,7 +2638,7 @@ cd frontend && npm run generate
 - [ ] **Step 8: Kompilieren und Tests**
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
 ```
 
 - [ ] **Step 9: Commit**
@@ -2784,7 +2790,7 @@ git commit -m "Add award certificate download dialog and entry points"
 
 ## Abschluss
 
-- [ ] Vollständiger Backend-Testlauf: `export JAVA_HOME=$(/usr/libexec/java_home -v 21) && cd backend && ./mvnw test`
+- [ ] Vollständiger Backend-Testlauf: `export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw test`
 - [ ] Frontend: `cd frontend && npm run lint && npm run build`
 - [ ] Manuelle Probe: Vorlage anlegen (PDF-Export der DRV-PPTX), Platzhalter setzen, Urkunden für
   einen Wettkampf als PDF und als Word herunterladen, beide Dateien öffnen und die Positionen gegen
