@@ -222,6 +222,10 @@
           "CERTIFICATE_OF_PARTICIPATION": "Deltagelsesbevis",
           "AWARD_CERTIFICATE": "Sejrsdiplom"
         },
+        "typeLockedHelp": "Diplomtypen kan ikke ændres for en eksisterende skabelon, da tildelingen og de placerede pladsholdere er bygget op omkring den.",
+        "typePlaceholdersRemoved_one": "{{count}} pladsholder blev fjernet, fordi den ikke er tilladt for den nye diplomtype.",
+        "typePlaceholdersRemoved_other": "{{count}} pladsholdere blev fjernet, fordi de ikke er tilladt for den nye diplomtype.",
+        "singlePageNotice": "Sejrsdiplomer bruger kun side 1 af PDF-skabelonen. Yderligere sider vises ikke, da der ikke kan placeres pladsholdere dér.",
         "file": {
           "choose": "Vælg PDF-skabelon",
           "change": "Skift PDF-skabelon",

@@ -222,6 +222,10 @@
           "CERTIFICATE_OF_PARTICIPATION": "Teilnahmeurkunde",
           "AWARD_CERTIFICATE": "Siegerurkunde"
         },
+        "typeLockedHelp": "Der Urkundentyp kann bei einer bestehenden Vorlage nicht mehr geändert werden, da die Zuweisung und die platzierten Platzhalter darauf aufbauen.",
+        "typePlaceholdersRemoved_one": "{{count}} Platzhalter wurde entfernt, da er für den neuen Urkundentyp nicht zulässig ist.",
+        "typePlaceholdersRemoved_other": "{{count}} Platzhalter wurden entfernt, da sie für den neuen Urkundentyp nicht zulässig sind.",
+        "singlePageNotice": "Siegerurkunden verwenden nur Seite 1 der PDF-Vorlage. Weitere Seiten werden nicht angezeigt, da dort keine Platzhalter platziert werden können.",
         "file": {
           "choose": "PDF-Vorlage auswählen",
           "change": "PDF-Vorlage ändern",

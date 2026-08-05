@@ -222,6 +222,10 @@
           "CERTIFICATE_OF_PARTICIPATION": "Certificate of Participation",
           "AWARD_CERTIFICATE": "Award Certificate"
         },
+        "typeLockedHelp": "The certificate type cannot be changed for an existing template, since its assignment and placed placeholders are built around it.",
+        "typePlaceholdersRemoved_one": "{{count}} placeholder was removed because it is not allowed for the new certificate type.",
+        "typePlaceholdersRemoved_other": "{{count}} placeholders were removed because they are not allowed for the new certificate type.",
+        "singlePageNotice": "Award certificates only use page 1 of the PDF template. Further pages are not shown, since no placeholders can be placed there.",
         "file": {
           "choose": "Choose PDF template",
           "change": "Change PDF template",

@@ -190,6 +190,27 @@ const GapDocumentTemplateDialog = (props: BaseEntityDialogProps<GapDocumentTempl
         }
     }, [fields])
 
+    const handleTypeChange = (newType: GapDocumentType) => {
+        if (newType === documentType) {
+            return
+        }
+        const newAllowedTypes =
+            documentTypes?.find(dt => dt.type === newType)?.allowedPlaceholders ?? []
+        const keptPlaceholders = placeholders.filter(p => newAllowedTypes.includes(p.type))
+        const removedCount = placeholders.length - keptPlaceholders.length
+
+        formContext.setValue('type', newType)
+        formContext.setValue('placeholders', keptPlaceholders)
+        if (selectedPlaceholder && !keptPlaceholders.some(p => p.id === selectedPlaceholder)) {
+            setSelectedPlaceholder(null)
+        }
+        if (removedCount > 0) {
+            feedback.warning(
+                t('gap.document.template.typePlaceholdersRemoved', {count: removedCount}),
+            )
+        }
+    }
+
     const handleAddPlaceholder = (type: GapDocumentPlaceholderType, page: number) => {
         const newPlaceholder: PlaceholderData = {
             id: uuidv4(),
@@ -223,20 +244,28 @@ const GapDocumentTemplateDialog = (props: BaseEntityDialogProps<GapDocumentTempl
             fullScreen>
             <Stack spacing={3}>
                 {/* Document Type Selection */}
-                <FormInputLabel label={t('gap.document.template.type')} required horizontal>
-                    <Select
-                        sx={{flex: 1}}
-                        value={documentType}
-                        onChange={e => {
-                            formContext.setValue('type', e.target.value as GapDocumentType)
-                        }}>
-                        {DOCUMENT_TYPES.map(type => (
-                            <MenuItem key={type} value={type}>
-                                {t(`gap.document.template.types.${type}`)}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormInputLabel>
+                <Stack spacing={0.5}>
+                    <FormInputLabel label={t('gap.document.template.type')} required horizontal>
+                        <Select
+                            sx={{flex: 1}}
+                            value={documentType}
+                            disabled={!!props.entity}
+                            onChange={e => {
+                                handleTypeChange(e.target.value as GapDocumentType)
+                            }}>
+                            {DOCUMENT_TYPES.map(type => (
+                                <MenuItem key={type} value={type}>
+                                    {t(`gap.document.template.types.${type}`)}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormInputLabel>
+                    {props.entity && (
+                        <Typography variant="caption" color="text.secondary">
+                            {t('gap.document.template.typeLockedHelp')}
+                        </Typography>
+                    )}
+                </Stack>
 
                 {/* Font Name */}
                 <FormInputLabel label={t('gap.document.template.font.name')} horizontal>
@@ -349,6 +378,7 @@ const GapDocumentTemplateDialog = (props: BaseEntityDialogProps<GapDocumentTempl
                             <Grid2 size={{xs: 12, md: 8}}>
                                 <PdfPlaceholderEditor
                                     pdfFile={pdfFile}
+                                    documentType={documentType}
                                     placeholders={placeholders}
                                     onPlaceholdersChange={handlePlaceholdersChange}
                                     onAddPlaceholder={handleAddPlaceholder}

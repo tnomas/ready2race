@@ -140,12 +140,22 @@ const PlaceholderSidebar = (props: Props) => {
                             label={t('gap.document.placeholder.fontSize')}
                             type="number"
                             value={selectedPlaceholder.fontSize ?? ''}
-                            onChange={e =>
+                            onChange={e => {
+                                const rawValue = e.target.value
+                                if (rawValue === '') {
+                                    handlePlaceholderPropertyChange(selectedPlaceholder.id, {
+                                        fontSize: undefined,
+                                    })
+                                    return
+                                }
+                                const parsedValue = Number(rawValue)
+                                if (Number.isNaN(parsedValue)) {
+                                    return
+                                }
                                 handlePlaceholderPropertyChange(selectedPlaceholder.id, {
-                                    fontSize:
-                                        e.target.value === '' ? undefined : Number(e.target.value),
+                                    fontSize: Math.max(1, parsedValue),
                                 })
-                            }
+                            }}
                             fullWidth
                             size="small"
                             slotProps={{htmlInput: {min: 1}}}
