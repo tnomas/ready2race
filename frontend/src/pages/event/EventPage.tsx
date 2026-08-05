@@ -75,6 +75,7 @@ import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategorie
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
 import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
+import SplitButton from '@components/SplitButton.tsx'
 
 const EVENT_TABS = [
     'general',
@@ -186,9 +187,10 @@ const EventPage = () => {
         }
     }
 
-    const handleClubCertificatesDownload = async () => {
+    const handleClubCertificatesDownload = async (format: 'pdf' | 'docx' = 'pdf') => {
         const {data, error, response} = await downloadCertificatesOfParticipation({
             path: {eventId},
+            query: {format},
         })
 
         const anchor = downloadRef.current
@@ -376,13 +378,22 @@ const EventPage = () => {
                                         user.clubId &&
                                         data.challengeEvent &&
                                         data.challengesFinished && (
-                                            <Button
-                                                variant={'outlined'}
-                                                onClick={handleClubCertificatesDownload}>
-                                                <Trans
-                                                    i18nKey={'event.action.downloadCertificates'}
-                                                />
-                                            </Button>
+                                            <SplitButton
+                                                main={{
+                                                    label: t('event.action.downloadCertificates'),
+                                                    onClick: () =>
+                                                        handleClubCertificatesDownload('pdf'),
+                                                }}
+                                                options={[
+                                                    {
+                                                        label: t(
+                                                            'event.action.downloadCertificatesWord',
+                                                        ),
+                                                        onClick: () =>
+                                                            handleClubCertificatesDownload('docx'),
+                                                    },
+                                                ]}
+                                            />
                                         )}
                                 </Card>
                                 {user.checkPrivilege(readEventGlobal) && !data.challengeEvent && (

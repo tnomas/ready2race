@@ -472,6 +472,7 @@
       "resendAccessToken": "Send ny adgangstoken",
       "resendAccessTokenSuccess": "Ny token sendt.",
       "downloadCOP": "Download deltagelsesbevis",
+      "downloadCOPWord": "Download deltagelsesbevis som Word",
       "userQrCode": "Bruger-QR-kode",
       "qrCode": "QR-kode",
       "id": "Deltager-ID",
@@ -1103,6 +1104,7 @@
     },
     "action": {
       "downloadCertificates": "Download deltagelsesbeviser",
+      "downloadCertificatesWord": "Download deltagelsesbeviser som Word",
       "downloadAwardCertificates": "Download sejrsdiplomer",
       "sendCertificates": "Send deltagelsesbeviser",
       "sendCertificatesSucceeded": "Afsendelse af deltagelsesbeviser igangsat",

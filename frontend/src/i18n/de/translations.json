@@ -472,6 +472,7 @@
       "resendAccessToken": "Neuen Zugangstoken versenden",
       "resendAccessTokenSuccess": "Neuer Token versendet.",
       "downloadCOP": "Teilnahmeurkunde herunterladen",
+      "downloadCOPWord": "Teilnahmeurkunde als Word herunterladen",
       "userQrCode": "Benutzer QR-Code",
       "qrCode": "QR-Code",
       "id": "Teilnehmer-ID",
@@ -1103,6 +1104,7 @@
     },
     "action": {
       "downloadCertificates": "Teilnahmeurkunden herunterladen",
+      "downloadCertificatesWord": "Teilnahmeurkunden als Word herunterladen",
       "downloadAwardCertificates": "Urkunden herunterladen",
       "sendCertificates": "Teilnahmeurkunden versenden",
       "sendCertificatesSucceeded": "Versand von Teilnahmeurkunden beauftragt",

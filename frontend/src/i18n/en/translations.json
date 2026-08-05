@@ -472,6 +472,7 @@
       "resendAccessToken": "Send new access token",
       "resendAccessTokenSuccess": "New token sent.",
       "downloadCOP": "Download certificate of participation",
+      "downloadCOPWord": "Download certificate of participation as Word",
       "userQrCode": "User QR Code",
       "qrCode": "QR Code",
       "id": "Participant ID",
@@ -1103,6 +1104,7 @@
     },
     "action": {
       "downloadCertificates": "Download certificated of participation",
+      "downloadCertificatesWord": "Download certificates of participation as Word",
       "downloadAwardCertificates": "Download award certificates",
       "sendCertificates": "Send certificates of participation",
       "sendCertificatesSucceeded": "Sending of Certificates of participation successfully engaged",
