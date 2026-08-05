@@ -319,3 +319,9 @@ selektierte den Alias aber nicht (im Gegensatz zu `getSlots`/`getChainSlots`). F
 unabhängig vom Laufzustand. Reine Unit-Tests auf den `*Logic`-Objekten können diese Fehlerklasse
 (gelesener Alias fehlt in der konkreten Query) nicht sehen — ein DB-gestützter Test pro Repo-Query
 hätte sie sofort gefangen.
+
+**C3 präzisiert und umgesetzt (05.08.2026):** "Runde entfällt" sitzt in der **Durchführung** (nicht im
+Zeitplan — dort wäre es zu prominent) und erscheint nur, wenn die Runde nichts zu fahren hat: Runde
+materialisiert und kein Lauf mit zwei oder mehr startenden Booten (Freilos-Fall). Sonst müssen die
+Läufe gefahren werden, damit die Setzung der Folgerunde stimmt — der Endpoint lehnt das serverseitig
+mit 409 ab (auch bei noch nicht gesetzter Runde; dort bleibt nur der Einzel-Slot-Entfall).
