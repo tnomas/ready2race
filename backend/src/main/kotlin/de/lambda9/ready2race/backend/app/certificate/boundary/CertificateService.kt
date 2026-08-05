@@ -8,10 +8,12 @@ import de.lambda9.ready2race.backend.app.auth.entity.Privilege.Scope
 import de.lambda9.ready2race.backend.app.certificate.entity.CertificateError
 import de.lambda9.ready2race.backend.app.certificate.entity.CertificateJobError
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
+import de.lambda9.ready2race.backend.app.documentTemplate.boundary.GapPlaceholderLogic
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateUsageRepo
-import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentPlaceholderType
+import de.lambda9.ready2race.backend.app.documentTemplate.control.toGapPlaceholders
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentType
+import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapPlaceholderValues
 import de.lambda9.ready2race.backend.app.email.boundary.EmailService
 import de.lambda9.ready2race.backend.app.email.entity.EmailAttachment
 import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
@@ -34,7 +36,6 @@ import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pdf.AdditionalText
 import de.lambda9.ready2race.backend.pdf.document
-import de.lambda9.ready2race.backend.text.TextAlign
 import de.lambda9.ready2race.backend.validation.emailPattern
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unit
@@ -43,7 +44,6 @@ import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.jooq.transact
 import java.io.ByteArrayOutputStream
-import java.lang.Exception
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -100,30 +100,16 @@ object CertificateService {
                 val resultTotal = participantResultList.sumOf { it.teamResultValue ?: 0 }
 
                 val bytes = participantForEvent(
-                    additions = template.placeholders!!.mapNotNull {
-                        val placeholderType =
-                            try {
-                                GapDocumentPlaceholderType.valueOf(it!!.type)
-                            } catch (ex: Exception) {
-                                return@mapNotNull null
-                            }
-
-                        AdditionalText(
-                            content = when (placeholderType) {
-                                GapDocumentPlaceholderType.FIRST_NAME -> result.firstname ?: ""
-                                GapDocumentPlaceholderType.LAST_NAME -> result.lastname ?: ""
-                                GapDocumentPlaceholderType.FULL_NAME -> "${result.firstname ?: ""} ${result.lastname ?: ""}"
-                                GapDocumentPlaceholderType.RESULT -> "$resultTotal $resultUnit"
-                                GapDocumentPlaceholderType.EVENT_NAME -> event.name
-                            },
-                            page = it.page,
-                            relLeft = it.relLeft,
-                            relTop = it.relTop,
-                            relWidth = it.relWidth,
-                            relHeight = it.relHeight,
-                            textAlign = TextAlign.valueOf(it.textAlign),
-                        )
-                    },
+                    additions = GapPlaceholderLogic.fill(
+                        placeholders = template.placeholders!!.toList().toGapPlaceholders(),
+                        values = GapPlaceholderValues(
+                            firstName = result.firstname ?: "",
+                            lastName = result.lastname ?: "",
+                            fullName = "${result.firstname ?: ""} ${result.lastname ?: ""}",
+                            result = "$resultTotal $resultUnit",
+                            eventName = event.name,
+                        ),
+                    ),
                     template = template.data!!,
                 )
 
@@ -176,30 +162,16 @@ object CertificateService {
         val resultUnit = MatchResultType.valueOf(event.challengeMatchResultType!!).unit
 
         val bytes = participantForEvent(
-            additions = template.placeholders!!.mapNotNull {
-                val type =
-                    try {
-                        GapDocumentPlaceholderType.valueOf(it!!.type)
-                    } catch (ex: Exception) {
-                        return@mapNotNull null
-                    }
-
-                AdditionalText(
-                    content = when (type) {
-                        GapDocumentPlaceholderType.FIRST_NAME -> participant.firstname
-                        GapDocumentPlaceholderType.LAST_NAME -> participant.lastname
-                        GapDocumentPlaceholderType.FULL_NAME -> "${participant.firstname} ${participant.lastname}"
-                        GapDocumentPlaceholderType.RESULT -> "$resultTotal $resultUnit"
-                        GapDocumentPlaceholderType.EVENT_NAME -> event.name
-                    },
-                    page = it.page,
-                    relLeft = it.relLeft,
-                    relTop = it.relTop,
-                    relWidth = it.relWidth,
-                    relHeight = it.relHeight,
-                    textAlign = TextAlign.valueOf(it.textAlign),
-                )
-            },
+            additions = GapPlaceholderLogic.fill(
+                placeholders = template.placeholders!!.toList().toGapPlaceholders(),
+                values = GapPlaceholderValues(
+                    firstName = participant.firstname,
+                    lastName = participant.lastname,
+                    fullName = "${participant.firstname} ${participant.lastname}",
+                    result = "$resultTotal $resultUnit",
+                    eventName = event.name,
+                ),
+            ),
             template = template.data!!,
         )
 
@@ -259,30 +231,16 @@ object CertificateService {
         val resultUnit = MatchResultType.valueOf(event.challengeMatchResultType!!).unit
 
         val bytes = participantForEvent(
-            additions = template.placeholders!!.mapNotNull {
-                val type =
-                    try {
-                        GapDocumentPlaceholderType.valueOf(it!!.type)
-                    } catch (ex: Exception) {
-                        return@mapNotNull null
-                    }
-
-                AdditionalText(
-                    content = when (type) {
-                        GapDocumentPlaceholderType.FIRST_NAME -> participant.firstname
-                        GapDocumentPlaceholderType.LAST_NAME -> participant.lastname
-                        GapDocumentPlaceholderType.FULL_NAME -> "${participant.firstname} ${participant.lastname}"
-                        GapDocumentPlaceholderType.RESULT -> "$resultTotal $resultUnit"
-                        GapDocumentPlaceholderType.EVENT_NAME -> event.name
-                    },
-                    page = it.page,
-                    relLeft = it.relLeft,
-                    relTop = it.relTop,
-                    relWidth = it.relWidth,
-                    relHeight = it.relHeight,
-                    textAlign = TextAlign.valueOf(it.textAlign),
-                )
-            },
+            additions = GapPlaceholderLogic.fill(
+                placeholders = template.placeholders!!.toList().toGapPlaceholders(),
+                values = GapPlaceholderValues(
+                    firstName = participant.firstname,
+                    lastName = participant.lastname,
+                    fullName = "${participant.firstname} ${participant.lastname}",
+                    result = "$resultTotal $resultUnit",
+                    eventName = event.name,
+                ),
+            ),
             template = template.data!!,
         )
 

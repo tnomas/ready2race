@@ -10,4 +10,7 @@ data class AdditionalText(
     val relWidth: Double,
     val relHeight: Double,
     val textAlign: TextAlign,
+    val fontSize: Float? = null,
+    val bold: Boolean = false,
+    val italic: Boolean = false,
 )

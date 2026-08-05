@@ -8,16 +8,17 @@ import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTem
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateUsageRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.toDto
+import de.lambda9.ready2race.backend.app.documentTemplate.control.toGapPlaceholders
 import de.lambda9.ready2race.backend.app.documentTemplate.control.toRecord
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.AssignGapDocumentTemplateRequest
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.AssignedTemplateId
-import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentPlaceholderType
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentTemplateDto
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentTemplateError
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentTemplateRequest
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentTemplateViewSort
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentType
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentTypeDto
+import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapPlaceholderValues
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.calls.responses.noDataResponse
@@ -28,13 +29,10 @@ import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
-import de.lambda9.ready2race.backend.pdf.AdditionalText
-import de.lambda9.ready2race.backend.text.TextAlign
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.failIf
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
-import java.lang.Exception
 import java.util.UUID
 
 object GapDocumentTemplateService {
@@ -128,48 +126,40 @@ object GapDocumentTemplateService {
         id: UUID
     ): App<GapDocumentTemplateError, ApiResponse.File> = KIO.comprehension {
 
-        val templateBytes = !GapDocumentTemplateDataRepo.getData(id).orDie().onNullFail { GapDocumentTemplateError.NotFound }
+        val templateBytes =
+            !GapDocumentTemplateDataRepo.getData(id).orDie().onNullFail { GapDocumentTemplateError.NotFound }
         val template = !GapDocumentTemplateRepo.get(id).orDie().onNullDie("foreign key constraint")
 
-        val type = GapDocumentType.valueOf(template.type!!)
+        val bytes = CertificateService.participantForEvent(
+            additions = GapPlaceholderLogic.fill(
+                placeholders = template.placeholders!!.toList().toGapPlaceholders(),
+                values = previewValues,
+            ),
+            template = templateBytes,
+        )
 
-        when (type) {
-            GapDocumentType.CERTIFICATE_OF_PARTICIPATION -> CertificateService.participantForEvent(
-                additions = template.placeholders!!.mapNotNull {
-                    val type =
-                        try {
-                            GapDocumentPlaceholderType.valueOf(it!!.type)
-                        } catch (ex: Exception) {
-                            return@mapNotNull null
-                        }
-
-                    AdditionalText(
-                        content = when (type) {
-                            GapDocumentPlaceholderType.FIRST_NAME -> "Max"
-                            GapDocumentPlaceholderType.LAST_NAME -> "Mustermann"
-                            GapDocumentPlaceholderType.FULL_NAME -> "Max Mustermann"
-                            GapDocumentPlaceholderType.RESULT -> "3492 m"
-                            GapDocumentPlaceholderType.EVENT_NAME -> "Summer Sport Festival"
-                        },
-                        page = it.page,
-                        relLeft = it.relLeft,
-                        relTop = it.relTop,
-                        relWidth = it.relWidth,
-                        relHeight = it.relHeight,
-                        textAlign = TextAlign.valueOf(it.textAlign)
-                    )
-                },
-                template = templateBytes,
+        KIO.ok(
+            ApiResponse.File(
+                name = "sample.pdf",
+                bytes = bytes,
             )
-        }.let {
-            KIO.ok(
-                ApiResponse.File(
-                    name = "sample.pdf",
-                    bytes = it,
-                )
-            )
-        }
+        )
     }
+
+    private val previewValues = GapPlaceholderValues(
+        firstName = "Max",
+        lastName = "Mustermann",
+        fullName = "Max Mustermann",
+        result = "3492 m",
+        eventName = "Summer Sport Festival",
+        place = "1. Platz",
+        competitionName = "CF 1x Frauen-Einer",
+        competitionShortName = "CF 1x",
+        clubName = "Ruderklub Flensburg",
+        teamName = "Flensburg I",
+        eventDate = "16.–17. August 2026",
+        eventLocation = "Flensburg",
+    )
 
     fun assignTemplate(
         type: GapDocumentType,
