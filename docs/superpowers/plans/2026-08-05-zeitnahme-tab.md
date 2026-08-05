@@ -787,7 +787,9 @@ Modify `.../calls/responses/ErrorCode.kt` — am Ende des RaceClocker-Blocks (na
 
 - [ ] **Step 3: Die Query ergänzen**
 
-Modify `.../app/competitionExecution/control/CompetitionMatchRepo.kt` — direkt nach `getForRaceClockerPull` einfügen. Die Join-Kette ist wortgleich von dort übernommen:
+Modify `.../app/competitionExecution/control/CompetitionMatchRepo.kt` — direkt nach `getForRaceClockerPull` einfügen. Die Join-Kette ist wortgleich von dort übernommen.
+
+**Entscheidung (Thomas, 05.08.2026): die Doppelung bleibt stehen — kein gemeinsamer Join-Helfer.** Der Alternativweg müsste `getForRaceClockerPull` mit anfassen, den Ergebnis-Abholweg, der neun Tage vor der Regatta läuft und nur manuell erprobt ist. Acht Zeilen jOOQ sind der günstigere Preis. Nicht als Befund melden.
 
 ```kotlin
     /**
