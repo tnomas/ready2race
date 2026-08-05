@@ -1774,24 +1774,9 @@ Neu unter `event.competition.timing` (deutsch; Texte für `en` und `da` sinngem�
         }
 ```
 
-Ebenfalls neu, bei den bestehenden Startlisten- und Ergebnis-Schlüsseln (unter `event.competition.execution`) — die Fehlermeldungen aus Task 6:
+**Bereits vorhanden, nicht erneut anlegen:** `event.competition.execution.startList.error.notConfigured` und `event.competition.execution.results.error.notConfigured` wurden im Aufräum-Commit nach Task 6 (`5498fa5f`) in allen drei Sprachen ergänzt. Ebenso ist `results.dialog.title` dort schon auf „Ergebnisdatei hochladen" umformuliert. Finger weg von beidem, sonst entstehen doppelte JSON-Schlüssel.
 
-```json
-          "startList": {
-            "error": {
-              "notConfigured": "Für diesen Wettkampf ist kein Startlisten-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
-            }
-          },
-          "results": {
-            "error": {
-              "notConfigured": "Für diesen Wettkampf ist kein Ergebnis-Import-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
-            }
-          }
-```
-
-(In die bestehenden Blöcke einfügen, nicht als zweiten Block daneben — `startList.error.missingStartTime` existiert schon und muss erhalten bleiben; sie wird auch von `CompetitionPlaces.tsx:61` benutzt.)
-
-Zu löschen sind außerdem die verwaisten Dialog-Schlüssel `event.competition.execution.startList.dialog.*` und `event.competition.execution.results.dialog.{title,config,alert.1,alert.2,alert.3}` — **`results.dialog.file.*` und `results.dialog.title` bleiben**, denn der Upload-Dialog existiert weiter. Nach dem Aufräumen prüfen:
+Zu löschen sind die verwaisten Dialog-Schlüssel `event.competition.execution.startList.dialog.*` und `event.competition.execution.results.dialog.{config,alert.1,alert.2,alert.3}` — **`results.dialog.file.*` und `results.dialog.title` bleiben**, denn der Upload-Dialog existiert weiter. `startList.error.missingStartTime` bleibt ebenfalls; sie wird auch von `CompetitionPlaces.tsx:61` benutzt. Nach dem Aufräumen prüfen:
 
 ```bash
 cd frontend && for k in startList.dialog.config raceclocker.config.open; do grep -c "$k" src/i18n/de/translations.json; done
