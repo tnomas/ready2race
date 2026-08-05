@@ -11405,6 +11405,7 @@ components:
         - namedParticipants
         - place
         - deregistered
+        - excluded
       properties:
         competitionRegistrationId:
           type: string
@@ -11430,6 +11431,8 @@ components:
           type: boolean
         deregistrationReason:
           type: string
+        excluded:
+          type: boolean
 
     CompetitionTeamNamedParticipantDto:
       type: object

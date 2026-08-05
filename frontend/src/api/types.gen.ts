@@ -718,6 +718,7 @@ export type CompetitionTeamPlaceDto = {
     place: number
     deregistered: boolean
     deregistrationReason?: string
+    excluded: boolean
 }
 
 export type CompetitionTemplateDto = {

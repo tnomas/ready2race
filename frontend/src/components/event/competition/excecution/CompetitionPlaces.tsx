@@ -139,9 +139,10 @@ const CompetitionPlaces = () => {
                                                 ` | ${team.teamName}`}
                                         </Typography>
                                     </Box>
-                                    {/* Teams ohne Platz (DNF, DSQ, abgemeldet) haben keine Urkunde zum
-                                    Herunterladen - der Download würde nur mit NoResults fehlschlagen. */}
-                                    {user.checkPrivilege(readEventGlobal) && team.place && (
+                                    {/* Teams ohne Urkunde (DNF, DSQ, abgemeldet) zeigen das Download-Icon
+                                    nicht - der Download würde sonst nur mit NoResults fehlschlagen. Dieselbe
+                                    Ausschlussregel wie im Urkundengenerator (AwardCertificateService.excluded). */}
+                                    {user.checkPrivilege(readEventGlobal) && !team.excluded && (
                                         <Tooltip title={t('awardCertificate.download.buttonSingle')}>
                                             <IconButton
                                                 onClick={() =>
