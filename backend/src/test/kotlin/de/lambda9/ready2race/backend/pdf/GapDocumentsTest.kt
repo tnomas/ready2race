@@ -281,6 +281,55 @@ class GapDocumentsTest {
         assertTrue(textAfterSaveAndReload(doc, 1).contains("Carina Hein"))
     }
 
+    /** Ob [font] jedes Zeichen von [text] einzeln kodieren kann - unabhängig von sanitizeForFont selbst. */
+    private fun canEncodeEveryCharacter(text: String, font: org.apache.pdfbox.pdmodel.font.PDFont): Boolean =
+        text.codePoints().toArray().all { codePoint ->
+            try {
+                font.encode(String(Character.toChars(codePoint)))
+                true
+            } catch (ex: Exception) {
+                false
+            }
+        }
+
+    @Test
+    fun sanitizeForFontMakesAPolishClubNameEncodableByHelvetica() {
+        // Helvetica (WinAnsi) kann Ł/ź nicht kodieren; die NFD-Zerlegung entfernt das Kombinationszeichen
+        // von ź (-> z), Ł hat keine Zerlegung und wird zu '?'. Das Ergebnis muss vollständig kodierbar sein.
+        val font = PDType1Font(Standard14Fonts.FontName.HELVETICA)
+        val sanitized = "AZS Łódź".sanitizeForFont(font)
+
+        assertTrue(sanitized.isNotBlank())
+        assertTrue(canEncodeEveryCharacter(sanitized, font))
+    }
+
+    @Test
+    fun sanitizeForFontLeavesAlreadyEncodableTextUnchanged() {
+        // Text, der ausschließlich aus WinAnsi-Zeichen besteht, darf sich zeichenweise nicht ändern -
+        // sonst würde sich die heute schon funktionierende Teilnahmeurkunde verändern.
+        val font = PDType1Font(Standard14Fonts.FontName.HELVETICA)
+        val text = "Ruderklub Flensburg von 1877 é à ü"
+
+        assertEquals(text, text.sanitizeForFont(font))
+    }
+
+    @Test
+    fun foreignClubNameDoesNotBreakTheWholeBatch() {
+        // Regressionstest für den Finding: ein Clubname mit Zeichen, die Helvetica (Default-Schrift,
+        // keine hochgeladene Vorlagenschrift) nicht kodieren kann, darf den PDF-Export nicht mit einer
+        // IllegalArgumentException abbrechen - weder beim Messen (getStringWidth) noch beim Zeichnen
+        // (showText). Enthält Latein-Erweitert (ź), einen Cyrillic-Buchstaben (М) und einen CJK-Block.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = null,
+            withBackground = false,
+            pages = listOf(listOf(addition("AZS Łódź – Команда М – 東京クラブ", 0.45))),
+        )
+
+        val content = textAfterSaveAndReload(doc, 1)
+        assertTrue(content.isNotBlank())
+    }
+
     @Test
     fun existingSingleDocumentApiStillWorks() {
         // Rückwärtskompatibilität: die Teilnahmeurkunde nutzt weiterhin document(original, additions)

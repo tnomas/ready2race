@@ -16,6 +16,8 @@ import org.apache.pdfbox.pdmodel.graphics.state.RenderingMode
 import org.apache.pdfbox.util.Matrix
 import java.awt.Color
 import java.awt.geom.AffineTransform
+import java.io.IOException
+import java.text.Normalizer
 
 private class GapFonts(
     val regular: PDFont,
@@ -48,6 +50,54 @@ private class GapFonts(
             )
         }
     }
+}
+
+/**
+ * Ersetzt Zeichen, die [font] nicht kodieren kann. Für jedes nicht kodierbare Zeichen wird zunächst
+ * die Unicode-NFD-Zerlegung ohne Kombinationszeichen versucht (ř -> r, é -> e); bleibt das Ergebnis
+ * weiterhin nicht kodierbar, tritt ein '?' an dessen Stelle. Kodierbare Zeichen durchlaufen die
+ * Funktion unverändert - das ist entscheidend, weil dieselbe Funktion auch die heute schon
+ * funktionierende Teilnahmeurkunde durchläuft (document(original, additions)) und deren Ausgabe
+ * unverändert bleiben muss.
+ *
+ * Ohne das würde ein einziger nicht kodierbarer Vereins- oder Ortsname (z. B. ein polnischer oder
+ * tschechischer Clubname bei einer Küstenregatta) den gesamten Urkunden-Export einer Veranstaltung
+ * mit einer untypisierten IllegalArgumentException abbrechen, weil `font.getStringWidth`/
+ * `content.showText` das Zeichen nicht kodieren können.
+ */
+fun String.sanitizeForFont(font: PDFont): String = buildString {
+    this@sanitizeForFont.codePoints().forEach { codePoint ->
+        val original = String(Character.toChars(codePoint))
+        if (font.canEncodeSafely(original)) {
+            append(original)
+        } else {
+            val decomposed = Normalizer.normalize(original, Normalizer.Form.NFD)
+                .filter { !it.isCombiningMark() }
+            if (decomposed.isNotEmpty() && decomposed.all { font.canEncodeSafely(it.toString()) }) {
+                append(decomposed)
+            } else {
+                append('?')
+            }
+        }
+    }
+}
+
+private fun Char.isCombiningMark(): Boolean = when (Character.getType(this)) {
+    Character.NON_SPACING_MARK.toInt(),
+    Character.COMBINING_SPACING_MARK.toInt(),
+    Character.ENCLOSING_MARK.toInt(),
+    -> true
+
+    else -> false
+}
+
+private fun PDFont.canEncodeSafely(text: String): Boolean = try {
+    encode(text)
+    true
+} catch (ex: IllegalArgumentException) {
+    false
+} catch (ex: IOException) {
+    false
 }
 
 private fun drawAddition(
@@ -83,7 +133,7 @@ private fun drawAddition(
 
     val capHeight = fontSize * font.fontDescriptor.capHeight / 1000
     val lineHeight = metrics.lineHeight
-    val lines = addition.content.split("\n").map { it.sanitizeNonPrintable() }
+    val lines = addition.content.split("\n").map { it.sanitizeNonPrintable().sanitizeForFont(font) }
     val blockTop = y + h / 2 + lineHeight * lines.size / 2
 
     lines.forEachIndexed { index, line ->
@@ -116,8 +166,7 @@ fun gapDocuments(
     font: ByteArray?,
     withBackground: Boolean,
     pages: List<List<AdditionalText>>,
-): PDDocument {
-    val templateDoc = Loader.loadPDF(template)
+): PDDocument = Loader.loadPDF(template).use { templateDoc ->
     val templatePage = templateDoc.getPage(0)
     val format = templatePage.mediaBox
 
@@ -138,9 +187,7 @@ fun gapDocuments(
         additions.filter { it.page == 1 }.forEach { drawAddition(result, page, it, fonts) }
     }
 
-    templateDoc.close()
-
-    return result
+    result
 }
 
 /**

@@ -191,16 +191,21 @@ object AwardCertificateService {
 
         val bytes = when (format) {
             Format.PDF -> {
-                val doc = gapDocuments(
-                    template = template.data!!,
-                    font = template.fontData,
-                    withBackground = options.withBackground,
-                    pages = pages,
-                )
-                val out = ByteArrayOutputStream()
-                doc.save(out)
-                doc.close()
-                out.toByteArray()
+                // Ohne KIO.effect käme jede Exception aus gapDocuments (z. B. eine defekte Vorlage
+                // oder ein Zeichen, das trotz Sanitisierung nicht kodierbar ist) als untypisierter
+                // 500er beim Client an, statt als der bekannte UnreadableTemplate-Fehler.
+                !KIO.effect {
+                    val doc = gapDocuments(
+                        template = template.data!!,
+                        font = template.fontData,
+                        withBackground = options.withBackground,
+                        pages = pages,
+                    )
+                    val out = ByteArrayOutputStream()
+                    doc.save(out)
+                    doc.close()
+                    out.toByteArray()
+                }.mapError { AwardCertificateError.UnreadableTemplate }
             }
 
             Format.DOCX -> {
