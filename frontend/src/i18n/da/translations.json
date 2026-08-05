@@ -210,7 +210,10 @@
     "document": {
       "template": {
         "assignments": {
-          "global": "Globalt tildelte diplomskabeloner"
+          "global": "Globalt tildelte diplomskabeloner",
+          "error": {
+            "typeMismatch": "This template does not match the certificate type and could not be assigned."
+          }
         },
         "loading": "Indlæser...",
         "template": "Diplomskabelon",

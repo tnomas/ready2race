@@ -210,7 +210,10 @@
     "document": {
       "template": {
         "assignments": {
-          "global": "Global zugewiesene Urkundenvorlagen"
+          "global": "Global zugewiesene Urkundenvorlagen",
+          "error": {
+            "typeMismatch": "Diese Vorlage passt nicht zum Urkundentyp und konnte nicht zugewiesen werden."
+          }
         },
         "loading": "Lade...",
         "template": "Urkundenvorlage",

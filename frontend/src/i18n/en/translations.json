@@ -210,7 +210,10 @@
     "document": {
       "template": {
         "assignments": {
-          "global": "Globally assigned certificate templates"
+          "global": "Globally assigned certificate templates",
+          "error": {
+            "typeMismatch": "This template does not match the certificate type and could not be assigned."
+          }
         },
         "loading": "Loading...",
         "template": "Certificate template",
