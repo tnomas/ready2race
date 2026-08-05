@@ -80,6 +80,7 @@ nicht die Erwartung anpassen.
 | A18 | Telefon-Layout | Blöcke untereinander, Namen brechen um, keine waagerechte Rolle | `8c013ff0` | |
 | A19 | Takt | Anzeige holt im konfigurierten Takt, nie schneller als 10 s; Änderung ist nach höchstens ~15 s sichtbar | `77fca680` | |
 | A20 | Ohne Anmeldung | `/board/{eventId}` funktioniert im privaten Fenster vollständig | `8eda6dc1` | |
+| A21 | Überfälliger Platzhalter | Wartender Slot und Programmpunkt verschwinden 30 min nach ihrer Startzeit aus „Nächster Lauf" — dieselbe Nachfrist wie A15. Die Morgenbesprechung darf am Nachmittag nicht mehr die drei Plätze der Spalte belegen | `23e7c170` | |
 
 ## B — Zeitstrahl und Laufkette
 
@@ -150,6 +151,7 @@ nicht die Erwartung anpassen.
 | D16 | Geplant und echter Start | Karte zeigt „geplant HH:MM" und, sobald gestartet, „gestartet HH:MM"; „läuft seit" zählt ab dem echten Start | `e4cb8753` | |
 | D17 | Kein Start-Knopf | Das Dashboard bietet kein manuelles Starten an — der Ist-Start kommt aus der Zeitnahme | `2cfa9bad` | |
 | D18 | Wartende Läufe | Platzhalterkarte „Lauf noch nicht gesetzt" erscheint an ihrer Zeitposition und lässt sich von dort absagen | `e5744801`, `2cfa9bad` | |
+| D19 | „Als Nächstes" ohne Altlast | Ein Platzhalter, dessen Startzeit über 30 min zurückliegt, steht nicht mehr unter „Als Nächstes"; im „Läufe"-Tab bleibt er sichtbar und absagbar. Ein überfälliger echter Lauf bleibt dagegen unter „Als Nächstes" — er ist der, der noch zu starten ist | `23e7c170` | |
 
 ## E — Betrieb
 
