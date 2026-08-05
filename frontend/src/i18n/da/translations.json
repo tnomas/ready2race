@@ -1103,6 +1103,7 @@
     },
     "action": {
       "downloadCertificates": "Download deltagelsesbeviser",
+      "downloadAwardCertificates": "Download sejrsdiplomer",
       "sendCertificates": "Send deltagelsesbeviser",
       "sendCertificatesSucceeded": "Afsendelse af deltagelsesbeviser igangsat",
       "registrationsReport": {
@@ -2259,5 +2260,34 @@
     "proofRequired": "Dokumentation påkrævet for denne konkurrence",
     "notFound": "Challenge ikke fundet",
     "submitResult": "Indsend resultat"
+  },
+  "awardCertificate": {
+    "download": {
+      "button": "Download sejrsdiplomer",
+      "buttonSingle": "Download sejrsdiplom",
+      "title": "Download sejrsdiplomer",
+      "action": "Download",
+      "format": {
+        "label": "Format",
+        "pdf": "PDF",
+        "docx": "Word"
+      },
+      "maxPlace": {
+        "label": "Op til placering"
+      },
+      "mode": {
+        "label": "Gruppering",
+        "perAthlete": "Per atlet",
+        "perTeam": "Per båd"
+      },
+      "background": {
+        "label": "Udskriv også design",
+        "hint": "Kun nødvendigt, hvis der ikke printes på fortrykt papir."
+      },
+      "error": {
+        "missingTemplate": "Der er endnu ikke tilknyttet en skabelon til sejrsdiplomer.",
+        "missingTemplateLink": "Gå til konfiguration"
+      }
+    }
   }
 }

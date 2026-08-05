@@ -1103,6 +1103,7 @@
     },
     "action": {
       "downloadCertificates": "Teilnahmeurkunden herunterladen",
+      "downloadAwardCertificates": "Urkunden herunterladen",
       "sendCertificates": "Teilnahmeurkunden versenden",
       "sendCertificatesSucceeded": "Versand von Teilnahmeurkunden beauftragt",
       "registrationsReport": {
@@ -2259,5 +2260,34 @@
     "proofRequired": "Nachweis-Dokument erforderlich für diesen Wettbewerb",
     "notFound": "Challenge nicht gefunden",
     "submitResult": "Ergebnis einreichen"
+  },
+  "awardCertificate": {
+    "download": {
+      "button": "Urkunden herunterladen",
+      "buttonSingle": "Urkunde herunterladen",
+      "title": "Urkunden herunterladen",
+      "action": "Herunterladen",
+      "format": {
+        "label": "Format",
+        "pdf": "PDF",
+        "docx": "Word"
+      },
+      "maxPlace": {
+        "label": "Bis Platz"
+      },
+      "mode": {
+        "label": "Gruppierung",
+        "perAthlete": "Pro Athlet",
+        "perTeam": "Pro Boot"
+      },
+      "background": {
+        "label": "Design mitdrucken",
+        "hint": "Nur nötig, wenn nicht auf vorgedrucktes Papier gedruckt wird."
+      },
+      "error": {
+        "missingTemplate": "Für Siegerurkunden ist noch keine Vorlage hinterlegt.",
+        "missingTemplateLink": "Zur Konfiguration"
+      }
+    }
   }
 }

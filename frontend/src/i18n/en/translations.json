@@ -1103,6 +1103,7 @@
     },
     "action": {
       "downloadCertificates": "Download certificated of participation",
+      "downloadAwardCertificates": "Download award certificates",
       "sendCertificates": "Send certificates of participation",
       "sendCertificatesSucceeded": "Sending of Certificates of participation successfully engaged",
       "registrationsReport": {
@@ -2259,5 +2260,34 @@
     "proofRequired": "Proof document required for this competition",
     "notFound": "Challenge not found",
     "submitResult": "Submit result"
+  },
+  "awardCertificate": {
+    "download": {
+      "button": "Download award certificates",
+      "buttonSingle": "Download award certificate",
+      "title": "Download award certificates",
+      "action": "Download",
+      "format": {
+        "label": "Format",
+        "pdf": "PDF",
+        "docx": "Word"
+      },
+      "maxPlace": {
+        "label": "Up to place"
+      },
+      "mode": {
+        "label": "Grouping",
+        "perAthlete": "Per athlete",
+        "perTeam": "Per boat"
+      },
+      "background": {
+        "label": "Print design as well",
+        "hint": "Only needed when not printing onto pre-printed paper."
+      },
+      "error": {
+        "missingTemplate": "No template has been assigned for award certificates yet.",
+        "missingTemplateLink": "Go to configuration"
+      }
+    }
   }
 }

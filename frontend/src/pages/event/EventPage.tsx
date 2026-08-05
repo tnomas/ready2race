@@ -73,6 +73,8 @@ import EventRegistrations from '@components/event/competition/registration/Event
 import ManageRunningMatchesDialog from '@components/event/match/ManageRunningMatchesDialog.tsx'
 import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategoriesForEvent.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
+import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
+import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
 
 const EVENT_TABS = [
     'general',
@@ -108,6 +110,7 @@ const EventPage = () => {
     const reload = () => setLastRequested(Date.now())
 
     const [manageRunningMatchesOpen, setManageRunningMatchesOpen] = useState(false)
+    const [awardCertificateDialogOpen, setAwardCertificateDialogOpen] = useState(false)
     const {data, pending} = useFetch(signal => getEvent({signal, path: {eventId: eventId}}), {
         onResponse: ({error}) => {
             if (error) {
@@ -348,6 +351,15 @@ const EventPage = () => {
                                                 <Trans i18nKey={'event.results.download'}/>
                                             </Button>
                                         )}
+                                    {user.checkPrivilege(readEventGlobal) &&
+                                        !data.challengeEvent && (
+                                            <Button
+                                                variant={'outlined'}
+                                                startIcon={<WorkspacePremium/>}
+                                                onClick={() => setAwardCertificateDialogOpen(true)}>
+                                                <Trans i18nKey={'event.action.downloadAwardCertificates'}/>
+                                            </Button>
+                                        )}
                                     {user.checkPrivilege(updateEventGlobal) &&
                                         data.challengeEvent &&
                                         data.challengesFinished && (
@@ -518,6 +530,11 @@ const EventPage = () => {
                     eventId={eventId}
                 />
             )}
+            <AwardCertificateDialog
+                open={awardCertificateDialogOpen}
+                onClose={() => setAwardCertificateDialogOpen(false)}
+                eventId={eventId}
+            />
         </Box>
     )
 }
