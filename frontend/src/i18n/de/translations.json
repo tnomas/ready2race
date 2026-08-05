@@ -219,12 +219,26 @@
         "name": "Dateiname",
         "type": "Urkundentyp",
         "types": {
-          "CERTIFICATE_OF_PARTICIPATION": "Teilnahmeurkunde"
+          "CERTIFICATE_OF_PARTICIPATION": "Teilnahmeurkunde",
+          "AWARD_CERTIFICATE": "Siegerurkunde"
         },
         "file": {
           "choose": "PDF-Vorlage auswählen",
           "change": "PDF-Vorlage ändern",
           "missing": "Bitte wählen Sie ein PDF-Dokument aus."
+        },
+        "font": {
+          "name": "Schriftname",
+          "nameHelp": "Wird in das erzeugte Word-Dokument übernommen.",
+          "upload": "Schriftdatei (TTF/OTF, optional)",
+          "uploadHelp": "Optional – ohne Schriftdatei wird im PDF Helvetica verwendet. Laden Sie selbst eine Schriftdatei hoch, wenn Sie eine bestimmte Schrift benötigen (z. B. eine kommerziell lizenzierte Schrift wie die des DRV), da wir diese nicht mitliefern dürfen.",
+          "choose": "Schriftdatei auswählen",
+          "change": "Schriftdatei ersetzen",
+          "current": "Es ist bereits eine Schriftdatei hinterlegt.",
+          "none": "Es ist keine Schriftdatei hinterlegt.",
+          "remove": "Entfernen",
+          "willBeRemoved": "Die hinterlegte Schriftdatei wird beim Speichern entfernt.",
+          "undoRemove": "Rückgängig"
         },
         "noPdfSelected": "Kein PDF ausgewählt. Bitte laden Sie eine PDF-Vorlage hoch.",
         "page": "Seite {{page}}",
@@ -251,7 +265,14 @@
           "FULL_NAME": "Vollständiger Name",
           "PLACE": "Platzierung",
           "RESULT": "Ergebnis",
-          "EVENT_NAME": "Veranstaltungsname"
+          "EVENT_NAME": "Veranstaltungsname",
+          "COMPETITION_NAME": "Wettbewerbsname",
+          "COMPETITION_SHORT_NAME": "Wettbewerbskurzname",
+          "CLUB_NAME": "Vereinsname",
+          "TEAM_NAME": "Mannschaftsname",
+          "EVENT_DATE": "Veranstaltungsdatum",
+          "EVENT_LOCATION": "Veranstaltungsort",
+          "FREE_TEXT": "Freier Text"
         },
         "name": "Eigene Bezeichnung (optional)",
         "nameHelp": "Eine eigene Bezeichnung, um diesen Platzhalter zu identifizieren",
@@ -263,7 +284,13 @@
         },
         "page": "Seite",
         "position": "Position",
-        "size": "Größe"
+        "size": "Größe",
+        "fontSize": "Schriftgröße (pt)",
+        "fontSizeHelp": "Leer lassen, um die Höhe des Platzhalter-Kastens zu verwenden.",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "staticText": "Fester Text",
+        "staticTextHelp": "Wird für alle Empfänger unverändert angezeigt, z. B. der Name des Unterzeichners."
       }
     }
   },

@@ -18,6 +18,10 @@ type PlaceholderData = {
     relWidth: number
     relHeight: number
     textAlign: TextAlign
+    fontSize?: number
+    bold: boolean
+    italic: boolean
+    staticText?: string
 }
 
 type Props = {

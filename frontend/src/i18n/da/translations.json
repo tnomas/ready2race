@@ -219,12 +219,26 @@
         "name": "Filnavn",
         "type": "Diplomtype",
         "types": {
-          "CERTIFICATE_OF_PARTICIPATION": "Deltagelsesbevis"
+          "CERTIFICATE_OF_PARTICIPATION": "Deltagelsesbevis",
+          "AWARD_CERTIFICATE": "Sejrsdiplom"
         },
         "file": {
           "choose": "Vælg PDF-skabelon",
           "change": "Skift PDF-skabelon",
           "missing": "Vælg venligst et PDF-dokument."
+        },
+        "font": {
+          "name": "Skriftnavn",
+          "nameHelp": "Skrives ind i det genererede Word-dokument.",
+          "upload": "Skriftfil (TTF/OTF, valgfrit)",
+          "uploadHelp": "Valgfrit – uden en skriftfil bruger PDF'en Helvetica. Upload selv en skriftfil, hvis du har brug for en bestemt skrift (f.eks. en kommercielt licenseret skrift som DRV's), da vi ikke må levere den for dig.",
+          "choose": "Vælg skriftfil",
+          "change": "Skift skriftfil",
+          "current": "Der er allerede gemt en skriftfil.",
+          "none": "Der er ikke gemt en skriftfil.",
+          "remove": "Fjern",
+          "willBeRemoved": "Den gemte skriftfil fjernes, når du gemmer.",
+          "undoRemove": "Fortryd"
         },
         "noPdfSelected": "Ingen PDF valgt. Upload venligst en PDF-skabelon.",
         "page": "Side {{page}}",
@@ -251,7 +265,14 @@
           "FULL_NAME": "Fulde navn",
           "PLACE": "Placering",
           "RESULT": "Resultat",
-          "EVENT_NAME": "Arrangementnavn"
+          "EVENT_NAME": "Arrangementnavn",
+          "COMPETITION_NAME": "Konkurrencenavn",
+          "COMPETITION_SHORT_NAME": "Konkurrencens kortnavn",
+          "CLUB_NAME": "Klubnavn",
+          "TEAM_NAME": "Holdnavn",
+          "EVENT_DATE": "Arrangementdato",
+          "EVENT_LOCATION": "Arrangementsted",
+          "FREE_TEXT": "Fri tekst"
         },
         "name": "Egen betegnelse (valgfrit)",
         "nameHelp": "En egen betegnelse til at identificere denne pladsholder",
@@ -263,7 +284,13 @@
         },
         "page": "Side",
         "position": "Position",
-        "size": "Størrelse"
+        "size": "Størrelse",
+        "fontSize": "Skriftstørrelse (pt)",
+        "fontSizeHelp": "Lad stå tomt for at bruge højden af pladsholderboksen.",
+        "bold": "Fed",
+        "italic": "Kursiv",
+        "staticText": "Fast tekst",
+        "staticTextHelp": "Vises uændret for alle modtagere, f.eks. underskriverens navn."
       }
     }
   },

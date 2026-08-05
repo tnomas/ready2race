@@ -219,12 +219,26 @@
         "name": "Filename",
         "type": "Certificate type",
         "types": {
-          "CERTIFICATE_OF_PARTICIPATION": "Certificate of Participation"
+          "CERTIFICATE_OF_PARTICIPATION": "Certificate of Participation",
+          "AWARD_CERTIFICATE": "Award Certificate"
         },
         "file": {
           "choose": "Choose PDF template",
           "change": "Change PDF template",
           "missing": "Please choose a PDF document."
+        },
+        "font": {
+          "name": "Font Name",
+          "nameHelp": "Written into the generated Word document.",
+          "upload": "Font File (TTF/OTF, optional)",
+          "uploadHelp": "Optional — without a font file the PDF uses Helvetica. Upload one yourself if you need a specific font (e.g. a commercially licensed font like the DRV's), since we are not allowed to ship it for you.",
+          "choose": "Choose font file",
+          "change": "Replace font file",
+          "current": "A font file is currently stored.",
+          "none": "No font file is stored.",
+          "remove": "Remove",
+          "willBeRemoved": "The stored font file will be removed when you save.",
+          "undoRemove": "Undo"
         },
         "noPdfSelected": "No PDF selected. Please upload a PDF template.",
         "page": "Page {{page}}",
@@ -251,7 +265,14 @@
           "FULL_NAME": "Full Name",
           "PLACE": "Place",
           "RESULT": "Result",
-          "EVENT_NAME": "Event Name"
+          "EVENT_NAME": "Event Name",
+          "COMPETITION_NAME": "Competition Name",
+          "COMPETITION_SHORT_NAME": "Competition Short Name",
+          "CLUB_NAME": "Club Name",
+          "TEAM_NAME": "Team Name",
+          "EVENT_DATE": "Event Date",
+          "EVENT_LOCATION": "Event Location",
+          "FREE_TEXT": "Free Text"
         },
         "name": "Custom Label (optional)",
         "nameHelp": "A custom name to help you identify this placeholder",
@@ -263,7 +284,13 @@
         },
         "page": "Page",
         "position": "Position",
-        "size": "Size"
+        "size": "Size",
+        "fontSize": "Font Size (pt)",
+        "fontSizeHelp": "Leave empty to use the placeholder box height.",
+        "bold": "Bold",
+        "italic": "Italic",
+        "staticText": "Fixed Text",
+        "staticTextHelp": "Shown unchanged for every recipient, e.g. the signer's name."
       }
     }
   },
