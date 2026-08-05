@@ -67,6 +67,16 @@ class CertificateServiceTest {
         return out.toByteArray()
     }
 
+    /** Vorlage ohne Seiten - z.B. eine leere PDF-Datei, die als Vorlage hochgeladen wurde. */
+    private fun zeroPageTemplateBytes(): ByteArray {
+        val doc = PDDocument()
+
+        val out = ByteArrayOutputStream()
+        doc.save(out)
+        doc.close()
+        return out.toByteArray()
+    }
+
     private fun addition(content: String, page: Int) = AdditionalText(
         content = content,
         page = page,
@@ -202,6 +212,29 @@ class CertificateServiceTest {
             is Exit.Failure -> exit.error.firstFailureOrNull()
                 ?: fail("Fehler wurde nicht als typisierter Failure-Fall transportiert, sondern als Defect: ${exit.error.firstDefectOrNull()}")
             is Exit.Success -> fail("Defekte Vorlage hätte fehlschlagen müssen, lieferte aber Bytes")
+        }
+
+        assertEquals(CertificateError.UnreadableTemplate, error)
+    }
+
+    /**
+     * Finding 2: Eine Vorlage ohne Seiten darf im Word-Zweig nicht zu einem gültigen, aber
+     * inhaltsleeren Dokument führen (leere Seitengrößen-Liste -> kein Inhalt, keine Seitengröße),
+     * sondern muss ebenso wie eine defekte Vorlage typisiert fehlschlagen.
+     */
+    @Test
+    fun zeroPageTemplateOnTheWordPathFailsTypedInsteadOfProducingAnEmptyDocument() {
+        val exit = CertificateService.participantForEvent(
+            additions = listOf(addition("Max Mustermann")),
+            template = zeroPageTemplateBytes(),
+            fontName = null,
+            format = AwardCertificateService.Format.DOCX,
+        ).unsafeRunSync()
+
+        val error = when (exit) {
+            is Exit.Failure -> exit.error.firstFailureOrNull()
+                ?: fail("Fehler wurde nicht als typisierter Failure-Fall transportiert, sondern als Defect: ${exit.error.firstDefectOrNull()}")
+            is Exit.Success -> fail("Vorlage ohne Seiten hätte fehlschlagen müssen, lieferte aber Bytes")
         }
 
         assertEquals(CertificateError.UnreadableTemplate, error)

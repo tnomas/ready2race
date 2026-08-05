@@ -99,6 +99,10 @@ object CertificateService {
             val templatePageSizes = !KIO.effect {
                 val templateDoc = Loader.loadPDF(template)
                 try {
+                    // getPage(0) wirft bei einer leeren Vorlage (numberOfPages == 0) absichtlich,
+                    // statt eine leere Seitengrößen-Liste durchzureichen: gapDocumentsDocx würde
+                    // daraus sonst ein gültiges, aber inhaltsleeres .docx ohne Seitengröße erzeugen.
+                    templateDoc.getPage(0)
                     (0 until templateDoc.numberOfPages).map { pageIndex ->
                         val mediaBox = templateDoc.getPage(pageIndex).mediaBox
                         DocxPageSize(mediaBox.width, mediaBox.height)
