@@ -36,7 +36,11 @@ data class AwardCertificateTeam(
     val registrationId: UUID,
 )
 
-/** Eine einzelne Urkunde, also genau eine Seite. */
+/**
+ * Eine einzelne Urkunde, also genau eine Seite. [firstName] und [lastName] sind nur im Modus
+ * [AwardCertificateMode.PER_ATHLETE] gesetzt, da im [AwardCertificateMode.PER_TEAM]-Modus mehrere
+ * Personen dieselbe Urkunde teilen und [names] dafür bereits die vollständige, zeilenweise Liste ist.
+ */
 data class AwardCertificateEntry(
     val place: Int,
     val competitionIdentifier: String,
@@ -46,5 +50,7 @@ data class AwardCertificateEntry(
     val teamName: String?,
     val result: String?,
     val names: List<String>,
+    val firstName: String?,
+    val lastName: String?,
     val registrationId: UUID,
 )

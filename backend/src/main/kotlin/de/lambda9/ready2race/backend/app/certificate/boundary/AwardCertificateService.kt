@@ -13,11 +13,11 @@ import de.lambda9.ready2race.backend.app.documentTemplate.boundary.GapPlaceholde
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.toGapPlaceholders
 import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentType
-import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapPlaceholderValues
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
+import de.lambda9.ready2race.backend.database.generated.tables.records.EventRecord
 import de.lambda9.ready2race.backend.docx.gapDocumentsDocx
 import de.lambda9.ready2race.backend.docx.toByteArray
 import de.lambda9.ready2race.backend.lexiNumberComp
@@ -40,10 +40,10 @@ object AwardCertificateService {
         options: AwardCertificateOptions,
         format: Format,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
-        val entries = !entriesForEvent(eventId, options, competitionId = null, registrationId = null)
         val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        val entries = !entriesForEvent(eventId, options, competitionId = null, registrationId = null)
 
-        render(eventId, entries, options, format, "urkunden_${event.name}")
+        render(event, entries, options, format, "urkunden_${event.name}")
     }
 
     fun downloadForCompetition(
@@ -52,11 +52,11 @@ object AwardCertificateService {
         options: AwardCertificateOptions,
         format: Format,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
-        val entries = !entriesForEvent(eventId, options, competitionId, registrationId = null)
         val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        val entries = !entriesForEvent(eventId, options, competitionId, registrationId = null)
         val identifier = entries.firstOrNull()?.competitionIdentifier ?: ""
 
-        render(eventId, entries, options, format, "urkunden_${event.name}_$identifier")
+        render(event, entries, options, format, "urkunden_${event.name}_$identifier")
     }
 
     fun downloadForRegistration(
@@ -66,8 +66,8 @@ object AwardCertificateService {
         options: AwardCertificateOptions,
         format: Format,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
-        val entries = !entriesForEvent(eventId, options, competitionId, registrationId)
         val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        val entries = !entriesForEvent(eventId, options, competitionId, registrationId)
         val first = entries.firstOrNull()
         val name = listOfNotNull(
             "urkunde",
@@ -77,12 +77,14 @@ object AwardCertificateService {
             first?.names?.firstOrNull(),
         ).joinToString("_")
 
-        render(eventId, entries, options, format, name)
+        render(event, entries, options, format, name)
     }
 
     /**
      * Sammelt die Urkunden der Veranstaltung, optional auf einen Wettkampf und eine Meldung
      * eingegrenzt. Die Wettkämpfe werden wie in der Ergebnisliste nach Identifier sortiert.
+     * Das Event selbst wird hier nicht (mehr) geladen — das übernimmt die aufrufende Funktion,
+     * die den Datensatz auch für den Dateinamen und `render` benötigt.
      */
     private fun entriesForEvent(
         eventId: UUID,
@@ -90,7 +92,10 @@ object AwardCertificateService {
         competitionId: UUID?,
         registrationId: UUID?,
     ): App<ServiceError, List<AwardCertificateEntry>> = KIO.comprehension {
-        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        // Der Einzeldownload dient Nachdrucken und Korrekturen einer bestimmten Urkunde, daher
+        // darf die Platzgrenze dort nicht greifen. `null` bedeutet in AwardCertificateLogic
+        // "unbegrenzt", statt einen Sentinel-Wert durch die Options zu schmuggeln.
+        val maxPlace = if (registrationId == null) options.maxPlace else null
 
         val competitions = !CompetitionRepo.getByEvent(eventId).orDie()
 
@@ -136,7 +141,8 @@ object AwardCertificateService {
                             competitionName = competition.name!!,
                             competitionShortName = competition.shortName,
                             teams = teams,
-                            options = options,
+                            mode = options.mode,
+                            maxPlace = maxPlace,
                         )
                     )
                 }
@@ -149,7 +155,7 @@ object AwardCertificateService {
     }
 
     private fun render(
-        eventId: UUID,
+        event: EventRecord,
         entries: List<AwardCertificateEntry>,
         options: AwardCertificateOptions,
         format: Format,
@@ -158,8 +164,7 @@ object AwardCertificateService {
         val template = !GapDocumentTemplateRepo.getAssigned(GapDocumentType.AWARD_CERTIFICATE).orDie()
             .onNullFail { AwardCertificateError.MissingTemplate }
 
-        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
-        val eventDays = !EventDayRepo.getByEvent(eventId).orDie()
+        val eventDays = !EventDayRepo.getByEvent(event.id!!).orDie()
         val eventDate = AwardCertificateLogic.formatEventDate(eventDays.map { it.date })
 
         val placeholders = template.placeholders!!.toList().toGapPlaceholders()
@@ -167,19 +172,11 @@ object AwardCertificateService {
         val pages = entries.map { entry ->
             GapPlaceholderLogic.fill(
                 placeholders = placeholders,
-                values = GapPlaceholderValues(
-                    firstName = entry.names.singleOrNull()?.substringBefore(" "),
-                    lastName = entry.names.singleOrNull()?.substringAfter(" "),
-                    fullName = entry.names.joinToString("\n"),
-                    result = entry.result,
+                values = AwardCertificateLogic.placeholderValues(
+                    entry = entry,
                     eventName = event.name,
-                    place = AwardCertificateLogic.formatPlace(entry.place),
-                    competitionName = entry.competitionName,
-                    competitionShortName = entry.competitionShortName,
-                    clubName = entry.clubName,
-                    teamName = entry.teamName,
-                    eventDate = eventDate,
                     eventLocation = event.location,
+                    eventDate = eventDate,
                 ),
             )
         }
@@ -199,11 +196,17 @@ object AwardCertificateService {
             }
 
             Format.DOCX -> {
-                val templateDoc = Loader.loadPDF(template.data!!)
-                val format0 = templateDoc.getPage(0).mediaBox
-                val width = format0.width
-                val height = format0.height
-                templateDoc.close()
+                // Loader.loadPDF/getPage werfen bei einer defekten oder leeren Vorlage eine
+                // Exception, die ohne KIO.effect als untypisierter 500er beim Client ankäme.
+                val (width, height) = !KIO.effect {
+                    val templateDoc = Loader.loadPDF(template.data!!)
+                    try {
+                        val mediaBox = templateDoc.getPage(0).mediaBox
+                        mediaBox.width to mediaBox.height
+                    } finally {
+                        templateDoc.close()
+                    }
+                }.mapError { AwardCertificateError.UnreadableTemplate }
 
                 gapDocumentsDocx(
                     pageWidthPoints = width,

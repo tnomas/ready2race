@@ -9,6 +9,7 @@ import java.time.LocalDate
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AwardCertificateLogicTest {
@@ -48,7 +49,8 @@ class AwardCertificateLogicTest {
         competitionName = "CF 1x Frauen-Einer",
         competitionShortName = "CF 1x",
         teams = teams,
-        options = options,
+        mode = options.mode,
+        maxPlace = options.maxPlace,
     )
 
     @Test
@@ -104,6 +106,65 @@ class AwardCertificateLogicTest {
 
         assertEquals(1, result.size)
         assertEquals(listOf("Carina Hein", "Malte Hein"), result.single().names)
+    }
+
+    /**
+     * Finding 1: Der Vor- und Nachname müssen unverändert aus den Stammdaten übernommen werden,
+     * statt aus dem zusammengesetzten Namen an der ersten Leerstelle gesplittet zu werden — sonst
+     * würde bei mehrteiligen Vornamen wie „Anna Maria" der Nachname fälschlich „Maria Müller".
+     */
+    @Test
+    fun perAthleteExposesStructuredFirstAndLastName() {
+        val result = entries(
+            listOf(
+                team(
+                    place = 1,
+                    participants = listOf(participant("Anna Maria", "Müller")),
+                )
+            )
+        )
+
+        assertEquals("Anna Maria", result.single().firstName)
+        assertEquals("Müller", result.single().lastName)
+    }
+
+    /**
+     * Im PER_TEAM-Modus teilen sich mehrere Personen eine Urkunde, ein einzelner Vor-/Nachname
+     * ergibt daher keinen Sinn und muss null bleiben; `names` trägt weiterhin die volle Liste.
+     */
+    @Test
+    fun perTeamLeavesFirstAndLastNameNull() {
+        val result = entries(
+            listOf(
+                team(
+                    place = 1,
+                    participants = listOf(participant("Carina", "Hein"), participant("Malte", "Hein")),
+                )
+            ),
+            options(mode = AwardCertificateMode.PER_TEAM),
+        )
+
+        assertNull(result.single().firstName)
+        assertNull(result.single().lastName)
+    }
+
+    /**
+     * Finding 5: Der Einzeldownload einer Urkunde (Nachdruck/Korrektur) darf nicht an der
+     * Platzgrenze scheitern. `maxPlace = null` steht dafür statt eines Sentinel-Werts.
+     */
+    @Test
+    fun nullMaxPlaceKeepsAllPlaces() {
+        val unlimited = AwardCertificateLogic.entriesForCompetition(
+            competitionIdentifier = "1",
+            competitionName = "CF 1x Frauen-Einer",
+            competitionShortName = "CF 1x",
+            teams = listOf(team(1), team(5), team(12)),
+            mode = AwardCertificateMode.PER_ATHLETE,
+            maxPlace = null,
+        )
+        // Ohne Platzgrenze (wie beim Einzeldownload) bleiben alle Plätze erhalten, auch jenseits
+        // der sonst üblichen Grenze von 3.
+        assertEquals(listOf(1, 5, 12), unlimited.map { it.place })
     }
 
     @Test
@@ -176,5 +237,58 @@ class AwardCertificateLogicTest {
     @Test
     fun noEventDaysYieldsEmptyString() {
         assertEquals("", AwardCertificateLogic.formatEventDate(emptyList()))
+    }
+
+    /**
+     * Finding 3: Die Zuordnung von einem AwardCertificateEntry auf GapPlaceholderValues war bisher
+     * nur inline in der datenbankabhängigen `render`-Funktion vorhanden und damit ungetestet — was
+     * finding 1 (falsch gesplittete Namen) erst ermöglicht hat. Jetzt als reine Funktion getestet,
+     * inklusive des mehrteiligen Vornamens aus finding 1.
+     */
+    @Test
+    fun placeholderValuesCarriesStructuredNameForPerAthlete() {
+        val entry = entries(
+            listOf(team(place = 1, participants = listOf(participant("Anna Maria", "Müller"))))
+        ).single()
+
+        val values = AwardCertificateLogic.placeholderValues(
+            entry = entry,
+            eventName = "Deutsche Meisterschaften",
+            eventLocation = "Hamburg",
+            eventDate = "16. August 2025",
+        )
+
+        assertEquals("Anna Maria", values.firstName)
+        assertEquals("Müller", values.lastName)
+        assertEquals("Anna Maria Müller", values.fullName)
+        assertEquals("1. Platz", values.place)
+        assertEquals("Deutsche Meisterschaften", values.eventName)
+        assertEquals("Hamburg", values.eventLocation)
+        assertEquals("16. August 2025", values.eventDate)
+    }
+
+    @Test
+    fun placeholderValuesLeavesNamesNullForPerTeamAndJoinsFullName() {
+        val entry = entries(
+            listOf(
+                team(
+                    place = 1,
+                    participants = listOf(participant("Carina", "Hein"), participant("Malte", "Hein")),
+                )
+            ),
+            options(mode = AwardCertificateMode.PER_TEAM),
+        ).single()
+
+        val values = AwardCertificateLogic.placeholderValues(
+            entry = entry,
+            eventName = "Deutsche Meisterschaften",
+            eventLocation = null,
+            eventDate = "16. August 2025",
+        )
+
+        assertNull(values.firstName)
+        assertNull(values.lastName)
+        assertEquals("Carina Hein\nMalte Hein", values.fullName)
+        assertNull(values.eventLocation)
     }
 }

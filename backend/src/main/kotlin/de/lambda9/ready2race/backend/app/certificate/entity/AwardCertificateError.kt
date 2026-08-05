@@ -7,7 +7,8 @@ import io.ktor.http.HttpStatusCode
 enum class AwardCertificateError : ServiceError {
     MissingTemplate,
     NoResults,
-    CompetitionNotInEvent;
+    CompetitionNotInEvent,
+    UnreadableTemplate;
 
     override fun respond(): ApiError = when (this) {
         MissingTemplate -> ApiError(
@@ -23,6 +24,11 @@ enum class AwardCertificateError : ServiceError {
         CompetitionNotInEvent -> ApiError(
             status = HttpStatusCode.BadRequest,
             message = "Competition does not belong to this event"
+        )
+
+        UnreadableTemplate -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "The assigned award certificate template cannot be read"
         )
     }
 }
