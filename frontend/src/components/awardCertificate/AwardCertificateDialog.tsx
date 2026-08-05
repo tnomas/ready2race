@@ -52,6 +52,7 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
     const formContext = useForm<AwardCertificateForm>()
     const [submitting, setSubmitting] = useState(false)
     const [missingTemplate, setMissingTemplate] = useState(false)
+    const [noResults, setNoResults] = useState(false)
     const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const isSingle = registrationId !== undefined
@@ -60,18 +61,21 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
         if (open) {
             formContext.reset(defaultValues)
             setMissingTemplate(false)
+            setNoResults(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
 
     const handleClose = () => {
         setMissingTemplate(false)
+        setNoResults(false)
         onClose()
     }
 
     const handleSubmit = async (formData: AwardCertificateForm) => {
         setSubmitting(true)
         setMissingTemplate(false)
+        setNoResults(false)
 
         const query = {
             format: formData.format,
@@ -98,8 +102,14 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
         setSubmitting(false)
 
         if (error) {
+            // 409 covers both "no template assigned" (MissingTemplate) and "template unreadable"
+            // (UnreadableTemplate) - the message below is worded to be honest about both. 400 is
+            // NoResults, by far the most likely response before results are finalised, so it gets
+            // its own explanation instead of falling into the generic "unexpected error" bucket.
             if (error.status.value === 409) {
                 setMissingTemplate(true)
+            } else if (error.status.value === 400) {
+                setNoResults(true)
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
@@ -109,7 +119,9 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
         const anchor = downloadRef.current
         if (data !== undefined && anchor) {
             anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? `award_certificates.${formData.format}`
+            anchor.download =
+                getFilename(response) ??
+                `award_certificate${isSingle ? '' : 's'}.${formData.format}`
             anchor.click()
             anchor.href = ''
             anchor.download = ''
@@ -137,6 +149,11 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
                                         }
                                     />
                                 </InlineLink>
+                            </Alert>
+                        )}
+                        {noResults && (
+                            <Alert severity={'warning'}>
+                                <Trans i18nKey={'awardCertificate.download.error.noResults'} />
                             </Alert>
                         )}
                         <FormInputRadioButtonGroup

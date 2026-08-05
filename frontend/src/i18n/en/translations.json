@@ -2285,8 +2285,9 @@
         "hint": "Only needed when not printing onto pre-printed paper."
       },
       "error": {
-        "missingTemplate": "No template has been assigned for award certificates yet.",
-        "missingTemplateLink": "Go to configuration"
+        "missingTemplate": "There is no usable template configured for award certificates.",
+        "missingTemplateLink": "Go to configuration",
+        "noResults": "There are no placements to print yet."
       }
     }
   }

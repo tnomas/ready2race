@@ -139,7 +139,9 @@ const CompetitionPlaces = () => {
                                                 ` | ${team.teamName}`}
                                         </Typography>
                                     </Box>
-                                    {user.checkPrivilege(readEventGlobal) && (
+                                    {/* Teams ohne Platz (DNF, DSQ, abgemeldet) haben keine Urkunde zum
+                                    Herunterladen - der Download würde nur mit NoResults fehlschlagen. */}
+                                    {user.checkPrivilege(readEventGlobal) && team.place && (
                                         <Tooltip title={t('awardCertificate.download.buttonSingle')}>
                                             <IconButton
                                                 onClick={() =>

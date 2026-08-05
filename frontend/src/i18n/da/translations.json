@@ -2285,8 +2285,9 @@
         "hint": "Kun nødvendigt, hvis der ikke printes på fortrykt papir."
       },
       "error": {
-        "missingTemplate": "Der er endnu ikke tilknyttet en skabelon til sejrsdiplomer.",
-        "missingTemplateLink": "Gå til konfiguration"
+        "missingTemplate": "Der er ikke tilknyttet en brugbar skabelon til sejrsdiplomer.",
+        "missingTemplateLink": "Gå til konfiguration",
+        "noResults": "Der er endnu ingen placeringer at udskrive."
       }
     }
   }
