@@ -100,11 +100,22 @@ Preset-Verwaltung, kein Kaskadenschaden am Wettkampf.
 Eine Regel, im Backend, an einer Stelle:
 
 > **Qualifikationsrunde → `startlist_config_qualification`. Sonst → `startlist_config_rounds`.
-> Ist der Quali-Slot leer, greift der Runden-Slot.**
+> Ist der Quali-Slot leer, greift der Runden-Slot — außer bei RaceClocker.**
 
 Der Rückfall ist keine Bequemlichkeit, sondern der Grund, warum Webscorer nur *ein* Preset-Feld
 braucht: dort gibt es keine Zweiteilung, das eine Preset landet im Runden-Slot und gilt damit auch
-für die Qualifikation. RaceClocker füllt beide Slots.
+für die Qualifikation.
+
+**Und genau deshalb darf er bei RaceClocker nicht gelten** (Korrektur nach dem Abschluss-Review am
+05.08.2026 — die Regel stand hier zunächst bedingungslos). Dort trägt das Läufe-Preset die
+Lauf-Spalte. Fällt eine Qualifikationsrunde darauf zurück, wandert diese Spalte in das
+Zeitfahren-Rennen, RaceClocker kippt es in den Wave-Modus und **der Countdown ist am Start weg** —
+also genau der Ausfall aus Abschnitt 1, gegen den dieser Tab gebaut wird. Gewarnt hätte auch nichts:
+die Warnung in Abschnitt 6.3 mahnt das Quali-Preset absichtlich nicht an. Bei RaceClocker mit leerem
+Quali-Slot bricht der Export deshalb mit dem Fehlercode ab, statt eine falsche Datei zu liefern.
+
+Ohne gesetztes System bleibt der Rückfall durchlässig wie zuvor — ein Wettkampf, den niemand
+konfiguriert hat, soll sich nicht anders verhalten als bisher.
 
 Die Regel steht damit neben der bestehenden URL-Regel im Backend
 (`RaceClockerMatchTarget.resultsUrl`) statt im Frontend verdoppelt zu werden — `CompetitionRoundDto`
@@ -218,8 +229,9 @@ Regatta, die URLs liegen bei der Vorbereitung noch nicht vor. Stattdessen zwei H
 ## 7. Tests
 
 **Backend** (`./mvnw test`, Stil wie `RaceClockerFeedTest`): Unit-Tests der Auflösungsregel —
-Quali-Runde mit gefülltem Quali-Slot; Quali-Runde mit leerem Quali-Slot (→ Runden-Slot);
-Nicht-Quali-Runde; beide Slots leer (→ Fehlercode). Die URL-Normalisierung beim Speichern braucht
+Quali-Runde mit gefülltem Quali-Slot; Quali-Runde mit leerem Quali-Slot **bei Webscorer**
+(→ Runden-Slot) und **bei RaceClocker** (→ Fehlercode, kein Rückfall) und **ohne gesetztes System**
+(→ Runden-Slot); Nicht-Quali-Runde; beide Slots leer (→ Fehlercode). Die URL-Normalisierung beim Speichern braucht
 keinen neuen Test: sie zieht unverändert aus dem alten Endpunkt um und ist über
 `RaceClockerFeed.normalizeUrl` in `RaceClockerFeedTest` bereits abgedeckt.
 

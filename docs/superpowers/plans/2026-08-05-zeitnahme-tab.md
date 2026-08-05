@@ -142,6 +142,17 @@ git commit -m "Add per-competition timing configuration columns"
 
 ## Task 2: Die Auflösungsregel (TDD)
 
+> **Korrektur am 05.08.2026 nach dem Abschluss-Review.** Der unten stehende Code trägt den Rückfall
+> vom Quali- auf den Runden-Slot bedingungslos. Das ist falsch: bei RaceClocker schiebt der Rückfall
+> die Lauf-Spalte in das Zeitfahren-Rennen, kippt es in den Wave-Modus und der Countdown ist am Start
+> weg — der Ausfall, gegen den dieser Tab gebaut wird. Gewarnt hätte nichts, weil die Warnlogik das
+> Quali-Preset absichtlich nicht anmahnt.
+>
+> Der ausgelieferte Stand (Commit `40783577`) trägt daher ein zusätzliches Feld `timingSystem` und
+> die Regel `!isQualification → roundsConfig` / `RACECLOCKER → qualificationConfig` (kein Rückfall) /
+> `sonst → qualificationConfig ?: roundsConfig`. `getStartListConfigTarget` in Task 4 projiziert
+> `COMPETITION.TIMING_SYSTEM` mit. Der Test umfasst sieben statt fünf Fälle. Siehe Spec Abschnitt 4.
+
 Die Regel ist eine reine Funktion und wird zuerst als Property auf einem kleinen Datenträger gebaut — genau wie `RaceClockerMatchTarget.resultsUrl` die URL-Regel trägt. Damit ist sie ohne Datenbank testbar.
 
 **Files:**
