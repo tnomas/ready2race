@@ -1,6 +1,10 @@
 package de.lambda9.ready2race.backend.pdf
 
 import de.lambda9.ready2race.backend.text.TextAlign
+import org.apache.pdfbox.Loader
+import org.apache.pdfbox.contentstream.operator.Operator
+import org.apache.pdfbox.cos.COSNumber
+import org.apache.pdfbox.pdfparser.PDFStreamParser
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -12,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class GapDocumentsTest {
@@ -51,6 +56,53 @@ class GapDocumentsTest {
         stripper.startPage = page
         stripper.endPage = page
         return stripper.getText(doc)
+    }
+
+    /**
+     * Echte Schrift-Bytes, ohne eine zusätzliche Datei ins Repo zu legen: PDFBox bringt in seinem
+     * eigenen Jar eine TTF-Testressource mit, die auf dem Test-Classpath liegt.
+     */
+    private fun embeddedFontBytes(): ByteArray =
+        PDDocument::class.java.getResourceAsStream("/org/apache/pdfbox/resources/ttf/LiberationSans-Regular.ttf")!!
+            .use { it.readBytes() }
+
+    /** Zerlegt den Content-Stream einer Seite in (Operator-Name, davor gelesene Operanden)-Paare. */
+    private fun operatorOperands(page: PDPage): List<Pair<String, List<Any>>> {
+        val tokens = PDFStreamParser(page).parse()
+        val result = mutableListOf<Pair<String, List<Any>>>()
+        var pending = mutableListOf<Any>()
+        for (token in tokens) {
+            if (token is Operator) {
+                result.add(token.name to pending.toList())
+                pending = mutableListOf()
+            } else {
+                pending.add(token)
+            }
+        }
+        return result
+    }
+
+    private fun Any.numberValue(): Float = (this as COSNumber).floatValue()
+
+    /**
+     * Speichert und lädt neu, wie es jeder echte Verbraucher der erzeugten PDDocument auch tut. Bei
+     * eingebetteten Type0-Schriften schließt PDFBox das Subset-Embedding (inkl. ToUnicode-CMap) erst
+     * beim Speichern ab; liest man vorher aus den Resources oder extrahiert Text, fällt PDFBox auf
+     * eine Font-Substitution zurück und loggt eine WARNUNG, obwohl in der echten Nutzung immer erst
+     * gespeichert wird.
+     */
+    private fun saveAndReload(doc: PDDocument): PDDocument {
+        val out = ByteArrayOutputStream()
+        doc.save(out)
+        doc.close()
+        return Loader.loadPDF(out.toByteArray())
+    }
+
+    private fun textAfterSaveAndReload(doc: PDDocument, page: Int): String {
+        val reloaded = saveAndReload(doc)
+        val result = text(reloaded, page)
+        reloaded.close()
+        return result
     }
 
     @Test
@@ -146,6 +198,87 @@ class GapDocumentsTest {
         assertTrue(content.contains("1. Platz"))
         assertTrue(content.contains("33:17,7 min"))
         doc.close()
+    }
+
+    @Test
+    fun embeddedFontIsUsedInsteadOfHelvetica() {
+        // Mit übergebener Schriftdatei muss die Seite die eingebettete Schrift nutzen, nicht Helvetica.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = embeddedFontBytes(),
+            withBackground = false,
+            pages = listOf(listOf(addition("1. Platz", 0.45))),
+        )
+
+        val reloaded = saveAndReload(doc)
+        val page = reloaded.getPage(0)
+        val fontName = page.resources.getFont(page.resources.fontNames.first()).name
+        assertFalse(fontName.contains("Helvetica", ignoreCase = true))
+        assertTrue(fontName.contains("Liberation", ignoreCase = true))
+        reloaded.close()
+    }
+
+    @Test
+    fun boldWithEmbeddedFontUsesSyntheticFillStrokeRenderingMode() {
+        // Ohne echten Fett-Schnitt wird Fett über den Textrendermodus FILL_STROKE plus Randlinie simuliert.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = embeddedFontBytes(),
+            withBackground = false,
+            pages = listOf(listOf(addition("1. Platz", 0.45).copy(bold = true))),
+        )
+
+        val operators = operatorOperands(doc.getPage(0))
+        val renderingMode = operators.first { it.first == "Tr" }.second.single().numberValue()
+        assertEquals(2f, renderingMode) // FILL_STROKE
+
+        val lineWidth = operators.first { it.first == "w" }.second.single().numberValue()
+        assertTrue(lineWidth > 0f)
+        doc.close()
+    }
+
+    @Test
+    fun italicWithEmbeddedFontShearsTheTextMatrix() {
+        // Ohne echten Kursiv-Schnitt wird Kursiv über eine Schrägstellung der Textmatrix simuliert.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = embeddedFontBytes(),
+            withBackground = false,
+            pages = listOf(listOf(addition("1. Platz", 0.45).copy(italic = true))),
+        )
+
+        val tm = operatorOperands(doc.getPage(0)).first { it.first == "Tm" }.second
+        assertEquals(6, tm.size)
+        assertNotEquals(0f, tm[2].numberValue()) // c-Komponente der Matrix trägt die Schräge
+        doc.close()
+    }
+
+    @Test
+    fun boldWithoutFontUsesRealBoldCutInsteadOfSyntheticStroke() {
+        // Gegenprobe zu den beiden Tests oben: ohne Schriftdatei gibt es einen echten Fett-Schnitt
+        // (HELVETICA_BOLD), daher wird kein Tr-Operator für FILL_STROKE geschrieben.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = null,
+            withBackground = false,
+            pages = listOf(listOf(addition("1. Platz", 0.45).copy(bold = true))),
+        )
+
+        assertFalse(operatorOperands(doc.getPage(0)).any { it.first == "Tr" })
+        doc.close()
+    }
+
+    @Test
+    fun textWithEmbeddedFontStillExtracts() {
+        // Die eingebettete Schrift darf die Textextraktion nicht kaputt machen.
+        val doc = gapDocuments(
+            template = templateBytes(),
+            font = embeddedFontBytes(),
+            withBackground = false,
+            pages = listOf(listOf(addition("Carina Hein", 0.45))),
+        )
+
+        assertTrue(textAfterSaveAndReload(doc, 1).contains("Carina Hein"))
     }
 
     @Test
