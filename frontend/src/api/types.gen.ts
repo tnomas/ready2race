@@ -6413,3 +6413,54 @@ export type DownloadCertificatesOfParticipationData = {
 export type DownloadCertificatesOfParticipationResponse = Blob | File
 
 export type DownloadCertificatesOfParticipationError = BadRequestError | ApiError
+
+export type DownloadAwardCertificatesForEventData = {
+    path: {
+        eventId: string
+    }
+    query?: {
+        background?: boolean
+        format?: 'pdf' | 'docx'
+        maxPlace?: number
+        mode?: 'PER_ATHLETE' | 'PER_TEAM'
+    }
+}
+
+export type DownloadAwardCertificatesForEventResponse = Blob | File
+
+export type DownloadAwardCertificatesForEventError = BadRequestError | ApiError
+
+export type DownloadAwardCertificatesForCompetitionData = {
+    path: {
+        competitionId: string
+        eventId: string
+    }
+    query?: {
+        background?: boolean
+        format?: 'pdf' | 'docx'
+        maxPlace?: number
+        mode?: 'PER_ATHLETE' | 'PER_TEAM'
+    }
+}
+
+export type DownloadAwardCertificatesForCompetitionResponse = Blob | File
+
+export type DownloadAwardCertificatesForCompetitionError = BadRequestError | ApiError
+
+export type DownloadAwardCertificateData = {
+    path: {
+        competitionId: string
+        eventId: string
+        registrationId: string
+    }
+    query?: {
+        background?: boolean
+        format?: 'pdf' | 'docx'
+        maxPlace?: number
+        mode?: 'PER_ATHLETE' | 'PER_TEAM'
+    }
+}
+
+export type DownloadAwardCertificateResponse = Blob | File
+
+export type DownloadAwardCertificateError = BadRequestError | ApiError
