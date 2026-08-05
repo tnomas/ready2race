@@ -2608,6 +2608,17 @@ kann — ein kaputter Upload soll beim Anlegen auffallen, nicht erst beim Generi
 KIO-Version anders heißt, das Muster einer bestehenden `KIO.effect`-Verwendung im Projekt
 übernehmen (`grep -rn "KIO.effect" backend/src/main/kotlin | head`).
 
+- [ ] **Step 5b: Platzhalterseite validieren**
+
+Der Serien-Renderer aus Task 3 zeichnet je Urkunde genau eine Seite und berücksichtigt nur
+Platzhalter mit `page == 1`; Platzhalter mit einer höheren Seitenzahl fielen bisher stillschweigend
+weg. Eine Urkunde ist per Definition einseitig, deshalb wird das beim Speichern der Vorlage
+abgefangen statt beim Generieren verschluckt: In `addTemplate` und `updateTemplate` schlägt eine
+Anfrage mit `placeholders.any { it.page != 1 }` für den Typ `AWARD_CERTIFICATE` mit einem neuen Fall
+`GapDocumentTemplateError.PlaceholderPageNotSupported` fehl (`HttpStatusCode.BadRequest`, Meldung
+`"Award certificates have a single page, placeholders must be on page 1"`). Die Teilnahmeurkunde
+bleibt unangetastet, weil ihre Vorlage mehrseitig sein darf.
+
 - [ ] **Step 6: Multipart-Route erweitern**
 
 In `documentTemplate.kt` im `post`-Handler für `/gapDocumentTemplate` den zweiten Dateiteil
