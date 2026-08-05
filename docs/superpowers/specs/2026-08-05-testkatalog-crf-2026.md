@@ -81,6 +81,7 @@ nicht die Erwartung anpassen.
 | A19 | Takt | Anzeige holt im konfigurierten Takt, nie schneller als 10 s; Änderung ist nach höchstens ~15 s sichtbar | `77fca680` | |
 | A20 | Ohne Anmeldung | `/board/{eventId}` funktioniert im privaten Fenster vollständig | `8eda6dc1` | |
 | A21 | Überfälliger Platzhalter | Wartender Slot und Programmpunkt verschwinden 30 min nach ihrer Startzeit aus „Nächster Lauf" — dieselbe Nachfrist wie A15. Die Morgenbesprechung darf am Nachmittag nicht mehr die drei Plätze der Spalte belegen | `23e7c170` | |
+| A22 | Abgesagter Lauf | Ein abgesagter Slot verschwindet aus „Nächster Lauf" und aus der Kiosk-Ansicht — auch wenn die Runde bereits gesetzt ist und es den Lauf wirklich gibt. Die übrigen Läufe rücken nach | `f81f8bc5` | |
 
 ## B — Zeitstrahl und Laufkette
 
@@ -90,7 +91,7 @@ nicht die Erwartung anpassen.
 | B2 | Slot-Zustände | Wartend, gesetzt, gelaufen, abgesagt, verwaist werden im Tag-Agenda-Tab korrekt unterschieden | `a05e644a`, `18a6ebf2` | |
 | B3 | Verschieben: plus/Uhrzeit/komprimieren | Vorschau vor dem Anwenden, Ergebnis entspricht der Vorschau | `9ae3cfe6`, `08f5c341` | |
 | B4 | Verschieben über den Renntag hinaus | Wird abgelehnt, mit verständlicher Meldung | `4bfb2278` | |
-| B5 | Lauf absagen | Nur mit Audit; ein bereits gestarteter Lauf lässt sich nicht absagen | `bf3e47cd`, `0b56ebf2` | |
+| B5 | Lauf absagen | Nur mit Audit; ein Lauf, der schon unterwegs ist, lässt sich nicht absagen — „unterwegs" heißt bereits **aktiviert**, nicht erst mit Ist-Start aus der Zeitnahme. Der Zeitplan-Tab bietet die Aktion dann gar nicht erst an, ein direkter API-Aufruf antwortet 409. Ein Lauf darf nie abgesagt und laufend zugleich sein | `bf3e47cd`, `0b56ebf2`, `f81f8bc5` | |
 | B6 | Wortwahl | Oberfläche spricht von „abgesagt", nicht von „übersprungen"; Umfang der Aktion ist benannt | `8bd94c1f`, `041bf03d` | |
 | B7 | Excel-Import | Zeilenweise Vorschau, echte Excel-Zeilennummern in Fehlermeldungen, Namensabgleich | `8cc599eb`, `01863020`, `8bf3ef04` | |
 | B8 | Kette: Fortschaltmodus | Drei Modi am Event: **Schiedsrichter** (Beenden und Kette über das Dashboard), **Regattabüro** (Beenden/Aktivieren nur über den Zeitplan — im Dashboard fehlt der Beenden-Knopf, die API antwortet dort 409), **Deaktiviert** (Beenden wirkt nur auf den Lauf) | `ed7160d1`, `27080b8b` | |
@@ -109,6 +110,7 @@ nicht die Erwartung anpassen.
 | B21 | Vorziehen (negativer Verzug) | Ein Shift, der den Vorgänger-Slot überholen würde, wird abgelehnt | `0fb21aea` | |
 | B22 | Import ersetzt alles | Vorschau schreibt nichts; erst „Importieren" ersetzt alle Slots; eine doppelte Zeile blockiert den Import | `8cc599eb`, `8bf3ef04` | |
 | B23 | Symbolspalten | Aktionssymbole stehen über alle Zeilen in festen Spalten untereinander | `bb39d7f7` | |
+| B24 | Absage im Schiedsrichter-Dashboard | Ein abgesagter Lauf verschwindet dort NICHT, sondern steht durchgestrichen mit der Kennzeichnung „Abgesagt" und ohne Steuerknöpfe; der Live-Ausschnitt springt über ihn hinweg zum nächsten Lauf | `f81f8bc5` | |
 
 ## C — RaceClocker
 
