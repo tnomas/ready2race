@@ -6398,6 +6398,9 @@ export type DownloadCertificateOfParticipationData = {
         eventId: string
         participantId: string
     }
+    query?: {
+        format?: 'pdf' | 'docx'
+    }
 }
 
 export type DownloadCertificateOfParticipationResponse = Blob | File
@@ -6407,6 +6410,9 @@ export type DownloadCertificateOfParticipationError = BadRequestError | ApiError
 export type DownloadCertificatesOfParticipationData = {
     path: {
         eventId: string
+    }
+    query?: {
+        format?: 'pdf' | 'docx'
     }
 }
 

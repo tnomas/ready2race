@@ -32,6 +32,8 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.database.generated.tables.AppUserWithPrivileges
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CertificateOfEventParticipationSendingJobRecord
+import de.lambda9.ready2race.backend.docx.gapDocumentsDocx
+import de.lambda9.ready2race.backend.docx.toByteArray
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pdf.AdditionalText
@@ -43,6 +45,7 @@ import de.lambda9.tailwind.core.extensions.kio.failIf
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.jooq.transact
+import org.apache.pdfbox.Loader
 import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
 import java.util.UUID
@@ -65,9 +68,38 @@ object CertificateService {
         return bytes
     }
 
+    /**
+     * Wie [participantForEvent], aber wahlweise als DOCX statt PDF — für den manuellen Download.
+     * Der E-Mail-Versand ruft weiterhin die zweistellige Überladung auf und bleibt damit bei PDF.
+     */
+    private fun participantForEvent(
+        additions: List<AdditionalText>,
+        template: ByteArray,
+        fontName: String?,
+        format: AwardCertificateService.Format,
+    ): ByteArray = when (format) {
+        AwardCertificateService.Format.PDF -> participantForEvent(additions, template)
+
+        AwardCertificateService.Format.DOCX -> {
+            val templateDoc = Loader.loadPDF(template)
+            val mediaBox = templateDoc.getPage(0).mediaBox
+            val width = mediaBox.width
+            val height = mediaBox.height
+            templateDoc.close()
+
+            gapDocumentsDocx(
+                pageWidthPoints = width,
+                pageHeightPoints = height,
+                fontName = fontName,
+                pages = listOf(additions),
+            ).toByteArray()
+        }
+    }
+
     fun downloadCertificatesOfParticipation(
         eventId: UUID,
         clubId: UUID,
+        format: AwardCertificateService.Format,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
         val type = GapDocumentType.CERTIFICATE_OF_PARTICIPATION
 
@@ -90,6 +122,8 @@ object CertificateService {
 
         val resultUnit = MatchResultType.valueOf(event.challengeMatchResultType!!).unit
 
+        val extension = if (format == AwardCertificateService.Format.PDF) "pdf" else "docx"
+
         val zipOutputStream = ByteArrayOutputStream()
         java.util.zip.ZipOutputStream(zipOutputStream).use { zip ->
             participantResults.forEach { (_, participantResultList) ->
@@ -111,10 +145,12 @@ object CertificateService {
                         ),
                     ),
                     template = template.data!!,
+                    fontName = template.fontName,
+                    format = format,
                 )
 
-                // Add PDF to ZIP
-                val fileName = "certificate_of_participation_${event.name}_${result.firstname}_${result.lastname}.pdf"
+                // Add certificate to ZIP
+                val fileName = "certificate_of_participation_${event.name}_${result.firstname}_${result.lastname}.$extension"
                 val zipEntry = java.util.zip.ZipEntry(fileName)
                 zip.putNextEntry(zipEntry)
                 zip.write(bytes)
@@ -135,6 +171,7 @@ object CertificateService {
         participantId: UUID,
         user: AppUserWithPrivilegesRecord,
         scope: Scope,
+        format: AwardCertificateService.Format,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
         val type = GapDocumentType.CERTIFICATE_OF_PARTICIPATION
 
@@ -173,11 +210,15 @@ object CertificateService {
                 ),
             ),
             template = template.data!!,
+            fontName = template.fontName,
+            format = format,
         )
+
+        val extension = if (format == AwardCertificateService.Format.PDF) "pdf" else "docx"
 
         KIO.ok(
             ApiResponse.File(
-                name = "certificate_of_participation_${event.name}_${participant.firstname}_${participant.lastname}.pdf",
+                name = "certificate_of_participation_${event.name}_${participant.firstname}_${participant.lastname}.$extension",
                 bytes = bytes,
             )
         )

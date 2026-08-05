@@ -7423,6 +7423,13 @@ paths:
           type: string
     get:
       operationId: downloadCertificateOfParticipation
+      parameters:
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ pdf, docx ]
       responses:
         200:
           $ref: '#/components/responses/file'
@@ -7442,6 +7449,13 @@ paths:
       - $ref: '#/components/parameters/eventId'
     get:
       operationId: downloadCertificatesOfParticipation
+      parameters:
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ pdf, docx ]
       responses:
         200:
           $ref: '#/components/responses/file'

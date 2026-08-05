@@ -25,7 +25,7 @@ fun Route.awardCertificate() {
                 !authenticate(Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
                 val options = awardCertificateOptions()
-                val format = awardCertificateFormat()
+                val format = certificateFormat()
 
                 AwardCertificateService.downloadForEvent(eventId, options, format)
             }
@@ -39,7 +39,7 @@ fun Route.awardCertificate() {
                 val eventId = !pathParam("eventId", uuid)
                 val competitionId = !pathParam("competitionId", uuid)
                 val options = awardCertificateOptions()
-                val format = awardCertificateFormat()
+                val format = certificateFormat()
 
                 AwardCertificateService.downloadForCompetition(eventId, competitionId, options, format)
             }
@@ -52,7 +52,7 @@ fun Route.awardCertificate() {
                 val competitionId = !pathParam("competitionId", uuid)
                 val registrationId = !pathParam("registrationId", uuid)
                 val options = awardCertificateOptions()
-                val format = awardCertificateFormat()
+                val format = certificateFormat()
 
                 AwardCertificateService.downloadForRegistration(
                     eventId,
@@ -81,8 +81,12 @@ private fun CallComprehensionScope.awardCertificateOptions(): AwardCertificateOp
     )
 }
 
-/** `format` kommt kleingeschrieben an (`pdf`, `docx`), anders als die übrigen Enum-Query-Parameter. */
-private val awardCertificateFormatParser = Parser<AwardCertificateService.Format> { value ->
+/**
+ * `format` kommt kleingeschrieben an (`pdf`, `docx`), anders als die übrigen Enum-Query-Parameter.
+ * Wird auch von den Teilnahmeurkunden-Routen in `certificate.kt` genutzt, damit es dafür nur
+ * diesen einen Parser gibt.
+ */
+val certificateFormatParser = Parser<AwardCertificateService.Format> { value ->
     when (value.lowercase()) {
         "pdf" -> AwardCertificateService.Format.PDF
         "docx" -> AwardCertificateService.Format.DOCX
@@ -90,5 +94,5 @@ private val awardCertificateFormatParser = Parser<AwardCertificateService.Format
     }
 }
 
-private fun CallComprehensionScope.awardCertificateFormat(): AwardCertificateService.Format =
-    !optionalQueryParam("format", awardCertificateFormatParser) ?: AwardCertificateService.Format.PDF
+fun CallComprehensionScope.certificateFormat(): AwardCertificateService.Format =
+    !optionalQueryParam("format", certificateFormatParser) ?: AwardCertificateService.Format.PDF
