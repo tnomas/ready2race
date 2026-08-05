@@ -1,7 +1,9 @@
 # Design: Zeitnahme-Einstellungen pro Wettkampf
 
 **Stand:** 2026-08-05
-**Status:** Design abgenommen, Implementierung ausstehend
+**Status:** Implementiert (Backend, Frontend, Tests). Die manuelle Abnahme am Gerät ist offen —
+die drei Round-Trip-Durchläufe aus Plan-Task 9 (Schritte 4–6) brauchen einen Admin-Login und
+müssen von Hand gemacht werden.
 **Kontext:** Nacharbeit zur RaceClocker-Integration (Issue #94, Migrationen
 `V202607211200__raceclocker_integration.sql` und `V202607231000__raceclocker_feedback.sql`). Ziel
 ist der Sammelbranch `feature/crf-2026` für die Coastal Regatta am 14.08.2026.
