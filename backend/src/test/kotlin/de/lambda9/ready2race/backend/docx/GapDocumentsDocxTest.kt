@@ -5,8 +5,11 @@ import de.lambda9.ready2race.backend.text.TextAlign
 import org.apache.poi.xwpf.usermodel.ParagraphAlignment
 import org.apache.poi.xwpf.usermodel.XWPFDocument
 import org.apache.pdfbox.pdmodel.common.PDRectangle
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -83,6 +86,28 @@ class GapDocumentsDocxTest {
         assertEquals(20, run.fontSize)
         assertTrue(run.isBold)
         assertTrue(run.isItalic)
+        document.close()
+    }
+
+    @Test
+    fun fontSizeFallsBackToTheBoxHeightWhenNotConfigured() {
+        // Ohne konfigurierte Schriftgröße gilt dieselbe Regel wie im PDF-Renderer (drawAddition):
+        // die Schriftgröße entspricht der Kastenhöhe. Kastenhöhe = 0.05 * 841.8898 pt ≈ 42.09 pt.
+        // Das muss sowohl für den sichtbaren Textlauf als auch für die Rahmenhöhe gelten, sonst
+        // driftet die Word-Ausgabe gegenüber der PDF-Ausgabe ab.
+        val document = doc(listOf(listOf(addition("1. Platz", 0.45).copy(fontSize = null))))
+
+        val paragraph = document.paragraphs.first { it.ctp.pPr?.framePr != null }
+        val run = paragraph.runs.first()
+
+        val boxHeight = PDRectangle.A4.height * 0.05f
+        val expectedFontSize = boxHeight.roundToInt()
+        val expectedLineHeightTwips = (boxHeight * 1.2f * 20f).roundToLong()
+
+        // POI liefert -1, wenn keine Schriftgröße auf dem Run gesetzt wurde - das ist der Fehlerfall.
+        assertNotEquals(-1, run.fontSize)
+        assertEquals(expectedFontSize, run.fontSize)
+        assertEquals(expectedLineHeightTwips, paragraph.ctp.pPr.framePr.h.toString().toLong())
         document.close()
     }
 

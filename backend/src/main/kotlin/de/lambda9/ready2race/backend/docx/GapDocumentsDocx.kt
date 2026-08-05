@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.docx
 
 import de.lambda9.ready2race.backend.pdf.AdditionalText
+import de.lambda9.ready2race.backend.pdf.gapTextMetrics
 import de.lambda9.ready2race.backend.text.TextAlign
 import de.lambda9.ready2race.backend.text.sanitizeNonPrintable
 import org.apache.poi.xwpf.usermodel.BreakType
@@ -13,6 +14,7 @@ import org.openxmlformats.schemas.wordprocessingml.x2006.main.STVAnchor
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.STWrap
 import java.io.ByteArrayOutputStream
 import java.math.BigInteger
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /** Word rechnet in Twips: 1 Punkt = 20 Twips. */
@@ -64,7 +66,8 @@ fun gapDocumentsDocx(
             // Formate dieselbe Stelle auf dem Papier treffen.
             val boxTop = pageHeightPoints * addition.relTop.toFloat()
             val boxHeight = pageHeightPoints * addition.relHeight.toFloat()
-            val lineHeight = (addition.fontSize ?: boxHeight) * 1.2f
+            val metrics = addition.gapTextMetrics(boxHeight)
+            val lineHeight = metrics.lineHeight
             val blockTop = boxTop + (boxHeight - lineHeight * lines.size) / 2
 
             lines.forEachIndexed { lineIndex, line ->
@@ -88,7 +91,9 @@ fun gapDocumentsDocx(
                 val run = paragraph.createRun()
                 run.setText(line)
                 fontName?.let { run.fontFamily = it }
-                addition.fontSize?.let { run.fontSize = it.toInt() }
+                // Wie im PDF-Renderer: ohne konfigurierte Größe wird bei der Kastenhöhe gerendert,
+                // sonst würde der sichtbare Text von dem für ihn vorgesehenen Rahmen abweichen.
+                run.fontSize = metrics.fontSize.roundToInt()
                 run.isBold = addition.bold
                 run.isItalic = addition.italic
             }

@@ -63,7 +63,8 @@ private fun drawAddition(
     val x = (page.mediaBox.width * addition.relLeft).toFloat()
     val y = (page.mediaBox.height * (1 - addition.relTop) - h).toFloat()
 
-    val fontSize = addition.fontSize ?: h
+    val metrics = addition.gapTextMetrics(h)
+    val fontSize = metrics.fontSize
     val font = fonts.forStyle(addition.bold, addition.italic)
 
     content.setFont(font, fontSize)
@@ -81,7 +82,7 @@ private fun drawAddition(
     }
 
     val capHeight = fontSize * font.fontDescriptor.capHeight / 1000
-    val lineHeight = fontSize * 1.2f
+    val lineHeight = metrics.lineHeight
     val lines = addition.content.split("\n").map { it.sanitizeNonPrintable() }
     val blockTop = y + h / 2 + lineHeight * lines.size / 2
 
