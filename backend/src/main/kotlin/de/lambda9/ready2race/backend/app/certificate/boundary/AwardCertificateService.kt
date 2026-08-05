@@ -33,7 +33,15 @@ import java.util.UUID
 
 object AwardCertificateService {
 
-    enum class Format { PDF, DOCX }
+    enum class Format {
+        PDF, DOCX;
+
+        val extension: String
+            get() = when (this) {
+                PDF -> "pdf"
+                DOCX -> "docx"
+            }
+    }
 
     fun downloadForEvent(
         eventId: UUID,
@@ -217,11 +225,9 @@ object AwardCertificateService {
             }
         }
 
-        val extension = if (format == Format.PDF) "pdf" else "docx"
-
         KIO.ok(
             ApiResponse.File(
-                name = "$fileBaseName.$extension",
+                name = "$fileBaseName.${format.extension}",
                 bytes = bytes,
             )
         )

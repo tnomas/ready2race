@@ -86,7 +86,7 @@ private fun CallComprehensionScope.awardCertificateOptions(): AwardCertificateOp
  * Wird auch von den Teilnahmeurkunden-Routen in `certificate.kt` genutzt, damit es dafür nur
  * diesen einen Parser gibt.
  */
-val certificateFormatParser = Parser<AwardCertificateService.Format> { value ->
+internal val certificateFormatParser = Parser<AwardCertificateService.Format> { value ->
     when (value.lowercase()) {
         "pdf" -> AwardCertificateService.Format.PDF
         "docx" -> AwardCertificateService.Format.DOCX
@@ -94,5 +94,5 @@ val certificateFormatParser = Parser<AwardCertificateService.Format> { value ->
     }
 }
 
-fun CallComprehensionScope.certificateFormat(): AwardCertificateService.Format =
+internal fun CallComprehensionScope.certificateFormat(): AwardCertificateService.Format =
     !optionalQueryParam("format", certificateFormatParser) ?: AwardCertificateService.Format.PDF

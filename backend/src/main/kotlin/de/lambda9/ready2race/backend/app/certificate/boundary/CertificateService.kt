@@ -39,11 +39,13 @@ import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pdf.AdditionalText
 import de.lambda9.ready2race.backend.pdf.document
 import de.lambda9.ready2race.backend.validation.emailPattern
+import de.lambda9.tailwind.core.IO
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unit
 import de.lambda9.tailwind.core.extensions.kio.failIf
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import de.lambda9.tailwind.core.extensions.kio.traverse
 import de.lambda9.tailwind.jooq.transact
 import org.apache.pdfbox.Loader
 import java.io.ByteArrayOutputStream
@@ -70,29 +72,45 @@ object CertificateService {
 
     /**
      * Wie [participantForEvent], aber wahlweise als DOCX statt PDF — für den manuellen Download.
-     * Der E-Mail-Versand ruft weiterhin die zweistellige Überladung auf und bleibt damit bei PDF.
+     * Der E-Mail-Versand ruft weiterhin die zweistellige Überladung auf und bleibt damit bei PDF,
+     * ebenso die Vorschau in `GapDocumentTemplateService` — beide bleiben daher außen vor und
+     * müssen sich nicht mit `CertificateError` befassen. Gibt deshalb absichtlich ein `App`
+     * zurück statt wie die zweistellige Überladung ein rohes `ByteArray`: nur die beiden
+     * Download-Endpunkte rufen diese Überladung auf und laufen bereits in einer KIO-Comprehension.
+     * Rückgabetyp ist bewusst `IO<...>` (= `KIO<Any, ...>`) statt des Typalias `App` (= `KIO<JEnv,
+     * ...>`): die Funktion greift nie auf die Umgebung zu, bleibt also rein bytes-in/bytes-out und
+     * lässt sich per `unsafeRunSync()` ohne echtes `JEnv` testen. `internal` statt `private`, damit
+     * genau das auch von einem Test in einer anderen Datei aus möglich ist.
      */
-    private fun participantForEvent(
+    internal fun participantForEvent(
         additions: List<AdditionalText>,
         template: ByteArray,
         fontName: String?,
         format: AwardCertificateService.Format,
-    ): ByteArray = when (format) {
-        AwardCertificateService.Format.PDF -> participantForEvent(additions, template)
+    ): IO<CertificateError, ByteArray> = when (format) {
+        AwardCertificateService.Format.PDF -> KIO.ok(participantForEvent(additions, template))
 
-        AwardCertificateService.Format.DOCX -> {
-            val templateDoc = Loader.loadPDF(template)
-            val mediaBox = templateDoc.getPage(0).mediaBox
-            val width = mediaBox.width
-            val height = mediaBox.height
-            templateDoc.close()
+        AwardCertificateService.Format.DOCX -> KIO.comprehension {
+            // Loader.loadPDF/getPage werfen bei einer defekten oder leeren Vorlage eine Exception,
+            // die ohne KIO.effect als untypisierter 500er beim Client ankäme (siehe AwardCertificateService).
+            val (width, height) = !KIO.effect {
+                val templateDoc = Loader.loadPDF(template)
+                try {
+                    val mediaBox = templateDoc.getPage(0).mediaBox
+                    mediaBox.width to mediaBox.height
+                } finally {
+                    templateDoc.close()
+                }
+            }.mapError { CertificateError.UnreadableTemplate }
 
-            gapDocumentsDocx(
-                pageWidthPoints = width,
-                pageHeightPoints = height,
-                fontName = fontName,
-                pages = listOf(additions),
-            ).toByteArray()
+            KIO.ok(
+                gapDocumentsDocx(
+                    pageWidthPoints = width,
+                    pageHeightPoints = height,
+                    fontName = fontName,
+                    pages = listOf(additions),
+                ).toByteArray()
+            )
         }
     }
 
@@ -122,35 +140,43 @@ object CertificateService {
 
         val resultUnit = MatchResultType.valueOf(event.challengeMatchResultType!!).unit
 
-        val extension = if (format == AwardCertificateService.Format.PDF) "pdf" else "docx"
+        // Erst alle Urkunden per KIO erzeugen (dabei kann Format.DOCX typisiert fehlschlagen),
+        // danach erst die Bytes einsammeln und ins ZIP schreiben — `forEach` selbst ist kein
+        // KIO-Kontext und könnte den Fehler nicht typisiert nach oben reichen.
+        val certificates = !participantResults.values
+            .filter { it.isNotEmpty() }
+            .traverse { participantResultList ->
+                KIO.comprehension {
+                    val result = participantResultList.first()
+
+                    val resultTotal = participantResultList.sumOf { it.teamResultValue ?: 0 }
+
+                    val bytes = !participantForEvent(
+                        additions = GapPlaceholderLogic.fill(
+                            placeholders = template.placeholders!!.toList().toGapPlaceholders(),
+                            values = GapPlaceholderValues(
+                                firstName = result.firstname ?: "",
+                                lastName = result.lastname ?: "",
+                                fullName = "${result.firstname ?: ""} ${result.lastname ?: ""}",
+                                result = "$resultTotal $resultUnit",
+                                eventName = event.name,
+                            ),
+                        ),
+                        template = template.data!!,
+                        fontName = template.fontName,
+                        format = format,
+                    )
+
+                    val fileName =
+                        "certificate_of_participation_${event.name}_${result.firstname}_${result.lastname}.${format.extension}"
+
+                    KIO.ok(fileName to bytes)
+                }
+            }
 
         val zipOutputStream = ByteArrayOutputStream()
         java.util.zip.ZipOutputStream(zipOutputStream).use { zip ->
-            participantResults.forEach { (_, participantResultList) ->
-                if (participantResultList.isEmpty()) return@forEach
-
-                val result = participantResultList.first()
-
-                val resultTotal = participantResultList.sumOf { it.teamResultValue ?: 0 }
-
-                val bytes = participantForEvent(
-                    additions = GapPlaceholderLogic.fill(
-                        placeholders = template.placeholders!!.toList().toGapPlaceholders(),
-                        values = GapPlaceholderValues(
-                            firstName = result.firstname ?: "",
-                            lastName = result.lastname ?: "",
-                            fullName = "${result.firstname ?: ""} ${result.lastname ?: ""}",
-                            result = "$resultTotal $resultUnit",
-                            eventName = event.name,
-                        ),
-                    ),
-                    template = template.data!!,
-                    fontName = template.fontName,
-                    format = format,
-                )
-
-                // Add certificate to ZIP
-                val fileName = "certificate_of_participation_${event.name}_${result.firstname}_${result.lastname}.$extension"
+            certificates.forEach { (fileName, bytes) ->
                 val zipEntry = java.util.zip.ZipEntry(fileName)
                 zip.putNextEntry(zipEntry)
                 zip.write(bytes)
@@ -198,7 +224,7 @@ object CertificateService {
         val resultTotal = result.sumOf { it.teamResultValue ?: 0 }
         val resultUnit = MatchResultType.valueOf(event.challengeMatchResultType!!).unit
 
-        val bytes = participantForEvent(
+        val bytes = !participantForEvent(
             additions = GapPlaceholderLogic.fill(
                 placeholders = template.placeholders!!.toList().toGapPlaceholders(),
                 values = GapPlaceholderValues(
@@ -214,11 +240,9 @@ object CertificateService {
             format = format,
         )
 
-        val extension = if (format == AwardCertificateService.Format.PDF) "pdf" else "docx"
-
         KIO.ok(
             ApiResponse.File(
-                name = "certificate_of_participation_${event.name}_${participant.firstname}_${participant.lastname}.$extension",
+                name = "certificate_of_participation_${event.name}_${participant.firstname}_${participant.lastname}.${format.extension}",
                 bytes = bytes,
             )
         )
