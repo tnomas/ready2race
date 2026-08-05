@@ -219,6 +219,45 @@ class GapDocumentsDocxTest {
         document.close()
     }
 
+    /**
+     * Finding 3: Der Absatz, der die sectPr des endenden Abschnitts trägt, gehört fachlich noch
+     * zur vorherigen (größenwechselnden) Seite. Eine Seite ohne eigene Platzhalter darf deshalb
+     * nicht spurlos verschwinden - sie braucht trotzdem einen eigenen Anker-Absatz, sonst bleibt
+     * ihr Abschnitt leer und Word/LibreOffice emittiert für ihn sehr wahrscheinlich kein Blatt.
+     */
+    @Test
+    fun secondPageWithoutPlaceholdersStillGetsItsOwnParagraphAfterASizeChange() {
+        val document = gapDocumentsDocx(
+            templatePageSizes = listOf(a4, a5),
+            fontName = null,
+            certificates = listOf(
+                listOf(addition("Seite eins", 0.45, page = 1)),
+                // Seite 2 (A5) bekommt bewusst keinen Platzhalter.
+            ),
+        )
+
+        val paragraphs = document.paragraphs
+        val sectPrParagraphIndex = paragraphs.indexOfFirst { it.ctp.pPr?.sectPr != null }
+        assertTrue(sectPrParagraphIndex >= 0, "Abschnittswechsel zwischen den unterschiedlich großen Seiten muss existieren")
+        assertTrue(
+            sectPrParagraphIndex < paragraphs.size - 1,
+            "die platzhalterlose zweite Seite muss einen eigenen Absatz nach dem Abschnittswechsel haben, sonst bleibt ihr Abschnitt leer",
+        )
+
+        // Der Abschnittswechsel-Absatz trägt weiterhin die Größe der ersten Seite (A4) ...
+        val embeddedSectPr = paragraphs[sectPrParagraphIndex].ctp.pPr.sectPr
+        assertEquals(twips(a4.widthPoints), embeddedSectPr.pgSz.w.toString().toLong())
+        assertEquals(twips(a4.heightPoints), embeddedSectPr.pgSz.h.toString().toLong())
+
+        // ... und der letzte (Body-)Abschnitt bleibt in der Größe der zweiten Seite (A5), auch
+        // wenn diese keine eigenen Platzhalter hat.
+        val bodySectPr = document.document.body.sectPr
+        assertEquals(twips(a5.widthPoints), bodySectPr.pgSz.w.toString().toLong())
+        assertEquals(twips(a5.heightPoints), bodySectPr.pgSz.h.toString().toLong())
+
+        document.close()
+    }
+
     @Test
     fun placeholderNamingAPageTheTemplateDoesNotHaveIsDropped() {
         val document = gapDocumentsDocx(

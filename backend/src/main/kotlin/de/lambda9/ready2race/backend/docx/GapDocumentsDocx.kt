@@ -63,29 +63,31 @@ fun gapDocumentsDocx(
 
     renderPages.forEachIndexed { pageIndex, renderPage ->
         val previousSize = renderPages.getOrNull(pageIndex - 1)?.size
-        when {
-            pageIndex == 0 ->
-                // Anker für die erste Seite, damit sie auch ohne Platzhalter als Absatz existiert.
-                document.createParagraph()
+        val simplePageBreak = pageIndex > 0 && previousSize == renderPage.size
 
-            previousSize == renderPage.size -> {
-                // Gleiche Seitengröße wie die vorherige Seite: ein einfacher Seitenumbruch reicht,
-                // beide Seiten bleiben im selben Word-Abschnitt (unverändertes Verhalten für die
-                // Siegerurkunde, deren Vorlage immer nur eine Seitengröße kennt).
-                val anchor = document.createParagraph()
-                anchor.createRun().addBreak(BreakType.PAGE)
-            }
+        if (pageIndex > 0 && previousSize != renderPage.size) {
+            // Andere Seitengröße als die vorherige: Word kennt unterschiedliche Seitengrößen nur
+            // über einen Abschnittswechsel. Der endende Abschnitt bekommt seine sectPr (inkl.
+            // Seitengröße) auf einem eigenen, dedizierten Absatz - das ist in OOXML die einzige
+            // Stelle, an der ein Abschnitt (außer dem letzten) seine Seitengröße definiert; der
+            // letzte Abschnitt bekommt sie stattdessen auf Body-Ebene, siehe unten. Dieser Absatz
+            // gehört noch zum endenden Abschnitt und ist NICHT der Anker der neuen Seite - der wird
+            // unten unabhängig davon angelegt, sonst bliebe eine platzhalterlose Seite nach einem
+            // Größenwechsel ganz ohne eigenen Absatz und ihr Abschnitt damit leer.
+            val sectionEnd = document.createParagraph()
+            val pPr = sectionEnd.ctp.pPr ?: sectionEnd.ctp.addNewPPr()
+            applyPageSize(pPr.addNewSectPr(), previousSize!!)
+        }
 
-            else -> {
-                // Andere Seitengröße als die vorherige: Word kennt unterschiedliche Seitengrößen
-                // nur über einen Abschnittswechsel. Der endende Abschnitt bekommt seine sectPr
-                // (inkl. Seitengröße) auf einem eigenen, leeren Absatz - das ist in OOXML die
-                // einzige Stelle, an der ein Abschnitt (außer dem letzten) seine Seitengröße
-                // definiert; der letzte Abschnitt bekommt sie stattdessen auf Body-Ebene, siehe unten.
-                val sectionEnd = document.createParagraph()
-                val pPr = sectionEnd.ctp.pPr ?: sectionEnd.ctp.addNewPPr()
-                applyPageSize(pPr.addNewSectPr(), previousSize!!)
-            }
+        // Anker für jede Seite, unabhängig von ihren Platzhaltern - eine Seite ohne Platzhalter
+        // (z.B. eine reine Rückseite) muss trotzdem als eigener Absatz existieren, sonst emittiert
+        // Word/LibreOffice für ihren Abschnitt sehr wahrscheinlich kein eigenes Blatt.
+        val anchor = document.createParagraph()
+        if (simplePageBreak) {
+            // Gleiche Seitengröße wie die vorherige Seite: ein einfacher Seitenumbruch reicht,
+            // beide Seiten bleiben im selben Word-Abschnitt (unverändertes Verhalten für die
+            // Siegerurkunde, deren Vorlage immer nur eine Seitengröße kennt).
+            anchor.createRun().addBreak(BreakType.PAGE)
         }
 
         renderPage.additions.forEach { addition ->
