@@ -218,3 +218,104 @@ das eigentliche Fundament. B1 ist unabhängig und könnte jederzeit dazwischen.
 **Stand 2026-08-02:** A5, A3 und A4 sind in dieser Reihenfolge abgearbeitet. Offen bleiben A1, A2,
 B1 und B2. A2 berührt die Frage, woher der echte Startzeitpunkt kommt, und überschneidet sich damit
 mit B2 — beide sollten nicht parallel angefasst werden.
+
+**Stand 2026-08-04:** B2 (Zeitstrahl) ist umgesetzt, inklusive `started_at`/`finished_at` (damit
+sind Teile von A2 erledigt: geplante vs. reale Startzeit existieren, "läuft seit" rechnet ab dem
+Ist-Start). B1 (Athleten-Board) war bereits vorher fertig. Offen bleiben A1 und die verbliebenen
+A2-Reste (Zustands-Aufräumen von `currently_running`); dazu kommt der neue Abschnitt C.
+
+---
+
+## C. Feedback aus dem Zeitstrahl-Funktionstest (04.08.2026)
+
+Gesammelt beim ersten Durchspielen des Zeitstrahls mit dem Task-20-Seed. Kleinigkeiten
+(Hilfetexte im Shift-Dialog, Hinweis bei komplett verplanten Läufen, Programmpunkte im
+Schiedsrichter-Dashboard, Buttons nebeneinander, Start-Button entfernt, Navigation Slot → Lauf)
+wurden direkt umgesetzt und stehen hier nicht mehr.
+
+### C1. Kette: Auto-Beenden bei vollständiger Ergebniseingabe — einstellbar
+
+**Beobachtung:** Trägt man über die Wettkampf-Durchführung alle Ergebnisse ein, setzt
+`prepareForNewPlaces` den Lauf automatisch inaktiv — aber ohne `finished_at` und ohne
+Ketten-Trigger. Der nächste Lauf startet also nicht, obwohl der Lauf faktisch fertig ist. Nur der
+"Lauf beenden"-Button im Schiedsrichter-Dashboard stempelt und zieht die Kette weiter.
+
+**Wunsch:** Die Kette sollte nur dann unterbrochen werden, wenn ein Lauf *manuell* deaktiviert
+wurde. Ob ein Schiedsrichter aktiv "Lauf beenden" drücken muss oder ob die vollständige
+Ergebniseingabe als Beenden gilt, muss **einstellbar** sein — noch unklar, ob die Schiedsrichter
+den Pflicht-Klick akzeptieren. Alternative Betriebsart: eine Person aus dem Orga-Team aktiviert
+und deaktiviert die Läufe über den Zeitplan.
+
+**Offene Fragen:**
+- Schalter pro Veranstaltung ("Beenden durch Schiedsrichter" vs. "automatisch bei vollständigen
+  Ergebnissen")? Wie verhält sich der RaceClocker-Pull dabei (der trägt auch Ergebnisse ein)?
+- Orga-Betriebsart: Aktivieren/Deaktivieren direkt aus dem Zeitplan-Tab heraus?
+
+### C2. Zeitstrahl-Indikator
+
+Ein durchgehender Fortschritts-Indikator ("wo stehen wir gerade, was ist aktiv, was kommt als
+Nächstes") — im Zeitplan-Tab und/oder als kompakte Leiste im Schiedsrichter-Dashboard. Ergänzt
+C1: Wer die Läufe über den Zeitplan steuert, braucht diese Sicht.
+
+### C3. Ganze Runde überspringen
+
+**Beobachtung:** Scheiden im Zeitfahren so viele Boote aus, dass die Folgerunde nicht stattfinden
+muss, kann man heute nur die einzelnen Slots überspringen. Eine Aktion "Runde überspringen"
+(alle Slots der Runde + die Runde selbst als übersprungen markieren, Kette läuft zur übernächsten
+Runde) fehlt.
+
+### C4. createNextRound-Trigger hinterfragen (mit Ilka besprechen)
+
+Warum braucht es den manuellen "Nächste Runde erstellen"-Klick noch? Eventuell gibt es keinen
+fachlichen Grund mehr — mit dem Zeitstrahl könnten Runden automatisch materialisieren, sobald die
+Vorrunde beendet ist. **Aber:** Der Export zu RaceClocker hat Latenz — der Lauf wäre in ready2race
+schon gesetzt, während er in RaceClocker noch nicht existiert. Klären, ob der manuelle Trigger
+genau diese Lücke bewusst offenhält.
+
+### C5. Navigation überarbeiten
+
+Im Wettkampf fehlt ein Zurück-Button zur Veranstaltung; generell die Navigationswege prüfen
+(Breadcrumbs? Zurück-Pfeile auf den Unterseiten?). Unabhängig vom Zeitstrahl, fiel beim Testen auf.
+
+### C6. Kleinere technische Follow-ups aus dem Final-Review
+
+- `maxReductionMinutes` als strukturiertes Feld im 422-Body statt Regex auf den Fehlertext.
+- Write-Through-Guard: `start_time` beendeter Läufe bei Import/Shift nicht mehr überschreiben.
+- Produktentscheidung Parallelstart-Paar: Kette rückt weiter, sobald *ein* Lauf des Paars beendet
+  ist — gewollt oder auf "alle beendet" warten?
+- DB-Integrationstests für die Ketten-Trigger (finishMatch/createNewRound).
+- Same-Day-Overlap-Prüfung bei negativen Shifts.
+
+**Entscheidungen 04.08.2026 (abends, Thomas):**
+- **C1 + A1 sind entschieden und verschmolzen:** Ein Lauf wird NUR durch aktiven Input beendet
+  (kein Auto-Beenden bei vollständigen Ergebnissen, kein Schalter). Begründung: Der Beenden-Klick
+  ist das Signal ans Regattabüro, dass der Stand final ist und der RaceClocker-Import starten
+  kann — beendet sich ein Rennen automatisch, drohen Fehlannahmen, wenn die Zeitnahme auf
+  Anweisung des Schiedsrichters noch eine Strafe nachträgt. Offen bleiben nur die
+  Ausgestaltungsfragen (siehe C1-Detailfragen im Chat: stille Deaktivierung bei
+  Ergebnis-Vollständigkeit abschaffen? Zwischenzustand "Ergebnisse vollständig — wartet auf
+  Beenden"? Beenden auch aus dem Zeitplan durch Orga?).
+- **C6/Parallelstart ist entschieden:** Die Kette rückt erst weiter, wenn ALLE Läufe derselben
+  Startzeit beendet sind (nicht schon beim ersten). Wird umgesetzt.
+- **A2 ist durch den Zeitstrahl erledigt** (geplant/real getrennt, keine "läuft seit 0 min"-Anzeige
+  mehr vor dem Start).
+- C4 klärt Thomas per Rückfrage (Ilka); C5 (Navigation, inkl. Zurück-Button) bewusst vertagt.
+
+**C1-Ausgestaltung entschieden (04.08.2026, spät):** Drei-Wege-Modus `chain_progression_mode`
+pro Veranstaltung (ersetzt den Boolean `auto_activate_next_match`; Migration: false →
+DEAKTIVIERT, true → SCHIEDSRICHTER):
+- **SCHIEDSRICHTER:** Beenden + Kette über das Schiedsrichter-Dashboard (wie heute).
+- **REGATTABUERO:** Beenden/Aktivieren **exklusiv** über den Zeitplan-Tab (Beenden-Button
+  verschwindet vom Schiedsrichter-Dashboard); das Büro gibt nach Kontrolle frei, dann Kette.
+- **DEAKTIVIERT:** Beenden wirkt nur auf den Lauf, keine automatische Aktivierung.
+Zusätzlich: Die **stille Deaktivierung bei vollständiger Ergebniseingabe entfällt** — der Lauf
+bleibt aktiv, die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden", bis der zuständige
+Akteur klickt. Der RaceClocker-Pull meldet nur Daten und beendet nie.
+
+**Konkreter Anlass für die DB-Integrationstests (C6), 05.08.2026:** Der Guard „beendete Läufe
+nicht reaktivieren" las `match_finished_at` aus `getSlotWithContext` — diese Einzel-Slot-Query
+selektierte den Alias aber nicht (im Gegensatz zu `getSlots`/`getChainSlots`). Folge: jOOQ warf
+`IllegalArgumentException` und **jedes** Aktivieren über den Zeitplan endete mit HTTP 500,
+unabhängig vom Laufzustand. Reine Unit-Tests auf den `*Logic`-Objekten können diese Fehlerklasse
+(gelesener Alias fehlt in der konkreten Query) nicht sehen — ein DB-gestützter Test pro Repo-Query
+hätte sie sofort gefangen.
