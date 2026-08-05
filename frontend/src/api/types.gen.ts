@@ -1177,6 +1177,13 @@ export type GapDocumentPlaceholderDto = {
     relWidth: number
     relHeight: number
     textAlign: TextAlign
+    fontSize?: number
+    bold: boolean
+    italic: boolean
+    /**
+     * Fester Text für den Platzhaltertyp FREE_TEXT, z. B. der Name des Unterzeichners.
+     */
+    staticText?: string
 }
 
 export type GapDocumentPlaceholderRequest = {
@@ -1188,6 +1195,13 @@ export type GapDocumentPlaceholderRequest = {
     relWidth: number
     relHeight: number
     textAlign: TextAlign
+    fontSize?: number
+    bold?: boolean
+    italic?: boolean
+    /**
+     * Fester Text für den Platzhaltertyp FREE_TEXT, z. B. der Name des Unterzeichners.
+     */
+    staticText?: string
 }
 
 export type GapDocumentPlaceholderType =
@@ -1196,24 +1210,45 @@ export type GapDocumentPlaceholderType =
     | 'FULL_NAME'
     | 'RESULT'
     | 'EVENT_NAME'
+    | 'PLACE'
+    | 'COMPETITION_NAME'
+    | 'COMPETITION_SHORT_NAME'
+    | 'CLUB_NAME'
+    | 'TEAM_NAME'
+    | 'EVENT_DATE'
+    | 'EVENT_LOCATION'
+    | 'FREE_TEXT'
 
 export type GapDocumentTemplateDto = {
     id: string
     name: string
     type: GapDocumentType
+    /**
+     * Schriftname für die Word-Ausgabe, z. B. "TheSansOffice".
+     */
+    fontName?: string
+    /**
+     * Ob eine Schriftdatei zum Einbetten in die erzeugten PDFs hochgeladen wurde.
+     */
+    hasFont: boolean
     placeholders: Array<GapDocumentPlaceholderDto>
 }
 
 export type GapDocumentTemplateRequest = {
     type: GapDocumentType
+    /**
+     * Schriftname für die Word-Ausgabe, z. B. "TheSansOffice".
+     */
+    fontName?: string
     placeholders: Array<GapDocumentPlaceholderRequest>
 }
 
-export type GapDocumentType = 'CERTIFICATE_OF_PARTICIPATION'
+export type GapDocumentType = 'CERTIFICATE_OF_PARTICIPATION' | 'AWARD_CERTIFICATE'
 
 export type GapDocumentTypeDto = {
     type: GapDocumentType
     assignedTemplate?: AssignedTemplateId
+    allowedPlaceholders: Array<GapDocumentPlaceholderType>
 }
 
 export type Gender = 'M' | 'F' | 'D'
@@ -4893,6 +4928,10 @@ export type AddGapDocumentTemplateData = {
     body: {
         request: GapDocumentTemplateRequest
         files: Array<Blob | File>
+        /**
+         * Optionale Schriftdatei (TTF/OTF), die in die erzeugten PDFs eingebettet wird.
+         */
+        font?: Blob | File
     }
 }
 
@@ -4901,7 +4940,13 @@ export type AddGapDocumentTemplateResponse = void
 export type AddGapDocumentTemplateError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type UpdateGapDocumentTemplateData = {
-    body: GapDocumentTemplateRequest
+    body: {
+        request: GapDocumentTemplateRequest
+        /**
+         * Optionale Schriftdatei (TTF/OTF). Ein leerer Teil löscht eine zuvor gesetzte Schrift, ein fehlender Teil lässt sie unverändert.
+         */
+        font?: Blob | File
+    }
     path: {
         gapDocumentTemplateId: string
     }

@@ -4125,6 +4125,10 @@ paths:
                   items:
                     type: string
                     format: binary
+                font:
+                  description: Optionale Schriftdatei (TTF/OTF), die in die erzeugten PDFs eingebettet wird.
+                  type: string
+                  format: binary
       responses:
         204:
           $ref: '#/components/responses/204'
@@ -4153,9 +4157,20 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GapDocumentTemplateRequest'
+              type: object
+              required:
+                - request
+              properties:
+                request:
+                  $ref: '#/components/schemas/GapDocumentTemplateRequest'
+                font:
+                  description: >-
+                    Optionale Schriftdatei (TTF/OTF). Ein leerer Teil löscht eine zuvor gesetzte
+                    Schrift, ein fehlender Teil lässt sie unverändert.
+                  type: string
+                  format: binary
       responses:
         204:
           description: Successfully updates template
@@ -7942,6 +7957,7 @@ components:
       type: string
       enum:
         - 'CERTIFICATE_OF_PARTICIPATION'
+        - 'AWARD_CERTIFICATE'
 
     GapDocumentPlaceholderType:
       type: string
@@ -7951,6 +7967,14 @@ components:
         - 'FULL_NAME'
         - 'RESULT'
         - 'EVENT_NAME'
+        - 'PLACE'
+        - 'COMPETITION_NAME'
+        - 'COMPETITION_SHORT_NAME'
+        - 'CLUB_NAME'
+        - 'TEAM_NAME'
+        - 'EVENT_DATE'
+        - 'EVENT_LOCATION'
+        - 'FREE_TEXT'
 
     TextAlign:
       type: string
@@ -14189,6 +14213,8 @@ components:
         - relWidth
         - relHeight
         - textAlign
+        - bold
+        - italic
       properties:
         id:
           type: string
@@ -14209,6 +14235,15 @@ components:
           type: number
         textAlign:
           $ref: '#/components/schemas/TextAlign'
+        fontSize:
+          type: integer
+        bold:
+          type: boolean
+        italic:
+          type: boolean
+        staticText:
+          description: Fester Text für den Platzhaltertyp FREE_TEXT, z. B. der Name des Unterzeichners.
+          type: string
 
     GapDocumentTemplateDto:
       type: object
@@ -14216,6 +14251,7 @@ components:
         - id
         - name
         - type
+        - hasFont
         - placeholders
       properties:
         id:
@@ -14225,6 +14261,12 @@ components:
           type: string
         type:
           $ref: '#/components/schemas/GapDocumentType'
+        fontName:
+          description: Schriftname für die Word-Ausgabe, z. B. "TheSansOffice".
+          type: string
+        hasFont:
+          description: Ob eine Schriftdatei zum Einbetten in die erzeugten PDFs hochgeladen wurde.
+          type: boolean
         placeholders:
           type: array
           items:
@@ -14234,11 +14276,16 @@ components:
       type: object
       required:
         - type
+        - allowedPlaceholders
       properties:
         type:
           $ref: '#/components/schemas/GapDocumentType'
         assignedTemplate:
           $ref: '#/components/schemas/AssignedTemplateId'
+        allowedPlaceholders:
+          type: array
+          items:
+            $ref: '#/components/schemas/GapDocumentPlaceholderType'
 
     GapDocumentPlaceholderRequest:
       type: object
@@ -14267,6 +14314,17 @@ components:
           type: number
         textAlign:
           $ref: '#/components/schemas/TextAlign'
+        fontSize:
+          type: integer
+        bold:
+          type: boolean
+          default: false
+        italic:
+          type: boolean
+          default: false
+        staticText:
+          description: Fester Text für den Platzhaltertyp FREE_TEXT, z. B. der Name des Unterzeichners.
+          type: string
 
     GapDocumentTemplateRequest:
       type: object
@@ -14276,6 +14334,9 @@ components:
       properties:
         type:
           $ref: '#/components/schemas/GapDocumentType'
+        fontName:
+          description: Schriftname für die Word-Ausgabe, z. B. "TheSansOffice".
+          type: string
         placeholders:
           type: array
           items:

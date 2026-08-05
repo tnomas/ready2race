@@ -1,0 +1,56 @@
+package de.lambda9.ready2race.backend.app.documentTemplate
+
+import de.lambda9.ready2race.backend.app.documentTemplate.boundary.GapDocumentTemplateLogic
+import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentPlaceholderRequest
+import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentPlaceholderType
+import de.lambda9.ready2race.backend.app.documentTemplate.entity.GapDocumentType
+import de.lambda9.ready2race.backend.text.TextAlign
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class GapDocumentTemplateLogicTest {
+
+    private fun placeholder(page: Int) = GapDocumentPlaceholderRequest(
+        name = null,
+        type = GapDocumentPlaceholderType.PLACE,
+        page = page,
+        relLeft = 0.1,
+        relTop = 0.2,
+        relWidth = 0.8,
+        relHeight = 0.05,
+        textAlign = TextAlign.CENTER,
+    )
+
+    @Test
+    fun awardCertificateWithPlaceholderOnPageTwoIsRejected() {
+        // Der Serien-Renderer zeichnet nur Seite 1 je Urkunde, eine Siegerurkunde ist einseitig.
+        assertFalse(
+            GapDocumentTemplateLogic.placeholdersFitOnSinglePage(
+                GapDocumentType.AWARD_CERTIFICATE,
+                listOf(placeholder(1), placeholder(2)),
+            )
+        )
+    }
+
+    @Test
+    fun awardCertificateWithEverythingOnPageOneIsAccepted() {
+        assertTrue(
+            GapDocumentTemplateLogic.placeholdersFitOnSinglePage(
+                GapDocumentType.AWARD_CERTIFICATE,
+                listOf(placeholder(1), placeholder(1)),
+            )
+        )
+    }
+
+    @Test
+    fun certificateOfParticipationWithPlaceholderOnPageTwoIsAccepted() {
+        // Die Teilnahmeurkunde darf mehrseitig sein, die Prüfung greift nur bei der Siegerurkunde.
+        assertTrue(
+            GapDocumentTemplateLogic.placeholdersFitOnSinglePage(
+                GapDocumentType.CERTIFICATE_OF_PARTICIPATION,
+                listOf(placeholder(1), placeholder(2)),
+            )
+        )
+    }
+}

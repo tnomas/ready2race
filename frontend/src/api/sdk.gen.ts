@@ -2730,6 +2730,11 @@ export const updateGapDocumentTemplate = <ThrowOnError extends boolean = false>(
         ThrowOnError
     >({
         ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
         url: '/gapDocumentTemplate/{gapDocumentTemplateId}',
     })
 }

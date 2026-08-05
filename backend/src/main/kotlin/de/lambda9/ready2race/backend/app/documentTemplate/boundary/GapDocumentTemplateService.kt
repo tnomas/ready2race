@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.certificate.boundary.CertificateService
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentPlaceholderRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateDataRepo
+import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateFontRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.GapDocumentTemplateUsageRepo
 import de.lambda9.ready2race.backend.app.documentTemplate.control.toDto
@@ -24,11 +25,13 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.calls.responses.noDataResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocumentTemplateDataRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocumentTemplateFontRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.GapDocumentTemplateUsageRecord
 import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
+import de.lambda9.ready2race.backend.pdf.checkValidFont
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.failIf
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
@@ -48,6 +51,7 @@ object GapDocumentTemplateService {
                     GapDocumentTypeDto(
                         type = type,
                         assignedTemplate = usages[type.name],
+                        allowedPlaceholders = type.allowedPlaceholders.toList(),
                     )
                 }
             )
@@ -61,7 +65,16 @@ object GapDocumentTemplateService {
     fun addTemplate(
         file: File,
         request: GapDocumentTemplateRequest,
-    ): App<Nothing, ApiResponse.NoData> = KIO.comprehension {
+        font: File?,
+    ): App<GapDocumentTemplateError, ApiResponse.NoData> = KIO.comprehension {
+
+        !KIO.failOn(!GapDocumentTemplateLogic.placeholdersFitOnSinglePage(request.type, request.placeholders)) {
+            GapDocumentTemplateError.PlaceholderPageNotSupported
+        }
+
+        if (font != null && font.bytes.isNotEmpty()) {
+            !KIO.failOn(!checkValidFont(font.bytes)) { GapDocumentTemplateError.InvalidFont }
+        }
 
         val templateRecord = request.toRecord(file.name)
 
@@ -78,6 +91,16 @@ object GapDocumentTemplateService {
             )
         ).orDie()
 
+        if (font != null && font.bytes.isNotEmpty()) {
+            !GapDocumentTemplateFontRepo.upsert(
+                GapDocumentTemplateFontRecord(
+                    template = id,
+                    fileName = font.name,
+                    data = font.bytes,
+                )
+            ).orDie()
+        }
+
         noData
 
     }
@@ -85,10 +108,20 @@ object GapDocumentTemplateService {
     fun updateTemplate(
         id: UUID,
         request: GapDocumentTemplateRequest,
+        font: File?,
     ): App<GapDocumentTemplateError, ApiResponse.NoData> = KIO.comprehension {
+
+        !KIO.failOn(!GapDocumentTemplateLogic.placeholdersFitOnSinglePage(request.type, request.placeholders)) {
+            GapDocumentTemplateError.PlaceholderPageNotSupported
+        }
+
+        if (font != null && font.bytes.isNotEmpty()) {
+            !KIO.failOn(!checkValidFont(font.bytes)) { GapDocumentTemplateError.InvalidFont }
+        }
 
         !GapDocumentTemplateRepo.update(id) {
             type = request.type.name
+            fontName = request.fontName
         }.orDie()
             .onNullFail { GapDocumentTemplateError.NotFound }
 
@@ -97,6 +130,22 @@ object GapDocumentTemplateService {
         val records = request.placeholders.map { it.toRecord(id) }
 
         !GapDocumentPlaceholderRepo.create(records).orDie()
+
+        // Ein Font-Part ohne Inhalt signalisiert das Entfernen der bisherigen Schrift; kein Part
+        // (font == null) lässt eine vorhandene Schrift unangetastet.
+        if (font != null) {
+            if (font.bytes.isEmpty()) {
+                !GapDocumentTemplateFontRepo.delete(id).orDie()
+            } else {
+                !GapDocumentTemplateFontRepo.upsert(
+                    GapDocumentTemplateFontRecord(
+                        template = id,
+                        fileName = font.name,
+                        data = font.bytes,
+                    )
+                ).orDie()
+            }
+        }
 
         noData
 
