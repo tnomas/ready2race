@@ -1,10 +1,10 @@
 # Testkatalog `feature/crf-2026`
 
-**Stand:** 2026-08-05, Sammelbranch bei `8a1adae2`
+**Stand:** 2026-08-05, Sammelbranch bei `4b98dd09`
 **Zweck:** Ein Katalog aller Fälle, die vor der Regatta am 14.08. auf **einem** gebauten Stand
 durchlaufen werden. Er sammelt die Fälle über alle Arbeitsstränge (Athleten-Anzeige, Zeitstrahl,
-RaceClocker, Schiedsrichter-Dashboard, Betrieb), damit der große Test in der Woche vom 10.08. nicht
-aus dem Gedächtnis zusammengesucht werden muss.
+RaceClocker, Schiedsrichter-Dashboard, Betrieb, Zeitnahme-Einstellungen, Urkunden), damit der große
+Test in der Woche vom 10.08. nicht aus dem Gedächtnis zusammengesucht werden muss.
 
 ## Wie dieser Katalog benutzt wird
 
@@ -38,10 +38,12 @@ nicht die Erwartung anpassen.
 4. **Migrationen.** Wechselt die Dev-DB zwischen Branches, kann Flyway Lücken melden;
    `-Dflyway.outOfOrder=true` beim Maven-Aufruf lässt die fehlenden Migrationen nachlaufen.
 5. **Daten.** Veranstaltung mit Zeitplan, mindestens einem Wettkampf mit ≥ 4 Booten, davon eines
-   abgemeldet, und einem Wettkampf mit gepflegten RaceClocker-URLs.
+   abgemeldet, und einem Wettkampf mit gepflegten RaceClocker-URLs. Für den Bahn-Ablauf (C8) einen
+   Lauf mit 6 Booten, davon eines ohne Zeit und eines gar nicht in RaceClocker. Für G eine
+   Siegerurkunden-Vorlage, ein Mannschaftsboot und eine Renngemeinschaft.
 6. **Seiten.** Athleten-Anzeige `/board/{eventId}` · Kiosk `/event/{eventId}/info` ·
    Schiedsrichter `/event/{eventId}/live-dashboard` · Zeitplan-Tab der Veranstaltung ·
-   Wettkampf-Durchführung.
+   Wettkampf-Durchführung · Zeitnahme-Tab des Wettkampfs · Gap-Vorlagenverwaltung unter `/config`.
 
 ---
 
@@ -103,6 +105,9 @@ nicht die Erwartung anpassen.
 | C9 | Doppelte Mannschaft | Zwei Zeilen für dasselbe Boot → Pull verweigert mit Namensliste, statt zu raten | `dd8d67b8` | |
 | C10 | Keine Ergebnisse | Pull ohne gewertete Zeilen meldet das verständlich und ändert nichts | `dd8d67b8` | |
 | C11 | Fehlerfälle URL | Fehlende, ungültige und nicht erreichbare URL werden unterschieden gemeldet | `dd8d67b8` | |
+| C12 | Bahnen bei mehrfachem Pull | Wiederholte Pulls ohne Änderung in RaceClocker lassen die Bahnen unverändert; nichts wandert bei jedem Durchgang weiter | `d64ae540` | |
+| C13 | Boot ohne Zeile im Feed | Behält eine eindeutige Nummer oberhalb der importierten und kollidiert nie mit einer echten Bahn | `d64ae540` | |
+| C14 | xlsx-Import nach dem Bahn-Umbau | Startnummern kommen weiterhin aus der Datei — beide Wege teilen sich seit `d64ae540` eine Schreibroutine | `d64ae540` | |
 
 ## D — Schiedsrichter-Dashboard
 
@@ -134,6 +139,57 @@ nicht die Erwartung anpassen.
 | E5 | Nutzlast | Dashboard-Antwort enthält nur, was die Liste zeigt | `d189fe68` | |
 | E6 | Zeitzone | Postgres läuft auf UTC, die Anwendung auf Europe/Berlin — angezeigte Zeiten stimmen mit dem Zeitplan überein | — | |
 
+## F — Zeitnahme-Einstellungen
+
+Der Tab ersetzt den RaceClocker-Dialog und beide Preset-Auswahldialoge. Weil die Auswahl jetzt am
+Wettkampf hängt statt am Download, brauchen **Altdaten einmalig einen Eintrag**, bevor CSV-Startliste
+und xlsx-Import wieder funktionieren — das ist gewollt und muss trotzdem geprüft werden.
+
+| ID | Fall | Erwartung | testbar ab | Nachweis |
+|---|---|---|---|---|
+| F1 | Tab vorhanden | „Zeitnahme" steht neben Setup, Durchführung, Platzierungen; nicht bei Challenge-Events | `890f7d48` | |
+| F2 | System umschalten | Bei RaceClocker erscheint der URL-Block und zwei Startlisten-Felder, bei Webscorer eines ohne URLs, bei „nicht gesetzt" nur die Auswahl | `890f7d48`, `bb342341` | |
+| F3 | Presets beim Systemwechsel | Wechsel auf „nicht gesetzt" räumt die Preset-Felder, statt eine tote Auswahl stehen zu lassen | `bb342341`, `12d673aa` | |
+| F4 | Startliste ohne Dialog | CSV-Download ist eine direkte Aktion; der alte Auswahldialog erscheint nirgends mehr | `6075c8d2`, `915784c1` | |
+| F5 | Rückfall Quali → Runden-Slot | Bei Webscorer und bei „nicht gesetzt" nutzt eine Qualifikationsrunde mit leerem Quali-Slot das Runden-Preset | `40783577` | |
+| F6 | Kein Rückfall bei RaceClocker | Quali-Slot leer → Export bricht mit Fehlermeldung ab, statt das Läufe-Preset zu liefern (dessen Lauf-Spalte würde den Countdown am Start kosten) | `40783577` | |
+| F7 | Beide Slots leer | Eigene Fehlermeldung mit Verweis auf den Zeitnahme-Tab, kein stiller Fehlschlag | `1c74900b`, `5498fa5f` | |
+| F8 | Ergebnis-Import | Upload-Dialog hat nur noch die Dateiauswahl; das Preset kommt aus dem Wettkampf | `397bffd2`, `915784c1` | |
+| F9 | Ergebnis-Menü | Bei Webscorer fehlt der RaceClocker-Eintrag; bei RaceClocker bleibt xlsx als Notausgang | `915784c1` | |
+| F10 | Warnung bei Lücken | Unvollständige Konfiguration wird im Tab benannt und im Durchführungs-Tab mit Link dorthin gemeldet — nur bei gesetztem System | `cbb8495e` | |
+| F11 | Preset gelöscht | Löschen in der globalen Verwaltung nimmt dem Wettkampf die Vorbelegung, ohne ihn zu beschädigen | `890f7d48` | |
+| F12 | Unvollständig speichern | Speichern ohne URLs ist erlaubt — die Rennen entstehen erst kurz vor der Regatta | `890f7d48` | |
+| F13 | Round-Trip RaceClocker | Presets hinterlegen, Startliste für Quali **und** eine Läufe-Runde laden, beide in RaceClocker importieren, Ergebnisse ziehen | `b13a7173` | |
+| F14 | Round-Trip Webscorer | Ein Preset, CSV laden, xlsx ohne Dialog hochladen | `b13a7173` | |
+| F15 | Sprachen | Tab, Fehlermeldungen und Preset-Namen auf de/en/da vollständig | `9756762b` | |
+
+## G — Urkunden
+
+Neu auf dem Sammelbranch. Die Vorlagenpflege nutzt die bestehende Gap-Mechanik: PDF-Export der
+DRV-PowerPoint hochladen, Platzhalter visuell setzen.
+
+| ID | Fall | Erwartung | testbar ab | Nachweis |
+|---|---|---|---|---|
+| G1 | Vorlage anlegen | Typ „Siegerurkunde" wählbar, Platzhalter setzbar; angeboten werden nur die für den Typ erlaubten | `4b98dd09` | |
+| G2 | Schrift-Upload | `.ttf`/`.otf` wird angenommen, eine unbrauchbare Datei fällt beim Anlegen auf und nicht erst beim Erzeugen | `4b98dd09` | |
+| G3 | Ohne Schrift-Upload | Fallback Helvetica, Urkunde bleibt druckbar | `4b98dd09` | |
+| G4 | Download je Wettkampf (PDF) | Plätze 1–3, sortiert nach Platz, Platzhalter gefüllt (Platz, Wettkampf, Verein, Renntage, Ort) | `4b98dd09` | |
+| G5 | Pro Athlet / pro Boot | „pro Athlet" eine Seite je Person inklusive Steuermann, „pro Boot" eine Seite je Boot; Vor-/Nachname bleiben im Boot-Modus leer, `FULL_NAME` trägt | `4b98dd09` | |
+| G6 | Renngemeinschaften | RG-Boote zeigen die RG-Bezeichnung, nicht einen der beteiligten Vereine | `4b98dd09` | |
+| G7 | Word-Download | Datei öffnet in Word, Rahmen sitzen an den Vorlagenkoordinaten, Text ist nachbearbeitbar, Seitenumbrüche stimmen | `4b98dd09` | |
+| G8 | Veranstaltungsebene | Ein Download über alle Wettkämpfe, sortiert nach Wettkampf und Platz | `4b98dd09` | |
+| G9 | Einzeldownload | Icon in der Ergebniszeile liefert genau diese Urkunde mit den Dialog-Standardwerten | `4b98dd09` | |
+| G10 | „Design mitdrucken" | Standardmäßig aus (Amtspapier); eingeschaltet erscheint der Vorlagenhintergrund | `4b98dd09` | |
+| G11 | Alle Plätze | Umschalten auf alle Platzierungen liefert entsprechend mehr Seiten | `4b98dd09` | |
+| G12 | Ausgeschlossene Boote | Abgemeldete, ausgeschiedene und disqualifizierte Boote erscheinen nicht | `4b98dd09` | |
+| G13 | Plätze noch nicht berechnet | Verständliche Meldung statt leerer oder halb gefüllter Urkunden | `4b98dd09` | |
+| G14 | Fehlende Vorlage | Dialog zeigt einen Hinweis mit Verweis auf die Konfiguration, kein Fehler beim Download | `4b98dd09` | |
+| G15 | Teilnahmeurkunde als Word | `?format=docx` liefert .docx, der ZIP-Download enthält .docx-Einträge; der E-Mail-Versand bleibt PDF | `4b98dd09` | |
+| G16 | Alte Teilnahme-Vorlage | Eine Vorlage ohne Schriftgröße rendert unverändert wie vorher | `4b98dd09` | |
+| G17 | Rechte | Nur mit `ReadEventGlobal`; kein öffentlicher Zugriff auf Urkunden | `4b98dd09` | |
+| G18 | Challenge-Event | Keine Siegerurkunde, die Teilnahmeurkunde bleibt | `4b98dd09` | |
+| G19 | Serienlänge | „alle Plätze, pro Athlet" auf der größten Veranstaltung: Dauer und Seitenzahl notieren — daraus entscheidet sich, ob eine Obergrenze nötig wird | `4b98dd09` | |
+
 ---
 
 ## Detailablauf A6/C7 — Zeitstrafe während der Lauf läuft
@@ -158,6 +214,42 @@ Der Kernfall: die Anzeige muss eine nachgetragene Strafe übernehmen, **bevor** 
 **Wichtig:** Die externe Zeitmessung ist die Quelle der Wahrheit. Ein Pull überschreibt eine im
 Formular erfasste Strafe (A7). Beide Wege am selben Boot zu mischen ist kein unterstützter Ablauf.
 
+## Detailablauf C8/C12/C13 — Bahnen aus „Rank"
+
+Der Fall braucht einen eigenen Ablauf, weil er nur an einem echten RaceClocker-Rennen prüfbar ist:
+die Bahn ergibt sich aus der Listenposition, und die lässt sich nur dort verschieben.
+
+**Aufbau:** ein Lauf mit 6 Booten. Eines bekommt später **keine Zeit**, eines wird **gar nicht** nach
+RaceClocker übernommen (Abmeldung). Ohne diese beiden testet man nur den einfachen Fall.
+
+1. Startliste mit dem Preset „RaceClocker Laeufe" laden und in das Rennen importieren. **Die Spalte
+   R2R-ID im Spaltenmapper auf „Extra info" ziehen** — nicht auf das Custom-Feld, sonst fehlt die
+   UUID im Feed und der Pull ordnet überhaupt nichts zu (C1).
+2. Feed mit `?json=1` abrufen und vor dem ersten Pull prüfen: ExtraInfo trägt die UUIDs, jede Zeile
+   hat ein `Rank`.
+3. Für einen Teil der Boote Zeiten nehmen, dann in ready2race die Ergebnisse ziehen.
+   → **Erwartung:** Startnummern entsprechen der Reihenfolge in RaceClocker (1…n nach `Rank`); auch
+   die ungetimten Boote stehen auf ihrer Bahn und nicht am Ende.
+4. Zweimal hintereinander ziehen, ohne in RaceClocker etwas zu ändern.
+   → **Erwartung:** die Bahnen bleiben identisch (C12).
+5. Zwei getimte Einträge in RaceClocker verschieben, erneut ziehen.
+   → **Erwartung:** die Startnummern folgen der neuen Reihenfolge, und **die Zeiten bleiben an ihrem
+   Boot** — Bib und Zeit wandern mit dem Eintrag, nur die Position bleibt zurück.
+6. Das noch ungetimte Boot verschieben, erneut ziehen.
+   → **Erwartung:** es bekommt die neue Bahn und rutscht nicht ans Ende. Genau dafür kommen die
+   Bahnen aus allen zugeordneten Zeilen und nicht nur aus den getimten.
+7. Das abgemeldete Boot über alle Durchgänge beobachten.
+   → **Erwartung:** eindeutige Nummer oberhalb der importierten, nie eine Kollision mit einer echten
+   Bahn (C13).
+8. Dashboard nach einem Tausch ansehen, auch auf dem Telefon.
+   → **Erwartung:** die Startnummern-Spalte zeigt beim nächsten Takt die neue Bahn.
+9. Zum Schluss einen Lauf per xlsx importieren (C14).
+   → **Erwartung:** dort kommen die Startnummern weiterhin aus der Datei.
+
+**Wichtig:** Der RaceClocker-Bib wird auf diesem Weg **nicht** mehr als Startnummer geschrieben. Er
+wandert beim Verschieben mit und beschreibt damit nicht, wo ein Boot startet. Wer eine am Boot
+bleibende Nummer erwartet, siehe den offenen Punkt „Bootsnummer" unten.
+
 ## Offene Punkte, die der Test entscheiden soll
 
 - **Lauf doppelt sichtbar.** Die Ergebnis-Abfrage filtert nicht auf „läuft gerade": ein vollständig
@@ -172,7 +264,8 @@ Formular erfasste Strafe (A7). Beide Wege am selben Boot zu mischen ist kein unt
 
 ## Nicht in diesem Katalog
 
-- Meldewesen, Rechnungen, Urkunden und Dokumentenerzeugung (eigene Stränge, teils eigene Worktrees).
+- Meldewesen, Rechnungen und die übrige Dokumentenerzeugung (eigene Stränge, teils eigene
+  Worktrees). Urkunden stehen seit `4b98dd09` unter G, weil sie auf dem Sammelbranch liegen.
 - Platzberechnung bei Zeitgleichheit (Rechenlogik, durch Unit-Tests gedeckt).
 - Lastverhalten unter echter Zuschauerzahl — es gibt Cache, Takt-Untergrenze und Rate-Limit, aber
   keinen Messwert.
