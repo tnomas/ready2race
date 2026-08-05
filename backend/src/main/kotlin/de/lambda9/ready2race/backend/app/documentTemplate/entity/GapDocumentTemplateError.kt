@@ -7,7 +7,8 @@ import io.ktor.http.HttpStatusCode
 enum class GapDocumentTemplateError : ServiceError {
     NotFound,
     InvalidFont,
-    PlaceholderPageNotSupported;
+    PlaceholderPageNotSupported,
+    PlaceholderTypeNotSupported;
 
     override fun respond(): ApiError = when(this) {
         NotFound ->
@@ -26,6 +27,12 @@ enum class GapDocumentTemplateError : ServiceError {
             ApiError(
                 status = HttpStatusCode.BadRequest,
                 message = "Award certificates have a single page, placeholders must be on page 1"
+            )
+
+        PlaceholderTypeNotSupported ->
+            ApiError(
+                status = HttpStatusCode.BadRequest,
+                message = "Placeholder type is not supported for the chosen document type"
             )
     }
 }

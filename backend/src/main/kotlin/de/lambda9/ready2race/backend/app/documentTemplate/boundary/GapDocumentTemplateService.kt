@@ -72,6 +72,10 @@ object GapDocumentTemplateService {
             GapDocumentTemplateError.PlaceholderPageNotSupported
         }
 
+        !KIO.failOn(!GapDocumentTemplateLogic.placeholderTypesAreAllowed(request.type, request.placeholders)) {
+            GapDocumentTemplateError.PlaceholderTypeNotSupported
+        }
+
         if (font != null && font.bytes.isNotEmpty()) {
             !KIO.failOn(!checkValidFont(font.bytes)) { GapDocumentTemplateError.InvalidFont }
         }
@@ -113,6 +117,10 @@ object GapDocumentTemplateService {
 
         !KIO.failOn(!GapDocumentTemplateLogic.placeholdersFitOnSinglePage(request.type, request.placeholders)) {
             GapDocumentTemplateError.PlaceholderPageNotSupported
+        }
+
+        !KIO.failOn(!GapDocumentTemplateLogic.placeholderTypesAreAllowed(request.type, request.placeholders)) {
+            GapDocumentTemplateError.PlaceholderTypeNotSupported
         }
 
         if (font != null && font.bytes.isNotEmpty()) {
