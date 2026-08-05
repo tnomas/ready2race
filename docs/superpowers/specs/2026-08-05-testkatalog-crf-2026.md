@@ -40,11 +40,16 @@ nicht die Erwartung anpassen.
 5. **Daten.** Veranstaltung mit Zeitplan, mindestens einem Wettkampf mit ≥ 4 Booten, davon eines
    abgemeldet, und einem Wettkampf mit gepflegten RaceClocker-URLs. Für den Bahn-Ablauf (C8) einen
    Lauf mit 6 Booten, davon eines ohne Zeit und eines gar nicht in RaceClocker. Für G eine
-   Siegerurkunden-Vorlage, ein Mannschaftsboot und eine Renngemeinschaft.
-6. **Seiten.** Athleten-Anzeige `/board/{eventId}` · Kiosk `/event/{eventId}/info` ·
+   Siegerurkunden-Vorlage, ein Mannschaftsboot und eine Renngemeinschaft; zusätzlich **ein Verein mit
+   Sonderzeichen im Namen** (z. B. `AZS Łódź` oder `ČVK Praha`) für G20, eine **mehrseitige**
+   Teilnahmeurkunden-Vorlage für G22 und eine zweite, absichtlich falsch typisierte Vorlage für G23.
+6. **Amtspapier.** Für G4, G10 und G21 ein paar Blatt des vorgedruckten DRV-Papiers und ein Drucker,
+   der randlos genug einzieht. Ohne echtes Papier lässt sich der eigentliche Zweck der Urkunden —
+   Text an der richtigen Stelle auf ein bereits bedrucktes Blatt — nicht abnehmen.
+7. **Seiten.** Athleten-Anzeige `/board/{eventId}` · Kiosk `/event/{eventId}/info` ·
    Schiedsrichter `/event/{eventId}/live-dashboard` · Zeitplan-Tab der Veranstaltung ·
    Wettkampf-Durchführung · Zeitnahme-Tab des Wettkampfs · Gap-Vorlagenverwaltung unter `/config`.
-7. **Seed-Daten für den Zeitstrahl.** Zwei gitignorierte Skripte im `zeitstrahl`-Worktree unter
+8. **Seed-Daten für den Zeitstrahl.** Zwei gitignorierte Skripte im `zeitstrahl`-Worktree unter
    `.superpowers/sdd/`: `seed-zeitstrahl.sql` (kleines Szenario, UUID-Präfix `5eed`) und
    `seed-foerde.sql` (Nachbau der Regatta 2025, Präfix `f0de`: 7 Wettkämpfe, 2 Renntage, 21 Slots,
    Sprint-Wettkämpfe mit Zeitfahren → Halbfinale → Finale A/B). Grundlage für die B-Fälle.
@@ -198,10 +203,10 @@ DRV-PowerPoint hochladen, Platzhalter visuell setzen.
 | G6 | Renngemeinschaften | RG-Boote zeigen die RG-Bezeichnung, nicht einen der beteiligten Vereine | `4b98dd09` | |
 | G7 | Word-Download | Datei öffnet in Word, Rahmen sitzen an den Vorlagenkoordinaten, Text ist nachbearbeitbar, Seitenumbrüche stimmen | `4b98dd09` | |
 | G8 | Veranstaltungsebene | Ein Download über alle Wettkämpfe, sortiert nach Wettkampf und Platz | `4b98dd09` | |
-| G9 | Einzeldownload | Icon in der Ergebniszeile liefert genau diese Urkunde mit den Dialog-Standardwerten | `4b98dd09` | |
+| G9 | Einzeldownload | Icon in der Ergebniszeile öffnet den Dialog und liefert danach genau diese Urkunde. Die Platzgrenze gilt hier **nicht** — ein Nachdruck für Platz 5 muss gehen, obwohl der Dialog auf 1–3 steht | `4b98dd09` | |
 | G10 | „Design mitdrucken" | Standardmäßig aus (Amtspapier); eingeschaltet erscheint der Vorlagenhintergrund | `4b98dd09` | |
 | G11 | Alle Plätze | Umschalten auf alle Platzierungen liefert entsprechend mehr Seiten | `4b98dd09` | |
-| G12 | Ausgeschlossene Boote | Abgemeldete, ausgeschiedene und disqualifizierte Boote erscheinen nicht | `4b98dd09` | |
+| G12 | Ausgeschlossene Boote | Abgemeldete, ausgeschiedene und disqualifizierte Boote erscheinen nicht — und tragen in der Ergebniszeile auch kein Urkunden-Icon, weil es dort nur scheitern könnte | `4b98dd09` | |
 | G13 | Plätze noch nicht berechnet | Verständliche Meldung statt leerer oder halb gefüllter Urkunden | `4b98dd09` | |
 | G14 | Fehlende Vorlage | Dialog zeigt einen Hinweis mit Verweis auf die Konfiguration, kein Fehler beim Download | `4b98dd09` | |
 | G15 | Teilnahmeurkunde als Word | `?format=docx` liefert .docx, der ZIP-Download enthält .docx-Einträge; der E-Mail-Versand bleibt PDF | `4b98dd09` | |
@@ -209,6 +214,11 @@ DRV-PowerPoint hochladen, Platzhalter visuell setzen.
 | G17 | Rechte | Nur mit `ReadEventGlobal`; kein öffentlicher Zugriff auf Urkunden | `4b98dd09` | |
 | G18 | Challenge-Event | Keine Siegerurkunde, die Teilnahmeurkunde bleibt | `4b98dd09` | |
 | G19 | Serienlänge | „alle Plätze, pro Athlet" auf der größten Veranstaltung: Dauer und Seitenzahl notieren — daraus entscheidet sich, ob eine Obergrenze nötig wird | `4b98dd09` | |
+| G20 | Ausländische Vereinsnamen | Ein Verein mit `ł`, `ř` oder Kyrillisch im Namen: der Download läuft durch und die Urkunde ist lesbar. Helvetica kann diese Zeichen nicht darstellen, sie werden ersetzt — **kein** Abbruch des ganzen Downloads | `4b98dd09` | |
+| G21 | PDF und Word treffen dieselbe Stelle | Beide Formate derselben Urkunde aufs Amtspapier drucken und übereinanderlegen: die fünf Zeilen sitzen in denselben Feldern. Das ist die Kernzusage des Features | `4b98dd09` | |
+| G22 | Mehrseitige Teilnahme-Vorlage als Word | Eine Vorlage mit zwei Seiten liefert ein zweiseitiges .docx; Platzhalter von Seite 2 fehlen nicht, und jede Seite behält ihr eigenes Format | `4b98dd09` | |
+| G23 | Vorlage falsch zuweisen | Die Auswahl bietet nur Vorlagen des passenden Typs an; wird trotzdem eine fremde zugewiesen, lehnt der Server sichtbar ab statt stumm leere Urkunden zu erzeugen | `4b98dd09` | |
+| G24 | Kaputte Vorlage | Eine unlesbare oder nullseitige PDF-Vorlage liefert eine verständliche Meldung — keine leere .docx und kein Serverfehler | `4b98dd09` | |
 
 ---
 
@@ -281,6 +291,12 @@ bleibende Nummer erwartet, siehe den offenen Punkt „Bootsnummer" unten.
   Spalte samt Schreibweg — vor der Regatta entscheiden.
 - **Ort/Strecke.** `placeName` in den Info-DTOs wird nie gefüllt; eine Tabelle für Orte existiert
   nicht. Entweder Feld entfernen oder Bedarf klären.
+- **Sonderzeichen auf Urkunden (G20).** Ohne hochgeladene Schrift läuft das PDF auf Helvetica, das
+  weder `ł` noch Kyrillisch kann; solche Zeichen werden ersetzt. Für eine Deutsche Meisterschaft mit
+  ausländischen Crews ist das sichtbar. Entweder der DRV liefert die Schriftdatei (TheSansOffice, ist
+  lizenzpflichtig und darf nicht im Repo liegen) und wir prüfen, ob sie die Zeichen enthält — oder wir
+  liefern eine frei lizenzierte Schrift mit breiterem Zeichensatz als Fallback mit. Vor der Regatta
+  entscheiden, sonst steht am Tag ein `?` auf der Urkunde.
 
 ## Nicht in diesem Katalog
 
