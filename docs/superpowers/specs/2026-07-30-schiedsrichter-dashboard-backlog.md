@@ -311,3 +311,11 @@ DEAKTIVIERT, true → SCHIEDSRICHTER):
 Zusätzlich: Die **stille Deaktivierung bei vollständiger Ergebniseingabe entfällt** — der Lauf
 bleibt aktiv, die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden", bis der zuständige
 Akteur klickt. Der RaceClocker-Pull meldet nur Daten und beendet nie.
+
+**Konkreter Anlass für die DB-Integrationstests (C6), 05.08.2026:** Der Guard „beendete Läufe
+nicht reaktivieren" las `match_finished_at` aus `getSlotWithContext` — diese Einzel-Slot-Query
+selektierte den Alias aber nicht (im Gegensatz zu `getSlots`/`getChainSlots`). Folge: jOOQ warf
+`IllegalArgumentException` und **jedes** Aktivieren über den Zeitplan endete mit HTTP 500,
+unabhängig vom Laufzustand. Reine Unit-Tests auf den `*Logic`-Objekten können diese Fehlerklasse
+(gelesener Alias fehlt in der konkreten Query) nicht sehen — ein DB-gestützter Test pro Repo-Query
+hätte sie sofort gefangen.
