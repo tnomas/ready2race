@@ -32,6 +32,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.database.generated.tables.AppUserWithPrivileges
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CertificateOfEventParticipationSendingJobRecord
+import de.lambda9.ready2race.backend.docx.DocxPageSize
 import de.lambda9.ready2race.backend.docx.gapDocumentsDocx
 import de.lambda9.ready2race.backend.docx.toByteArray
 import de.lambda9.ready2race.backend.kio.onFalseFail
@@ -93,11 +94,15 @@ object CertificateService {
         AwardCertificateService.Format.DOCX -> KIO.comprehension {
             // Loader.loadPDF/getPage werfen bei einer defekten oder leeren Vorlage eine Exception,
             // die ohne KIO.effect als untypisierter 500er beim Client ankäme (siehe AwardCertificateService).
-            val (width, height) = !KIO.effect {
+            // Anders als bei der Siegerurkunde darf die Teilnahmeurkunden-Vorlage mehrseitig sein,
+            // deshalb werden hier alle Seiten eingelesen, nicht nur die erste.
+            val templatePageSizes = !KIO.effect {
                 val templateDoc = Loader.loadPDF(template)
                 try {
-                    val mediaBox = templateDoc.getPage(0).mediaBox
-                    mediaBox.width to mediaBox.height
+                    (0 until templateDoc.numberOfPages).map { pageIndex ->
+                        val mediaBox = templateDoc.getPage(pageIndex).mediaBox
+                        DocxPageSize(mediaBox.width, mediaBox.height)
+                    }
                 } finally {
                     templateDoc.close()
                 }
@@ -105,10 +110,9 @@ object CertificateService {
 
             KIO.ok(
                 gapDocumentsDocx(
-                    pageWidthPoints = width,
-                    pageHeightPoints = height,
+                    templatePageSizes = templatePageSizes,
                     fontName = fontName,
-                    pages = listOf(additions),
+                    certificates = listOf(additions),
                 ).toByteArray()
             )
         }

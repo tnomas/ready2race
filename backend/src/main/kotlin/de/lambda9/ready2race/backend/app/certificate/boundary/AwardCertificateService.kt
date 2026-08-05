@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventRecord
+import de.lambda9.ready2race.backend.docx.DocxPageSize
 import de.lambda9.ready2race.backend.docx.gapDocumentsDocx
 import de.lambda9.ready2race.backend.docx.toByteArray
 import de.lambda9.ready2race.backend.lexiNumberComp
@@ -222,10 +223,9 @@ object AwardCertificateService {
                 }.mapError { AwardCertificateError.UnreadableTemplate }
 
                 gapDocumentsDocx(
-                    pageWidthPoints = width,
-                    pageHeightPoints = height,
+                    templatePageSizes = listOf(DocxPageSize(width, height)),
                     fontName = template.fontName,
-                    pages = pages,
+                    certificates = pages,
                 ).toByteArray()
             }
         }

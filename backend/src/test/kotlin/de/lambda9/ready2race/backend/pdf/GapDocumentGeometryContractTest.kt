@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.pdf
 
+import de.lambda9.ready2race.backend.docx.DocxPageSize
 import de.lambda9.ready2race.backend.docx.gapDocumentsDocx
 import de.lambda9.ready2race.backend.text.TextAlign
 import org.apache.pdfbox.contentstream.operator.Operator
@@ -95,10 +96,9 @@ class GapDocumentGeometryContractTest {
 
     private fun docxBlockTopTwips(addition: AdditionalText): Long {
         val document = gapDocumentsDocx(
-            pageWidthPoints = PDRectangle.A4.width,
-            pageHeightPoints = PDRectangle.A4.height,
+            templatePageSizes = listOf(DocxPageSize(PDRectangle.A4.width, PDRectangle.A4.height)),
             fontName = null,
-            pages = listOf(listOf(addition)),
+            certificates = listOf(listOf(addition)),
         )
         val frame = document.paragraphs.first { it.ctp.pPr?.framePr != null }.ctp.pPr.framePr
         val y = frame.y.toString().toLong()

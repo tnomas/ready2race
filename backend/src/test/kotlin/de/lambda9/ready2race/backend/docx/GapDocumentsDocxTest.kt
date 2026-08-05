@@ -15,14 +15,17 @@ import kotlin.test.assertTrue
 
 class GapDocumentsDocxTest {
 
+    private val a4 = DocxPageSize(PDRectangle.A4.width, PDRectangle.A4.height)
+
     private fun addition(
         content: String,
         relTop: Double,
+        page: Int = 1,
         bold: Boolean = false,
         italic: Boolean = false,
     ) = AdditionalText(
         content = content,
-        page = 1,
+        page = page,
         relLeft = 0.0,
         relTop = relTop,
         relWidth = 1.0,
@@ -33,11 +36,11 @@ class GapDocumentsDocxTest {
         italic = italic,
     )
 
-    private fun doc(pages: List<List<AdditionalText>>) = gapDocumentsDocx(
-        pageWidthPoints = PDRectangle.A4.width,
-        pageHeightPoints = PDRectangle.A4.height,
+    /** Eine Vorlagenseite (A4), beliebig viele Urkunden - das Verhalten der Siegerurkunde. */
+    private fun doc(certificates: List<List<AdditionalText>>) = gapDocumentsDocx(
+        templatePageSizes = listOf(a4),
         fontName = "TheSansOffice",
-        pages = pages,
+        certificates = certificates,
     )
 
     @Test
@@ -114,10 +117,9 @@ class GapDocumentsDocxTest {
     @Test
     fun alignmentIsTakenFromTextAlign() {
         val document = gapDocumentsDocx(
-            pageWidthPoints = PDRectangle.A4.width,
-            pageHeightPoints = PDRectangle.A4.height,
+            templatePageSizes = listOf(a4),
             fontName = null,
-            pages = listOf(
+            certificates = listOf(
                 listOf(
                     addition("links", 0.4).copy(textAlign = TextAlign.LEFT),
                     addition("mitte", 0.5).copy(textAlign = TextAlign.CENTER),
@@ -176,4 +178,107 @@ class GapDocumentsDocxTest {
         assertTrue(reopened.paragraphs.any { it.text == "1. Platz" })
         reopened.close()
     }
+
+    // --- Mehrseitige Vorlage (Teilnahmeurkunde) -----------------------------------------------
+
+    /** Zwei Vorlagenseiten unterschiedlicher Größe - A4 und A5, damit ein Größenwechsel sichtbar wird. */
+    private val a5 = DocxPageSize(PDRectangle.A5.width, PDRectangle.A5.height)
+
+    @Test
+    fun twoPageTemplateProducesTwoWordSectionsWithBothPlaceholders() {
+        val document = gapDocumentsDocx(
+            templatePageSizes = listOf(a4, a5),
+            fontName = null,
+            certificates = listOf(
+                listOf(
+                    addition("Seite eins", 0.45, page = 1),
+                    addition("Seite zwei", 0.45, page = 2),
+                )
+            ),
+        )
+
+        val framed = document.paragraphs.filter { it.ctp.pPr?.framePr != null }
+        assertEquals(listOf("Seite eins", "Seite zwei"), framed.map { it.text })
+
+        // Der Platzhalter der ersten Vorlagenseite ist A4-breit gerahmt, der der zweiten A5-breit.
+        val widthsTwips = framed.map { it.ctp.pPr.framePr.w.toString().toLong() }
+        assertEquals(twips(a4.widthPoints), widthsTwips[0])
+        assertEquals(twips(a5.widthPoints), widthsTwips[1])
+
+        // Zwei unterschiedliche Seitengrößen sind in Word nur über zwei Abschnitte möglich: der
+        // Body trägt die Größe des letzten Abschnitts (A5), ein Absatz dazwischen die des ersten (A4).
+        val bodySectPr = document.document.body.sectPr
+        assertEquals(twips(a5.widthPoints), bodySectPr.pgSz.w.toString().toLong())
+        assertEquals(twips(a5.heightPoints), bodySectPr.pgSz.h.toString().toLong())
+
+        val embeddedSectPrs = document.paragraphs.mapNotNull { it.ctp.pPr?.sectPr }
+        assertEquals(1, embeddedSectPrs.size, "genau ein Abschnittswechsel für zwei Vorlagenseiten")
+        assertEquals(twips(a4.widthPoints), embeddedSectPrs.first().pgSz.w.toString().toLong())
+        assertEquals(twips(a4.heightPoints), embeddedSectPrs.first().pgSz.h.toString().toLong())
+
+        document.close()
+    }
+
+    @Test
+    fun placeholderNamingAPageTheTemplateDoesNotHaveIsDropped() {
+        val document = gapDocumentsDocx(
+            templatePageSizes = listOf(a4),
+            fontName = null,
+            certificates = listOf(
+                listOf(
+                    addition("bleibt", 0.45, page = 1),
+                    addition("verschwindet", 0.45, page = 2),
+                )
+            ),
+        )
+
+        val framed = document.paragraphs.filter { it.ctp.pPr?.framePr != null }
+        assertEquals(listOf("bleibt"), framed.map { it.text })
+        document.close()
+    }
+
+    @Test
+    fun twoPageDocumentCanBeWrittenAndReadBack() {
+        // Für die visuelle Kontrolle (soffice --headless --convert-to pdf, dann pdftoppm): zwei
+        // deutlich unterscheidbare Platzhalter auf zwei unterschiedlich großen Vorlagenseiten.
+        val bytes = gapDocumentsDocx(
+            templatePageSizes = listOf(a4, a5),
+            fontName = null,
+            certificates = listOf(
+                listOf(
+                    addition("SEITE EINS (A4)", 0.45, page = 1),
+                    addition("SEITE ZWEI (A5)", 0.45, page = 2),
+                )
+            ),
+        ).toByteArray()
+
+        java.io.File("testOutputs").mkdirs()
+        java.io.File("testOutputs/urkunden_zweiseitig.docx").writeBytes(bytes)
+
+        val reopened = XWPFDocument(bytes.inputStream())
+        assertEquals(
+            listOf("SEITE EINS (A4)", "SEITE ZWEI (A5)"),
+            reopened.paragraphs.filter { it.ctp.pPr?.framePr != null }.map { it.text },
+        )
+        reopened.close()
+    }
+
+    @Test
+    fun singlePageAwardCertificatePathStaysUnchangedForMultipleCertificates() {
+        // Die Siegerurkunde hat laut Fachlogik immer genau eine Vorlagenseite - mehrere Urkunden
+        // in einem Dokument bleiben deshalb einfache Seitenumbrüche im selben Abschnitt, nicht
+        // mehrere Word-Abschnitte.
+        val document = doc(
+            listOf(
+                listOf(addition("1. Platz", 0.45)),
+                listOf(addition("2. Platz", 0.45)),
+            )
+        )
+
+        val embeddedSectPrs = document.paragraphs.mapNotNull { it.ctp.pPr?.sectPr }
+        assertTrue(embeddedSectPrs.isEmpty(), "keine Abschnittswechsel bei gleicher Seitengröße")
+        document.close()
+    }
+
+    private fun twips(points: Float): Long = (points * 20f).roundToLong()
 }

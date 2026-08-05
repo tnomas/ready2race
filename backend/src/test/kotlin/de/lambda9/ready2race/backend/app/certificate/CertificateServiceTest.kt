@@ -52,6 +52,32 @@ class CertificateServiceTest {
         return out.toByteArray()
     }
 
+    /**
+     * Zweiseitige Vorlage (A4 + A5) - anders als die Siegerurkunde darf die Teilnahmeurkunde
+     * mehrseitig sein, siehe [de.lambda9.ready2race.backend.docx.GapDocumentsDocxTest].
+     */
+    private fun twoPageTemplateBytes(): ByteArray {
+        val doc = PDDocument()
+        doc.addPage(PDPage(PDRectangle.A4))
+        doc.addPage(PDPage(PDRectangle.A5))
+
+        val out = ByteArrayOutputStream()
+        doc.save(out)
+        doc.close()
+        return out.toByteArray()
+    }
+
+    private fun addition(content: String, page: Int) = AdditionalText(
+        content = content,
+        page = page,
+        relLeft = 0.0,
+        relTop = 0.45,
+        relWidth = 1.0,
+        relHeight = 0.05,
+        textAlign = TextAlign.CENTER,
+        fontSize = 20f,
+    )
+
     private fun addition(content: String) = AdditionalText(
         content = content,
         page = 1,
@@ -101,6 +127,58 @@ class CertificateServiceTest {
 
         val document = XWPFDocument(bytes.inputStream())
         assertTrue(document.paragraphs.any { it.text == "Max Mustermann" })
+        document.close()
+    }
+
+    /**
+     * Anders als die Siegerurkunde darf die Teilnahmeurkunden-Vorlage mehrseitig sein - der
+     * Word-Zweig muss deshalb alle Vorlagenseiten einlesen (nicht nur die erste, wie das für die
+     * Größe der einzelnen Word-Seiten nötig ist) und die Platzhalter jeweils auf ihrer Seite
+     * platzieren, statt sie auf Seite 1 zusammenzufalten.
+     */
+    @Test
+    fun wordBranchRendersEveryTemplatePageWithItsOwnPlaceholder() {
+        val exit = CertificateService.participantForEvent(
+            additions = listOf(addition("Seite eins", page = 1), addition("Seite zwei", page = 2)),
+            template = twoPageTemplateBytes(),
+            fontName = null,
+            format = AwardCertificateService.Format.DOCX,
+        ).unsafeRunSync()
+
+        val bytes = exit.getOrNull()
+        assertNotNull(bytes, "DOCX-Zweig hätte Bytes liefern müssen")
+
+        val document = XWPFDocument(bytes.inputStream())
+        val framed = document.paragraphs.filter { it.ctp.pPr?.framePr != null }
+        assertEquals(listOf("Seite eins", "Seite zwei"), framed.map { it.text })
+
+        // Die beiden Vorlagenseiten sind unterschiedlich groß (A4, A5) - das geht in Word nur über
+        // zwei Abschnitte, die Rahmenbreite der beiden Platzhalter muss sich deshalb unterscheiden.
+        val widths = framed.map { it.ctp.pPr.framePr.w.toString().toLong() }
+        assertTrue(widths[0] != widths[1], "Platzhalter auf unterschiedlich großen Seiten müssen unterschiedlich breite Rahmen bekommen")
+        document.close()
+    }
+
+    /**
+     * Ein Platzhalter, dessen `page`-Feld auf eine Seite zeigt, die die Vorlage nicht hat, darf
+     * nicht auf eine vorhandene Seite rutschen, sondern muss stillschweigend wegfallen - wie im
+     * PDF-Renderer für die Teilnahmeurkunde ([de.lambda9.ready2race.backend.pdf.document]).
+     */
+    @Test
+    fun wordBranchDropsAPlaceholderNamingAPageTheTemplateDoesNotHave() {
+        val exit = CertificateService.participantForEvent(
+            additions = listOf(addition("bleibt", page = 1), addition("verschwindet", page = 3)),
+            template = twoPageTemplateBytes(),
+            fontName = null,
+            format = AwardCertificateService.Format.DOCX,
+        ).unsafeRunSync()
+
+        val bytes = exit.getOrNull()
+        assertNotNull(bytes, "DOCX-Zweig hätte Bytes liefern müssen")
+
+        val document = XWPFDocument(bytes.inputStream())
+        val framed = document.paragraphs.filter { it.ctp.pPr?.framePr != null }
+        assertEquals(listOf("bleibt"), framed.map { it.text })
         document.close()
     }
 
