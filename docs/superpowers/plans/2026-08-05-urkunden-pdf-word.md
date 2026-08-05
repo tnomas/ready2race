@@ -31,13 +31,17 @@ auf vorgedrucktes Papier gedruckt wird) und POI XWPF für DOCX (absolut position
 - Migrationen heißen `V<YYYYMMDDHHmm>__<name>.sql`. Views liegen **nicht** in der Migration, sondern
   in `backend/src/main/resources/db/migration/afterMigrate.sql`, wo sie zuerst gedroppt und dann neu
   angelegt werden.
-- Nach jeder DB-Änderung: `cd backend && docker compose up -d` und `./mvnw jooq:generate`.
-- **Der jOOQ-Codegen teilt die `build-db` zwischen allen Worktrees**, weil der Compose-Projektname
-  aus dem Verzeichnisnamen `backend` kommt. Scheitert der Build mit Flyway-Validate- oder
-  Out-of-order-Fehlern, weil ein anderer Branch dort andere Migrationen angewendet hat: eine
-  Wegwerf-Postgres auf eigenem Port starten und dem Build per
-  `-Ddatabase.url=jdbc:postgresql://localhost:<port>/ready2race` unterschieben. Den geteilten
-  Container **nie** wipen — andere Worktrees hängen daran.
+- **Jeder Maven-Aufruf braucht die eigene Build-Datenbank dieses Worktrees.** Der geteilte Container
+  `backend-build-db-1` ist mit den Migrationen dieses Branches nicht kompatibel (Flyway-Validate-Fehler
+  von einem anderen Worktree) und darf **nicht** angefasst werden. Stattdessen läuft der Container
+  `urkunden-build-db` auf Port 17660; jeder Aufruf hängt deshalb
+  `-Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build` an. Läuft er nicht, mit
+  `docker start urkunden-build-db` wieder hochfahren.
+- **`./mvnw jooq:generate` funktioniert auf diesem Rechner nicht** (kein `org.jooq`-pluginGroup in
+  `~/.m2/settings.xml`). Codegen läuft über den Lifecycle, der auch Flyway zuerst migriert:
+  `./mvnw generate-sources -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build`.
+  Ein direkter Goal-Aufruf überspringt Flyway und generiert stillschweigend gegen ein veraltetes Schema.
+- Referenzstand vor dieser Arbeit: 131 Tests, alle grün.
 - `JAVA_HOME` fehlt in der Shell, und `/usr/libexec/java_home` findet das JDK **nicht** — das
   Homebrew-JDK 21 ist keg-only. Jeder Maven-Aufruf braucht deshalb wörtlich
   `export JAVA_HOME=/opt/homebrew/opt/openjdk@21`.
@@ -198,7 +202,10 @@ Typen würden alle vier brechen. Diese Task zieht die Zuordnung in eine reine Fu
 - Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/documentTemplate/boundary/GapDocumentTemplateService.kt`
 
 **Interfaces:**
-- Consumes: die generierten Placeholder-Records aus Task 1.
+- Consumes: die generierten Placeholder-Records aus Task 1. Wichtig: `placeholders` ist auf **beiden**
+  View-Records `Array<GapDocumentPlaceholderRecord?>?` — ein Kotlin-Array, keine `List`, und beide Views
+  liefern denselben Record-Typ. Deshalb `template.placeholders!!.toList()` vor der Umwandlung, und eine
+  einzige `toGapPlaceholder()`-Erweiterung genügt.
 - Produces:
   - `GapPlaceholder(type, page, relLeft, relTop, relWidth, relHeight, textAlign, fontSize: Int?, bold: Boolean, italic: Boolean, staticText: String?)` mit `type: GapDocumentPlaceholderType`, `textAlign: TextAlign`.
   - `GapPlaceholderValues` mit den nullbaren Feldern `firstName`, `lastName`, `fullName`, `result`, `eventName`, `place`, `competitionName`, `competitionShortName`, `clubName`, `teamName`, `eventDate`, `eventLocation`.
@@ -356,7 +363,7 @@ class GapPlaceholderLogicTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapPlaceholderLogicTest
 ```
 
 Erwartung: Compile-Fehler, `GapPlaceholder` und `GapPlaceholderLogic` existieren nicht.
@@ -544,7 +551,7 @@ data class AdditionalText(
 - [ ] **Step 8: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapPlaceholderLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapPlaceholderLogicTest
 ```
 
 Erwartung: alle sieben Tests grün.
@@ -671,7 +678,7 @@ Importe `GapDocumentType`, `GapDocumentPlaceholderType`, `AdditionalText`, `Text
 - [ ] **Step 12: Gesamten Testlauf und Compile prüfen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build
 ```
 
 Erwartung: Build erfolgreich, alle Tests grün.
@@ -873,7 +880,7 @@ class GapDocumentsTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapDocumentsTest
 ```
 
 Erwartung: Compile-Fehler, `gapDocuments` existiert nicht.
@@ -1047,7 +1054,7 @@ durch den Import.
 - [ ] **Step 4: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapDocumentsTest
 ```
 
 Erwartung: alle sieben Tests grün. Schlägt `multipleLinesAreRenderedSeparately` fehl, weil
@@ -1236,7 +1243,7 @@ class GapDocumentsDocxTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapDocumentsDocxTest
 ```
 
 Erwartung: Compile-Fehler, `gapDocumentsDocx` existiert nicht.
@@ -1381,7 +1388,7 @@ als `BigInteger` übergeben und nur den deklarierten Parametertyp beachten — k
 - [ ] **Step 4: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapDocumentsDocxTest
 ```
 
 Erwartung: alle acht Tests grün.
@@ -1392,7 +1399,7 @@ Ein Testlauf schreibt kein Artefakt; für die Sichtprüfung einmalig ein Dokumen
 rendern:
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=GapDocumentsDocxTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=GapDocumentsDocxTest
 soffice --headless --convert-to pdf --outdir /tmp/docxcheck backend/testOutputs/*.docx 2>/dev/null || true
 ```
 
@@ -1619,7 +1626,7 @@ class AwardCertificateLogicTest {
 - [ ] **Step 2: Test laufen lassen und Fehlschlag prüfen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=AwardCertificateLogicTest
 ```
 
 Erwartung: Compile-Fehler, die Typen existieren nicht.
@@ -1761,7 +1768,7 @@ object AwardCertificateLogic {
 - [ ] **Step 5: Test laufen lassen**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Dtest=AwardCertificateLogicTest
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build -Dtest=AwardCertificateLogicTest
 ```
 
 Erwartung: alle Tests grün.
@@ -2173,7 +2180,7 @@ import de.lambda9.ready2race.backend.app.certificate.boundary.awardCertificate
 - [ ] **Step 5: Kompilieren**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q compile
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q compile -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build
 ```
 
 Erwartung: erfolgreich. Fehler zu Feldnamen aus den generierten Records oder aus
@@ -2463,7 +2470,7 @@ Bei `/event/{eventId}/certificatesOfParticipation` und
 - [ ] **Step 5: Kompilieren, Tests, Client generieren**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build
 ```
 
 ```bash
@@ -2638,7 +2645,7 @@ cd frontend && npm run generate
 - [ ] **Step 8: Kompilieren und Tests**
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw -q test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build
 ```
 
 - [ ] **Step 9: Commit**
@@ -2790,7 +2797,7 @@ git commit -m "Add award certificate download dialog and entry points"
 
 ## Abschluss
 
-- [ ] Vollständiger Backend-Testlauf: `export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw test`
+- [ ] Vollständiger Backend-Testlauf: `export JAVA_HOME=/opt/homebrew/opt/openjdk@21 && cd backend && ./mvnw test -Ddatabase.url=jdbc:postgresql://localhost:17660/ready2race-build`
 - [ ] Frontend: `cd frontend && npm run lint && npm run build`
 - [ ] Manuelle Probe: Vorlage anlegen (PDF-Export der DRV-PPTX), Platzhalter setzen, Urkunden für
   einen Wettkampf als PDF und als Word herunterladen, beide Dateien öffnen und die Positionen gegen
