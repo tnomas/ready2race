@@ -63,12 +63,14 @@ fun gapDocumentsDocx(
             val lines = addition.content.split("\n").map { it.sanitizeNonPrintable() }
 
             // Wie im PDF wird der Textblock senkrecht im Platzhalterkasten zentriert, damit beide
-            // Formate dieselbe Stelle auf dem Papier treffen.
+            // Formate dieselbe Stelle auf dem Papier treffen. GapTextMetrics.blockTop ist top-down
+            // definiert (Versatz von der Kastenoberkante) - DOCX rechnet ohnehin top-down und
+            // verwendet ihn deshalb direkt, ohne weitere Umrechnung.
             val boxTop = pageHeightPoints * addition.relTop.toFloat()
             val boxHeight = pageHeightPoints * addition.relHeight.toFloat()
-            val metrics = addition.gapTextMetrics(boxHeight)
+            val metrics = addition.gapTextMetrics(boxHeight, lines.size)
             val lineHeight = metrics.lineHeight
-            val blockTop = boxTop + (boxHeight - lineHeight * lines.size) / 2
+            val blockTop = boxTop + metrics.blockTop
 
             lines.forEachIndexed { lineIndex, line ->
                 val paragraph = document.createParagraph()

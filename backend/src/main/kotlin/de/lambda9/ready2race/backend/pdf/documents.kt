@@ -113,9 +113,11 @@ private fun drawAddition(
     val x = (page.mediaBox.width * addition.relLeft).toFloat()
     val y = (page.mediaBox.height * (1 - addition.relTop) - h).toFloat()
 
-    val metrics = addition.gapTextMetrics(h)
-    val fontSize = metrics.fontSize
     val font = fonts.forStyle(addition.bold, addition.italic)
+    val lines = addition.content.split("\n").map { it.sanitizeNonPrintable().sanitizeForFont(font) }
+
+    val metrics = addition.gapTextMetrics(h, lines.size)
+    val fontSize = metrics.fontSize
 
     content.setFont(font, fontSize)
     content.setNonStrokingColor(Color.DARK_GRAY)
@@ -133,8 +135,11 @@ private fun drawAddition(
 
     val capHeight = fontSize * font.fontDescriptor.capHeight / 1000
     val lineHeight = metrics.lineHeight
-    val lines = addition.content.split("\n").map { it.sanitizeNonPrintable().sanitizeForFont(font) }
-    val blockTop = y + h / 2 + lineHeight * lines.size / 2
+    // GapTextMetrics.blockTop ist top-down definiert (Versatz von der Kastenoberkante); PDF rechnet
+    // bottom-up, daher die einmalige Umrechnung: Kastenoberkante in PDF-Koordinaten (y + h) minus
+    // dem top-down-Versatz. Das ist rechnerisch identisch zur vorherigen, direkt hier stehenden
+    // Formel `y + h / 2 + lineHeight * lines.size / 2`.
+    val blockTop = (y + h) - metrics.blockTop
 
     lines.forEachIndexed { index, line ->
         val textWidth = font.getStringWidth(line) / 1000 * fontSize
