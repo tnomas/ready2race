@@ -82,6 +82,8 @@ nicht die Erwartung anpassen.
 | A20 | Ohne Anmeldung | `/board/{eventId}` funktioniert im privaten Fenster vollständig | `8eda6dc1` | |
 | A21 | Überfälliger Platzhalter | Wartender Slot und Programmpunkt verschwinden 30 min nach ihrer Startzeit aus „Nächster Lauf" — dieselbe Nachfrist wie A15. Die Morgenbesprechung darf am Nachmittag nicht mehr die drei Plätze der Spalte belegen | `23e7c170` | |
 | A22 | Abgesagter Lauf | Ein abgesagter Slot verschwindet aus „Nächster Lauf" und aus der Kiosk-Ansicht — auch wenn die Runde bereits gesetzt ist und es den Lauf wirklich gibt. Die übrigen Läufe rücken nach | `f81f8bc5` | |
+| A23 | Ergebnis erst nach dem Beenden | Voreinstellung „nur beendete Läufe": ein vollständig gewerteter, aber nicht beendeter Lauf steht NICHT unter „Letztes Ergebnis" (auch nicht auf der Kiosk-Ansicht und der öffentlichen Ergebnisseite). Nach dem Beenden-Klick erscheint er dort | `7bd78c3e` | |
+| A24 | Stufe „auch vollständig gewertete" | Veranstaltung auf „Auch vollständig gewertete Läufe" umgestellt: derselbe Lauf erscheint sofort unter „Letztes Ergebnis" — und steht dann bewusst gleichzeitig unter „Aktueller Lauf". Das ist das Verhalten von vor der Einstellung | `7bd78c3e` | |
 
 ## B — Zeitstrahl und Laufkette
 
@@ -149,7 +151,7 @@ nicht die Erwartung anpassen.
 | D12 | Schiedsrichter-Modus | Warnung, wenn das Büro den Modus überschreibt | `b061c470` | |
 | D13 | Draußen lesbar | Große Schrift, hoher Kontrast, Vereinsnamen gekürzt, Karten als Spaltengitter | `211bbf4f`, `e45ce42f`, `95616793` | |
 | D14 | Freie Slots | Programmpunkte erscheinen im Dashboard an ihrer Stelle | `42d6b9f7` | |
-| D15 | Kein stiller Stopp | Vollständige Ergebnisse (Formular, Datei, RaceClocker) beenden den Lauf nicht; die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden" | `6b0a0f7d` | |
+| D15 | Kein stiller Stopp | Vollständige Ergebnisse (Formular, Datei, RaceClocker) beenden den Lauf nicht; die Karte zeigt „Ergebnisse vollständig — wartet auf Beenden", steht weiter im Live-Tab und bietet „Lauf beenden" statt „Lauf aktivieren" | `6b0a0f7d`, `7bd78c3e` | |
 | D16 | Geplant und echter Start | Karte zeigt „geplant HH:MM" und, sobald gestartet, „gestartet HH:MM"; „läuft seit" zählt ab dem echten Start | `e4cb8753` | |
 | D17 | Kein Start-Knopf | Das Dashboard bietet kein manuelles Starten an — der Ist-Start kommt aus der Zeitnahme | `2cfa9bad` | |
 | D18 | Wartende Läufe | Platzhalterkarte „Lauf noch nicht gesetzt" erscheint an ihrer Zeitposition und lässt sich von dort absagen | `e5744801`, `2cfa9bad` | |
@@ -286,9 +288,14 @@ bleibende Nummer erwartet, siehe den offenen Punkt „Bootsnummer" unten.
 
 ## Offene Punkte, die der Test entscheiden soll
 
-- **Lauf doppelt sichtbar.** Die Ergebnis-Abfrage filtert nicht auf „läuft gerade": ein vollständig
-  gewerteter, aber nicht beendeter Lauf kann gleichzeitig unter „Aktueller Lauf" und unter „Letztes
-  Ergebnis" stehen. Mit Teilergebnissen (A5) passiert das häufiger. Gewünscht oder störend?
+- ~~**Lauf doppelt sichtbar.**~~ **Entschieden am 06.08.2026 (`7bd78c3e`), siehe A23/A24.** Nicht die
+  Doppelsichtbarkeit war das Problem, sondern der Zeitpunkt: solange ein Lauf nicht beendet ist, kann
+  noch eine Zeitstrafe kommen, und ein veröffentlichtes Ergebnis, das sich danach ändert, lässt sich
+  nicht zurückholen. Die Veranstaltung entscheidet jetzt über `public_results_visibility`, ab welchem
+  Zustand ein Lauf öffentlich als Ergebnis gilt — Vorgabe „nur beendete Läufe", wahlweise „auch
+  vollständig gewertete" (das bisherige Verhalten). **Nebenwirkung für Altdaten:** Läufe, die
+  vollständig gewertet, aber nie formal beendet wurden, fallen mit der Vorgabe aus den öffentlichen
+  Ergebnissen heraus, bis sie beendet werden oder die Veranstaltung umgestellt wird.
 - **Bootsnummer.** Es gibt keine Nummer, die am Boot bleibt: `start_number` ist die Bahn,
   `team_number` die n-te Mannschaft eines Vereins. Der RaceClocker-Bib wird seit `d64ae540` nicht
   mehr geschrieben. Falls die Athleten eine feste Bootsnummer erwarten, braucht das eine eigene
