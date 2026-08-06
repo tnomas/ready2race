@@ -25,6 +25,7 @@ liegen können, ohne sich zu stören:
 | `f0de` | `seed-foerde.sql` (nicht im Repo) | Große Regatta über zwei Renntage, volle Rundenkette |
 | `fee1` | `seed-freilos.sql` (nicht im Repo) | Freilos-Fälle |
 | `a4f1` | [`2026-08-06-seed-auflagen.sql`](2026-08-06-seed-auflagen.sql) | Auflagen (D6), Ersatzleute (D7), Renngemeinschaften (G6) |
+| `c4a1` | [`2026-08-06-seed-challenge.sql`](2026-08-06-seed-challenge.sql) | Challenge-Event für die Teilnahmeurkunden (G15, G16, G18, G22) |
 
 Ein neuer Seed nimmt einen bisher unbenutzten Präfix und trägt sich hier ein.
 
@@ -67,3 +68,26 @@ Renntag auf `current_date` und verschiebt alle Zeiten um denselben Versatz, soda
 zwölf Minuten vor dem Einspielen gestartet ist. Die im Kopfkommentar gerechneten
 Zeitfenster-Abstände bleiben dabei exakt erhalten. Am besten tagsüber einspielen — mitten in der
 Nacht rutschen die frühen Programmpunkte rechnerisch auf den Vortag.
+
+## `2026-08-06-seed-challenge.sql` (Präfix `c4a1`)
+
+Die „Winter-Challenge 2026“ — das erste Challenge-Event in der Dev-Datenbank. Ohne eins lässt
+sich die Teilnahmeurkunde nicht erzeugen (`CertificateService` antwortet mit „Event is not a
+challenge event“), deshalb waren G15, G16, G18 und G22 bislang ungeprüft. Zwei Wettkämpfe
+(Einer und Doppelzweier) mit abgelaufenem Wertungszeitraum, zwei Vereinen und fünf Personen:
+
+- **drei Personen mit bestätigtem Ergebnis** — eine davon (Mette Kjærgaard) mit Ergebnissen aus
+  beiden Wettkämpfen, damit die Summenbildung der Urkunde sichtbar wird (38500 + 52400 =
+  90900 m).
+- **eine Person mit unbestätigtem Ergebnis** (Antje Duschek) — sie fällt heraus, weil das Event
+  auf `submission_needs_verification = true` steht. Flag umstellen, und sie kommt dazu: so sind
+  beide Zweige der Abfrage in `ChallengeResultParticipantViewRepo` prüfbar.
+- **eine Person ohne Ergebnis** (Ruben Ostermann) für den Fehlerfall `NoResults`.
+- Namen und Vereine mit `æ`, `ø` und `ś` für den PDF-Sanitizer.
+
+Die Zeitstempel stehen fest in der Vergangenheit, ein Versatz-Block wie im `a4f1`-Seed ist hier
+nicht nötig: geprüft wird nur, ob `challenge_end_at` vor „jetzt“ liegt, und es gibt keinen
+laufenden Lauf. Der Seed lässt sich also zu jeder Tageszeit einspielen.
+
+Die Vorlage vom Typ `CERTIFICATE_OF_PARTICIPATION` liegt bereits in der Datenbank und wird vom
+Seed nicht angefasst.
