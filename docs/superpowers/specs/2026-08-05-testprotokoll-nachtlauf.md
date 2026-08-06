@@ -217,7 +217,7 @@ damit vergeben, aber unsichtbar.
 
 Das ist kein Anzeigefehler im engeren Sinn — ein Boot, das vor dem Setzen zurueckgezogen wurde,
 gehoert nicht auf die Anzeige. Die Frage ist, ob es ueberhaupt eine Zeile im Lauf bekommen sollte.
-Fuer Thomas zu entscheiden; kein Fix beauftragt.
+Zur Entscheidung an Ilka gegeben — siehe `2026-08-06-offene-fragen-ilka.md`, Punkt 1.
 
 ### Befund 7 — „Beendet" auf einem Lauf, der nie beendet wurde (D15)
 
