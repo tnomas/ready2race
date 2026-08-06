@@ -611,6 +611,60 @@ Behoben in `7f6034d3` (Pruefung auf die leere Liste). Nachgewiesen am Challenge-
 | Antje Duschek (nur unbestaetigt) | 200, Urkunde „0 m" | 400, dieselbe Meldung |
 | Mette Kjaergaard (bestaetigt) | 200, 90900 m | 200, unveraendert 90900 m |
 
+### Nachtrag 06.08. (3): Fehlermeldungen der crf-2026-Features
+
+Gemergt als `2a143861` (fuenf Commits). Backend-Tests danach **347 gruen**, Frontend **362 gruen**. Umfang: 43 Fehlerzweige in vier Bloecken — Zeitplan-Rest (8),
+Urkunden (13), Durchfuehrung (19), Live-Anzeigen (9). Damit sinkt die Bestandsaufnahme von ~139 auf
+~91 Zweige ohne ErrorCode; die verbleibenden liegen in Stammdaten, Benutzerverwaltung und WebDAV,
+also ausserhalb der crf-2026-Features.
+
+Vier neue Frontend-Module nach dem Muster von `deregistrationError.ts`: `certificateError.ts`,
+`executionError.ts`, `liveDashboardError.ts` und die Erweiterung von `scheduleError.ts`.
+
+**Live nachgeprueft** (Backend neu gebaut, Server neu gestartet):
+
+| Fall | Antwort | ErrorCode |
+|---|---|---|
+| Siegerurkunden auf dem Challenge-Event (G18) | 400 „Award certificates are not available for a challenge event" | `AWARD_CERTIFICATE_IS_CHALLENGE_EVENT` |
+| Teilnahmeurkunde ohne Ergebnis (Ruben) | 400 | `CERTIFICATE_NO_RESULTS` |
+| Beenden im Regattabuero-Modus | 409 | `LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE` |
+| **Gegenprobe** Siegerurkunden auf `5eed` | 200, 22 772 Bytes | — |
+| **Gegenprobe** Siegerurkunden Foerde | 400 „No placed teams" | `AWARD_CERTIFICATE_NO_RESULTS` |
+| **Gegenprobe** Teilnahmeurkunde Mette | 200, unveraendert | — |
+
+Die letzten beiden Gegenproben sind der Beleg, dass die neue Challenge-Pruefung vor `entriesForEvent`
+nicht zu frueh greift: Foerde bekommt weiterhin „keine platzierten Teams", nicht die Challenge-Meldung.
+
+**Drei Befunde, die der Agent nebenbei mitgenommen hat** — jeder davon liess vorher einen rohen
+i18n-Schluessel oder englischen Text in der Oberflaeche stehen:
+
+- `Substitutions.tsx`: `add.error` und `delete.error` sind in **de und da** vertauscht (add traegt das
+  Objekt, delete den String), der Code benutzt es umgekehrt. Beide Ummeldungs-Meldungen erschienen
+  als roher Schluessel.
+- `ParticipantForEventTable.tsx` gab `error.message` direkt aus — der einzige rohe englische
+  Backend-Satz in der Oberflaeche.
+- `PARTICIPANT_IMPORT_UNKNOWN_GENDER_VALUE` fehlte in `documentation.yaml` und damit im generierten
+  Frontend-Typ; der Fall war dort gar nicht benennbar.
+
+Zusaetzlich abgespalten: `CompetitionExecutionError.MatchIsBye`. `MatchResultsLocked` trug zwei
+Bedeutungen; der Freilos-Fall las sich als „nur die aktuelle Runde ist bearbeitbar".
+`PlacesNotContinuous` nennt jetzt erwarteten und eingetragenen Platz.
+
+**Zwei Grenzen dieser Pruefung**, damit sie niemand ueberschaetzt:
+
+1. Die Urkunden-Meldungen sind ueber die Oberflaeche kaum erreichbar. Das Download-Menue erscheint nur
+   bei `hasChallengeResults`, der Siegerurkunden-Dialog nur ueber Platzierungen eines Wettkampfs —
+   ein Challenge-Event hat keine. Die deutschen Texte greifen damit vor allem, wenn sich der Zustand
+   zwischen Seitenaufbau und Klick aendert. Richtig ist die Absicherung trotzdem.
+2. Gleiches beim Beenden im Regattabuero-Modus: die Oberflaeche blendet den Knopf aus, der Fehler ist
+   der Schutz fuer die offene Seite. Nachgewiesen ueber die API, nicht ueber einen Klick.
+
+**Eigener Fehler beim Pruefen, der Datenstand kostete:** Ich habe „Runde loeschen" auf dem Finale des
+Auflagen-Seeds geklickt in der Annahme, es werde abgelehnt. Der Knopf ist ein Loeschen, keine Absage —
+die Runde war weg. Wiederhergestellt durch erneutes Einspielen von `2026-08-06-seed-auflagen.sql`; der
+Seed steht damit wieder auf seinem dokumentierten Stand, meine waehrend D15 dort eingetragenen
+Finale-Ergebnisse sind fort. Die Foerde Testregatta ist davon nicht beruehrt.
+
 ---
 
 ## Zusammenfassung der Nacht
