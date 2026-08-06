@@ -551,6 +551,24 @@ Zweite Beobachtung: die Kiosk-Seite `/event/{id}/info` laedt ihre Ansichten uebe
 bekommt ohne Anmeldung 401 — sie braucht also eine Sitzung, anders als `/board/{eventId}`. Passt zu
 E4, steht aber so nicht im Katalog.
 
+### Nachtrag 06.08.: D6, D7 und G6 mit dem neuen Seed
+
+Grundlage ist `docs/superpowers/seeds/2026-08-06-seed-auflagen.sql` (Praefix `a4f1`, Event
+„Auflagen-Testregatta 2026"), der genau fuer diese drei Faelle gebaut wurde.
+
+| ID | Ergebnis | Notiz |
+|---|---|---|
+| D6 | ✓ | Auf der Laufkarte je Boot ein Symbol — rotes ✗ (fehlende Pflicht), gruener Haken, ⚠ (Zeitfenster). Im Dialog fuenf unterscheidbare Zustaende je Person: „Erfuellt am …", „Nicht erfuellt", „Nicht erfuellt (optional)", „Zu frueh erfuellt … 3 h 30 min vor Start", „Spaet erfuellt … 8 min vor Start" — jeweils mit Zeitstempel, Abstand zum Start und Notiz. Die rollenbezogene Auflage („Steuerpersonen-Wiegen") erscheint nur bei der Steuerperson |
+| D7 | ✓ | Im Dialog: „Timm Christiansen (Ruderer:in) — Umgemeldet fuer Malte Soerensen · Rueckenverletzung beim Einrudern – Ersatz aus dem Vereinskader". Ersetzte Person und Grund stehen beide da; auf der Karte weist ein ⇄-Symbol am Bootsnamen darauf hin |
+| G6 | ✓ | Urkunde des RG-Boots zeigt „Renngemeinschaft" (aus `mixed_team_term`), die drei anderen ihren Vereinsnamen |
+
+Nebenbei bestaetigt: der Fix zu Befund 12 haelt auch an frischen Daten — die Finale-Runde des neuen
+Seeds ist ein Massenfeld (`teams IS NULL`) und liefert mit `ASCENDING` die Plaetze 1–4 statt eines 500ers.
+
+Zwei Regeln, die beim Aufbau auffielen und richtig greifen: Ergebnisse einer nicht mehr aktuellen
+Runde sind gesperrt („Match results locked. Only results of the latest round can be edited."), und ein
+falsch formatierter Zeitstring wird von der Validierung mit Feldangabe abgewiesen.
+
 ---
 
 ## Zusammenfassung der Nacht
