@@ -569,6 +569,48 @@ Zwei Regeln, die beim Aufbau auffielen und richtig greifen: Ergebnisse einer nic
 Runde sind gesperrt („Match results locked. Only results of the latest round can be edited."), und ein
 falsch formatierter Zeitstring wird von der Validierung mit Feldangabe abgewiesen.
 
+### Nachtrag 06.08. (2): D15, Sichtbarkeit, restliche Urkunden
+
+| ID | Ergebnis | Notiz |
+|---|---|---|
+| D15 | ✗ → ✓ nach Fix | Karte trug „Beendet" bei leerem `finished_at`. Nach dem Fix: Etikett „Ergebnisse vollstaendig — wartet auf Beenden", Knopf „Lauf beenden" statt „Lauf aktivieren", und der Lauf steht wieder im Live-Tab statt „Aktuell laeuft kein Rennen" |
+| G15 | ✓ | `?format=docx` liefert „Microsoft OOXML" |
+| G16 | ✓ | Vorlage, deren Platzhalter `font_size = NULL` tragen, rendert unveraendert; Name und Ergebnis stehen an ihrer Stelle |
+| G18 | ✓ mit Befund | Ein Challenge-Event liefert keine Siegerurkunde — aber mit der Begruendung „No placed teams for these certificates" statt „Challenge-Events haben keine Siegerurkunden". Stimmt nur zufaellig; an den Fehlermeldungs-Auftrag gegeben |
+| G22 | ✓ | Zweiseitige Vorlage liefert zwei Seiten; die Platzhalter von Seite 2 (Ergebnis, Nachname) fehlen nicht. Summe ueber zwei Wettkaempfe korrekt: 38500 + 52400 = 90900 m |
+
+### Neu: Sichtbarkeit oeffentlicher Ergebnisse
+
+Der offene Katalogpunkt „Lauf doppelt sichtbar" ist entschieden und umgesetzt: `event.public_results_visibility`
+mit zwei Stufen. Am Foerde-Event gemessen (Ergebnis-Limit voruebergehend auf 20 gesetzt):
+
+| Einstellung | sichtbare Ergebnisse |
+|---|---|
+| `FINISHED_ONLY` (Voreinstellung) | 4 — nur echt beendete Laeufe |
+| `RESULTS_COMPLETE` | 6 — zusaetzlich die beiden, die auf „Beenden" warten |
+
+Voreinstellung ist `FINISHED_ONLY` **ohne Backfill**: bestehende Veranstaltungen wechseln damit das
+Verhalten. Begruendung im Migrationskommentar — ein zu frueh veroeffentlichtes und danach korrigiertes
+Ergebnis ist bereits fotografiert und geteilt, ein spaeter erscheinendes kostet nur den Beenden-Klick,
+den der Schiedsrichter ohnehin macht.
+
+### Befund 15 — Teilnahmeurkunde ohne Ergebnis wurde mit „0 m" ausgestellt
+
+`CertificateService.downloadCertificateOfParticipation`
+
+`ChallengeResultParticipantViewRepo.getByEventIdAndParticipantId` liefert eine Liste, nie `null`; das
+nachgeschaltete `onNullFail` konnte deshalb nie feuern und `CertificateError.NoResults` war toter Code.
+Wer kein Ergebnis hatte — oder nur ein unbestaetigtes, das `verifiedIfNeededOnly` ohnehin aussortiert —
+bekam eine Urkunde ueber „0 m", also einen Nachweis ueber eine Teilnahme, die es nicht gab.
+
+Behoben in `7f6034d3` (Pruefung auf die leere Liste). Nachgewiesen am Challenge-Seed:
+
+| Person | vorher | nachher |
+|---|---|---|
+| Ruben Ostermann (kein Ergebnis) | 200, Urkunde „0 m" | 400 „No results in this event for this participant" |
+| Antje Duschek (nur unbestaetigt) | 200, Urkunde „0 m" | 400, dieselbe Meldung |
+| Mette Kjaergaard (bestaetigt) | 200, 90900 m | 200, unveraendert 90900 m |
+
 ---
 
 ## Zusammenfassung der Nacht
