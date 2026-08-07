@@ -23,7 +23,13 @@ import {getCheckSeverityConfig, updateCheckSeverityConfig} from '@api/sdk.gen.ts
 import {CheckSeverity, CheckSeverityEntryDto, CheckSeverityRowDto} from '@api/types.gen.ts'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
-import {isRowApplicable, rowSummary, severityAt} from './checkSeverity.ts'
+import {
+    buildSavePayload,
+    isRowApplicable,
+    preservedEntries,
+    rowSummary,
+    severityAt,
+} from './checkSeverity.ts'
 
 const SEVERITIES: CheckSeverity[] = ['OK', 'WARNING', 'CRITICAL']
 
@@ -42,14 +48,30 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const [entries, setEntries] = useState<CheckSeverityEntryDto[]>([])
+    // Gespeicherte Einträge zu nicht (mehr) anwendbaren Kombinationen (z.B. "Nicht auf dem
+    // Wasser" für einen Wettkampf ohne checkInOutRequired). Sie werden nicht angezeigt und nicht
+    // bearbeitet, müssen aber beim Speichern unverändert erhalten bleiben - sonst ersetzt
+    // replaceForEvent sie durch den Standard und der Wert ist unwiederbringlich weg.
+    const [preserved, setPreserved] = useState<CheckSeverityEntryDto[]>([])
     // Erst wenn die Matrix mit echten Werten gefüllt ist, darf sie gezeichnet werden - sonst zeigt
     // jede Zeile für einen Renderdurchlauf lang "gemischt" und jedes Feld den Ersatzwert.
     const [entriesReady, setEntriesReady] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    const {data: config} = useFetch(
+    const {data: config, error: configError} = useFetch(
         signal => getCheckSeverityConfig({signal, path: {eventId}}),
-        {deps: [eventId, open]},
+        {
+            deps: [eventId, open],
+            onResponse: ({error}) => {
+                if (error) {
+                    feedback.error(
+                        t('common.load.error.single', {
+                            entity: t('event.liveDashboard.checkSeverity.title'),
+                        }),
+                    )
+                }
+            },
+        },
     )
 
     // Die Matrix wird beim Öffnen vollständig aufgefüllt - auch mit den Standardwerten. Damit ist
@@ -76,6 +98,7 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
                     })),
             ),
         )
+        setPreserved(preservedEntries(config))
         setEntriesReady(true)
     }, [config])
 
@@ -102,21 +125,30 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
               : t(`event.liveDashboard.checkSeverity.check.${row.checkType}`)
 
     const summaryLabel = (row: CheckSeverityRowDto) => {
+        // Nur was tatsächlich einstellbar ist, geht in die Verdichtung ein - bewahrte Einträge
+        // nicht (mehr) anwendbarer Kombinationen zählen hier nicht mit.
         const severities = entries.filter(e => matches(e, row)).map(e => e.severity)
-        // Keinem Wettkampf anwendbar (z.B. "Nicht auf dem Wasser", wenn das kein Wettkampf
-        // verlangt) - dann gibt es nichts zu verdichten und keine Sammelaktion zu beschriften.
-        if (severities.length === 0) return ''
         const summary = rowSummary(severities)
-        return summary.kind === 'uniform'
-            ? t('event.liveDashboard.checkSeverity.uniform', {
-                  severity: t(`event.liveDashboard.checkSeverity.severity.${summary.severity}`),
-              })
-            : t('event.liveDashboard.checkSeverity.mixed')
+        switch (summary.kind) {
+            // Keinem Wettkampf anwendbar (z.B. "Nicht auf dem Wasser", wenn das kein Wettkampf
+            // verlangt) - dann gibt es nichts zu verdichten und keine Sammelaktion zu beschriften.
+            case 'empty':
+                return ''
+            case 'uniform':
+                return t('event.liveDashboard.checkSeverity.uniform', {
+                    severity: t(`event.liveDashboard.checkSeverity.severity.${summary.severity}`),
+                })
+            case 'mixed':
+                return t('event.liveDashboard.checkSeverity.mixed')
+        }
     }
 
     const handleSave = async () => {
         setSaving(true)
-        const {error} = await updateCheckSeverityConfig({path: {eventId}, body: {entries}})
+        const {error} = await updateCheckSeverityConfig({
+            path: {eventId},
+            body: {entries: buildSavePayload(entries, preserved)},
+        })
         setSaving(false)
         if (error) {
             feedback.error(t('event.liveDashboard.checkSeverity.saveError'))
@@ -138,7 +170,13 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
                 <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
                     {t('event.liveDashboard.checkSeverity.description')}
                 </Typography>
-                {!entriesReady || !config ? (
+                {configError ? (
+                    <Typography color="error">
+                        {t('common.load.error.single', {
+                            entity: t('event.liveDashboard.checkSeverity.title'),
+                        })}
+                    </Typography>
+                ) : !entriesReady || !config ? (
                     <Throbber />
                 ) : config.competitions.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">
@@ -239,7 +277,11 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>{t('common.cancel')}</Button>
-                <LoadingButton pending={saving} variant="contained" onClick={handleSave}>
+                <LoadingButton
+                    pending={saving}
+                    disabled={!entriesReady || !!configError}
+                    variant="contained"
+                    onClick={handleSave}>
                     {t('common.save')}
                 </LoadingButton>
             </DialogActions>
