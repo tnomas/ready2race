@@ -9,9 +9,7 @@ import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardInvoiceState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
-import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardRequirementStatusDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardScope
-import de.lambda9.ready2race.backend.app.liveDashboard.entity.TimeCheckDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.TimeCheckStatus
 import java.time.LocalDateTime
 import java.util.UUID
@@ -397,62 +395,6 @@ class LiveDashboardLogicTest {
         assertEquals(3, LiveDashboardLogic.selectForScope(matches, LiveDashboardScope.ALL).size)
     }
 
-    // --- summarizeRequirements ---
-
-    private fun requirement(
-        optional: Boolean = false,
-        checked: Boolean = true,
-        timeStatus: TimeCheckStatus? = null,
-    ) = LiveDashboardRequirementStatusDto(
-        requirementId = UUID.randomUUID(),
-        name = "Bedingung",
-        description = null,
-        optional = optional,
-        checked = checked,
-        checkedAt = if (checked) start.minusMinutes(30) else null,
-        note = null,
-        timeCheck = timeStatus?.let { TimeCheckDto(30, it) },
-    )
-
-    @Test
-    fun summaryCountsFulfilledAndMissing() {
-        val summary = LiveDashboardLogic.summarizeRequirements(
-            listOf(
-                requirement(),
-                requirement(checked = false),
-                requirement(optional = true, checked = false),
-            )
-        )
-        assertEquals(3, summary.total)
-        assertEquals(1, summary.fulfilled)
-        assertEquals(1, summary.missingRequired)
-        assertEquals(1, summary.missingOptional)
-        assertEquals(0, summary.timeIssues)
-    }
-
-    @Test
-    fun summaryCountsChecksOutsideTheWindow() {
-        val summary = LiveDashboardLogic.summarizeRequirements(
-            listOf(
-                requirement(timeStatus = TimeCheckStatus.OK),
-                requirement(timeStatus = TimeCheckStatus.LATE),
-                requirement(timeStatus = TimeCheckStatus.TOO_EARLY),
-            )
-        )
-        assertEquals(3, summary.fulfilled)
-        assertEquals(2, summary.timeIssues)
-    }
-
-    @Test
-    fun summaryOfNothingIsEmpty() {
-        val summary = LiveDashboardLogic.summarizeRequirements(emptyList())
-        assertEquals(0, summary.total)
-        assertEquals(0, summary.fulfilled)
-        assertEquals(0, summary.missingRequired)
-        assertEquals(0, summary.missingOptional)
-        assertEquals(0, summary.timeIssues)
-    }
-
     // --- requirementApplies ---
 
     @Test
@@ -602,6 +544,21 @@ class LiveDashboardLogicTest {
             EffectiveSeverity.NEUTRAL,
             LiveDashboardLogic.teamSeverity(emptyList(), EffectiveSeverity.NEUTRAL, EffectiveSeverity.NEUTRAL)
         )
+    }
+
+    @Test
+    fun unknownCheckTypesAreIgnoredInsteadOfCrashing() {
+        // Eine Zeile aus einer neueren Version darf die Anzeige nicht lahmlegen.
+        val config = LiveDashboardLogic.buildCheckSeverityConfig(
+            listOf(
+                Triple(competitionA, "INVOICE_OPEN" to null, "WARNING"),
+                Triple(competitionA, "SOMETHING_NEW" to null, "CRITICAL"),
+                Triple(competitionA, "REQUIREMENT" to requirementA, "NOT_A_SEVERITY"),
+            )
+        )
+
+        assertEquals(1, config.overrides.size)
+        assertEquals(CheckSeverity.WARNING, config.severityFor(competitionA, CheckType.INVOICE_OPEN))
     }
 
     @Test

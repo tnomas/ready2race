@@ -12745,6 +12745,23 @@ components:
         - LATE
         - NOT_CHECKED
 
+    CheckSeverity:
+      type: string
+      description: "What can be configured per competition for a failed check"
+      enum:
+        - OK
+        - WARNING
+        - CRITICAL
+
+    EffectiveSeverity:
+      type: string
+      description: "What is delivered for display; NEUTRAL means there is nothing to say about this check - either it does not apply, or it failed but is explicitly configured as CheckSeverity.OK"
+      enum:
+        - NEUTRAL
+        - OK
+        - WARNING
+        - CRITICAL
+
     TimeCheckDto:
       type: object
       required:
@@ -12764,6 +12781,7 @@ components:
         - name
         - optional
         - checked
+        - severity
       properties:
         requirementId:
           type: string
@@ -12788,6 +12806,8 @@ components:
           nullable: true
           allOf:
             - $ref: '#/components/schemas/TimeCheckDto'
+        severity:
+          $ref: '#/components/schemas/EffectiveSeverity'
 
     LiveDashboardParticipantDto:
       type: object
@@ -12835,7 +12855,9 @@ components:
         - failed
         - deregistered
         - invoiceState
-        - requirements
+        - severity
+        - invoiceSeverity
+        - onWaterRequired
         - substituted
       properties:
         teamId:
@@ -12877,8 +12899,15 @@ components:
           nullable: true
         invoiceState:
           $ref: '#/components/schemas/LiveDashboardInvoiceState'
-        requirements:
-          $ref: '#/components/schemas/LiveDashboardRequirementSummaryDto'
+        severity:
+          $ref: '#/components/schemas/EffectiveSeverity'
+          description: "Final severity for the row - the evaluation rules live in the backend"
+        invoiceSeverity:
+          $ref: '#/components/schemas/EffectiveSeverity'
+          description: "The invoice evaluated separately: the detail dialog colors its invoice chip by this; it cannot be recovered from severity, which already combines everything else"
+        onWaterRequired:
+          type: boolean
+          description: "Whether this competition requires check-in/check-out at all; controls the display of onWaterAt"
         substituted:
           type: boolean
         onWaterAt:
@@ -12886,27 +12915,6 @@ components:
           format: date-time
           nullable: true
           description: "When the boat went on the water (latest check-out scan, only if the whole known crew is checked out); null while at least one crew member is not checked out or no crew is known"
-
-    LiveDashboardRequirementSummaryDto:
-      type: object
-      description: "Condensed requirement state per team; the requirements themselves are only in the team detail"
-      required:
-        - total
-        - fulfilled
-        - missingRequired
-        - missingOptional
-        - timeIssues
-      properties:
-        total:
-          type: integer
-        fulfilled:
-          type: integer
-        missingRequired:
-          type: integer
-        missingOptional:
-          type: integer
-        timeIssues:
-          type: integer
 
     LiveDashboardTeamDetailDto:
       type: object

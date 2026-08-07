@@ -358,6 +358,11 @@ export type CheckedParticipantRequirement = {
     note?: string
 }
 
+/**
+ * What can be configured per competition for a failed check
+ */
+export type CheckSeverity = 'OK' | 'WARNING' | 'CRITICAL'
+
 export type ClubDto = {
     id: string
     name: string
@@ -870,6 +875,11 @@ export type Duplicate = {
     value: unknown
     count: number
 }
+
+/**
+ * What is delivered for display; NEUTRAL means there is nothing to say about this check - either it does not apply, or it failed but is explicitly configured as CheckSeverity.OK
+ */
+export type EffectiveSeverity = 'NEUTRAL' | 'OK' | 'WARNING' | 'CRITICAL'
 
 export type EmailLanguage = 'DE' | 'EN' | 'DA'
 
@@ -1579,17 +1589,7 @@ export type LiveDashboardRequirementStatusDto = {
     checkedAt?: string | null
     note?: string | null
     timeCheck?: TimeCheckDto | null
-}
-
-/**
- * Condensed requirement state per team; the requirements themselves are only in the team detail
- */
-export type LiveDashboardRequirementSummaryDto = {
-    total: number
-    fulfilled: number
-    missingRequired: number
-    missingOptional: number
-    timeIssues: number
+    severity: EffectiveSeverity
 }
 
 export type LiveDashboardTeamDetailDto = {
@@ -1612,7 +1612,18 @@ export type LiveDashboardTeamDto = {
     deregistered: boolean
     deregisteredReason?: string | null
     invoiceState: LiveDashboardInvoiceState
-    requirements: LiveDashboardRequirementSummaryDto
+    /**
+     * Final severity for the row - the evaluation rules live in the backend
+     */
+    severity: EffectiveSeverity
+    /**
+     * The invoice evaluated separately: the detail dialog colors its invoice chip by this; it cannot be recovered from severity, which already combines everything else
+     */
+    invoiceSeverity: EffectiveSeverity
+    /**
+     * Whether this competition requires check-in/check-out at all; controls the display of onWaterAt
+     */
+    onWaterRequired: boolean
     substituted: boolean
     /**
      * When the boat went on the water (latest check-out scan, only if the whole known crew is checked out); null while at least one crew member is not checked out or no crew is known

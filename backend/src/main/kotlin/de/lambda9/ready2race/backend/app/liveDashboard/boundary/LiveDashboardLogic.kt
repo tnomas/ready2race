@@ -1,14 +1,14 @@
 package de.lambda9.ready2race.backend.app.liveDashboard.boundary
 
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverity
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityConfig
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityKey
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckType
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardInvoiceState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardScope
-import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardRequirementStatusDto
-import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardRequirementSummaryDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.TimeCheckDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.TimeCheckStatus
 import de.lambda9.ready2race.backend.app.participantTracking.entity.ParticipantScanType
@@ -134,22 +134,6 @@ object LiveDashboardLogic {
             }
     }
 
-    /**
-     * Verdichtet die Bedingungen aller Personen einer Mannschaft auf die Zahlen, aus denen die
-     * Liste ihre Ampel ableitet. Die Bedingungen selbst bleiben dem Detail-Dialog vorbehalten.
-     */
-    fun summarizeRequirements(
-        requirements: List<LiveDashboardRequirementStatusDto>,
-    ): LiveDashboardRequirementSummaryDto = LiveDashboardRequirementSummaryDto(
-        total = requirements.size,
-        fulfilled = requirements.count { it.checked },
-        missingRequired = requirements.count { !it.checked && !it.optional },
-        missingOptional = requirements.count { !it.checked && it.optional },
-        timeIssues = requirements.count {
-            it.timeCheck?.status == TimeCheckStatus.LATE || it.timeCheck?.status == TimeCheckStatus.TOO_EARLY
-        },
-    )
-
     fun requirementApplies(
         assignedNamedParticipants: List<UUID?>,
         participantNamedParticipantId: UUID?,
@@ -232,4 +216,22 @@ object LiveDashboardLogic {
         invoice: EffectiveSeverity,
         onWater: EffectiveSeverity,
     ): EffectiveSeverity = worstSeverity(requirementSeverities + invoice + onWater)
+
+    /**
+     * Baut die Konfiguration aus den Datenbankzeilen. Unbekannte Werte werden übergangen statt zu
+     * scheitern: die Anzeige am Steg darf nicht ausfallen, weil eine Zeile aus einer neueren
+     * Version in der Tabelle steht. Ohne Eintrag greift ohnehin der Standard.
+     *
+     * [rows] je Zeile: Wettkampf, (Prüfungsart, Bedingung), Schweregrad - alles als Rohwerte.
+     */
+    fun buildCheckSeverityConfig(
+        rows: List<Triple<UUID, Pair<String, UUID?>, String>>,
+    ): CheckSeverityConfig = CheckSeverityConfig(
+        rows.mapNotNull { (competitionId, check, severity) ->
+            val (typeName, requirementId) = check
+            val type = CheckType.entries.firstOrNull { it.name == typeName } ?: return@mapNotNull null
+            val value = CheckSeverity.entries.firstOrNull { it.name == severity } ?: return@mapNotNull null
+            CheckSeverityKey(competitionId, type, requirementId) to value
+        }.toMap()
+    )
 }
