@@ -7,7 +7,6 @@ data class CompetitionPropertiesContainingReference(
     val competitionId: UUID?,
     val name: String,
     val shortName: String?,
-    val checkInOutRequired: Boolean,
 )
 
 fun List<CompetitionPropertiesContainingReference>.splitTemplatesAndCompetitions(): CompetitionsOrTemplatesContainingReference {

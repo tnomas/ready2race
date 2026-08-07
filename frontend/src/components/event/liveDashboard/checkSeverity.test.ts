@@ -240,10 +240,12 @@ describe('buildSavePayload', () => {
 
     test('requirementId als null und als undefined gelten als derselbe Schlüssel', () => {
         const entries: CheckSeverityEntryDto[] = [
-            {competitionId: 'c1', checkType: 'REQUIREMENT', requirementId: 'req-1', severity: 'WARNING'},
+            {competitionId: 'c1', checkType: 'INVOICE_OPEN', requirementId: null, severity: 'WARNING'},
         ]
         const preserved: CheckSeverityEntryDto[] = [
-            {competitionId: 'c1', checkType: 'REQUIREMENT', requirementId: 'req-1', severity: 'CRITICAL'},
+            // requirementId fehlt hier bewusst (undefined) statt explizit null zu sein - beides
+            // muss auf denselben Schlüssel abbilden, sonst würde derselbe Eintrag verdoppelt.
+            {competitionId: 'c1', checkType: 'INVOICE_OPEN', severity: 'CRITICAL'},
         ]
         expect(buildSavePayload(entries, preserved)).toEqual(entries)
     })

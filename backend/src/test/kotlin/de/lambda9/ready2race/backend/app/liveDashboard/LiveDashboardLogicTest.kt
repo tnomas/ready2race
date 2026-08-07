@@ -497,8 +497,11 @@ class LiveDashboardLogicTest {
             EffectiveSeverity.NEUTRAL,
             LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.NONE, CheckSeverity.CRITICAL)
         )
+        // Die alte Regel im Frontend lautete `invoiceState === 'OPEN' ? 'error' : 'neutral'` - eine
+        // bezahlte Rechnung steuerte NIE etwas zur Ampel bei. Grün bedeutet "geprüft und in
+        // Ordnung"; darüber sagt die Rechnung nichts aus, also NEUTRAL statt OK.
         assertEquals(
-            EffectiveSeverity.OK,
+            EffectiveSeverity.NEUTRAL,
             LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.PAID, CheckSeverity.CRITICAL)
         )
         assertEquals(
@@ -509,6 +512,49 @@ class LiveDashboardLogicTest {
         assertEquals(
             EffectiveSeverity.NEUTRAL,
             LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.OPEN, CheckSeverity.OK)
+        )
+    }
+
+    @Test
+    fun compositeTeamSeverityWithoutConfigMatchesOldFormula() {
+        // Ohne jeden Konfigurationseintrag muss eine bestehende Regatta aussehen wie vor dieser
+        // Einstellmöglichkeit. Die alte Frontend-Formel war
+        // `team.invoiceState === 'OPEN' ? 'error' : 'neutral'` - eine bezahlte Rechnung trug NIE
+        // zur Ampel bei; grün kam ausschließlich aus mindestens einer erfüllten Teilnahmebedingung.
+        // Dieser Test prüft genau die Kombination aus Rechnung, Bedingungen und Wasser, die
+        // invoiceSeverity(PAID) fälschlich auf OK stehen ließ, ohne dass ein Test es bemerkte.
+        val config = CheckSeverityConfig(emptyMap())
+
+        fun composite(
+            invoiceState: LiveDashboardInvoiceState,
+            requirementSeverities: List<EffectiveSeverity>,
+        ): EffectiveSeverity {
+            val invoiceSeverity = LiveDashboardLogic.invoiceSeverity(
+                invoiceState,
+                config.severityFor(competitionA, CheckType.INVOICE_OPEN),
+            )
+            val onWater = LiveDashboardLogic.onWaterSeverity(
+                evaluated = false, // Lauf nicht aktiv - "auf dem Wasser" sagt hier nichts aus
+                onWater = false,
+                configured = config.severityFor(competitionA, CheckType.NOT_ON_WATER),
+            )
+            return LiveDashboardLogic.teamSeverity(requirementSeverities, invoiceSeverity, onWater)
+        }
+
+        // Boot ohne Bedingungen, bezahlte Rechnung, Lauf nicht aktiv -> grau, nicht grün
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            composite(LiveDashboardInvoiceState.PAID, emptyList()),
+        )
+        // Dieselbe Situation mit offener Rechnung -> rot, wie die alte 'error'-Formel
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            composite(LiveDashboardInvoiceState.OPEN, emptyList()),
+        )
+        // Boot mit einer erfüllten Bedingung -> grün, wie im alten Verhalten
+        assertEquals(
+            EffectiveSeverity.OK,
+            composite(LiveDashboardInvoiceState.PAID, listOf(EffectiveSeverity.OK)),
         )
     }
 

@@ -81,6 +81,11 @@ data class LiveDashboardTeamDto(
     val invoiceSeverity: EffectiveSeverity,
     /** Ob dieser Wettkampf überhaupt eine An-/Abmeldung verlangt; steuert die Anzeige von [onWaterAt]. */
     val onWaterRequired: Boolean,
+    /**
+     * "Auf dem Wasser" getrennt bewertet: der Detail-Dialog färbt seinen Chip danach ein.
+     * Aus [severity] ließe sich das nicht zurückrechnen - dort ist sie mit allem anderen verrechnet.
+     */
+    val onWaterSeverity: EffectiveSeverity,
     /** Ob mindestens eine Person für diese Runde umgemeldet wurde. */
     val substituted: Boolean,
     /**

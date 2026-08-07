@@ -71,22 +71,22 @@ Datei `backend/src/main/resources/db/migration/V202608071200__referee_check_seve
 ```sql
 set search_path to ready2race, pg_catalog, public;
 
--- Schweregrade der Schiedsrichter-Pruefungen (Entwurf 2026-08-07).
+-- Schweregrade der Schiedsrichter-Prüfungen (Entwurf 2026-08-07).
 --
--- Zwei getrennte Fragen, zwei getrennte Orte: OB eine Pruefung fuer einen Wettkampf gilt, ist eine
+-- Zwei getrennte Fragen, zwei getrennte Orte: OB eine Prüfung für einen Wettkampf gilt, ist eine
 -- Eigenschaft des Rennformats und steht am Wettkampf. WIE hart sie geahndet wird, ist eine
 -- Entscheidung des Renntages und steht in competition_check_severity.
 
 -- Der Beachsprint braucht keine An-/Abmeldung aufs Wasser, die Langstrecke schon. Das Flag liegt
 -- auf competition_properties und nicht auf competition, weil diese Tabelle wahlweise an einem
--- Wettkampf ODER an einer Wettkampf-Vorlage haengt: so wird es einmal in der Vorlage gesetzt statt
--- bei jeder Regatta neu. Default true erhaelt das bisherige Verhalten aller bestehenden Wettkaempfe.
+-- Wettkampf ODER an einer Wettkampf-Vorlage hängt: so wird es einmal in der Vorlage gesetzt statt
+-- bei jeder Regatta neu. Default true erhält das bisherige Verhalten aller bestehenden Wettkämpfe.
 alter table competition_properties
     add column check_in_out_required boolean not null default true;
 
--- Bewusst duenn besetzt: nur Abweichungen vom eingebauten Standard stehen hier. Fehlt eine Zeile,
+-- Bewusst dünn besetzt: nur Abweichungen vom eingebauten Standard stehen hier. Fehlt eine Zeile,
 -- gilt LiveDashboardLogic.defaultSeverity -- und der ist exakt das Verhalten vor diesem Entwurf.
--- Deshalb gibt es keinen Datenmigrations-Schritt: bestehende Regatten verhalten sich unveraendert.
+-- Deshalb gibt es keinen Datenmigrations-Schritt: bestehende Regatten verhalten sich unverändert.
 create table competition_check_severity
 (
     competition             uuid      not null references competition on delete cascade,
@@ -103,7 +103,7 @@ create table competition_check_severity
 );
 
 -- Zwei partielle Indizes statt eines zusammengesetzten: Postgres behandelt NULLs in einem
--- Unique-Key als verschieden, ein einzelner Index liesse fuer INVOICE_OPEN und NOT_ON_WATER
+-- Unique-Key als verschieden, ein einzelner Index ließe für INVOICE_OPEN und NOT_ON_WATER
 -- beliebig viele Duplikate zu.
 create unique index uq_ccs_competition_check
     on competition_check_severity (competition, check_type)
@@ -1247,7 +1247,7 @@ In `LiveDashboardService` ergänzen:
 
         val now = LocalDateTime.now()
         val records = request.entries
-            // Eintraege fremder Veranstaltungen werden stillschweigend uebergangen: der Dialog
+            // Einträge fremder Veranstaltungen werden stillschweigend übergangen: der Dialog
             // schickt immer nur die eigenen, alles andere ist ein Fehler des Aufrufers.
             .filter { it.competitionId in competitionIds }
             .filter {

@@ -12904,6 +12904,7 @@ components:
         - severity
         - invoiceSeverity
         - onWaterRequired
+        - onWaterSeverity
         - substituted
       properties:
         teamId:
@@ -12954,6 +12955,9 @@ components:
         onWaterRequired:
           type: boolean
           description: "Whether this competition requires check-in/check-out at all; controls the display of onWaterAt"
+        onWaterSeverity:
+          $ref: '#/components/schemas/EffectiveSeverity'
+          description: "The on-water check evaluated separately: the detail dialog colors its on-water chip by this; it cannot be recovered from severity, which already combines everything else"
         substituted:
           type: boolean
         onWaterAt:

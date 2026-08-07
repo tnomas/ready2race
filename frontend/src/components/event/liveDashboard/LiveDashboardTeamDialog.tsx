@@ -121,7 +121,7 @@ const TeamDialog = ({
                         {team.onWaterRequired && (
                             <Chip
                                 size="small"
-                                color={team.onWaterAt ? 'success' : 'default'}
+                                color={severityChipColor[team.onWaterSeverity]}
                                 label={
                                     team.onWaterAt
                                         ? t('event.liveDashboard.team.onWaterAt', {

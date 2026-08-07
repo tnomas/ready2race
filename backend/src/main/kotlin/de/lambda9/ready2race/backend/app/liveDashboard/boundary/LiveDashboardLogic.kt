@@ -195,11 +195,18 @@ object LiveDashboardLogic {
     /**
      * [LiveDashboardInvoiceState.NONE] heißt "es gibt keine Rechnung" und ist deshalb keine
      * erfüllte Prüfung, sondern gar keine - sonst würde ein Boot ohne Rechnung grün leuchten.
+     *
+     * [LiveDashboardInvoiceState.PAID] liefert ebenfalls [EffectiveSeverity.NEUTRAL] und nicht OK:
+     * Grün heißt "geprüft und in Ordnung", eine bezahlte Rechnung sagt darüber aber nichts aus -
+     * sie ist keine Teilnahmebedingung. Die alte Regel im Frontend
+     * (`invoiceState === 'OPEN' ? 'error' : 'neutral'`) ließ eine bezahlte Rechnung nie zur Ampel
+     * beitragen; das gilt hier unverändert weiter, sonst zeigt eine Regatta ohne jede eingestellte
+     * Teilnahmebedingung überall einen grünen Haken, wo vorher ein grauer Kreis stand.
      */
     fun invoiceSeverity(state: LiveDashboardInvoiceState, configured: CheckSeverity): EffectiveSeverity =
         when (state) {
             LiveDashboardInvoiceState.NONE -> EffectiveSeverity.NEUTRAL
-            LiveDashboardInvoiceState.PAID -> EffectiveSeverity.OK
+            LiveDashboardInvoiceState.PAID -> EffectiveSeverity.NEUTRAL
             LiveDashboardInvoiceState.OPEN -> effectiveSeverity(false, configured)
         }
 

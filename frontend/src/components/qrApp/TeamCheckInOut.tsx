@@ -62,8 +62,8 @@ export const TeamCheckInOut = () => {
 
         setSubmitting(false)
         if (error) {
-            // Vier Gruende teilten sich diese beiden Texte - dabei ist "schon eingecheckt" keine
-            // Stoerung, sondern die Auskunft, dass nichts mehr zu tun ist.
+            // Vier Gründe teilten sich diese beiden Texte - dabei ist "schon eingecheckt" keine
+            // Störung, sondern die Auskunft, dass nichts mehr zu tun ist.
             const reason = participantTrackingErrorKey(error)
             feedback.error(
                 reason !== undefined

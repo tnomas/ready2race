@@ -1671,6 +1671,10 @@ export type LiveDashboardTeamDto = {
      * Whether this competition requires check-in/check-out at all; controls the display of onWaterAt
      */
     onWaterRequired: boolean
+    /**
+     * The on-water check evaluated separately: the detail dialog colors its on-water chip by this; it cannot be recovered from severity, which already combines everything else
+     */
+    onWaterSeverity: EffectiveSeverity
     substituted: boolean
     /**
      * When the boat went on the water (latest check-out scan, only if the whole known crew is checked out); null while at least one crew member is not checked out or no crew is known

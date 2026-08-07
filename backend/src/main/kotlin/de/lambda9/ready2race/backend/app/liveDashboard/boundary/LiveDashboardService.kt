@@ -124,6 +124,12 @@ object LiveDashboardService {
                     invoiceState,
                     severityConfig.severityFor(competitionId, CheckType.INVOICE_OPEN),
                 )
+                val onWaterSeverity = LiveDashboardLogic.onWaterSeverity(
+                    // Nur bei aktivem Lauf eine Aussage: vorher gehört das Boot noch an den Steg.
+                    evaluated = matchRunning && checkInOutRequired && !deregistered,
+                    onWater = onWaterAt != null,
+                    configured = severityConfig.severityFor(competitionId, CheckType.NOT_ON_WATER),
+                )
 
                 KIO.ok(
                     LiveDashboardTeamDto(
@@ -155,15 +161,11 @@ object LiveDashboardService {
                         // je Bedingung fließt in die Team-Ampel ein.
                         onWaterRequired = checkInOutRequired,
                         invoiceSeverity = invoiceSeverity,
+                        onWaterSeverity = onWaterSeverity,
                         severity = LiveDashboardLogic.teamSeverity(
                             requirementSeverities = participants.flatMap { it.requirements }.map { it.severity },
                             invoice = invoiceSeverity,
-                            onWater = LiveDashboardLogic.onWaterSeverity(
-                                // Nur bei aktivem Lauf eine Aussage: vorher gehört das Boot noch an den Steg.
-                                evaluated = matchRunning && checkInOutRequired && !deregistered,
-                                onWater = onWaterAt != null,
-                                configured = severityConfig.severityFor(competitionId, CheckType.NOT_ON_WATER),
-                            ),
+                            onWater = onWaterSeverity,
                         ),
                         substituted = participants.any { it.substitutedFor != null },
                         onWaterAt = onWaterAt,
@@ -594,13 +596,13 @@ object LiveDashboardService {
 
         val now = LocalDateTime.now()
         val records = request.entries
-            // Eintraege fremder Veranstaltungen werden stillschweigend uebergangen: der Dialog
+            // Einträge fremder Veranstaltungen werden stillschweigend übergangen: der Dialog
             // schickt immer nur die eigenen, alles andere ist ein Fehler des Aufrufers.
             .filter { it.competitionId in competitionIds }
-            // Ebenso fuer requirementId: gehoert sie zu keiner Teilnahmebedingung dieser
-            // Veranstaltung (unbekannt oder aus einer anderen Veranstaltung), wuerde der Insert
-            // sonst am Fremdschluessel scheitern oder eine veranstaltungsuebergreifende Zeile
-            // erzeugen. Konsistent mit der competitionId-Filterung oben stillschweigend uebergangen.
+            // Ebenso für requirementId: gehört sie zu keiner Teilnahmebedingung dieser
+            // Veranstaltung (unbekannt oder aus einer anderen Veranstaltung), würde der Insert
+            // sonst am Fremdschlüssel scheitern oder eine veranstaltungsübergreifende Zeile
+            // erzeugen. Konsistent mit der competitionId-Filterung oben stillschweigend übergangen.
             .filter { it.requirementId == null || it.requirementId in optionalById }
             .filter {
                 it.severity != LiveDashboardLogic.defaultSeverity(

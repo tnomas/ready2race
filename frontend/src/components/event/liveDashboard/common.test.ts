@@ -18,6 +18,7 @@ const team = (overrides: Partial<LiveDashboardTeamDto>): LiveDashboardTeamDto =>
     severity: 'NEUTRAL',
     invoiceSeverity: 'NEUTRAL',
     onWaterRequired: false,
+    onWaterSeverity: 'NEUTRAL',
     substituted: false,
     ...overrides,
 })
