@@ -5867,6 +5867,52 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/checkSeverity:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getCheckSeverityConfig
+      description: "The competitions, the configurable checks with their defaults and the deviations set for this event - administration for the referee dashboard's severity configuration."
+      responses:
+        200:
+          description: Check severity configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckSeverityConfigDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    put:
+      operationId: updateCheckSeverityConfig
+      description: "Replaces the event's deviations. Entries matching the built-in default are dropped rather than stored, so a later change to the default keeps applying to existing data."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCheckSeverityRequest'
+      responses:
+        204:
+          description: Check severity configuration updated
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/schedule:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -13025,6 +13071,124 @@ components:
             $ref: '#/components/schemas/PendingSlotDto'
         chainProgressionMode:
           $ref: '#/components/schemas/ChainProgressionMode'
+
+    CheckType:
+      type: string
+      description: >-
+        The checks evaluated by the referee dashboard. REQUIREMENT and REQUIREMENT_TIME_WINDOW
+        refer to the same participant requirement and are still configured separately: "not
+        checked at all" and "checked but at the wrong time" are two different situations at the
+        tent.
+      enum:
+        - INVOICE_OPEN
+        - NOT_ON_WATER
+        - REQUIREMENT
+        - REQUIREMENT_TIME_WINDOW
+
+    CheckSeverityCompetitionDto:
+      type: object
+      description: "A competition as the administration needs it - id, name and whether it requires check-in/check-out"
+      required:
+        - competitionId
+        - identifier
+        - name
+        - checkInOutRequired
+      properties:
+        competitionId:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+        name:
+          type: string
+        checkInOutRequired:
+          type: boolean
+
+    CheckSeverityRowDto:
+      type: object
+      description: "A row of the administration matrix. requirementId is only set for the requirement checks, name carries the requirement's name for them - the UI names the two fixed checks itself."
+      required:
+        - checkType
+      properties:
+        checkType:
+          $ref: '#/components/schemas/CheckType'
+        requirementId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          nullable: true
+
+    CheckSeverityRowDefaultDto:
+      type: object
+      required:
+        - checkType
+        - severity
+      properties:
+        checkType:
+          $ref: '#/components/schemas/CheckType'
+        requirementId:
+          type: string
+          format: uuid
+          nullable: true
+        severity:
+          $ref: '#/components/schemas/CheckSeverity'
+
+    CheckSeverityEntryDto:
+      type: object
+      required:
+        - competitionId
+        - checkType
+        - severity
+      properties:
+        competitionId:
+          type: string
+          format: uuid
+        checkType:
+          $ref: '#/components/schemas/CheckType'
+        requirementId:
+          type: string
+          format: uuid
+          nullable: true
+        severity:
+          $ref: '#/components/schemas/CheckSeverity'
+
+    CheckSeverityConfigDto:
+      type: object
+      description: "entries contains ONLY deviations from the default. The UI shows, for every combination of competitions and rows, the matching entry or the default from defaults."
+      required:
+        - competitions
+        - rows
+        - defaults
+        - entries
+      properties:
+        competitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckSeverityCompetitionDto'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckSeverityRowDto'
+        defaults:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckSeverityRowDefaultDto'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckSeverityEntryDto'
+
+    UpdateCheckSeverityRequest:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckSeverityEntryDto'
 
     EventScheduleSlotState:
       type: string

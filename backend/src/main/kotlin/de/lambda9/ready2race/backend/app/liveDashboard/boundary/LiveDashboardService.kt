@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.data.Timecode
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionCheckSeverityRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.SubstitutionViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.*
 import de.lambda9.ready2race.backend.singletonOrFallback
@@ -477,6 +478,145 @@ object LiveDashboardService {
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
+
+        noData
+    }
+
+    /**
+     * Was die Verwaltung braucht: die Wettkämpfe, die einstellbaren Prüfungen samt ihren
+     * Standardwerten und die bisherigen Abweichungen. Die Zeitfenster-Prüfung erscheint nur für
+     * Bedingungen, für die überhaupt ein Fenster konfiguriert ist - sonst gäbe es nichts zu
+     * bewerten.
+     */
+    fun getCheckSeverityConfig(
+        eventId: UUID,
+    ): App<LiveDashboardError, ApiResponse.Dto<CheckSeverityConfigDto>> = KIO.comprehension {
+        val exists = !EventRepo.exists(eventId).orDie()
+        if (!exists) {
+            return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
+        }
+
+        val competitionRecords = !CheckSeverityRepo.getCompetitions(eventId).orDie()
+        val requirementRecords = !LiveDashboardRepo.getEventRequirements(eventId).orDie()
+        val entryRecords = !CheckSeverityRepo.getByEvent(eventId).orDie()
+
+        // Dieselbe Bedingung kann mehreren Rollen zugeordnet sein und taucht dann mehrfach auf -
+        // eingestellt wird sie trotzdem nur einmal.
+        val requirements = requirementRecords.distinctBy { it[PARTICIPANT_REQUIREMENT.ID] }
+
+        val rows = buildList {
+            add(CheckSeverityRowDto(CheckType.INVOICE_OPEN, null, null))
+            add(CheckSeverityRowDto(CheckType.NOT_ON_WATER, null, null))
+            requirements.forEach { req ->
+                val id = req[PARTICIPANT_REQUIREMENT.ID]!!
+                add(CheckSeverityRowDto(CheckType.REQUIREMENT, id, req[PARTICIPANT_REQUIREMENT.NAME]))
+                val hasWindow = req[PARTICIPANT_REQUIREMENT.CHECK_EARLIEST_MINUTES_BEFORE] != null ||
+                    req[PARTICIPANT_REQUIREMENT.CHECK_LATEST_MINUTES_BEFORE] != null
+                if (hasWindow) {
+                    add(
+                        CheckSeverityRowDto(
+                            CheckType.REQUIREMENT_TIME_WINDOW,
+                            id,
+                            req[PARTICIPANT_REQUIREMENT.NAME],
+                        )
+                    )
+                }
+            }
+        }
+
+        val optionalById = requirements.associate {
+            it[PARTICIPANT_REQUIREMENT.ID]!! to (it[PARTICIPANT_REQUIREMENT.OPTIONAL] == true)
+        }
+
+        KIO.ok(
+            ApiResponse.Dto(
+                CheckSeverityConfigDto(
+                    competitions = competitionRecords.map {
+                        CheckSeverityCompetitionDto(
+                            competitionId = it[COMPETITION.ID]!!,
+                            identifier = it[COMPETITION_PROPERTIES.IDENTIFIER]!!,
+                            name = it[COMPETITION_PROPERTIES.NAME]!!,
+                            checkInOutRequired = it[COMPETITION_PROPERTIES.CHECK_IN_OUT_REQUIRED] == true,
+                        )
+                    },
+                    rows = rows,
+                    defaults = rows.map { row ->
+                        CheckSeverityRowDefaultDto(
+                            checkType = row.checkType,
+                            requirementId = row.requirementId,
+                            severity = LiveDashboardLogic.defaultSeverity(
+                                row.checkType,
+                                row.requirementId?.let { optionalById[it] } == true,
+                            ),
+                        )
+                    },
+                    entries = entryRecords.mapNotNull { r ->
+                        val type = CheckType.entries
+                            .firstOrNull { it.name == r[COMPETITION_CHECK_SEVERITY.CHECK_TYPE] }
+                            ?: return@mapNotNull null
+                        val severity = CheckSeverity.entries
+                            .firstOrNull { it.name == r[COMPETITION_CHECK_SEVERITY.SEVERITY] }
+                            ?: return@mapNotNull null
+                        CheckSeverityEntryDto(
+                            competitionId = r[COMPETITION_CHECK_SEVERITY.COMPETITION]!!,
+                            checkType = type,
+                            requirementId = r[COMPETITION_CHECK_SEVERITY.PARTICIPANT_REQUIREMENT],
+                            severity = severity,
+                        )
+                    },
+                )
+            )
+        )
+    }
+
+    /**
+     * Ersetzt die Abweichungen der Veranstaltung. Einträge, die dem Standard entsprechen, werden
+     * verworfen statt gespeichert: die Tabelle bleibt dünn, und ein später geänderter Standard
+     * wirkt auch auf Bestandsdaten.
+     */
+    fun updateCheckSeverityConfig(
+        eventId: UUID,
+        request: UpdateCheckSeverityRequest,
+        userId: UUID,
+    ): App<LiveDashboardError, ApiResponse.NoData> = KIO.comprehension {
+        val exists = !EventRepo.exists(eventId).orDie()
+        if (!exists) {
+            return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
+        }
+
+        val optionalById = !LiveDashboardRepo.getEventRequirements(eventId).orDie().map { rows ->
+            rows.associate {
+                it[PARTICIPANT_REQUIREMENT.ID]!! to (it[PARTICIPANT_REQUIREMENT.OPTIONAL] == true)
+            }
+        }
+        val competitionIds = !CheckSeverityRepo.getCompetitions(eventId).orDie()
+            .map { rows -> rows.mapNotNull { it[COMPETITION.ID] }.toSet() }
+
+        val now = LocalDateTime.now()
+        val records = request.entries
+            // Eintraege fremder Veranstaltungen werden stillschweigend uebergangen: der Dialog
+            // schickt immer nur die eigenen, alles andere ist ein Fehler des Aufrufers.
+            .filter { it.competitionId in competitionIds }
+            .filter {
+                it.severity != LiveDashboardLogic.defaultSeverity(
+                    it.checkType,
+                    it.requirementId?.let { id -> optionalById[id] } == true,
+                )
+            }
+            .map {
+                CompetitionCheckSeverityRecord(
+                    competition = it.competitionId,
+                    checkType = it.checkType.name,
+                    participantRequirement = it.requirementId,
+                    severity = it.severity.name,
+                    createdAt = now,
+                    createdBy = userId,
+                    updatedAt = now,
+                    updatedBy = userId,
+                )
+            }
+
+        !CheckSeverityRepo.replaceForEvent(eventId, records).orDie()
 
         noData
     }

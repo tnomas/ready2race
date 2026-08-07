@@ -363,6 +363,53 @@ export type CheckedParticipantRequirement = {
  */
 export type CheckSeverity = 'OK' | 'WARNING' | 'CRITICAL'
 
+/**
+ * A competition as the administration needs it - id, name and whether it requires check-in/check-out
+ */
+export type CheckSeverityCompetitionDto = {
+    competitionId: string
+    identifier: string
+    name: string
+    checkInOutRequired: boolean
+}
+
+/**
+ * entries contains ONLY deviations from the default. The UI shows, for every combination of competitions and rows, the matching entry or the default from defaults.
+ */
+export type CheckSeverityConfigDto = {
+    competitions: Array<CheckSeverityCompetitionDto>
+    rows: Array<CheckSeverityRowDto>
+    defaults: Array<CheckSeverityRowDefaultDto>
+    entries: Array<CheckSeverityEntryDto>
+}
+
+export type CheckSeverityEntryDto = {
+    competitionId: string
+    checkType: CheckType
+    requirementId?: string | null
+    severity: CheckSeverity
+}
+
+export type CheckSeverityRowDefaultDto = {
+    checkType: CheckType
+    requirementId?: string | null
+    severity: CheckSeverity
+}
+
+/**
+ * A row of the administration matrix. requirementId is only set for the requirement checks, name carries the requirement's name for them - the UI names the two fixed checks itself.
+ */
+export type CheckSeverityRowDto = {
+    checkType: CheckType
+    requirementId?: string | null
+    name?: string | null
+}
+
+/**
+ * The checks evaluated by the referee dashboard. REQUIREMENT and REQUIREMENT_TIME_WINDOW refer to the same participant requirement and are still configured separately: "not checked at all" and "checked but at the wrong time" are two different situations at the tent.
+ */
+export type CheckType = 'INVOICE_OPEN' | 'NOT_ON_WATER' | 'REQUIREMENT' | 'REQUIREMENT_TIME_WINDOW'
+
 export type ClubDto = {
     id: string
     name: string
@@ -2647,6 +2694,10 @@ export type UpdateAppUserRequest = {
     firstname: string
     lastname: string
     roles: Array<string>
+}
+
+export type UpdateCheckSeverityRequest = {
+    entries: Array<CheckSeverityEntryDto>
 }
 
 export type UpdateCompetitionMatchRequest = {
@@ -5959,6 +6010,27 @@ export type GetLiveDashboardTeamDetailData = {
 export type GetLiveDashboardTeamDetailResponse = LiveDashboardTeamDetailDto
 
 export type GetLiveDashboardTeamDetailError = ApiError
+
+export type GetCheckSeverityConfigData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetCheckSeverityConfigResponse = CheckSeverityConfigDto
+
+export type GetCheckSeverityConfigError = ApiError
+
+export type UpdateCheckSeverityConfigData = {
+    body: UpdateCheckSeverityRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type UpdateCheckSeverityConfigResponse = void
+
+export type UpdateCheckSeverityConfigError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetEventScheduleData = {
     path: {
