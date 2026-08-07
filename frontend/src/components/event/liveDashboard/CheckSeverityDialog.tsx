@@ -23,7 +23,7 @@ import {getCheckSeverityConfig, updateCheckSeverityConfig} from '@api/sdk.gen.ts
 import {CheckSeverity, CheckSeverityEntryDto, CheckSeverityRowDto} from '@api/types.gen.ts'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
-import {rowSummary, severityAt} from './checkSeverity.ts'
+import {isRowApplicable, rowSummary, severityAt} from './checkSeverity.ts'
 
 const SEVERITIES: CheckSeverity[] = ['OK', 'WARNING', 'CRITICAL']
 
@@ -42,33 +42,41 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const [entries, setEntries] = useState<CheckSeverityEntryDto[]>([])
+    // Erst wenn die Matrix mit echten Werten gefüllt ist, darf sie gezeichnet werden - sonst zeigt
+    // jede Zeile für einen Renderdurchlauf lang "gemischt" und jedes Feld den Ersatzwert.
+    const [entriesReady, setEntriesReady] = useState(false)
     const [saving, setSaving] = useState(false)
 
-    const {data: config, pending} = useFetch(
+    const {data: config} = useFetch(
         signal => getCheckSeverityConfig({signal, path: {eventId}}),
         {deps: [eventId, open]},
     )
 
     // Die Matrix wird beim Öffnen vollständig aufgefüllt - auch mit den Standardwerten. Damit ist
     // jedes Feld ein bearbeitbarer Wert; welche davon gespeichert werden, entscheidet der Server.
+    // Wettkämpfe, für die eine Zeile nicht anwendbar ist (z.B. "Nicht auf dem Wasser" ohne
+    // checkInOutRequired), bekommen dort bewusst gar keinen Eintrag - sie sind nicht einstellbar.
     useEffect(() => {
         if (!config) return
         setEntries(
             config.competitions.flatMap(competition =>
-                config.rows.map(row => ({
-                    competitionId: competition.competitionId,
-                    checkType: row.checkType,
-                    requirementId: row.requirementId,
-                    severity: severityAt(
-                        config,
-                        config.entries,
-                        competition.competitionId,
-                        row.checkType,
-                        row.requirementId ?? null,
-                    ),
-                })),
+                config.rows
+                    .filter(row => isRowApplicable(row, competition))
+                    .map(row => ({
+                        competitionId: competition.competitionId,
+                        checkType: row.checkType,
+                        requirementId: row.requirementId,
+                        severity: severityAt(
+                            config,
+                            config.entries,
+                            competition.competitionId,
+                            row.checkType,
+                            row.requirementId ?? null,
+                        ),
+                    })),
             ),
         )
+        setEntriesReady(true)
     }, [config])
 
     const rowKey = (row: CheckSeverityRowDto) => `${row.checkType}:${row.requirementId ?? ''}`
@@ -94,7 +102,11 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
               : t(`event.liveDashboard.checkSeverity.check.${row.checkType}`)
 
     const summaryLabel = (row: CheckSeverityRowDto) => {
-        const summary = rowSummary(entries.filter(e => matches(e, row)).map(e => e.severity))
+        const severities = entries.filter(e => matches(e, row)).map(e => e.severity)
+        // Keinem Wettkampf anwendbar (z.B. "Nicht auf dem Wasser", wenn das kein Wettkampf
+        // verlangt) - dann gibt es nichts zu verdichten und keine Sammelaktion zu beschriften.
+        if (severities.length === 0) return ''
+        const summary = rowSummary(severities)
         return summary.kind === 'uniform'
             ? t('event.liveDashboard.checkSeverity.uniform', {
                   severity: t(`event.liveDashboard.checkSeverity.severity.${summary.severity}`),
@@ -126,10 +138,14 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
                 <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
                     {t('event.liveDashboard.checkSeverity.description')}
                 </Typography>
-                {pending && !config ? (
+                {!entriesReady || !config ? (
                     <Throbber />
+                ) : config.competitions.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                        {t('event.liveDashboard.checkSeverity.noCompetitions')}
+                    </Typography>
                 ) : (
-                    config?.rows.map(row => (
+                    config.rows.map(row => (
                         <Accordion
                             key={rowKey(row)}
                             // Zeitfenster gehört sichtbar unter seine Bedingung
@@ -171,9 +187,7 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
                                 </Stack>
                                 {config?.competitions.map(competition => {
                                     // Ohne An-/Abmeldung gibt es beim Beachsprint nichts zu bewerten
-                                    const notApplicable =
-                                        row.checkType === 'NOT_ON_WATER' &&
-                                        !competition.checkInOutRequired
+                                    const notApplicable = !isRowApplicable(row, competition)
                                     const entry = entries.find(
                                         e =>
                                             matches(e, row) &&

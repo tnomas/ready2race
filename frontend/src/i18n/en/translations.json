@@ -1494,6 +1494,7 @@
         "uniform": "all: {{severity}}",
         "mixed": "mixed",
         "noCheckInOut": "no check-in/out required",
+        "noCompetitions": "This event has no competitions yet, so there is nothing to configure.",
         "check": {
           "INVOICE_OPEN": "Invoice open",
           "NOT_ON_WATER": "Not on the water",

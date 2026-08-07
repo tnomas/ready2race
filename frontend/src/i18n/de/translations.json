@@ -1494,6 +1494,7 @@
         "uniform": "alle: {{severity}}",
         "mixed": "gemischt",
         "noCheckInOut": "keine An-/Abmeldung erforderlich",
+        "noCompetitions": "Diese Veranstaltung hat noch keine Wettkämpfe. Es gibt daher nichts einzustellen.",
         "check": {
           "INVOICE_OPEN": "Rechnung offen",
           "NOT_ON_WATER": "Nicht auf dem Wasser",

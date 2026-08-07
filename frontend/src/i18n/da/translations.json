@@ -1494,6 +1494,7 @@
         "uniform": "alle: {{severity}}",
         "mixed": "blandet",
         "noCheckInOut": "ingen ind-/udtjekning påkrævet",
+        "noCompetitions": "Denne begivenhed har endnu ingen konkurrencer. Der er derfor intet at indstille.",
         "check": {
           "INVOICE_OPEN": "Faktura åben",
           "NOT_ON_WATER": "Ikke på vandet",
