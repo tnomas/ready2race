@@ -193,15 +193,18 @@ object LiveDashboardLogic {
     }
 
     /**
-     * [LiveDashboardInvoiceState.NONE] heißt "es gibt keine Rechnung" und ist deshalb keine
-     * erfüllte Prüfung, sondern gar keine - sonst würde ein Boot ohne Rechnung grün leuchten.
-     *
-     * [LiveDashboardInvoiceState.PAID] liefert ebenfalls [EffectiveSeverity.NEUTRAL] und nicht OK:
-     * Grün heißt "geprüft und in Ordnung", eine bezahlte Rechnung sagt darüber aber nichts aus -
-     * sie ist keine Teilnahmebedingung. Die alte Regel im Frontend
-     * (`invoiceState === 'OPEN' ? 'error' : 'neutral'`) ließ eine bezahlte Rechnung nie zur Ampel
-     * beitragen; das gilt hier unverändert weiter, sonst zeigt eine Regatta ohne jede eingestellte
+     * Grün ([EffectiveSeverity.OK]) heißt in der Ampel "geprüft und in Ordnung" und bleibt den
+     * Teilnahmebedingungen vorbehalten - nur sie können eine Mannschaft nach Erfüllung wirklich
+     * bestätigen. Rechnung ([invoiceSeverity]) und Wasser ([onWaterSeverity]) sind keine
+     * Teilnahmebedingungen: sie können die Ampel nur verschlechtern (Rechnung offen / Boot nicht
+     * draußen) oder schweigen ([EffectiveSeverity.NEUTRAL]), aber nie verbessern. Das folgt exakt
+     * der alten Frontend-Formel (`invoiceState === 'OPEN' ? 'error' : 'neutral'` bzw.
+     * `matchActive && !deregistered && !onWaterAt ? 'error' : 'neutral'`) - in beiden Zweigen gab
+     * es dort keinen Weg zu `'ok'`. Sonst zeigt eine Regatta ohne jede eingestellte
      * Teilnahmebedingung überall einen grünen Haken, wo vorher ein grauer Kreis stand.
+     *
+     * [LiveDashboardInvoiceState.NONE] heißt "es gibt keine Rechnung" und ist deshalb keine
+     * erfüllte Prüfung, sondern gar keine.
      */
     fun invoiceSeverity(state: LiveDashboardInvoiceState, configured: CheckSeverity): EffectiveSeverity =
         when (state) {
@@ -214,9 +217,14 @@ object LiveDashboardLogic {
      * [evaluated] fasst zusammen, wann "auf dem Wasser" überhaupt eine Aussage ist: der Lauf ist
      * aktiv, der Wettkampf verlangt eine An-/Abmeldung und die Mannschaft ist nicht abgemeldet.
      * Beim Beachsprint ist das nie der Fall - dort gibt es kein Auschecken am Steg.
+     *
+     * Ist das Boot auf dem Wasser, ist das - wie bei [invoiceSeverity] beschrieben - keine erfüllte
+     * Teilnahmebedingung, sondern der unauffällige Regelfall: [EffectiveSeverity.NEUTRAL], nicht OK.
+     * Nur das Fehlen ("nicht draußen, obwohl der Lauf läuft") bekommt den konfigurierten
+     * Schweregrad.
      */
     fun onWaterSeverity(evaluated: Boolean, onWater: Boolean, configured: CheckSeverity): EffectiveSeverity =
-        if (!evaluated) EffectiveSeverity.NEUTRAL else effectiveSeverity(onWater, configured)
+        if (!evaluated || onWater) EffectiveSeverity.NEUTRAL else effectiveSeverity(false, configured)
 
     fun teamSeverity(
         requirementSeverities: List<EffectiveSeverity>,
