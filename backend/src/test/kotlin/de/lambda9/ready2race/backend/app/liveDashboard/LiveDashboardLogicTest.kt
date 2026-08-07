@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.liveDashboard
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardLogic
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityConfig
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityEntryDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityKey
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckType
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
@@ -803,5 +804,104 @@ class LiveDashboardLogicTest {
             CheckSeverity.CRITICAL,
             config.severityFor(competitionA, CheckType.REQUIREMENT, requirementA, optional = false)
         )
+    }
+
+    // --- entriesToPersist ---
+
+    private fun entry(
+        competitionId: UUID = competitionA,
+        checkType: CheckType = CheckType.INVOICE_OPEN,
+        requirementId: UUID? = null,
+        severity: CheckSeverity = CheckSeverity.WARNING,
+    ) = CheckSeverityEntryDto(competitionId, checkType, requirementId, severity)
+
+    @Test
+    fun entryAtDefaultValueIsDropped() {
+        // Der Standard braucht keine Zeile - die Tabelle bleibt dünn, siehe defaultSeverity.
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(entry(checkType = CheckType.INVOICE_OPEN, severity = CheckSeverity.CRITICAL)),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = emptyMap(),
+            persistedRequirementIds = emptySet(),
+        )
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun entryOfForeignCompetitionIsDropped() {
+        // Der Dialog schickt immer nur Wettkämpfe der eigenen Veranstaltung - alles andere ist ein
+        // Fehler des Aufrufers und wird stillschweigend übergangen.
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(entry(competitionId = competitionB, severity = CheckSeverity.WARNING)),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = emptyMap(),
+            persistedRequirementIds = emptySet(),
+        )
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun entryWithMadeUpRequirementIsDropped() {
+        // Weder aktuell zugeordnet noch je gespeichert - genau das schützt vor einer erfundenen
+        // Kennung, die am Fremdschlüssel auf participant_requirement scheitern würde.
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(
+                entry(checkType = CheckType.REQUIREMENT, requirementId = requirementA, severity = CheckSeverity.WARNING)
+            ),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = emptyMap(),
+            persistedRequirementIds = emptySet(),
+        )
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun entryOfDeregisteredButAlreadyPersistedRequirementIsKept() {
+        // Startpass wurde von der Veranstaltung abgemeldet, die gespeicherte Warnung soll die
+        // Abmeldung trotzdem überleben: der Schreibweg ersetzt die gesamte Konfiguration der
+        // Veranstaltung, ein hier verworfener Eintrag ist damit unwiderruflich gelöscht.
+        val entryDto = entry(
+            checkType = CheckType.REQUIREMENT,
+            requirementId = requirementA,
+            severity = CheckSeverity.WARNING,
+        )
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(entryDto),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = emptyMap(),
+            persistedRequirementIds = setOf(requirementA),
+        )
+        assertEquals(listOf(entryDto), result)
+    }
+
+    @Test
+    fun entryWithoutRequirementIsAlwaysKept() {
+        // Rechnung und "auf dem Wasser" hängen an keiner Teilnahmebedingung und damit an keinem
+        // Fremdschlüssel, den eine abgemeldete Bedingung verletzen könnte.
+        val entryDto = entry(checkType = CheckType.NOT_ON_WATER, severity = CheckSeverity.WARNING)
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(entryDto),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = emptyMap(),
+            persistedRequirementIds = emptySet(),
+        )
+        assertEquals(listOf(entryDto), result)
+    }
+
+    @Test
+    fun entryOfCurrentlyAssignedRequirementWithNonDefaultSeverityIsKept() {
+        // Regulärer Fall: die Bedingung gehört zur Veranstaltung, der Wert weicht vom Standard ab.
+        val entryDto = entry(
+            checkType = CheckType.REQUIREMENT,
+            requirementId = requirementA,
+            severity = CheckSeverity.WARNING,
+        )
+        val result = LiveDashboardLogic.entriesToPersist(
+            entries = listOf(entryDto),
+            competitionIds = setOf(competitionA),
+            optionalByRequirement = mapOf(requirementA to false),
+            persistedRequirementIds = emptySet(),
+        )
+        assertEquals(listOf(entryDto), result)
     }
 }

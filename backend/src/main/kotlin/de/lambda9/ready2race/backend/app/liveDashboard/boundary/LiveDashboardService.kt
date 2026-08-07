@@ -575,9 +575,14 @@ object LiveDashboardService {
     }
 
     /**
-     * Ersetzt die Abweichungen der Veranstaltung. Einträge, die dem Standard entsprechen, werden
-     * verworfen statt gespeichert: die Tabelle bleibt dünn, und ein später geänderter Standard
-     * wirkt auch auf Bestandsdaten.
+     * Ersetzt die Abweichungen der Veranstaltung komplett (siehe [CheckSeverityRepo.replaceForEvent]) -
+     * ein Eintrag, der hier nicht ankommt, ist damit gelöscht. Einträge, die dem Standard
+     * entsprechen, werden verworfen statt gespeichert: die Tabelle bleibt dünn, und ein später
+     * geänderter Standard wirkt auch auf Bestandsdaten. Die eigentliche Auswahl steckt in
+     * [LiveDashboardLogic.entriesToPersist] - dort auch, warum ein Eintrag einer vorübergehend
+     * abgemeldeten, aber bereits gespeicherten Bedingung trotzdem erhalten bleiben muss: der
+     * Verwaltungsdialog schickt ihn genau deshalb unverändert mit, weil dieser Schreibweg ihn
+     * sonst löschen würde.
      */
     fun updateCheckSeverityConfig(
         eventId: UUID,
@@ -596,23 +601,19 @@ object LiveDashboardService {
         }
         val competitionIds = !CheckSeverityRepo.getCompetitions(eventId).orDie()
             .map { rows -> rows.mapNotNull { it[COMPETITION.ID] }.toSet() }
+        // Bereits gespeicherte Bedingungs-Kennungen, konsistent zu getCheckSeverityConfig oben
+        // gebildet: eine davon darf eine Zeile tragen, auch wenn sie gerade nicht in optionalById
+        // steckt - siehe die Begründung an entriesToPersist.
+        val persistedRequirementIds = !CheckSeverityRepo.getByEvent(eventId).orDie()
+            .map { rows -> rows.mapNotNull { it[COMPETITION_CHECK_SEVERITY.PARTICIPANT_REQUIREMENT] }.toSet() }
 
         val now = LocalDateTime.now()
-        val records = request.entries
-            // Einträge fremder Veranstaltungen werden stillschweigend übergangen: der Dialog
-            // schickt immer nur die eigenen, alles andere ist ein Fehler des Aufrufers.
-            .filter { it.competitionId in competitionIds }
-            // Ebenso für requirementId: gehört sie zu keiner Teilnahmebedingung dieser
-            // Veranstaltung (unbekannt oder aus einer anderen Veranstaltung), würde der Insert
-            // sonst am Fremdschlüssel scheitern oder eine veranstaltungsübergreifende Zeile
-            // erzeugen. Konsistent mit der competitionId-Filterung oben stillschweigend übergangen.
-            .filter { it.requirementId == null || it.requirementId in optionalById }
-            .filter {
-                it.severity != LiveDashboardLogic.defaultSeverity(
-                    it.checkType,
-                    it.requirementId?.let { id -> optionalById[id] } == true,
-                )
-            }
+        val records = LiveDashboardLogic.entriesToPersist(
+            entries = request.entries,
+            competitionIds = competitionIds,
+            optionalByRequirement = optionalById,
+            persistedRequirementIds = persistedRequirementIds,
+        )
             .map {
                 CompetitionCheckSeverityRecord(
                     competition = it.competitionId,

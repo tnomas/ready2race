@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.liveDashboard.boundary
 
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityConfig
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityEntryDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityKey
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckType
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
@@ -266,4 +267,45 @@ object LiveDashboardLogic {
             CheckSeverityKey(competitionId, type, requirementId) to value
         }.toMap()
     )
+
+    /**
+     * Wählt aus den eingereichten Einträgen, welche gespeichert werden. `replaceForEvent` ersetzt
+     * die gesamte Konfiguration einer Veranstaltung - ein Eintrag, den diese Funktion verwirft, ist
+     * damit unwiderruflich gelöscht, auch wenn er vorher gültig war.
+     *
+     * Ein Eintrag ohne [CheckSeverityEntryDto.requirementId] (Rechnung, Wasser) hängt an keiner
+     * Teilnahmebedingung und damit an keinem Fremdschlüssel - er bleibt immer erhalten. Ein Eintrag
+     * mit Bedingung bleibt erhalten, wenn die Bedingung aktuell zur Veranstaltung gehört
+     * ([optionalByRequirement]) ODER wenn er bereits gespeichert war ([persistedRequirementIds]):
+     * der Verwaltungsdialog schickt einen gespeicherten Eintrag einer vorübergehend abgemeldeten
+     * Bedingung unverändert mit, damit er eine erneute Zuordnung übersteht statt beim nächsten
+     * Speichern verloren zu gehen. Verworfen wird nur, was keins von beidem ist - eine erfundene
+     * oder veranstaltungsfremde Kennung, die am Fremdschlüssel auf `participant_requirement`
+     * scheitern würde (der zeigt auf die globale Tabelle, nicht auf die Veranstaltungszuordnung -
+     * eine bloß abgemeldete Bedingung verletzt ihn nicht).
+     *
+     * Für aktuell zugeordnete Bedingungen entfällt zusätzlich, was dem Standard entspricht (siehe
+     * [defaultSeverity]) - die Tabelle bleibt dünn. Für eine abgemeldete, aber gespeicherte
+     * Bedingung fehlt das `optional`-Kennzeichen dafür; sie bleibt deshalb ungeprüft erhalten.
+     */
+    fun entriesToPersist(
+        entries: List<CheckSeverityEntryDto>,
+        competitionIds: Set<UUID>,
+        optionalByRequirement: Map<UUID, Boolean>,
+        persistedRequirementIds: Set<UUID>,
+    ): List<CheckSeverityEntryDto> = entries
+        .filter { it.competitionId in competitionIds }
+        .filter { entry ->
+            entry.requirementId == null ||
+                entry.requirementId in optionalByRequirement ||
+                entry.requirementId in persistedRequirementIds
+        }
+        .filter { entry ->
+            val requirementId = entry.requirementId
+            val currentlyAssigned = requirementId == null || requirementId in optionalByRequirement
+            !currentlyAssigned || entry.severity != defaultSeverity(
+                entry.checkType,
+                requirementId?.let { optionalByRequirement[it] } == true,
+            )
+        }
 }

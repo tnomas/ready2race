@@ -64,21 +64,28 @@ create table competition_check_severity
     created_at              timestamp not null,
     created_by              uuid references app_user on delete set null,
     updated_at              timestamp not null,
-    updated_by              uuid references app_user on delete set null
+    updated_by              uuid references app_user on delete set null,
+    constraint chk_ccs_requirement_matches_check_type check (
+        (check_type in ('REQUIREMENT', 'REQUIREMENT_TIME_WINDOW') and participant_requirement is not null) or
+        (check_type not in ('REQUIREMENT', 'REQUIREMENT_TIME_WINDOW') and participant_requirement is null) )
 );
 
-create unique index uq_ccs_competition_check
-    on competition_check_severity (competition, check_type)
-    where participant_requirement is null;
-
-create unique index uq_ccs_competition_check_requirement
-    on competition_check_severity (competition, check_type, participant_requirement)
-    where participant_requirement is not null;
+create unique index on competition_check_severity (competition, check_type, participant_requirement)
+    nulls not distinct;
 ```
 
-Zwei partielle Unique-Indizes statt eines zusammengesetzten: Postgres behandelt NULLs in einem
-Unique-Key als verschieden, ein einzelner Index würde Duplikate für die beiden wettkampfweiten
-Prüfungen zulassen.
+Ein einzelner Index mit `nulls not distinct` statt zweier partieller: Postgres behandelt NULLs in
+einem Unique-Key sonst als verschieden, was für `INVOICE_OPEN` und `NOT_ON_WATER` (ohne
+`participant_requirement`) beliebig viele Duplikate zuließe. `nulls not distinct` schließt das in
+einem Index, so wie es das Repo an anderer Stelle bereits macht (`V202506011000__bank_accounts.sql`,
+`V202506011100__produce_invoices.sql`).
+
+Der Check-Constraint `chk_ccs_requirement_matches_check_type` koppelt `participant_requirement` an
+die passende Prüfungsart: bei `REQUIREMENT`/`REQUIREMENT_TIME_WINDOW` muss sie gesetzt sein, bei
+`INVOICE_OPEN`/`NOT_ON_WATER` muss sie fehlen. Ohne ihn ließe sich in der Datenbank ein Zustand
+anlegen, den `CheckSeverityConfig.severityFor` nicht sauber abfragen könnte — die gleiche Regel
+prüft `UpdateCheckSeverityRequest.validate()` bereits vor dem Insert, der Constraint sichert sie
+zusätzlich gegen jeden anderen Schreibweg ab.
 
 `check_type`:
 
@@ -124,6 +131,17 @@ nicht abgehakte Bedingung ist schlicht eine mit Standard `OK` und sieht aus wie 
 Die Ampel einer Mannschaft ist die schlechteste wirksame Bewertung ihrer Prüfungen; hat die
 Mannschaft keine Prüfung, bleibt sie `NEUTRAL`. `NOT_ON_WATER` wird nur bewertet, wenn der Lauf
 aktiv ist, der Wettkampf `check_in_out_required` gesetzt hat und die Mannschaft nicht abgemeldet ist.
+
+**Grün in der Team-Ampel kommt ausschließlich aus einer erfüllten Teilnahmebedingung.** Rechnung
+und „auf dem Wasser" sind keine Teilnahmebedingungen — sie können die Ampel nur verschlechtern
+(Rechnung offen, Boot nicht draußen) oder schweigen (`NEUTRAL`), aber nie nach `OK` heben. Eine
+bezahlte Rechnung liefert deshalb `NEUTRAL`, nicht `OK`, und ebenso ein Boot, das schon auf dem
+Wasser ist. Das erwies sich während der Umsetzung als tragend, weil daran die zentrale Zusage
+dieses Entwurfs hängt: eine Regatta ohne jede eingestellte Prüfung soll aussehen wie vor diesem
+Umbau. Vorher gab es für Rechnung und Wasser in der alten Frontend-Formel (`common.ts`, Stand vor
+diesem Umbau) keinen Weg zu `'ok'` — nur zu `'error'` oder `'neutral'`. Würden sie hier nach `OK`
+zählen, zeigte eine unkonfigurierte Regatta plötzlich überall einen grünen Haken, wo vorher ein
+grauer Kreis stand, ohne dass sich an der Datenlage etwas geändert hätte.
 
 Das sind zwei Aufzählungen, nicht eine:
 
@@ -194,7 +212,7 @@ Obmanns, der über „offene Rechnungen" entscheidet und nicht über „Wettkamp
 - Die Zeitfenster-Zeile hängt eingerückt unter ihrer Bedingung und erscheint nur, wenn für diese
   überhaupt ein Fenster konfiguriert ist (`check_earliest/latest_minutes_before`).
 - In „Nicht auf dem Wasser" stehen Wettkämpfe ohne `check_in_out_required` ausgegraut mit dem
-  Hinweis „keine An-/Abmeldung erforderlich" und einem Link zum Wettkampf.
+  Hinweis „keine An-/Abmeldung erforderlich".
 
 Das Flag `check_in_out_required` wird **nicht** hier bearbeitet, sondern im Wettkampf-Formular: es
 steuert auch die QR-App und ist eine Eigenschaft des Rennformats. Zwei Bearbeitungsstellen für ein
@@ -203,12 +221,22 @@ Feld wären auf Dauer die schlechtere Wahl.
 ### Dashboard
 
 Unverändert im Aufbau; die Farben kommen jetzt aus `team.severity` statt aus lokaler Rechnung.
-Im Detail-Dialog wird der Rechnungs-Chip nach seinem Schweregrad eingefärbt statt fest rot/grün,
-und „auf dem Wasser" bekommt einen eigenen Chip — bisher war es nur eine Zeitangabe unter dem
-Mannschaftsnamen, obwohl es in die Ampel einfloss.
+Im Detail-Dialog bekommt „auf dem Wasser" einen eigenen Chip — bisher war es nur eine Zeitangabe
+unter dem Mannschaftsnamen, obwohl es in die Ampel einfloss.
 
-`frontend/.../liveDashboard/common.ts`: `requirementSeverity` und `teamSeverity` entfallen,
-`worstSeverity`, `severityChipColor` und die Icon-Zuordnung bleiben.
+Der Rechnungs-Chip ist grün, sobald bezahlt ist, und folgt nur im unbezahlten Fall dem
+konfigurierten Schweregrad (ebenso der Wasser-Chip: grün sobald abgelegt, sonst der konfigurierte
+Schweregrad). Das ist kein Widerspruch zur Regel „Grün ist den Teilnahmebedingungen vorbehalten"
+aus dem Bewertungs-Abschnitt — die gilt für die zusammengefasste Team-Ampel, die aus genau diesem
+Grund `NEUTRAL` statt `OK` für eine bezahlte Rechnung liefert (`invoiceSeverity`/`onWaterSeverity`).
+Dieser Chip fasst aber nichts zusammen; seine ganze Aussage ist „bezahlt" bzw. „abgelegt um …", und
+genau das darf grün sein, wenn es zutrifft. Nur wenn es nicht zutrifft, ist überhaupt eine
+Entscheidung nötig, und die folgt dem eingestellten Schweregrad.
+
+`frontend/.../liveDashboard/common.ts`: `requirementSeverity` und `teamSeverity` entfallen ebenso
+wie `worstSeverity` — beide Zusammenfassungen laufen jetzt ausschließlich im Backend
+(`LiveDashboardLogic.teamSeverity`/`worstSeverity`). `severityChipColor` bleibt, die
+Icon-Zuordnung zieht in eine eigene Komponente `SeverityIcon.tsx`.
 
 ### QR-App
 
