@@ -1,6 +1,11 @@
 package de.lambda9.ready2race.backend.app.liveDashboard
 
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardLogic
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverity
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityConfig
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverityKey
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckType
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardInvoiceState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
@@ -462,5 +467,162 @@ class LiveDashboardLogicTest {
         assertTrue(LiveDashboardLogic.requirementApplies(listOf(roleId), roleId))
         assertFalse(LiveDashboardLogic.requirementApplies(listOf(roleId), UUID.randomUUID()))
         assertFalse(LiveDashboardLogic.requirementApplies(listOf(roleId), null))
+    }
+
+    // --- Schweregrade ---
+
+    private val competitionA: UUID = UUID.fromString("00000000-0000-0000-0000-0000000000a1")
+    private val competitionB: UUID = UUID.fromString("00000000-0000-0000-0000-0000000000b1")
+    private val requirementA: UUID = UUID.fromString("00000000-0000-0000-0000-0000000000c1")
+
+    @Test
+    fun defaultsReproduceTodaysBehaviour() {
+        assertEquals(CheckSeverity.CRITICAL, LiveDashboardLogic.defaultSeverity(CheckType.INVOICE_OPEN, false))
+        assertEquals(CheckSeverity.CRITICAL, LiveDashboardLogic.defaultSeverity(CheckType.NOT_ON_WATER, false))
+        // Pflichtbedingung rot, optionale Bedingung ohne Wirkung - wie vor der Einstellmöglichkeit
+        assertEquals(CheckSeverity.CRITICAL, LiveDashboardLogic.defaultSeverity(CheckType.REQUIREMENT, false))
+        assertEquals(CheckSeverity.OK, LiveDashboardLogic.defaultSeverity(CheckType.REQUIREMENT, true))
+        assertEquals(
+            CheckSeverity.WARNING,
+            LiveDashboardLogic.defaultSeverity(CheckType.REQUIREMENT_TIME_WINDOW, false)
+        )
+    }
+
+    @Test
+    fun fulfilledCheckIsAlwaysOk() {
+        CheckSeverity.entries.forEach { configured ->
+            assertEquals(EffectiveSeverity.OK, LiveDashboardLogic.effectiveSeverity(true, configured))
+        }
+    }
+
+    @Test
+    fun unfulfilledCheckFollowsConfiguration() {
+        // Stufe OK heißt "zählt nicht", nicht "ist in Ordnung" - deshalb NEUTRAL, nicht OK.
+        assertEquals(EffectiveSeverity.NEUTRAL, LiveDashboardLogic.effectiveSeverity(false, CheckSeverity.OK))
+        assertEquals(EffectiveSeverity.WARNING, LiveDashboardLogic.effectiveSeverity(false, CheckSeverity.WARNING))
+        assertEquals(EffectiveSeverity.CRITICAL, LiveDashboardLogic.effectiveSeverity(false, CheckSeverity.CRITICAL))
+    }
+
+    @Test
+    fun worstSeverityTakesTheHighestRankAndNeutralWhenEmpty() {
+        assertEquals(EffectiveSeverity.NEUTRAL, LiveDashboardLogic.worstSeverity(emptyList()))
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            LiveDashboardLogic.worstSeverity(
+                listOf(EffectiveSeverity.OK, EffectiveSeverity.CRITICAL, EffectiveSeverity.WARNING)
+            )
+        )
+        assertEquals(
+            EffectiveSeverity.OK,
+            LiveDashboardLogic.worstSeverity(listOf(EffectiveSeverity.NEUTRAL, EffectiveSeverity.OK))
+        )
+    }
+
+    @Test
+    fun requirementSeverityCombinesMissingAndTimeWindow() {
+        // abgehakt, im Fenster
+        assertEquals(
+            EffectiveSeverity.OK,
+            LiveDashboardLogic.requirementSeverity(
+                true, TimeCheckStatus.OK, CheckSeverity.CRITICAL, CheckSeverity.WARNING
+            )
+        )
+        // abgehakt, zu spät -> das Zeitfenster entscheidet
+        assertEquals(
+            EffectiveSeverity.WARNING,
+            LiveDashboardLogic.requirementSeverity(
+                true, TimeCheckStatus.LATE, CheckSeverity.CRITICAL, CheckSeverity.WARNING
+            )
+        )
+        // nicht abgehakt -> das Zeitfenster ist bedeutungslos
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            LiveDashboardLogic.requirementSeverity(
+                false, TimeCheckStatus.NOT_CHECKED, CheckSeverity.CRITICAL, CheckSeverity.WARNING
+            )
+        )
+        // kein Zeitfenster konfiguriert
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            LiveDashboardLogic.requirementSeverity(false, null, CheckSeverity.OK, CheckSeverity.WARNING)
+        )
+    }
+
+    @Test
+    fun invoiceSeverityDistinguishesNoInvoiceFromPaid() {
+        // Ohne Rechnung gibt es nichts zu bewerten
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.NONE, CheckSeverity.CRITICAL)
+        )
+        assertEquals(
+            EffectiveSeverity.OK,
+            LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.PAID, CheckSeverity.CRITICAL)
+        )
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.OPEN, CheckSeverity.CRITICAL)
+        )
+        // Der Gnaden-Fall: offene Rechnung wird heute nicht geahndet
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            LiveDashboardLogic.invoiceSeverity(LiveDashboardInvoiceState.OPEN, CheckSeverity.OK)
+        )
+    }
+
+    @Test
+    fun onWaterIsOnlyJudgedWhenItApplies() {
+        // Wettkampf ohne An-/Abmeldung oder Lauf nicht aktiv: keine Aussage
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            LiveDashboardLogic.onWaterSeverity(evaluated = false, onWater = false, configured = CheckSeverity.CRITICAL)
+        )
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            LiveDashboardLogic.onWaterSeverity(evaluated = true, onWater = false, configured = CheckSeverity.CRITICAL)
+        )
+        assertEquals(
+            EffectiveSeverity.OK,
+            LiveDashboardLogic.onWaterSeverity(evaluated = true, onWater = true, configured = CheckSeverity.CRITICAL)
+        )
+    }
+
+    @Test
+    fun teamSeverityIsTheWorstOfItsChecks() {
+        assertEquals(
+            EffectiveSeverity.CRITICAL,
+            LiveDashboardLogic.teamSeverity(
+                requirementSeverities = listOf(EffectiveSeverity.OK),
+                invoice = EffectiveSeverity.CRITICAL,
+                onWater = EffectiveSeverity.NEUTRAL,
+            )
+        )
+        // Mannschaft ohne jede Prüfung bleibt grau
+        assertEquals(
+            EffectiveSeverity.NEUTRAL,
+            LiveDashboardLogic.teamSeverity(emptyList(), EffectiveSeverity.NEUTRAL, EffectiveSeverity.NEUTRAL)
+        )
+    }
+
+    @Test
+    fun configuredValueBeatsDefaultAndStaysWithinItsCompetition() {
+        val config = CheckSeverityConfig(
+            mapOf(CheckSeverityKey(competitionA, CheckType.INVOICE_OPEN) to CheckSeverity.WARNING)
+        )
+
+        assertEquals(
+            CheckSeverity.WARNING,
+            config.severityFor(competitionA, CheckType.INVOICE_OPEN, optional = false)
+        )
+        // Ein anderer Wettkampf bleibt beim Standard
+        assertEquals(
+            CheckSeverity.CRITICAL,
+            config.severityFor(competitionB, CheckType.INVOICE_OPEN, optional = false)
+        )
+        // Fehlender Eintrag -> Standard
+        assertEquals(
+            CheckSeverity.CRITICAL,
+            config.severityFor(competitionA, CheckType.REQUIREMENT, requirementA, optional = false)
+        )
     }
 }

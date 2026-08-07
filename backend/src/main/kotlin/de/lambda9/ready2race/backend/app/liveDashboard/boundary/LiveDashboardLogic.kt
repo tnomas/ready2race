@@ -1,5 +1,8 @@
 package de.lambda9.ready2race.backend.app.liveDashboard.boundary
 
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckSeverity
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.CheckType
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.EffectiveSeverity
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardInvoiceState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
@@ -152,4 +155,81 @@ object LiveDashboardLogic {
         participantNamedParticipantId: UUID?,
     ): Boolean = assignedNamedParticipants.any { it == null } ||
         (participantNamedParticipantId != null && assignedNamedParticipants.contains(participantNamedParticipantId))
+
+    /**
+     * Der eingebaute Standard, wenn für einen Wettkampf nichts eingestellt ist. Er ist mit Absicht
+     * genau das Verhalten vor dieser Einstellmöglichkeit: dadurch braucht die Migration keinen
+     * Datenschritt, und ein neu angelegter Wettkampf ist ohne Pflege richtig eingestellt.
+     */
+    fun defaultSeverity(checkType: CheckType, optional: Boolean): CheckSeverity = when (checkType) {
+        CheckType.INVOICE_OPEN -> CheckSeverity.CRITICAL
+        CheckType.NOT_ON_WATER -> CheckSeverity.CRITICAL
+        CheckType.REQUIREMENT -> if (optional) CheckSeverity.OK else CheckSeverity.CRITICAL
+        CheckType.REQUIREMENT_TIME_WINDOW -> CheckSeverity.WARNING
+    }
+
+    /**
+     * Eine erfüllte Prüfung ist immer [EffectiveSeverity.OK] - der Schweregrad beschreibt nur, was
+     * ihr Fehlen bedeutet. Die Stufe [CheckSeverity.OK] wird dabei zu [EffectiveSeverity.NEUTRAL]
+     * und nicht zu OK: sonst sähe "offen, wird heute nicht geahndet" aus wie "bezahlt".
+     */
+    fun effectiveSeverity(fulfilled: Boolean, configured: CheckSeverity): EffectiveSeverity =
+        if (fulfilled) {
+            EffectiveSeverity.OK
+        } else when (configured) {
+            CheckSeverity.OK -> EffectiveSeverity.NEUTRAL
+            CheckSeverity.WARNING -> EffectiveSeverity.WARNING
+            CheckSeverity.CRITICAL -> EffectiveSeverity.CRITICAL
+        }
+
+    /** Nutzt die natürliche Ordnung von [EffectiveSeverity]; leer heißt "nichts zu sagen". */
+    fun worstSeverity(severities: List<EffectiveSeverity>): EffectiveSeverity =
+        severities.maxOrNull() ?: EffectiveSeverity.NEUTRAL
+
+    /**
+     * Eine Teilnahmebedingung trägt zwei Prüfungen: ob sie abgehakt ist und ob das rechtzeitig
+     * geschah. Die Anzeige hat aber nur ein Symbol je Bedingung - also gilt die schlechtere.
+     * Ist sie nicht abgehakt, sagt das Zeitfenster ohnehin nichts.
+     */
+    fun requirementSeverity(
+        checked: Boolean,
+        timeCheckStatus: TimeCheckStatus?,
+        missingSeverity: CheckSeverity,
+        timeWindowSeverity: CheckSeverity,
+    ): EffectiveSeverity {
+        val missing = effectiveSeverity(checked, missingSeverity)
+        val window = if (
+            timeCheckStatus == TimeCheckStatus.LATE || timeCheckStatus == TimeCheckStatus.TOO_EARLY
+        ) {
+            effectiveSeverity(false, timeWindowSeverity)
+        } else {
+            EffectiveSeverity.NEUTRAL
+        }
+        return worstSeverity(listOf(missing, window))
+    }
+
+    /**
+     * [LiveDashboardInvoiceState.NONE] heißt "es gibt keine Rechnung" und ist deshalb keine
+     * erfüllte Prüfung, sondern gar keine - sonst würde ein Boot ohne Rechnung grün leuchten.
+     */
+    fun invoiceSeverity(state: LiveDashboardInvoiceState, configured: CheckSeverity): EffectiveSeverity =
+        when (state) {
+            LiveDashboardInvoiceState.NONE -> EffectiveSeverity.NEUTRAL
+            LiveDashboardInvoiceState.PAID -> EffectiveSeverity.OK
+            LiveDashboardInvoiceState.OPEN -> effectiveSeverity(false, configured)
+        }
+
+    /**
+     * [evaluated] fasst zusammen, wann "auf dem Wasser" überhaupt eine Aussage ist: der Lauf ist
+     * aktiv, der Wettkampf verlangt eine An-/Abmeldung und die Mannschaft ist nicht abgemeldet.
+     * Beim Beachsprint ist das nie der Fall - dort gibt es kein Auschecken am Steg.
+     */
+    fun onWaterSeverity(evaluated: Boolean, onWater: Boolean, configured: CheckSeverity): EffectiveSeverity =
+        if (!evaluated) EffectiveSeverity.NEUTRAL else effectiveSeverity(onWater, configured)
+
+    fun teamSeverity(
+        requirementSeverities: List<EffectiveSeverity>,
+        invoice: EffectiveSeverity,
+        onWater: EffectiveSeverity,
+    ): EffectiveSeverity = worstSeverity(requirementSeverities + invoice + onWater)
 }
