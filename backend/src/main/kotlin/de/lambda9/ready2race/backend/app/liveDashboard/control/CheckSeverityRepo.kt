@@ -63,8 +63,16 @@ object CheckSeverityRepo {
             )
             .execute()
 
-        insertInto(COMPETITION_CHECK_SEVERITY)
-            .set(records)
-            .execute()
+        // Eine leere Menge ist der reguläre "auf Standard zurücksetzen"-Fall, kein Sonderfall: wer
+        // alle Prüfungen einer Veranstaltung auf den Standard zurücksetzt, schickt lauter Zeilen,
+        // die dem Standard entsprechen und deshalb vorher herausgefiltert wurden (siehe
+        // LiveDashboardService.updateCheckSeverityConfig). Ohne diese Prüfung würde jOOQ aus
+        // `.set(emptyList())` ein `insert into ... default values` bauen, das an den NOT-NULL-
+        // Spalten der Tabelle scheitert.
+        if (records.isNotEmpty()) {
+            insertInto(COMPETITION_CHECK_SEVERITY)
+                .set(records)
+                .execute()
+        }
     }
 }

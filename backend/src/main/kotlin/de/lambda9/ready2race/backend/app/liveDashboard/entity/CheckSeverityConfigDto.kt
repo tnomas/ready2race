@@ -2,6 +2,16 @@ package de.lambda9.ready2race.backend.app.liveDashboard.entity
 
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
+import de.lambda9.ready2race.backend.validation.validate
+import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.noDuplicates
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.allOf
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.anyOf
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.collection
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.isNull
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.isValue
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.notNull
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.oneOf
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.select
 import java.util.UUID
 
 /** Ein Wettkampf, wie ihn die Verwaltung braucht - Kennung, Name und ob er eine An-/Abmeldung verlangt. */
@@ -50,10 +60,37 @@ data class CheckSeverityRowDefaultDto(
 data class UpdateCheckSeverityRequest(
     val entries: List<CheckSeverityEntryDto>,
 ) : Validatable {
-    // Die Zeilen bestehen ausschliesslich aus typisierten Feldern (UUID/Enum), die die
-    // Deserialisierung bereits erzwingt - es gibt hier nichts zusaetzlich zu pruefen. Siehe
-    // ParticipantRequirementCheckForEventConfigDto fuer denselben Fall.
-    override fun validate(): ValidationResult = ValidationResult.Valid
+    override fun validate(): ValidationResult = ValidationResult.allOf(
+        // Muss zur DB-Check-Constraint chk_ccs_requirement_matches_check_type passen: requirementId
+        // ist genau dann gesetzt, wenn checkType eine der beiden bedingungsbezogenen Prüfungsarten
+        // ist - sonst schlägt eine widersprüchliche Anfrage erst in der Datenbank fehl statt hier
+        // als Eingabefehler.
+        this::entries validate collection(
+            oneOf(
+                allOf(
+                    select(
+                        anyOf(isValue(CheckType.REQUIREMENT), isValue(CheckType.REQUIREMENT_TIME_WINDOW)),
+                        CheckSeverityEntryDto::checkType,
+                    ),
+                    select(notNull, CheckSeverityEntryDto::requirementId),
+                ),
+                allOf(
+                    select(
+                        anyOf(isValue(CheckType.INVOICE_OPEN), isValue(CheckType.NOT_ON_WATER)),
+                        CheckSeverityEntryDto::checkType,
+                    ),
+                    select(isNull, CheckSeverityEntryDto::requirementId),
+                ),
+            )
+        ),
+        // Entspricht dem Unique-Index (competition, check_type, participant_requirement) nulls not
+        // distinct - zwei Einträge mit derselben Kombination würden sonst erst beim Insert scheitern.
+        this::entries validate noDuplicates(
+            CheckSeverityEntryDto::competitionId,
+            CheckSeverityEntryDto::checkType,
+            CheckSeverityEntryDto::requirementId,
+        ),
+    )
 
     companion object {
         val example

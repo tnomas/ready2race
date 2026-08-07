@@ -597,6 +597,11 @@ object LiveDashboardService {
             // Eintraege fremder Veranstaltungen werden stillschweigend uebergangen: der Dialog
             // schickt immer nur die eigenen, alles andere ist ein Fehler des Aufrufers.
             .filter { it.competitionId in competitionIds }
+            // Ebenso fuer requirementId: gehoert sie zu keiner Teilnahmebedingung dieser
+            // Veranstaltung (unbekannt oder aus einer anderen Veranstaltung), wuerde der Insert
+            // sonst am Fremdschluessel scheitern oder eine veranstaltungsuebergreifende Zeile
+            // erzeugen. Konsistent mit der competitionId-Filterung oben stillschweigend uebergangen.
+            .filter { it.requirementId == null || it.requirementId in optionalById }
             .filter {
                 it.severity != LiveDashboardLogic.defaultSeverity(
                     it.checkType,
