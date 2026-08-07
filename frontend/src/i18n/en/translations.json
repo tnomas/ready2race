@@ -508,6 +508,8 @@
           "error": "Error checking out participant"
         },
         "noTeamsFound": "No teams found",
+        "noCheckInOutNeeded": "no check-in/out needed",
+        "noCheckInOutForAnyTeam": "None of these entries use check-in/out.",
         "participantNotFound": "Participant not found",
         "errorReason": {
           "alreadyCheckedIn": "This person is already checked in — there is nothing left to do.",

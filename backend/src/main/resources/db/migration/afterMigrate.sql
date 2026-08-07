@@ -1038,20 +1038,21 @@ group by crnp.competition_registration, p.id, p.firstname, p.lastname, p.year, p
 ;
 
 create view competition_registration_team as
-select cr.id          as competition_registration_id,
-       cr.competition as competition_id,
-       cp.identifier  as competition_identifier,
-       cp.name        as competition_name,
-       co.event       as event_id,
-       cl.id          as club_id,
-       cl.name        as club_name,
-       cr.name        as team_name,
+select cr.id                       as competition_registration_id,
+       cr.competition              as competition_id,
+       cp.identifier               as competition_identifier,
+       cp.name                     as competition_name,
+       cp.check_in_out_required    as check_in_out_required,
+       co.event                    as event_id,
+       cl.id                       as club_id,
+       cl.name                     as club_name,
+       cr.name                     as team_name,
        coalesce(array_agg(distinct crtp) filter ( where crtp.competition_registration_id is not null ),
-                '{}') as participants,
+                '{}')              as participants,
        coalesce(array_agg(distinct sv) filter (where sv.id is not null),
-                '{}') as substitutions,
-       cd             as deregistration,
-       rc             as rating_category
+                '{}')              as substitutions,
+       cd                          as deregistration,
+       rc                          as rating_category
 from competition_registration cr
          left join competition_registration_team_participant crtp on cr.id = crtp.competition_registration_id
          left join club cl on cr.club = cl.id
@@ -1060,7 +1061,8 @@ from competition_registration cr
          left join substitution_view sv on cr.id = sv.competition_registration_id
          left join competition_deregistration cd on cr.id = cd.competition_registration
          left join rating_category rc on cr.rating_category = rc.id
-group by cr.id, cr.competition, cp.identifier, cp.name, co.event, cl.id, cl.name, cr.name, cd, rc.id;
+group by cr.id, cr.competition, cp.identifier, cp.name, cp.check_in_out_required, co.event, cl.id, cl.name, cr.name,
+         cd, rc.id;
 
 
 create view participant_qr_assignment_view as

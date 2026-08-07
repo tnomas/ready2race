@@ -508,6 +508,8 @@
           "error": "Fejl ved check-out af deltager"
         },
         "noTeamsFound": "Ingen hold fundet",
+        "noCheckInOutNeeded": "ingen ind-/udtjekning nødvendig",
+        "noCheckInOutForAnyTeam": "Ingen af disse tilmeldinger bruger ind-/udtjekning.",
         "participantNotFound": "Deltager ikke fundet",
         "errorReason": {
           "alreadyCheckedIn": "Denne person er allerede tjekket ind — der er ikke mere at gøre.",

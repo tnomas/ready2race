@@ -508,6 +508,8 @@
           "error": "Fehler beim Auschecken des Teilnehmenden"
         },
         "noTeamsFound": "Keine Teams gefunden",
+        "noCheckInOutNeeded": "keine An-/Abmeldung nötig",
+        "noCheckInOutForAnyTeam": "Für diese Meldungen ist keine An-/Abmeldung vorgesehen.",
         "participantNotFound": "Teilnehmer nicht gefunden",
         "errorReason": {
           "alreadyCheckedIn": "Diese Person ist bereits eingecheckt — es ist nichts weiter zu tun.",

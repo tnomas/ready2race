@@ -2535,6 +2535,10 @@ export type TeamForScanOverviewDto = {
     competitionId: string
     competitionIdentifier: string
     competitionName: string
+    /**
+     * Whether this competition uses check-in/out at all. Scans are recorded per participant and event, so a participant racing in one competition that requires it still checks out - the flag only drives what the app shows.
+     */
+    checkInOutRequired: boolean
     clubId: string
     clubName: string
     teamName?: string
