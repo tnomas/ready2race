@@ -28,18 +28,13 @@ create table competition_check_severity
     created_at              timestamp not null,
     created_by              uuid references app_user on delete set null,
     updated_at              timestamp not null,
-    updated_by              uuid references app_user on delete set null
+    updated_by              uuid references app_user on delete set null,
+    constraint chk_ccs_requirement_matches_check_type check (
+        (check_type in ('REQUIREMENT', 'REQUIREMENT_TIME_WINDOW') and participant_requirement is not null) or
+        (check_type not in ('REQUIREMENT', 'REQUIREMENT_TIME_WINDOW') and participant_requirement is null) )
 );
 
--- Zwei partielle Indizes statt eines zusammengesetzten: Postgres behandelt NULLs in einem
--- Unique-Key als verschieden, ein einzelner Index liesse fuer INVOICE_OPEN und NOT_ON_WATER
--- beliebig viele Duplikate zu.
-create unique index uq_ccs_competition_check
-    on competition_check_severity (competition, check_type)
-    where participant_requirement is null;
-
-create unique index uq_ccs_competition_check_requirement
-    on competition_check_severity (competition, check_type, participant_requirement)
-    where participant_requirement is not null;
-
-create index idx_ccs_competition on competition_check_severity (competition);
+-- Postgres behandelt NULLs in einem Unique-Key als verschieden, was fuer INVOICE_OPEN und
+-- NOT_ON_WATER (ohne participant_requirement) beliebig viele Duplikate zuliesse. "nulls not
+-- distinct" schliesst das.
+create unique index on competition_check_severity (competition, check_type, participant_requirement) nulls not distinct;
