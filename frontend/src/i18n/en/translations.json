@@ -1469,7 +1469,8 @@
         "deregistered": "Deregistered",
         "failed": "Did not finish",
         "failedShort": "DNF",
-        "onWaterAt": "on water {{time}}"
+        "onWaterAt": "on water {{time}}",
+        "notOnWater": "Not on the water"
       },
       "requirement": {
         "checkedAt": "Fulfilled at {{time}}",

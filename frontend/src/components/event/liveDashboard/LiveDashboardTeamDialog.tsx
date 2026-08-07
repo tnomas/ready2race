@@ -15,17 +15,14 @@ import {
     Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import CancelIcon from '@mui/icons-material/Cancel'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
 import {LiveDashboardRequirementStatusDto, LiveDashboardTeamDto} from '@api/types.gen.ts'
 import {getLiveDashboardTeamDetail} from '@api/sdk.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
-import {formatMinutes, requirementSeverity, severityChipColor, Severity} from './common.ts'
+import {formatMinutes, severityChipColor} from './common.ts'
+import SeverityIcon from './SeverityIcon.tsx'
 
 type Props = {
     team: LiveDashboardTeamDto | null
@@ -33,19 +30,6 @@ type Props = {
     matchId: string | null
     eventId: string
     onClose: () => void
-}
-
-const severityIcon = (severity: Severity) => {
-    switch (severity) {
-        case 'ok':
-            return <CheckCircleIcon sx={{color: 'success.dark'}} />
-        case 'warning':
-            return <WarningAmberIcon sx={{color: 'warning.dark'}} />
-        case 'error':
-            return <CancelIcon sx={{color: 'error.dark'}} />
-        case 'neutral':
-            return <RadioButtonUncheckedIcon sx={{color: 'text.disabled'}} />
-    }
 }
 
 /**
@@ -132,14 +116,24 @@ const TeamDialog = ({
                         <Chip
                             size="small"
                             label={t(`event.liveDashboard.invoice.${team.invoiceState}`)}
-                            color={
-                                team.invoiceState === 'PAID'
-                                    ? 'success'
-                                    : team.invoiceState === 'OPEN'
-                                      ? 'error'
-                                      : 'default'
-                            }
+                            color={severityChipColor[team.invoiceSeverity]}
                         />
+                        {team.onWaterRequired && (
+                            <Chip
+                                size="small"
+                                color={team.onWaterAt ? 'success' : 'default'}
+                                label={
+                                    team.onWaterAt
+                                        ? t('event.liveDashboard.team.onWaterAt', {
+                                              time: format(
+                                                  new Date(team.onWaterAt),
+                                                  t('format.time'),
+                                              ),
+                                          })
+                                        : t('event.liveDashboard.team.notOnWater')
+                                }
+                            />
+                        )}
                         {team.penaltySeconds != null && (
                             <Chip
                                 size="small"
@@ -192,39 +186,38 @@ const TeamDialog = ({
                                 </Typography>
                             ) : (
                                 <List dense disablePadding>
-                                    {p.requirements.map(r => {
-                                        const severity = requirementSeverity(r)
-                                        return (
-                                            <ListItem key={r.requirementId} disableGutters>
-                                                <ListItemIcon sx={{minWidth: 36}}>
-                                                    {severityIcon(severity)}
-                                                </ListItemIcon>
-                                                <ListItemText
-                                                    primary={
-                                                        <Stack
-                                                            direction="row"
-                                                            spacing={1}
-                                                            alignItems="center">
-                                                            <span>{r.name}</span>
-                                                            {r.timeCheck &&
-                                                                r.timeCheck.status !== 'OK' && (
-                                                                    <Chip
-                                                                        size="small"
-                                                                        color={
-                                                                            severityChipColor[severity]
-                                                                        }
-                                                                        label={t(
-                                                                            `event.liveDashboard.timeCheck.${r.timeCheck.status}`,
-                                                                        )}
-                                                                    />
-                                                                )}
-                                                        </Stack>
-                                                    }
-                                                    secondary={requirementSecondary(r)}
-                                                />
-                                            </ListItem>
-                                        )
-                                    })}
+                                    {p.requirements.map(r => (
+                                        <ListItem key={r.requirementId} disableGutters>
+                                            <ListItemIcon sx={{minWidth: 36}}>
+                                                <SeverityIcon severity={r.severity} size={24} />
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={
+                                                    <Stack
+                                                        direction="row"
+                                                        spacing={1}
+                                                        alignItems="center">
+                                                        <span>{r.name}</span>
+                                                        {r.timeCheck &&
+                                                            r.timeCheck.status !== 'OK' && (
+                                                                <Chip
+                                                                    size="small"
+                                                                    color={
+                                                                        severityChipColor[
+                                                                            r.severity
+                                                                        ]
+                                                                    }
+                                                                    label={t(
+                                                                        `event.liveDashboard.timeCheck.${r.timeCheck.status}`,
+                                                                    )}
+                                                                />
+                                                            )}
+                                                    </Stack>
+                                                }
+                                                secondary={requirementSecondary(r)}
+                                            />
+                                        </ListItem>
+                                    ))}
                                 </List>
                             )}
                             <Divider sx={{mt: 1}} />

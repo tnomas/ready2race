@@ -1469,7 +1469,8 @@
         "deregistered": "Abgemeldet",
         "failed": "Ausgeschieden",
         "failedShort": "DNF",
-        "onWaterAt": "aufs Wasser {{time}}"
+        "onWaterAt": "aufs Wasser {{time}}",
+        "notOnWater": "Nicht auf dem Wasser"
       },
       "requirement": {
         "checkedAt": "Erfüllt am {{time}}",

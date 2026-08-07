@@ -1469,7 +1469,8 @@
         "deregistered": "Afmeldt",
         "failed": "Udgået",
         "failedShort": "DNF",
-        "onWaterAt": "på vandet {{time}}"
+        "onWaterAt": "på vandet {{time}}",
+        "notOnWater": "Ikke på vandet"
       },
       "requirement": {
         "checkedAt": "Opfyldt {{time}}",
