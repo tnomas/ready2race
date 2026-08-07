@@ -534,6 +534,36 @@ class LiveDashboardLogicTest {
         )
     }
 
+    // --- onWaterApplies ---
+
+    /**
+     * Deckt namentlich die Gating-Bedingung aus `LiveDashboardService.buildTeamDto` ab
+     * (`matchRunning && checkInOutRequired && !deregistered`), statt sie im Test ein zweites Mal
+     * abzuschreiben. Ändert sich der Service, muss diese Funktion mitziehen - sonst würde der Test
+     * unbemerkt an einer Kopie vorbeilaufen, während der Wasser-Term im echten Code abweicht.
+     */
+    @Test
+    fun onWaterAppliesOnlyDuringAnActiveRunWithCheckInOutAndNotDeregistered() {
+        assertTrue(
+            LiveDashboardLogic.onWaterApplies(matchRunning = true, checkInOutRequired = true, deregistered = false)
+        )
+        // Beachsprint-Opt-out: kein Auschecken am Steg, also nie eine Aussage.
+        assertFalse(
+            LiveDashboardLogic.onWaterApplies(matchRunning = true, checkInOutRequired = false, deregistered = false)
+        )
+        // Vor dem Start am Steg ist "nicht draußen" kein Fehler.
+        assertFalse(
+            LiveDashboardLogic.onWaterApplies(matchRunning = false, checkInOutRequired = true, deregistered = false)
+        )
+        // Abgemeldet fährt nicht mehr - für das Wasser gibt es nichts mehr zu prüfen.
+        assertFalse(
+            LiveDashboardLogic.onWaterApplies(matchRunning = true, checkInOutRequired = true, deregistered = true)
+        )
+        assertFalse(
+            LiveDashboardLogic.onWaterApplies(matchRunning = false, checkInOutRequired = false, deregistered = true)
+        )
+    }
+
     @Test
     fun teamSeverityIsTheWorstOfItsChecks() {
         assertEquals(
@@ -591,21 +621,66 @@ class LiveDashboardLogicTest {
         return signals.reduce { acc, s -> if (s.ordinal > acc.ordinal) s else acc }
     }
 
-    /** Eine einzelne Teilnahmebedingung, wie sie am Steg abgehakt wird - oder keine (`null`). */
-    private data class TestRequirement(val checked: Boolean, val timeCheckStatus: TimeCheckStatus?)
+    /**
+     * Eine einzelne Teilnahmebedingung, wie sie am Steg abgehakt wird. [optional] ist eine eigene
+     * Achse, weil die alte Formel unerfüllte optionale Bedingungen bewusst nicht mitzählte
+     * (`!it.checked && !it.optional`) - ohne sie geprüft zu bekommen, würde der Paritätstest genau
+     * den Pfad nie durchlaufen, an dem die Parität für Kann-Bedingungen hängt.
+     */
+    private data class TestRequirement(
+        val checked: Boolean,
+        val optional: Boolean = false,
+        val timeCheckStatus: TimeCheckStatus?,
+    )
 
-    private data class RequirementCase(val label: String, val requirement: TestRequirement?)
+    /**
+     * [requirements] statt eines einzelnen `TestRequirement?`: die Paritätsbehauptung ruht gerade
+     * auf mehr als einer Teilnahmebedingung je Mannschaft, weil die alte Formel über die ganze
+     * Mannschaft zählte (`missingRequired`, `timeIssues`, `fulfilled`) und die neue je Bedingung
+     * bewertet und danach das Schlechteste nimmt - ein einzelner Fall pro Kombination hätte diesen
+     * Unterschied nie sichtbar gemacht.
+     */
+    private data class RequirementCase(val label: String, val requirements: List<TestRequirement>)
 
     private val requirementCases = listOf(
-        RequirementCase("keine Bedingung", null),
-        RequirementCase("eine erfüllte Bedingung", TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.OK)),
+        RequirementCase("keine Bedingung", emptyList()),
         RequirementCase(
-            "eine unerfüllte Pflichtbedingung",
-            TestRequirement(checked = false, timeCheckStatus = null),
+            "eine erfüllte Bedingung",
+            listOf(TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.OK)),
         ),
         RequirementCase(
-            "eine mit verletztem Zeitfenster",
-            TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.LATE),
+            "eine unerfüllte Pflichtbedingung",
+            listOf(TestRequirement(checked = false, timeCheckStatus = null)),
+        ),
+        RequirementCase(
+            "eine unerfüllte Pflichtbedingung, Zeitfenster noch nicht geprüft",
+            listOf(TestRequirement(checked = false, timeCheckStatus = TimeCheckStatus.NOT_CHECKED)),
+        ),
+        RequirementCase(
+            "eine unerfüllte optionale Bedingung",
+            listOf(TestRequirement(checked = false, optional = true, timeCheckStatus = null)),
+        ),
+        RequirementCase(
+            "eine mit verletztem Zeitfenster (zu spät)",
+            listOf(TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.LATE)),
+        ),
+        RequirementCase(
+            "eine mit verletztem Zeitfenster (zu früh)",
+            listOf(TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.TOO_EARLY)),
+        ),
+        RequirementCase(
+            "erfüllte und unerfüllte Pflichtbedingung zugleich",
+            listOf(
+                TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.OK),
+                TestRequirement(checked = false, timeCheckStatus = null),
+            ),
+        ),
+        RequirementCase(
+            "erfüllte Pflicht- und unerfüllte optionale Bedingung zugleich",
+            listOf(
+                TestRequirement(checked = true, timeCheckStatus = TimeCheckStatus.OK),
+                TestRequirement(checked = false, optional = true, timeCheckStatus = null),
+            ),
         ),
     )
 
@@ -631,10 +706,14 @@ class LiveDashboardLogicTest {
                 for (matchActive in listOf(false, true)) {
                     for (deregistered in listOf(false, true)) {
                         for (onWater in listOf(false, true)) {
-                            val requirements = listOfNotNull(requirementCase.requirement)
+                            val requirements = requirementCase.requirements
 
-                            // Alte Formel: unabhängige Zähler, wie sie vor dem Umbau berechnet wurden.
-                            val missingRequired = requirements.count { !it.checked }
+                            // Alte Formel: unabhängige Zähler, wie sie vor dem Umbau tatsächlich
+                            // berechnet wurden (`LiveDashboardLogic.summarizeRequirements`, Stand vor
+                            // Commit cf614f1d). Optionale Bedingungen zählten dort NIE als fehlend -
+                            // ohne das `!it.optional` würde der optionale Zweig der neuen Formel
+                            // (Standard-Schweregrad OK -> NEUTRAL statt CRITICAL) nie geprüft.
+                            val missingRequired = requirements.count { !it.checked && !it.optional }
                             val timeIssues = requirements.count {
                                 it.timeCheckStatus == TimeCheckStatus.LATE ||
                                     it.timeCheckStatus == TimeCheckStatus.TOO_EARLY
@@ -645,19 +724,30 @@ class LiveDashboardLogicTest {
                             )
 
                             // Neu: die tatsächliche, zusammengesetzte Bewertung aus der Implementierung.
+                            // `optional` fließt in den Standard-Schweregrad ein (siehe
+                            // `LiveDashboardLogic.defaultSeverity`) - ohne ihn an `severityFor` zu
+                            // reichen, bekäme auch eine optionale Bedingung den CRITICAL-Standard.
                             val requirementSeverities = requirements.map {
                                 LiveDashboardLogic.requirementSeverity(
                                     checked = it.checked,
                                     timeCheckStatus = it.timeCheckStatus,
-                                    missingSeverity = config.severityFor(competitionA, CheckType.REQUIREMENT),
-                                    timeWindowSeverity = config.severityFor(competitionA, CheckType.REQUIREMENT_TIME_WINDOW),
+                                    missingSeverity = config.severityFor(
+                                        competitionA, CheckType.REQUIREMENT, optional = it.optional,
+                                    ),
+                                    timeWindowSeverity = config.severityFor(
+                                        competitionA, CheckType.REQUIREMENT_TIME_WINDOW, optional = it.optional,
+                                    ),
                                 )
                             }
                             val invoice = LiveDashboardLogic.invoiceSeverity(
                                 invoiceState,
                                 config.severityFor(competitionA, CheckType.INVOICE_OPEN),
                             )
-                            val onWaterEvaluated = matchActive && checkInOutRequired && !deregistered
+                            val onWaterEvaluated = LiveDashboardLogic.onWaterApplies(
+                                matchRunning = matchActive,
+                                checkInOutRequired = checkInOutRequired,
+                                deregistered = deregistered,
+                            )
                             val onWaterSeverity = LiveDashboardLogic.onWaterSeverity(
                                 evaluated = onWaterEvaluated,
                                 onWater = onWater,

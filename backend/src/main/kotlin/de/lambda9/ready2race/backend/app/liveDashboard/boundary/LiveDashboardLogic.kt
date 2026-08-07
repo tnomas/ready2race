@@ -214,9 +214,26 @@ object LiveDashboardLogic {
         }
 
     /**
-     * [evaluated] fasst zusammen, wann "auf dem Wasser" überhaupt eine Aussage ist: der Lauf ist
-     * aktiv, der Wettkampf verlangt eine An-/Abmeldung und die Mannschaft ist nicht abgemeldet.
-     * Beim Beachsprint ist das nie der Fall - dort gibt es kein Auschecken am Steg.
+     * Ob "auf dem Wasser" für diese Mannschaft gerade überhaupt eine Aussage ist. Alle drei
+     * Bedingungen sind nötig:
+     *
+     * - [matchRunning]: vor dem Start am Steg ist "nicht draußen" der Normalfall, kein Fehler -
+     *   erst ein aktiver Lauf macht ein Boot am Steg zur Auffälligkeit.
+     * - [checkInOutRequired]: eine Eigenschaft des Wettkampfs, nicht der Mannschaft. Ohne An-/
+     *   Abmeldung (z.B. Beachsprint) gibt es kein Auschecken am Steg zu bewerten - dort wäre jedes
+     *   Boot für immer "nicht draußen".
+     * - `!`[deregistered]: eine abgemeldete Mannschaft fährt nicht mehr; für sie gibt es kein
+     *   Wasser mehr zu betreten und keinen Grund, das einzufordern.
+     *
+     * Fehlt eine der drei, ist die Prüfung nicht anwendbar statt verletzt - deshalb `evaluated`,
+     * nicht `onWater`, in [onWaterSeverity].
+     */
+    fun onWaterApplies(matchRunning: Boolean, checkInOutRequired: Boolean, deregistered: Boolean): Boolean =
+        matchRunning && checkInOutRequired && !deregistered
+
+    /**
+     * [evaluated] fasst zusammen, wann "auf dem Wasser" überhaupt eine Aussage ist - siehe
+     * [onWaterApplies].
      *
      * Ist das Boot auf dem Wasser, ist das - wie bei [invoiceSeverity] beschrieben - keine erfüllte
      * Teilnahmebedingung, sondern der unauffällige Regelfall: [EffectiveSeverity.NEUTRAL], nicht OK.

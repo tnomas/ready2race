@@ -113,15 +113,32 @@ const TeamDialog = ({
                                 {team.actualClubName ?? team.clubName}
                             </Typography>
                         )}
+                        {/*
+                            Die Team-Ampel hält Grün den Teilnahmebedingungen vor: Rechnung und
+                            Wasser können sie nur verschlechtern, nie bestätigen (siehe
+                            `LiveDashboardLogic.invoiceSeverity`/`onWaterSeverity`), deshalb liefert
+                            das Backend hier `NEUTRAL` statt `OK`. Dieses Schild sagt aber nichts
+                            über die Mannschaft insgesamt, sondern genau eine Tatsache ("bezahlt" /
+                            "abgelegt um ...") - und die darf grün sein, wenn sie zutrifft. Nur wenn
+                            sie NICHT zutrifft, zählt der eingestellte Schweregrad.
+                        */}
                         <Chip
                             size="small"
                             label={t(`event.liveDashboard.invoice.${team.invoiceState}`)}
-                            color={severityChipColor[team.invoiceSeverity]}
+                            color={
+                                team.invoiceState === 'PAID'
+                                    ? 'success'
+                                    : severityChipColor[team.invoiceSeverity]
+                            }
                         />
                         {team.onWaterRequired && (
                             <Chip
                                 size="small"
-                                color={severityChipColor[team.onWaterSeverity]}
+                                color={
+                                    team.onWaterAt
+                                        ? 'success'
+                                        : severityChipColor[team.onWaterSeverity]
+                                }
                                 label={
                                     team.onWaterAt
                                         ? t('event.liveDashboard.team.onWaterAt', {

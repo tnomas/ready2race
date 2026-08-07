@@ -125,8 +125,11 @@ object LiveDashboardService {
                     severityConfig.severityFor(competitionId, CheckType.INVOICE_OPEN),
                 )
                 val onWaterSeverity = LiveDashboardLogic.onWaterSeverity(
-                    // Nur bei aktivem Lauf eine Aussage: vorher gehört das Boot noch an den Steg.
-                    evaluated = matchRunning && checkInOutRequired && !deregistered,
+                    evaluated = LiveDashboardLogic.onWaterApplies(
+                        matchRunning = matchRunning,
+                        checkInOutRequired = checkInOutRequired,
+                        deregistered = deregistered,
+                    ),
                     onWater = onWaterAt != null,
                     configured = severityConfig.severityFor(competitionId, CheckType.NOT_ON_WATER),
                 )
