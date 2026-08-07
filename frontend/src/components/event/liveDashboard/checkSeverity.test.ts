@@ -4,8 +4,15 @@ import {
     CheckSeverityConfigDto,
     CheckSeverityEntryDto,
     CheckSeverityRowDefaultDto,
+    CheckSeverityRowDto,
 } from '@api/types.gen.ts'
-import {buildSavePayload, preservedEntries, rowSummary, severityAt} from './checkSeverity.ts'
+import {
+    applicableCells,
+    buildSavePayload,
+    preservedEntries,
+    rowSummary,
+    severityAt,
+} from './checkSeverity.ts'
 
 describe('rowSummary', () => {
     test('nennt den Wert, wenn alle Wettkämpfe ihn teilen', () => {
@@ -106,30 +113,45 @@ describe('preservedEntries', () => {
         checkInOutRequired,
     })
 
+    const row = (
+        checkType: CheckSeverityRowDto['checkType'],
+        requirementId: string | null = null,
+    ): CheckSeverityRowDto => ({checkType, requirementId})
+
     const config = (
         competitions: CheckSeverityCompetitionDto[],
+        rows: CheckSeverityRowDto[],
         entries: CheckSeverityEntryDto[],
     ): CheckSeverityConfigDto => ({
         competitions,
-        rows: [],
+        rows,
         defaults: [],
         entries,
     })
 
-    test('ein gespeicherter Wert für eine nicht mehr anwendbare Kombination wird erhalten', () => {
+    // Die allgemeine Regel: bewahrt wird, was die Matrix aus Wettkämpfen x Zeilen gerade nicht
+    // abdeckt - unabhängig davon, aus welchem Grund die Kombination fehlt.
+
+    test('ein gespeicherter Wert für eine Kombination, die die Matrix nicht (mehr) abdeckt, wird erhalten', () => {
+        // Die Zeile existiert, aber der Wettkampf verlangt keine An-/Abmeldung mehr -
+        // isRowApplicable nimmt die Kombination aus der Matrix.
         const entries: CheckSeverityEntryDto[] = [
             {competitionId: 'c1', checkType: 'NOT_ON_WATER', requirementId: null, severity: 'OK'},
         ]
-        const cfg = config([competition('c1', false)], entries)
+        const cfg = config([competition('c1', false)], [row('NOT_ON_WATER')], entries)
         expect(preservedEntries(cfg)).toEqual(entries)
     })
 
-    test('ein gespeicherter Wert für eine weiterhin anwendbare Kombination wird nicht erhalten', () => {
+    test('ein gespeicherter Wert, dessen Kombination weiterhin in der Matrix steht, wird nicht erhalten', () => {
         const entries: CheckSeverityEntryDto[] = [
             {competitionId: 'c1', checkType: 'NOT_ON_WATER', requirementId: null, severity: 'OK'},
             {competitionId: 'c1', checkType: 'INVOICE_OPEN', requirementId: null, severity: 'WARNING'},
         ]
-        const cfg = config([competition('c1', true)], entries)
+        const cfg = config(
+            [competition('c1', true)],
+            [row('NOT_ON_WATER'), row('INVOICE_OPEN')],
+            entries,
+        )
         expect(preservedEntries(cfg)).toEqual([])
     })
 
@@ -137,8 +159,54 @@ describe('preservedEntries', () => {
         const entries: CheckSeverityEntryDto[] = [
             {competitionId: 'geloescht', checkType: 'INVOICE_OPEN', requirementId: null, severity: 'OK'},
         ]
-        const cfg = config([], entries)
+        const cfg = config([], [row('INVOICE_OPEN')], entries)
         expect(preservedEntries(cfg)).toEqual(entries)
+    })
+
+    test('ein gespeicherter Eintrag, dessen Zeile entfallen ist (z.B. entferntes Prüf-Zeitfenster), wird erhalten', () => {
+        // Wird das Zeitfenster einer Teilnahmebedingung entfernt (checkEarliestMinutesBefore und
+        // checkLatestMinutesBefore auf null), liefert der Server keine REQUIREMENT_TIME_WINDOW-Zeile
+        // mehr in config.rows. Der zuvor gespeicherte Schweregrad dafür steht aber noch in der DB.
+        const entries: CheckSeverityEntryDto[] = [
+            {
+                competitionId: 'c1',
+                checkType: 'REQUIREMENT_TIME_WINDOW',
+                requirementId: 'req-1',
+                severity: 'WARNING',
+            },
+        ]
+        const cfg = config([competition('c1', true)], [], entries)
+        expect(preservedEntries(cfg)).toEqual(entries)
+    })
+
+    test('kein bewahrter Eintrag teilt seine Kombination mit einer Zelle der Matrix', () => {
+        // Das Backend lehnt doppelte Kombinationen aus Wettkampf, Prüfungsart und Bedingung ab -
+        // bewahrte und bearbeitbare Einträge dürfen sich daher nie überschneiden.
+        const entries: CheckSeverityEntryDto[] = [
+            {competitionId: 'c1', checkType: 'NOT_ON_WATER', requirementId: null, severity: 'OK'},
+            {
+                competitionId: 'c1',
+                checkType: 'REQUIREMENT_TIME_WINDOW',
+                requirementId: 'req-1',
+                severity: 'WARNING',
+            },
+        ]
+        const cfg = config(
+            [competition('c1', true), competition('c2', false)],
+            [row('NOT_ON_WATER')],
+            entries,
+        )
+        const cellKeys = new Set(
+            applicableCells(cfg).map(
+                ({competition: c, row: r}) =>
+                    `${c.competitionId}:${r.checkType}:${r.requirementId ?? ''}`,
+            ),
+        )
+        preservedEntries(cfg).forEach(e =>
+            expect(cellKeys.has(`${e.competitionId}:${e.checkType}:${e.requirementId ?? ''}`)).toBe(
+                false,
+            ),
+        )
     })
 })
 

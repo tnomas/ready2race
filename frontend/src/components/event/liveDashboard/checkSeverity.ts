@@ -67,38 +67,58 @@ export const severityAt = (
     'CRITICAL'
 
 /**
- * Ob ein gespeicherter Eintrag zu einer Kombination gehört, die noch einstellbar ist. Anders als
- * `isRowApplicable` bekommt diese Funktion keine passende Zeile mitgegeben, sondern sucht sich
- * den Wettkampf selbst - ein Eintrag zu einem inzwischen nicht mehr existierenden Wettkampf ist
- * damit ebenfalls nicht (mehr) anwendbar und wird wie die anderen bewahrt statt bearbeitet.
+ * Eine Zelle der bearbeitbaren Matrix: eine Kombination aus Wettkampf und Zeile, für die
+ * `isRowApplicable` zutrifft.
  */
-const isEntryApplicable = (
-    entry: Pick<CheckSeverityEntryDto, 'checkType' | 'competitionId'>,
-    competitions: CheckSeverityCompetitionDto[],
-): boolean => {
-    const competition = competitions.find(c => c.competitionId === entry.competitionId)
-    return competition !== undefined && isRowApplicable(entry, competition)
-}
+type MatrixCell = {competition: CheckSeverityCompetitionDto; row: CheckSeverityRowDto}
 
 /**
- * Die gespeicherten Einträge, die zu keiner mehr einstellbaren Kombination gehören - etwa "Nicht
- * auf dem Wasser" für einen Wettkampf, dessen `checkInOutRequired` inzwischen auf `false` steht.
- * Der Dialog zeigt sie nicht an und lässt sie nicht bearbeiten, muss sie aber beim Speichern
- * unverändert an die Nutzlast anhängen - sonst ersetzt `replaceForEvent` sie durch den Standard
- * und der zuvor eingestellte Wert ist unwiederbringlich weg.
+ * Alle Zellen der bearbeitbaren Matrix - dieselbe Kombination aus `config.competitions` und
+ * `config.rows`, gefiltert mit `isRowApplicable`, mit der auch der Verwaltungsdialog seine Matrix
+ * aufbaut. Das ist bewusst die einzige Stelle, an der diese Kombination gebildet wird: Sowohl der
+ * Dialog als auch `preservedEntries` leiten sich davon ab und können so nicht auseinanderlaufen.
  */
-export const preservedEntries = (config: CheckSeverityConfigDto): CheckSeverityEntryDto[] =>
-    config.entries.filter(e => !isEntryApplicable(e, config.competitions))
+export const applicableCells = (
+    config: Pick<CheckSeverityConfigDto, 'competitions' | 'rows'>,
+): MatrixCell[] =>
+    config.competitions.flatMap(competition =>
+        config.rows
+            .filter(row => isRowApplicable(row, competition))
+            .map(row => ({competition, row})),
+    )
 
 const entryKey = (
     e: Pick<CheckSeverityEntryDto, 'competitionId' | 'checkType' | 'requirementId'>,
 ) => `${e.competitionId}:${e.checkType}:${e.requirementId ?? ''}`
 
+const cellKey = ({competition, row}: MatrixCell) =>
+    entryKey({
+        competitionId: competition.competitionId,
+        checkType: row.checkType,
+        requirementId: row.requirementId ?? null,
+    })
+
+/**
+ * Die gespeicherten Einträge, deren Kombination aus Wettkampf, Prüfungsart und Bedingung in der
+ * bearbeitbaren Matrix gerade nicht vorkommt. Der Grund dafür ist unerheblich - die Matrix deckt
+ * die Kombination heute nicht ab, sei es weil `checkInOutRequired` abgeschaltet wurde, der
+ * Wettkampf gelöscht ist, ein Prüf-Zeitfenster entfernt wurde oder aus einem anderen Grund, der
+ * eine Zeile oder einen Wettkampf aus `config` verschwinden lässt. Der Dialog zeigt solche
+ * Einträge nicht an und lässt sie nicht bearbeiten, muss sie aber beim Speichern unverändert an
+ * die Nutzlast anhängen - sonst ersetzt `replaceForEvent` sie durch den Standard und der zuvor
+ * eingestellte Wert ist unwiederbringlich weg.
+ */
+export const preservedEntries = (config: CheckSeverityConfigDto): CheckSeverityEntryDto[] => {
+    const keys = new Set(applicableCells(config).map(cellKey))
+    return config.entries.filter(e => !keys.has(entryKey(e)))
+}
+
 /**
  * Die Nutzlast fürs Speichern: die bearbeitete Matrix, ergänzt um die bewahrten Einträge nicht
- * (mehr) anwendbarer Kombinationen. Ein bewahrter Eintrag, der - z.B. durch eine zwischenzeitliche
- * Änderung der Wettkampf-Flags - inzwischen doch schon in der Matrix steckt, wird nicht noch
- * einmal angehängt: Das Backend lehnt doppelte Einträge derselben Kombination ab.
+ * (mehr) abgedeckter Kombinationen. Ein bewahrter Eintrag, dessen Kombination sich - z.B. durch
+ * eine zwischenzeitliche Änderung der Konfiguration - inzwischen doch schon in der Matrix
+ * wiederfindet, wird nicht noch einmal angehängt: Das Backend lehnt doppelte Einträge derselben
+ * Kombination ab.
  */
 export const buildSavePayload = (
     entries: CheckSeverityEntryDto[],

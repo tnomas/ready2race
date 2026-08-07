@@ -24,6 +24,7 @@ import {CheckSeverity, CheckSeverityEntryDto, CheckSeverityRowDto} from '@api/ty
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {
+    applicableCells,
     buildSavePayload,
     isRowApplicable,
     preservedEntries,
@@ -48,10 +49,11 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const [entries, setEntries] = useState<CheckSeverityEntryDto[]>([])
-    // Gespeicherte Einträge zu nicht (mehr) anwendbaren Kombinationen (z.B. "Nicht auf dem
-    // Wasser" für einen Wettkampf ohne checkInOutRequired). Sie werden nicht angezeigt und nicht
-    // bearbeitet, müssen aber beim Speichern unverändert erhalten bleiben - sonst ersetzt
-    // replaceForEvent sie durch den Standard und der Wert ist unwiederbringlich weg.
+    // Gespeicherte Einträge, deren Kombination aus Wettkampf, Prüfungsart und Bedingung die
+    // Matrix unten gerade nicht abdeckt - gleich aus welchem Grund die Kombination fehlt. Sie
+    // werden nicht angezeigt und nicht bearbeitet, müssen aber beim Speichern unverändert
+    // erhalten bleiben - sonst ersetzt replaceForEvent sie durch den Standard und der Wert ist
+    // unwiederbringlich weg.
     const [preserved, setPreserved] = useState<CheckSeverityEntryDto[]>([])
     // Erst wenn die Matrix mit echten Werten gefüllt ist, darf sie gezeichnet werden - sonst zeigt
     // jede Zeile für einen Renderdurchlauf lang "gemischt" und jedes Feld den Ersatzwert.
@@ -81,22 +83,18 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
     useEffect(() => {
         if (!config) return
         setEntries(
-            config.competitions.flatMap(competition =>
-                config.rows
-                    .filter(row => isRowApplicable(row, competition))
-                    .map(row => ({
-                        competitionId: competition.competitionId,
-                        checkType: row.checkType,
-                        requirementId: row.requirementId,
-                        severity: severityAt(
-                            config,
-                            config.entries,
-                            competition.competitionId,
-                            row.checkType,
-                            row.requirementId ?? null,
-                        ),
-                    })),
-            ),
+            applicableCells(config).map(({competition, row}) => ({
+                competitionId: competition.competitionId,
+                checkType: row.checkType,
+                requirementId: row.requirementId,
+                severity: severityAt(
+                    config,
+                    config.entries,
+                    competition.competitionId,
+                    row.checkType,
+                    row.requirementId ?? null,
+                ),
+            })),
         )
         setPreserved(preservedEntries(config))
         setEntriesReady(true)
