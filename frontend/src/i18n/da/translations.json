@@ -1485,6 +1485,27 @@
         "NOT_CHECKED": "Afventer",
         "beforeStart": "{{delta}} før start",
         "afterStart": "{{delta}} efter start"
+      },
+      "checkSeverity": {
+        "manage": "Administrer kontroller",
+        "title": "Kontrollernes alvorsgrad",
+        "description": "Angiver pr. konkurrence, hvor tungt en ikke-opfyldt kontrol vejer.",
+        "setAll": "sæt alle",
+        "uniform": "alle: {{severity}}",
+        "mixed": "blandet",
+        "noCheckInOut": "ingen ind-/udtjekning påkrævet",
+        "check": {
+          "INVOICE_OPEN": "Faktura åben",
+          "NOT_ON_WATER": "Ikke på vandet",
+          "REQUIREMENT_TIME_WINDOW": "Tidsvindue overskredet"
+        },
+        "severity": {
+          "OK": "OK (uden effekt)",
+          "WARNING": "Advarsel",
+          "CRITICAL": "Kritisk"
+        },
+        "saved": "Indstillinger gemt",
+        "saveError": "Indstillingerne kunne ikke gemmes."
       }
     },
     "schedule": {

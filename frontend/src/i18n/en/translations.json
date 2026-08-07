@@ -1485,6 +1485,27 @@
         "NOT_CHECKED": "Pending",
         "beforeStart": "{{delta}} before start",
         "afterStart": "{{delta}} after start"
+      },
+      "checkSeverity": {
+        "manage": "Manage checks",
+        "title": "Severity of checks",
+        "description": "Sets per competition how much an unmet check weighs.",
+        "setAll": "set all",
+        "uniform": "all: {{severity}}",
+        "mixed": "mixed",
+        "noCheckInOut": "no check-in/out required",
+        "check": {
+          "INVOICE_OPEN": "Invoice open",
+          "NOT_ON_WATER": "Not on the water",
+          "REQUIREMENT_TIME_WINDOW": "Time window violated"
+        },
+        "severity": {
+          "OK": "OK (no effect)",
+          "WARNING": "Warning",
+          "CRITICAL": "Critical"
+        },
+        "saved": "Settings saved",
+        "saveError": "Settings could not be saved."
       }
     },
     "schedule": {

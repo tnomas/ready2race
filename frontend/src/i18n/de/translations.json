@@ -1485,6 +1485,27 @@
         "NOT_CHECKED": "Ausstehend",
         "beforeStart": "{{delta}} vor Start",
         "afterStart": "{{delta}} nach Start"
+      },
+      "checkSeverity": {
+        "manage": "Prüfungen verwalten",
+        "title": "Schweregrad der Prüfungen",
+        "description": "Legt je Wettkampf fest, wie schwer eine nicht erfüllte Prüfung wiegt.",
+        "setAll": "alle setzen",
+        "uniform": "alle: {{severity}}",
+        "mixed": "gemischt",
+        "noCheckInOut": "keine An-/Abmeldung erforderlich",
+        "check": {
+          "INVOICE_OPEN": "Rechnung offen",
+          "NOT_ON_WATER": "Nicht auf dem Wasser",
+          "REQUIREMENT_TIME_WINDOW": "Zeitfenster verletzt"
+        },
+        "severity": {
+          "OK": "OK (ohne Wirkung)",
+          "WARNING": "Warnung",
+          "CRITICAL": "Kritisch"
+        },
+        "saved": "Einstellungen gespeichert",
+        "saveError": "Einstellungen konnten nicht gespeichert werden."
       }
     },
     "schedule": {
