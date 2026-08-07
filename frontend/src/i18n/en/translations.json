@@ -614,6 +614,7 @@
       "ratingCategoryRequired": "Rating category required",
       "registrationCount": "Registrations",
       "shortName": "Short name",
+      "checkInOutRequired": "Requires check-in/out on the water",
       "challenge": {
         "configs": "Challenge configs",
         "resultConfirmationImageRequired": "Confirmation image for results required",

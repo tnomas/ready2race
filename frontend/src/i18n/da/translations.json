@@ -614,6 +614,7 @@
       "ratingCategoryRequired": "Rangeringskategori påkrævet",
       "registrationCount": "Tilmeldinger",
       "shortName": "Kort navn",
+      "checkInOutRequired": "Kræver ind-/udtjekning på vandet",
       "challenge": {
         "configs": "Challenge-indstillinger",
         "resultConfirmationImageRequired": "Bekræftelsesbillede for resultater påkrævet",

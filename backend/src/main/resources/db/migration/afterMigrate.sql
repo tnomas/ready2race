@@ -208,6 +208,7 @@ select c.id,
        cast(nullif(substring(cp.identifier from '\d*$'), '') as int)             as identifier_suffix_no_leading_zeros,
        cp.name,
        cp.short_name,
+       cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
        nps.total_count                                                           as total_count,
@@ -245,8 +246,8 @@ from competition c
          left join event_day_has_competition edhc on c.id = edhc.competition
          left join event_day ed on edhc.event_day = ed.id
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
-group by c.id, c.event, cp.id, cp.identifier, cp.name, cp.short_name, cp.description, cp.late_registration_allowed,
-         cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+group by c.id, c.event, cp.id, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
+         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
          fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required
 ;
 
@@ -259,6 +260,7 @@ select c.id,
        cast(nullif(substring(cp.identifier from '\d*$'), '') as int)             as identifier_suffix_no_leading_zeros,
        cp.name,
        cp.short_name,
+       cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
        nps.total_count                                                           as total_count,
@@ -295,8 +297,8 @@ from competition c
          cross join club cb
          left join competition_registration cr on c.id = cr.competition and cb.id = cr.club
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
-group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.description, cp.late_registration_allowed,
-         cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
+         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
          fs.fees, cb.id, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at,
          cp.rating_category_required;
 
@@ -309,6 +311,7 @@ select c.id,
        cast(nullif(substring(cp.identifier from '\d*$'), '') as int)             as identifier_suffix_no_leading_zeros,
        cp.name,
        cp.short_name,
+       cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
        nps.total_count                                                           as total_count,
@@ -343,8 +346,8 @@ from competition c
                     group by ffcp.competition_properties) fs on cp.id = fs.competition_properties
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 where e.published is true
-group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.description, cp.late_registration_allowed,
-         cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
+         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
          fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required;
 
 create view competition_template_view as
@@ -352,6 +355,7 @@ select ct.id,
        cp.identifier,
        cp.name,
        cp.short_name,
+       cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
        cc.id                                  as category_id,

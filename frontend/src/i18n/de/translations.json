@@ -614,6 +614,7 @@
       "ratingCategoryRequired": "Wertungskategorie erforderlich",
       "registrationCount": "Meldungen",
       "shortName": "Kurzname",
+      "checkInOutRequired": "An-/Abmeldung aufs Wasser erforderlich",
       "challenge": {
         "configs": "Challenge Einstellungen",
         "resultConfirmationImageRequired": "Bestätigungsbild für Ergebnisse erforderlich",

@@ -495,6 +495,10 @@ export type CompetitionPropertiesDto = {
     identifier: string
     name: string
     shortName?: string
+    /**
+     * Whether boats of this competition check in and out at the pontoon. Off for formats without it (e.g. beach sprint) - the referee dashboard then does not judge 'on the water' at all.
+     */
+    checkInOutRequired: boolean
     description?: string
     competitionCategory?: CompetitionCategoryDto
     namedParticipants: Array<NamedParticipantForCompetitionDto>
@@ -508,6 +512,10 @@ export type CompetitionPropertiesRequest = {
     identifier: string
     name: string
     shortName?: string
+    /**
+     * Whether boats of this competition check in and out at the pontoon. Off for formats without it (e.g. beach sprint) - the referee dashboard then does not judge 'on the water' at all.
+     */
+    checkInOutRequired: boolean
     description?: string
     competitionCategory?: string
     namedParticipants: Array<NamedParticipantForCompetitionRequestDto>

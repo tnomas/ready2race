@@ -9114,6 +9114,7 @@ components:
       required:
         - identifier
         - name
+        - checkInOutRequired
         - namedParticipants
         - fees
         - lateRegistrationAllowed
@@ -9126,6 +9127,9 @@ components:
           type: string
         shortName:
           type: string
+        checkInOutRequired:
+          type: boolean
+          description: "Whether boats of this competition check in and out at the pontoon. Off for formats without it (e.g. beach sprint) - the referee dashboard then does not judge 'on the water' at all."
         description:
           type: string
         competitionCategory:
@@ -9223,6 +9227,7 @@ components:
       required:
         - identifier
         - name
+        - checkInOutRequired
         - namedParticipants
         - fees
         - lateRegistrationAllowed
@@ -9234,6 +9239,9 @@ components:
           type: string
         shortName:
           type: string
+        checkInOutRequired:
+          type: boolean
+          description: "Whether boats of this competition check in and out at the pontoon. Off for formats without it (e.g. beach sprint) - the referee dashboard then does not judge 'on the water' at all."
         description:
           type: string
         competitionCategory:
