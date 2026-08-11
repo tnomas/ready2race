@@ -1,6 +1,12 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
+import {createStaleWatch} from '@utils/staleWatch.ts'
 
 const FALLBACK_INTERVAL_SECONDS = 15
+// Erst nach mehreren verpassten Takten wird aus einem alternden Stand eine Warnung — ein
+// einzelner verpasster Abruf über Mobilfunk ist Alltag und soll nichts gelb färben. Wie viele
+// es sein dürfen, entscheidet der Aufrufer: ein fest montierter Bildschirm, an dem niemand
+// steht, meldet sich früher als ein Telefon in der Hand.
+const DEFAULT_STALE_AFTER_MISSED_INTERVALS = 3
 
 export interface PolledState<T> {
     data: T | null
@@ -13,6 +19,14 @@ export interface PolledState<T> {
     // trägt die Stand-von-Warnung — bewusstes Pausieren im Hintergrund zählt nicht als
     // Fehler, weil dabei gar kein Abruf stattfindet.
     loadFailed: boolean
+    /**
+     * true, sobald der letzte gute Stand drei Takte alt ist UND ein Abruf fehlgeschlagen ist.
+     *
+     * Bewusst hier und nicht beim Rendern der Anzeige ausgerechnet: Die Bedingung enthält die
+     * Uhr, und nach dem ersten Fehlversuch rendert nichts mehr, was sie erneut prüfen würde.
+     * Siehe [createStaleWatch].
+     */
+    stale: boolean
 }
 
 /**
@@ -37,25 +51,35 @@ export const usePolledEndpoint = <T>(
     load: (signal: AbortSignal) => Promise<{data?: T; response: Response}>,
     intervalOf: (data: T) => number,
     deps: unknown[],
+    staleAfterMissedIntervals: number = DEFAULT_STALE_AFTER_MISSED_INTERVALS,
 ): PolledState<T> => {
     const [data, setData] = useState<T | null>(null)
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
     const [notFound, setNotFound] = useState(false)
     const [initialLoad, setInitialLoad] = useState(true)
     const [loadFailed, setLoadFailed] = useState(false)
+    const [stale, setStale] = useState(false)
 
     const timerRef = useRef<number | null>(null)
     const intervalRef = useRef(FALLBACK_INTERVAL_SECONDS)
     const abortRef = useRef<AbortController | null>(null)
     const mountedRef = useRef(true)
 
+    // Die Wache wird unten im selben Effekt angelegt wie der Takt und dort auch wieder
+    // angehalten: Ihr Zeitgeber läuft zwischen den Abrufen weiter und ist gerade dann das
+    // einzige, was noch tickt, wenn alle Abrufe scheitern — er darf einen Wechsel der
+    // Veranstaltung oder das Abräumen der Anzeige aber nicht überleben.
+    const staleWatchRef = useRef<ReturnType<typeof createStaleWatch> | null>(null)
+
     // Siehe Kommentar an der Funktion: die beiden Rückrufe werden stets in ihrer neuesten
     // Fassung aufgerufen, damit ein vom Aufrufer nicht in `deps` genannter Wert keinen
     // veralteten Aufruf ergibt.
     const loadRef = useRef(load)
     const intervalOfRef = useRef(intervalOf)
+    const staleAfterMissedIntervalsRef = useRef(staleAfterMissedIntervals)
     loadRef.current = load
     intervalOfRef.current = intervalOf
+    staleAfterMissedIntervalsRef.current = staleAfterMissedIntervals
 
     useEffect(() => {
         mountedRef.current = true
@@ -93,10 +117,14 @@ export const usePolledEndpoint = <T>(
                 setData(result.data)
                 setLastUpdated(new Date())
                 intervalRef.current = intervalOfRef.current(result.data)
+                staleWatchRef.current?.markFresh(
+                    intervalRef.current * staleAfterMissedIntervalsRef.current * 1000,
+                )
             } else {
                 // Antwort ohne Nutzdaten (z. B. HTTP 500): als fehlgeschlagenen Versuch werten,
                 // statt ihn stillschweigend zu ignorieren.
                 setLoadFailed(true)
+                staleWatchRef.current?.markFailed()
             }
         } catch (err) {
             if (err instanceof DOMException && err.name === 'AbortError') {
@@ -105,6 +133,7 @@ export const usePolledEndpoint = <T>(
                 // Netzabbruch o.ä.: letzten guten Stand stehen lassen, aber als
                 // fehlgeschlagenen Versuch markieren (siehe loadFailed oben).
                 setLoadFailed(true)
+                staleWatchRef.current?.markFailed()
             }
         } finally {
             // Wurde dieser Aufruf zwischenzeitlich durch einen neueren abgelöst, überlässt
@@ -123,6 +152,15 @@ export const usePolledEndpoint = <T>(
     }, deps)
 
     useEffect(() => {
+        // Andere Abhängigkeiten heißen: andere Daten. Eine Warnung, die zum vorigen Stand
+        // gehörte, darf nicht über den Wechsel hinweg stehen bleiben.
+        setStale(false)
+        staleWatchRef.current = createStaleWatch({
+            onStale: value => {
+                if (mountedRef.current) setStale(value)
+            },
+        })
+
         void runLoad()
 
         const onVisibilityChange = () => {
@@ -138,8 +176,10 @@ export const usePolledEndpoint = <T>(
             document.removeEventListener('visibilitychange', onVisibilityChange)
             clearTimer()
             abortRef.current?.abort()
+            staleWatchRef.current?.stop()
+            staleWatchRef.current = null
         }
     }, [runLoad])
 
-    return {data, lastUpdated, notFound, initialLoad, loadFailed}
+    return {data, lastUpdated, notFound, initialLoad, loadFailed, stale}
 }
