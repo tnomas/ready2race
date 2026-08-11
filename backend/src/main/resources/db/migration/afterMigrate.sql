@@ -580,7 +580,16 @@ select e.id,
        e.execution_auto_refresh_seconds,
        coalesce(array_agg(distinct er.club) filter ( where er.club is not null ), '{}') as registered_clubs,
        max(cpcc.end_at)                                                                 as challenge_end,
-       err.event is not null                                                            as registrations_finalized
+       err.event is not null                                                            as registrations_finalized,
+       -- Das Betriebsfenster fuer die Helfer-App: ab wann vor Ort gearbeitet wird und wann der
+       -- letzte Renntag ist. Ist an einem Tag nichts gepflegt, zaehlt er ab 00:00 -- ohne diesen
+       -- Rueckfall waere die Auswahl nach der Migration ueberall leer.
+       --
+       -- Der Verbund auf event_day steht schon fuer die Gruppierung; min/max stoert die
+       -- Zeilenvervielfachung durch die uebrigen Verbunde nicht.
+       min(coalesce(ed.operations_start, ed.date::timestamp))                           as operations_start,
+       min(ed.date)                                                                     as first_event_day,
+       max(ed.date)                                                                     as last_event_day
 from event e
          left join competition c on e.id = c.event
          left join competition_properties cp on c.id = cp.competition

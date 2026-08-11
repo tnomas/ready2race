@@ -6,6 +6,7 @@ import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useCallback} from 'react'
 import EntityDialog from '@components/EntityDialog.tsx'
 import FormInputDate from '@components/form/input/FormInputDate.tsx'
+import FormInputDateTime from '@components/form/input/FormInputDateTime.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {eventIndexRoute} from '@routes'
 import {addEventDay, updateEventDay} from '@api/sdk.gen.ts'
@@ -15,6 +16,11 @@ type EventDayForm = {
     date: string
     name: string
     description: string
+    /**
+     * Ab wann an diesem Tag vor Ort gearbeitet wird. Steuert, ab wann die Helfer-App die
+     * Veranstaltung ueberhaupt zur Wahl stellt; leer heisst "ab Tagesbeginn".
+     */
+    operationsStart: string | null
 }
 
 const EventDayDialog = (props: BaseEntityDialogProps<EventDayDto>) => {
@@ -40,6 +46,7 @@ const EventDayDialog = (props: BaseEntityDialogProps<EventDayDto>) => {
         date: '',
         name: '',
         description: '',
+        operationsStart: null,
     }
 
     const formContext = useForm<EventDayForm>()
@@ -59,6 +66,13 @@ const EventDayDialog = (props: BaseEntityDialogProps<EventDayDto>) => {
                 <FormInputDate name="date" label={t('event.eventDay.date')} required />
                 <FormInputText name="name" label={t('event.eventDay.name')} />
                 <FormInputText name="description" label={t('event.eventDay.description')} />
+                {/* Darf bewusst vor dem Tag selbst liegen: Die Akkreditierung des ersten
+                    Renntages findet oft am Vorabend statt. */}
+                <FormInputDateTime
+                    name="operationsStart"
+                    label={t('event.eventDay.operationsStart')}
+                    helperText={t('event.eventDay.operationsStartHint')}
+                />
             </Stack>
         </EntityDialog>
     )
@@ -69,6 +83,7 @@ function mapFormToRequest(formData: EventDayForm): EventDayRequest {
         date: formData.date,
         name: takeIfNotEmpty(formData.name),
         description: takeIfNotEmpty(formData.description),
+        operationsStart: formData.operationsStart ?? undefined,
     }
 }
 
@@ -77,6 +92,7 @@ function mapDtoToForm(dto: EventDayDto): EventDayForm {
         date: dto.date,
         name: dto.name ?? '',
         description: dto.description ?? '',
+        operationsStart: dto.operationsStart ?? null,
     }
 }
 

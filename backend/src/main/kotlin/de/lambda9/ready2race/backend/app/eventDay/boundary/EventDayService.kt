@@ -84,6 +84,7 @@ object EventDayService {
             date = request.date
             name = request.name
             description = request.description
+            operationsStart = request.operationsStart
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()

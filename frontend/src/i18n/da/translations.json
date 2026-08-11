@@ -708,7 +708,9 @@
       "date": "Dato",
       "name": "Navn",
       "description": "Beskrivelse",
-      "assignedCompetitions": "Konkurrencer på denne dag"
+      "assignedCompetitions": "Konkurrencer på denne dag",
+      "operationsStart": "Drift fra",
+      "operationsStartHint": "Hvornår arbejdet på stedet begynder — akkreditering, betingelser, check-in. Må ligge aftenen før. Tom: fra dagens begyndelse."
     },
     "competition": {
       "competition": "Konkurrence",
@@ -2492,8 +2494,15 @@
     "title": "Scanner"
   },
   "qrEvents": {
-    "title": "Arrangementer",
-    "switchApp": "Skift app"
+    "title": "Events",
+    "switchApp": "Skift app",
+    "operating": "I drift",
+    "none": "Der er intet igangværende event.",
+    "noneHint": "Driften begynder med akkrediteringen den første dag.",
+    "showAll": "Alle events",
+    "all": "Alle events",
+    "back": "Tilbage",
+    "noDays": "Ingen arrangementsdage angivet"
   },
   "app": {
     "functionSelect": {

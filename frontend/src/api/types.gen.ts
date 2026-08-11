@@ -1467,12 +1467,20 @@ export type EventDayDto = {
     date: string
     name?: string
     description?: string
+    /**
+     * Start of on-site work on this day (accreditation, requirement checks, check-in/out). May precede the day itself, since accreditation often opens the evening before. Empty means the day counts from 00:00.
+     */
+    operationsStart?: string
 }
 
 export type EventDayRequest = {
     date: string
     name?: string
     description?: string
+    /**
+     * Start of on-site work on this day (accreditation, requirement checks, check-in/out). May precede the day itself, since accreditation often opens the evening before. Empty means the day counts from 00:00.
+     */
+    operationsStart?: string
 }
 
 export type EventDocumentDto = {
@@ -1546,6 +1554,18 @@ export type EventDto = {
      */
     executionAutoRefreshSeconds: number
     challengesFinished?: boolean
+    /**
+     * Start of on-site operations: the earliest operationsStart across all event days, falling back to the start of the day where none is maintained. Together with lastEventDay it forms the window in which the helper app offers the event for selection. Deliberately a date rather than a computed flag, because the app caches its event list for offline use.
+     */
+    operationsStartsAt?: string
+    /**
+     * The first event day, for display only. Not operationsStartsAt, which may fall on the previous evening.
+     */
+    firstEventDay?: string
+    /**
+     * The last event day; the operations window closes at the end of it
+     */
+    lastEventDay?: string
 }
 
 export type EventForExportDto = {
