@@ -114,7 +114,27 @@ data class Config(
         val folderPath: String?,
         val authUser: String,
         val authPassword: String,
-    )
+        val layout: Layout = Layout.NEXTCLOUD,
+    ) {
+
+        /**
+         * Wo ein Server die Dateien eines Nutzers ablegt. Das unterscheidet sich zwischen den
+         * Anbietern und lässt sich nicht aus Host oder Pfad ableiten.
+         */
+        enum class Layout {
+
+            /**
+             * Nextcloud und ownCloud: die Dateien liegen unter `remote.php/dav/files/<user>`.
+             */
+            NEXTCLOUD,
+
+            /**
+             * Der Freigabepfad ist zugleich die Wurzel — so arbeiten pCloud und die meisten
+             * schlichten WebDAV-Server.
+             */
+            PLAIN,
+        }
+    }
 
     companion object {
 
@@ -209,6 +229,10 @@ data class Config(
                 val authUser = !optional("WEBDAV_AUTH_USER")
                 val authPassword = !optional("WEBDAV_AUTH_PASSWORD")
 
+                // Bewusst nicht Teil des Pflichtbündels unten: ohne Angabe bleibt es beim bisherigen
+                // Nextcloud-Layout, damit bestehende Deployments unverändert weiterlaufen.
+                val layout = !optional("WEBDAV_LAYOUT", enum<WebDAV.Layout>())
+
                 if (urlScheme != null && host != null && authUser != null && authPassword != null) {
                     WebDAV(
                         urlScheme = urlScheme,
@@ -216,7 +240,8 @@ data class Config(
                         path = path,
                         folderPath = folderPath,
                         authUser = authUser,
-                        authPassword = authPassword
+                        authPassword = authPassword,
+                        layout = layout ?: WebDAV.Layout.NEXTCLOUD
                     )
                 } else if (urlScheme == null && host == null && authUser == null && authPassword == null && path == null && folderPath == null) {
                     null
