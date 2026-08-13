@@ -15,16 +15,18 @@ object WebDAVService {
         webDAVConfig: Config.WebDAV,
         pathSegments: String
     ): String {
+        val layoutSegments = when (webDAVConfig.layout) {
+            Config.WebDAV.Layout.NEXTCLOUD -> listOf("remote.php", "dav", "files", webDAVConfig.authUser)
+            Config.WebDAV.Layout.PLAIN -> emptyList()
+        }
+
         return URLBuilder(
             protocol = URLProtocol.createOrDefault(webDAVConfig.urlScheme),
             host = webDAVConfig.host,
             pathSegments = listOfNotNull(
                 webDAVConfig.path.takeIf { webDAVConfig.path != "" },
-                "remote.php",
-                "dav",
-                "files",
-                webDAVConfig.authUser,
-            ) + (webDAVConfig.folderPath?.split("/")?.filter { it.isNotEmpty() } ?: emptyList())
+            ) + layoutSegments
+                + (webDAVConfig.folderPath?.split("/")?.filter { it.isNotEmpty() } ?: emptyList())
                 + pathSegments.split("/").filter { it.isNotEmpty() },
         ).buildString()
     }
