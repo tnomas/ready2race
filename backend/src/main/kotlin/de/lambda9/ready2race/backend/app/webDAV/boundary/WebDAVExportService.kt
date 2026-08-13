@@ -132,7 +132,8 @@ object WebDAVExportService {
 
         val checkFolderUrl = WebDAVService.getUrl(
             webDAVConfig = config.webDAV,
-            pathSegments = request.name
+            pathSegments = request.name,
+            asCollection = true
         )
 
         val checkFolderResponse =
@@ -755,7 +756,8 @@ object WebDAVExportService {
             try {
                 val folderUrl = WebDAVService.getUrl(
                     webDAVConfig = webDAVConfig,
-                    pathSegments = path
+                    pathSegments = path,
+                    asCollection = true
                 )
 
                 val response = client.request(folderUrl) {

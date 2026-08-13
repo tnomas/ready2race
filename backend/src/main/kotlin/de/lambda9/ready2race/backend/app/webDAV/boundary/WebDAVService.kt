@@ -24,9 +24,16 @@ object WebDAVService {
      */
     private fun String.toNfc(): String = Normalizer.normalize(this, Normalizer.Form.NFC)
 
+    /**
+     * @param asCollection Adressiert einen Ordner statt einer Datei und haengt einen abschliessenden
+     *   Schraegstrich an. pCloud beantwortet ein MKCOL ohne diesen Schraegstrich mit 409, obwohl der
+     *   uebergeordnete Ordner existiert; Nextcloud ist das gleichgueltig, und die Form mit Slash ist
+     *   die, die RFC 4918 fuer Kollektionen vorsieht.
+     */
     fun getUrl(
         webDAVConfig: Config.WebDAV,
-        pathSegments: String
+        pathSegments: String,
+        asCollection: Boolean = false,
     ): String {
         val layoutSegments = when (webDAVConfig.layout) {
             Config.WebDAV.Layout.NEXTCLOUD -> listOf("remote.php", "dav", "files", webDAVConfig.authUser)
@@ -42,7 +49,7 @@ object WebDAVService {
                 + (webDAVConfig.folderPath?.split("/")?.filter { it.isNotEmpty() } ?: emptyList())
                 + pathSegments.split("/").filter { it.isNotEmpty() })
                 .map { it.toNfc() },
-        ).buildString()
+        ).buildString() + if (asCollection) "/" else ""
     }
 
     fun buildBasicAuthHeader(webDAVConfig: Config.WebDAV): String {

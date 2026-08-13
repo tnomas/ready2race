@@ -95,6 +95,26 @@ class WebDAVServiceUrlTest {
         )
     }
 
+    /**
+     * pCloud beantwortet ein MKCOL ohne abschliessenden Schraegstrich mit 409, auch wenn der
+     * uebergeordnete Ordner existiert. Dateien duerfen ihn dagegen nicht bekommen.
+     */
+    @Test
+    fun `Ordneradressen enden auf einem Schraegstrich`() {
+        assertEquals(
+            "https://cloud.example.org/2026/Export/",
+            WebDAVService.getUrl(
+                config(Config.WebDAV.Layout.PLAIN, folderPath = "/2026"),
+                "Export",
+                asCollection = true,
+            ),
+        )
+        assertEquals(
+            "https://cloud.example.org/2026/Export/Datei.pdf",
+            WebDAVService.getUrl(config(Config.WebDAV.Layout.PLAIN, folderPath = "/2026"), "Export/Datei.pdf"),
+        )
+    }
+
     @Test
     fun `Zerlegter Umlaut im Dateinamen wird zusammengesetzt gesendet`() {
         val nfd = Normalizer.normalize("Förde.pdf", Normalizer.Form.NFD)
