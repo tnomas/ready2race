@@ -767,7 +767,10 @@ object WebDAVExportService {
                     unit
                 } else {
                     val responseMsg = response.bodyAsText()
-                    KIO.fail(WebDAVError.CannotMakeFolder(path, responseMsg))
+                    // Die vollstaendige Adresse statt nur des relativen Pfads: bei einem 409 ist
+                    // genau sie die Information, die fehlt - der Serverfehler sagt nur "Konflikt",
+                    // nicht wohin gesendet wurde.
+                    KIO.fail(WebDAVError.CannotMakeFolder("$path ($folderUrl)", responseMsg))
                 }
             } catch (ex: Exception) {
                 KIO.fail(WebDAVError.Unexpected(ex.stackTraceToString()))
