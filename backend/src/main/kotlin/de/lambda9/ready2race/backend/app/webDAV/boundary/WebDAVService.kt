@@ -7,9 +7,22 @@ import de.lambda9.ready2race.backend.config.Config
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unit
 import io.ktor.http.*
+import java.text.Normalizer
 import java.util.*
 
 object WebDAVService {
+
+    /**
+     * Umlaute lassen sich in Unicode auf zwei Arten schreiben: zusammengesetzt (NFC, „ü" als ein
+     * Zeichen) oder zerlegt (NFD, „u" plus Trema). Beide sehen gleich aus, sind aber verschiedene
+     * Bytefolgen — und für einen WebDAV-Server damit verschiedene Ordner. macOS erzeugt beim Anlegen
+     * im Finder die zerlegte Form, praktisch alles andere die zusammengesetzte; ein aus dem Finder
+     * kopierter Pfad in der `.env` lief deshalb in ein 409, obwohl der Ordner sichtbar existierte.
+     *
+     * Wir schicken darum immer NFC. Das ist die Form, die Server und Weboberflächen verwenden, und
+     * sie ist unabhängig davon, auf welchem System die Konfiguration entstanden ist.
+     */
+    private fun String.toNfc(): String = Normalizer.normalize(this, Normalizer.Form.NFC)
 
     fun getUrl(
         webDAVConfig: Config.WebDAV,
@@ -23,11 +36,12 @@ object WebDAVService {
         return URLBuilder(
             protocol = URLProtocol.createOrDefault(webDAVConfig.urlScheme),
             host = webDAVConfig.host,
-            pathSegments = listOfNotNull(
+            pathSegments = (listOfNotNull(
                 webDAVConfig.path.takeIf { webDAVConfig.path != "" },
             ) + layoutSegments
                 + (webDAVConfig.folderPath?.split("/")?.filter { it.isNotEmpty() } ?: emptyList())
-                + pathSegments.split("/").filter { it.isNotEmpty() },
+                + pathSegments.split("/").filter { it.isNotEmpty() })
+                .map { it.toNfc() },
         ).buildString()
     }
 
