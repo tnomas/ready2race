@@ -2758,7 +2758,18 @@
     "removeAssignmentTitle": "Fjern tildeling",
     "removeAssignmentConfirm": "Vil du virkelig fjerne tildelingen?",
     "deleteError": "Fejl ved sletning af QR-koden.",
-    "assignmentInfo": "Tildelingsinformation"
+    "assignmentInfo": "Tildelingsinformation",
+    "requirement": {
+      "forMatch": "Kontrolleret for",
+      "noMatches": "Der er ikke planlagt et løb for denne person. Kontrollen kan først tilknyttes, når et løb er fastlagt.",
+      "saveError": "Kontrollen kunne ikke gemmes.",
+      "window": {
+        "tooEarly": "For tidligt — kontrollen er planlagt fra {{from}}.",
+        "inWindow": "Inden for kontrolvinduet.",
+        "inWindowUntil": "Inden for kontrolvinduet — indtil {{until}}.",
+        "tooLate": "Vinduet er lukket — det var planlagt til {{until}}. Det kan stadig registreres."
+      }
+    }
   },
   "qrScanner": {
     "title": "Scanner"

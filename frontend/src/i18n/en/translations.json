@@ -2771,7 +2771,18 @@
     "removeAssignmentTitle": "Remove assignment",
     "removeAssignmentConfirm": "Do you really want to remove the assignment?",
     "deleteError": "Error while deleting the QR code.",
-    "assignmentInfo": "Assignment information"
+    "assignmentInfo": "Assignment information",
+    "requirement": {
+      "forMatch": "Checked for",
+      "noMatches": "No race is scheduled for this person. The check can only be assigned once a race is set.",
+      "saveError": "The check could not be saved.",
+      "window": {
+        "tooEarly": "Too early — the check is scheduled from {{from}}.",
+        "inWindow": "Within the check window.",
+        "inWindowUntil": "Within the check window — until {{until}}.",
+        "tooLate": "Window has closed — it was scheduled until {{until}}. You can still record it."
+      }
+    }
   },
   "qrScanner": {
     "title": "Scanner"

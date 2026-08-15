@@ -44,7 +44,7 @@ describe('requirementWindow', () => {
     test('ohne gepflegte Grenzen gibt es kein Fenster', () => {
         expect(
             requirementWindow(
-                {checkEarliestMinutesBefore: null, checkLatestMinutesBefore: null},
+                {checkEarliestMinutesBefore: undefined, checkLatestMinutesBefore: undefined},
                 lauf,
                 start,
             ).status,
@@ -57,11 +57,11 @@ describe('requirementWindow', () => {
     })
 
     test('ein halbes Fenster urteilt nur über die Seite, die es hat', () => {
-        const nurSpaet = {checkEarliestMinutesBefore: null, checkLatestMinutesBefore: 60}
+        const nurSpaet = {checkEarliestMinutesBefore: undefined, checkLatestMinutesBefore: 60}
         expect(requirementWindow(nurSpaet, lauf, minuten(start, -600)).status).toBe('IN_WINDOW')
         expect(requirementWindow(nurSpaet, lauf, minuten(start, -30)).status).toBe('TOO_LATE')
 
-        const nurFrueh = {checkEarliestMinutesBefore: 120, checkLatestMinutesBefore: null}
+        const nurFrueh = {checkEarliestMinutesBefore: 120, checkLatestMinutesBefore: undefined}
         expect(requirementWindow(nurFrueh, lauf, minuten(start, -200)).status).toBe('TOO_EARLY')
         expect(requirementWindow(nurFrueh, lauf, minuten(start, 600)).status).toBe('IN_WINDOW')
     })
@@ -154,7 +154,7 @@ describe('isCheckedForMatch', () => {
     test('ohne Schalter zählt jede Zeile überall', () => {
         const req = {id: 'waage', perEventDay: false, perCompetition: false}
         // Auch eine Zeile aus der Bestandsmigration, die einen Tag trägt.
-        const checked = [{id: 'waage', note: null, eventDay: tag1}]
+        const checked = [{id: 'waage', eventDay: tag1}]
 
         expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
         expect(isCheckedForMatch(req, checked, laufTag2A)).toBe(true)
@@ -169,7 +169,7 @@ describe('isCheckedForMatch', () => {
     /** Der Kernfall: die Wiegung von gestern zählt heute nicht. */
     test('je Tag und Wettkampf muss beides stimmen', () => {
         const req = {id: 'waage', perEventDay: true, perCompetition: true}
-        const checked = [{id: 'waage', note: null, eventDay: tag1, competition: wettkampfA}]
+        const checked = [{id: 'waage', eventDay: tag1, competition: wettkampfA}]
 
         expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
         expect(isCheckedForMatch(req, checked, laufTag2A)).toBe(false)
@@ -178,33 +178,33 @@ describe('isCheckedForMatch', () => {
 
     test('je Tag interessiert der Wettkampf nicht - und umgekehrt', () => {
         const jeTag = {id: 'waage', perEventDay: true, perCompetition: false}
-        const amTag1 = [{id: 'waage', note: null, eventDay: tag1}]
+        const amTag1 = [{id: 'waage', eventDay: tag1}]
         expect(isCheckedForMatch(jeTag, amTag1, laufTag1B)).toBe(true)
         expect(isCheckedForMatch(jeTag, amTag1, laufTag2A)).toBe(false)
 
         const jeWettkampf = {id: 'waage', perEventDay: false, perCompetition: true}
-        const fuerA = [{id: 'waage', note: null, competition: wettkampfA}]
+        const fuerA = [{id: 'waage', competition: wettkampfA}]
         expect(isCheckedForMatch(jeWettkampf, fuerA, laufTag2A)).toBe(true)
         expect(isCheckedForMatch(jeWettkampf, fuerA, laufTag1B)).toBe(false)
     })
 
     test('eine Zeile ohne Tag deckt bei eingeschaltetem Schalter keinen Lauf ab', () => {
         const req = {id: 'waage', perEventDay: true, perCompetition: false}
-        expect(isCheckedForMatch(req, [{id: 'waage', note: null}], laufTag1A)).toBe(false)
+        expect(isCheckedForMatch(req, [{id: 'waage'}], laufTag1A)).toBe(false)
     })
 
     test('Zeilen anderer Bedingungen zählen nicht mit', () => {
         const req = {id: 'waage', perEventDay: true, perCompetition: false}
-        const fremd = [{id: 'bootsabnahme', note: null, eventDay: tag1}]
+        const fremd = [{id: 'bootsabnahme', eventDay: tag1}]
         expect(isCheckedForMatch(req, fremd, laufTag1A)).toBe(false)
     })
 
     test('eine passende Zeile unter mehreren genügt', () => {
         const req = {id: 'waage', perEventDay: true, perCompetition: true}
         const checked = [
-            {id: 'waage', note: null, eventDay: tag1, competition: wettkampfB},
-            {id: 'waage', note: null, eventDay: tag2, competition: wettkampfA},
-            {id: 'waage', note: null, eventDay: tag1, competition: wettkampfA},
+            {id: 'waage', eventDay: tag1, competition: wettkampfB},
+            {id: 'waage', eventDay: tag2, competition: wettkampfA},
+            {id: 'waage', eventDay: tag1, competition: wettkampfA},
         ]
         expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
     })

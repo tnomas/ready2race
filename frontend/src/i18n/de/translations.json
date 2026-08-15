@@ -2771,7 +2771,18 @@
     "removeAssignmentTitle": "Zuordnung entfernen",
     "removeAssignmentConfirm": "Möchten Sie die Zuordnung wirklich entfernen?",
     "deleteError": "Fehler beim Löschen des QR-Codes.",
-    "assignmentInfo": "Zuordnungsinformationen"
+    "assignmentInfo": "Zuordnungsinformationen",
+    "requirement": {
+      "forMatch": "Geprüft für",
+      "noMatches": "Für diese Person ist kein Lauf gesetzt. Die Prüfung lässt sich erst zuordnen, wenn ein Lauf feststeht.",
+      "saveError": "Die Prüfung konnte nicht gespeichert werden.",
+      "window": {
+        "tooEarly": "Noch zu früh — die Prüfung ist ab {{from}} vorgesehen.",
+        "inWindow": "Im Prüffenster.",
+        "inWindowUntil": "Im Prüffenster — noch bis {{until}}.",
+        "tooLate": "Fenster vorbei — vorgesehen war bis {{until}}. Eintragen ist weiter möglich."
+      }
+    }
   },
   "qrScanner": {
     "title": "Scanner"

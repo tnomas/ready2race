@@ -1,10 +1,11 @@
 import {Alert, Box, Button, Stack} from '@mui/material'
 import {useEffect, useState} from 'react'
 import {
-    approveParticipantRequirementsForEvent,
     deleteQrCode,
+    getParticipantMatchScopes,
     getParticipantRequirementsForParticipant,
     getParticipantsForEventInApp,
+    setParticipantRequirementCheck,
 } from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
 import {useAppSession} from '@contexts/app/AppSessionContext'
@@ -21,14 +22,15 @@ import {QrDeleteDialog} from '@components/qrApp/QrDeleteDialog'
 import {TeamCheckInOut} from '@components/qrApp/TeamCheckInOut'
 import {RequirementsChecklist} from '@components/qrApp/RequirementsChecklist'
 import AppTopTitle from '@components/qrApp/AppTopTitle.tsx'
-import {CheckedParticipantRequirement} from "@api/types.gen.ts";
+import {CheckedParticipantRequirement, ParticipantMatchScopeDto} from '@api/types.gen.ts'
 
 const QrParticipantPage = () => {
     const {t} = useTranslation()
     const {qr, appFunction, eventId, navigateTo} = useAppSession()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [checkedRequirements, setCheckedRequirements] = useState<CheckedParticipantRequirement[]>([])
-    const [participantRoles, setParticipantRoles] = useState<string[]>([])
+    // Die Läufe der Person: Vorbelegung der Auswahl und Bezugspunkt des Prüffensters.
+    const [matchScopes, setMatchScopes] = useState<ParticipantMatchScopeDto[]>([])
     const [participantRequirementsPending, setParticipantRequirementsPending] = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const feedback = useFeedback()
@@ -69,7 +71,10 @@ const QrParticipantPage = () => {
                                 ? participant.participantRequirementsChecked
                                 : [],
                         )
-                        setParticipantRoles(participant?.namedParticipantIds ?? [])
+                        const {data: matchData} = await getParticipantMatchScopes({
+                            path: {eventId, participantId: qr.response?.id ?? ''},
+                        })
+                        setMatchScopes(matchData ?? [])
                     } else {
                         feedback.error(
                             t('common.load.error.multiple.short', {
@@ -85,21 +90,39 @@ const QrParticipantPage = () => {
         },
     )
 
+    /**
+     * Hakt genau eine Prüfung ab oder nimmt sie zurück.
+     *
+     * Bewusst über den eigenen Endpunkt und nicht mehr über `approveParticipantRequirementsForEvent`:
+     * Jener Weg beschreibt die **vollständige** Liste der Erfüllten einer Bedingung und löscht
+     * jeden, der nicht mitgeschickt wird. Mit einer einzelnen Person im Rumpf - so hat die App
+     * bis hierher gerufen - nahm er damit allen anderen Gemeldeten ihre Erfüllung weg.
+     *
+     * [match] sagt, für welchen Lauf geprüft wurde. Was davon gespeichert wird, entscheidet die
+     * Bedingung im Backend; hier wird schlicht mitgeschickt, was die Auswahl hergibt.
+     */
     const handleRequirementChange = async (
         requirementId: string,
-        checked: boolean | string,
-        namedParticipantId?: string,
+        checked: boolean,
+        match: ParticipantMatchScopeDto | null,
+        note?: string,
     ) => {
         if (!qr.response?.id) return
         setSubmitting(true)
-        await approveParticipantRequirementsForEvent({
+        const {error} = await setParticipantRequirementCheck({
             path: {eventId},
             body: {
                 requirementId,
-                approvedParticipants: checked !== false ? [{id: qr.response.id, note: typeof checked === 'string' ? checked : undefined}] : [],
-                namedParticipantId: namedParticipantId,
+                participantId: qr.response.id,
+                checked,
+                note,
+                eventDay: match?.eventDay,
+                competition: match?.competitionId,
             },
         })
+        if (error) {
+            feedback.error(t('qrParticipant.requirement.saveError'))
+        }
 
         // Nach Änderung neu laden
         const {data: partData} = await getParticipantsForEventInApp({path: {eventId}})
@@ -177,9 +200,9 @@ const QrParticipantPage = () => {
                 <RequirementsChecklist
                     requirements={participantRequirementsData ?? []}
                     checkedRequirements={checkedRequirements}
+                    matches={matchScopes}
                     pending={participantRequirementsPending}
                     onRequirementChange={handleRequirementChange}
-                    namedParticipantIds={participantRoles}
                 />
             )}
 
