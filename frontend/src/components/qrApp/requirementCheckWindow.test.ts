@@ -1,6 +1,8 @@
 import {describe, expect, test} from 'vitest'
 import {
+    isCheckedForMatch,
     matchScopeLabel,
+    needsMatchSelection,
     preselectedMatch,
     requirementWindow,
 } from '@components/qrApp/requirementCheckWindow.ts'
@@ -121,6 +123,90 @@ describe('preselectedMatch', () => {
 
     test('ohne Läufe gibt es nichts vorzubelegen', () => {
         expect(preselectedMatch([], jetzt)).toBeNull()
+    })
+})
+
+describe('needsMatchSelection', () => {
+    test('ohne Schalter bleibt es ein einzelner Haken', () => {
+        expect(needsMatchSelection({perEventDay: false, perCompetition: false})).toBe(false)
+        // Der Bestand kennt die Felder noch gar nicht - auch dann keine Auswahl.
+        expect(needsMatchSelection({})).toBe(false)
+    })
+
+    test('jeder einzelne Schalter verlangt eine Auswahl', () => {
+        expect(needsMatchSelection({perEventDay: true, perCompetition: false})).toBe(true)
+        expect(needsMatchSelection({perEventDay: false, perCompetition: true})).toBe(true)
+        expect(needsMatchSelection({perEventDay: true, perCompetition: true})).toBe(true)
+    })
+})
+
+describe('isCheckedForMatch', () => {
+    const tag1 = 'tag-1'
+    const tag2 = 'tag-2'
+    const wettkampfA = 'wk-a'
+    const wettkampfB = 'wk-b'
+
+    const laufTag1A = {eventDay: tag1, competitionId: wettkampfA}
+    const laufTag2A = {eventDay: tag2, competitionId: wettkampfA}
+    const laufTag1B = {eventDay: tag1, competitionId: wettkampfB}
+
+    /** Die wichtigste Probe: eine Bedingung ohne Schalter verhält sich wie eh und je. */
+    test('ohne Schalter zählt jede Zeile überall', () => {
+        const req = {id: 'waage', perEventDay: false, perCompetition: false}
+        // Auch eine Zeile aus der Bestandsmigration, die einen Tag trägt.
+        const checked = [{id: 'waage', note: null, eventDay: tag1}]
+
+        expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
+        expect(isCheckedForMatch(req, checked, laufTag2A)).toBe(true)
+        expect(isCheckedForMatch(req, checked, laufTag1B)).toBe(true)
+        expect(isCheckedForMatch(req, checked, null)).toBe(true)
+    })
+
+    test('ohne jede Zeile ist nichts erfüllt', () => {
+        expect(isCheckedForMatch({id: 'waage'}, [], laufTag1A)).toBe(false)
+    })
+
+    /** Der Kernfall: die Wiegung von gestern zählt heute nicht. */
+    test('je Tag und Wettkampf muss beides stimmen', () => {
+        const req = {id: 'waage', perEventDay: true, perCompetition: true}
+        const checked = [{id: 'waage', note: null, eventDay: tag1, competition: wettkampfA}]
+
+        expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
+        expect(isCheckedForMatch(req, checked, laufTag2A)).toBe(false)
+        expect(isCheckedForMatch(req, checked, laufTag1B)).toBe(false)
+    })
+
+    test('je Tag interessiert der Wettkampf nicht - und umgekehrt', () => {
+        const jeTag = {id: 'waage', perEventDay: true, perCompetition: false}
+        const amTag1 = [{id: 'waage', note: null, eventDay: tag1}]
+        expect(isCheckedForMatch(jeTag, amTag1, laufTag1B)).toBe(true)
+        expect(isCheckedForMatch(jeTag, amTag1, laufTag2A)).toBe(false)
+
+        const jeWettkampf = {id: 'waage', perEventDay: false, perCompetition: true}
+        const fuerA = [{id: 'waage', note: null, competition: wettkampfA}]
+        expect(isCheckedForMatch(jeWettkampf, fuerA, laufTag2A)).toBe(true)
+        expect(isCheckedForMatch(jeWettkampf, fuerA, laufTag1B)).toBe(false)
+    })
+
+    test('eine Zeile ohne Tag deckt bei eingeschaltetem Schalter keinen Lauf ab', () => {
+        const req = {id: 'waage', perEventDay: true, perCompetition: false}
+        expect(isCheckedForMatch(req, [{id: 'waage', note: null}], laufTag1A)).toBe(false)
+    })
+
+    test('Zeilen anderer Bedingungen zählen nicht mit', () => {
+        const req = {id: 'waage', perEventDay: true, perCompetition: false}
+        const fremd = [{id: 'bootsabnahme', note: null, eventDay: tag1}]
+        expect(isCheckedForMatch(req, fremd, laufTag1A)).toBe(false)
+    })
+
+    test('eine passende Zeile unter mehreren genügt', () => {
+        const req = {id: 'waage', perEventDay: true, perCompetition: true}
+        const checked = [
+            {id: 'waage', note: null, eventDay: tag1, competition: wettkampfB},
+            {id: 'waage', note: null, eventDay: tag2, competition: wettkampfA},
+            {id: 'waage', note: null, eventDay: tag1, competition: wettkampfA},
+        ]
+        expect(isCheckedForMatch(req, checked, laufTag1A)).toBe(true)
     })
 })
 

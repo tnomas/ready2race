@@ -122,5 +122,9 @@ fun CheckedParticipantRequirementRecord.toDto(): App<Nothing, CheckedParticipant
     CheckedParticipantRequirement(
         id = id!!,
         note = note,
+        // Wofür abgehakt wurde - die App am Steg entscheidet damit, ob der Haken für den
+        // gezeigten Lauf überhaupt zählt.
+        eventDay = eventDay,
+        competition = competition,
     )
 )

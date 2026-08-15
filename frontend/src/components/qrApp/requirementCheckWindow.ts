@@ -1,4 +1,8 @@
-import {ParticipantMatchScopeDto, ParticipantRequirementForEventDto} from '@api/types.gen.ts'
+import {
+    CheckedParticipantRequirement,
+    ParticipantMatchScopeDto,
+    ParticipantRequirementForEventDto,
+} from '@api/types.gen.ts'
 
 /**
  * Das Erledigungsfenster einer Bedingung, aus Sicht der App am Steg.
@@ -88,6 +92,39 @@ export const preselectedMatch = (
 
     return matches[0]
 }
+
+/**
+ * Braucht diese Bedingung beim Abhaken überhaupt eine Auswahl? Ohne Schalter bleibt es ein
+ * einzelner Haken - genau wie bisher, und das ist der häufige Fall.
+ */
+export const needsMatchSelection = (
+    requirement: Pick<ParticipantRequirementForEventDto, 'perEventDay' | 'perCompetition'>,
+): boolean => requirement.perEventDay === true || requirement.perCompetition === true
+
+/**
+ * Ist die Bedingung **für diesen Lauf** abgehakt?
+ *
+ * Die Anzeige-Entsprechung zu `RequirementScopeLogic.covers` im Backend, und aus demselben Grund
+ * hier nötig: Der Haken am Steg muss den Zustand des gewählten Laufs zeigen, nicht irgendeinen.
+ * Verglichen wird nur, was der Schalter verlangt - steht er an, muss die Dimension exakt stimmen,
+ * auch gegen "nicht gesetzt".
+ *
+ * Maßgeblich ist und bleibt das Backend: Was hier grün aussieht, entscheidet über nichts. Wer die
+ * Regel ändert, ändert sie dort zuerst.
+ */
+export const isCheckedForMatch = (
+    requirement: Pick<ParticipantRequirementForEventDto, 'id' | 'perEventDay' | 'perCompetition'>,
+    checked: CheckedParticipantRequirement[],
+    match: Pick<ParticipantMatchScopeDto, 'eventDay' | 'competitionId'> | null,
+): boolean =>
+    checked
+        .filter(c => c.id === requirement.id)
+        .some(
+            c =>
+                (requirement.perEventDay !== true || (c.eventDay ?? null) === (match?.eventDay ?? null)) &&
+                (requirement.perCompetition !== true ||
+                    (c.competition ?? null) === (match?.competitionId ?? null)),
+        )
 
 /**
  * Wie ein Lauf in der Auswahl heißt. Die Rennnummer trägt am Steg am meisten - sie steht auf dem

@@ -12110,6 +12110,14 @@ components:
           format: uuid
         note:
           type: string
+        eventDay:
+          type: string
+          format: uuid
+          description: "Fuer welchen Wettkampftag abgehakt wurde (leer = ohne diese Einschraenkung)"
+        competition:
+          type: string
+          format: uuid
+          description: "Fuer welchen Wettkampf abgehakt wurde (leer = ohne diese Einschraenkung)"
 
     ParticipantRequirementForEventDto:
       type: object

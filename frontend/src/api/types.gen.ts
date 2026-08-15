@@ -710,6 +710,14 @@ export type ChallengeTeamInfoDto = {
 export type CheckedParticipantRequirement = {
     id: string
     note?: string
+    /**
+     * Fuer welchen Wettkampftag abgehakt wurde (leer = ohne diese Einschraenkung)
+     */
+    eventDay?: string
+    /**
+     * Fuer welchen Wettkampf abgehakt wurde (leer = ohne diese Einschraenkung)
+     */
+    competition?: string
 }
 
 /**
