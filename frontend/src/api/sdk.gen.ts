@@ -500,6 +500,9 @@ import type {
     ApproveParticipantRequirementsForEventData,
     ApproveParticipantRequirementsForEventError,
     ApproveParticipantRequirementsForEventResponse,
+    SetParticipantRequirementCheckData,
+    SetParticipantRequirementCheckError,
+    SetParticipantRequirementCheckResponse,
     GetActiveParticipantRequirementsForEventData,
     GetActiveParticipantRequirementsForEventError,
     GetActiveParticipantRequirementsForEventResponse,
@@ -524,6 +527,9 @@ import type {
     GetParticipantRequirementsForParticipantData,
     GetParticipantRequirementsForParticipantError,
     GetParticipantRequirementsForParticipantResponse,
+    GetParticipantMatchScopesData,
+    GetParticipantMatchScopesError,
+    GetParticipantMatchScopesResponse,
     GetParticipantsForEventData,
     GetParticipantsForEventError,
     GetParticipantsForEventResponse,
@@ -3128,6 +3134,23 @@ export const approveParticipantRequirementsForEvent = <ThrowOnError extends bool
     })
 }
 
+/**
+ * Hakt genau eine Pruefung ab oder nimmt sie zurueck - der Weg der App am Steg. Anders als /approve beschreibt dieser Weg nur diese eine Person und laesst alle anderen Erfuellungen der Bedingung unangetastet.
+ *
+ */
+export const setParticipantRequirementCheck = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetParticipantRequirementCheckData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        SetParticipantRequirementCheckResponse,
+        SetParticipantRequirementCheckError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/check',
+    })
+}
+
 export const getActiveParticipantRequirementsForEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetActiveParticipantRequirementsForEventData, ThrowOnError>,
 ) => {
@@ -3232,6 +3255,23 @@ export const getParticipantRequirementsForParticipant = <ThrowOnError extends bo
     >({
         ...options,
         url: '/event/{eventId}/participantRequirement/participant/{participantId}',
+    })
+}
+
+/**
+ * Die Laeufe der Person samt ihrem Wettkampftag - Grundlage dafuer, dass die App beim Abhaken Wettkampf und Tag vorbelegen und das Erledigungsfenster gegen den richtigen Start rechnen kann.
+ *
+ */
+export const getParticipantMatchScopes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetParticipantMatchScopesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetParticipantMatchScopesResponse,
+        GetParticipantMatchScopesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/participant/{participantId}/matches',
     })
 }
 

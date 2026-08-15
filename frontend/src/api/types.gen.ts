@@ -2941,6 +2941,21 @@ export type ParticipantInfo = {
     externalClubName?: string
 }
 
+export type ParticipantMatchScopeDto = {
+    competitionId: string
+    competitionName: string
+    competitionIdentifier?: string
+    competitionShortName?: string
+    /**
+     * Der Wettkampftag des Laufs, im Backend bestimmt - die App schickt ihn unveraendert zurueck
+     */
+    eventDay?: string
+    eventDayDate?: string
+    startTime?: string
+    matchName?: string
+    roundName?: string
+}
+
 export type ParticipantQrAssignmentDto = {
     participantId: string
     firstname: string
@@ -2987,6 +3002,18 @@ export type ParticipantRequirementCheckForEventUpsertDto = {
     requirementId: string
     approvedParticipants: Array<CheckedParticipantRequirement>
     namedParticipantId?: string | null
+}
+
+export type ParticipantRequirementCheckSingleDto = {
+    requirementId: string
+    participantId: string
+    /**
+     * true hakt ab, false nimmt genau diese Pruefung zurueck
+     */
+    checked: boolean
+    note?: string
+    eventDay?: string
+    competition?: string
 }
 
 export type ParticipantRequirementDto = {
@@ -3039,6 +3066,22 @@ export type ParticipantRequirementForEventDto = {
      */
     publiclyVisible: boolean
     requirements?: Array<NamedParticipantRequirementForEventDto>
+    /**
+     * Gilt je Wettkampftag - die Pruefung von gestern zaehlt heute nicht
+     */
+    perEventDay?: boolean
+    /**
+     * Gilt je Wettkampf - eine Pruefung fuer Wettkampf A zaehlt fuer B nicht
+     */
+    perCompetition?: boolean
+    /**
+     * Fruehestens so viele Minuten vor dem Start pruefbar
+     */
+    checkEarliestMinutesBefore?: number
+    /**
+     * Spaetestens so viele Minuten vor dem Start pruefbar
+     */
+    checkLatestMinutesBefore?: number
 }
 
 export type ParticipantRequirementUpsertDto = {
@@ -6495,6 +6538,20 @@ export type ApproveParticipantRequirementsForEventError =
     | ApiError
     | UnprocessableEntityError
 
+export type SetParticipantRequirementCheckData = {
+    body: ParticipantRequirementCheckSingleDto
+    path: {
+        eventId: string
+    }
+}
+
+export type SetParticipantRequirementCheckResponse = void
+
+export type SetParticipantRequirementCheckError =
+    | BadRequestError
+    | ApiError
+    | UnprocessableEntityError
+
 export type GetActiveParticipantRequirementsForEventData = {
     path: {
         eventId: string
@@ -6613,6 +6670,17 @@ export type GetParticipantRequirementsForParticipantError =
     | BadRequestError
     | ApiError
     | UnprocessableEntityError
+
+export type GetParticipantMatchScopesData = {
+    path: {
+        eventId: string
+        participantId: string
+    }
+}
+
+export type GetParticipantMatchScopesResponse = Array<ParticipantMatchScopeDto>
+
+export type GetParticipantMatchScopesError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetParticipantsForEventData = {
     path: {
