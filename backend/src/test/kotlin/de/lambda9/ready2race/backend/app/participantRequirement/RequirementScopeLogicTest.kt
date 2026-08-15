@@ -232,6 +232,142 @@ class RequirementScopeLogicTest {
         assertEquals(null, ohneBezug.until)
     }
 
+    // -------------------------------------------------------------------------------------
+    // Zu früh / im Fenster / zu spät - was am Steg über dem Haken steht
+    // -------------------------------------------------------------------------------------
+
+    /** 120 bis 60 Minuten vor dem Start - das Beispiel des Auftraggebers. */
+    private fun waageFenster() =
+        RequirementScopeLogic.window(start, earliestMinutesBefore = 120, latestMinutesBefore = 60)
+
+    @Test
+    fun beforeTheWindowOpensItIsTooEarly() {
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.TOO_EARLY,
+            RequirementScopeLogic.windowStatus(start.minusMinutes(121), waageFenster()),
+        )
+    }
+
+    @Test
+    fun insideTheWindowIncludingItsEdges() {
+        listOf(
+            start.minusMinutes(120), // exakt beim Öffnen
+            start.minusMinutes(90),
+            start.minusMinutes(60), // exakt beim Schließen
+        ).forEach {
+            assertEquals(
+                RequirementScopeLogic.WindowStatus.IN_WINDOW,
+                RequirementScopeLogic.windowStatus(it, waageFenster()),
+                "Wer um $it wiegt, ist im Fenster",
+            )
+        }
+    }
+
+    @Test
+    fun afterTheWindowClosesItIsTooLate() {
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.TOO_LATE,
+            RequirementScopeLogic.windowStatus(start.minusMinutes(59), waageFenster()),
+        )
+        // Auch noch nach dem Start - das Rennen läuft, gewogen wird jetzt nicht mehr.
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.TOO_LATE,
+            RequirementScopeLogic.windowStatus(start.plusMinutes(5), waageFenster()),
+        )
+    }
+
+    @Test
+    fun withoutBoundsOrReferenceThereIsNothingToSay() {
+        // Keine Grenzen gepflegt: die Bedingung hat kein Fenster.
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.NO_WINDOW,
+            RequirementScopeLogic.windowStatus(start, RequirementScopeLogic.window(start, null, null)),
+        )
+        // Grenzen gepflegt, aber kein Bezugspunkt (Lauf ohne Startzeit): ebenso wenig.
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.NO_WINDOW,
+            RequirementScopeLogic.windowStatus(start, RequirementScopeLogic.window(null, 120, 60)),
+        )
+    }
+
+    @Test
+    fun halfAWindowJudgesOnlyTheSideItHas() {
+        // Nur eine späte Grenze: zu früh kann es nicht sein.
+        val nurSpaet = RequirementScopeLogic.window(start, earliestMinutesBefore = null, latestMinutesBefore = 60)
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.IN_WINDOW,
+            RequirementScopeLogic.windowStatus(start.minusDays(1), nurSpaet),
+        )
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.TOO_LATE,
+            RequirementScopeLogic.windowStatus(start.minusMinutes(30), nurSpaet),
+        )
+
+        // Nur eine frühe Grenze: zu spät kann es nicht sein.
+        val nurFrueh = RequirementScopeLogic.window(start, earliestMinutesBefore = 120, latestMinutesBefore = null)
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.TOO_EARLY,
+            RequirementScopeLogic.windowStatus(start.minusMinutes(200), nurFrueh),
+        )
+        assertEquals(
+            RequirementScopeLogic.WindowStatus.IN_WINDOW,
+            RequirementScopeLogic.windowStatus(start.plusDays(1), nurFrueh),
+        )
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Welche Zeile die Schiedsrichter-Ansicht zeigt
+    // -------------------------------------------------------------------------------------
+
+    private data class Zeile(val dim: Fulfillment, val zeit: LocalDateTime)
+
+    private fun pick(scope: Scope, zeilen: List<Zeile>, match: MatchScope) =
+        RequirementScopeLogic.pickCovering(scope, zeilen, match, { it.dim }, { it.zeit })
+
+    /**
+     * Der Kernfall des Auftraggebers, hier auf der Ebene "welcher Beleg wird gezeigt": Die
+     * Wiegung von gestern darf heute nicht einmal mehr als Zeitpunkt danebenstehen.
+     */
+    @Test
+    fun yesterdaysRowIsNotPickedForTodaysMatch() {
+        val scope = Scope(perEventDay = true, perCompetition = true)
+        val gestern = Zeile(Fulfillment(tag1, wettkampfA), start.minusDays(1))
+
+        assertEquals(gestern, pick(scope, listOf(gestern), laufTag1A))
+        assertEquals(null, pick(scope, listOf(gestern), laufTag2A))
+    }
+
+    @Test
+    fun amongCoveringRowsTheLatestWins() {
+        val scope = Scope.forWholeEvent
+        val frueh = Zeile(Fulfillment(tag1, null), start.minusHours(5))
+        val spaet = Zeile(Fulfillment(tag2, null), start.minusHours(1))
+
+        // Bewusst in "falscher" Reihenfolge übergeben: es entscheidet der Zeitpunkt, nicht die
+        // Position in der Liste - sonst hinge die Anzeige an der Sortierung der Datenbank.
+        assertEquals(spaet, pick(scope, listOf(spaet, frueh), laufTag1A))
+        assertEquals(spaet, pick(scope, listOf(frueh, spaet), laufTag1A))
+    }
+
+    @Test
+    fun theLatestRowIsPickedOnlyAmongThoseThatCover() {
+        val scope = Scope(perEventDay = true, perCompetition = false)
+        val passendAberAelter = Zeile(Fulfillment(tag1, null), start.minusHours(5))
+        val neuerAberFalscherTag = Zeile(Fulfillment(tag2, null), start.minusMinutes(5))
+
+        // Die jüngste Zeile insgesamt ist die vom falschen Tag - genommen wird trotzdem die
+        // ältere, die den Lauf abdeckt.
+        assertEquals(
+            passendAberAelter,
+            pick(scope, listOf(passendAberAelter, neuerAberFalscherTag), laufTag1A),
+        )
+    }
+
+    @Test
+    fun nothingCoveringYieldsNothing() {
+        assertEquals(null, pick(Scope.forWholeEvent, emptyList(), laufTag1A))
+    }
+
     @Test
     fun perCompetitionMeasuresAgainstTheMatchInQuestion() {
         val naechsterEigenerStart = start.minusHours(3)

@@ -92,6 +92,49 @@ object RequirementScopeLogic {
     ): Boolean = fulfillments.any { covers(scope, it, match) }
 
     /**
+     * Die maßgebliche gespeicherte Zeile für einen Lauf: unter allen, die ihn abdecken
+     * ([covers]), die zuletzt eingetragene.
+     *
+     * Warum überhaupt eine Auswahl und nicht nur das Ja/Nein aus [isFulfilled]: Die
+     * Schiedsrichter-Ansicht zeigt neben dem Haken auch Zeitpunkt und Notiz der Prüfung. Nähme
+     * sie dafür irgendeine Zeile, stünde am Sonntag der Zeitpunkt der Wiegung vom Samstag
+     * daneben - der Haken wäre richtig und sein Beleg falsch. Aus demselben Grund entscheidet
+     * hier ausdrücklich der Zeitpunkt und nicht die Reihenfolge der Abfrage: `maxByOrNull`
+     * statt "die letzte Zeile", die von der Sortierung der Datenbank abhinge.
+     *
+     * [dimensions] und [checkedAt] halten die Funktion frei von jOOQ - die Aufrufer reichen
+     * Records herein, die Tests einfache Datenklassen.
+     */
+    fun <T> pickCovering(
+        scope: Scope,
+        rows: Collection<T>,
+        match: MatchScope,
+        dimensions: (T) -> Fulfillment,
+        checkedAt: (T) -> LocalDateTime,
+    ): T? = rows.filter { covers(scope, dimensions(it), match) }.maxByOrNull { checkedAt(it) }
+
+    /**
+     * Wo steht [now] zum Erledigungsfenster? Die Frage, die am Steg auf dem Telefon beantwortet
+     * werden muss, bevor jemand abhakt.
+     *
+     * [NO_WINDOW] heißt "die Bedingung kennt keine Grenzen oder es gibt keinen Bezugspunkt" -
+     * ausdrücklich nicht "in Ordnung": Wo nichts eingestellt ist, gibt es auch nichts zu
+     * bestätigen, und ein grünes "im Fenster" wäre eine Aussage, die niemand getroffen hat.
+     *
+     * Ein halbes Fenster bleibt halb (siehe [window]): Fehlt die frühe Grenze, kann es nur zu
+     * spät sein, fehlt die späte, nur zu früh. Die Grenzen selbst zählen als drinnen - wer auf
+     * die Minute genau erscheint, ist pünktlich.
+     */
+    enum class WindowStatus { TOO_EARLY, IN_WINDOW, TOO_LATE, NO_WINDOW }
+
+    fun windowStatus(now: LocalDateTime, window: CheckWindow): WindowStatus = when {
+        window.from == null && window.until == null -> WindowStatus.NO_WINDOW
+        window.from != null && now.isBefore(window.from) -> WindowStatus.TOO_EARLY
+        window.until != null && now.isAfter(window.until) -> WindowStatus.TOO_LATE
+        else -> WindowStatus.IN_WINDOW
+    }
+
+    /**
      * Der Wettkampftag eines Laufs. Ein Wettkampf kann an mehreren Tagen hängen
      * (`event_day_has_competition`), deshalb entscheidet zuerst das Datum der Startzeit; erst
      * wenn das nichts hergibt, greift der Fall "der Wettkampf hat ohnehin nur einen Tag".

@@ -37,6 +37,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.*
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic
 import org.jooq.Record
 import java.time.Duration
 import java.time.LocalDateTime
@@ -64,6 +65,7 @@ object LiveDashboardService {
             val teamRecords = !LiveDashboardRepo.getTeams(eventId).orDie()
             val requirementRecords = !LiveDashboardRepo.getEventRequirements(eventId).orDie()
             val checkRecords = !LiveDashboardRepo.getChecks(eventId).orDie()
+            val competitionEventDayRecords = !LiveDashboardRepo.getCompetitionEventDays(eventId).orDie()
             val invoiceRecords = !LiveDashboardRepo.getInvoicePaymentsByClub(eventId).orDie()
             val substitutionRecords = !SubstitutionRepo.getByEvent(eventId, null, Privilege.Scope.GLOBAL).orDie()
             // Letzter Steg-Scan je Person: Grundlage für "Boot ist in der Arena" pro Team.
@@ -111,8 +113,14 @@ object LiveDashboardService {
             val clubShortNames = !ClubShortNameSettings.load()
             val wornClubs = !wornClubsByParticipant(teamRecords, substitutionRecords)
 
-            val context =
-                ParticipantContext(requirementRecords, checkRecords, substitutionRecords, severityConfig, wornClubs)
+            val context = ParticipantContext(
+                requirementRecords,
+                checkRecords,
+                competitionEventDayRecords,
+                substitutionRecords,
+                severityConfig,
+                wornClubs,
+            )
 
             val paidAtsByClub = invoiceRecords.groupBy(
                 { it[INVOICE_FOR_EVENT_REGISTRATION.CLUB] },
@@ -442,6 +450,7 @@ object LiveDashboardService {
         val startTime = !LiveDashboardRepo.getMatchStartTime(matchId).orDie()
         val requirementRecords = !LiveDashboardRepo.getEventRequirements(eventId).orDie()
         val checkRecords = !LiveDashboardRepo.getChecks(eventId).orDie()
+        val competitionEventDayRecords = !LiveDashboardRepo.getCompetitionEventDays(eventId).orDie()
         val substitutionRecords = !SubstitutionRepo.getByEvent(eventId, null, Privilege.Scope.GLOBAL).orDie()
         val severityConfig = LiveDashboardLogic.buildCheckSeverityConfig(
             !CheckSeverityRepo.getByEvent(eventId).orDie().map { rows ->
@@ -475,6 +484,7 @@ object LiveDashboardService {
             context = ParticipantContext(
                 requirementRecords,
                 checkRecords,
+                competitionEventDayRecords,
                 substitutionRecords,
                 severityConfig,
                 !wornClubsByParticipant(teamRecords, substitutionRecords),
@@ -882,6 +892,8 @@ object LiveDashboardService {
     private class ParticipantContext(
         requirementRecords: List<Record>,
         checkRecords: List<Record>,
+        /** Wettkampf -> Wettkampftage, siehe [LiveDashboardRepo.getCompetitionEventDays]. */
+        competitionEventDayRecords: List<Record>,
         substitutionRecords: List<SubstitutionViewRecord>,
         /** Abweichende Schweregrade der Veranstaltung, siehe [CheckSeverityConfig]. */
         val severityConfig: CheckSeverityConfig,
@@ -903,24 +915,73 @@ object LiveDashboardService {
         val requirementInfos = requirementRecords.distinctBy { it[PARTICIPANT_REQUIREMENT.ID] }
 
         /**
-         * (Person, Bedingung) -> die maßgebliche abgehakte Zeile.
+         * (Person, Bedingung) -> alle abgehakten Zeilen, ungefiltert.
          *
          * Seit V202608141900 kann es je Kombination mehrere Zeilen geben - eine je Tag bzw. je
-         * Wettkampf. Bis die Schiedsrichter-Ansicht die Dimension des gezeigten Laufs selbst
-         * heranzieht (dafür liegt [de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic]
-         * bereit), gewinnt hier die zuletzt eingetragene: `associateBy` allein nähme
-         * kommentarlos die letzte Zeile der Abfrage und wäre damit von der Sortierung der
-         * Datenbank abhängig. Für den Vorgabefall "gilt je Veranstaltung" bleibt es bei genau
-         * einer Zeile und damit beim bisherigen Verhalten.
+         * Wettkampf. Welche davon für einen bestimmten Lauf zählt, kann diese Aufstellung noch
+         * gar nicht wissen: dazu gehören Tag und Wettkampf des Laufs, und die stehen erst in
+         * [checkFor] fest.
          */
         val checksByKey = checkRecords
             .groupBy {
                 it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.PARTICIPANT]!! to
                     it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.PARTICIPANT_REQUIREMENT]!!
             }
-            .mapValues { (_, rows) ->
-                rows.maxBy { it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.CREATED_AT]!! }
-            }
+
+        /** Die beiden Schalter je Bedingung; ohne Eintrag gilt der Vorgabefall (je Veranstaltung). */
+        val scopeByRequirement: Map<UUID, RequirementScopeLogic.Scope> = requirementRecords.associate { req ->
+            req[PARTICIPANT_REQUIREMENT.ID]!! to RequirementScopeLogic.Scope(
+                // jOOQ typisiert die NOT-NULL-Spalten als Boolean? (siehe Conversions.kt) -
+                // `== true` wahrt hier nur den Kotlin-Typ.
+                perEventDay = req[PARTICIPANT_REQUIREMENT.PER_EVENT_DAY] == true,
+                perCompetition = req[PARTICIPANT_REQUIREMENT.PER_COMPETITION] == true,
+            )
+        }
+
+        private val eventDaysByCompetition: Map<UUID, List<RequirementScopeLogic.EventDayRef>> =
+            competitionEventDayRecords
+                .groupBy({ it[EVENT_DAY_HAS_COMPETITION.COMPETITION]!! }) {
+                    RequirementScopeLogic.EventDayRef(id = it[EVENT_DAY.ID]!!, date = it[EVENT_DAY.DATE]!!)
+                }
+
+        /**
+         * Die maßgebliche abgehakte Zeile **für diesen Lauf** - oder null, wenn die Bedingung
+         * hier nicht erfüllt ist.
+         *
+         * Das ist die Stelle, an der "erfüllt" seit dem 15.08.2026 "erfüllt für diesen Lauf"
+         * heißt. Vorher gewann je (Person, Bedingung) einfach die zuletzt eingetragene Zeile;
+         * eine Wiegung von gestern galt damit heute weiter, und eine Wiegung für den
+         * 14-Uhr-Wettkampf zählte für den um 16 Uhr mit. Welche Dimensionen überhaupt
+         * verglichen werden, entscheiden allein die Schalter der Bedingung - bei beiden aus
+         * bleibt es exakt beim bisherigen Verhalten.
+         */
+        fun checkFor(
+            participantId: UUID,
+            requirementId: UUID,
+            competitionId: UUID,
+            startTime: LocalDateTime?,
+        ): Record? {
+            val scope = scopeByRequirement[requirementId] ?: RequirementScopeLogic.Scope.forWholeEvent
+            val match = RequirementScopeLogic.MatchScope(
+                eventDay = RequirementScopeLogic.eventDayOf(
+                    startTime,
+                    eventDaysByCompetition[competitionId] ?: emptyList(),
+                ),
+                competition = competitionId,
+            )
+            return RequirementScopeLogic.pickCovering(
+                scope = scope,
+                rows = checksByKey[participantId to requirementId] ?: emptyList(),
+                match = match,
+                dimensions = {
+                    RequirementScopeLogic.Fulfillment(
+                        eventDay = it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.EVENT_DAY],
+                        competition = it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.COMPETITION],
+                    )
+                },
+                checkedAt = { it[PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.CREATED_AT]!! },
+            )
+        }
 
         /** (round, registration) -> substitutions applying to that team in that round, ordered */
         val substitutionsByKey = substitutionRecords
@@ -1036,7 +1097,9 @@ object LiveDashboardService {
                     }
                     .map { req ->
                         val requirementId = req[PARTICIPANT_REQUIREMENT.ID]!!
-                        val check = context.checksByKey[p.id to requirementId]
+                        // "Erfüllt" heißt hier "erfüllt für diesen Lauf": Tag und Wettkampf des
+                        // Laufs entscheiden mit, soweit die Bedingung das verlangt.
+                        val check = context.checkFor(p.id, requirementId, competitionId, startTime)
                         // checked und timeCheck aus derselben Quelle (check) ableiten: requirementSeverity
                         // verlässt sich darauf, dass ein nicht abgehaktes Ergebnis nie LATE/TOO_EARLY
                         // trägt - computeTimeCheck liefert dafür ohne checkedAt immer NOT_CHECKED.

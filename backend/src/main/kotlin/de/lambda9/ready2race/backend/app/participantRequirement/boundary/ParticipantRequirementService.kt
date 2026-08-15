@@ -7,8 +7,12 @@ import de.lambda9.ready2race.backend.app.participant.boundary.ParticipantService
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantForEventRepo
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.app.participant.entity.ParticipantError
+import de.lambda9.ready2race.backend.app.eventDay.control.EventDayHasCompetitionRepo
 import de.lambda9.ready2race.backend.app.participantRequirement.control.*
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.*
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_DAY
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_DAY_HAS_COMPETITION
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.calls.requests.logger
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
@@ -163,6 +167,140 @@ object ParticipantRequirementService {
         !forUpdate.traverse {
             ParticipantHasRequirementForEventRepo.updateNote(it.id, eventId, dto.requirementId, it.note)
         }.orDie()
+
+        noData
+    }
+
+    /**
+     * Die Läufe einer Person samt ihrem Wettkampftag - was die App braucht, um beim Abhaken
+     * Wettkampf und Tag vorzubelegen und das Erledigungsfenster gegen den richtigen Start zu
+     * rechnen.
+     *
+     * Der Tag wird hier bestimmt und nicht in der App (siehe [ParticipantMatchScopeDto]).
+     * Sortiert kommt die Liste bereits aus der Abfrage: nach Startzeit, Läufe ohne Termin
+     * zuletzt. Welcher davon "der nächste" ist, entscheidet die App - sie kennt die Uhrzeit des
+     * Geräts, und am Steg ist genau die maßgeblich.
+     */
+    fun getMatchScopesForParticipant(
+        eventId: UUID,
+        participantId: UUID,
+    ): App<Nothing, ApiResponse.ListDto<ParticipantMatchScopeDto>> = KIO.comprehension {
+
+        val eventDayRows = !EventDayHasCompetitionRepo.getEventDaysForEvent(eventId).orDie()
+        val daysByCompetition = eventDayRows.groupBy({ it[EVENT_DAY_HAS_COMPETITION.COMPETITION]!! }) {
+            RequirementScopeLogic.EventDayRef(id = it[EVENT_DAY.ID]!!, date = it[EVENT_DAY.DATE]!!)
+        }
+
+        val matches = !ParticipantRequirementForEventRepo.getMatchesForParticipant(eventId, participantId).orDie()
+
+        KIO.ok(
+            ApiResponse.ListDto(
+                matches.map { row ->
+                    val competitionId = row.get("competition_id", UUID::class.java)!!
+                    val startTime = row[COMPETITION_MATCH.START_TIME]
+                    val days = daysByCompetition[competitionId] ?: emptyList()
+                    val eventDay = RequirementScopeLogic.eventDayOf(startTime, days)
+                    ParticipantMatchScopeDto(
+                        competitionId = competitionId,
+                        competitionName = row.get("competition_name", String::class.java) ?: "",
+                        competitionIdentifier = row.get("competition_identifier", String::class.java),
+                        competitionShortName = row.get("competition_short_name", String::class.java),
+                        eventDay = eventDay,
+                        eventDayDate = days.firstOrNull { it.id == eventDay }?.date,
+                        startTime = startTime,
+                        matchName = row.get("match_name", String::class.java),
+                        roundName = row.get("round_name", String::class.java),
+                    )
+                }
+            )
+        )
+    }
+
+    /**
+     * Hakt genau eine Prüfung ab oder nimmt sie zurück - der Weg der App am Steg.
+     *
+     * Drei Dinge unterscheiden ihn von [approveRequirementForEvent]:
+     *
+     * 1. Er rührt keine andere Person an. [approveRequirementForEvent] beschreibt die
+     *    vollständige Liste der Erfüllten und löscht per `deleteWhereParticipantNotInList`
+     *    jeden, der nicht mitgeschickt wurde - richtig für die Auswahlliste der Meldestelle,
+     *    aber nicht für einen einzelnen Scan.
+     * 2. Er schreibt die Dimensionen, und zwar über [RequirementScopeLogic.keyFor]: Was die
+     *    Bedingung nicht verlangt, wird ausdrücklich zu null, auch wenn der Aufrufer es
+     *    mitschickt. Die Bedingung entscheidet über ihren Geltungsbereich, nicht der Aufrufer.
+     * 3. Er nimmt beim Entfernen nur die eine Dimensionszeile zurück ([deleteForKey]) und nicht
+     *    alle Nachweise der Person zu dieser Bedingung.
+     *
+     * Verlangt die Bedingung eine Dimension, die der Aufrufer nicht mitschickt, scheitert der
+     * Aufruf. Der stillschweigende Ausweg wäre schlimmer: eine Zeile ohne Tag deckt bei
+     * eingeschaltetem `perEventDay` **keinen** Lauf ab (siehe [RequirementScopeLogic.covers]) -
+     * am Steg stünde ein Haken, den die Schiedsrichter-Ansicht nirgends als erfüllt liest.
+     */
+    fun setRequirementCheckForParticipant(
+        eventId: UUID,
+        dto: ParticipantRequirementCheckSingleDto,
+        userId: UUID,
+    ): App<ParticipantRequirementError, ApiResponse.NoData> = KIO.comprehension {
+
+        // Über die Veranstaltungssicht statt der globalen Tabelle: sie beantwortet zugleich, ob
+        // die Bedingung zu dieser Veranstaltung gehört und aktiv ist.
+        val requirement = !ParticipantRequirementForEventRepo.get(eventId, onlyActive = true).orDie()
+            .map { rows -> rows.firstOrNull { it.id == dto.requirementId } }
+            .onNullFail { ParticipantRequirementError.NotFound }
+
+        val scope = RequirementScopeLogic.Scope(
+            // jOOQ typisiert die NOT-NULL-Spalten der Sicht als Boolean?, siehe Conversions.kt.
+            perEventDay = requirement.perEventDay == true,
+            perCompetition = requirement.perCompetition == true,
+        )
+        val key = RequirementScopeLogic.keyFor(
+            scope,
+            RequirementScopeLogic.MatchScope(eventDay = dto.eventDay, competition = dto.competition),
+        )
+
+        if (scope.perEventDay && key.eventDay == null) {
+            return@comprehension KIO.fail(
+                ParticipantRequirementError.InvalidConfig("Missing eventDay" to dto.requirementId.toString())
+            )
+        }
+        if (scope.perCompetition && key.competition == null) {
+            return@comprehension KIO.fail(
+                ParticipantRequirementError.InvalidConfig("Missing competition" to dto.requirementId.toString())
+            )
+        }
+
+        if (!dto.checked) {
+            !ParticipantHasRequirementForEventRepo.deleteForKey(
+                eventId, dto.requirementId, dto.participantId, key.eventDay, key.competition
+            ).orDie()
+            return@comprehension noData
+        }
+
+        val alreadyThere = !ParticipantHasRequirementForEventRepo.existsForKey(
+            eventId, dto.requirementId, dto.participantId, key.eventDay, key.competition
+        ).orDie()
+
+        if (alreadyThere) {
+            // Erneutes Abhaken ist kein Fehler - am Steg wird ein Haken auch mal doppelt
+            // gesetzt. Es zieht nur die Notiz nach; der Zeitpunkt bleibt der der ersten
+            // Prüfung, denn der ist der Beleg.
+            !ParticipantHasRequirementForEventRepo.updateNoteForKey(
+                eventId, dto.requirementId, dto.participantId, key.eventDay, key.competition, dto.note
+            ).orDie()
+        } else {
+            !ParticipantHasRequirementForEventRepo.create(
+                ParticipantHasRequirementForEventRecord(
+                    event = eventId,
+                    participant = dto.participantId,
+                    participantRequirement = dto.requirementId,
+                    eventDay = key.eventDay,
+                    competition = key.competition,
+                    note = dto.note,
+                    createdBy = userId,
+                    createdAt = LocalDateTime.now(),
+                )
+            ).orDie()
+        }
 
         noData
     }

@@ -4487,6 +4487,36 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/participantRequirement/check:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    post:
+      operationId: setParticipantRequirementCheck
+      description: >
+        Hakt genau eine Pruefung ab oder nimmt sie zurueck - der Weg der App am Steg.
+        Anders als /approve beschreibt dieser Weg nur diese eine Person und laesst alle
+        anderen Erfuellungen der Bedingung unangetastet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantRequirementCheckSingleDto'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
   /event/{eventId}/participantRequirement/active:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -4692,6 +4722,40 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ParticipantRequirementForEventDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/participantRequirement/participant/{participantId}/matches:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: participantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getParticipantMatchScopes
+      description: >
+        Die Laeufe der Person samt ihrem Wettkampftag - Grundlage dafuer, dass die App beim
+        Abhaken Wettkampf und Tag vorbelegen und das Erledigungsfenster gegen den richtigen
+        Start rechnen kann.
+      responses:
+        200:
+          description: Match scopes for participant successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ParticipantMatchScopeDto'
         400:
           $ref: '#/components/responses/400'
         401:
@@ -12078,6 +12142,73 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NamedParticipantRequirementForEventDto'
+        perEventDay:
+          type: boolean
+          description: "Gilt je Wettkampftag - die Pruefung von gestern zaehlt heute nicht"
+        perCompetition:
+          type: boolean
+          description: "Gilt je Wettkampf - eine Pruefung fuer Wettkampf A zaehlt fuer B nicht"
+        checkEarliestMinutesBefore:
+          type: integer
+          description: "Fruehestens so viele Minuten vor dem Start pruefbar"
+        checkLatestMinutesBefore:
+          type: integer
+          description: "Spaetestens so viele Minuten vor dem Start pruefbar"
+
+    ParticipantMatchScopeDto:
+      type: object
+      required:
+        - competitionId
+        - competitionName
+      properties:
+        competitionId:
+          type: string
+          format: uuid
+        competitionName:
+          type: string
+        competitionIdentifier:
+          type: string
+        competitionShortName:
+          type: string
+        eventDay:
+          type: string
+          format: uuid
+          description: "Der Wettkampftag des Laufs, im Backend bestimmt - die App schickt ihn unveraendert zurueck"
+        eventDayDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          format: date-time
+        matchName:
+          type: string
+        roundName:
+          type: string
+
+    ParticipantRequirementCheckSingleDto:
+      type: object
+      required:
+        - requirementId
+        - participantId
+        - checked
+      properties:
+        requirementId:
+          type: string
+          format: uuid
+        participantId:
+          type: string
+          format: uuid
+        checked:
+          type: boolean
+          description: "true hakt ab, false nimmt genau diese Pruefung zurueck"
+        note:
+          type: string
+        eventDay:
+          type: string
+          format: uuid
+        competition:
+          type: string
+          format: uuid
 
     NamedParticipantRequirementForEventDto:
       type: object

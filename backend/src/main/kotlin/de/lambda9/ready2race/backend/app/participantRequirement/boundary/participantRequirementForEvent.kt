@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.participant.entity.ParticipantImportReq
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.AssignRequirementToNamedParticipantDto
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.ParticipantRequirementCheckForEventConfigDto
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.ParticipantRequirementCheckForEventUpsertDto
+import de.lambda9.ready2race.backend.app.participantRequirement.entity.ParticipantRequirementCheckSingleDto
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.ParticipantRequirementForEventSort
 import de.lambda9.ready2race.backend.app.participantRequirement.entity.UpdateQrCodeRequirementDto
 import de.lambda9.ready2race.backend.calls.requests.*
@@ -122,6 +123,22 @@ fun Route.participantRequirementForEvent() {
             }
         }
 
+        /**
+         * Der Weg der App am Steg: eine Person, eine Bedingung, ein Lauf. Bewusst getrennt von
+         * `/approve`, das die vollständige Liste einer Bedingung beschreibt und alles Übrige
+         * löscht - siehe [ParticipantRequirementService.setRequirementCheckForParticipant].
+         */
+        route("/check") {
+            post {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateEventGlobal, Privilege.UpdateAppEventRequirementGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(ParticipantRequirementCheckSingleDto.example)
+                    ParticipantRequirementService.setRequirementCheckForParticipant(eventId, body, user.id!!)
+                }
+            }
+        }
+
         route("/{participantRequirementId}") {
 
             get {
@@ -204,6 +221,22 @@ fun Route.participantRequirementForEvent() {
                     val onlyForApp = !queryParam("onlyForApp", boolean)
 
                     ParticipantRequirementService.getForParticipant(eventId, participantId, onlyForApp)
+                }
+            }
+
+            /**
+             * Die Läufe der Person - womit die App beim Abhaken Wettkampf und Tag vorbelegt und
+             * das Erledigungsfenster gegen den richtigen Start rechnet.
+             */
+            route("/matches") {
+                get {
+                    call.respondComprehension {
+                        !authenticateAny(Privilege.ReadEventGlobal, Privilege.UpdateAppEventRequirementGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val participantId = !pathParam("participantId", uuid)
+
+                        ParticipantRequirementService.getMatchScopesForParticipant(eventId, participantId)
+                    }
                 }
             }
         }

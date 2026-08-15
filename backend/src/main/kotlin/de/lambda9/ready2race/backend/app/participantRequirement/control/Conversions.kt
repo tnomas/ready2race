@@ -75,6 +75,11 @@ fun ParticipantRequirementForEventRecord.toDto(): App<Nothing, ParticipantRequir
         checkInApp = checkInApp!!,
         publiclyVisible = publiclyVisible ?: false,
         requirements = requirements?.filterNotNull()?.map { it.toNamedParticipantRequirementDto() } ?: emptyList(),
+        // Dieselbe Nullbarkeitsfalle wie oben: in der Datenbank NOT NULL, bei jOOQ Boolean?.
+        perEventDay = perEventDay ?: false,
+        perCompetition = perCompetition ?: false,
+        checkEarliestMinutesBefore = checkEarliestMinutesBefore,
+        checkLatestMinutesBefore = checkLatestMinutesBefore,
     )
 )
 

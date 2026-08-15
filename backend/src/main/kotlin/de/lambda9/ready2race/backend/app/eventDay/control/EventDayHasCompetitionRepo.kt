@@ -2,8 +2,10 @@ package de.lambda9.ready2race.backend.app.eventDay.control
 
 import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventDayHasCompetitionRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_DAY
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_DAY_HAS_COMPETITION
 import de.lambda9.ready2race.backend.database.insert
+import de.lambda9.tailwind.jooq.Jooq
 import de.lambda9.ready2race.backend.database.insertJsonData
 import de.lambda9.ready2race.backend.database.selectAsJson
 import java.util.*
@@ -18,5 +20,23 @@ object EventDayHasCompetitionRepo {
     fun getAsJson(competitionId: UUID) = EVENT_DAY_HAS_COMPETITION.selectAsJson { COMPETITION.eq(competitionId) }
 
     fun insertJsonData(data: String) = EVENT_DAY_HAS_COMPETITION.insertJsonData(data)
+
+    /**
+     * Wettkampf, Tag und dessen Datum für eine ganze Veranstaltung - die Zuordnung, aus der
+     * `RequirementScopeLogic.eventDayOf` den Tag eines Laufs bestimmt. Das Datum muss mit, weil
+     * die Startzeit des Laufs entscheidet und nicht die Kennung.
+     */
+    fun getEventDaysForEvent(eventId: UUID) = Jooq.query {
+        select(
+            EVENT_DAY_HAS_COMPETITION.COMPETITION,
+            EVENT_DAY.ID,
+            EVENT_DAY.DATE,
+        )
+            .from(EVENT_DAY_HAS_COMPETITION)
+            .join(EVENT_DAY)
+            .on(EVENT_DAY_HAS_COMPETITION.EVENT_DAY.eq(EVENT_DAY.ID))
+            .where(EVENT_DAY.EVENT.eq(eventId))
+            .fetch()
+    }
 
 }

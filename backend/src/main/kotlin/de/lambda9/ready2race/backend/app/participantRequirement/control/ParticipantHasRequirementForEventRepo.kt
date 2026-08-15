@@ -109,6 +109,87 @@ object ParticipantHasRequirementForEventRepo {
             )
         }
 
+    /**
+     * Die Bedingung auf genau eine Dimensionszeile - dieselbe Spaltenmenge, die der eindeutige
+     * Index `participant_has_requirement_for_event_uq` trägt.
+     *
+     * `isNotDistinctFrom` statt `eq`, weil beide Dimensionen null sein dürfen und `x = null` in
+     * SQL niemals wahr wird. Das ist die Kotlin-Entsprechung zum `nulls not distinct` des Index:
+     * "kein Tag" ist hier ein Wert wie jeder andere und nicht ein unbekannter.
+     */
+    private fun dimensionCondition(eventDay: UUID?, competition: UUID?) = DSL.and(
+        PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.EVENT_DAY.isNotDistinctFrom(eventDay),
+        PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.COMPETITION.isNotDistinctFrom(competition),
+    )
+
+    /**
+     * Gibt es genau diese Erfüllung schon - Person, Veranstaltung, Bedingung **und** Dimensionen?
+     *
+     * Anders als [exists] fragt das dimensionsscharf: Wer für den Samstag gewogen ist, hat für
+     * den Sonntag noch nichts, und beides sind eigene Zeilen.
+     */
+    fun existsForKey(
+        eventId: UUID,
+        participantRequirementId: UUID,
+        participantId: UUID,
+        eventDay: UUID?,
+        competition: UUID?,
+    ) = PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.exists {
+        DSL.and(
+            EVENT.eq(eventId),
+            PARTICIPANT_REQUIREMENT.eq(participantRequirementId),
+            PARTICIPANT.eq(participantId),
+            dimensionCondition(eventDay, competition),
+        )
+    }
+
+    /**
+     * Nimmt genau eine Dimensionszeile zurück. Das Gegenstück zu [delete], das alle Zeilen einer
+     * Person zu einer Bedingung trifft: Wer am Steg den Haken für den Sonntag entfernt, darf die
+     * Wiegung vom Samstag nicht mitlöschen - sie ist ein eigener, bereits erbrachter Nachweis.
+     */
+    fun deleteForKey(
+        eventId: UUID,
+        participantRequirementId: UUID,
+        participantId: UUID,
+        eventDay: UUID?,
+        competition: UUID?,
+    ) = PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT.delete {
+        DSL.and(
+            EVENT.eq(eventId),
+            PARTICIPANT_REQUIREMENT.eq(participantRequirementId),
+            PARTICIPANT.eq(participantId),
+            dimensionCondition(eventDay, competition),
+        )
+    }
+
+    /**
+     * Zieht die Notiz genau einer Dimensionszeile nach - dimensionsscharfes Gegenstück zu
+     * [updateNote]. Zur `update`-Anweisung statt des Record-Musters siehe dort.
+     */
+    fun updateNoteForKey(
+        eventId: UUID,
+        participantRequirementId: UUID,
+        participantId: UUID,
+        eventDay: UUID?,
+        competition: UUID?,
+        note: String?,
+    ) = Jooq.query {
+        with(PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT) {
+            update(this)
+                .set(NOTE, note)
+                .where(
+                    DSL.and(
+                        EVENT.eq(eventId),
+                        PARTICIPANT_REQUIREMENT.eq(participantRequirementId),
+                        PARTICIPANT.eq(participantId),
+                        dimensionCondition(eventDay, competition),
+                    )
+                )
+                .execute()
+        }
+    }
+
     fun getApprovedRequirements(eventId: UUID, participantId: UUID) =
         CHECKED_PARTICIPANT_REQUIREMENT.select {
             DSL.and(

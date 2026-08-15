@@ -253,6 +253,28 @@ object LiveDashboardRepo {
         }
     }
 
+    /**
+     * Welche Wettkampftage an welchem Wettkampf hängen - die Zuordnung, aus der
+     * [de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic.eventDayOf]
+     * den Tag eines Laufs bestimmt.
+     *
+     * Ein Wettkampf kann an mehreren Tagen stattfinden, deshalb kommt die Zuordnung als Liste
+     * und nicht als eine Spalte am Lauf. Das Datum muss mit, weil die Startzeit des Laufs
+     * entscheidet und nicht die Kennung.
+     */
+    fun getCompetitionEventDays(eventId: UUID) = Jooq.query {
+        select(
+            EVENT_DAY_HAS_COMPETITION.COMPETITION,
+            EVENT_DAY.ID,
+            EVENT_DAY.DATE,
+        )
+            .from(EVENT_DAY_HAS_COMPETITION)
+            .join(EVENT_DAY)
+            .on(EVENT_DAY_HAS_COMPETITION.EVENT_DAY.eq(EVENT_DAY.ID))
+            .where(EVENT_DAY.EVENT.eq(eventId))
+            .fetch()
+    }
+
     fun getInvoicePaymentsByClub(eventId: UUID) = Jooq.query {
         with(INVOICE_FOR_EVENT_REGISTRATION) {
             select(CLUB, PAID_AT)
