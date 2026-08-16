@@ -24,16 +24,17 @@ import {
     medalEmoji,
     SpeakerBadges,
     SpeakerMatch,
-    speakerColors,
     SpeakerStatus,
-    statusColor,
+    statusColorOf,
 } from './speakerData.ts'
+import {useSpeakerColors} from './speakerSettings.ts'
 import {ParticipantBadges} from './SpeakerBadges.tsx'
 
 type Props = {
     matches: SpeakerMatch[]
     badges: SpeakerBadges
     onSelectMatch: (match: SpeakerMatch) => void
+    onSelectParticipant: (participantId: string) => void
 }
 
 const matchesSearch = (match: SpeakerMatch, search: string): boolean => {
@@ -61,8 +62,9 @@ const matchesSearch = (match: SpeakerMatch, search: string): boolean => {
         .every(word => haystack.includes(word))
 }
 
-const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
+const SpeakerProgramTable = ({matches, badges, onSelectMatch, onSelectParticipant}: Props) => {
     const {t} = useTranslation()
+    const colors = useSpeakerColors()
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState<SpeakerStatus | null>(null)
     const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -88,6 +90,18 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
             return next
         })
 
+    const headerCellSx = {
+        color: colors.textSecondary,
+        borderBottom: `1px solid ${colors.border}`,
+        fontWeight: 'bold',
+        whiteSpace: 'nowrap',
+    }
+
+    const bodyCellSx = {
+        color: colors.text,
+        borderBottom: `1px solid ${colors.border}`,
+    }
+
     return (
         <Box>
             <Stack direction={'row'} spacing={1} flexWrap={'wrap'} useFlexGap sx={{mb: 1.5}}>
@@ -99,17 +113,17 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                     sx={{
                         minWidth: 280,
                         '& .MuiOutlinedInput-root': {
-                            color: speakerColors.text,
-                            '& fieldset': {borderColor: speakerColors.border},
-                            '&:hover fieldset': {borderColor: speakerColors.textSecondary},
+                            color: colors.text,
+                            '& fieldset': {borderColor: colors.border},
+                            '&:hover fieldset': {borderColor: colors.textSecondary},
                         },
-                        '& input::placeholder': {color: speakerColors.textSecondary, opacity: 1},
+                        '& input::placeholder': {color: colors.textSecondary, opacity: 1},
                     }}
                     slotProps={{
                         input: {
                             startAdornment: (
                                 <InputAdornment position={'start'}>
-                                    <SearchIcon sx={{color: speakerColors.textSecondary}} />
+                                    <SearchIcon sx={{color: colors.textSecondary}} />
                                 </InputAdornment>
                             ),
                         },
@@ -120,9 +134,9 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                     onClick={() => setStatusFilter(null)}
                     variant={statusFilter == null ? 'filled' : 'outlined'}
                     sx={{
-                        color: speakerColors.text,
-                        borderColor: speakerColors.border,
-                        bgcolor: statusFilter == null ? speakerColors.panelHover : 'transparent',
+                        color: colors.text,
+                        borderColor: colors.border,
+                        bgcolor: statusFilter == null ? colors.panelHover : 'transparent',
                     }}
                 />
                 {(['UPCOMING', 'RUNNING', 'FINISHED'] as const).map(status => {
@@ -136,11 +150,11 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                             }
                             variant={statusFilter === status ? 'filled' : 'outlined'}
                             sx={{
-                                color: statusColor(status),
-                                borderColor: statusColor(status),
+                                color: statusColorOf(colors, status),
+                                borderColor: statusColorOf(colors, status),
                                 bgcolor:
                                     statusFilter === status
-                                        ? `${statusColor(status)}22`
+                                        ? `${statusColorOf(colors, status)}22`
                                         : 'transparent',
                                 fontWeight: 'bold',
                             }}
@@ -149,7 +163,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                 })}
             </Stack>
             {filtered.length === 0 ? (
-                <Typography sx={{color: speakerColors.textSecondary, p: 4, textAlign: 'center'}}>
+                <Typography sx={{color: colors.textSecondary, p: 4, textAlign: 'center'}}>
                     {t('speaker.program.empty')}
                 </Typography>
             ) : (
@@ -181,12 +195,12 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                         onClick={() => toggleExpanded(match.matchId)}
                                         sx={{
                                             cursor: 'pointer',
-                                            '&:hover': {bgcolor: speakerColors.panelHover},
+                                            '&:hover': {bgcolor: colors.panelHover},
                                         }}>
                                         <TableCell sx={bodyCellSx}>
                                             <IconButton
                                                 size={'small'}
-                                                sx={{color: speakerColors.textSecondary}}>
+                                                sx={{color: colors.textSecondary}}>
                                                 {isExpanded ? (
                                                     <KeyboardArrowUpIcon />
                                                 ) : (
@@ -205,7 +219,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                             <Typography
                                                 variant={'body2'}
                                                 fontWeight={'bold'}
-                                                sx={{color: statusColor(match.status)}}>
+                                                sx={{color: statusColorOf(colors, match.status)}}>
                                                 {match.status === 'RUNNING' && '● '}
                                                 {match.status === 'FINISHED' && '✓ '}
                                                 {t(`speaker.status.${match.status}`)}
@@ -218,7 +232,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                             {match.categoryName && (
                                                 <Typography
                                                     variant={'caption'}
-                                                    sx={{color: speakerColors.textSecondary}}>
+                                                    sx={{color: colors.textSecondary}}>
                                                     {match.categoryName}
                                                 </Typography>
                                             )}
@@ -243,7 +257,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                             sx={{
                                                 p: 0,
                                                 border: 0,
-                                                bgcolor: speakerColors.background,
+                                                bgcolor: colors.background,
                                             }}>
                                             <Collapse in={isExpanded} unmountOnExit>
                                                 <Box sx={{px: 6, py: 1.5}}>
@@ -269,7 +283,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                                     fontWeight={'bold'}
                                                                     sx={{
                                                                         minWidth: 42,
-                                                                        color: speakerColors.textSecondary,
+                                                                        color: colors.textSecondary,
                                                                     }}>
                                                                     {match.status === 'FINISHED' &&
                                                                     team.place != undefined
@@ -281,7 +295,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                                     fontWeight={'bold'}
                                                                     sx={{
                                                                         minWidth: 180,
-                                                                        color: speakerColors.text,
+                                                                        color: colors.text,
                                                                     }}>
                                                                     {team.clubName ??
                                                                         team.actualClubName ??
@@ -293,7 +307,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                                 <Typography
                                                                     variant={'body2'}
                                                                     sx={{
-                                                                        color: speakerColors.textSecondary,
+                                                                        color: colors.textSecondary,
                                                                     }}>
                                                                     {team.participants.map(
                                                                         (participant, index) => (
@@ -302,12 +316,32 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                                                     participant.participantId
                                                                                 }>
                                                                                 {index > 0 && ', '}
-                                                                                {
-                                                                                    participant.firstName
-                                                                                }{' '}
-                                                                                {
-                                                                                    participant.lastName
-                                                                                }
+                                                                                <Typography
+                                                                                    component={
+                                                                                        'span'
+                                                                                    }
+                                                                                    variant={
+                                                                                        'body2'
+                                                                                    }
+                                                                                    onClick={event => {
+                                                                                        event.stopPropagation()
+                                                                                        onSelectParticipant(
+                                                                                            participant.participantId,
+                                                                                        )
+                                                                                    }}
+                                                                                    sx={{
+                                                                                        cursor: 'pointer',
+                                                                                        '&:hover': {
+                                                                                            color: colors.upcoming,
+                                                                                        },
+                                                                                    }}>
+                                                                                    {
+                                                                                        participant.firstName
+                                                                                    }{' '}
+                                                                                    {
+                                                                                        participant.lastName
+                                                                                    }
+                                                                                </Typography>
                                                                                 <ParticipantBadges
                                                                                     participant={
                                                                                         participant
@@ -326,7 +360,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                                         variant={'body2'}
                                                                         sx={{
                                                                             ml: 'auto',
-                                                                            color: speakerColors.text,
+                                                                            color: colors.text,
                                                                         }}>
                                                                         {team.timeString}
                                                                     </Typography>
@@ -336,7 +370,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
                                                     <Typography
                                                         variant={'caption'}
                                                         sx={{
-                                                            color: speakerColors.upcoming,
+                                                            color: colors.upcoming,
                                                             cursor: 'pointer',
                                                             display: 'inline-block',
                                                             mt: 0.5,
@@ -356,18 +390,6 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch}: Props) => {
             )}
         </Box>
     )
-}
-
-const headerCellSx = {
-    color: speakerColors.textSecondary,
-    borderBottom: `1px solid ${speakerColors.border}`,
-    fontWeight: 'bold',
-    whiteSpace: 'nowrap',
-}
-
-const bodyCellSx = {
-    color: speakerColors.text,
-    borderBottom: `1px solid ${speakerColors.border}`,
 }
 
 export default SpeakerProgramTable

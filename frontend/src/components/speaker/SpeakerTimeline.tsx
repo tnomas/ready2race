@@ -2,13 +2,8 @@ import {Box, Button, Stack, Typography} from '@mui/material'
 import {format} from 'date-fns'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {
-    matchBadgeSummary,
-    SpeakerBadges,
-    SpeakerMatch,
-    speakerColors,
-    statusColor,
-} from './speakerData.ts'
+import {matchBadgeSummary, SpeakerBadges, SpeakerMatch, statusColorOf} from './speakerData.ts'
+import {useSpeakerColors} from './speakerSettings.ts'
 
 type Props = {
     matches: SpeakerMatch[]
@@ -25,6 +20,7 @@ const ZOOM_LEVELS = [1.5, 2.5, 4] // px per minute
 
 const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
     const {t} = useTranslation()
+    const colors = useSpeakerColors()
     const scrollRef = useRef<HTMLDivElement>(null)
     const [zoomIndex, setZoomIndex] = useState(1)
     const pxPerMinute = ZOOM_LEVELS[zoomIndex]
@@ -104,7 +100,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
 
     if (!window_) {
         return (
-            <Typography sx={{color: speakerColors.textSecondary, p: 4, textAlign: 'center'}}>
+            <Typography sx={{color: colors.textSecondary, p: 4, textAlign: 'center'}}>
                 {t('speaker.timeline.empty')}
             </Typography>
         )
@@ -126,9 +122,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                     variant={'outlined'}
                     onClick={scrollToNow}
                     sx={{
-                        color: speakerColors.now,
-                        borderColor: speakerColors.now,
-                        '&:hover': {borderColor: speakerColors.now, opacity: 0.8},
+                        color: colors.now,
+                        borderColor: colors.now,
+                        '&:hover': {borderColor: colors.now, opacity: 0.8},
                     }}>
                     ⦿ {t('speaker.timeline.now')} {format(now, t('format.time'))}
                 </Button>
@@ -137,7 +133,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                     variant={'outlined'}
                     onClick={() => setZoomIndex(index => Math.max(0, index - 1))}
                     disabled={zoomIndex === 0}
-                    sx={{color: speakerColors.text, borderColor: speakerColors.border, minWidth: 40}}>
+                    sx={{color: colors.text, borderColor: colors.border, minWidth: 40}}>
                     −
                 </Button>
                 <Button
@@ -145,7 +141,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                     variant={'outlined'}
                     onClick={() => setZoomIndex(index => Math.min(ZOOM_LEVELS.length - 1, index + 1))}
                     disabled={zoomIndex === ZOOM_LEVELS.length - 1}
-                    sx={{color: speakerColors.text, borderColor: speakerColors.border, minWidth: 40}}>
+                    sx={{color: colors.text, borderColor: colors.border, minWidth: 40}}>
                     +
                 </Button>
                 <Stack direction={'row'} spacing={2} sx={{ml: 'auto'}}>
@@ -156,12 +152,12 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     width: 10,
                                     height: 10,
                                     borderRadius: '2px',
-                                    bgcolor: statusColor(status),
+                                    bgcolor: statusColorOf(colors, status),
                                 }}
                             />
                             <Typography
                                 variant={'caption'}
-                                sx={{color: speakerColors.textSecondary}}>
+                                sx={{color: colors.textSecondary}}>
                                 {t(`speaker.status.${status}`)}
                             </Typography>
                         </Stack>
@@ -172,9 +168,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                 ref={scrollRef}
                 sx={{
                     overflowX: 'auto',
-                    border: `1px solid ${speakerColors.border}`,
+                    border: `1px solid ${colors.border}`,
                     borderRadius: 2,
-                    bgcolor: speakerColors.background,
+                    bgcolor: colors.background,
                 }}>
                 <Box sx={{position: 'relative', width: totalWidth, height: totalHeight}}>
                     {hours.map(hour => (
@@ -185,12 +181,12 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                 left: toX(hour),
                                 top: 0,
                                 bottom: 0,
-                                borderLeft: `1px solid ${speakerColors.border}`,
+                                borderLeft: `1px solid ${colors.border}`,
                                 pl: 0.5,
                             }}>
                             <Typography
                                 variant={'caption'}
-                                sx={{color: speakerColors.textSecondary}}>
+                                sx={{color: colors.textSecondary}}>
                                 {format(hour, t('format.time'))}
                             </Typography>
                         </Box>
@@ -202,12 +198,12 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                             top: 0,
                             bottom: 0,
                             width: '2px',
-                            bgcolor: speakerColors.now,
+                            bgcolor: colors.now,
                             zIndex: 2,
                         }}
                     />
                     {positioned.map(({match, x, row}) => {
-                        const color = statusColor(match.status)
+                        const color = statusColorOf(colors, match.status)
                         const emoji = matchBadgeSummary(match, badges)
                         return (
                             <Box
@@ -219,8 +215,8 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     top: HEADER_HEIGHT + row * (BLOCK_HEIGHT + ROW_GAP),
                                     width: BLOCK_WIDTH,
                                     height: BLOCK_HEIGHT,
-                                    bgcolor: speakerColors.panel,
-                                    border: `1px solid ${speakerColors.border}`,
+                                    bgcolor: colors.panel,
+                                    border: `1px solid ${colors.border}`,
                                     borderLeft: `4px solid ${color}`,
                                     borderRadius: 1,
                                     px: 1,
@@ -229,9 +225,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     overflow: 'hidden',
                                     zIndex: 1,
                                     transition: 'background-color 0.15s',
-                                    '&:hover': {bgcolor: speakerColors.panelHover},
+                                    '&:hover': {bgcolor: colors.panelHover},
                                     ...(match.status === 'RUNNING' && {
-                                        boxShadow: `0 0 8px ${speakerColors.running}55`,
+                                        boxShadow: `0 0 8px ${colors.running}55`,
                                     }),
                                 }}>
                                 <Stack
@@ -252,7 +248,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                 <Typography
                                     variant={'body2'}
                                     sx={{
-                                        color: speakerColors.text,
+                                        color: colors.text,
                                         lineHeight: 1.2,
                                         display: '-webkit-box',
                                         WebkitLineClamp: 2,

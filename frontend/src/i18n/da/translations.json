@@ -2060,6 +2060,32 @@
     "badges": {
       "doubleStartTooltip": "Starter også i:",
       "medalTooltip": "Medaljer denne weekend:"
+    },
+    "participant": {
+      "startCount": "{{count}} start",
+      "startCount_other": "{{count}} starter",
+      "backOnWater": "Skal hurtigt på vandet igen: næste start kl. {{time}} (om {{minutes}} min)",
+      "tightTurnaround": "kun {{minutes}} min skiftetid"
+    },
+    "settings": {
+      "title": "Tilpas visning",
+      "storedLocally": "Gemmes lokalt på denne enhed",
+      "theme": "Farveskema",
+      "themeDark": "Mørk",
+      "themeBlack": "Sort",
+      "themeLight": "Lys",
+      "scale": "Størrelse",
+      "colors": "Statusfarver",
+      "color": {
+        "upcoming": "Kommende",
+        "running": "Live",
+        "finished": "Afsluttet",
+        "now": "Nu-linje / advarsler"
+      },
+      "resetColors": "Nulstil farver",
+      "refresh": "Opdatering",
+      "turnaround": "Skiftetids-advarsel",
+      "resetAll": "Nulstil alt"
     }
   }
 }

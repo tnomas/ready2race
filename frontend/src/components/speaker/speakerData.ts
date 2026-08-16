@@ -164,15 +164,23 @@ export type Medal = {
     label: string
 }
 
+export type ParticipantStart = {
+    match: SpeakerMatch
+    team: SpeakerTeam
+    participant: SpeakerParticipant
+}
+
 export type SpeakerBadges = {
     // participantId -> all matches this participant starts in (only filled when more than one)
     doubleStarts: Map<string, OtherStart[]>
     // participantId -> medals won in finished matches of this event
     medals: Map<string, Medal[]>
+    // participantId -> every start of this participant across the event, chronological
+    starts: Map<string, ParticipantStart[]>
 }
 
 export const computeSpeakerBadges = (matches: SpeakerMatch[]): SpeakerBadges => {
-    const starts = new Map<string, OtherStart[]>()
+    const starts = new Map<string, ParticipantStart[]>()
     const medals = new Map<string, Medal[]>()
 
     matches.forEach(match => {
@@ -181,12 +189,7 @@ export const computeSpeakerBadges = (matches: SpeakerMatch[]): SpeakerBadges => 
             const isMedal = match.status === 'FINISHED' && team.place != undefined && team.place <= 3
             team.participants.forEach(participant => {
                 const list = starts.get(participant.participantId) ?? []
-                list.push({
-                    matchId: match.matchId,
-                    label: matchLabel(match),
-                    startTime: match.startTime,
-                    status: match.status,
-                })
+                list.push({match, team, participant})
                 starts.set(participant.participantId, list)
                 if (isMedal) {
                     const medalList = medals.get(participant.participantId) ?? []
@@ -199,16 +202,33 @@ export const computeSpeakerBadges = (matches: SpeakerMatch[]): SpeakerBadges => 
 
     const doubleStarts = new Map<string, OtherStart[]>()
     starts.forEach((list, participantId) => {
+        list.sort((a, b) => compareByStartTime(a.match, b.match))
         if (list.length > 1) {
             doubleStarts.set(
                 participantId,
-                list.sort((a, b) => (a.startTime?.getTime() ?? 0) - (b.startTime?.getTime() ?? 0)),
+                list.map(start => ({
+                    matchId: start.match.matchId,
+                    label: matchLabel(start.match),
+                    startTime: start.match.startTime,
+                    status: start.match.status,
+                })),
             )
         }
     })
 
-    return {doubleStarts, medals}
+    return {doubleStarts, medals, starts}
 }
+
+// minutes between two consecutive starts; undefined when either has no start time
+export const turnaroundMinutes = (
+    previous: ParticipantStart,
+    next: ParticipantStart,
+): number | undefined =>
+    previous.match.startTime && next.match.startTime
+        ? Math.round(
+              (next.match.startTime.getTime() - previous.match.startTime.getTime()) / 60000,
+          )
+        : undefined
 
 export const medalEmoji = (place: number): string =>
     place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
@@ -234,8 +254,22 @@ export const matchBadgeSummary = (match: SpeakerMatch, badges: SpeakerBadges): s
     return [...summary].join(' ')
 }
 
-// LOTG-inspired dark board palette
-export const speakerColors = {
+export type SpeakerColors = {
+    background: string
+    panel: string
+    panelHover: string
+    border: string
+    text: string
+    textSecondary: string
+    upcoming: string
+    running: string
+    finished: string
+    now: string
+    gold: string
+}
+
+// LOTG-inspired dark board palette (default)
+export const speakerColors: SpeakerColors = {
     background: '#0f172a',
     panel: '#1e293b',
     panelHover: '#27354a',
@@ -247,11 +281,11 @@ export const speakerColors = {
     finished: '#64748b',
     now: '#f87171',
     gold: '#facc15',
-} as const
+}
 
-export const statusColor = (status: SpeakerStatus): string =>
+export const statusColorOf = (colors: SpeakerColors, status: SpeakerStatus): string =>
     status === 'RUNNING'
-        ? speakerColors.running
+        ? colors.running
         : status === 'FINISHED'
-          ? speakerColors.finished
-          : speakerColors.upcoming
+          ? colors.finished
+          : colors.upcoming

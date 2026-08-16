@@ -19,16 +19,17 @@ import {
     medalEmoji,
     SpeakerBadges,
     SpeakerMatch,
-    speakerColors,
     SpeakerTeam,
-    statusColor,
+    statusColorOf,
 } from './speakerData.ts'
+import {useSpeakerColors} from './speakerSettings.ts'
 import {ParticipantBadges} from './SpeakerBadges.tsx'
 
 type Props = {
     match: SpeakerMatch | null
     badges: SpeakerBadges
     onClose: () => void
+    onSelectParticipant: (participantId: string) => void
 }
 
 const sortTeams = (teams: SpeakerTeam[], finished: boolean): SpeakerTeam[] =>
@@ -41,13 +42,26 @@ const sortTeams = (teams: SpeakerTeam[], finished: boolean): SpeakerTeam[] =>
         return (a.startNumber ?? Number.MAX_SAFE_INTEGER) - (b.startNumber ?? Number.MAX_SAFE_INTEGER)
     })
 
-const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
+const SpeakerMatchDialog = ({match, badges, onClose, onSelectParticipant}: Props) => {
     const {t} = useTranslation()
+    const colors = useSpeakerColors()
 
     if (!match) return null
 
     const finished = match.status === 'FINISHED'
     const teams = sortTeams(match.teams, finished)
+
+    const headerCellSx = {
+        color: colors.textSecondary,
+        borderBottom: `1px solid ${colors.border}`,
+        fontWeight: 'bold',
+    }
+
+    const bodyCellSx = {
+        color: colors.text,
+        borderBottom: `1px solid ${colors.border}`,
+        verticalAlign: 'top',
+    }
 
     return (
         <Dialog
@@ -57,12 +71,12 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
             fullWidth
             PaperProps={{
                 sx: {
-                    bgcolor: speakerColors.panel,
-                    color: speakerColors.text,
-                    border: `1px solid ${speakerColors.border}`,
+                    bgcolor: colors.panel,
+                    color: colors.text,
+                    border: `1px solid ${colors.border}`,
                 },
             }}>
-            <Box sx={{p: 2, borderBottom: `1px solid ${speakerColors.border}`}}>
+            <Box sx={{p: 2, borderBottom: `1px solid ${colors.border}`}}>
                 <Stack direction={'row'} alignItems={'flex-start'} spacing={2}>
                     <Box sx={{flex: 1}}>
                         <Stack direction={'row'} spacing={1} alignItems={'center'} flexWrap={'wrap'} useFlexGap>
@@ -74,8 +88,8 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                     size={'small'}
                                     label={match.categoryName}
                                     sx={{
-                                        color: speakerColors.text,
-                                        borderColor: speakerColors.border,
+                                        color: colors.text,
+                                        borderColor: colors.border,
                                     }}
                                     variant={'outlined'}
                                 />
@@ -90,13 +104,13 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                           : t('speaker.status.UPCOMING')
                                 }
                                 sx={{
-                                    bgcolor: `${statusColor(match.status)}22`,
-                                    color: statusColor(match.status),
+                                    bgcolor: `${statusColorOf(colors, match.status)}22`,
+                                    color: statusColorOf(colors, match.status),
                                     fontWeight: 'bold',
                                 }}
                             />
                         </Stack>
-                        <Typography sx={{color: speakerColors.textSecondary, mt: 0.5}}>
+                        <Typography sx={{color: colors.textSecondary, mt: 0.5}}>
                             {[match.roundName, match.matchName].filter(Boolean).join(' · ')}
                             {match.startTime &&
                                 ` · ${t('speaker.match.start')} ${format(match.startTime, t('format.time'))}`}
@@ -105,7 +119,7 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                 ` · ${t('speaker.match.elapsed', {minutes: match.elapsedMinutes})}`}
                         </Typography>
                     </Box>
-                    <IconButton onClick={onClose} sx={{color: speakerColors.textSecondary}}>
+                    <IconButton onClick={onClose} sx={{color: colors.textSecondary}}>
                         <CloseIcon />
                     </IconButton>
                 </Stack>
@@ -132,11 +146,11 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                 <TableCell sx={{...bodyCellSx, whiteSpace: 'nowrap'}}>
                                     {finished ? (
                                         team.deregistered ? (
-                                            <Typography variant={'body2'} sx={{color: speakerColors.textSecondary}}>
+                                            <Typography variant={'body2'} sx={{color: colors.textSecondary}}>
                                                 {t('speaker.match.deregistered')}
                                             </Typography>
                                         ) : team.failed ? (
-                                            <Typography variant={'body2'} sx={{color: speakerColors.now}}>
+                                            <Typography variant={'body2'} sx={{color: colors.now}}>
                                                 {team.failedReason || t('speaker.match.failed')}
                                             </Typography>
                                         ) : team.place != undefined ? (
@@ -155,7 +169,7 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                         {team.clubName ?? team.actualClubName ?? ''}
                                     </Typography>
                                     {team.teamName && (
-                                        <Typography variant={'caption'} sx={{color: speakerColors.textSecondary}}>
+                                        <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
                                             {team.teamName}
                                         </Typography>
                                     )}
@@ -163,12 +177,26 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                 <TableCell sx={bodyCellSx}>
                                     {team.participants.map(participant => (
                                         <Typography key={participant.participantId} variant={'body2'}>
-                                            {participant.firstName} {participant.lastName}
+                                            <Typography
+                                                component={'span'}
+                                                variant={'body2'}
+                                                onClick={() =>
+                                                    onSelectParticipant(participant.participantId)
+                                                }
+                                                sx={{
+                                                    cursor: 'pointer',
+                                                    textDecorationLine: 'underline',
+                                                    textDecorationColor: colors.border,
+                                                    textUnderlineOffset: '3px',
+                                                    '&:hover': {color: colors.upcoming},
+                                                }}>
+                                                {participant.firstName} {participant.lastName}
+                                            </Typography>
                                             {participant.year != undefined && (
                                                 <Typography
                                                     component={'span'}
                                                     variant={'caption'}
-                                                    sx={{color: speakerColors.textSecondary}}>
+                                                    sx={{color: colors.textSecondary}}>
                                                     {' '}
                                                     ({t('speaker.match.yearShort')} {participant.year})
                                                 </Typography>
@@ -177,11 +205,12 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
                                                 <Typography
                                                     component={'span'}
                                                     variant={'caption'}
-                                                    sx={{color: speakerColors.textSecondary}}>
+                                                    sx={{color: colors.textSecondary}}>
                                                     {' '}
                                                     – {participant.namedRole}
                                                 </Typography>
                                             )}
+                                            {' '}
                                             <ParticipantBadges
                                                 participant={participant}
                                                 badges={badges}
@@ -202,18 +231,6 @@ const SpeakerMatchDialog = ({match, badges, onClose}: Props) => {
             </DialogContent>
         </Dialog>
     )
-}
-
-const headerCellSx = {
-    color: speakerColors.textSecondary,
-    borderBottom: `1px solid ${speakerColors.border}`,
-    fontWeight: 'bold',
-}
-
-const bodyCellSx = {
-    color: speakerColors.text,
-    borderBottom: `1px solid ${speakerColors.border}`,
-    verticalAlign: 'top',
 }
 
 export default SpeakerMatchDialog

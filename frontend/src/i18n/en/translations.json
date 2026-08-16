@@ -2060,6 +2060,32 @@
     "badges": {
       "doubleStartTooltip": "Also starts in:",
       "medalTooltip": "Medals this weekend:"
+    },
+    "participant": {
+      "startCount": "{{count}} start",
+      "startCount_other": "{{count}} starts",
+      "backOnWater": "Back on the water soon: next start at {{time}} (in {{minutes}} min)",
+      "tightTurnaround": "only {{minutes}} min turnaround"
+    },
+    "settings": {
+      "title": "Customize display",
+      "storedLocally": "Stored locally on this device",
+      "theme": "Color scheme",
+      "themeDark": "Dark",
+      "themeBlack": "Black",
+      "themeLight": "Light",
+      "scale": "Size",
+      "colors": "Status colors",
+      "color": {
+        "upcoming": "Upcoming",
+        "running": "Live",
+        "finished": "Finished",
+        "now": "Now line / warnings"
+      },
+      "resetColors": "Reset colors",
+      "refresh": "Refresh",
+      "turnaround": "Turnaround warning",
+      "resetAll": "Reset everything"
     }
   }
 }

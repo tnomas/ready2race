@@ -2,17 +2,20 @@ import {Box, Stack, Typography} from '@mui/material'
 import {format} from 'date-fns'
 import {Fragment, useMemo} from 'react'
 import {useTranslation} from 'react-i18next'
-import {medalEmoji, SpeakerBadges, SpeakerMatch, speakerColors} from './speakerData.ts'
+import {medalEmoji, SpeakerBadges, SpeakerMatch} from './speakerData.ts'
+import {useSpeakerColors} from './speakerSettings.ts'
 import {ParticipantBadges} from './SpeakerBadges.tsx'
 
 type Props = {
     matches: SpeakerMatch[]
     badges: SpeakerBadges
     onSelectMatch: (match: SpeakerMatch) => void
+    onSelectParticipant: (participantId: string) => void
 }
 
-const SpeakerResultsList = ({matches, badges, onSelectMatch}: Props) => {
+const SpeakerResultsList = ({matches, badges, onSelectMatch, onSelectParticipant}: Props) => {
     const {t} = useTranslation()
+    const colors = useSpeakerColors()
 
     const finished = useMemo(
         () =>
@@ -28,7 +31,7 @@ const SpeakerResultsList = ({matches, badges, onSelectMatch}: Props) => {
 
     if (finished.length === 0) {
         return (
-            <Typography sx={{color: speakerColors.textSecondary, p: 4, textAlign: 'center'}}>
+            <Typography sx={{color: colors.textSecondary, p: 4, textAlign: 'center'}}>
                 {t('speaker.results.empty')}
             </Typography>
         )
@@ -46,25 +49,25 @@ const SpeakerResultsList = ({matches, badges, onSelectMatch}: Props) => {
                     key={match.matchId}
                     onClick={() => onSelectMatch(match)}
                     sx={{
-                        bgcolor: speakerColors.panel,
-                        border: `1px solid ${speakerColors.border}`,
+                        bgcolor: colors.panel,
+                        border: `1px solid ${colors.border}`,
                         borderRadius: 2,
                         p: 2,
                         cursor: 'pointer',
-                        '&:hover': {bgcolor: speakerColors.panelHover},
+                        '&:hover': {bgcolor: colors.panelHover},
                     }}>
                     <Stack direction={'row'} justifyContent={'space-between'} alignItems={'baseline'}>
                         <Typography fontWeight={'bold'}>
                             {match.competitionName}
                             {match.categoryName ? ` (${match.categoryName})` : ''}
                         </Typography>
-                        <Typography variant={'caption'} sx={{color: speakerColors.textSecondary}}>
+                        <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
                             {match.updatedAt &&
                                 `${t('speaker.results.updated')} ${format(match.updatedAt, t('format.time'))}`}
                         </Typography>
                     </Stack>
                     {(match.roundName || match.matchName) && (
-                        <Typography variant={'caption'} sx={{color: speakerColors.textSecondary}}>
+                        <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
                             {[match.roundName, match.matchName].filter(Boolean).join(' · ')}
                         </Typography>
                     )}
@@ -101,11 +104,26 @@ const SpeakerResultsList = ({matches, badges, onSelectMatch}: Props) => {
                                         </Typography>
                                         <Typography
                                             variant={'caption'}
-                                            sx={{color: speakerColors.textSecondary}}>
+                                            sx={{color: colors.textSecondary}}>
                                             {team.participants.map((participant, index) => (
                                                 <Fragment key={participant.participantId}>
                                                     {index > 0 && ', '}
-                                                    {participant.firstName} {participant.lastName}
+                                                    <Typography
+                                                        component={'span'}
+                                                        variant={'caption'}
+                                                        onClick={event => {
+                                                            event.stopPropagation()
+                                                            onSelectParticipant(
+                                                                participant.participantId,
+                                                            )
+                                                        }}
+                                                        sx={{
+                                                            cursor: 'pointer',
+                                                            '&:hover': {color: colors.upcoming},
+                                                        }}>
+                                                        {participant.firstName}{' '}
+                                                        {participant.lastName}
+                                                    </Typography>
                                                     <ParticipantBadges
                                                         participant={participant}
                                                         badges={badges}
@@ -117,7 +135,7 @@ const SpeakerResultsList = ({matches, badges, onSelectMatch}: Props) => {
                                     </Box>
                                     <Typography
                                         variant={'body2'}
-                                        sx={{color: speakerColors.textSecondary}}>
+                                        sx={{color: colors.textSecondary}}>
                                         {team.timeString ?? ''}
                                     </Typography>
                                 </Stack>

@@ -3,17 +3,26 @@ import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import SettingsIcon from '@mui/icons-material/Settings'
 import {getEvent, getLatestMatchResults, getRunningMatches, getUpcomingMatches} from '@api/sdk.gen.ts'
 import SpeakerMatchDialog from '@components/speaker/SpeakerMatchDialog.tsx'
+import SpeakerParticipantDialog from '@components/speaker/SpeakerParticipantDialog.tsx'
 import SpeakerProgramTable from '@components/speaker/SpeakerProgramTable.tsx'
 import SpeakerResultsList from '@components/speaker/SpeakerResultsList.tsx'
+import SpeakerSettingsDialog from '@components/speaker/SpeakerSettingsDialog.tsx'
 import SpeakerTimeline from '@components/speaker/SpeakerTimeline.tsx'
 import {
     computeSpeakerBadges,
     mergeSpeakerMatches,
     SpeakerMatch,
-    speakerColors,
 } from '@components/speaker/speakerData.ts'
+import {
+    loadSpeakerSettings,
+    resolveSpeakerColors,
+    saveSpeakerSettings,
+    SpeakerSettings,
+    SpeakerSettingsContext,
+} from '@components/speaker/speakerSettings.ts'
 import Throbber from '@components/Throbber.tsx'
 import {useFetch} from '@utils/hooks.ts'
 import {Link, useParams} from '@tanstack/react-router'
@@ -21,7 +30,6 @@ import {format} from 'date-fns'
 import {useEffect, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 
-const RELOAD_INTERVAL = 20000
 const FETCH_LIMIT = 500
 
 type SpeakerTab = 'timeline' | 'program' | 'results'
@@ -32,8 +40,19 @@ const SpeakerBoardPage = () => {
 
     const [tab, setTab] = useState<SpeakerTab>('timeline')
     const [selectedMatch, setSelectedMatch] = useState<SpeakerMatch | null>(null)
+    const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
+    const [settingsOpen, setSettingsOpen] = useState(false)
     const [fullscreen, setFullscreen] = useState(false)
     const [now, setNow] = useState(new Date())
+
+    const [settings, setSettings] = useState<SpeakerSettings>(loadSpeakerSettings)
+    const colors = useMemo(() => resolveSpeakerColors(settings), [settings])
+    const updateSettings = (update: Partial<SpeakerSettings>) =>
+        setSettings(previous => {
+            const next = {...previous, ...update}
+            saveSpeakerSettings(next)
+            return next
+        })
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 15000)
@@ -59,19 +78,21 @@ const SpeakerBoardPage = () => {
         {deps: [eventId]},
     )
 
+    const reloadInterval = settings.refreshSeconds * 1000
+
     const {data: upcomingData, reload: reloadUpcoming} = useFetch(
         signal => getUpcomingMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
-        {deps: [eventId], autoReloadInterval: RELOAD_INTERVAL},
+        {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
     const {data: runningData, reload: reloadRunning} = useFetch(
         signal => getRunningMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
-        {deps: [eventId], autoReloadInterval: RELOAD_INTERVAL},
+        {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
     const {data: resultsData, reload: reloadResults} = useFetch(
         signal => getLatestMatchResults({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
-        {deps: [eventId], autoReloadInterval: RELOAD_INTERVAL},
+        {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
     const loaded = upcomingData != null || runningData != null || resultsData != null
@@ -101,11 +122,12 @@ const SpeakerBoardPage = () => {
     const runningCount = matches.filter(match => match.status === 'RUNNING').length
 
     return (
-        <Box
+        <SpeakerSettingsContext.Provider value={{settings, colors, updateSettings}}>
+            <Box
             sx={{
                 minHeight: '100vh',
-                bgcolor: speakerColors.background,
-                color: speakerColors.text,
+                bgcolor: colors.background,
+                color: colors.text,
                 display: 'flex',
                 flexDirection: 'column',
             }}>
@@ -116,14 +138,14 @@ const SpeakerBoardPage = () => {
                 sx={{
                     px: 2,
                     py: 1,
-                    borderBottom: `1px solid ${speakerColors.border}`,
+                    borderBottom: `1px solid ${colors.border}`,
                     position: 'sticky',
                     top: 0,
-                    bgcolor: speakerColors.background,
+                    bgcolor: colors.background,
                     zIndex: 10,
                 }}>
                 <Link to={'/speaker'}>
-                    <IconButton sx={{color: speakerColors.textSecondary}}>
+                    <IconButton sx={{color: colors.textSecondary}}>
                         <ArrowBackIcon />
                     </IconButton>
                 </Link>
@@ -131,14 +153,14 @@ const SpeakerBoardPage = () => {
                     <Typography variant={'h6'} noWrap fontWeight={'bold'}>
                         🎙️ {eventData?.name ?? t('speaker.title')}
                     </Typography>
-                    <Typography variant={'caption'} sx={{color: speakerColors.textSecondary}}>
+                    <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
                         {t('speaker.subtitle')}
                         {runningCount > 0 && (
                             <Typography
                                 component={'span'}
                                 variant={'caption'}
                                 fontWeight={'bold'}
-                                sx={{color: speakerColors.running}}>
+                                sx={{color: colors.running}}>
                                 {' '}
                                 · ● {t('speaker.liveCount', {count: runningCount})}
                             </Typography>
@@ -150,9 +172,9 @@ const SpeakerBoardPage = () => {
                     onChange={(_, value: SpeakerTab) => setTab(value)}
                     sx={{
                         mx: 'auto',
-                        '& .MuiTab-root': {color: speakerColors.textSecondary},
-                        '& .Mui-selected': {color: `${speakerColors.text} !important`},
-                        '& .MuiTabs-indicator': {bgcolor: speakerColors.upcoming},
+                        '& .MuiTab-root': {color: colors.textSecondary},
+                        '& .Mui-selected': {color: `${colors.text} !important`},
+                        '& .MuiTabs-indicator': {bgcolor: colors.upcoming},
                     }}>
                     <Tab value={'timeline'} label={t('speaker.tabs.timeline')} />
                     <Tab value={'program'} label={t('speaker.tabs.program')} />
@@ -164,14 +186,19 @@ const SpeakerBoardPage = () => {
                     sx={{fontVariantNumeric: 'tabular-nums'}}>
                     {format(now, t('format.time'))}
                 </Typography>
-                <IconButton onClick={reloadAll} sx={{color: speakerColors.textSecondary}}>
+                <IconButton onClick={reloadAll} sx={{color: colors.textSecondary}}>
                     <RefreshIcon />
                 </IconButton>
-                <IconButton onClick={toggleFullscreen} sx={{color: speakerColors.textSecondary}}>
+                <IconButton
+                    onClick={() => setSettingsOpen(true)}
+                    sx={{color: colors.textSecondary}}>
+                    <SettingsIcon />
+                </IconButton>
+                <IconButton onClick={toggleFullscreen} sx={{color: colors.textSecondary}}>
                     {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                 </IconButton>
             </Stack>
-            <Box sx={{flex: 1, p: 2}}>
+            <Box sx={{flex: 1, p: 2, zoom: settings.scalePercent / 100}}>
                 {!loaded ? (
                     <Throbber />
                 ) : (
@@ -189,6 +216,7 @@ const SpeakerBoardPage = () => {
                                 matches={matches}
                                 badges={badges}
                                 onSelectMatch={setSelectedMatch}
+                                onSelectParticipant={setSelectedParticipantId}
                             />
                         )}
                         {tab === 'results' && (
@@ -196,6 +224,7 @@ const SpeakerBoardPage = () => {
                                 matches={matches}
                                 badges={badges}
                                 onSelectMatch={setSelectedMatch}
+                                onSelectParticipant={setSelectedParticipantId}
                             />
                         )}
                     </>
@@ -205,8 +234,18 @@ const SpeakerBoardPage = () => {
                 match={dialogMatch}
                 badges={badges}
                 onClose={() => setSelectedMatch(null)}
+                onSelectParticipant={setSelectedParticipantId}
             />
-        </Box>
+            <SpeakerParticipantDialog
+                participantId={selectedParticipantId}
+                badges={badges}
+                now={now}
+                onClose={() => setSelectedParticipantId(null)}
+                onSelectMatch={setSelectedMatch}
+            />
+            <SpeakerSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+            </Box>
+        </SpeakerSettingsContext.Provider>
     )
 }
 
