@@ -2008,5 +2008,58 @@
     "proofRequired": "Dokumentation påkrævet for denne konkurrence",
     "notFound": "Challenge ikke fundet",
     "submitResult": "Indsend resultat"
+  },
+  "speaker": {
+    "title": "Speaker-board",
+    "subtitle": "Interaktivt board til regatta-speakere",
+    "selectEvent": "Vælg et stævne",
+    "liveCount": "{{count}} live",
+    "openBoard": "Åbn speaker-board",
+    "tabs": {
+      "timeline": "Tidslinje",
+      "program": "Program",
+      "results": "Resultater"
+    },
+    "status": {
+      "UPCOMING": "Kommende",
+      "RUNNING": "Live",
+      "FINISHED": "Afsluttet",
+      "liveShort": "LIVE"
+    },
+    "timeline": {
+      "empty": "Ingen løb med starttid fundet.",
+      "now": "Nu"
+    },
+    "program": {
+      "searchPlaceholder": "Søg: løb, klub, navn …",
+      "all": "Alle",
+      "status": "Status",
+      "competition": "Konkurrence",
+      "round": "Runde / Løb",
+      "teams": "Hold",
+      "badges": "Noter",
+      "empty": "Ingen løb matcher de aktuelle filtre.",
+      "openDetails": "Åbn detaljer"
+    },
+    "match": {
+      "start": "Start",
+      "elapsed": "i gang i {{minutes}} min",
+      "place": "Plads",
+      "startNumber": "Startnr.",
+      "team": "Hold / Klub",
+      "participants": "Deltagere",
+      "time": "Tid",
+      "yearShort": "Årg.",
+      "failed": "DNF",
+      "deregistered": "Afmeldt"
+    },
+    "results": {
+      "empty": "Ingen resultater endnu.",
+      "updated": "Opdateret"
+    },
+    "badges": {
+      "doubleStartTooltip": "Starter også i:",
+      "medalTooltip": "Medaljer denne weekend:"
+    }
   }
 }

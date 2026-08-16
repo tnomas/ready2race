@@ -30,7 +30,7 @@ import {
 } from '@api/types.gen.ts'
 import DocumentTable from '@components/event/document/DocumentTable.tsx'
 import DocumentDialog from '@components/event/document/DocumentDialog.tsx'
-import {Forward, InfoOutlined, PlayCircleOutlined} from '@mui/icons-material'
+import {CampaignOutlined, Forward, InfoOutlined, PlayCircleOutlined} from '@mui/icons-material'
 import {Link, useNavigate} from '@tanstack/react-router'
 import {useMemo, useRef, useState} from 'react'
 import TabPanel from '@components/tab/TabPanel.tsx'
@@ -394,6 +394,15 @@ const EventPage = () => {
                                             onClick={() => setManageRunningMatchesOpen(true)}>
                                             {t('event.competition.execution.match.manageRunning')}
                                         </Button>
+                                        <Link to={'/speaker/event/$eventId'} params={{eventId}}>
+                                            <Button
+                                                startIcon={<CampaignOutlined />}
+                                                variant="outlined"
+                                                fullWidth
+                                                sx={{mt: 1}}>
+                                                {t('speaker.openBoard')}
+                                            </Button>
+                                        </Link>
                                     </Card>
                                 )}
                             </Stack>

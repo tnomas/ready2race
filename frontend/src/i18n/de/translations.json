@@ -2008,5 +2008,58 @@
     "proofRequired": "Nachweis-Dokument erforderlich für diesen Wettbewerb",
     "notFound": "Challenge nicht gefunden",
     "submitResult": "Ergebnis einreichen"
+  },
+  "speaker": {
+    "title": "Sprecher-Board",
+    "subtitle": "Interaktives Board für Regatta-Sprecher:innen",
+    "selectEvent": "Veranstaltung auswählen",
+    "liveCount": "{{count}} live",
+    "openBoard": "Sprecher-Board öffnen",
+    "tabs": {
+      "timeline": "Zeitstrahl",
+      "program": "Programm",
+      "results": "Ergebnisse"
+    },
+    "status": {
+      "UPCOMING": "Ausstehend",
+      "RUNNING": "Live",
+      "FINISHED": "Beendet",
+      "liveShort": "LIVE"
+    },
+    "timeline": {
+      "empty": "Keine Rennen mit Startzeit gefunden.",
+      "now": "Jetzt"
+    },
+    "program": {
+      "searchPlaceholder": "Suche: Rennen, Verein, Name …",
+      "all": "Alle",
+      "status": "Status",
+      "competition": "Wettkampf",
+      "round": "Runde / Rennen",
+      "teams": "Teams",
+      "badges": "Hinweise",
+      "empty": "Keine Rennen für die aktuellen Filter.",
+      "openDetails": "Details öffnen"
+    },
+    "match": {
+      "start": "Start",
+      "elapsed": "läuft seit {{minutes}} min",
+      "place": "Platz",
+      "startNumber": "Start-Nr.",
+      "team": "Team / Verein",
+      "participants": "Teilnehmer:innen",
+      "time": "Zeit",
+      "yearShort": "Jg.",
+      "failed": "DNF",
+      "deregistered": "Abgemeldet"
+    },
+    "results": {
+      "empty": "Noch keine Ergebnisse vorhanden.",
+      "updated": "Stand"
+    },
+    "badges": {
+      "doubleStartTooltip": "Startet auch in:",
+      "medalTooltip": "Medaillen an diesem Wochenende:"
+    }
   }
 }

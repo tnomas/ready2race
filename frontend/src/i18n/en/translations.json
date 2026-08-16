@@ -2008,5 +2008,58 @@
     "proofRequired": "Proof document required for this competition",
     "notFound": "Challenge not found",
     "submitResult": "Submit result"
+  },
+  "speaker": {
+    "title": "Speaker Board",
+    "subtitle": "Interactive board for regatta announcers",
+    "selectEvent": "Select an event",
+    "liveCount": "{{count}} live",
+    "openBoard": "Open speaker board",
+    "tabs": {
+      "timeline": "Timeline",
+      "program": "Program",
+      "results": "Results"
+    },
+    "status": {
+      "UPCOMING": "Upcoming",
+      "RUNNING": "Live",
+      "FINISHED": "Finished",
+      "liveShort": "LIVE"
+    },
+    "timeline": {
+      "empty": "No races with a start time found.",
+      "now": "Now"
+    },
+    "program": {
+      "searchPlaceholder": "Search: race, club, name …",
+      "all": "All",
+      "status": "Status",
+      "competition": "Competition",
+      "round": "Round / Race",
+      "teams": "Teams",
+      "badges": "Notes",
+      "empty": "No races match the current filters.",
+      "openDetails": "Open details"
+    },
+    "match": {
+      "start": "Start",
+      "elapsed": "running for {{minutes}} min",
+      "place": "Place",
+      "startNumber": "Start no.",
+      "team": "Team / Club",
+      "participants": "Participants",
+      "time": "Time",
+      "yearShort": "Born",
+      "failed": "DNF",
+      "deregistered": "Withdrawn"
+    },
+    "results": {
+      "empty": "No results yet.",
+      "updated": "Updated"
+    },
+    "badges": {
+      "doubleStartTooltip": "Also starts in:",
+      "medalTooltip": "Medals this weekend:"
+    }
   }
 }
