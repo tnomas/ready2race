@@ -1873,7 +1873,7 @@ git commit -m "Klärung: Knopf auf der Durchführungsseite"
 
 **Files:**
 - Modify: `frontend/src/components/event/info/athleteBoard/AthleteBoardResultCard.tsx`
-- Modify: `frontend/src/components/event/board/streamOverlay/` (das Panel, das Ergebnisse zeigt — mit `grep -rn "AthleteBoardResult" frontend/src/components/event/board` finden)
+- Modify: `frontend/src/components/event/board/streamOverlay/ResultPanel.tsx` (das Stream-Panel, das ein Ergebnis zeigt — es nimmt `result: AthleteBoardResult`)
 - Modify: `frontend/src/i18n/de/translations.json`, `frontend/src/i18n/en/translations.json`
 - Test: `frontend/src/components/event/board/streamOverlay.test.ts`
 
