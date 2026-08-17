@@ -1145,6 +1145,7 @@
       "settings": "Einstellungen",
       "actions": "Aktionen",
       "organisation": "Organisation",
+      "posten": "Posten",
       "invoices": "Rechnungen"
     },
     "info": {
@@ -1729,6 +1730,12 @@
     "selectStation": "Posten wählen",
     "boardComingSoon": "Board folgt",
     "station": {
+      "tabTitle": "Posten",
+      "name": "Name",
+      "type": "Typ",
+      "sorting": "Reihenfolge",
+      "add": "Posten hinzufügen",
+      "edit": "Posten bearbeiten",
       "types": {
         "START": "Start",
         "SPLIT": "Zwischenzeit",

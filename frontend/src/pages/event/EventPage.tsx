@@ -71,6 +71,7 @@ import EventRegistrations from '@components/event/competition/registration/Event
 import ManageRunningMatchesDialog from '@components/event/match/ManageRunningMatchesDialog.tsx'
 import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategoriesForEvent.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
+import TimingStationPanel from '@components/event/timing/TimingStationPanel.tsx'
 
 const EVENT_TABS = [
     'general',
@@ -78,6 +79,7 @@ const EVENT_TABS = [
     'participants',
     'registrations',
     'organization',
+    'posten',
     'settings',
     'invoices',
 ] as const
@@ -244,6 +246,9 @@ const EventPage = () => {
                                         {...tabProps('organization')}
                                     />
                                 )}
+                            {user.checkPrivilege(updateEventGlobal) && (
+                                <Tab label={t('event.tabs.posten')} {...tabProps('posten')} />
+                            )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.tabs.settings')} {...tabProps('settings')} />
                             )}
@@ -431,6 +436,9 @@ const EventPage = () => {
                                 <TaskDialog {...taskProps.dialog} eventId={eventId}/>
                                 <Shiftplan/>
                             </Stack>
+                        </TabPanel>
+                        <TabPanel index={'posten'} activeTab={activeTab}>
+                            <TimingStationPanel />
                         </TabPanel>
                         <TabPanel index={'settings'} activeTab={activeTab}>
                             <Stack spacing={4}>

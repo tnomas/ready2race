@@ -1145,6 +1145,7 @@
       "settings": "Indstillinger",
       "actions": "Handlinger",
       "organisation": "Organisation",
+      "posten": "Poster",
       "invoices": "Fakturaer"
     },
     "info": {
@@ -1729,6 +1730,12 @@
     "selectStation": "Vælg post",
     "boardComingSoon": "Tavle følger",
     "station": {
+      "tabTitle": "Poster",
+      "name": "Navn",
+      "type": "Type",
+      "sorting": "Sortering",
+      "add": "Tilføj post",
+      "edit": "Rediger post",
       "types": {
         "START": "Start",
         "SPLIT": "Mellemtid",

@@ -1145,6 +1145,7 @@
       "settings": "Settings",
       "actions": "Actions",
       "organisation": "Organisation",
+      "posten": "Stations",
       "invoices": "Invoices"
     },
     "info": {
@@ -1729,6 +1730,12 @@
     "selectStation": "Select station",
     "boardComingSoon": "Board coming soon",
     "station": {
+      "tabTitle": "Stations",
+      "name": "Name",
+      "type": "Type",
+      "sorting": "Sorting",
+      "add": "Add station",
+      "edit": "Edit station",
       "types": {
         "START": "Start",
         "SPLIT": "Split",
