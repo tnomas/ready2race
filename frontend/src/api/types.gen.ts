@@ -2269,6 +2269,14 @@ export type LiveDashboardMatchDto = {
     executionOrder: number
     startTime?: string | null
     startedAt?: string | null
+    /**
+     * Since when this match is in clarification - null when it is not. The card reads the "since 14:37" of the collapsed row from this; state, which already derives from the same column, decides the state.
+     */
+    clarificationSince?: string | null
+    /**
+     * The reason the referees entered when setting the clarification.
+     */
+    clarificationReason?: string | null
     elapsedMinutes?: number | null
     teams: Array<LiveDashboardTeamDto>
     /**
@@ -2291,6 +2299,8 @@ export type LiveDashboardMatchDto = {
  * AWAITING_FINISH: every boat is scored but nobody finished the match yet. FINISHED means exclusively that competition_match.finished_at is set - a match only ends by an explicit action, because until then a time penalty can still arrive.
  *
  * PREPARING: the match has been called to the start (activated_at is set) but has no real start yet - the boats are still at the pontoon. RUNNING means activated AND started.
+ *
+ * CLARIFICATION: an objection is being settled. The match stays activated and unfinished, but drops out of the public displays and out of the activation chain - a single disputed match must not hold the livestream clock or the next start group.
  */
 export type LiveDashboardMatchState =
     | 'PREPARING'
@@ -2300,6 +2310,7 @@ export type LiveDashboardMatchState =
     | 'AWAITING_FINISH'
     | 'UPCOMING'
     | 'UNSCHEDULED'
+    | 'CLARIFICATION'
 
 export type LiveDashboardParticipantDto = {
     participantId: string
@@ -2495,6 +2506,16 @@ export type MatchByeDto = {
     seed?: number | null
 }
 
+/**
+ * Puts a match into clarification. Nothing but the reason is given - the server sets the timestamp.
+ */
+export type MatchClarificationRequest = {
+    /**
+     * must not be blank
+     */
+    reason: string
+}
+
 export type MatchForRunningStatusDto = {
     id: string
     competitionId: string
@@ -2602,6 +2623,10 @@ export type MatchStatusDto = {
      * Set when this match is a bye. Like "overdue" and "partially scored" this is a reading, not a state of its own.
      */
     bye?: MatchByeDto | null
+    /**
+     * The reason for the objection, while state is CLARIFICATION. A plain statement - the state alone is decided by clarification_since, not this field.
+     */
+    clarificationReason?: string | null
 }
 
 export type MatchTeamInfo = {
@@ -7980,6 +8005,29 @@ export type SetLiveDashboardMatchActivatedData = {
 export type SetLiveDashboardMatchActivatedResponse = void
 
 export type SetLiveDashboardMatchActivatedError = ApiError
+
+export type SetMatchClarificationData = {
+    body: MatchClarificationRequest
+    path: {
+        eventId: string
+        matchId: string
+    }
+}
+
+export type SetMatchClarificationResponse = void
+
+export type SetMatchClarificationError = ApiError
+
+export type ClearMatchClarificationData = {
+    path: {
+        eventId: string
+        matchId: string
+    }
+}
+
+export type ClearMatchClarificationResponse = void
+
+export type ClearMatchClarificationError = ApiError
 
 export type GetLiveDashboardData = {
     path: {

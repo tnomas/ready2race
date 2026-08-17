@@ -799,6 +799,12 @@ import type {
     SetLiveDashboardMatchActivatedData,
     SetLiveDashboardMatchActivatedError,
     SetLiveDashboardMatchActivatedResponse,
+    SetMatchClarificationData,
+    SetMatchClarificationError,
+    SetMatchClarificationResponse,
+    ClearMatchClarificationData,
+    ClearMatchClarificationError,
+    ClearMatchClarificationResponse,
     GetLiveDashboardData,
     GetLiveDashboardError,
     GetLiveDashboardResponse,
@@ -4476,6 +4482,38 @@ export const setLiveDashboardMatchActivated = <ThrowOnError extends boolean = fa
     >({
         ...options,
         url: '/event/{eventId}/liveDashboard/match/{matchId}/activation',
+    })
+}
+
+/**
+ * Puts the match into clarification (an objection is running). The match stays activated and drops out of the public displays and the activation chain. A second call only sharpens the reason - the timestamp stays the one from the first call.
+ */
+export const setMatchClarification = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetMatchClarificationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetMatchClarificationResponse,
+        SetMatchClarificationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/clarification',
+    })
+}
+
+/**
+ * Lifts the clarification: both columns are cleared and the match returns to the state it would derive without them (usually RUNNING).
+ */
+export const clearMatchClarification = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ClearMatchClarificationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        ClearMatchClarificationResponse,
+        ClearMatchClarificationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/clarification',
     })
 }
 
