@@ -4,7 +4,9 @@ import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.testing.testComprehension
+import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,6 +24,34 @@ class TimeMarkServiceTest {
 
         !TimingService.createTimeMark(request, userId, eventId)
         !TimingService.createTimeMark(request, userId, eventId) // second call must succeed, no duplicate
+
+        val marks = !TimingTimeMarkRepo.getByEvent(eventId)
+        assertEquals(1, marks.size)
+        assertEquals(markId, marks.first().id)
+    }
+
+    @Test
+    fun createIfAbsentIsRaceSafe() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val markId = UUID.randomUUID()
+        val record = TimingTimeMarkRecord(
+            id = markId,
+            event = eventId,
+            station = stationId,
+            timestampMillis = 1755430000000,
+            source = "APP_USER",
+            status = "ACTIVE",
+            createdAt = LocalDateTime.now(),
+            createdBy = userId,
+        )
+
+        // Simulates the loser of a concurrent-insert race: the row already exists
+        // (e.g. inserted by another request with the same client-generated id),
+        // so this second insert must hit ON CONFLICT DO NOTHING instead of
+        // throwing a primary-key-violation defect.
+        !TimingTimeMarkRepo.createIfAbsent(record)
+        !TimingTimeMarkRepo.createIfAbsent(record)
 
         val marks = !TimingTimeMarkRepo.getByEvent(eventId)
         assertEquals(1, marks.size)

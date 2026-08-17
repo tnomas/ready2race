@@ -72,7 +72,7 @@ object TimingService {
                 .onNullFail { TimingError.StationNotFound }
             !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
-            val id = !TimingTimeMarkRepo.create(
+            !TimingTimeMarkRepo.createIfAbsent(
                 TimingTimeMarkRecord(
                     id = request.id,
                     event = eventId,
@@ -84,7 +84,7 @@ object TimingService {
                     createdBy = userId,
                 )
             ).orDie()
-            KIO.ok(ApiResponse.Created(id))
+            KIO.ok(ApiResponse.Created(request.id))
         }
     }
 
