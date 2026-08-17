@@ -24,6 +24,7 @@ sealed class Privilege(
         APP_QR_MANAGEMENT,
         APP_COMPETITION_CHECK,
         APP_CATERER,
+        APP_TIMING,
         WEB_DAV,
         RESULT,
         ADMINISTRATION,
@@ -72,6 +73,7 @@ sealed class Privilege(
     data object UpdateAppQrManagementGlobal : Privilege(Action.UPDATE, Resource.APP_QR_MANAGEMENT, Scope.GLOBAL)
     data object UpdateAppCompetitionCheckGlobal : Privilege(Action.UPDATE, Resource.APP_COMPETITION_CHECK, Scope.GLOBAL)
     data object UpdateAppCatererGlobal : Privilege(Action.UPDATE, Resource.APP_CATERER, Scope.GLOBAL)
+    data object UpdateAppTimingGlobal : Privilege(Action.UPDATE, Resource.APP_TIMING, Scope.GLOBAL)
 
     data object CreateInvoiceGlobal : Privilege(Action.CREATE, Resource.INVOICE, Scope.GLOBAL)
     data object ReadInvoiceGlobal : Privilege(Action.READ, Resource.INVOICE, Scope.GLOBAL)
