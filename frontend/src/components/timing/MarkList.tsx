@@ -1,12 +1,27 @@
-import {Box, CircularProgress, IconButton, Stack, Tooltip, Typography} from '@mui/material'
+import {Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography} from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import WarningIcon from '@mui/icons-material/Warning'
 import BlockIcon from '@mui/icons-material/Block'
 import UndoIcon from '@mui/icons-material/Undo'
+import EditIcon from '@mui/icons-material/Edit'
 import {useTranslation} from 'react-i18next'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {retractTimeMark} from '@api/sdk.gen.ts'
+import {TimingTeamDto} from '@api/types.gen.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
+import AssignTeamDialog from '@components/timing/AssignTeamDialog.tsx'
+
+/** Shortened form of a team id used when a mark is assigned to a team not present in `teams` (e.g. a
+ * team that was deleted after the assignment was made). */
+function shortenTeamId(id: string): string {
+    return id.slice(0, 8)
+}
+
+function teamDisplayLabel(team: TimingTeamDto): string {
+    const start = team.startNumber !== undefined ? `#${team.startNumber}` : '#–'
+    const name = team.teamName ?? team.clubName ?? ''
+    return [start, name].filter(part => part.length > 0).join(' ')
+}
 
 function formatMarkTime(ms: number): string {
     const date = new Date(ms)
@@ -21,6 +36,10 @@ export type MarkListProps = {
     eventId: string
     stationId: string
     marks: BoardMark[]
+    /** All of the event's teams, loaded once per board mount and sorted by start number. */
+    teams: TimingTeamDto[]
+    /** True while the initial teams request is still in flight (forwarded to the assign dialog). */
+    teamsLoading?: boolean
 }
 
 /**
@@ -39,9 +58,46 @@ export type MarkListProps = {
  * `sequenceMapRef`/`nextSequenceRef` are reset whenever `eventId`/`stationId` changes, so switching
  * event or station starts a fresh sequence instead of carrying over the previous board's numbers.
  */
-const MarkList = ({eventId, stationId, marks}: MarkListProps) => {
+const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: MarkListProps) => {
     const {t} = useTranslation()
     const [retracting, setRetracting] = useState<Set<string>>(new Set())
+
+    // --- Team assignment ------------------------------------------------------------------------
+    //
+    // `localAssignments` overlays the still-in-flight optimistic result of an assign/detach on top
+    // of `marks` (which only reflects `assignedTeam` once the server's create response or the
+    // websocket `assignmentChanged` echo lands) — the same "optimistic overlay, cleared once the
+    // real state catches up" shape as `retracting` above.
+    const [localAssignments, setLocalAssignments] = useState<Map<string, string | null>>(new Map())
+    const [assignDialogMarkId, setAssignDialogMarkId] = useState<string | null>(null)
+
+    const teamById = useMemo(
+        () => new Map(teams.map(team => [team.competitionMatchTeam, team])),
+        [teams],
+    )
+
+    const handleAssign = useCallback((markId: string, competitionMatchTeam: string | null) => {
+        setLocalAssignments(prev => new Map(prev).set(markId, competitionMatchTeam))
+    }, [])
+
+    // Once a mark's real `assignedTeam` matches the optimistic overlay, the overlay is redundant —
+    // drop it so the map doesn't grow unbounded over a long session (mirrors the `retracting` cleanup
+    // effect below).
+    useEffect(() => {
+        setLocalAssignments(prev => {
+            if (prev.size === 0) return prev
+            let next: Map<string, string | null> | null = null
+            for (const [markId, optimisticTeam] of prev) {
+                const mark = marks.find(m => m.id === markId)
+                const realTeam = mark?.assignedTeam ?? null
+                if (mark === undefined || realTeam === optimisticTeam) {
+                    next = next ?? new Map(prev)
+                    next.delete(markId)
+                }
+            }
+            return next ?? prev
+        })
+    }, [marks])
 
     const sequenceMapRef = useRef<Map<string, number>>(new Map())
     const nextSequenceRef = useRef(1)
@@ -113,6 +169,14 @@ const MarkList = ({eventId, stationId, marks}: MarkListProps) => {
         [eventId],
     )
 
+    // Overlay the optimistic assignment (if any) so the dialog's "current team"/detach-button state
+    // reflects a just-submitted-but-not-yet-echoed change instead of the stale server value.
+    const rawAssignDialogMark = marks.find(m => m.id === assignDialogMarkId)
+    const assignDialogMark =
+        rawAssignDialogMark !== undefined && localAssignments.has(rawAssignDialogMark.id)
+            ? {...rawAssignDialogMark, assignedTeam: localAssignments.get(rawAssignDialogMark.id) ?? undefined}
+            : rawAssignDialogMark
+
     return (
         <Stack sx={{width: 1}} divider={<Box sx={{borderBottom: 1, borderColor: 'divider'}} />}>
             {reversedMarks.map(mark => {
@@ -164,6 +228,42 @@ const MarkList = ({eventId, stationId, marks}: MarkListProps) => {
                             </Typography>
                         )}
                         <Box sx={{flexGrow: 1}} />
+                        {mark.status === 'ACTIVE' &&
+                            (() => {
+                                const effectiveTeamId = localAssignments.has(mark.id)
+                                    ? localAssignments.get(mark.id)!
+                                    : (mark.assignedTeam ?? null)
+
+                                if (effectiveTeamId === null) {
+                                    return (
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            onClick={() => setAssignDialogMarkId(mark.id)}>
+                                            {t('timing.assign.assign')}
+                                        </Button>
+                                    )
+                                }
+
+                                const team = teamById.get(effectiveTeamId)
+                                const label = team
+                                    ? teamDisplayLabel(team)
+                                    : shortenTeamId(effectiveTeamId)
+
+                                return (
+                                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                                        <Typography variant="body2">{label}</Typography>
+                                        <Tooltip title={t('timing.assign.edit')}>
+                                            <IconButton
+                                                size="small"
+                                                aria-label={t('timing.assign.edit')}
+                                                onClick={() => setAssignDialogMarkId(mark.id)}>
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Stack>
+                                )
+                            })()}
                         {canUndo && (
                             <Tooltip title={t('timing.board.mark.undo')}>
                                 <IconButton
@@ -177,6 +277,17 @@ const MarkList = ({eventId, stationId, marks}: MarkListProps) => {
                     </Stack>
                 )
             })}
+            {assignDialogMark !== undefined && (
+                <AssignTeamDialog
+                    open
+                    onClose={() => setAssignDialogMarkId(null)}
+                    eventId={eventId}
+                    mark={assignDialogMark}
+                    teams={teams}
+                    teamsLoading={teamsLoading}
+                    onAssign={handleAssign}
+                />
+            )}
         </Stack>
     )
 }

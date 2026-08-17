@@ -12,7 +12,7 @@ import {
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {updateAppTimingGlobal} from '@authorization/privileges.ts'
@@ -22,7 +22,8 @@ import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
-import {createTimeMark} from '@api/sdk.gen.ts'
+import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
+import {useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
     counts as queueCounts,
@@ -62,6 +63,21 @@ const TimingBoardPage = () => {
     const clock = useServerClock()
     const {marks, stations, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
         useTimingBoardState(eventId, stationId)
+
+    // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
+    // websocket reconnect like the time marks/stations are — the team roster for an event does not
+    // change during a running board session), sorted client-side by start number so the picker lists
+    // them in the order operators expect. Teams without a start number sort last.
+    const {data: teamsData, pending: teamsPending} = useFetch(signal =>
+        getTimingTeams({signal, path: {eventId}}),
+    )
+    const teams = useMemo(
+        () =>
+            [...(teamsData ?? [])].sort(
+                (a, b) => (a.startNumber ?? Infinity) - (b.startNumber ?? Infinity),
+            ),
+        [teamsData],
+    )
 
     const station = stations.find(s => s.id === stationId)
 
@@ -442,7 +458,13 @@ const TimingBoardPage = () => {
                     px: 2,
                     py: 1,
                 }}>
-                <MarkList eventId={eventId} stationId={stationId} marks={marks} />
+                <MarkList
+                    eventId={eventId}
+                    stationId={stationId}
+                    marks={marks}
+                    teams={teams}
+                    teamsLoading={teamsPending}
+                />
             </Box>
 
             <Dialog

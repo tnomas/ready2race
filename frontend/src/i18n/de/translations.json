@@ -1741,6 +1741,13 @@
         "FINISH": "Ziel"
       }
     },
+    "assign": {
+      "title": "Team zuordnen",
+      "searchLabel": "Team suchen (Startnummer oder Name)",
+      "assign": "Zuordnen",
+      "edit": "Zuordnung bearbeiten",
+      "detach": "Zuordnung lösen"
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Verbindet…",

@@ -1741,6 +1741,13 @@
         "FINISH": "Mål"
       }
     },
+    "assign": {
+      "title": "Tildel hold",
+      "searchLabel": "Søg hold (startnummer eller navn)",
+      "assign": "Tildel",
+      "edit": "Rediger tildeling",
+      "detach": "Fjern tildeling"
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Forbinder…",

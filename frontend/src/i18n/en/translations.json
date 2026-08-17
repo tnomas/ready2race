@@ -1741,6 +1741,13 @@
         "FINISH": "Finish"
       }
     },
+    "assign": {
+      "title": "Assign team",
+      "searchLabel": "Search team (start number or name)",
+      "assign": "Assign",
+      "edit": "Edit assignment",
+      "detach": "Remove assignment"
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Connecting…",
