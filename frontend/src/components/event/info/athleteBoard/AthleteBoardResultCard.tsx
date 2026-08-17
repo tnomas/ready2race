@@ -94,9 +94,14 @@ const AthleteBoardResultCard = ({
                                 variant="outlined"
                             />
                         )}
-                        {/* Ein Ergebnis aus einem Lauf in Klärung geht bewusst nach der
-                            bestehenden Sichtbarkeitsregel raus (Task 8) — dieser Chip macht
-                            sichtbar, dass es noch mit Vorbehalt steht. */}
+                        {/* Ein Wächter, der heute nicht anschlägt: Der Board-Pfad bestellt seine
+                            Ergebnisse immer mit confirmedOnly (BoardService), also FINISHED_ONLY —
+                            und Beenden leert beide Klärungs-Spalten. `clarification` kommt hier
+                            deshalb derzeit stets als false an. Der Chip steht trotzdem, für den
+                            Tag, an dem das Board die Freigaberegel der Veranstaltung übernimmt;
+                            ausgeliefert wird der Vorbehalt heute über die öffentliche
+                            Ergebnisseite und „Mein Event" (ResultsMatchCard, MyEventResultField).
+                        */}
                         {result.clarification && (
                             <Chip
                                 size="small"

@@ -4486,7 +4486,7 @@ export const setLiveDashboardMatchActivated = <ThrowOnError extends boolean = fa
 }
 
 /**
- * Puts the match into clarification (an objection is running). The match stays activated and drops out of the public displays and the activation chain. A second call only sharpens the reason - the timestamp stays the one from the first call.
+ * Puts the match into clarification (an objection is running). The match stays activated and drops out of the public displays and the activation chain. A second call only sharpens the reason - the timestamp stays the one from the first call. A finished match is rejected: finishing is the release, and the way back would be unreachable.
  */
 export const setMatchClarification = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<SetMatchClarificationData, ThrowOnError>,

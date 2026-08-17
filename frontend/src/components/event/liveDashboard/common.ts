@@ -259,6 +259,10 @@ export const teamHasRaced = (team: LiveDashboardTeamDto): boolean =>
 export const dashboardMatchStatus = (match: LiveDashboardMatchDto): MatchStatusDto => ({
     state: match.state,
     startedAt: match.startedAt ?? undefined,
+    // Trägt den Tooltip am Klärungs-Chip (siehe MatchChip.tooltip): Auf der vollen Karte in der
+    // Läufe-Spalte steht sonst nur „Klärung", und der Grund wäre allein im eingeklappten Abschnitt
+    // der Live-Spalte zu finden.
+    clarificationReason: match.clarificationReason,
     teamsTotal: match.teams.length,
     teamsScored: match.teams.filter(teamIsSettled).length,
     teamsRaced: match.teams.filter(teamHasRaced).length,

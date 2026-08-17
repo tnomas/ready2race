@@ -91,7 +91,24 @@ describe('matchStatusChip', () => {
         expect(matchStatusChip(status({state: 'CLARIFICATION'}), null, new Date())).toEqual({
             labelKey: 'event.match.status.clarification',
             color: 'warning',
+            tooltip: undefined,
         })
+    })
+
+    it('trägt den Grund der Klärung als Tooltip, nicht im Label', () => {
+        // Der Chip bleibt kurz ("Klärung"); der Grund gehört in den Tooltip, sonst sprengt er jede
+        // Kartenzeile. Ohne diesen Weg müsste das Regattabüro auf der Durchführungsseite ins
+        // Schiedsrichter-Dashboard wechseln, nur um zu erfahren, worum gestritten wird.
+        const chip = matchStatusChip(
+            status({
+                state: 'CLARIFICATION',
+                clarificationReason: 'Einspruch RV Hansa, Bahnberührung',
+            }),
+            null,
+            new Date(),
+        )
+        expect(chip.labelKey).toBe('event.match.status.clarification')
+        expect(chip.tooltip).toBe('Einspruch RV Hansa, Bahnberührung')
     })
 
     it('lässt die Klärung vor dem Freilos-Chip greifen', () => {

@@ -42,11 +42,16 @@ const ResultPanel = ({result, element}: ResultPanelProps) => {
             )}
             roundLine={roundMatchLabel(result.roundName, result.matchName)}
             headerTrailing={
-                // Ein Ergebnis aus einem Lauf in Klärung geht bewusst nach der bestehenden
-                // Sichtbarkeitsregel raus (Task 8) — auf der Key-Fläche keine MUI-Chip- oder
-                // Halbtransparenz-Farbe (die würde beim Keying Farbsäume ziehen, siehe
-                // solidOr), sondern nur Text in Warnfarbe wie schon bei der Zeitstrafe
-                // (StreamBoatRow).
+                // Ein Wächter, der heute nicht anschlägt: Der Board-Pfad bestellt seine Ergebnisse
+                // immer mit confirmedOnly (BoardService), also FINISHED_ONLY — und Beenden leert
+                // beide Klärungs-Spalten. `clarification` kommt hier deshalb derzeit stets als
+                // false an. Der Hinweis bleibt für den Tag, an dem das Board die Freigaberegel der
+                // Veranstaltung übernimmt; ausgeliefert wird der Vorbehalt heute über die
+                // öffentliche Ergebnisseite und „Mein Event".
+                //
+                // Auf der Key-Fläche keine MUI-Chip- oder Halbtransparenz-Farbe (die würde beim
+                // Keying Farbsäume ziehen, siehe solidOr), sondern nur Text in Warnfarbe wie schon
+                // bei der Zeitstrafe (StreamBoatRow).
                 result.clarification ? (
                     <Typography
                         variant="h5"

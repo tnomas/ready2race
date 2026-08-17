@@ -2220,6 +2220,10 @@ export type LatestMatchResultInfo = {
      * real start, if stamped
      */
     startedAt?: string | null
+    /**
+     * an objection is running against this match (competition_match.clarification_since set) - the result goes out under the existing visibility rule, marked as provisional
+     */
+    clarification?: boolean
     teams: Array<MatchResultTeamInfo>
 }
 
@@ -2515,7 +2519,7 @@ export type MatchByeDto = {
  */
 export type MatchClarificationRequest = {
     /**
-     * must not be blank
+     * must not be blank, at most 255 characters (the column width)
      */
     reason: string
 }
