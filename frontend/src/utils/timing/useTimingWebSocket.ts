@@ -36,18 +36,26 @@ function backoffMillis(attempt: number): number {
  * the server dropping slow clients at its queue capacity.
  *
  * The backend closes with code 1008 (policy violation) *after* completing the 101 upgrade when the
- * session token is invalid/expired, so `onopen` still fires once before the close. To avoid a 1 Hz
- * handshake+refetch loop in that case: the reconnect `attempt` counter is only reset once a
- * connection has stayed open for `STABLE_CONNECTION_MILLIS` (a bare `onopen` never resets it), and a
- * close with code 1008 switches the status to `'UNAUTHORIZED'` and drops to a slow fixed retry every
- * `UNAUTHORIZED_RETRY_MILLIS` instead of the normal backoff. The same slow retry covers "no session
- * token at all" (no socket is created, status goes straight to `'UNAUTHORIZED'`).
+ * session token is invalid/expired, so `onopen` still fires once before the close. Two problems stem
+ * from that, both handled the same way — a bare `onopen` is never trusted on its own:
+ * 1) the reconnect `attempt` counter is only reset once a connection has stayed open for
+ *    `STABLE_CONNECTION_MILLIS` (a bare `onopen` never resets it), and
+ * 2) `onopen` fired by a connection attempt that was armed while `'UNAUTHORIZED'` does not set the
+ *    status to `'OPEN'` or call `onConnect` either — both are deferred to the stable-timer firing.
+ *    Without that, every 30s retry would flash `'OPEN'` (clearing the banner and firing `onConnect`,
+ *    which refetches and drains the offline queue against a session that is about to be rejected
+ *    again) for the instant between the upgrade and the 1008 close.
+ * A close with code 1008 switches the status to `'UNAUTHORIZED'` and drops to a slow fixed retry
+ * every `UNAUTHORIZED_RETRY_MILLIS` instead of the normal backoff. The same slow retry covers "no
+ * session token at all" (no socket is created, status goes straight to `'UNAUTHORIZED'`).
  *
  * The unauthorized state is explicitly **not** terminal. Sessions expire on a quiet station (the
  * board's only steady traffic is unauthenticated), and a re-login happening in the same tab must
  * bring the board back on its own — a state that can only be left by reloading the page would strand
- * an operator mid-event. Recovery is automatic: the next retry that connects flips the status back to
- * `'OPEN'` and fires `onConnect`, which refetches state and lets the board drain its offline queue.
+ * an operator mid-event. Recovery is automatic: once a retry armed by the unauthorized path connects
+ * and *stays* connected for `STABLE_CONNECTION_MILLIS` (proving the 1008 won't follow), the
+ * stable-timer callback flips the status to `'OPEN'` and fires `onConnect`, which refetches state and
+ * lets the board drain its offline queue.
  *
  * `handlers` is kept in a ref (updated in its own depless effect) so reconnecting never
  * resubscribes per render.
@@ -73,6 +81,10 @@ export function useTimingWebSocket(
 		let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 		let stableTimer: ReturnType<typeof setTimeout> | null = null
 		let attempt = 0
+		// Set by `armUnauthorizedRetry`, cleared only once a connection armed by that path survives
+		// `STABLE_CONNECTION_MILLIS` (see `onopen` below). Not a dependency-tracked ref: like `attempt`,
+		// it lives for the lifetime of this effect run and is shared by every `connect()` call it makes.
+		let wasUnauthorized = false
 
 		const clearStableTimer = () => {
 			if (stableTimer !== null) {
@@ -95,6 +107,7 @@ export function useTimingWebSocket(
 		 * connection failure should still start from the normal fast retry.
 		 */
 		const armUnauthorizedRetry = () => {
+			wasUnauthorized = true
 			setStatus('UNAUTHORIZED')
 			reconnectTimer = setTimeout(connect, UNAUTHORIZED_RETRY_MILLIS)
 		}
@@ -146,8 +159,18 @@ export function useTimingWebSocket(
 
 			ws.onopen = () => {
 				if (disposedRef.current) return
-				setStatus('OPEN')
-				handlersRef.current.onConnect()
+				// If this connection attempt was armed by `armUnauthorizedRetry`, do not report it as
+				// `'OPEN'` yet: the backend closes with 1008 *after* the upgrade on auth failure, so a
+				// bare `onopen` fires every cycle even when auth is still broken, and reporting `'OPEN'`
+				// here would flash the connected state (clearing the unauthorized banner and firing
+				// `onConnect`, which refetches/drains against a session that's about to be rejected
+				// again) for the instant before that close arrives. Both are deferred to the
+				// stable-timer callback below, which only fires once the connection has actually stayed
+				// open for a while.
+				if (!wasUnauthorized) {
+					setStatus('OPEN')
+					handlersRef.current.onConnect()
+				}
 				// Do NOT reset `attempt` here: the backend closes with 1008 *after* the upgrade on
 				// auth failure, so a bare `onopen` fires every cycle even when auth is broken. Only
 				// treat the connection as healthy - and reset the backoff - once it has stayed open
@@ -156,6 +179,13 @@ export function useTimingWebSocket(
 				stableTimer = setTimeout(() => {
 					attempt = 0
 					stableTimer = null
+					// The deferred half of the unauthorized case above: this connection has now stayed
+					// open long enough to prove the 1008 isn't coming, so it's a genuine recovery.
+					if (wasUnauthorized) {
+						wasUnauthorized = false
+						setStatus('OPEN')
+						handlersRef.current.onConnect()
+					}
 				}, STABLE_CONNECTION_MILLIS)
 			}
 

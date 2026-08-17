@@ -261,14 +261,20 @@ const TimingBoardPage = () => {
 
     // (e) Tab became visible again. Covers the very common phone case where the screen was locked (or
     // the board backgrounded) across the connectivity change, so timers were throttled and neither
-    // `online` nor a websocket transition fired while the user was away.
+    // `online` nor a websocket transition fired while the user was away. Both a drain and a state
+    // refetch belong on this one trigger (see the staleness note below for why the refetch is needed
+    // here too), so a single listener does both rather than two independent ones fighting for the
+    // same event.
     useEffect(() => {
         const handleVisibility = () => {
-            if (document.visibilityState === 'visible') runDrain()
+            if (document.visibilityState === 'visible') {
+                runDrain()
+                refetch()
+            }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [runDrain])
+    }, [runDrain, refetch])
 
     // --- Staleness safety net -------------------------------------------------------------------
     //
@@ -276,19 +282,12 @@ const TimingBoardPage = () => {
     // ever closing (a proxy holding a half-open connection, a server-side fanout registration dropped
     // without a close frame). None of the drain triggers above help there — the queue is empty, the
     // status still reads OPEN, and the board silently shows a frozen list. So poll the full state
-    // outright: on every return to visibility, and once a minute while mounted. The refetch is
-    // epoch-guarded and merges rather than replaces (see `useTimingBoardState`), so an extra one is
-    // never harmful — just a wasted request in the normal case.
+    // outright: on every return to visibility (handled by the listener above) and once a minute while
+    // mounted. The refetch is epoch-guarded and merges rather than replaces (see `useTimingBoardState`),
+    // so an extra one is never harmful — just a wasted request in the normal case.
     useEffect(() => {
-        const handleVisibility = () => {
-            if (document.visibilityState === 'visible') refetch()
-        }
-        document.addEventListener('visibilitychange', handleVisibility)
         const interval = setInterval(refetch, 60000)
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibility)
-            clearInterval(interval)
-        }
+        return () => clearInterval(interval)
     }, [refetch])
 
     const onBuffered = useCallback((id: string, buffered: boolean) => {

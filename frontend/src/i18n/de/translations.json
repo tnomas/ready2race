@@ -1793,8 +1793,7 @@
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
       "capture": {
         "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
-        "stationLoading": "Posten wird geladen…",
-        "unauthorized": "Sitzung abgelaufen – Erfassung nicht möglich"
+        "stationLoading": "Posten wird geladen…"
       },
       "mark": {
         "pending": "wird übertragen",
