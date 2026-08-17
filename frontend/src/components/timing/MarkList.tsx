@@ -4,7 +4,7 @@ import WarningIcon from '@mui/icons-material/Warning'
 import BlockIcon from '@mui/icons-material/Block'
 import UndoIcon from '@mui/icons-material/Undo'
 import {useTranslation} from 'react-i18next'
-import {useCallback, useEffect, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {retractTimeMark} from '@api/sdk.gen.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 
@@ -19,32 +19,48 @@ function formatMarkTime(ms: number): string {
 
 export type MarkListProps = {
     eventId: string
+    stationId: string
     marks: BoardMark[]
 }
 
 /**
- * Reverse-chronological list of this station's captured marks: a 1-based sequence number (by
- * capture order, i.e. `timestampMillis`, not array order — array order can differ slightly for
- * near-simultaneous websocket-delivered marks), the time of day at 0.1s precision, a status icon,
- * and an undo button for active marks.
+ * Reverse-chronological list of this station's captured marks: a 1-based sequence number, the time
+ * of day at 0.1s precision, a status icon, and an undo button for active marks.
  *
- * Undo is optimistic: clicking it immediately renders the mark as retracted (struck through) while
- * the `retractTimeMark` request is in flight; the real confirmation arrives via the websocket
- * `timeMarkRetracted` echo and updates `mark.status` for real, at which point the local optimistic
- * flag for that id is pruned (see the effect below) — it was only ever needed to bridge the gap
- * before the echo arrives.
+ * **Sequence numbers are first-seen, not timestamp-sorted.** Operators reference marks by number
+ * verbally, so a number must never change once shown. A mark's number is assigned the first time its
+ * id is observed in `marks` and then kept forever in `sequenceMapRef`, a plain ref (not state) so
+ * assigning numbers never itself triggers a render. This matters because marks can arrive out of
+ * order (a websocket message delivered late, or a snapshot merge/replay) with a `timestampMillis`
+ * earlier than marks already displayed — deriving numbers from a timestamp sort, as before, would
+ * silently renumber everything already on screen. First-seen order sidesteps that: a late mark just
+ * gets appended to the sequence instead of shifting existing numbers. Display order (newest on top)
+ * still sorts by `timestampMillis` — only the numbering itself is first-seen-based.
+ * `sequenceMapRef`/`nextSequenceRef` are reset whenever `eventId`/`stationId` changes, so switching
+ * event or station starts a fresh sequence instead of carrying over the previous board's numbers.
  */
-const MarkList = ({eventId, marks}: MarkListProps) => {
+const MarkList = ({eventId, stationId, marks}: MarkListProps) => {
     const {t} = useTranslation()
     const [retracting, setRetracting] = useState<Set<string>>(new Set())
 
-    // Sequence numbers reflect actual capture order, not array order.
-    const sequenceById = useMemo(() => {
-        const sorted = [...marks].sort((a, b) => a.timestampMillis - b.timestampMillis)
-        const map = new Map<string, number>()
-        sorted.forEach((mark, index) => map.set(mark.id, index + 1))
-        return map
-    }, [marks])
+    const sequenceMapRef = useRef<Map<string, number>>(new Map())
+    const nextSequenceRef = useRef(1)
+    const resetKeyRef = useRef(`${eventId}:${stationId}`)
+
+    const resetKey = `${eventId}:${stationId}`
+    if (resetKeyRef.current !== resetKey) {
+        resetKeyRef.current = resetKey
+        sequenceMapRef.current = new Map()
+        nextSequenceRef.current = 1
+    }
+    // Assign the next sequence number to any id not seen before. Idempotent by construction (already
+    // -seen ids are skipped), so it's safe to run on every render rather than only inside an effect.
+    for (const mark of marks) {
+        if (!sequenceMapRef.current.has(mark.id)) {
+            sequenceMapRef.current.set(mark.id, nextSequenceRef.current++)
+        }
+    }
+    const sequenceById = sequenceMapRef.current
 
     const reversedMarks = useMemo(
         () => [...marks].sort((a, b) => b.timestampMillis - a.timestampMillis),

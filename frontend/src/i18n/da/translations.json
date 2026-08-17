@@ -1761,7 +1761,8 @@
       "stateError": "Data kunne ikke indlæses – prøver igen…",
       "capture": {
         "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
-        "stationLoading": "Indlæser post…"
+        "stationLoading": "Indlæser post…",
+        "unauthorized": "Sessionen er udløbet – registrering ikke mulig"
       },
       "mark": {
         "pending": "sender",

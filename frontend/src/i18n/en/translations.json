@@ -1761,7 +1761,8 @@
       "stateError": "Could not load data – retrying…",
       "capture": {
         "clockNotSynced": "Clock not synced – capture unavailable",
-        "stationLoading": "Loading station…"
+        "stationLoading": "Loading station…",
+        "unauthorized": "Session expired – capture unavailable"
       },
       "mark": {
         "pending": "sending",

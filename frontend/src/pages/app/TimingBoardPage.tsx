@@ -37,8 +37,10 @@ const TimingBoardPage = () => {
     const captureButtonRef = useRef<CaptureButtonHandle>(null)
 
     // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
-    // has focus (so typing a space in a field doesn't fire a capture) or while a MUI dialog is open
-    // (e.g. a future assignment/confirmation dialog sits on top of the board).
+    // has focus (so typing a space in a field doesn't fire a capture), while a MUI dialog is open
+    // (e.g. a future assignment/confirmation dialog sits on top of the board), or while the session is
+    // unauthorized (mirrors CaptureButton's own `disabled` condition — that button also guards this
+    // internally, but the shortcut short-circuits here too so it never even calls into it).
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.code !== 'Space' && event.key !== ' ') return
@@ -52,7 +54,7 @@ const TimingBoardPage = () => {
                 (active instanceof HTMLElement && active.isContentEditable)
             const isDialogOpen = document.querySelector('[role="dialog"]') !== null
 
-            if (isFormField || isDialogOpen) return
+            if (isFormField || isDialogOpen || showUnauthorizedBanner) return
 
             event.preventDefault()
             captureButtonRef.current?.capture()
@@ -60,7 +62,7 @@ const TimingBoardPage = () => {
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+    }, [showUnauthorizedBanner])
 
     return (
         <Box
@@ -111,6 +113,7 @@ const TimingBoardPage = () => {
                     eventId={eventId}
                     station={station}
                     now={clock.now}
+                    unauthorized={showUnauthorizedBanner}
                     applyLocalMark={applyLocalMark}
                     markSaved={markSaved}
                     markFailed={markFailed}
@@ -127,7 +130,7 @@ const TimingBoardPage = () => {
                     px: 2,
                     py: 1,
                 }}>
-                <MarkList eventId={eventId} marks={marks} />
+                <MarkList eventId={eventId} stationId={stationId} marks={marks} />
             </Box>
         </Box>
     )

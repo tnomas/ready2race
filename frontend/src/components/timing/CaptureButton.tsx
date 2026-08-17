@@ -16,6 +16,13 @@ export type CaptureButtonProps = {
     /** The current station, or undefined while the board's initial state load is still in flight. */
     station: TimingStationDto | undefined
     now: () => number | null
+    /**
+     * True while the board's websocket session is `UNAUTHORIZED` (e.g. the session expired). A
+     * capture made in this state can never be saved (the create request would just come back
+     * unauthorized too), so it must be blocked outright rather than optimistically applied — no
+     * local mark, no success beep/vibration.
+     */
+    unauthorized: boolean
     applyLocalMark: (mark: TimeMarkDto) => void
     markSaved: (id: string) => void
     markFailed: (id: string) => void
@@ -24,7 +31,8 @@ export type CaptureButtonProps = {
 /**
  * The huge capture button: one tap (or a Space-bar press forwarded from the board page) records a
  * time mark at the current server-synced instant. Disabled — with a visible reason — until the
- * clock is synced, since capture must never use a wrong (unsynced) clock.
+ * clock is synced, since capture must never use a wrong (unsynced) clock; also disabled while the
+ * session is unauthorized, since a capture that can never be saved shouldn't pretend to succeed.
  *
  * Capture fires on `onPointerDown`, not `onClick`: the timestamp must be taken as close as possible
  * to the physical press, not the release. The button therefore also swallows the follow-up
@@ -32,7 +40,7 @@ export type CaptureButtonProps = {
  * Space/Enter activation of a focused button) so a single physical press can never record twice.
  */
 const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(function CaptureButton(
-    {eventId, station, now, applyLocalMark, markSaved, markFailed},
+    {eventId, station, now, unauthorized, applyLocalMark, markSaved, markFailed},
     ref,
 ) {
     const {t} = useTranslation()
@@ -41,10 +49,14 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
      * The full two-step capture flow, kept as ONE function so Task 9's offline queue can extend just
      * the failure branch (currently `markFailed`) to also enqueue the mark for retry — nothing else
      * here should need to change for that.
+     *
+     * The `unauthorized` guard lives here (not only in the button's `disabled` prop) so the Space-bar
+     * shortcut — which calls this function directly via the imperative handle, bypassing the button's
+     * `disabled` state — can never capture while unauthorized either.
      */
     const captureMark = useCallback(() => {
         const ts = now()
-        if (ts === null || station === undefined) return
+        if (ts === null || station === undefined || unauthorized) return
 
         const id = crypto.randomUUID()
         const mark: TimeMarkDto = {
@@ -74,13 +86,13 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
                 markFailed(id)
             }
         })()
-    }, [now, station, eventId, applyLocalMark, markSaved, markFailed])
+    }, [now, station, unauthorized, eventId, applyLocalMark, markSaved, markFailed])
 
     useImperativeHandle(ref, () => ({capture: captureMark}), [captureMark])
 
     const clockNotSynced = now() === null
     const stationLoading = station === undefined
-    const disabled = clockNotSynced || stationLoading
+    const disabled = clockNotSynced || stationLoading || unauthorized
 
     const handlePointerDown = useCallback(() => {
         if (disabled) return
@@ -119,9 +131,11 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
             </ButtonBase>
             {disabled && (
                 <Typography variant="body2" color="error" textAlign="center">
-                    {clockNotSynced
-                        ? t('timing.board.capture.clockNotSynced')
-                        : t('timing.board.capture.stationLoading')}
+                    {unauthorized
+                        ? t('timing.board.capture.unauthorized')
+                        : clockNotSynced
+                          ? t('timing.board.capture.clockNotSynced')
+                          : t('timing.board.capture.stationLoading')}
                 </Typography>
             )}
         </Stack>
