@@ -362,6 +362,12 @@ object CompetitionMatchRepo {
             .leftJoin(COMPETITION_VIEW).on(COMPETITION_VIEW.ID.eq(COMPETITION.ID))
             .where(COMPETITION.EVENT.eq(eventId))
             .and(COMPETITION_MATCH.ACTIVATED_AT.isNotNull)
+            // Ein Lauf in Klärung bleibt aktiviert (activated_at wird nicht angefasst), gehört aber
+            // nicht mehr in den Running-Block: Sonst hielte er über BoardLogic.cursorIndex den
+            // Cursor fest, und Stream-Uhr, Lower-Third und Athleten-Anzeige rückten nicht nach.
+            // Aus getUpcomingMatchesForBoard fällt er ohnehin heraus (die Abfrage verlangt
+            // activated_at is null) - er kommt also auch nicht als "als nächstes" zurück.
+            .and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull)
             .orderBy(
                 COMPETITION_MATCH.START_TIME.asc(),
                 COMPETITION_SETUP_MATCH.EXECUTION_ORDER.asc()
