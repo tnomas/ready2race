@@ -43,3 +43,4 @@ testOutputs/
 .env
 local.env
 /static/
+local-dev.config
