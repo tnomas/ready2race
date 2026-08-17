@@ -84,6 +84,30 @@ class MatchClarificationTest {
         assertNull(match.clarificationReason)
     }
 
+    /**
+     * Beenden hebt die Klärung implizit auf - der zweite, wichtigere Teil der Regel "Beenden IST
+     * die Freigabe". Ohne das Leeren in `finishMatchInternal` bliebe der Merker stehen: der
+     * Zustand wäre zwar FINISHED (finishedAt schlägt die Klärung in der Ableitung), aber jede
+     * Abfrage, die auf `clarification_since` filtert, verlöre den Lauf dauerhaft aus den
+     * öffentlichen Anzeigen. Das seeded Team steht schon auf Platz 1 (placesCalculated), darum
+     * braucht `finishMatch` hier kein `openResults`.
+     */
+    @Test
+    fun finishingLiftsTheClarificationToo() = testComprehension {
+        val seeded = seedClubChain()
+        val userId = seedAuthor("Rita", "Ricci")
+
+        !LiveDashboardService.setMatchClarification(
+            seeded.eventId, seeded.matchId, MatchClarificationRequest("Einspruch"), userId,
+        )
+        !LiveDashboardService.finishMatch(seeded.eventId, seeded.matchId, userId)
+
+        val match = dashboardMatch(seeded.eventId, seeded.matchId)
+        assertNull(match.clarificationSince)
+        assertNull(match.clarificationReason)
+        assertEquals(LiveDashboardMatchState.FINISHED, match.state)
+    }
+
     private fun TestComprehensionScope<JEnv>.dashboardMatch(
         eventId: UUID,
         matchId: UUID,
