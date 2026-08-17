@@ -74,7 +74,18 @@ fun ApplicationCall.optionalAuthenticate(
 fun ApplicationCall.authenticateAny(
     vararg privileges: Privilege,
 ): App<AuthError, AppUserWithPrivilegesRecord> =
-    AuthService.useSessionToken(sessions.get<UserSession>()?.token).failIf(
+    authenticateAnyWithToken(sessions.get<UserSession>()?.token, *privileges)
+
+/**
+ * Same as [ApplicationCall.authenticateAny], but for callers that hold the raw session token
+ * instead of a call session - e.g. websocket handshakes, where browsers cannot set the
+ * `X-Api-Session` header and the token arrives via the `Sec-WebSocket-Protocol` header.
+ */
+fun authenticateAnyWithToken(
+    token: String?,
+    vararg privileges: Privilege,
+): App<AuthError, AppUserWithPrivilegesRecord> =
+    AuthService.useSessionToken(token).failIf(
         condition = { user ->
             privileges.none { privilege ->
                 user.privileges!!

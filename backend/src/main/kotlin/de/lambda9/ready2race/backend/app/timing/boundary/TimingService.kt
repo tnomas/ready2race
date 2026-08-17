@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
@@ -12,9 +13,6 @@ import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -167,8 +165,12 @@ object TimingService {
         }
     }
 
+    // Broadcasts must never be visible before the surrounding transaction committed - a client that
+    // refetches `/timing/state` on another connection would otherwise see pre-commit data, and a
+    // rollback would emit a phantom event. AfterCommit buffers the enqueue until respondKIO has
+    // committed and responded (and runs it immediately for non-HTTP callers).
     private fun broadcastAsync(eventId: UUID, message: TimingWsMessage) {
-        CoroutineScope(Dispatchers.IO).launch {
+        AfterCommit.register {
             TimingBroadcaster.broadcast(eventId, message)
         }
     }

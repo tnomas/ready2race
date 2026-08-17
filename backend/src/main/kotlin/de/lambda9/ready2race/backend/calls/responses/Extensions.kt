@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.pagination.Page
 import de.lambda9.ready2race.backend.pagination.Sortable
 import de.lambda9.ready2race.backend.plugins.kioEnv
 import de.lambda9.tailwind.core.Cause
+import de.lambda9.tailwind.core.Exit
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.fold
@@ -97,7 +98,9 @@ suspend fun ApplicationCall.respondCause(
 suspend fun ApplicationCall.respondKIO(
     app: KIO<JEnv, ToApiError, ApiResponse>,
 ) {
-    val exit = app.transact().unsafeRunSync(kioEnv)
+    // Side effects that must not be visible before the transaction committed (e.g. websocket
+    // broadcasts) are buffered while the KIO runs and flushed at the end of this function.
+    val (exit, afterCommit) = AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
     exit.fold(
         onError = { respondError(it) },
         onDefect = { respondDefect(it) },
@@ -145,6 +148,12 @@ suspend fun ApplicationCall.respondKIO(
             }
         }
     )
+
+    // `transact` rolls back on both expected errors and defects, so buffered effects are dropped
+    // unless the transaction actually committed.
+    if (exit is Exit.Success) {
+        AfterCommit.flush(afterCommit)
+    }
 }
 
 suspend fun ApplicationCall.respondComprehension(

@@ -1,17 +1,21 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.testing.testComprehension
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TimeMarkServiceTest {
 
@@ -56,6 +60,33 @@ class TimeMarkServiceTest {
         val marks = !TimingTimeMarkRepo.getByEvent(eventId)
         assertEquals(1, marks.size)
         assertEquals(markId, marks.first().id)
+    }
+
+    // The broadcast is guarded by `if (inserted > 0)`, so neither the idempotent fast path
+    // (`exists` == true, asserted here) nor the loser of a real insert race (same guard, see
+    // createIfAbsentIsRaceSafe) emits a second message. The race-loser variant itself cannot be
+    // provoked from a single transaction - TimingSocketTest covers it with two concurrent requests.
+    @Test
+    fun duplicateCreateBroadcastsOnlyOnce() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val received = TimingBroadcasterTest.concurrentList()
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+
+        try {
+            val request = CreateTimeMarkRequest(UUID.randomUUID(), stationId, 1755430000000)
+            !TimingService.createTimeMark(request, userId, eventId)
+            !TimingService.createTimeMark(request, userId, eventId)
+
+            runBlocking {
+                TimingBroadcasterTest.awaitSize(received, 1)
+                delay(200)
+            }
+            assertEquals(1, received.size, "duplicate create must not broadcast again: $received")
+            assertTrue(received.single().contains("timeMarkCreated"))
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
     }
 
     @Test
