@@ -32,7 +32,7 @@ class TimingServiceTest {
     }
 
     @Test
-    fun deleteStationWithMarksFails() = testComprehension {
+    fun deleteNonexistentStationFails() = testComprehension {
         // add station, capture a time mark on it (TimingService.createTimeMark, Task 6 —
         // for this task, assert only StationNotFound on deleting a random UUID:)
         assertKIOFails(TimingError.StationNotFound) {
