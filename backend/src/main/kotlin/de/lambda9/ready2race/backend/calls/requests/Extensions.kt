@@ -51,18 +51,18 @@ suspend inline fun <reified V : Validatable> ApplicationCall.receiveNullableKIO(
 suspend inline fun <reified V : Validatable> ApplicationCall.receiveKIO(example: V): IO<RequestError, V> =
     receiveNullableKIO(example).onNullFail { RequestError.BodyMissing(example) }
 
+fun AppUserWithPrivilegesRecord.hasPrivilege(privilege: Privilege): Boolean =
+    privileges!!.any {
+        it!!.action == privilege.action.name
+            && it.resource == privilege.resource.name
+            && Privilege.Scope.valueOf(it.scope).level >= privilege.scope.level
+    }
+
 fun ApplicationCall.authenticate(
     privilege: Privilege,
 ): App<AuthError, AppUserWithPrivilegesRecord> =
     AuthService.useSessionToken(sessions.get<UserSession>()?.token).failIf(
-        condition = { user ->
-            user.privileges!!
-                .none {
-                    it!!.action == privilege.action.name
-                        && it.resource == privilege.resource.name
-                        && Privilege.Scope.valueOf(it.scope).level >= privilege.scope.level
-                }
-        },
+        condition = { user -> !user.hasPrivilege(privilege) },
         transform = { AuthError.PrivilegeMissing },
     )
 
@@ -75,16 +75,7 @@ fun ApplicationCall.authenticateAny(
     vararg privileges: Privilege,
 ): App<AuthError, AppUserWithPrivilegesRecord> =
     AuthService.useSessionToken(sessions.get<UserSession>()?.token).failIf(
-        condition = { user ->
-            privileges.none { privilege ->
-                user.privileges!!
-                    .any {
-                        it!!.action == privilege.action.name
-                            && it.resource == privilege.resource.name
-                            && Privilege.Scope.valueOf(it.scope).level >= privilege.scope.level
-                    }
-            }
-        },
+        condition = { user -> privileges.none { user.hasPrivilege(it) } },
         transform = { AuthError.PrivilegeMissing },
     )
 
@@ -112,6 +103,9 @@ fun ApplicationCall.authenticate(): App<AuthError, AppUserWithPrivilegesRecord> 
     val userSession = sessions.get<UserSession>()
     AuthService.useSessionToken(userSession?.token)
 }
+
+fun ApplicationCall.optionalAuthenticate(): App<Nothing, AppUserWithPrivilegesRecord?> =
+    authenticate().recoverDefault { null }
 
 fun <T: Any> Parser<T>.param(key: String, input: String, kClass: KClass<T>): IO<RequestError, T> =
     invoke(input) { task ->

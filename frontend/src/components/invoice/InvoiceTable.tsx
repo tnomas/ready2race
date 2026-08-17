@@ -8,7 +8,7 @@ import {RequestResult} from '@hey-api/client-fetch'
 import {Check, Close, CreditCardOff, Download, Payment} from '@mui/icons-material'
 import {downloadInvoice, setInvoicePaid} from '@api/sdk.gen.ts'
 import {ReactNode, useRef} from 'react'
-import {Box, Link, Tooltip} from '@mui/material'
+import {Box, Link, Stack, Tooltip, Typography} from '@mui/material'
 import {useFeedback} from '@utils/hooks.ts'
 import {format} from 'date-fns'
 import {updateInvoiceGlobal} from '@authorization/privileges.ts'
@@ -41,6 +41,47 @@ const InvoiceTable = (props: Props) => {
             headerName: t('invoice.invoiceNumber'),
             minWidth: 150,
             flex: 1,
+        },
+        {
+            field: 'billedToOrganization',
+            headerName: t('invoice.billedTo'),
+            minWidth: 200,
+            flex: 1,
+            renderCell: ({row}) => {
+                // Bei nur einem Vereinsverwalter steht dessen Name in billedToName - haeufig ist das
+                // der Vereinsname selbst, dann waere die zweite Zeile eine Dopplung.
+                const organization = row.billedToOrganization ?? row.billedToName
+                const name = row.billedToName !== organization ? row.billedToName : undefined
+                return (
+                    <Stack sx={{py: 0.5}}>
+                        <Typography>{organization ?? '-'}</Typography>
+                        {row.billedToContacts.length > 0 ? (
+                            // Die Empfaenger sind der aktuelle Stand des Vereins, nicht der zur
+                            // Rechnungserstellung - hierhin geht die Rechnung heute raus.
+                            row.billedToContacts.map(contact => (
+                                <Typography
+                                    key={contact.email}
+                                    variant={'caption'}
+                                    color={'text.secondary'}>
+                                    {contact.name !== organization && `${contact.name} · `}
+                                    <Link
+                                        href={`mailto:${contact.email}`}
+                                        color={'inherit'}
+                                        onClick={e => e.stopPropagation()}>
+                                        {contact.email}
+                                    </Link>
+                                </Typography>
+                            ))
+                        ) : name ? (
+                            // Rueckfallebene: der Verein hat keine Nutzer mehr, dann bleibt nur
+                            // der zur Rechnungserstellung festgehaltene Name.
+                            <Typography variant={'caption'} color={'text.secondary'}>
+                                {name}
+                            </Typography>
+                        ) : null}
+                    </Stack>
+                )
+            },
         },
         {
             field: 'totalAmount',

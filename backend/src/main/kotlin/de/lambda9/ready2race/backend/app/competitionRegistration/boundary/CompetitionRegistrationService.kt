@@ -2,8 +2,12 @@ package de.lambda9.ready2race.backend.app.competitionRegistration.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.appuser.boundary.AppUserService.fullName
+import de.lambda9.ready2race.backend.app.appuser.control.AppUserHasRoleRepo
+import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
 import de.lambda9.ready2race.backend.app.appuser.entity.AppUserNameDto
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.club.control.ClubRepo
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.competition.entity.CompetitionError
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
@@ -20,6 +24,7 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailTemplateKey
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
 import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
+import de.lambda9.ready2race.backend.database.CLUB_REPRESENTATIVE_ROLE
 import de.lambda9.ready2race.backend.app.eventParticipant.control.EventParticipantRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.control.EventRegistrationRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.CompetitionRegistrationNamedParticipantUpsertDto
@@ -334,6 +339,7 @@ object CompetitionRegistrationService {
         }
         registration.update()
 
+        !notifyCreatorAboutForeignEdit(registration, user, eventId, competitionId)
 
         if (request.ratingCategory == null) {
             !CompetitionPropertiesRepo.getRatingCategoryRequired(competitionId).orDie()
@@ -364,6 +370,67 @@ object CompetitionRegistrationService {
         }?.not()
 
         ok(ApiResponse.NoData)
+    }
+
+    // Notifies the original creator of a Meldung when someone else edits it. Falls back to
+    // notifying all current club representatives if the creator's account is gone or no longer
+    // represents the club (e.g. account deleted, role revoked).
+    private fun notifyCreatorAboutForeignEdit(
+        registration: CompetitionRegistrationRecord,
+        editor: AppUserWithPrivilegesRecord,
+        eventId: UUID,
+        competitionId: UUID,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val editorId = editor.id!!
+        val createdBy = registration.createdBy
+
+        if (createdBy == null || createdBy == editorId) {
+            return@comprehension unit
+        }
+
+        val creator = !AppUserRepo.get(createdBy).orDie()
+        val creatorStillRepresents = creator != null
+            && creator.club == registration.club
+            && !AppUserHasRoleRepo.exists(createdBy, CLUB_REPRESENTATIVE_ROLE).orDie()
+
+        val recipients = if (creatorStillRepresents) {
+            listOf(creator!!)
+        } else {
+            !AppUserRepo.getClubRepresentatives(registration.club).orDie()
+        }.filter { it.id != editorId }
+
+        if (recipients.isEmpty()) {
+            return@comprehension unit
+        }
+
+        val club = !ClubRepo.getName(registration.club).orDie().onNullDie("Referenced entity must exist.")
+        val event = !EventRepo.get(eventId).orDie().onNullDie("Referenced entity must exist.")
+        val competition = !CompetitionRepo.getById(competitionId).orDie().onNullDie("Referenced entity must exist.")
+        val editorFullName = "${editor.firstname} ${editor.lastname}"
+
+        !recipients.traverse { recipient ->
+            KIO.comprehension {
+                val content = !EmailService.getTemplate(
+                    EmailTemplateKey.COMPETITION_REGISTRATION_EDITED,
+                    EmailLanguage.valueOf(recipient.language),
+                ).map { template ->
+                    template.toContent(
+                        EmailTemplatePlaceholder.RECIPIENT to recipient.fullName(),
+                        EmailTemplatePlaceholder.SENDER to editorFullName,
+                        EmailTemplatePlaceholder.CLUB to club,
+                        EmailTemplatePlaceholder.EVENT to event.name,
+                        EmailTemplatePlaceholder.COMPETITIONS to competition.name!!,
+                    )
+                }
+
+                EmailService.enqueue(
+                    recipient = recipient.email,
+                    content = content,
+                )
+            }
+        }
+
+        unit
     }
 
     private fun checkAgeRestriction(
@@ -397,9 +464,7 @@ object CompetitionRegistrationService {
             !CompetitionRepo.isOpenForRegistration(competitionId, LocalDateTime.now()).orDie()
                 .onFalseFail { CompetitionRegistrationError.RegistrationClosed }
 
-            if (user.club != clubId) {
-                KIO.fail(CompetitionRegistrationError.NotFound)
-            }
+            !KIO.failOn(user.club != clubId) { CompetitionRegistrationError.NotFound }
         }
         unit
     }
@@ -431,9 +496,24 @@ object CompetitionRegistrationService {
 
             KIO.comprehension {
 
-                val participant = !ParticipantRepo.findByIdAndClub(participantId, clubId)
-                    .orDie()
-                    .onNullFail { CompetitionRegistrationError.RegistrationInvalid }
+                // Die Vereinspruefung beim Melden (Migration V202608142000).
+                //
+                // Steht der Schalter der Veranstaltung an, darf der meldende Verein jede Person
+                // melden - dann greift hier gar keine Vereinsbedingung mehr, nur noch die Sperre
+                // gegen dieselbe Person zweimal im selben Wettkampf (gleich darunter, bleibt).
+                //
+                // Steht er aus - die Vorbelegung -, greift die Pruefung wie bisher, nur auf den
+                // vollen Vereinsbestand: Stammverein ODER eingetragener Zweitverein. Ohne
+                // Zugehoerigkeiten und ohne Schalter verhaelt sich der Aufruf exakt wie vorher.
+                val participant = if (event.crossClubRegistration == true) {
+                    !ParticipantRepo.get(participantId)
+                        .orDie()
+                        .onNullFail { CompetitionRegistrationError.RegistrationInvalid }
+                } else {
+                    !ParticipantRepo.findByIdAndClub(participantId, clubId)
+                        .orDie()
+                        .onNullFail { CompetitionRegistrationError.RegistrationInvalid }
+                }
 
                 !CompetitionRegistrationNamedParticipantRepo.existsByParticipantIdAndCompetitionId(
                     participantId,

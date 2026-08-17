@@ -229,6 +229,10 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     ...(match.status === 'RUNNING' && {
                                         boxShadow: `0 0 8px ${colors.running}55`,
                                     }),
+                                    ...(match.cancelled && {
+                                        borderLeftColor: colors.now,
+                                        opacity: 0.65,
+                                    }),
                                 }}>
                                 <Stack
                                     direction={'row'}
@@ -237,11 +241,15 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     <Typography
                                         variant={'caption'}
                                         fontWeight={'bold'}
-                                        sx={{color}}>
+                                        sx={{color: match.cancelled ? colors.now : color}}>
                                         {format(match.startTime, t('format.time'))}
-                                        {match.status === 'RUNNING' &&
-                                            ` · ${t('speaker.status.liveShort')}`}
-                                        {match.status === 'FINISHED' && ' · ✓'}
+                                        {match.cancelled
+                                            ? ` · ${t('speaker.status.CANCELLED')}`
+                                            : match.status === 'RUNNING'
+                                              ? ` · ${t('speaker.status.liveShort')}`
+                                              : match.status === 'FINISHED'
+                                                ? ' · ✓'
+                                                : ''}
                                     </Typography>
                                     <Typography variant={'caption'}>{emoji}</Typography>
                                 </Stack>

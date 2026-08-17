@@ -19,14 +19,73 @@ sealed interface CompetitionExecutionError : ServiceError {
     data object TeamsNotMatching : CompetitionExecutionError
     data object RoundNotFound : CompetitionExecutionError
     data object MatchResultsLocked : CompetitionExecutionError
+
+    /**
+     * Ein Freilos: eine einzelne Mannschaft in einer nicht verpflichtenden Runde zieht weiter, ohne
+     * zu fahren - es gibt kein Ergebnis einzutragen. Lief bislang unter [MatchResultsLocked] mit,
+     * las sich für den Nutzer also als "nur die aktuelle Runde ist bearbeitbar" und schickte ihn
+     * damit auf die falsche Fährte. RaceClocker trennt die beiden Fälle längst
+     * (RaceClockerError.MatchIsBye), die Ergebniserfassung zieht hier nach.
+     */
+    data object MatchIsBye : CompetitionExecutionError
+
+    /**
+     * Die Umkehrung: "muss gefahren werden" (bye_must_race) lässt sich nur an einem Lauf setzen,
+     * der überhaupt ein Freilos ist - an jedem anderen wäre das Flag wirkungslos und irreführend.
+     */
+    data object MatchIsNoBye : CompetitionExecutionError
+
+    /** Beenden zurücknehmen setzt einen beendeten Lauf voraus - sonst gibt es nichts zurückzunehmen. */
+    data object MatchNotFinished : CompetitionExecutionError
+
+    /**
+     * Ein Lauf lässt sich nur zurücksetzen, solange seine Folgerunde noch keine erzeugten Läufe
+     * hat - dieselbe Stromrichtung wie beim Löschen der aktuellen Runde: Sobald aus den Ergebnissen
+     * die nächste Runde gesät ist, würde der Reset einen Stand leeren, auf dem die Setzung der
+     * Folgerunde bereits aufbaut. Eigener Fehler statt [MatchResultsLocked], weil die Abhilfe eine
+     * andere ist: erst die Folgerunde löschen, dann zurücksetzen.
+     */
+    data object ResetBlockedByNextRound : CompetitionExecutionError
     data object StartTimeNotSet : CompetitionExecutionError
+
+    /**
+     * Ein Lauf ohne geplante Startzeit, wie ihn [StartlistMatchesWithoutStartTime] benennt -
+     * Kürzel/Name des Wettkampfs, Runde und Laufname, damit der Nutzer den Lauf im Zeitplan
+     * findet, ohne zu raten.
+     */
+    data class StartlistMatchWithoutStartTime(
+        val matchId: java.util.UUID,
+        val competitionIdentifier: String,
+        val competitionShortName: String?,
+        val competitionName: String?,
+        val roundName: String,
+        val matchName: String?,
+    )
+
+    /**
+     * Der Startlisten-Sammelexport enthält Läufe ohne geplante Startzeit. Bewusst ALLE gesammelt
+     * statt beim ersten abzubrechen ([StartTimeNotSet], 12.08.2026 per HAR belegt: ein nacktes
+     * „StartTime not set" ohne Laufbezug ist am Renntag unbrauchbar). Der Export blockiert
+     * weiterhin laut, statt still unvollständig zu liefern - abwählen kann der Nutzer die Läufe
+     * über die Vorschau (matchIds), dann exportiert der Rest.
+     */
+    data class StartlistMatchesWithoutStartTime(
+        val matches: List<StartlistMatchWithoutStartTime>,
+    ) : CompetitionExecutionError
     data object TeamWasPreviouslyDeregistered : CompetitionExecutionError
     data object IsChallengeEvent : CompetitionExecutionError
     data object ResultConfirmationImageMissing : CompetitionExecutionError
     data object ResultDocumentNotFound : CompetitionExecutionError
     data object NotInChallengeTimespan : CompetitionExecutionError
     data object PlaceAndTimeBothNull : CompetitionExecutionError
-    data object PlacesNotContinuous : CompetitionExecutionError
+
+    /**
+     * Die vergebenen Plätze haben eine Lücke oder fangen nicht bei 1 an. [expected] ist der Platz,
+     * der an dieser Stelle stehen müsste, [actual] der eingetragene - ohne beide Zahlen muss der
+     * Nutzer die Liste selbst durchzählen, um die Lücke zu finden.
+     */
+    data class PlacesNotContinuous(val expected: Int, val actual: Int) : CompetitionExecutionError
+    data object StartTimeManagedBySchedule : CompetitionExecutionError
 
     sealed interface ResultUploadError : CompetitionExecutionError {
         data object FileError : ResultUploadError
@@ -104,7 +163,8 @@ sealed interface CompetitionExecutionError : ServiceError {
 
         TeamsNotMatching -> ApiError(
             status = HttpStatusCode.BadRequest,
-            message = "The specified teams do not match the actual teams of the match"
+            message = "The specified teams do not match the actual teams of the match",
+            errorCode = ErrorCode.EXECUTION_TEAMS_NOT_MATCHING,
         )
 
         RoundNotFound -> ApiError(
@@ -115,11 +175,51 @@ sealed interface CompetitionExecutionError : ServiceError {
         MatchResultsLocked -> ApiError(
             status = HttpStatusCode.BadRequest,
             message = "Match results locked. Only results of the latest round can be edited.",
+            errorCode = ErrorCode.EXECUTION_MATCH_RESULTS_LOCKED,
+        )
+
+        MatchIsBye -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "This match is a bye - the team moves on without racing, there is no result to record.",
+            errorCode = ErrorCode.EXECUTION_MATCH_IS_BYE,
+        )
+
+        MatchIsNoBye -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "This match is not a bye - 'must race' can only be set on a bye match.",
+        )
+
+        MatchNotFinished -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "This match is not finished - there is nothing to reopen.",
+        )
+
+        ResetBlockedByNextRound -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "This match cannot be reset: the following round has already been created from its results. Delete the following round first.",
+            errorCode = ErrorCode.EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND,
         )
 
         StartTimeNotSet -> ApiError(
             status = HttpStatusCode.Conflict,
             message = "StartTime not set",
+        )
+
+        is StartlistMatchesWithoutStartTime -> ApiError(
+            status = HttpStatusCode.Conflict,
+            // Lesbarer Fallback für Klienten ohne Detail-Auswertung: „11 CF1x Viertelfinale VF2, …"
+            message = "${matches.size} matches without a planned start time: " +
+                matches.joinToString { match ->
+                    listOfNotNull(
+                        match.competitionIdentifier,
+                        match.competitionShortName ?: match.competitionName,
+                        match.roundName,
+                        match.matchName,
+                    ).joinToString(" ")
+                },
+            errorCode = ErrorCode.STARTLIST_MATCHES_WITHOUT_START_TIME,
+            // Strukturiert fürs Frontend: die Liste als Detail-Feld, nicht nur als Satz.
+            details = mapOf("matches" to matches),
         )
 
         TeamWasPreviouslyDeregistered -> ApiError(
@@ -176,9 +276,17 @@ sealed interface CompetitionExecutionError : ServiceError {
             message = "Results must have Places or Times completely filled out if not failed."
         )
 
-        PlacesNotContinuous -> ApiError(
+        is PlacesNotContinuous -> ApiError(
             status = HttpStatusCode.BadRequest,
-            message = "The places are not continuous."
+            message = "The places are not continuous: expected $expected, got $actual.",
+            errorCode = ErrorCode.EXECUTION_PLACES_NOT_CONTINUOUS,
+            details = mapOf("expected" to expected, "actual" to actual),
+        )
+
+        StartTimeManagedBySchedule -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Start time is managed by the event schedule",
+            errorCode = ErrorCode.EXECUTION_START_TIME_MANAGED_BY_SCHEDULE,
         )
 
         is ResultUploadError.CellBlank -> ApiError(

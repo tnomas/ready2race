@@ -27,6 +27,24 @@ data class CreateEventRequest(
     val allowSelfSubmission: Boolean,
     val submissionNeedsVerification: Boolean,
     val allowParticipantSelfRegistration: Boolean,
+    /** Zeigt Pausen/Programmpunkte aus dem Zeitplan auch auf Kiosk und Athleten-Anzeige. */
+    val showBreaksOnPublicBoards: Boolean,
+    /** Ab welchem Zustand ein Lauf als Ergebnis auf den öffentlichen Ansichten erscheint. */
+    val publicResultsVisibility: PublicResultsVisibility,
+    /**
+     * Duerfen Meldende Personen anderer Vereine suchen und melden?
+     *
+     * Vorbelegung aus. Steht der Schalter an, findet die Meldemaske ueber eine Suche (ab zwei
+     * Zeichen, gedeckelte Trefferzahl) auch Personen fremder Vereine, und die Vereinspruefung
+     * beim Melden entfaellt. Die Stammdaten bleiben in jedem Fall beim Stammverein; siehe
+     * Migration V202608142000.
+     */
+    val allowCrossClubRegistration: Boolean,
+
+    // chainProgressionMode, autoCreateFollowingRounds, executionAutoRefresh und
+    // executionAutoRefreshSeconds fehlen bewusst: Sie leben erst im Einstellungen-Tab einer
+    // bestehenden Veranstaltung (EventExecutionSettings), den es beim Anlegen noch nicht gibt.
+    // Neue Events starten mit den Server-Defaults, siehe CreateEventRequest.toRecord.
 ) : Validatable {
     override fun validate(): ValidationResult =
         ValidationResult.allOf(
@@ -66,6 +84,9 @@ data class CreateEventRequest(
                 allowSelfSubmission = false,
                 submissionNeedsVerification = false,
                 allowParticipantSelfRegistration = false,
+                showBreaksOnPublicBoards = false,
+                publicResultsVisibility = PublicResultsVisibility.FINISHED_ONLY,
+                allowCrossClubRegistration = false,
             )
     }
 }

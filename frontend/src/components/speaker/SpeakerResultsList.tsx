@@ -99,7 +99,7 @@ const SpeakerResultsList = ({matches, badges, onSelectMatch, onSelectParticipant
                                     </Typography>
                                     <Box sx={{flex: 1, minWidth: 0}}>
                                         <Typography variant={'body2'}>
-                                            {team.clubName ?? team.actualClubName ?? ''}
+                                            {team.clubName ?? team.clubsFull ?? ''}
                                             {team.teamName ? ` – ${team.teamName}` : ''}
                                         </Typography>
                                         <Typography

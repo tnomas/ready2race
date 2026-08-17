@@ -9,12 +9,19 @@ import {Stack} from '@mui/material'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
+import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
 
 type ParticipantRequirementForm = {
     name: string
     description: string
+    publicNote: string
     optional: boolean
     checkInApp: boolean
+    publiclyVisible: boolean
+    perEventDay: boolean
+    perCompetition: boolean
+    checkEarliestMinutesBefore: string
+    checkLatestMinutesBefore: string
 }
 
 const ParticipantRequirementDialog = (props: BaseEntityDialogProps<ParticipantRequirementDto>) => {
@@ -39,8 +46,14 @@ const ParticipantRequirementDialog = (props: BaseEntityDialogProps<ParticipantRe
     const defaultValues: ParticipantRequirementForm = {
         name: '',
         description: '',
+        publicNote: '',
         optional: false,
         checkInApp: false,
+        publiclyVisible: false,
+        perEventDay: false,
+        perCompetition: false,
+        checkEarliestMinutesBefore: '',
+        checkLatestMinutesBefore: '',
     }
 
     const formContext = useForm<ParticipantRequirementForm>()
@@ -59,8 +72,46 @@ const ParticipantRequirementDialog = (props: BaseEntityDialogProps<ParticipantRe
             <Stack spacing={4}>
                 <FormInputText name="name" label={t('event.name')} required />
                 <FormInputText name="description" label={t('entity.description')} />
+                {/* Getrennt von der Beschreibung: die ist die interne Arbeitsanweisung, dieser
+                    Text geht wörtlich an die Athleten in "Mein Event". */}
+                <FormInputText
+                    name="publicNote"
+                    label={t('participantRequirement.publicNote')}
+                    helperText={t('participantRequirement.publicNoteHint')}
+                />
                 <FormInputCheckbox name="optional" label={t('entity.optional')} />
                 <FormInputCheckbox name="checkInApp" label={t('participantRequirement.checkInApp')} />
+                <FormInputCheckbox
+                    name="publiclyVisible"
+                    label={t('participantRequirement.publiclyVisible')}
+                />
+                {/* Zwei Schalter statt einer Auswahlliste: aus ihnen ergeben sich die vier
+                    Geltungsbereiche (je Veranstaltung, je Tag, je Wettkampf, je Wettkampf und
+                    Tag), ohne dass für den vierten ein fünfter Listeneintrag nötig wäre.
+                    Beide aus = das Verhalten vor dem 14.08.2026: einmal erfüllt, für die ganze
+                    Veranstaltung erledigt. */}
+                <FormInputCheckbox
+                    name="perEventDay"
+                    label={t('participantRequirement.perEventDay')}
+                    helperText={t('participantRequirement.perEventDayHint')}
+                />
+                <FormInputCheckbox
+                    name="perCompetition"
+                    label={t('participantRequirement.perCompetition')}
+                    helperText={t('participantRequirement.perCompetitionHint')}
+                />
+                <FormInputNumber
+                    name="checkEarliestMinutesBefore"
+                    label={t('participantRequirement.checkEarliestMinutesBefore')}
+                    min={1}
+                    integer
+                />
+                <FormInputNumber
+                    name="checkLatestMinutesBefore"
+                    label={t('participantRequirement.checkLatestMinutesBefore')}
+                    min={1}
+                    integer
+                />
             </Stack>
         </EntityDialog>
     )
@@ -70,8 +121,20 @@ function mapFormToRequest(formData: ParticipantRequirementForm): ParticipantRequ
     return {
         name: formData.name,
         description: takeIfNotEmpty(formData.description),
+        publicNote: takeIfNotEmpty(formData.publicNote),
         optional: formData.optional,
         checkInApp: formData.checkInApp,
+        publiclyVisible: formData.publiclyVisible,
+        perEventDay: formData.perEventDay,
+        perCompetition: formData.perCompetition,
+        checkEarliestMinutesBefore:
+            formData.checkEarliestMinutesBefore !== ''
+                ? Number(formData.checkEarliestMinutesBefore)
+                : undefined,
+        checkLatestMinutesBefore:
+            formData.checkLatestMinutesBefore !== ''
+                ? Number(formData.checkLatestMinutesBefore)
+                : undefined,
     }
 }
 
@@ -79,8 +142,14 @@ function mapDtoToForm(dto: ParticipantRequirementDto): ParticipantRequirementFor
     return {
         name: dto.name,
         description: dto.description ?? '',
+        publicNote: dto.publicNote ?? '',
         optional: dto.optional,
         checkInApp: dto.checkInApp,
+        publiclyVisible: dto.publiclyVisible,
+        perEventDay: dto.perEventDay,
+        perCompetition: dto.perCompetition,
+        checkEarliestMinutesBefore: dto.checkEarliestMinutesBefore?.toString() ?? '',
+        checkLatestMinutesBefore: dto.checkLatestMinutesBefore?.toString() ?? '',
     }
 }
 

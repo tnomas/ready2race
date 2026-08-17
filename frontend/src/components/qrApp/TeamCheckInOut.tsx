@@ -6,6 +6,7 @@ import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 import {useState} from 'react'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
+import {participantTrackingErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
 
 export const TeamCheckInOut = () => {
     const {t} = useTranslation()
@@ -43,6 +44,8 @@ export const TeamCheckInOut = () => {
         ?.flatMap(team => team.participants)
         .find(participant => participant.participantId === qr.response?.id)
 
+    const anyTeamRequiresCheckInOut = teamsData?.some(team => team.checkInOutRequired) ?? false
+
     const handleCheckInOut = async (checkIn: boolean) => {
         setSubmitting(true)
         if (!selectedParticipant) return
@@ -59,10 +62,15 @@ export const TeamCheckInOut = () => {
 
         setSubmitting(false)
         if (error) {
+            // Vier Gründe teilten sich diese beiden Texte - dabei ist "schon eingecheckt" keine
+            // Störung, sondern die Auskunft, dass nichts mehr zu tun ist.
+            const reason = participantTrackingErrorKey(error)
             feedback.error(
-                checkIn
-                    ? t('club.participant.tracking.checkIn.error')
-                    : t('club.participant.tracking.checkOut.error'),
+                reason !== undefined
+                    ? t(reason)
+                    : checkIn
+                      ? t('club.participant.tracking.checkIn.error')
+                      : t('club.participant.tracking.checkOut.error'),
             )
         } else {
             feedback.success(
@@ -103,6 +111,14 @@ export const TeamCheckInOut = () => {
                                                         {team.competitionIdentifier} |{' '}
                                                         {team.competitionName}
                                                     </Typography>
+                                                    {!team.checkInOutRequired && (
+                                                        <Chip
+                                                            size="small"
+                                                            label={t(
+                                                                'club.participant.tracking.noCheckInOutNeeded',
+                                                            )}
+                                                        />
+                                                    )}
                                                     <Typography>
                                                         {team.clubName +
                                                             (team.teamName
@@ -166,16 +182,24 @@ export const TeamCheckInOut = () => {
                             py: 1,
                         }}
                         bgcolor={'background.default'}>
-                        <LoadingButton
-                            pending={submitting || teamsPending}
-                            variant={'contained'}
-                            onClick={() =>
-                                handleCheckInOut(selectedParticipant.currentStatus !== 'ENTRY')
-                            }>
-                            {selectedParticipant.currentStatus === 'ENTRY'
-                                ? t('club.participant.tracking.checkOutText')
-                                : t('club.participant.tracking.checkInText')}
-                        </LoadingButton>
+                        {anyTeamRequiresCheckInOut ? (
+                            <LoadingButton
+                                pending={submitting || teamsPending}
+                                variant={'contained'}
+                                onClick={() =>
+                                    handleCheckInOut(
+                                        selectedParticipant.currentStatus !== 'ENTRY',
+                                    )
+                                }>
+                                {selectedParticipant.currentStatus === 'ENTRY'
+                                    ? t('club.participant.tracking.checkOutText')
+                                    : t('club.participant.tracking.checkInText')}
+                            </LoadingButton>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">
+                                {t('club.participant.tracking.noCheckInOutForAnyTeam')}
+                            </Typography>
+                        )}
                     </Box>
                 </Stack>
             )}

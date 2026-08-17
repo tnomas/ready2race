@@ -46,7 +46,7 @@ const matchesSearch = (match: SpeakerMatch, search: string): boolean => {
         match.matchName,
         ...match.teams.flatMap(team => [
             team.clubName,
-            team.actualClubName,
+            team.clubsFull,
             team.teamName,
             ...team.participants.map(
                 participant => `${participant.firstName} ${participant.lastName}`,
@@ -219,10 +219,20 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch, onSelectParticipan
                                             <Typography
                                                 variant={'body2'}
                                                 fontWeight={'bold'}
-                                                sx={{color: statusColorOf(colors, match.status)}}>
-                                                {match.status === 'RUNNING' && '● '}
-                                                {match.status === 'FINISHED' && '✓ '}
-                                                {t(`speaker.status.${match.status}`)}
+                                                sx={{
+                                                    color: match.cancelled
+                                                        ? colors.now
+                                                        : statusColorOf(colors, match.status),
+                                                }}>
+                                                {match.cancelled ? (
+                                                    t('speaker.status.CANCELLED')
+                                                ) : (
+                                                    <>
+                                                        {match.status === 'RUNNING' && '● '}
+                                                        {match.status === 'FINISHED' && '✓ '}
+                                                        {t(`speaker.status.${match.status}`)}
+                                                    </>
+                                                )}
                                             </Typography>
                                         </TableCell>
                                         <TableCell sx={bodyCellSx}>
@@ -298,7 +308,7 @@ const SpeakerProgramTable = ({matches, badges, onSelectMatch, onSelectParticipan
                                                                         color: colors.text,
                                                                     }}>
                                                                     {team.clubName ??
-                                                                        team.actualClubName ??
+                                                                        team.clubsFull ??
                                                                         ''}
                                                                     {team.teamName
                                                                         ? ` – ${team.teamName}`

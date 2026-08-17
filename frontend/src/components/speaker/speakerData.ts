@@ -22,20 +22,22 @@ export type SpeakerTeam = {
     teamName?: string | null
     startNumber?: number | null
     clubName?: string | null
-    actualClubName?: string
+    /** full club names of the crew - a composite crew rows for more than one club */
+    clubsFull?: string | null
     place?: number
-    timeString?: string
+    timeString?: string | null
     failed?: boolean
-    failedReason?: string
+    failedReason?: string | null
     deregistered?: boolean
-    deregisteredReason?: string
+    deregisteredReason?: string | null
     participants: SpeakerParticipant[]
 }
 
 export type SpeakerMatch = {
     matchId: string
     status: SpeakerStatus
-    competitionId: string
+    /** null for schedule placeholders (a break has no competition) */
+    competitionId?: string | null
     competitionName: string
     categoryName?: string | null
     roundName?: string | null
@@ -44,6 +46,10 @@ export type SpeakerMatch = {
     updatedAt?: Date
     executionOrder?: number
     elapsedMinutes?: number | null
+    /** the schedule slot was cancelled - the race stays listed so the crews still see it */
+    cancelled?: boolean
+    /** round not drawn yet: matchId points at the setup round and teams is empty */
+    pendingRound?: boolean
     teams: SpeakerTeam[]
 }
 
@@ -57,18 +63,21 @@ const fromUpcoming = (match: UpcomingCompetitionMatchInfo): SpeakerMatch => ({
     matchId: match.matchId,
     status: 'UPCOMING',
     competitionId: match.competitionId,
-    competitionName: match.competitionName,
+    // breaks and other schedule items carry their label in `name`
+    competitionName: match.competitionName || match.name || '',
     categoryName: match.categoryName,
     roundName: match.roundName,
     matchName: match.matchName,
     startTime: parseDate(match.scheduledStartTime),
     executionOrder: match.executionOrder,
+    cancelled: match.cancelled,
+    pendingRound: match.pendingRound,
     teams: match.teams.map(team => ({
         teamId: team.teamId,
         teamName: team.teamName,
         startNumber: team.startNumber,
         clubName: team.clubName,
-        actualClubName: team.actualClubName,
+        clubsFull: team.clubsFull,
         participants: team.participants,
     })),
 })
@@ -89,7 +98,10 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
         teamName: team.teamName,
         startNumber: team.startNumber,
         clubName: team.clubName,
-        actualClubName: team.actualClubName,
+        clubsFull: team.clubsFull,
+        timeString: team.timeString,
+        failed: team.failed,
+        failedReason: team.failedReason,
         participants: team.participants,
     })),
 })
@@ -99,7 +111,7 @@ const fromResultTeam = (team: MatchResultTeamInfo): SpeakerTeam => ({
     teamName: team.teamName,
     startNumber: team.teamNumber,
     clubName: team.clubName,
-    actualClubName: team.actualClubName,
+    clubsFull: team.clubsFull,
     place: team.place,
     timeString: team.timeString,
     failed: team.failed,

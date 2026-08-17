@@ -48,7 +48,7 @@ const SpeakerParticipantDialog = ({participantId, badges, now, onClose, onSelect
     const clubs = [
         ...new Set(
             starts
-                .map(start => start.team.clubName ?? start.team.actualClubName)
+                .map(start => start.team.clubName ?? start.team.clubsFull)
                 .filter((club): club is string => !!club),
         ),
     ]

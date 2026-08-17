@@ -166,7 +166,7 @@ const SpeakerMatchDialog = ({match, badges, onClose, onSelectParticipant}: Props
                                 </TableCell>
                                 <TableCell sx={bodyCellSx}>
                                     <Typography fontWeight={'bold'} variant={'body2'}>
-                                        {team.clubName ?? team.actualClubName ?? ''}
+                                        {team.clubName ?? team.clubsFull ?? ''}
                                     </Typography>
                                     {team.teamName && (
                                         <Typography variant={'caption'} sx={{color: colors.textSecondary}}>

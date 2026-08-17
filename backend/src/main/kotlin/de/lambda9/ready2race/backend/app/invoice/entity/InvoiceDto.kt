@@ -7,6 +7,9 @@ import java.util.UUID
 data class InvoiceDto(
     val id: UUID,
     val invoiceNumber: String,
+    val billedToOrganization: String?,
+    val billedToName: String?,
+    val billedToContacts: List<InvoiceContactDto>,
     val totalAmount: BigDecimal,
     val createdAt: LocalDateTime,
     val paidAt: LocalDateTime?,

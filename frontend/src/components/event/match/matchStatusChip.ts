@@ -1,0 +1,377 @@
+import {EventScheduleSlotDto, MatchStatusDto, UnplannedSetupMatchDto} from '@api/types.gen.ts'
+
+/**
+ * Die Farben, die die Oberflächen tatsächlich vergeben — eine Teilmenge von MUIs `ChipProps`,
+ * damit dieses Modul ohne einen einzigen Import aus dem Rendering auskommt und die Ableitung
+ * ohne DOM prüfbar bleibt (dasselbe Muster wie `liveDashboard/common.ts`).
+ */
+export type ChipColor = 'default' | 'primary' | 'success' | 'warning' | 'error' | 'info'
+
+/**
+ * Ein Chip als Datensatz statt als Element: die aufrufende Komponente übersetzt [labelKey] mit
+ * [values] und malt. So steht die Entscheidung, WAS ein Lauf gerade ist, an genau einer Stelle —
+ * und die drei Oberflächen (Durchführung, Zeitplan, später weitere) können sie nicht
+ * auseinanderlaufen lassen.
+ */
+export type MatchChip = {
+    labelKey: string
+    values?: Record<string, string | number>
+    color: ChipColor
+    /** Nur „Abgesagt": der Lauf steht noch da, gilt aber nicht mehr. */
+    strikeThrough?: boolean
+}
+
+/**
+ * Ab wann ein anstehender Lauf rot wird. Zwei Minuten Verzug sind Regattaalltag und sollen nicht
+ * leuchten — sonst steht die halbe Liste in Rot und niemand sieht mehr den einen Lauf, der
+ * wirklich hängt.
+ */
+export const OVERDUE_GRACE_MINUTES = 5
+
+const MS_PER_MINUTE = 60_000
+
+/**
+ * Verstrichene volle Minuten seit [from], nie negativ. Die Untergrenze ist kein Schönheitsfehler,
+ * sondern der Fall „Uhr des Browsers geht nach": eine negative Laufzeit wäre eine Falschaussage,
+ * die 0 ist bloß ungenau.
+ */
+const elapsedMinutes = (from: string, now: Date): number =>
+    Math.max(0, Math.floor((now.getTime() - new Date(from).getTime()) / MS_PER_MINUTE))
+
+/**
+ * Wie viele Boote eines Laufs überhaupt ein Ergebnis liefern können: alle außer den abgemeldeten.
+ * Genau diese Zahl ist der Nenner der Teilwertung — sonst stünde ein fertig gefahrener Lauf mit
+ * einer Abmeldung dauerhaft auf „Teilweise gewertet 4/5".
+ */
+const teamsExpected = (status: MatchStatusDto): number =>
+    status.teamsTotal - (status.teamsDeregistered ?? 0)
+
+/**
+ * Nicht aktiv, nicht beendet, aber ein Teil der Boote ist schon **gefahren**.
+ *
+ * Bewusst `teamsRaced` und nicht `teamsScored`: „gewertet" im Sinne des Servers schließt
+ * Abmeldungen ein, weil die Kette wissen muss, ob noch jemand auf ein Ergebnis wartet. Für diese
+ * Ablesung ist eine Abmeldung dagegen keine Wertung — am 14.08.2026 stand auf dem
+ * Schiedsrichter-Board „Teilweise gewertet 1/5", weil eine einzige abgemeldete Mannschaft eines
+ * Fünferlaufs als gewertet mitzählte, obwohl niemand gefahren war. Die Abmeldung selbst zeigt
+ * seither [deregisteredChip] daneben, ohne sich als Zustand auszugeben.
+ */
+const isPartiallyScored = (status: MatchStatusDto): boolean => {
+    const raced = status.teamsRaced ?? 0
+    const expected = teamsExpected(status)
+    return expected > 0 && raced > 0 && raced < expected
+}
+
+/**
+ * Der Chip eines Freiloses. Er ersetzt „Anstehend", „Überfällig" und „Teilweise gewertet" — genau
+ * die drei Chips, die ein Ergebnis erwarten lassen, auf das hier niemand wartet. Was er stattdessen
+ * sagt, ist die Frage, die am Steg offen ist: muss das noch quittiert werden?
+ *
+ * „Quittiert" ist bewusst kein eigener Vorgang, sondern der bestehende Beenden-Klick
+ * (`finished_at`); „entfallen" ist die abgesagte Runde. An beidem ändert sich nichts.
+ */
+const byeChip = (status: MatchStatusDto): MatchChip => {
+    // Die Setzungszahl im Label ("Freilos 1 · offen") - dieselbe {{seed}}-Interpolation wie in
+    // byeExplanation: Wert " 1" mit führendem Leerzeichen oder leer, siehe byeSeedValue.
+    const values = {seed: status.bye?.seed != null ? ` ${status.bye.seed}` : ''}
+    if (status.state === 'FINISHED') {
+        return {labelKey: 'event.match.status.bye.acknowledged', values, color: 'success'}
+    }
+    if (status.state === 'SKIPPED') {
+        return {
+            labelKey: 'event.match.status.bye.cancelled',
+            values,
+            color: 'default',
+            strikeThrough: true,
+        }
+    }
+    return {labelKey: 'event.match.status.bye.open', values, color: 'info'}
+}
+
+/**
+ * Der Chip eines Laufs — die Übersetzung von [MatchStatusDto] in genau eine Aussage.
+ *
+ * Die Reihenfolge der Zweige folgt bewusst der von `LiveDashboardLogic.deriveMatchState` im
+ * Backend: Was tatsächlich passiert, schlägt den zurückgenommenen Plan. Ein abgesagter Lauf, der
+ * trotzdem aktiviert wurde, kommt vom Server als RUNNING und zeigt hier „Läuft" — die Anzeige
+ * behauptet nicht, es passiere nichts, während Boote in der Arena sind.
+ *
+ * „Überfällig" und „Teilweise gewertet" sind keine Zustände, sondern Ablesungen zusätzlicher
+ * Felder (siehe KDoc von `MatchStatusDto`). Sie stehen deshalb erst hinter den echten Zuständen:
+ * SKIPPED darf nicht als „Teilweise gewertet" durchgehen, sonst läse sich ein abgesagter Lauf mit
+ * nachgetragenen Abmeldungen wie einer, der gerade gefahren wird.
+ *
+ * Unter den verbliebenen Zuständen (UPCOMING, UNSCHEDULED) gewinnt die Teilwertung vor
+ * „Überfällig": liegen bereits Ergebnisse vor, ist der Lauf faktisch unterwegs, und der Verzug
+ * gegen die geplante Zeit sagt dann nichts mehr aus.
+ *
+ * Das Freilos ([byeChip]) steht zwischen beiden Gruppen: hinter den aktivierten Zuständen, weil
+ * auch dort gilt, dass tatsächliches Geschehen den Rest schlägt — und vor allem anderen, weil
+ * „Anstehend", „Überfällig" und „Teilweise gewertet" ein Ergebnis erwarten lassen, auf das bei
+ * einem Freilos niemand wartet.
+ *
+ * [now] kommt von außen, damit die Ableitung ohne Uhr prüfbar bleibt. Die verstrichenen Minuten
+ * rechnet bewusst das Frontend: beide Ansichten ticken ohnehin, und so zählt der Chip zwischen
+ * zwei Abrufen weiter, statt zu stehen.
+ */
+export const matchStatusChip = (
+    status: MatchStatusDto,
+    startTime: string | null | undefined,
+    now: Date,
+): MatchChip => {
+    // Vor RUNNING: ein Lauf am Start ist an den Start gerufen und noch nicht unterwegs. Die
+    // Reihenfolge folgt der von `LiveDashboardLogic.deriveMatchState` im Backend, wo derselbe
+    // Zweig oben steht — hier hängt zusätzlich daran, dass „Überfällig" weiter unten nicht mehr
+    // greift: der Verzug gegen den Plan sagt nichts mehr aus, sobald jemand den Lauf aufgerufen
+    // hat.
+    if (status.state === 'PREPARING') {
+        return {labelKey: 'event.match.status.preparing', color: 'info'}
+    }
+
+    if (status.state === 'RUNNING') {
+        // Ohne Startstempel gibt es keine Laufzeit — der Lauf ist als aktiv gesetzt, aber niemand
+        // hat einen Start gedrückt. Dann lieber „Läuft" ohne Zahl als eine erfundene.
+        return status.startedAt
+            ? {
+                  labelKey: 'event.match.status.running',
+                  values: {minutes: elapsedMinutes(status.startedAt, now)},
+                  color: 'primary',
+              }
+            : {labelKey: 'event.match.status.runningPlain', color: 'primary'}
+    }
+
+    // Erst hier, nicht weiter oben: Was tatsächlich passiert, schlägt weiterhin alles. Ein Freilos,
+    // das jemand aktiviert hat, zeigt „In Vorbereitung"/„Läuft" — die Anzeige behauptet nicht, es
+    // passiere nichts, während in der Arena etwas passiert.
+    // Ein Freilos mit „muss gefahren werden" (mustRace) bekommt KEINEN Freilos-Chip: Es wird
+    // gefahren, auf sein Ergebnis wartet jemand — die normalen Zustände sagen die Wahrheit.
+    if (status.bye && !status.bye.mustRace) {
+        return byeChip(status)
+    }
+
+    if (status.state === 'FINISHED') {
+        return {labelKey: 'event.match.status.finished', color: 'success'}
+    }
+
+    if (status.state === 'SKIPPED') {
+        return {labelKey: 'event.match.status.cancelled', color: 'default', strikeThrough: true}
+    }
+
+    if (status.state === 'AWAITING_FINISH') {
+        return {labelKey: 'event.match.status.awaitingFinish', color: 'warning'}
+    }
+
+    if (isPartiallyScored(status)) {
+        return {
+            labelKey: 'event.match.status.partiallyScored',
+            // Zähler wie Nenner ohne die Abgemeldeten: „3/4" von fünf gemeldeten Booten, von denen
+            // eines abgemeldet ist, ist die ehrliche Aussage — wie viele noch fehlen.
+            values: {scored: status.teamsRaced ?? 0, total: teamsExpected(status)},
+            color: 'warning',
+        }
+    }
+
+    if (status.state === 'UNSCHEDULED') {
+        // Ohne Plan gibt es keinen Verzug — ein ungeplanter Lauf wird niemals „Überfällig".
+        return {labelKey: 'event.match.status.unscheduled', color: 'default'}
+    }
+
+    if (startTime != null) {
+        const overdueBy = elapsedMinutes(startTime, now)
+        if (overdueBy >= OVERDUE_GRACE_MINUTES) {
+            return {
+                labelKey: 'event.match.status.overdue',
+                values: {minutes: overdueBy},
+                color: 'error',
+            }
+        }
+    }
+
+    return {labelKey: 'event.match.status.upcoming', color: 'default'}
+}
+
+/**
+ * Der zweite, leise Chip: wie viele Crews des Laufs schon in der Arena sind.
+ *
+ * „In der Arena" ist bewusst kein eigener Zustand — es ist eine Eigenschaft des
+ * Vorbereitungsstands, keine Phase des Laufs, und würde als Zustand mit „Läuft" konkurrieren.
+ * Gerade deshalb steht er auch bei „In Vorbereitung": dort ist die Frage, wer schon draußen ist,
+ * am dringendsten.
+ *
+ * `teamsInArena == null` heißt „nicht erhoben" und ist etwas anderes als 0 („erhoben, aber niemand
+ * draußen"). Der Fall tritt zweifach auf: in Ansichten, die die Check-in-Daten gar nicht holen
+ * (Zeitplan, öffentliche Anzeigen), und bei einer Veranstaltung ohne Check-in — hatte kein Team der
+ * Runde je einen Scan, schickt der Server null statt 0 (Abschnitt 6 der Spec, entschieden in
+ * `MatchStatusLogic.teamsInArenaPerMatch`), sonst stünde bei jedem Lauf dauerhaft „Arena 0/6".
+ *
+ * Er entfällt außerdem, sobald er nichts mehr aussagt: bei einem Lauf ohne Mannschaften, bei einem
+ * Freilos, nach Beenden oder Absage, und wenn ohnehin alle Crews draußen sind.
+ */
+export const arenaChip = (status: MatchStatusDto): MatchChip | null => {
+    const inArena = status.teamsInArena
+    if (inArena == null) return null
+    // Ein Boot, das nicht fährt, muss auch nicht draußen sein — „Arena 0/1" wäre hier reines
+    // Rauschen.
+    if (status.bye) return null
+    if (status.teamsTotal === 0) return null
+    if (status.state !== 'UPCOMING' && status.state !== 'PREPARING' && status.state !== 'RUNNING')
+        return null
+    if (inArena >= status.teamsTotal) return null
+    return {
+        labelKey: 'event.match.status.inArena',
+        values: {inArena, total: status.teamsTotal},
+        color: 'default',
+    }
+}
+
+/**
+ * Der zweite, leise Chip für Abmeldungen: „1 abgemeldet".
+ *
+ * Dieselbe Kategorie wie [arenaChip] und aus demselben Grund KEIN eigener Zustand: Eine Abmeldung
+ * ist eine Eigenschaft der Besetzung, keine Phase des Laufs, und sie darf über den Zustand nichts
+ * aussagen. Genau daran ist es am 14.08.2026 schiefgegangen — ein Lauf mit einer Abmeldung und
+ * vier offenen Booten stand als „Teilweise gewertet 1/5" da. Der Lauf zeigt seither seinen
+ * normalen Zustand („Anstehend"), und dieser Chip sagt daneben leise, was mit der fünften
+ * Mannschaft ist.
+ *
+ * Er steht bewusst bei JEDEM Zustand, auch bei beendeten Läufen: Die Frage „warum sind es nur vier
+ * Boote?" stellt sich beim Ergebnis genauso wie am Steg. Er entfällt nur, wo er nichts aussagt:
+ * ohne Abmeldung und bei einem Freilos — dort erklärt der Freilos-Text (`byeExplanation`) die
+ * Abmeldung bereits mit Namen und Grund, und ein zweiter Chip wäre eine Wiederholung.
+ */
+export const deregisteredChip = (status: MatchStatusDto): MatchChip | null => {
+    const n = status.teamsDeregistered ?? 0
+    if (n <= 0) return null
+    if (status.bye) return null
+    return {labelKey: 'event.match.status.deregistered', values: {n}, color: 'default'}
+}
+
+/**
+ * Die Zählerleiste über einer Runde („1 läuft · 1 offen · 3 beendet · 1 abgesagt").
+ *
+ * Jeder Lauf zählt in genau einen Topf; die Zuordnung folgt derselben Aufteilung wie
+ * `MatchStatusLogic.roundCounters` im Backend, damit die Leiste nichts anderes behauptet als die
+ * Chips darunter. Töpfe ohne Läufe fallen weg — eine Null zu lesen kostet genauso viel Blick wie
+ * eine Zahl, sagt aber nichts.
+ *
+ * [minMatches] hält die Leiste bei einer einzigen Lauf-Karte zurück: dort wiederholt sie nur den
+ * Chip daneben und ist reines Rauschen (Entscheidung aus Abschnitt 9 der Spec).
+ */
+export const roundCounterChips = (statuses: MatchStatusDto[], minMatches = 2): MatchChip[] => {
+    if (statuses.length < minMatches) return []
+
+    const count = (predicate: (status: MatchStatusDto) => boolean) =>
+        statuses.filter(predicate).length
+
+    const buckets: {n: number; labelKey: string; color: ChipColor}[] = [
+        {
+            n: count(s => s.state === 'PREPARING'),
+            labelKey: 'event.match.status.counter.preparing',
+            color: 'info',
+        },
+        {
+            n: count(s => s.state === 'RUNNING'),
+            labelKey: 'event.match.status.counter.running',
+            color: 'primary',
+        },
+        {
+            n: count(
+                s =>
+                    s.state === 'AWAITING_FINISH' ||
+                    s.state === 'UPCOMING' ||
+                    s.state === 'UNSCHEDULED',
+            ),
+            labelKey: 'event.match.status.counter.open',
+            color: 'default',
+        },
+        {
+            n: count(s => s.state === 'FINISHED'),
+            labelKey: 'event.match.status.counter.finished',
+            color: 'success',
+        },
+        {
+            n: count(s => s.state === 'SKIPPED'),
+            labelKey: 'event.match.status.counter.cancelled',
+            color: 'default',
+        },
+    ]
+
+    return buckets
+        .filter(bucket => bucket.n > 0)
+        .map(({n, labelKey, color}) => ({labelKey, values: {n}, color}))
+}
+
+/**
+ * Der Lauf-Status eines Zeitplan-Slots, aus den Feldern, die die Slot-Abfrage ohnehin mitbringt.
+ *
+ * Der Zeitplan bekommt kein fertiges [MatchStatusDto] vom Server — er liefert eine Zeile je Slot,
+ * nicht je Lauf. Die Zweig-Reihenfolge ist deshalb hier noch einmal nachgebildet, und zwar exakt
+ * die von `LiveDashboardLogic.deriveMatchState`: aktiviert schlägt beendet schlägt abgesagt schlägt
+ * „alle gewertet", und innerhalb der Aktivierung entscheidet der Ist-Start zwischen „In
+ * Vorbereitung" und „Läuft". Ohne verknüpften Lauf gibt es nichts abzuleiten — dann bleibt der Slot
+ * bei seinem eigenen Chip.
+ *
+ * UNSCHEDULED kann hier nicht entstehen: ein Slot hat immer eine Startzeit, sonst stünde er nicht
+ * im Zeitplan.
+ */
+/**
+ * Der Lauf-Status eines NICHT verplanten Laufs - dieselbe Zweig-Reihenfolge wie [slotMatchStatus].
+ *
+ * Die nicht verplanten Läufe sind vor allem Dauer-Freilose; ob so eines noch quittiert werden
+ * muss ("Freilos · offen" vs. "quittiert"), soll die Tabelle zeigen. Ohne gesetzten Lauf und ohne
+ * Freilos-Kennzeichen gibt es nichts abzuleiten -> null, die Zelle bleibt leer. Team-Zähler stehen
+ * hier nicht zur Verfügung; die Teilwertungs-Ablesung entfällt damit bewusst.
+ */
+export const unplannedMatchStatus = (match: UnplannedSetupMatchDto): MatchStatusDto | null => {
+    const hasMatchState =
+        match.matchActivatedAt != null ||
+        match.matchStartedAt != null ||
+        match.matchFinishedAt != null
+    if (!hasMatchState && !match.bye) return null
+
+    const state = match.matchActivatedAt
+        ? match.matchStartedAt
+            ? 'RUNNING'
+            : 'PREPARING'
+        : match.matchFinishedAt
+          ? 'FINISHED'
+          : 'UNSCHEDULED'
+
+    return {
+        state,
+        startedAt: match.matchStartedAt ?? undefined,
+        teamsTotal: 0,
+        teamsScored: 0,
+        teamsRaced: 0,
+        teamsDeregistered: 0,
+        bye: match.bye,
+    }
+}
+
+export const slotMatchStatus = (slot: EventScheduleSlotDto): MatchStatusDto | null => {
+    if (!slot.matchId) return null
+
+    const state = slot.matchActivatedAt
+        ? slot.matchStartedAt
+            ? 'RUNNING'
+            : 'PREPARING'
+        : slot.matchFinishedAt
+          ? 'FINISHED'
+          : slot.state === 'SKIPPED'
+            ? 'SKIPPED'
+            : slot.matchTeamsTotal > 0 && slot.matchTeamsScored >= slot.matchTeamsTotal
+              ? 'AWAITING_FINISH'
+              : 'UPCOMING'
+
+    return {
+        state,
+        startedAt: slot.matchStartedAt ?? undefined,
+        teamsTotal: slot.matchTeamsTotal,
+        // „Alle gewertet" (AWAITING_FINISH oben) hängt weiterhin an den erledigten Booten, die
+        // Teilwertung dagegen an den gefahrenen — zwei Fragen, zwei Zahlen.
+        teamsScored: slot.matchTeamsScored,
+        teamsRaced: slot.matchTeamsRaced,
+        teamsDeregistered: slot.matchTeamsDeregistered,
+        bye: slot.bye,
+    }
+}

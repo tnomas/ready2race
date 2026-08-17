@@ -27,5 +27,28 @@ data class EventDto(
     val allowSelfSubmission: Boolean,
     val submissionNeedsVerification: Boolean,
     val allowParticipantSelfRegistration: Boolean,
+    /** Steuert, wer Läufe beenden/aktivieren darf und ob die Kette dabei automatisch weiterzieht. */
+    val chainProgressionMode: ChainProgressionMode,
+    /** Voreinstellung für die Folgerunden-Automatik; Wettkämpfe können sie einzeln übersteuern. */
+    val autoCreateFollowingRounds: Boolean,
+    /** Zeigt Pausen/Programmpunkte aus dem Zeitplan auch auf Kiosk und Athleten-Anzeige. */
+    val showBreaksOnPublicBoards: Boolean,
+    /** Ab welchem Zustand ein Lauf als Ergebnis auf den öffentlichen Ansichten erscheint. */
+    val publicResultsVisibility: PublicResultsVisibility,
+    /**
+     * Duerfen Meldende Personen anderer Vereine suchen und melden?
+     *
+     * Vorbelegung aus. Steht der Schalter an, findet die Meldemaske ueber eine Suche (ab zwei
+     * Zeichen, gedeckelte Trefferzahl) auch Personen fremder Vereine, und die Vereinspruefung
+     * beim Melden entfaellt. Die Stammdaten bleiben in jedem Fall beim Stammverein; siehe
+     * Migration V202608142000.
+     */
+    val allowCrossClubRegistration: Boolean,
+    /** Ob die Durchführungsseite ihren Stand im Hintergrund nachzieht. */
+    val executionAutoRefresh: Boolean,
+    /** Takt dieses Abgleichs in Sekunden; nur wirksam, wenn [executionAutoRefresh] gesetzt ist. */
+    val executionAutoRefreshSeconds: Int,
     val challengesFinished: Boolean?,
+    /** Der veranstaltungsweite Hinweisbanner (z.B. Wetterwarnung); null = kein Banner. */
+    val notice: EventNoticeDto?,
 )

@@ -276,7 +276,7 @@ const teamBase = (team: DemoTeam) => ({
     teamName: null,
     startNumber: team.startNumber,
     clubName: team.club,
-    actualClubName: team.club,
+    clubsFull: team.club,
     participants: team.crew,
 })
 
@@ -338,7 +338,7 @@ export const buildDemoResponse = (pathname: string): unknown => {
                 teamName: null,
                 teamNumber: team.startNumber,
                 clubName: team.club,
-                actualClubName: team.club,
+                clubsFull: team.club,
                 place: team.place,
                 timeString: team.time,
                 failed: team.failed ?? false,

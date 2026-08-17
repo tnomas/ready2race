@@ -2,16 +2,21 @@ import {
     Box,
     Button,
     Divider,
+    FormControlLabel,
     MenuItem,
     Paper,
     Select,
     Stack,
+    Switch,
     TextField,
+    TextFieldProps,
     Typography,
 } from '@mui/material'
 import {GapDocumentPlaceholderType, TextAlign} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
 import {Add} from '@mui/icons-material'
+import {useEffect, useState} from 'react'
+import {clampRect, parsePercent, PlaceholderRect} from './placeholderGeometry.ts'
 
 type PlaceholderData = {
     id: string
@@ -23,27 +28,38 @@ type PlaceholderData = {
     relWidth: number
     relHeight: number
     textAlign: TextAlign
+    fontSize?: number
+    bold: boolean
+    italic: boolean
+    staticText?: string
 }
 
 type Props = {
     selectedPlaceholder: string | null
     placeholders: PlaceholderData[]
+    allowedTypes: GapDocumentPlaceholderType[]
     onPlaceholdersChange: (placeholders: PlaceholderData[]) => void
     onAddPlaceholder: (type: GapDocumentPlaceholderType, page: number) => void
     currentPage: number
 }
 
-const PLACEHOLDER_TYPES: GapDocumentPlaceholderType[] = [
-    'FIRST_NAME',
-    'LAST_NAME',
-    'FULL_NAME',
-    'RESULT',
-    'EVENT_NAME',
-]
+type GeometryField = keyof PlaceholderRect
+
+const formatPercent = (value: number) => (value * 100).toFixed(1)
 
 const PlaceholderSidebar = (props: Props) => {
     const {t} = useTranslation()
     const selectedPlaceholder = props.placeholders.find(p => p.id === props.selectedPlaceholder)
+
+    // Solange ein Geometrie-Feld fokussiert ist, zeigt es den rohen Eingabetext statt des
+    // formatierten Werts an — sonst überschreibt jedes Neurendern (z. B. nach jedem Tastendruck)
+    // das, was der Nutzer gerade tippt. Committet wird erst bei Blur oder Enter.
+    const [editingGeometryField, setEditingGeometryField] = useState<GeometryField | null>(null)
+    const [geometryFieldBuffer, setGeometryFieldBuffer] = useState('')
+
+    useEffect(() => {
+        setEditingGeometryField(null)
+    }, [selectedPlaceholder?.id])
 
     const handleAddPlaceholder = (type: GapDocumentPlaceholderType) => {
         props.onAddPlaceholder(type, props.currentPage)
@@ -55,6 +71,38 @@ const PlaceholderSidebar = (props: Props) => {
         )
     }
 
+    const getGeometryFieldProps = (
+        field: GeometryField,
+    ): Pick<TextFieldProps, 'value' | 'onFocus' | 'onChange' | 'onBlur' | 'onKeyDown'> => {
+        if (!selectedPlaceholder) {
+            return {value: ''}
+        }
+        const isEditing = editingGeometryField === field
+        return {
+            value: isEditing ? geometryFieldBuffer : formatPercent(selectedPlaceholder[field]),
+            onFocus: () => {
+                setEditingGeometryField(field)
+                setGeometryFieldBuffer(formatPercent(selectedPlaceholder[field]))
+            },
+            onChange: e => setGeometryFieldBuffer(e.target.value),
+            onBlur: () => {
+                const parsed = parsePercent(geometryFieldBuffer)
+                if (parsed !== undefined) {
+                    handlePlaceholderPropertyChange(
+                        selectedPlaceholder.id,
+                        clampRect({...selectedPlaceholder, [field]: parsed}),
+                    )
+                }
+                setEditingGeometryField(null)
+            },
+            onKeyDown: e => {
+                if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                }
+            },
+        }
+    }
+
     return (
         <Paper sx={{p: 2, width: 300, height: '70vh', overflow: 'auto'}}>
             <Stack spacing={2}>
@@ -64,7 +112,7 @@ const PlaceholderSidebar = (props: Props) => {
                 </Typography>
 
                 <Stack spacing={1}>
-                    {PLACEHOLDER_TYPES.map(type => (
+                    {props.allowedTypes.map(type => (
                         <Button
                             key={type}
                             variant="outlined"
@@ -137,37 +185,118 @@ const PlaceholderSidebar = (props: Props) => {
                             </Select>
                         </Box>
 
+                        <TextField
+                            label={t('gap.document.placeholder.fontSize')}
+                            type="number"
+                            value={selectedPlaceholder.fontSize ?? ''}
+                            onChange={e => {
+                                const rawValue = e.target.value
+                                if (rawValue === '') {
+                                    handlePlaceholderPropertyChange(selectedPlaceholder.id, {
+                                        fontSize: undefined,
+                                    })
+                                    return
+                                }
+                                const parsedValue = Number(rawValue)
+                                if (Number.isNaN(parsedValue)) {
+                                    return
+                                }
+                                handlePlaceholderPropertyChange(selectedPlaceholder.id, {
+                                    fontSize: Math.max(1, parsedValue),
+                                })
+                            }}
+                            fullWidth
+                            size="small"
+                            slotProps={{htmlInput: {min: 1}}}
+                            helperText={t('gap.document.placeholder.fontSizeHelp')}
+                        />
+
+                        <Stack direction="row" spacing={2}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={selectedPlaceholder.bold}
+                                        onChange={e =>
+                                            handlePlaceholderPropertyChange(
+                                                selectedPlaceholder.id,
+                                                {bold: e.target.checked},
+                                            )
+                                        }
+                                    />
+                                }
+                                label={t('gap.document.placeholder.bold')}
+                            />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={selectedPlaceholder.italic}
+                                        onChange={e =>
+                                            handlePlaceholderPropertyChange(
+                                                selectedPlaceholder.id,
+                                                {italic: e.target.checked},
+                                            )
+                                        }
+                                    />
+                                }
+                                label={t('gap.document.placeholder.italic')}
+                            />
+                        </Stack>
+
+                        {selectedPlaceholder.type === 'FREE_TEXT' && (
+                            <TextField
+                                label={t('gap.document.placeholder.staticText')}
+                                value={selectedPlaceholder.staticText || ''}
+                                onChange={e =>
+                                    handlePlaceholderPropertyChange(selectedPlaceholder.id, {
+                                        staticText: e.target.value || undefined,
+                                    })
+                                }
+                                fullWidth
+                                multiline
+                                size="small"
+                                helperText={t('gap.document.placeholder.staticTextHelp')}
+                            />
+                        )}
+
                         <Box>
                             <Typography variant="caption" color="text.secondary">
                                 {t('gap.document.placeholder.page')}: {selectedPlaceholder.page}
                             </Typography>
                         </Box>
 
-                        <Box>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{display: 'block'}}>
-                                {t('gap.document.placeholder.position')}
-                            </Typography>
-                            <Typography variant="caption">
-                                X: {(selectedPlaceholder.relLeft * 100).toFixed(1)}%, Y:{' '}
-                                {(selectedPlaceholder.relTop * 100).toFixed(1)}%
-                            </Typography>
-                        </Box>
+                        <Stack direction="row" spacing={1}>
+                            <TextField
+                                label={`${t('gap.document.placeholder.positionX')} (%)`}
+                                type="text"
+                                size="small"
+                                slotProps={{htmlInput: {inputMode: 'decimal'}}}
+                                {...getGeometryFieldProps('relLeft')}
+                            />
+                            <TextField
+                                label={`${t('gap.document.placeholder.positionY')} (%)`}
+                                type="text"
+                                size="small"
+                                slotProps={{htmlInput: {inputMode: 'decimal'}}}
+                                {...getGeometryFieldProps('relTop')}
+                            />
+                        </Stack>
 
-                        <Box>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{display: 'block'}}>
-                                {t('gap.document.placeholder.size')}
-                            </Typography>
-                            <Typography variant="caption">
-                                W: {(selectedPlaceholder.relWidth * 100).toFixed(1)}%, H:{' '}
-                                {(selectedPlaceholder.relHeight * 100).toFixed(1)}%
-                            </Typography>
-                        </Box>
+                        <Stack direction="row" spacing={1}>
+                            <TextField
+                                label={`${t('gap.document.placeholder.width')} (%)`}
+                                type="text"
+                                size="small"
+                                slotProps={{htmlInput: {inputMode: 'decimal'}}}
+                                {...getGeometryFieldProps('relWidth')}
+                            />
+                            <TextField
+                                label={`${t('gap.document.placeholder.height')} (%)`}
+                                type="text"
+                                size="small"
+                                slotProps={{htmlInput: {inputMode: 'decimal'}}}
+                                {...getGeometryFieldProps('relHeight')}
+                            />
+                        </Stack>
                     </>
                 )}
             </Stack>

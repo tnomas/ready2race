@@ -45,6 +45,12 @@ import type {
     AcceptUserInvitationData,
     AcceptUserInvitationError,
     AcceptUserInvitationResponse,
+    DeleteInvitationData,
+    DeleteInvitationError,
+    DeleteInvitationResponse,
+    ResendInvitationData,
+    ResendInvitationError,
+    ResendInvitationResponse,
     InitPasswordResetData,
     InitPasswordResetError,
     InitPasswordResetResponse,
@@ -174,12 +180,75 @@ import type {
     UpdateMatchDataData,
     UpdateMatchDataError,
     UpdateMatchDataResponse,
-    UpdateMatchRunningStateData,
-    UpdateMatchRunningStateError,
-    UpdateMatchRunningStateResponse,
+    UpdateMatchActivationData,
+    UpdateMatchActivationError,
+    UpdateMatchActivationResponse,
+    DownloadRoundStartListData,
+    DownloadRoundStartListError,
+    DownloadRoundStartListResponse,
+    UpdateMatchByeMustRaceData,
+    UpdateMatchByeMustRaceError,
+    UpdateMatchByeMustRaceResponse,
+    MarkMatchStartedFromExecutionData,
+    MarkMatchStartedFromExecutionError,
+    MarkMatchStartedFromExecutionResponse,
+    FinishMatchFromExecutionData,
+    FinishMatchFromExecutionError,
+    FinishMatchFromExecutionResponse,
+    ReopenMatchData,
+    ReopenMatchError,
+    ReopenMatchResponse,
+    ResetMatchData,
+    ResetMatchError,
+    ResetMatchResponse,
     UpdateMatchResultsData,
     UpdateMatchResultsError,
     UpdateMatchResultsResponse,
+    GetRaceClockerRacesData,
+    GetRaceClockerRacesError,
+    GetRaceClockerRacesResponse,
+    AddRaceClockerRaceData,
+    AddRaceClockerRaceError,
+    AddRaceClockerRaceResponse,
+    GetRaceClockerCompetitionAssignmentsData,
+    GetRaceClockerCompetitionAssignmentsError,
+    GetRaceClockerCompetitionAssignmentsResponse,
+    SetRaceClockerRaceAssignmentsData,
+    SetRaceClockerRaceAssignmentsError,
+    SetRaceClockerRaceAssignmentsResponse,
+    UpdateRaceClockerRaceData,
+    UpdateRaceClockerRaceError,
+    UpdateRaceClockerRaceResponse,
+    DeleteRaceClockerRaceData,
+    DeleteRaceClockerRaceError,
+    DeleteRaceClockerRaceResponse,
+    GetEventTimingConfigData,
+    GetEventTimingConfigError,
+    GetEventTimingConfigResponse,
+    UpdateEventTimingConfigData,
+    UpdateEventTimingConfigError,
+    UpdateEventTimingConfigResponse,
+    UpdateEventNoticeData,
+    UpdateEventNoticeError,
+    UpdateEventNoticeResponse,
+    GetTimingConfigData,
+    GetTimingConfigError,
+    GetTimingConfigResponse,
+    UpdateTimingConfigData,
+    UpdateTimingConfigError,
+    UpdateTimingConfigResponse,
+    GetRoundProgressionConfigData,
+    GetRoundProgressionConfigError,
+    GetRoundProgressionConfigResponse,
+    UpdateRoundProgressionConfigData,
+    UpdateRoundProgressionConfigError,
+    UpdateRoundProgressionConfigResponse,
+    PullMatchResultsFromRaceClockerData,
+    PullMatchResultsFromRaceClockerError,
+    PullMatchResultsFromRaceClockerResponse,
+    ResumeRaceClockerAutoPullData,
+    ResumeRaceClockerAutoPullError,
+    ResumeRaceClockerAutoPullResponse,
     DownloadStartListData,
     DownloadStartListError,
     DownloadStartListResponse,
@@ -219,6 +288,18 @@ import type {
     DeleteDocumentData,
     DeleteDocumentError,
     DeleteDocumentResponse,
+    GetExportBundleData,
+    GetExportBundleError,
+    GetExportBundleResponse,
+    AddExportBundleDocumentData,
+    AddExportBundleDocumentError,
+    AddExportBundleDocumentResponse,
+    ReorderExportBundleData,
+    ReorderExportBundleError,
+    ReorderExportBundleResponse,
+    RemoveExportBundleItemData,
+    RemoveExportBundleItemError,
+    RemoveExportBundleItemResponse,
     GetParticipantTrackingsData,
     GetParticipantTrackingsError,
     GetParticipantTrackingsResponse,
@@ -300,6 +381,15 @@ import type {
     GetClubParticipantsForEventData,
     GetClubParticipantsForEventError,
     GetClubParticipantsForEventResponse,
+    SearchParticipantsAcrossClubsData,
+    SearchParticipantsAcrossClubsError,
+    SearchParticipantsAcrossClubsResponse,
+    AddParticipantAdditionalClubData,
+    AddParticipantAdditionalClubError,
+    AddParticipantAdditionalClubResponse,
+    RemoveParticipantAdditionalClubData,
+    RemoveParticipantAdditionalClubError,
+    RemoveParticipantAdditionalClubResponse,
     GetClubParticipantData,
     GetClubParticipantError,
     GetClubParticipantResponse,
@@ -315,6 +405,32 @@ import type {
     GetPendingClubRepresentativeApprovalsData,
     GetPendingClubRepresentativeApprovalsError,
     GetPendingClubRepresentativeApprovalsResponse,
+    GetClubShortNamesData,
+    GetClubShortNamesError,
+    GetClubShortNamesResponse,
+    GetClubShortNameForNameData,
+    GetClubShortNameForNameError,
+    GetClubShortNameForNameResponse,
+    UpdateClubShortNameData,
+    UpdateClubShortNameError,
+    UpdateClubShortNameResponse,
+    DeleteClubShortNameData,
+    DeleteClubShortNameError,
+    DeleteClubShortNameResponse,
+    GetClubNameRulesError,
+    GetClubNameRulesResponse,
+    AddClubNameRuleData,
+    AddClubNameRuleError,
+    AddClubNameRuleResponse,
+    ReorderClubNameRulesData,
+    ReorderClubNameRulesError,
+    ReorderClubNameRulesResponse,
+    UpdateClubNameRuleData,
+    UpdateClubNameRuleError,
+    UpdateClubNameRuleResponse,
+    DeleteClubNameRuleData,
+    DeleteClubNameRuleError,
+    DeleteClubNameRuleResponse,
     GetRegistrationsForEventData,
     GetRegistrationsForEventError,
     GetRegistrationsForEventResponse,
@@ -333,6 +449,12 @@ import type {
     AcceptEventRegistrationDocumentsData,
     AcceptEventRegistrationDocumentsError,
     AcceptEventRegistrationDocumentsResponse,
+    GetRegistrationMailRecipientsData,
+    GetRegistrationMailRecipientsError,
+    GetRegistrationMailRecipientsResponse,
+    SendRegistrationMailData,
+    SendRegistrationMailError,
+    SendRegistrationMailResponse,
     GetEventRegistrationTemplateData,
     GetEventRegistrationTemplateError,
     GetEventRegistrationTemplateResponse,
@@ -384,9 +506,15 @@ import type {
     ApproveParticipantRequirementsForEventData,
     ApproveParticipantRequirementsForEventError,
     ApproveParticipantRequirementsForEventResponse,
+    ApproveParticipantRequirementForParticipantData,
+    ApproveParticipantRequirementForParticipantError,
+    ApproveParticipantRequirementForParticipantResponse,
     GetActiveParticipantRequirementsForEventData,
     GetActiveParticipantRequirementsForEventError,
     GetActiveParticipantRequirementsForEventResponse,
+    ExportOpenParticipantRequirementsData,
+    ExportOpenParticipantRequirementsError,
+    ExportOpenParticipantRequirementsResponse,
     ActivateParticipantRequirementForEventData,
     ActivateParticipantRequirementForEventError,
     ActivateParticipantRequirementForEventResponse,
@@ -405,6 +533,15 @@ import type {
     GetParticipantRequirementsForParticipantData,
     GetParticipantRequirementsForParticipantError,
     GetParticipantRequirementsForParticipantResponse,
+    GetParticipantRequirementLogData,
+    GetParticipantRequirementLogError,
+    GetParticipantRequirementLogResponse,
+    GetEventScanScopeData,
+    GetEventScanScopeError,
+    GetEventScanScopeResponse,
+    GetParticipantScanScopeData,
+    GetParticipantScanScopeError,
+    GetParticipantScanScopeResponse,
     GetParticipantsForEventData,
     GetParticipantsForEventError,
     GetParticipantsForEventResponse,
@@ -417,6 +554,15 @@ import type {
     CheckInOutParticipantData,
     CheckInOutParticipantError,
     CheckInOutParticipantResponse,
+    GetParticipantTrackingHistoryData,
+    GetParticipantTrackingHistoryError,
+    GetParticipantTrackingHistoryResponse,
+    AddManualParticipantTrackingData,
+    AddManualParticipantTrackingError,
+    AddManualParticipantTrackingResponse,
+    CorrectParticipantTrackingData,
+    CorrectParticipantTrackingError,
+    CorrectParticipantTrackingResponse,
     UpdateParticipantRequirementData,
     UpdateParticipantRequirementError,
     UpdateParticipantRequirementResponse,
@@ -451,6 +597,9 @@ import type {
     AddGapDocumentTemplateData,
     AddGapDocumentTemplateError,
     AddGapDocumentTemplateResponse,
+    ImportGapDocumentTemplateData,
+    ImportGapDocumentTemplateError,
+    ImportGapDocumentTemplateResponse,
     UpdateGapDocumentTemplateData,
     UpdateGapDocumentTemplateError,
     UpdateGapDocumentTemplateResponse,
@@ -463,6 +612,12 @@ import type {
     DownloadGapDocumentTemplateSampleData,
     DownloadGapDocumentTemplateSampleError,
     DownloadGapDocumentTemplateSampleResponse,
+    ExportGapDocumentTemplateData,
+    ExportGapDocumentTemplateError,
+    ExportGapDocumentTemplateResponse,
+    GetGapDocumentTemplateFontData,
+    GetGapDocumentTemplateFontError,
+    GetGapDocumentTemplateFontResponse,
     GetGapDocumentTemplateTypesError,
     GetGapDocumentTemplateTypesResponse,
     AssignGapDocumentTemplateData,
@@ -533,6 +688,9 @@ import type {
     GetRatingCategoriesForEventData,
     GetRatingCategoriesForEventError,
     GetRatingCategoriesForEventResponse,
+    UpdateRatingCategoryOrderForEventData,
+    UpdateRatingCategoryOrderForEventError,
+    UpdateRatingCategoryOrderForEventResponse,
     RemoveRatingCategoryFromEventData,
     RemoveRatingCategoryFromEventError,
     RemoveRatingCategoryFromEventResponse,
@@ -617,18 +775,105 @@ import type {
     GetRunningMatchesData,
     GetRunningMatchesError,
     GetRunningMatchesResponse,
-    GetInfoViewsData,
-    GetInfoViewsError,
-    GetInfoViewsResponse,
-    CreateInfoViewData,
-    CreateInfoViewError,
-    CreateInfoViewResponse,
-    UpdateInfoViewData,
-    UpdateInfoViewError,
-    UpdateInfoViewResponse,
-    DeleteInfoViewData,
-    DeleteInfoViewError,
-    DeleteInfoViewResponse,
+    GetLiveMatchesData,
+    GetLiveMatchesError,
+    GetLiveMatchesResponse,
+    GetPublicProgramData,
+    GetPublicProgramError,
+    GetPublicProgramResponse,
+    GetPublicBoardsData,
+    GetPublicBoardsError,
+    GetPublicBoardsResponse,
+    GetBoardViewData,
+    GetBoardViewError,
+    GetBoardViewResponse,
+    GetMyEventData,
+    GetMyEventError,
+    GetMyEventResponse,
+    FinishLiveDashboardMatchData,
+    FinishLiveDashboardMatchError,
+    FinishLiveDashboardMatchResponse,
+    StartLiveDashboardMatchData,
+    StartLiveDashboardMatchError,
+    StartLiveDashboardMatchResponse,
+    SetLiveDashboardMatchActivatedData,
+    SetLiveDashboardMatchActivatedError,
+    SetLiveDashboardMatchActivatedResponse,
+    GetLiveDashboardData,
+    GetLiveDashboardError,
+    GetLiveDashboardResponse,
+    GetLiveDashboardTeamDetailData,
+    GetLiveDashboardTeamDetailError,
+    GetLiveDashboardTeamDetailResponse,
+    AddLiveDashboardTeamNoteData,
+    AddLiveDashboardTeamNoteError,
+    AddLiveDashboardTeamNoteResponse,
+    DeleteLiveDashboardTeamNoteData,
+    DeleteLiveDashboardTeamNoteError,
+    DeleteLiveDashboardTeamNoteResponse,
+    GetCheckSeverityConfigData,
+    GetCheckSeverityConfigError,
+    GetCheckSeverityConfigResponse,
+    UpdateCheckSeverityConfigData,
+    UpdateCheckSeverityConfigError,
+    UpdateCheckSeverityConfigResponse,
+    GetEventScheduleData,
+    GetEventScheduleError,
+    GetEventScheduleResponse,
+    DownloadEventStartlistsData,
+    DownloadEventStartlistsError,
+    DownloadEventStartlistsResponse,
+    PreviewEventStartlistsData,
+    PreviewEventStartlistsError,
+    PreviewEventStartlistsResponse,
+    CreateScheduleSlotData,
+    CreateScheduleSlotError,
+    CreateScheduleSlotResponse,
+    UpdateScheduleSlotData,
+    UpdateScheduleSlotError,
+    UpdateScheduleSlotResponse,
+    DeleteScheduleSlotData,
+    DeleteScheduleSlotError,
+    DeleteScheduleSlotResponse,
+    SkipScheduleSlotData,
+    SkipScheduleSlotError,
+    SkipScheduleSlotResponse,
+    AdvanceAfterSkippedSlotData,
+    AdvanceAfterSkippedSlotError,
+    AdvanceAfterSkippedSlotResponse,
+    UnskipScheduleSlotData,
+    UnskipScheduleSlotError,
+    UnskipScheduleSlotResponse,
+    FinishScheduleSlotData,
+    FinishScheduleSlotError,
+    FinishScheduleSlotResponse,
+    ActivateScheduleSlotData,
+    ActivateScheduleSlotError,
+    ActivateScheduleSlotResponse,
+    SkipScheduleRoundData,
+    SkipScheduleRoundError,
+    SkipScheduleRoundResponse,
+    ShiftEventScheduleData,
+    ShiftEventScheduleError,
+    ShiftEventScheduleResponse,
+    ImportEventScheduleData,
+    ImportEventScheduleError,
+    ImportEventScheduleResponse,
+    DownloadEventScheduleImportTemplateData,
+    DownloadEventScheduleImportTemplateError,
+    DownloadEventScheduleImportTemplateResponse,
+    GetBoardsData,
+    GetBoardsError,
+    GetBoardsResponse,
+    CreateBoardData,
+    CreateBoardError,
+    CreateBoardResponse,
+    UpdateBoardData,
+    UpdateBoardError,
+    UpdateBoardResponse,
+    DeleteBoardData,
+    DeleteBoardError,
+    DeleteBoardResponse,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -656,6 +901,9 @@ import type {
     UploadResultFileData,
     UploadResultFileError,
     UploadResultFileResponse,
+    UploadRaceClockerResultFileData,
+    UploadRaceClockerResultFileError,
+    UploadRaceClockerResultFileResponse,
     CheckQrCodeData,
     CheckQrCodeError,
     CheckQrCodeResponse,
@@ -762,6 +1010,24 @@ import type {
     DownloadCertificatesOfParticipationData,
     DownloadCertificatesOfParticipationError,
     DownloadCertificatesOfParticipationResponse,
+    DownloadAwardCertificatesForEventData,
+    DownloadAwardCertificatesForEventError,
+    DownloadAwardCertificatesForEventResponse,
+    GetAwardCeremoniesData,
+    GetAwardCeremoniesError,
+    GetAwardCeremoniesResponse,
+    DownloadAwardCeremonySheetsData,
+    DownloadAwardCeremonySheetsError,
+    DownloadAwardCeremonySheetsResponse,
+    DownloadResultListData,
+    DownloadResultListError,
+    DownloadResultListResponse,
+    DownloadAwardCertificatesForCompetitionData,
+    DownloadAwardCertificatesForCompetitionError,
+    DownloadAwardCertificatesForCompetitionResponse,
+    DownloadAwardCertificateData,
+    DownloadAwardCertificateError,
+    DownloadAwardCertificateResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -917,6 +1183,32 @@ export const acceptUserInvitation = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/user/invitation/accept',
+    })
+}
+
+export const deleteInvitation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteInvitationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteInvitationResponse,
+        DeleteInvitationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/user/invitation/{invitationId}',
+    })
+}
+
+export const resendInvitation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResendInvitationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ResendInvitationResponse,
+        ResendInvitationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/user/invitation/{invitationId}/resend',
     })
 }
 
@@ -1377,6 +1669,9 @@ export const getCompetitionSetup = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Polled by the execution page in the interval configured on the event. Send the ETag of the previous answer as If-None-Match to get a 304 without a body while nothing changed.
+ */
 export const getCompetitionExecutionProgress = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetCompetitionExecutionProgressData, ThrowOnError>,
 ) => {
@@ -1429,16 +1724,104 @@ export const updateMatchData = <ThrowOnError extends boolean = false>(
     })
 }
 
-export const updateMatchRunningState = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<UpdateMatchRunningStateData, ThrowOnError>,
+export const updateMatchActivation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMatchActivationData, ThrowOnError>,
 ) => {
     return (options?.client ?? client).put<
-        UpdateMatchRunningStateResponse,
-        UpdateMatchRunningStateError,
+        UpdateMatchActivationResponse,
+        UpdateMatchActivationError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/running-state',
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/activation',
+    })
+}
+
+/**
+ * The start list of a whole round as one CSV (single header, waves told apart by the wave-name column) - one import into the timing tooling instead of one per match
+ */
+export const downloadRoundStartList = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadRoundStartListData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadRoundStartListResponse,
+        DownloadRoundStartListError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/round/{setupRoundId}/startList',
+    })
+}
+
+/**
+ * Toggles 'must race' on a bye match (competition_match.bye_must_race). The match then operationally counts as a real race (start list exports, RaceClocker polling, the chain waits for it to be finished), while progression keeps bye semantics - the racing team moves on regardless of the measured time, which is displayed as out of competition.
+ */
+export const updateMatchByeMustRace = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMatchByeMustRaceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMatchByeMustRaceResponse,
+        UpdateMatchByeMustRaceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/bye-must-race',
+    })
+}
+
+/**
+ * Records the real start of the match (idempotent) and activates it if it was not - the office-side counterpart of the referee dashboard's 'running' button
+ */
+export const markMatchStartedFromExecution = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<MarkMatchStartedFromExecutionData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        MarkMatchStartedFromExecutionResponse,
+        MarkMatchStartedFromExecutionError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/mark-started',
+    })
+}
+
+/**
+ * Finishes the match from the execution page (regatta office side). Works in every chainProgressionMode, like finishScheduleSlot - unlike finishLiveDashboardMatch, which is gated in REGATTABUERO mode.
+ */
+export const finishMatchFromExecution = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<FinishMatchFromExecutionData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        FinishMatchFromExecutionResponse,
+        FinishMatchFromExecutionError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/finish',
+    })
+}
+
+/**
+ * Takes back the finish stamp of a finished match in the latest round - activation, real start and results stay untouched
+ */
+export const reopenMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ReopenMatchData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<ReopenMatchResponse, ReopenMatchError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/reopen',
+    })
+}
+
+/**
+ * Resets a single match to 'never raced': clears activation, real start, finish stamp, places, times, penalties and laps while keeping the line-up, lanes and all row UUIDs (external timing references stay valid). Only allowed while the following round has no created matches yet.
+ */
+export const resetMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResetMatchData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<ResetMatchResponse, ResetMatchError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/reset',
     })
 }
 
@@ -1452,6 +1835,228 @@ export const updateMatchResults = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/results',
+    })
+}
+
+/**
+ * The named RaceClocker races of this event - one per race in the timing system.
+ */
+export const getRaceClockerRaces = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetRaceClockerRacesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetRaceClockerRacesResponse,
+        GetRaceClockerRacesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race',
+    })
+}
+
+export const addRaceClockerRace = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddRaceClockerRaceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddRaceClockerRaceResponse,
+        AddRaceClockerRaceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race',
+    })
+}
+
+/**
+ * The reverse view: every competition of the event with its explicit RaceClocker race choice (null = inherits the event default), for assigning competitions from the race side.
+ */
+export const getRaceClockerCompetitionAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetRaceClockerCompetitionAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetRaceClockerCompetitionAssignmentsResponse,
+        GetRaceClockerCompetitionAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race/competition-assignments',
+    })
+}
+
+/**
+ * Set which competitions use this race (reverse assignment). Checking a competition here moves it away from another race - the last click wins; unchecking a competition that pointed here falls back to inheriting the event default.
+ */
+export const setRaceClockerRaceAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetRaceClockerRaceAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetRaceClockerRaceAssignmentsResponse,
+        SetRaceClockerRaceAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race/{raceId}/assignments',
+    })
+}
+
+export const updateRaceClockerRace = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateRaceClockerRaceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateRaceClockerRaceResponse,
+        UpdateRaceClockerRaceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race/{raceId}',
+    })
+}
+
+export const deleteRaceClockerRace = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteRaceClockerRaceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteRaceClockerRaceResponse,
+        DeleteRaceClockerRaceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/raceclocker-race/{raceId}',
+    })
+}
+
+/**
+ * The event-wide timing defaults - inherited by every competition without its own values.
+ */
+export const getEventTimingConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetEventTimingConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetEventTimingConfigResponse,
+        GetEventTimingConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-config',
+    })
+}
+
+export const updateEventTimingConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateEventTimingConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateEventTimingConfigResponse,
+        UpdateEventTimingConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-config',
+    })
+}
+
+/**
+ * Sets or clears the event-wide notice banner (e.g. a weather warning) - both fields set means set, both null means clear. Deliberately a small dedicated endpoint instead of a field on the big event update, so the race-day action stays lightweight. The notice is read through EventDto and embedded in the polled public responses (my-event, board view, live dashboard, live-matches); caches and poll intervals mean a change takes a few seconds to show up on devices.
+ */
+export const updateEventNotice = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateEventNoticeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateEventNoticeResponse,
+        UpdateEventNoticeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/notice',
+    })
+}
+
+/**
+ * The timing configuration of this competition - timing system, RaceClocker results URLs and the column presets used for export and import.
+ */
+export const getTimingConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingConfigResponse,
+        GetTimingConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-config',
+    })
+}
+
+export const updateTimingConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingConfigResponse,
+        UpdateTimingConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-config',
+    })
+}
+
+/**
+ * Whether this competition creates the pairings of following rounds automatically - its own setting, the event default it inherits from, and what actually applies.
+ */
+export const getRoundProgressionConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetRoundProgressionConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetRoundProgressionConfigResponse,
+        GetRoundProgressionConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/roundProgression',
+    })
+}
+
+export const updateRoundProgressionConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateRoundProgressionConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateRoundProgressionConfigResponse,
+        UpdateRoundProgressionConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/roundProgression',
+    })
+}
+
+/**
+ * Loads this match's results from the public RaceClocker results feed and writes them onto the match. Teams are matched by the registration id that was exported into RaceClocker's "Extra info" column; places are derived from the times, since the feed carries no rank. Nothing is written unless all checks pass.
+ */
+export const pullMatchResultsFromRaceClocker = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PullMatchResultsFromRaceClockerData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        PullMatchResultsFromRaceClockerResponse,
+        PullMatchResultsFromRaceClockerError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/results/from-raceclocker',
+    })
+}
+
+/**
+ * Releases a match back to the automatic RaceClocker pull. Entering results by hand or uploading a file pauses the pull for that match, so the office keeps the last word; this undoes that and clears the last poll error.
+ */
+export const resumeRaceClockerAutoPull = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResumeRaceClockerAutoPullData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ResumeRaceClockerAutoPullResponse,
+        ResumeRaceClockerAutoPullError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/results/raceclocker/resume',
     })
 }
 
@@ -1618,6 +2223,70 @@ export const deleteDocument = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/eventDocument/{eventDocumentId}',
+    })
+}
+
+/**
+ * The event's export bundle in order: uploaded event documents plus exactly one placeholder for the generated start lists. The placeholder is created lazily on first access (default position: last), so every event has one. The PDF bulk start list export concatenates the entries in this order.
+ */
+export const getExportBundle = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetExportBundleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetExportBundleResponse,
+        GetExportBundleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/exportBundle',
+    })
+}
+
+/**
+ * Adds an event document to the end of the export bundle. Fails with 409 (EXPORT_BUNDLE_DUPLICATE_DOCUMENT) if the document is already part of the bundle, and with 404 if the document does not belong to this event.
+ */
+export const addExportBundleDocument = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddExportBundleDocumentData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddExportBundleDocumentResponse,
+        AddExportBundleDocumentError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/exportBundle',
+    })
+}
+
+/**
+ * Writes the complete new order of the bundle. The submitted ids must contain exactly the current bundle items (each exactly once) - otherwise the request fails with 409 (EXPORT_BUNDLE_ORDER_MISMATCH), typically a second browser tab with a stale state.
+ */
+export const reorderExportBundle = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ReorderExportBundleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ReorderExportBundleResponse,
+        ReorderExportBundleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/exportBundle/order',
+    })
+}
+
+/**
+ * Removes a document entry from the bundle. The generated-startlists placeholder cannot be removed (400, EXPORT_BUNDLE_PLACEHOLDER_NOT_REMOVABLE) - it can only be reordered, and deselected per export in the export dialog.
+ */
+export const removeExportBundleItem = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RemoveExportBundleItemData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        RemoveExportBundleItemResponse,
+        RemoveExportBundleItemError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/exportBundle/{itemId}',
     })
 }
 
@@ -1963,6 +2632,54 @@ export const getClubParticipantsForEvent = <ThrowOnError extends boolean = false
     })
 }
 
+/**
+ * Vereinsuebergreifende Suche fuer die Meldemaske. Liefert nur etwas, wenn die Veranstaltung es erlaubt (allowCrossClubRegistration) und mindestens zwei Zeichen eingegeben wurden; die Trefferzahl ist gedeckelt und der eigene Vereinsbestand faellt heraus.
+ */
+export const searchParticipantsAcrossClubs = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SearchParticipantsAcrossClubsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        SearchParticipantsAcrossClubsResponse,
+        SearchParticipantsAcrossClubsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/club/{clubId}/participant/search',
+    })
+}
+
+/**
+ * Ordnet die Person einem weiteren Verein zu. Nur der Stammverein (clubId) und globales Recht duerfen das.
+ */
+export const addParticipantAdditionalClub = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddParticipantAdditionalClubData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddParticipantAdditionalClubResponse,
+        AddParticipantAdditionalClubError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/club/{clubId}/participant/{participantId}/club/{additionalClubId}',
+    })
+}
+
+/**
+ * Loest die Zuordnung wieder. Bestehende Meldungen bleiben unberuehrt.
+ */
+export const removeParticipantAdditionalClub = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RemoveParticipantAdditionalClubData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        RemoveParticipantAdditionalClubResponse,
+        RemoveParticipantAdditionalClubError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/club/{clubId}/participant/{participantId}/club/{additionalClubId}',
+    })
+}
+
 export const getClubParticipant = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetClubParticipantData, ThrowOnError>,
 ) => {
@@ -2021,6 +2738,123 @@ export const getPendingClubRepresentativeApprovals = <ThrowOnError extends boole
     >({
         ...options,
         url: '/club/{clubId}/clubRepresentative',
+    })
+}
+
+export const getClubShortNames = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<GetClubShortNamesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetClubShortNamesResponse,
+        GetClubShortNamesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubShortName',
+    })
+}
+
+export const getClubShortNameForName = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetClubShortNameForNameData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetClubShortNameForNameResponse,
+        GetClubShortNameForNameError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubShortName/forName',
+    })
+}
+
+export const updateClubShortName = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateClubShortNameData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateClubShortNameResponse,
+        UpdateClubShortNameError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubShortName/{nameKey}',
+    })
+}
+
+export const deleteClubShortName = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteClubShortNameData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteClubShortNameResponse,
+        DeleteClubShortNameError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubShortName/{nameKey}',
+    })
+}
+
+export const getClubNameRules = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<unknown, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetClubNameRulesResponse,
+        GetClubNameRulesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubNameRule',
+    })
+}
+
+export const addClubNameRule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddClubNameRuleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddClubNameRuleResponse,
+        AddClubNameRuleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubNameRule',
+    })
+}
+
+export const reorderClubNameRules = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ReorderClubNameRulesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ReorderClubNameRulesResponse,
+        ReorderClubNameRulesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubNameRule/order',
+    })
+}
+
+export const updateClubNameRule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateClubNameRuleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateClubNameRuleResponse,
+        UpdateClubNameRuleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubNameRule/{ruleId}',
+    })
+}
+
+export const deleteClubNameRule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteClubNameRuleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteClubNameRuleResponse,
+        DeleteClubNameRuleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/clubNameRule/{ruleId}',
     })
 }
 
@@ -2099,6 +2933,37 @@ export const acceptEventRegistrationDocuments = <ThrowOnError extends boolean = 
     >({
         ...options,
         url: '/event/{eventId}/eventRegistration/acceptDocuments',
+    })
+}
+
+export const getRegistrationMailRecipients = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetRegistrationMailRecipientsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetRegistrationMailRecipientsResponse,
+        GetRegistrationMailRecipientsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/eventRegistration/mailRecipients',
+    })
+}
+
+export const sendRegistrationMail = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SendRegistrationMailData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        SendRegistrationMailResponse,
+        SendRegistrationMailError,
+        ThrowOnError
+    >({
+        ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
+        url: '/event/{eventId}/eventRegistration/mail',
     })
 }
 
@@ -2299,6 +3164,9 @@ export const checkParticipantRequirementsForEvent = <ThrowOnError extends boolea
     })
 }
 
+/**
+ * Replaces the COMPLETE approval state of one requirement - participants missing from the payload lose their approval. Meant for the bulk maintenance dialog that sends the full state; single approvals (QR scan app) must use /approve/participant instead.
+ */
 export const approveParticipantRequirementsForEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<ApproveParticipantRequirementsForEventData, ThrowOnError>,
 ) => {
@@ -2312,6 +3180,22 @@ export const approveParticipantRequirementsForEvent = <ThrowOnError extends bool
     })
 }
 
+/**
+ * Approves or revokes one requirement for exactly ONE participant - strictly additive and idempotent on record level, other participants, competitions and event days stay untouched. Used by the QR scan app. Dimensions follow the requirement's switches: with perEventDay the current event day is recorded, with perCompetition the optional competitionId decides which competition the approval is for.
+ */
+export const approveParticipantRequirementForParticipant = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ApproveParticipantRequirementForParticipantData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ApproveParticipantRequirementForParticipantResponse,
+        ApproveParticipantRequirementForParticipantError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/approve/participant',
+    })
+}
+
 export const getActiveParticipantRequirementsForEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetActiveParticipantRequirementsForEventData, ThrowOnError>,
 ) => {
@@ -2322,6 +3206,22 @@ export const getActiveParticipantRequirementsForEvent = <ThrowOnError extends bo
     >({
         ...options,
         url: '/event/{eventId}/participantRequirement/active',
+    })
+}
+
+/**
+ * Downloads an xlsx of the registered participants who are still missing requirements - the basis for notifying their clubs. Without requirementId every requirement active at the event counts. Requirements bound to a named participant only apply to that role, and participants with nothing open are left out.
+ */
+export const exportOpenParticipantRequirements = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ExportOpenParticipantRequirementsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        ExportOpenParticipantRequirementsResponse,
+        ExportOpenParticipantRequirementsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/open/export',
     })
 }
 
@@ -2403,6 +3303,45 @@ export const getParticipantRequirementsForParticipant = <ThrowOnError extends bo
     })
 }
 
+export const getParticipantRequirementLog = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetParticipantRequirementLogData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetParticipantRequirementLogResponse,
+        GetParticipantRequirementLogError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/log',
+    })
+}
+
+export const getEventScanScope = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetEventScanScopeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetEventScanScopeResponse,
+        GetEventScanScopeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/scanScope',
+    })
+}
+
+export const getParticipantScanScope = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetParticipantScanScopeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetParticipantScanScopeResponse,
+        GetParticipantScanScopeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participantRequirement/participant/{participantId}/scanScope',
+    })
+}
+
 export const getParticipantsForEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetParticipantsForEventData, ThrowOnError>,
 ) => {
@@ -2452,6 +3391,45 @@ export const checkInOutParticipant = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/participant/{participantId}/checkInOut',
+    })
+}
+
+export const getParticipantTrackingHistory = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetParticipantTrackingHistoryData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetParticipantTrackingHistoryResponse,
+        GetParticipantTrackingHistoryError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participant/{participantId}/tracking',
+    })
+}
+
+export const addManualParticipantTracking = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddManualParticipantTrackingData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddManualParticipantTrackingResponse,
+        AddManualParticipantTrackingError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participant/{participantId}/tracking',
+    })
+}
+
+export const correctParticipantTracking = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CorrectParticipantTrackingData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        CorrectParticipantTrackingResponse,
+        CorrectParticipantTrackingError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/participant/{participantId}/tracking/{trackingId}',
     })
 }
 
@@ -2616,6 +3594,24 @@ export const addGapDocumentTemplate = <ThrowOnError extends boolean = false>(
     })
 }
 
+export const importGapDocumentTemplate = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ImportGapDocumentTemplateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ImportGapDocumentTemplateResponse,
+        ImportGapDocumentTemplateError,
+        ThrowOnError
+    >({
+        ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
+        url: '/gapDocumentTemplate/import',
+    })
+}
+
 export const updateGapDocumentTemplate = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<UpdateGapDocumentTemplateData, ThrowOnError>,
 ) => {
@@ -2625,6 +3621,11 @@ export const updateGapDocumentTemplate = <ThrowOnError extends boolean = false>(
         ThrowOnError
     >({
         ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
         url: '/gapDocumentTemplate/{gapDocumentTemplateId}',
     })
 }
@@ -2665,6 +3666,32 @@ export const downloadGapDocumentTemplateSample = <ThrowOnError extends boolean =
     >({
         ...options,
         url: '/gapDocumentTemplate/{gapDocumentTemplateId}/preview',
+    })
+}
+
+export const exportGapDocumentTemplate = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ExportGapDocumentTemplateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        ExportGapDocumentTemplateResponse,
+        ExportGapDocumentTemplateError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/gapDocumentTemplate/{gapDocumentTemplateId}/export',
+    })
+}
+
+export const getGapDocumentTemplateFont = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetGapDocumentTemplateFontData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetGapDocumentTemplateFontResponse,
+        GetGapDocumentTemplateFontError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/gapDocumentTemplate/{gapDocumentTemplateId}/font',
     })
 }
 
@@ -2966,6 +3993,19 @@ export const getRatingCategoriesForEvent = <ThrowOnError extends boolean = false
     >({
         ...options,
         url: '/event/{eventId}/ratingCategories',
+    })
+}
+
+export const updateRatingCategoryOrderForEvent = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateRatingCategoryOrderForEventData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateRatingCategoryOrderForEventResponse,
+        UpdateRatingCategoryOrderForEventError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/ratingCategories/order',
     })
 }
 
@@ -3319,51 +4359,491 @@ export const getRunningMatches = <ThrowOnError extends boolean = false>(
     })
 }
 
-export const getInfoViews = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetInfoViewsData, ThrowOnError>,
+/**
+ * The "live" tab of the public results page: activated matches (PREPARING, RUNNING) together with the upcoming ones, each carrying its derived state. Finished matches and matches whose boats are all scored are deliberately absent - those are results and are governed by Event.publicResultsVisibility through /latest-match-results.
+ */
+export const getLiveMatches = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetLiveMatchesData, ThrowOnError>,
 ) => {
-    return (options?.client ?? client).get<GetInfoViewsResponse, GetInfoViewsError, ThrowOnError>({
-        ...options,
-        url: '/event/{eventId}/info-views',
-    })
-}
-
-export const createInfoView = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<CreateInfoViewData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).post<
-        CreateInfoViewResponse,
-        CreateInfoViewError,
+    return (options?.client ?? client).get<
+        GetLiveMatchesResponse,
+        GetLiveMatchesError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/info-views',
+        url: '/event/{eventId}/info/live-matches',
     })
 }
 
-export const updateInfoView = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<UpdateInfoViewData, ThrowOnError>,
+/**
+ * The "schedule" tab of the public results page: the whole day program from the timeline, each slot with its derived state - the same entries the SCHEDULE boards render. Carries no lineups and no results; times and places remain behind /latest-match-results and thus behind Event.publicResultsVisibility.
+ */
+export const getPublicProgram = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetPublicProgramData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetPublicProgramResponse,
+        GetPublicProgramError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/info/program',
+    })
+}
+
+/**
+ * Public list of the event's boards (id and name only); carries the redirect of the legacy athlete board url
+ */
+export const getPublicBoards = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetPublicBoardsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetPublicBoardsResponse,
+        GetPublicBoardsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/info/boards',
+    })
+}
+
+/**
+ * Everything one board needs in a single response: resolved configuration, timeline slots and lists
+ */
+export const getBoardView = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetBoardViewData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<GetBoardViewResponse, GetBoardViewError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/info/board/{boardId}',
+    })
+}
+
+/**
+ * Personal dashboard of one participant, reachable without login through the QR code on the wristband
+ */
+export const getMyEvent = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMyEventData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<GetMyEventResponse, GetMyEventError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/info/my-event/{qrCode}',
+    })
+}
+
+/**
+ * Marks the match as finished and activates the matches of the next start time. Fails with 409 if the event's chainProgressionMode is REGATTABUERO - there, finishing goes exclusively through the schedule tab (see finishScheduleSlot).
+ */
+export const finishLiveDashboardMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<FinishLiveDashboardMatchData, ThrowOnError>,
 ) => {
     return (options?.client ?? client).put<
-        UpdateInfoViewResponse,
-        UpdateInfoViewError,
+        FinishLiveDashboardMatchResponse,
+        FinishLiveDashboardMatchError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/info-views/{viewId}',
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/finish',
     })
 }
 
-export const deleteInfoView = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<DeleteInfoViewData, ThrowOnError>,
+/**
+ * Marks the real start of the match; the scheduled start time is left untouched
+ */
+export const startLiveDashboardMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<StartLiveDashboardMatchData, ThrowOnError>,
 ) => {
-    return (options?.client ?? client).delete<
-        DeleteInfoViewResponse,
-        DeleteInfoViewError,
+    return (options?.client ?? client).put<
+        StartLiveDashboardMatchResponse,
+        StartLiveDashboardMatchError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/info-views/{viewId}',
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/start',
+    })
+}
+
+/**
+ * Calls the match to the start (activated=true) or takes that back. Deactivating also clears the real start and pauses the automatic RaceClocker pull.
+ */
+export const setLiveDashboardMatchActivated = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetLiveDashboardMatchActivatedData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetLiveDashboardMatchActivatedResponse,
+        SetLiveDashboardMatchActivatedError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/activation',
+    })
+}
+
+/**
+ * Polled by the referee dashboard. Send the ETag of the previous answer as If-None-Match to get a 304 without a body while nothing changed.
+ */
+export const getLiveDashboard = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetLiveDashboardData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetLiveDashboardResponse,
+        GetLiveDashboardError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard',
+    })
+}
+
+/**
+ * Crew and requirement details of one team; deliberately kept out of the polled list
+ */
+export const getLiveDashboardTeamDetail = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetLiveDashboardTeamDetailData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetLiveDashboardTeamDetailResponse,
+        GetLiveDashboardTeamDetailError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/team/{teamId}',
+    })
+}
+
+/**
+ * Adds a referee note to this boat ('touched a buoy'). Notes are communication between referees, not scoring; they are append-only - a correction is delete plus re-add, so no locking is needed and two concurrent authors simply produce two entries. Same privilege as the other referee actions (finish/start/activation).
+ */
+export const addLiveDashboardTeamNote = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddLiveDashboardTeamNoteData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddLiveDashboardTeamNoteResponse,
+        AddLiveDashboardTeamNoteError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/team/{teamId}/note',
+    })
+}
+
+/**
+ * Deletes a referee note. Allowed for everyone with the referee write privilege, not only the author - the notes are a tool for internal exchange, and a wrong note must be removable while its author is out on the water.
+ */
+export const deleteLiveDashboardTeamNote = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteLiveDashboardTeamNoteData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteLiveDashboardTeamNoteResponse,
+        DeleteLiveDashboardTeamNoteError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/liveDashboard/match/{matchId}/team/{teamId}/note/{noteId}',
+    })
+}
+
+/**
+ * The competitions, the configurable checks with their defaults and the deviations set for this event - administration for the referee dashboard's severity configuration.
+ */
+export const getCheckSeverityConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetCheckSeverityConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetCheckSeverityConfigResponse,
+        GetCheckSeverityConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/checkSeverity',
+    })
+}
+
+/**
+ * Replaces the event's deviations. Entries matching the built-in default are dropped rather than stored, so a later change to the default keeps applying to existing data.
+ */
+export const updateCheckSeverityConfig = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateCheckSeverityConfigData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateCheckSeverityConfigResponse,
+        UpdateCheckSeverityConfigError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/checkSeverity',
+    })
+}
+
+/**
+ * The event's timeline: planned slots plus setup rounds that have no slot yet
+ */
+export const getEventSchedule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetEventScheduleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetEventScheduleResponse,
+        GetEventScheduleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule',
+    })
+}
+
+/**
+ * Bulk start list export for the whole event: the first created round of every competition (or, in delta mode, every created match missing in RaceClocker), as a ZIP with one CSV per competition (file names like the round export), as one big CSV sorted by start time across all competitions, or as one PDF concatenating the per-match start list PDFs in the same order.
+ */
+export const downloadEventStartlists = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadEventStartlistsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadEventStartlistsResponse,
+        DownloadEventStartlistsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/startlists',
+    })
+}
+
+/**
+ * Preview of the bulk start list export: exactly the matches the export with the same parameters would export (same plan logic, no second truth), as JSON instead of a file. Matches with startTime null would block the export (STARTLIST_MATCHES_WITHOUT_START_TIME) - deselect them via the export's matchIds parameter. RaceClocker feeds are fetched (also without delta mode) whenever the plan contains competitions with an assigned race, so missingInRaceClocker carries information; an unreachable race fails the preview like it fails the export.
+ */
+export const previewEventStartlists = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PreviewEventStartlistsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        PreviewEventStartlistsResponse,
+        PreviewEventStartlistsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/startlists/preview',
+    })
+}
+
+/**
+ * Creates either a free slot (name set) or a slot linked to a setup round (competitionSetupMatch set) - exactly one of the two
+ */
+export const createScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateScheduleSlotResponse,
+        CreateScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot',
+    })
+}
+
+export const updateScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateScheduleSlotResponse,
+        UpdateScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}',
+    })
+}
+
+/**
+ * The match keeps its last start time (no rollback onto the setup round)
+ */
+export const deleteScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteScheduleSlotResponse,
+        DeleteScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}',
+    })
+}
+
+export const skipScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SkipScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SkipScheduleSlotResponse,
+        SkipScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}/skip',
+    })
+}
+
+/**
+ * Moves the schedule up into the time freed by a cancelled slot, up to and including targetSlotId. The delta comes from the cancelled slot itself (its planned duration, else the gap to the following slot on the same race day); the slot must be cancelled. dryRun=true only computes the preview.
+ */
+export const advanceAfterSkippedSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AdvanceAfterSkippedSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AdvanceAfterSkippedSlotResponse,
+        AdvanceAfterSkippedSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}/advance',
+    })
+}
+
+export const unskipScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UnskipScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UnskipScheduleSlotResponse,
+        UnskipScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}/unskip',
+    })
+}
+
+/**
+ * Finishes the match of a LINKED slot from the regatta office side. Works in every chainProgressionMode (the office can always intervene) - unlike finishLiveDashboardMatch, which is gated in REGATTABUERO mode.
+ */
+export const finishScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<FinishScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        FinishScheduleSlotResponse,
+        FinishScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}/finish',
+    })
+}
+
+/**
+ * Marks the match of a LINKED slot as currently running from the regatta office side. Works in every chainProgressionMode.
+ */
+export const activateScheduleSlot = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ActivateScheduleSlotData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ActivateScheduleSlotResponse,
+        ActivateScheduleSlotError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/slot/{slotId}/activate',
+    })
+}
+
+/**
+ * Skips every schedule slot of this setup round belonging to the event - same rules as skipping a single slot (already skipped slots are left as they are, a started match blocks the whole action). Only allowed when the round has nothing left to race: 409 if the round has no materialized matches yet (cancel its slots individually instead), and 409 if any match of the round still has 2 or more racing (non-deregistered, non-out) teams - those must be executed so the next round can be seeded.
+ */
+export const skipScheduleRound = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SkipScheduleRoundData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SkipScheduleRoundResponse,
+        SkipScheduleRoundError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/round/{setupRoundId}/skip',
+    })
+}
+
+/**
+ * Shifts the timeline of the same race day, starting at fromSlotId. dryRun=true only computes the preview.
+ */
+export const shiftEventSchedule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ShiftEventScheduleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ShiftEventScheduleResponse,
+        ShiftEventScheduleError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/shift',
+    })
+}
+
+/**
+ * Imports a flat xlsx schedule export, matching rows to setup rounds by name. dryRun=true (the default if the field is missing or unparsable) only returns the match preview per row; dryRun=false replaces the event's whole timeline with the import on success.
+ */
+export const importEventSchedule = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ImportEventScheduleData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ImportEventScheduleResponse,
+        ImportEventScheduleError,
+        ThrowOnError
+    >({
+        ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
+        url: '/event/{eventId}/schedule/import',
+    })
+}
+
+/**
+ * Downloads an example xlsx for the schedule import, using the columns importEventSchedule reads. The example rows are dated to the event's first day.
+ */
+export const downloadEventScheduleImportTemplate = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadEventScheduleImportTemplateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadEventScheduleImportTemplateResponse,
+        DownloadEventScheduleImportTemplateError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/schedule/import/template',
+    })
+}
+
+export const getBoards = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetBoardsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<GetBoardsResponse, GetBoardsError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/boards',
+    })
+}
+
+export const createBoard = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateBoardData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<CreateBoardResponse, CreateBoardError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/boards',
+    })
+}
+
+export const updateBoard = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateBoardData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<UpdateBoardResponse, UpdateBoardError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/boards/{boardId}',
+    })
+}
+
+export const deleteBoard = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteBoardData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<DeleteBoardResponse, DeleteBoardError, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/boards/{boardId}',
     })
 }
 
@@ -3489,6 +4969,30 @@ export const uploadResultFile = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Offline fallback to the live pull: import a RaceClocker results xlsx (Results sheet) onto a match - team resolved via the R2R id in 'Extra info', place computed from times. Pauses the automatic pull like the plain file upload.
+ */
+export const uploadRaceClockerResultFile = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UploadRaceClockerResultFileData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UploadRaceClockerResultFileResponse,
+        UploadRaceClockerResultFileError,
+        ThrowOnError
+    >({
+        ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
+        url: '/event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/results-file/raceclocker',
+    })
+}
+
+/**
+ * Public - anonymous callers receive a reduced QrCodePublicResponse without personal data
+ */
 export const checkQrCode = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CheckQrCodeData, ThrowOnError>,
 ) => {
@@ -3998,5 +5502,92 @@ export const downloadCertificatesOfParticipation = <ThrowOnError extends boolean
     >({
         ...options,
         url: '/event/{eventId}/certificatesOfParticipation',
+    })
+}
+
+export const downloadAwardCertificatesForEvent = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadAwardCertificatesForEventData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadAwardCertificatesForEventResponse,
+        DownloadAwardCertificatesForEventError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/awardCertificates',
+    })
+}
+
+/**
+ * Alle Ehrungen der Veranstaltung, je Wettkampf und Wertung eine. Wird bei jedem Aufruf aus der Platzberechnung abgeleitet und nicht gespeichert - bis zur Ehrung ändern sich Ergebnisse noch.
+ */
+export const getAwardCeremonies = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetAwardCeremoniesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetAwardCeremoniesResponse,
+        GetAwardCeremoniesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/awardCeremony',
+    })
+}
+
+/**
+ * Die ausgewählten Ehrungen als ein druckfertiges PDF, je Ehrung ein A4-Blatt. POST, obwohl es ein Download ist: die Auswahl umfasst bei einer Regatta leicht hundert Schlüssel und passt nicht mehr sinnvoll in einen Query-String.
+ */
+export const downloadAwardCeremonySheets = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadAwardCeremonySheetsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        DownloadAwardCeremonySheetsResponse,
+        DownloadAwardCeremonySheetsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/awardCeremony/pdf',
+    })
+}
+
+/**
+ * Die Ergebnisliste als druckfertiges PDF, in der Regel zum Aushängen - dieselbe Datenbasis und dieselbe Ergebnisregel wie der Siegerehrungsbogen (nur bestätigte Platzierungen), aber mit wählbaren Bestandteilen. Jedes Blatt trägt eine Fußzeile mit Veranstaltung und Stand-Zeitstempel, damit veraltete Aushänge erkennbar sind. Fehlende Parameter fallen auf die Aushang-Vorgaben zurück.
+ */
+export const downloadResultList = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadResultListData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadResultListResponse,
+        DownloadResultListError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/resultList/pdf',
+    })
+}
+
+export const downloadAwardCertificatesForCompetition = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadAwardCertificatesForCompetitionData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadAwardCertificatesForCompetitionResponse,
+        DownloadAwardCertificatesForCompetitionError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/awardCertificates',
+    })
+}
+
+export const downloadAwardCertificate = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DownloadAwardCertificateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        DownloadAwardCertificateResponse,
+        DownloadAwardCertificateError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/awardCertificates/{registrationId}',
     })
 }
