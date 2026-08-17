@@ -30,14 +30,13 @@
 **Interfaces:**
 - Produces: SDK functions used by all later tasks. Verify after generation and record the EXACT generated names in your report (they derive from tsp operation ids): station CRUD (`getTimingStations`, `createTimingStation`, `updateTimingStation`, `deleteTimingStation`), `createTimeMark`, `retractTimeMark`, `assignTimeMark`, `getTimingState`, `getServerTime` (or similar) — plus types `TimingStationDto`, `TimeMarkDto`, `TimingStateDto`.
 
-- [ ] **Step 1:** `cd api && npx tsp compile .` — expect success (4 known warnings OK).
-- [ ] **Step 2:** Copy the emitted spec over the served one:
-```bash
-cp api/tsp-output/schema/openapi.yaml backend/src/main/resources/openapi/documentation.yaml
-```
-- [ ] **Step 3:** `cd frontend && npm run generate` — then grep `frontend/src/api/sdk.gen.ts` for `timing` and confirm all endpoints above exist. If tsp operation names produce awkward SDK names, adjust `@route`/op names in `api/src/timing.tsp` and repeat (operation names are the contract for all later tasks — finalize them NOW).
+**IMPORTANT — surgical merge, not full regeneration.** The checked-in `documentation.yaml` is NOT reproducible from the tsp sources (many modules have empty/missing `@operationId`, the yaml covers only a subset of routes, and a full re-emit renames every SDK function → ~1,500 type errors). Full tsp alignment is a separate cleanup project. This task only merges the timing subtree.
+
+- [ ] **Step 1:** Add explicit `@operationId(...)` decorators to every op in `api/src/timing.tsp` (mirroring auth.tsp's style): `getTimingStations`, `createTimingStation`, `updateTimingStation`, `deleteTimingStation`, `createTimeMark`, `retractTimeMark`, `assignTimeMark`, `getTimingState`, `getServerTime`. Then `cd api && npx tsp compile .` (4 known warnings OK).
+- [ ] **Step 2:** Merge ONLY the timing parts of `api/tsp-output/schema/openapi.yaml` into `backend/src/main/resources/openapi/documentation.yaml`: all paths under `/event/{eventId}/timing/...` and `/timing/serverTime`, plus the referenced component schemas (`Timing*`, `ServerTime*`, and any transitively referenced timing-only schemas). Use a small Python script (PyYAML) for the surgery; verify no existing keys are touched (`git diff --stat` on the yaml should show only additions). Watch for spec-version mismatches (old yaml may be 3.0.x, emitted is 3.1.0): the merged subtrees must be valid in the old document — adjust nullable syntax if needed (`type: [T, 'null']` → `nullable: true` style of the host document).
+- [ ] **Step 3:** `cd frontend && npm run generate` — confirm the timing SDK functions above exist in `sdk.gen.ts` with EXACTLY those names, and that `git diff` shows NO changes to existing generated functions (only additions).
 - [ ] **Step 4:** `cd frontend && npx tsc -b --noEmit` — expect clean.
-- [ ] **Step 5:** Commit: `Regenerate api client with timing endpoints`
+- [ ] **Step 5:** Commit: `Add timing endpoints to api client`
 
 ---
 
