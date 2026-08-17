@@ -237,6 +237,7 @@ fun LatestMatchResultInfo.toAthleteBoardResult(
     matchName = matchName,
     startTime = startTime,
     actualStartTime = startedAt,
+    clarification = clarification,
     // Abgemeldete Mannschaften bleiben in der Liste, aber ausdrücklich als abgemeldet
     // gekennzeichnet: ohne Platz und ohne Zeit sahen sie früher wie ein Darstellungsfehler aus,
     // ganz weggelassen ließen sie die Besatzung nach ihrem Boot suchen.

@@ -238,6 +238,7 @@ object CompetitionMatchRepo {
             COMPETITION_MATCH.UPDATED_AT,
             COMPETITION_MATCH.START_TIME,
             COMPETITION_MATCH.STARTED_AT,
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
             // Freilose zeigen ihren materialisierten Namen (V202608121300).
             DSL.coalesce(COMPETITION_MATCH.BYE_NAME, COMPETITION_SETUP_MATCH.NAME).`as`("match_name"),
             COMPETITION_SETUP_ROUND.NAME.`as`("round_name"),

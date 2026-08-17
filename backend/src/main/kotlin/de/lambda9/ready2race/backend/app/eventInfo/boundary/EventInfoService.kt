@@ -111,6 +111,7 @@ object EventInfoService {
                 updatedAt = match[COMPETITION_MATCH.UPDATED_AT]!!,
                 startTime = match[COMPETITION_MATCH.START_TIME],
                 startedAt = match[COMPETITION_MATCH.STARTED_AT],
+                clarification = match[COMPETITION_MATCH.CLARIFICATION_SINCE] != null,
                 teams = teams
             )
         }

@@ -242,6 +242,10 @@ export type AthleteBoardResult = {
      * real start, if stamped - explains a deviation from the schedule
      */
     actualStartTime?: string | null
+    /**
+     * an objection is running against this match (competition_match.clarification_since set). The result still goes out under the existing visibility rule - it is only marked as provisional (decision from 2026-08-17). PublicResultsVisibility stays untouched
+     */
+    clarification?: boolean
     teams: Array<AthleteBoardResultTeam>
 }
 
