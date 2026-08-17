@@ -31,6 +31,13 @@ export type LiveDashboardActions = {
     onClarify?: (matchId: string, reason: string) => Promise<void>
     /** Hebt die Klärung wieder auf; der Lauf ist danach wieder das, was er vorher war. */
     onResolveClarification?: (matchId: string) => Promise<void>
+    /**
+     * Öffnet den Klärungs-Dialog für diesen Lauf — anders als `onClarify` (das den Grund schon
+     * braucht und erst beim Absenden im Dialog greift) reicht die Karte hier nur die `matchId`
+     * nach oben, der Dialog selbst sitzt auf Seitenebene (dasselbe Muster wie `onTeamClick` für
+     * die Team-Details).
+     */
+    onClarifyClick?: (matchId: string) => void
 }
 
 /**
@@ -43,7 +50,6 @@ const TimelineEntryCard = ({
     actions,
     shortLabels,
     detail,
-    onClarifyClick,
 }: {
     entry: LiveDashboardTimelineEntry
     column: 'live' | 'list'
@@ -52,12 +58,6 @@ const TimelineEntryCard = ({
     shortLabels: boolean
     /** Detailgrad der Karten (Notiz-Vorschau, Aufstellung) — siehe LiveDashboardDetailSettings. */
     detail: LiveDashboardDetailSettings
-    /**
-     * Öffnet den Klärungs-Dialog für diesen Lauf — anders als `actions.onClarify` (das den Grund
-     * schon braucht und erst beim Absenden im Dialog greift) reicht die Karte hier nur die
-     * `matchId` nach oben, der Dialog selbst sitzt auf Seitenebene (wie `selectedTeamRef`).
-     */
-    onClarifyClick?: (matchId: string) => void
 }) =>
     entry.kind === 'match' ? (
         <Box id={dashboardEntryDomId(entry.match.matchId, column)}>
@@ -71,7 +71,7 @@ const TimelineEntryCard = ({
                 raceClockerAutoPull={actions.raceClockerAutoPull}
                 shortLabels={shortLabels}
                 detail={detail}
-                onClarify={onClarifyClick}
+                onClarifyClick={actions.onClarifyClick}
             />
         </Box>
     ) : (
@@ -96,8 +96,6 @@ type LiveColumnProps = {
     detail: LiveDashboardDetailSettings
     /** Läufe mit laufendem Einspruch — eigener, eingeklappter Abschnitt unter den Karten. */
     clarificationMatches: LiveDashboardMatchDto[]
-    /** Siehe TimelineEntryCard — öffnet den Klärungs-Dialog auf Seitenebene. */
-    onClarifyClick?: (matchId: string) => void
 }
 
 /** Was jetzt eine Handlung verlangt: die laufenden Läufe, ersatzweise "Als Nächstes". */
@@ -109,7 +107,6 @@ export const LiveColumn = ({
     shortLabels,
     detail,
     clarificationMatches,
-    onClarifyClick,
 }: LiveColumnProps) => {
     const {t} = useTranslation()
 
@@ -126,7 +123,6 @@ export const LiveColumn = ({
                     actions={actions}
                     shortLabels={shortLabels}
                     detail={detail}
-                    onClarifyClick={onClarifyClick}
                 />
             ))}
             {currentMatches.length === 0 && nextEntry && (
@@ -140,7 +136,6 @@ export const LiveColumn = ({
                         actions={actions}
                         shortLabels={shortLabels}
                         detail={detail}
-                        onClarifyClick={onClarifyClick}
                     />
                 </>
             )}
@@ -158,8 +153,6 @@ type MatchListColumnProps = {
     actions: LiveDashboardActions
     shortLabels: boolean
     detail: LiveDashboardDetailSettings
-    /** Siehe TimelineEntryCard — öffnet den Klärungs-Dialog auf Seitenebene. */
-    onClarifyClick?: (matchId: string) => void
 }
 
 /** Die vollständige Liste zum Selbstbedienen: Zeitplan zuerst, unplanmäßige Läufe darunter. */
@@ -170,7 +163,6 @@ export const MatchListColumn = ({
     actions,
     shortLabels,
     detail,
-    onClarifyClick,
 }: MatchListColumnProps) => {
     const {t} = useTranslation()
 
@@ -184,7 +176,6 @@ export const MatchListColumn = ({
                     actions={actions}
                     shortLabels={shortLabels}
                     detail={detail}
-                    onClarifyClick={onClarifyClick}
                 />
             ))}
             {unscheduledMatches.length > 0 && (
@@ -200,7 +191,6 @@ export const MatchListColumn = ({
                             actions={actions}
                             shortLabels={shortLabels}
                             detail={detail}
-                            onClarifyClick={onClarifyClick}
                         />
                     ))}
                 </>

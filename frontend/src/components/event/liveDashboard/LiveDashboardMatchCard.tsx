@@ -64,7 +64,7 @@ type Props = {
      * Öffnet den Klärungs-Dialog für diesen Lauf. Die Karte reicht nur die `matchId` nach oben —
      * der Grund ist Pflicht und wird im Dialog auf Seitenebene abgefragt, nicht hier.
      */
-    onClarify?: (matchId: string) => void
+    onClarifyClick?: (matchId: string) => void
     /**
      * Ob der automatische RaceClocker-Abruf für diese Veranstaltung eingeschaltet ist. Dann trägt
      * der „Läuft"-Knopf den Hinweis, dass RaceClocker den Start ohnehin selbst meldet — bedienbar
@@ -84,7 +84,7 @@ const LiveDashboardMatchCard = ({
     onSetActivated,
     onMarkStarted,
     onResumeAutoPull,
-    onClarify,
+    onClarifyClick,
     raceClockerAutoPull = false,
     shortLabels,
     detail,
@@ -767,11 +767,11 @@ const LiveDashboardMatchCard = ({
                                 gegenseitig ausschließen (siehe matchControls) und der Knopf hier
                                 nur den Dialog öffnet — der Grund wird dort erfragt, nicht hier.
                             */}
-                            {showClarify && onClarify && (
+                            {showClarify && onClarifyClick && (
                                 <Button
                                     size="small"
                                     color="warning"
-                                    onClick={() => onClarify(match.matchId)}>
+                                    onClick={() => onClarifyClick(match.matchId)}>
                                     {t('event.liveDashboard.clarification.set')}
                                 </Button>
                             )}

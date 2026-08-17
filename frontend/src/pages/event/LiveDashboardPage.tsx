@@ -589,13 +589,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
         onClarify: mayControl && !staleState.actionsLocked ? handleClarify : undefined,
         onResolveClarification:
             mayControl && !staleState.actionsLocked ? handleResolveClarification : undefined,
+        // Öffnet nur den Dialog (wie onTeamClick für die Team-Details) — anders als onClarify
+        // braucht das hier noch keinen Grund, der kommt erst beim Absenden im Dialog.
+        onClarifyClick:
+            mayControl && !staleState.actionsLocked ? setClarifyMatchId : undefined,
     }
-    // Öffnet nur den Dialog (siehe TimelineEntryCard) — anders als actions.onClarify braucht das
-    // hier noch keinen Grund, der kommt erst beim Absenden im Dialog.
-    const openClarifyDialog =
-        mayControl && !staleState.actionsLocked
-            ? (matchId: string) => setClarifyMatchId(matchId)
-            : undefined
 
     const liveColumn = (
         <LiveColumn
@@ -606,7 +604,6 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             shortLabels={shortLabels}
             detail={detail}
             clarificationMatches={matchesInClarification}
-            onClarifyClick={openClarifyDialog}
         />
     )
     const matchListColumn = (
@@ -623,7 +620,6 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             actions={actions}
             shortLabels={shortLabels}
             detail={detail}
-            onClarifyClick={openClarifyDialog}
         />
     )
 
