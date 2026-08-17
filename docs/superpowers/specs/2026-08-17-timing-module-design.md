@@ -69,6 +69,9 @@ Posten area as the single entry point for all on-site positions.
     time mark with a running number; assignment to a team happens afterwards from
     the list of expected (started, not yet passed) teams.
   - Also: direct tap per team, undo (status change), history view.
+  - **Acoustic and haptic feedback on capture** (finish sounds): every banked
+    mark plays a confirmation sound (and vibrates on phones), configurable per
+    board — essential when the operator cannot look at the screen.
   - **Keyboard capture** (laptop operation): Space bar banks an unassigned mark
     (two-step). Digit keys capture directly for a visible team slot. An
     **armed mode**: the operator arms teams in
