@@ -1759,9 +1759,14 @@
         "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige"
       },
       "stateError": "Data kunne ikke indlæses – prøver igen…",
+      "capture": {
+        "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
+        "stationLoading": "Indlæser post…"
+      },
       "mark": {
         "pending": "sender",
-        "failed": "mislykkedes"
+        "failed": "mislykkedes",
+        "undo": "Fortryd"
       }
     }
   },

@@ -1759,9 +1759,14 @@
         "clockDegraded": "Clock sync degraded – times may be inaccurate"
       },
       "stateError": "Could not load data – retrying…",
+      "capture": {
+        "clockNotSynced": "Clock not synced – capture unavailable",
+        "stationLoading": "Loading station…"
+      },
       "mark": {
         "pending": "sending",
-        "failed": "failed"
+        "failed": "failed",
+        "undo": "Undo"
       }
     }
   },

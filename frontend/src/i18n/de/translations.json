@@ -1759,9 +1759,14 @@
         "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein"
       },
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
+      "capture": {
+        "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
+        "stationLoading": "Posten wird geladen…"
+      },
       "mark": {
         "pending": "wird übertragen",
-        "failed": "fehlgeschlagen"
+        "failed": "fehlgeschlagen",
+        "undo": "Rückgängig machen"
       }
     }
   },

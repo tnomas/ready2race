@@ -1,13 +1,15 @@
 import {Alert, Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
-import {useEffect} from 'react'
+import {useEffect, useRef} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {updateAppTimingGlobal} from '@authorization/privileges.ts'
 import {timingEventRoute, timingStationRoute} from '@routes'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
+import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
+import MarkList from '@components/timing/MarkList.tsx'
 
 const TimingBoardPage = () => {
     const {t} = useTranslation()
@@ -23,13 +25,42 @@ const TimingBoardPage = () => {
     }, [user, navigate])
 
     const clock = useServerClock()
-    const {marks, stations, wsStatus, stateError} = useTimingBoardState(eventId, stationId)
+    const {marks, stations, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
+        useTimingBoardState(eventId, stationId)
 
     const station = stations.find(s => s.id === stationId)
 
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
+
+    const captureButtonRef = useRef<CaptureButtonHandle>(null)
+
+    // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
+    // has focus (so typing a space in a field doesn't fire a capture) or while a MUI dialog is open
+    // (e.g. a future assignment/confirmation dialog sits on top of the board).
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.code !== 'Space' && event.key !== ' ') return
+
+            const active = document.activeElement
+            const tag = active?.tagName
+            const isFormField =
+                tag === 'INPUT' ||
+                tag === 'TEXTAREA' ||
+                tag === 'SELECT' ||
+                (active instanceof HTMLElement && active.isContentEditable)
+            const isDialogOpen = document.querySelector('[role="dialog"]') !== null
+
+            if (isFormField || isDialogOpen) return
+
+            event.preventDefault()
+            captureButtonRef.current?.capture()
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
 
     return (
         <Box
@@ -68,18 +99,24 @@ const TimingBoardPage = () => {
                 </Alert>
             )}
 
-            {/* Capture area — filled in by Task 8 (two-step capture button). */}
             <Box
                 sx={{
                     flexGrow: 1,
                     minHeight: 0,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            />
+                    p: 2,
+                }}>
+                <CaptureButton
+                    ref={captureButtonRef}
+                    eventId={eventId}
+                    station={station}
+                    now={clock.now}
+                    applyLocalMark={applyLocalMark}
+                    markSaved={markSaved}
+                    markFailed={markFailed}
+                />
+            </Box>
 
-            {/* Mark list — filled in by Task 8 (MarkList component). Minimal placeholder for now. */}
             <Box
                 sx={{
                     flex: '0 0 33%',
@@ -90,16 +127,7 @@ const TimingBoardPage = () => {
                     px: 2,
                     py: 1,
                 }}>
-                {marks
-                    .slice()
-                    .reverse()
-                    .map(mark => (
-                        <Box key={mark.id} sx={{py: 0.5}}>
-                            {new Date(mark.timestampMillis).toLocaleTimeString()} — {mark.status}
-                            {mark.pending ? ` (${t('timing.board.mark.pending')})` : ''}
-                            {mark.failed ? ` (${t('timing.board.mark.failed')})` : ''}
-                        </Box>
-                    ))}
+                <MarkList eventId={eventId} marks={marks} />
             </Box>
         </Box>
     )
