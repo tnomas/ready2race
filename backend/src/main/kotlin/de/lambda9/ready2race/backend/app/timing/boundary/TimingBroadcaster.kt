@@ -10,9 +10,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -63,6 +66,11 @@ object TimingBroadcaster {
         internal val eventId: UUID,
     ) {
         internal val queue = Channel<String>(QUEUE_CAPACITY)
+
+        // Assigned synchronously in [subscribe] before the writer coroutine is started (it is
+        // launched lazily so this happens-before its body ever runs), so it is always initialized
+        // by the time [unsubscribe] can observe this subscription.
+        internal lateinit var job: Job
     }
 
     /**
@@ -71,11 +79,21 @@ object TimingBroadcaster {
      */
     fun subscribe(eventId: UUID, subscriber: TimingSubscriber): TimingSubscription {
         val subscription = TimingSubscription(eventId)
-        subscribers.computeIfAbsent(eventId) { ConcurrentHashMap.newKeySet() }.add(subscription)
 
-        scope.launch {
+        // Adding must happen atomically with creating the per-event set: computeIfAbsent-then-add
+        // would let a concurrent unsubscribe() observe and remove an empty set in between, so this
+        // subscription is added to an orphaned set that never receives broadcasts again.
+        subscribers.compute(eventId) { _, current ->
+            (current ?: ConcurrentHashMap.newKeySet()).apply { add(subscription) }
+        }
+
+        subscription.job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 subscription.queue.consumeEach { subscriber(it) }
+            } catch (ex: ClosedSendChannelException) {
+                // The client's websocket sink is already closed (e.g. a disconnect racing the
+                // broadcast). This is a normal disconnect, not a failure worth logging.
+                unsubscribe(subscription)
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -83,6 +101,7 @@ object TimingBroadcaster {
                 unsubscribe(subscription)
             }
         }
+        subscription.job.start()
 
         return subscription
     }
@@ -95,6 +114,9 @@ object TimingBroadcaster {
             current?.apply { remove(subscription) }?.takeIf { it.isNotEmpty() }
         }
         subscription.queue.close()
+        // Guards against a writer that is stuck sending to a stalled (not yet detected as closed)
+        // session from outliving the unsubscribe call.
+        subscription.job.cancel()
     }
 
     /**

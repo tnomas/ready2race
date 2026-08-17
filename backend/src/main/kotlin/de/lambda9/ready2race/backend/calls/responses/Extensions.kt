@@ -101,58 +101,62 @@ suspend fun ApplicationCall.respondKIO(
     // Side effects that must not be visible before the transaction committed (e.g. websocket
     // broadcasts) are buffered while the KIO runs and flushed at the end of this function.
     val (exit, afterCommit) = AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
-    exit.fold(
-        onError = { respondError(it) },
-        onDefect = { respondDefect(it) },
-        onSuccess = { apiResponse ->
-            when (apiResponse) {
-                ApiResponse.NoData -> {
-                    response.status(HttpStatusCode.NoContent)
-                }
-
-                is ApiResponse.Dto<*> -> {
-                    respond(apiResponse.dto)
-                }
-
-                is ApiResponse.ListDto<*> -> {
-                    respond(apiResponse.data)
-                }
-
-                is ApiResponse.Page<*, *> -> {
-                    respond(apiResponse)
-                }
-
-                is ApiResponse.File -> {
-
-                    val contentType = try {
-                        ContentType.parse(URLConnection.guessContentTypeFromName(apiResponse.name))
-                    } catch (e: BadContentTypeFormatException) {
-                        logger.warn(e) { "Could not parse content-type from Document/File ${apiResponse.name}" }
-                        ContentType.Application.OctetStream
+    try {
+        exit.fold(
+            onError = { respondError(it) },
+            onDefect = { respondDefect(it) },
+            onSuccess = { apiResponse ->
+                when (apiResponse) {
+                    ApiResponse.NoData -> {
+                        response.status(HttpStatusCode.NoContent)
                     }
 
-                    response.header(
-                        HttpHeaders.ContentDisposition,
-                        ContentDisposition.Attachment.withParameter(
-                            ContentDisposition.Parameters.FileName,
-                            apiResponse.name
-                        ).toString()
-                    )
+                    is ApiResponse.Dto<*> -> {
+                        respond(apiResponse.dto)
+                    }
 
-                    respondBytes(apiResponse.bytes, contentType)
-                }
+                    is ApiResponse.ListDto<*> -> {
+                        respond(apiResponse.data)
+                    }
 
-                is ApiResponse.Created -> {
-                    respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
+                    is ApiResponse.Page<*, *> -> {
+                        respond(apiResponse)
+                    }
+
+                    is ApiResponse.File -> {
+
+                        val contentType = try {
+                            ContentType.parse(URLConnection.guessContentTypeFromName(apiResponse.name))
+                        } catch (e: BadContentTypeFormatException) {
+                            logger.warn(e) { "Could not parse content-type from Document/File ${apiResponse.name}" }
+                            ContentType.Application.OctetStream
+                        }
+
+                        response.header(
+                            HttpHeaders.ContentDisposition,
+                            ContentDisposition.Attachment.withParameter(
+                                ContentDisposition.Parameters.FileName,
+                                apiResponse.name
+                            ).toString()
+                        )
+
+                        respondBytes(apiResponse.bytes, contentType)
+                    }
+
+                    is ApiResponse.Created -> {
+                        respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
+                    }
                 }
             }
+        )
+    } finally {
+        // `transact` rolls back on both expected errors and defects, so buffered effects are
+        // dropped unless the transaction actually committed. This must run even if `respond`
+        // above throws or the request coroutine gets cancelled, otherwise a committed
+        // transaction's buffered effects (e.g. websocket broadcasts) would silently never fire.
+        if (exit is Exit.Success) {
+            AfterCommit.flush(afterCommit)
         }
-    )
-
-    // `transact` rolls back on both expected errors and defects, so buffered effects are dropped
-    // unless the transaction actually committed.
-    if (exit is Exit.Success) {
-        AfterCommit.flush(afterCommit)
     }
 }
 

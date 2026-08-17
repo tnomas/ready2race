@@ -55,9 +55,13 @@ fun Application.configureSockets(env: JEnv) {
 }
 
 private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
-    val eventId = call.parameters["eventId"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    val rawEventId = call.parameters["eventId"]
+    val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
     if (eventId == null) {
-        logger.info { "Rejecting timing ws handshake: invalid eventId '${call.parameters["eventId"]}'" }
+        // Never log the raw path parameter as-is: it is fully client-controlled and could carry
+        // CR/LF sequences to forge log entries. Strip them before logging.
+        val sanitized = rawEventId?.replace(Regex("[\r\n]"), "")
+        logger.info { "Rejecting timing ws handshake: invalid eventId '$sanitized'" }
         close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid eventId"))
         return
     }

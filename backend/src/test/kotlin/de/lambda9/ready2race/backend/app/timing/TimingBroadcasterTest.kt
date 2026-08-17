@@ -3,7 +3,9 @@ package de.lambda9.ready2race.backend.app.timing
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingWsMessage
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.util.Collections
@@ -95,6 +97,39 @@ class TimingBroadcasterTest {
 
         TimingBroadcaster.unsubscribe(dead)
         TimingBroadcaster.unsubscribe(alive)
+    }
+
+    @Test
+    fun concurrentSubscribeRacingUnsubscribeNeverOrphansTheNewSubscriber() = runBlocking(Dispatchers.Default) {
+        // Regression test for a lost-subscription race: subscribing used to do
+        // computeIfAbsent(eventId){ newKeySet() }.add(subscription) as two separate steps, so a
+        // concurrent unsubscribe() of the event's only other subscriber could observe the
+        // now-empty set in between and drop the whole map entry, orphaning the just-added
+        // subscription (it would never receive another broadcast). Repeated with real parallelism
+        // (Dispatchers.Default) to actually exercise the interleaving.
+        repeat(500) {
+            val eventId = UUID.randomUUID()
+            val departing = TimingBroadcaster.subscribe(eventId) { }
+
+            val newSubscription = CompletableDeferred<TimingBroadcaster.TimingSubscription>()
+            val received = CompletableDeferred<String>()
+
+            val subscribeJob = launch {
+                newSubscription.complete(
+                    TimingBroadcaster.subscribe(eventId) { msg -> received.complete(msg) }
+                )
+            }
+            val unsubscribeJob = launch {
+                TimingBroadcaster.unsubscribe(departing)
+            }
+            subscribeJob.join()
+            unsubscribeJob.join()
+
+            TimingBroadcaster.broadcast(eventId, TimingWsMessage.StationsChanged)
+            withTimeout(awaitTimeout) { received.await() }
+
+            TimingBroadcaster.unsubscribe(newSubscription.await())
+        }
     }
 
     companion object {
