@@ -1201,9 +1201,11 @@ In `AthleteBoardDto.kt`, in `data class AthleteBoardResult` an dieselbe Stelle d
 
 - [ ] **Schritt 2: Die Abfrage erweitern**
 
-Run: `grep -rn "fun getMatchResults" backend/src/main/kotlin/de/lambda9/ready2race/backend/app/eventInfo/control/*.kt`
+Die Abfrage ist `CompetitionMatchRepo.getMatchResults` in
+`backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/CompetitionMatchRepo.kt:197`
+— nicht im `eventInfo`-Paket, wo die Umwandlung liegt.
 
-In der gefundenen Auswahl `COMPETITION_MATCH.CLARIFICATION_SINCE` ergänzen und beim Bau des `LatestMatchResultInfo` durchreichen:
+Dort in der `select(...)`-Liste `COMPETITION_MATCH.CLARIFICATION_SINCE` ergänzen und beim Bau des `LatestMatchResultInfo` durchreichen:
 
 ```kotlin
             clarification = record[COMPETITION_MATCH.CLARIFICATION_SINCE] != null,
@@ -1221,8 +1223,9 @@ In `eventInfo/control/Conversions.kt`, in `LatestMatchResultInfo.toAthleteBoardR
 
 - [ ] **Schritt 4: Übersetzen und Tests**
 
-Run: `cd backend && ./mvnw test`
-Erwartet: BUILD SUCCESS.
+Run: `cd backend && ./mvnw clean test`
+Erwartet: BUILD SUCCESS. `clean`, weil zwei geteilte data classes ein Feld bekommen — ein
+inkrementeller Lauf wirft sonst irreführende `NoSuchMethodError` aus altem Testbytecode.
 
 - [ ] **Schritt 5: OpenAPI und Typen**
 
