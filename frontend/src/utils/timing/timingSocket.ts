@@ -20,13 +20,16 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 
 /**
  * Build the websocket URL for the timing channel of a given event.
- * Derives host/scheme from `VITE_API_BASE_URL` (e.g. `http://localhost:8080/api`), replacing the
- * http(s) scheme with ws(s) and the trailing `/api` with `/api/ws/event/{eventId}/timing`.
+ * Derives host/scheme from `VITE_API_BASE_URL` (e.g. `http://localhost:8080/api`), resolving it
+ * against the current page URL first so both an absolute base and a relative one (e.g. `/api`)
+ * work, then swapping the http(s) scheme for ws(s) and appending `/ws/event/{eventId}/timing`.
  */
 export function buildTimingWsUrl(eventId: string): string {
 	const base = Config.api.baseUrl
-	const wsBase = base.replace(/^http/, 'ws').replace(/\/?$/, '')
-	return `${wsBase}/ws/event/${eventId}/timing`
+	const abs = new URL(base, window.location.href)
+	abs.protocol = abs.protocol === 'https:' ? 'wss:' : 'ws:'
+	const path = abs.pathname.replace(/\/$/, '')
+	return `${abs.origin}${path}/ws/event/${eventId}/timing`
 }
 
 const warnedTypes = new Set<string>()
