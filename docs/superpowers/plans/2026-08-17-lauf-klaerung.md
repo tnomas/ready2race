@@ -1748,7 +1748,11 @@ In `LiveDashboardPage.tsx`:
 
 - [ ] **Schritt 5: Knopf auf der Karte**
 
-In `LiveDashboardMatchCard.tsx` dort, wo die anderen Knöpfe aus `matchControls` gerendert werden, ergänzen:
+In `LiveDashboardMatchCard.tsx` drei Stellen, alle bereits vorhanden:
+
+- **Zeile ~97**: die Destrukturierung `const {showFinish, showActivationToggle, showMarkStarted} = matchControls(...)` um `showClarify` erweitern. (`mayControl` ist dort `onSetActivated != null` — der Klärungs-Knopf hängt damit am selben Recht wie das Aktivieren.)
+- **Zeile ~697**: die Sichtbarkeitsbedingung der Fußzeile `(showFinish || showActivationToggle || showMarkStarted)` um `|| showClarify` erweitern, sonst bleibt die ganze Fußzeile leer, wenn nur der Klärungs-Knopf zu zeigen wäre.
+- In der rechtsbündigen Knopfreihe darunter (feste Reihenfolge: deaktivieren · Läuft · Beenden) den neuen Knopf ergänzen — ans **Ende**, hinter „Beenden":
 
 ```tsx
                 {controls.showClarify && onClarify && (
