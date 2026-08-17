@@ -27,3 +27,5 @@ dist-ssr
 # Local configurations
 .env
 .env.*
+# standalone speaker board preview build
+dist-demo

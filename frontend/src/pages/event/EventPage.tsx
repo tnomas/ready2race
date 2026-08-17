@@ -32,6 +32,7 @@ import DocumentTable from '@components/event/document/DocumentTable.tsx'
 import DocumentDialog from '@components/event/document/DocumentDialog.tsx'
 import ExportBundleCard from '@components/event/document/ExportBundleCard.tsx'
 import {
+    CampaignOutlined,
     Forward,
     InfoOutlined,
     PlayCircleOutlined,
@@ -432,6 +433,15 @@ const EventPage = () => {
                                                 variant="outlined"
                                                 fullWidth>
                                                 {t('event.info.manageInfoViews')}
+                                            </Button>
+                                        </Link>
+                                        <Link to={'/speaker/event/$eventId'} params={{eventId}}>
+                                            <Button
+                                                startIcon={<CampaignOutlined />}
+                                                variant="outlined"
+                                                fullWidth
+                                                sx={{mt: 1}}>
+                                                {t('speaker.openBoard')}
                                             </Button>
                                         </Link>
                                         {/* Die laufenden Läufe sind Sache der Veranstaltung, nicht

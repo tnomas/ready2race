@@ -3311,5 +3311,85 @@
     "team": "Mannschaft",
     "deregistered": "Abgemeldet",
     "noMatches": "Für dich ist noch kein Lauf eingetragen."
+  },
+  "speaker": {
+    "title": "Sprecher-Board",
+    "subtitle": "Interaktives Board für Regatta-Sprecher:innen",
+    "selectEvent": "Veranstaltung auswählen",
+    "liveCount": "{{count}} live",
+    "openBoard": "Sprecher-Board öffnen",
+    "tabs": {
+      "timeline": "Zeitstrahl",
+      "program": "Programm",
+      "results": "Ergebnisse"
+    },
+    "status": {
+      "UPCOMING": "Ausstehend",
+      "RUNNING": "Live",
+      "FINISHED": "Beendet",
+      "liveShort": "LIVE",
+      "CANCELLED": "Abgesagt"
+    },
+    "timeline": {
+      "empty": "Keine Rennen mit Startzeit gefunden.",
+      "now": "Jetzt"
+    },
+    "program": {
+      "searchPlaceholder": "Suche: Rennen, Verein, Name …",
+      "all": "Alle",
+      "status": "Status",
+      "competition": "Wettkampf",
+      "round": "Runde / Rennen",
+      "teams": "Teams",
+      "badges": "Hinweise",
+      "empty": "Keine Rennen für die aktuellen Filter.",
+      "openDetails": "Details öffnen"
+    },
+    "match": {
+      "start": "Start",
+      "elapsed": "läuft seit {{minutes}} min",
+      "place": "Platz",
+      "startNumber": "Start-Nr.",
+      "team": "Team / Verein",
+      "participants": "Teilnehmer:innen",
+      "time": "Zeit",
+      "yearShort": "Jg.",
+      "failed": "DNF",
+      "deregistered": "Abgemeldet"
+    },
+    "results": {
+      "empty": "Noch keine Ergebnisse vorhanden.",
+      "updated": "Stand"
+    },
+    "badges": {
+      "doubleStartTooltip": "Startet auch in:",
+      "medalTooltip": "Medaillen an diesem Wochenende:"
+    },
+    "participant": {
+      "startCount": "{{count}} Start",
+      "startCount_other": "{{count}} Starts",
+      "backOnWater": "Muss schnell wieder aufs Wasser: nächster Start {{time}} Uhr (in {{minutes}} min)",
+      "tightTurnaround": "nur {{minutes}} min Wechselzeit"
+    },
+    "settings": {
+      "title": "Anzeige anpassen",
+      "storedLocally": "Wird lokal auf diesem Gerät gespeichert",
+      "theme": "Farbschema",
+      "themeDark": "Dunkel",
+      "themeBlack": "Schwarz",
+      "themeLight": "Hell",
+      "scale": "Größe",
+      "colors": "Status-Farben",
+      "color": {
+        "upcoming": "Ausstehend",
+        "running": "Live",
+        "finished": "Beendet",
+        "now": "Jetzt-Linie / Warnungen"
+      },
+      "resetColors": "Farben zurücksetzen",
+      "refresh": "Aktualisierung",
+      "turnaround": "Wechselzeit-Warnung",
+      "resetAll": "Alles zurücksetzen"
+    }
   }
 }

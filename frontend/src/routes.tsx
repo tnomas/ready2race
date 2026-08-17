@@ -60,6 +60,9 @@ import ResultsQrCodePage from './pages/results/ResultsQrCodePage.tsx'
 import ResultsLayout from './layouts/ResultsLayout.tsx'
 import AdministrationPage from './pages/AdministrationPage.tsx'
 import ChallengePage from './pages/challenge/ChallengePage.tsx'
+import {Outlet} from '@tanstack/react-router'
+import SpeakerBoardPage from './pages/speaker/SpeakerBoardPage.tsx'
+import SelectSpeakerEventPage from './pages/speaker/SelectSpeakerEventPage.tsx'
 
 const checkAuth = (context: User, location: ParsedLocation, privilege?: Privilege) => {
     if (!context.loggedIn) {
@@ -518,6 +521,24 @@ export const resultsQRCodeRoute = createRoute({
     component: () => <ResultsQrCodePage />,
 })
 
+export const speakerRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'speaker',
+    component: () => <Outlet />,
+})
+
+export const speakerIndexRoute = createRoute({
+    getParentRoute: () => speakerRoute,
+    path: '/',
+    component: () => <SelectSpeakerEventPage />,
+})
+
+export const speakerEventRoute = createRoute({
+    getParentRoute: () => speakerRoute,
+    path: 'event/$eventId',
+    component: () => <SpeakerBoardPage />,
+})
+
 export const challengeRoute = createRoute({
     getParentRoute: () => mobileRoute,
     path: 'challenge/$accessToken',
@@ -579,6 +600,7 @@ const routeTree = rootRoute.addChildren([
         appForbiddenRoute,
     ]),
     resultsRoute.addChildren([resultsIndexRoute, resultsQRCodeRoute, resultsEventRoute]),
+    speakerRoute.addChildren([speakerIndexRoute, speakerEventRoute]),
     mobileRoute.addChildren([challengeRoute]),
     athleteBoardRoute,
     boardDisplayRoute,
