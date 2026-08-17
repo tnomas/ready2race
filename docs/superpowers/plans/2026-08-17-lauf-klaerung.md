@@ -941,7 +941,23 @@ class MatchClarificationTest {
 }
 ```
 
-Die Hilfe `dashboardMatch(eventId, matchId)` holt den Lauf über `LiveDashboardService.getDashboard(eventId, LiveDashboardScope.ALL, ...)` und sucht ihn per `matchId` heraus. Die genaue Signatur von `getDashboard` steht in `LiveDashboardService.kt` — lies sie und schreibe die Hilfe danach; in `LiveDashboardClubChainTest.kt` steht mit `boardTeam(...)` dieselbe Hilfe eine Ebene tiefer als Vorlage.
+Die Hilfe `dashboardMatch` steht am Ende der Klasse. Sie ist die Entsprechung zu `boardTeam(...)`
+in `LiveDashboardClubChainTest.kt:177`, nur eine Ebene höher (Lauf statt Boot) und mit
+`LiveDashboardScope.ALL`, weil der Lauf in mehreren Zuständen gefunden werden muss:
+
+```kotlin
+    private fun TestComprehensionScope<JEnv>.dashboardMatch(
+        eventId: UUID,
+        matchId: UUID,
+    ): LiveDashboardMatchDto {
+        val dashboard = (!LiveDashboardService.getLiveDashboard(eventId, LiveDashboardScope.ALL, false)).dto
+        return dashboard.matches.single { it.matchId == matchId }
+    }
+```
+
+Dafür zusätzlich importieren: `de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto`,
+`de.lambda9.ready2race.testing.kio.TestComprehensionScope` und den `JEnv`-Typ, den
+`LiveDashboardClubChainTest.kt` in derselben Form importiert.
 
 - [ ] **Schritt 2: Test laufen lassen und Fehlschlag prüfen**
 
