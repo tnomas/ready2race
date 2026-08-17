@@ -584,4 +584,47 @@ class MatchStatusLogicTest {
         )
         assertNull(status.bye)
     }
+
+    // --- Klärung (Task 2 pass-through) ---
+
+    private val base = LocalDateTime.of(2026, 8, 17, 10, 0)
+
+    @Test
+    fun aMatchInClarificationCarriesItsReason() {
+        val status = MatchStatusLogic.matchStatus(
+            activatedAt = base.minusMinutes(20),
+            startTime = base,
+            startedAt = base.minusMinutes(15),
+            finishedAt = null,
+            skipped = false,
+            teams = listOf(
+                MatchStatusTeam(place = 1, failed = false, deregistered = false),
+                MatchStatusTeam(place = 2, failed = false, deregistered = false),
+            ),
+            clarificationSince = base.minusMinutes(2),
+            clarificationReason = "Einspruch RV Hansa, Bahnberührung",
+        )
+        assertEquals(MatchState.CLARIFICATION, status.state)
+        assertEquals("Einspruch RV Hansa, Bahnberührung", status.clarificationReason)
+    }
+
+    @Test
+    fun clarificationGetsItsOwnCounterAndLeavesTheOthersAlone() {
+        // Jeder Lauf zählt in genau einen Topf - das ist die Zusage der Leiste. Ein Lauf in
+        // Klärung darf weder unter "läuft" noch unter "offen" mitlaufen, sonst behauptet die
+        // Leiste etwas anderes als die Chips darunter.
+        val counters = MatchStatusLogic.roundCounters(
+            listOf(
+                status(MatchState.RUNNING),
+                status(MatchState.CLARIFICATION),
+                status(MatchState.CLARIFICATION),
+                status(MatchState.FINISHED),
+            )
+        )
+        assertEquals(4, counters.total)
+        assertEquals(1, counters.running)
+        assertEquals(2, counters.clarification)
+        assertEquals(0, counters.open)
+        assertEquals(1, counters.finished)
+    }
 }
