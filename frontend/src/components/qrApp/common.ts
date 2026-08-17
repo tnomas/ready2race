@@ -6,6 +6,7 @@ import {
     updateAppCompetitionCheckGlobal,
     updateAppEventRequirementGlobal,
     updateAppQrManagementGlobal,
+    updateAppTimingGlobal,
 } from '@authorization/privileges.ts'
 
 export const getUserAppRights = (user: User): AppFunction[] => {
@@ -14,6 +15,7 @@ export const getUserAppRights = (user: User): AppFunction[] => {
     if (user.checkPrivilege(updateAppCompetitionCheckGlobal)) rights.push('APP_COMPETITION_CHECK')
     if (user.checkPrivilege(updateAppEventRequirementGlobal)) rights.push('APP_EVENT_REQUIREMENT')
     if (user.checkPrivilege(updateAppCatererGlobal)) rights.push('APP_CATERER')
+    if (user.checkPrivilege(updateAppTimingGlobal)) rights.push('APP_TIMING')
     return rights
 }
 
@@ -25,7 +27,8 @@ export const getAppRights = (privileges: PrivilegeDto[]): AppFunction[] => {
                 (p.resource === 'APP_QR_MANAGEMENT' ||
                     p.resource === 'APP_COMPETITION_CHECK' ||
                     p.resource === 'APP_EVENT_REQUIREMENT' ||
-                    p.resource === 'APP_CATERER') &&
+                    p.resource === 'APP_CATERER' ||
+                    p.resource === 'APP_TIMING') &&
                 p.scope == 'GLOBAL',
         )
         .map(p =>
@@ -35,6 +38,8 @@ export const getAppRights = (privileges: PrivilegeDto[]): AppFunction[] => {
                   ? 'APP_COMPETITION_CHECK'
                   : p.resource === 'APP_EVENT_REQUIREMENT'
                     ? 'APP_EVENT_REQUIREMENT'
-                    : 'APP_CATERER',
+                    : p.resource === 'APP_CATERER'
+                      ? 'APP_CATERER'
+                      : 'APP_TIMING',
         )
 }

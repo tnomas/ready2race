@@ -20,6 +20,7 @@ export type AppFunction =
     | 'APP_COMPETITION_CHECK'
     | 'APP_EVENT_REQUIREMENT'
     | 'APP_CATERER'
+    | 'APP_TIMING'
     | null
 
 export type AppView =

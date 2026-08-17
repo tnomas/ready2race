@@ -1712,7 +1712,8 @@
         "qrManagement": "QR-Code Verwaltung",
         "competitionCheck": "Wettkampf-Check",
         "eventRequirement": "Bedingungen prüfen",
-        "caterer": "Verpflegung"
+        "caterer": "Verpflegung",
+        "timing": "Zeitnahme"
       },
       "switchEvent": "Event wechseln"
     },
@@ -1720,6 +1721,19 @@
       "title": "Nicht berechtigt",
       "message": "Du bist für diese Seite nicht berechtigt.",
       "backButton": "Zurück zum Login"
+    }
+  },
+  "timing": {
+    "title": "Zeitnahme",
+    "selectEvent": "Veranstaltung wählen",
+    "selectStation": "Posten wählen",
+    "boardComingSoon": "Board folgt",
+    "station": {
+      "types": {
+        "START": "Start",
+        "SPLIT": "Zwischenzeit",
+        "FINISH": "Ziel"
+      }
     }
   },
   "caterer": {

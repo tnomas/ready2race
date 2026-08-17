@@ -16,10 +16,12 @@ import QrCodeIcon from '@mui/icons-material/QrCode'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
+import TimerIcon from '@mui/icons-material/Timer'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {getUserAppRights} from '@components/qrApp/common.ts'
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import LogoutIcon from "@mui/icons-material/Logout";
+import {useNavigate} from '@tanstack/react-router'
 
 const APP_FUNCTIONS = [
     {
@@ -42,11 +44,21 @@ const APP_FUNCTIONS = [
         labelKey: 'app.functionSelect.functions.caterer' as const,
         icon: RestaurantIcon,
     },
+    {
+        fn: 'APP_TIMING' as AppFunction,
+        labelKey: 'app.functionSelect.functions.timing' as const,
+        icon: TimerIcon,
+        // Timing owns its own event/station routing (real URL params), so it navigates
+        // straight to its route tree instead of going through the shared AppView/eventId
+        // session-context mechanism the other app functions use.
+        path: '/app/timing' as const,
+    },
 ] as const
 
 const AppFunctionSelectPage = () => {
     const {t} = useTranslation()
     const {setAppFunction, events, navigateTo} = useAppSession()
+    const navigate = useNavigate()
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
     const user = useUser()
@@ -59,7 +71,11 @@ const AppFunctionSelectPage = () => {
         }
     }, [setAppFunction, availableAppFunctions])
 
-    const handleSelect = (fn: AppFunction) => {
+    const handleSelect = (fn: AppFunction, path?: string) => {
+        if (path) {
+            void navigate({to: path})
+            return
+        }
         setAppFunction(fn)
         navigateTo("APP_Scanner")
     }
@@ -105,7 +121,7 @@ const AppFunctionSelectPage = () => {
                                 },
                             }}>
                             <CardActionArea
-                                onClick={() => handleSelect(f.fn)}
+                                onClick={() => handleSelect(f.fn, 'path' in f ? f.path : undefined)}
                                 sx={{
                                     height: '100%',
                                     display: 'flex',

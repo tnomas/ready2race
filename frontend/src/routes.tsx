@@ -53,6 +53,9 @@ import ResultsQrCodePage from './pages/results/ResultsQrCodePage.tsx'
 import ResultsLayout from './layouts/ResultsLayout.tsx'
 import AdministrationPage from './pages/AdministrationPage.tsx'
 import ChallengePage from './pages/challenge/ChallengePage.tsx'
+import TimingEventsPage from './pages/app/TimingEventsPage.tsx'
+import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
+import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
 
 const checkAuth = (context: User, location: ParsedLocation, privilege?: Privilege) => {
     if (!context.loggedIn) {
@@ -443,6 +446,43 @@ export const appFunctionSelectRoute = createRoute({
     },
 })
 
+export const timingRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'timing',
+})
+
+export const timingEventsIndexRoute = createRoute({
+    getParentRoute: () => timingRoute,
+    path: '/',
+    component: () => <TimingEventsPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+export const timingEventRoute = createRoute({
+    getParentRoute: () => timingRoute,
+    path: '$eventId',
+})
+
+export const timingStationSelectIndexRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: '/',
+    component: () => <TimingStationSelectPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+export const timingStationRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: '$stationId',
+    component: () => <TimingBoardPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
 export const invoicesRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'invoices',
@@ -517,6 +557,13 @@ const routeTree = rootRoute.addChildren([
         qrAssignRoute,
         appFunctionSelectRoute,
         appForbiddenRoute,
+        timingRoute.addChildren([
+            timingEventsIndexRoute,
+            timingEventRoute.addChildren([
+                timingStationSelectIndexRoute,
+                timingStationRoute,
+            ]),
+        ]),
     ]),
     resultsRoute.addChildren([resultsIndexRoute, resultsQRCodeRoute, resultsEventRoute]),
     mobileRoute.addChildren([challengeRoute]),

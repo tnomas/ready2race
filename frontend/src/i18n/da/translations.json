@@ -1712,7 +1712,8 @@
         "qrManagement": "QR-kodeadministration",
         "competitionCheck": "Konkurrence-check",
         "eventRequirement": "Kontrollér betingelser",
-        "caterer": "Forplejning"
+        "caterer": "Forplejning",
+        "timing": "Tidtagning"
       },
       "switchEvent": "Skift arrangement"
     },
@@ -1720,6 +1721,19 @@
       "title": "Ingen adgang",
       "message": "Du har ikke adgang til denne side.",
       "backButton": "Tilbage til login"
+    }
+  },
+  "timing": {
+    "title": "Tidtagning",
+    "selectEvent": "Vælg arrangement",
+    "selectStation": "Vælg post",
+    "boardComingSoon": "Tavle følger",
+    "station": {
+      "types": {
+        "START": "Start",
+        "SPLIT": "Mellemtid",
+        "FINISH": "Mål"
+      }
     }
   },
   "caterer": {

@@ -1712,7 +1712,8 @@
         "qrManagement": "QR Code Management",
         "competitionCheck": "Competition Check",
         "eventRequirement": "Event Requirements",
-        "caterer": "Catering"
+        "caterer": "Catering",
+        "timing": "Timing"
       },
       "switchEvent": "Switch Event"
     },
@@ -1720,6 +1721,19 @@
       "title": "Not authorized",
       "message": "You are not authorized for this page.",
       "backButton": "Back to login"
+    }
+  },
+  "timing": {
+    "title": "Timing",
+    "selectEvent": "Select event",
+    "selectStation": "Select station",
+    "boardComingSoon": "Board coming soon",
+    "station": {
+      "types": {
+        "START": "Start",
+        "SPLIT": "Split",
+        "FINISH": "Finish"
+      }
     }
   },
   "caterer": {
