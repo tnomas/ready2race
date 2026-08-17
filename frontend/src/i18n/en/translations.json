@@ -1763,6 +1763,18 @@
         "deadMarks_other": "{{count}} times could not be submitted at all",
         "bufferFailed": "Time could not be buffered – it will be lost on reload"
       },
+      "deadDialog": {
+        "open": "Show",
+        "title": "Times not submitted",
+        "description": "These times were rejected by the server. You can submit them again or discard them permanently.",
+        "item": "Station {{station}} · status {{status}}",
+        "requeue": "Try again",
+        "discard": "Discard permanently",
+        "discardConfirm": {
+          "title": "Discard times permanently?",
+          "content": "The times will be deleted and cannot be recovered."
+        }
+      },
       "stateError": "Could not load data – retrying…",
       "capture": {
         "clockNotSynced": "Clock not synced – capture unavailable",

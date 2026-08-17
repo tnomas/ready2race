@@ -1763,6 +1763,18 @@
         "deadMarks_other": "{{count}} Zeiten konnten endgültig nicht übertragen werden",
         "bufferFailed": "Zeit konnte nicht gepuffert werden – bei einem Neuladen geht sie verloren"
       },
+      "deadDialog": {
+        "open": "Anzeigen",
+        "title": "Nicht übertragene Zeiten",
+        "description": "Diese Zeiten wurden vom Server abgelehnt. Sie können erneut übertragen oder endgültig verworfen werden.",
+        "item": "Posten {{station}} · Status {{status}}",
+        "requeue": "Erneut versuchen",
+        "discard": "Endgültig verwerfen",
+        "discardConfirm": {
+          "title": "Zeiten endgültig verwerfen?",
+          "content": "Die Zeiten werden gelöscht und können nicht wiederhergestellt werden."
+        }
+      },
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
       "capture": {
         "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",

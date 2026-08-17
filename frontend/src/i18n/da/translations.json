@@ -1763,6 +1763,18 @@
         "deadMarks_other": "{{count}} tider kunne endeligt ikke overføres",
         "bufferFailed": "Tiden kunne ikke bufres – den mistes ved genindlæsning"
       },
+      "deadDialog": {
+        "open": "Vis",
+        "title": "Ikke overførte tider",
+        "description": "Disse tider blev afvist af serveren. Du kan overføre dem igen eller forkaste dem endeligt.",
+        "item": "Post {{station}} · status {{status}}",
+        "requeue": "Prøv igen",
+        "discard": "Forkast endeligt",
+        "discardConfirm": {
+          "title": "Forkast tider endeligt?",
+          "content": "Tiderne slettes og kan ikke gendannes."
+        }
+      },
       "stateError": "Data kunne ikke indlæses – prøver igen…",
       "capture": {
         "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",

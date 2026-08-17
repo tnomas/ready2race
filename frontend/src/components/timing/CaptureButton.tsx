@@ -28,12 +28,16 @@ export type CaptureButtonProps = {
     markSaved: (id: string) => void
     markFailed: (id: string) => void
     /**
-     * Called exactly once per capture, right after the write-ahead enqueue attempt, with whether the
-     * mark actually made it into the durable queue. `false` means this capture exists only in memory
-     * and will be lost on reload — the board surfaces that as its own banner, because it is a
-     * materially worse situation than "queued, not yet submitted".
+     * Called exactly once per capture, right after the write-ahead enqueue attempt, with the mark's id
+     * and whether it actually made it into the durable queue. `false` means this capture exists only
+     * in memory and will be lost on reload — the board surfaces that as its own banner, because it is
+     * a materially worse situation than "queued, not yet submitted".
+     *
+     * The id is part of the signature because the banner is per-mark, not a global flag: the board
+     * tracks *which* captures are unbuffered and clears each one when that same id is later reported
+     * to `markSaved`. A bare boolean cannot express either half of that.
      */
-    onBuffered: (buffered: boolean) => void
+    onBuffered: (id: string, buffered: boolean) => void
     /**
      * Called whenever the capture flow changed the queue's contents, so the board page can refresh
      * its queue-status banner immediately instead of waiting for the next periodic drain/count check.
@@ -124,7 +128,7 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
                 )
                 markFailed(id)
             }
-            onBuffered(buffered)
+            onBuffered(id, buffered)
             onQueueChanged()
 
             // Step 2: POST. Attempted even when step 1 failed.

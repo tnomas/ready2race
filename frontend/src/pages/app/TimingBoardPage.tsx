@@ -1,8 +1,20 @@
-import {Alert, Box} from '@mui/material'
+import {
+    Alert,
+    Box,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    Stack,
+    Typography,
+} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {updateAppTimingGlobal} from '@authorization/privileges.ts'
 import {timingEventRoute, timingStationRoute} from '@routes'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
@@ -14,16 +26,29 @@ import {createTimeMark} from '@api/sdk.gen.ts'
 import {
     classifyStatus,
     counts as queueCounts,
+    discardDead,
     drain as drainQueue,
+    listDead,
     PendingTimeMark,
     PostOutcome,
     PostResult,
     QueueCounts,
+    requeueDead,
 } from '@utils/timing/offlineQueue.ts'
+
+/** Time of day at 1s precision — enough for an operator to recognise which capture a dead letter is. */
+function formatTimeOfDay(ms: number): string {
+    const date = new Date(ms)
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    return `${hh}:${mm}:${ss}`
+}
 
 const TimingBoardPage = () => {
     const {t} = useTranslation()
     const user = useUser()
+    const {confirmAction} = useConfirmation()
     const navigate = useNavigate()
     const {eventId} = timingEventRoute.useParams()
     const {stationId} = timingStationRoute.useParams()
@@ -55,8 +80,19 @@ const TimingBoardPage = () => {
     // from the queue on success) but must not touch this board's mark list.
     const [queueCount, setQueueCount] = useState(0)
     const [deadCount, setDeadCount] = useState(0)
-    /** True once a capture failed to reach the durable queue — that mark exists only in memory. */
-    const [bufferFailed, setBufferFailed] = useState(false)
+    /**
+     * Ids of captures that never reached the durable queue — they exist only in this tab's memory and
+     * are lost on reload.
+     *
+     * A *set*, not a boolean: the condition belongs to individual marks, and a single flag gets both
+     * ends of its lifetime wrong. It was raised by one capture and then cleared by the *next* capture's
+     * successful enqueue (which says nothing about the earlier, still-unbuffered mark), while the one
+     * event that genuinely resolves it — the affected mark's own POST coming back ok — never cleared it
+     * at all. So the banner lied in both directions. With a set, an id goes in when its enqueue fails
+     * and comes out only when that same id reaches `handleMarkSaved`; the banner is simply "set
+     * non-empty".
+     */
+    const [unbufferedMarks, setUnbufferedMarks] = useState<Set<string>>(new Set())
     const queueCountRef = useRef(0)
     /**
      * True while we don't know the real queue size — before the first successful count, or after one
@@ -82,6 +118,25 @@ const TimingBoardPage = () => {
             })
     }, [applyCounts])
 
+    /**
+     * `markSaved` plus the one thing that resolves an unbuffered capture: the server now has the mark,
+     * so losing the in-memory copy on reload no longer loses data. Used everywhere `markSaved` would
+     * be — the direct capture POST and the drain alike — so it doesn't matter which of the two
+     * confirms the mark first.
+     */
+    const handleMarkSaved = useCallback(
+        (id: string) => {
+            markSaved(id)
+            setUnbufferedMarks(prev => {
+                if (!prev.has(id)) return prev
+                const next = new Set(prev)
+                next.delete(id)
+                return next
+            })
+        },
+        [markSaved],
+    )
+
     const postQueuedItem = useCallback(
         async (item: PendingTimeMark): Promise<PostResult> => {
             let outcome: PostOutcome
@@ -105,14 +160,14 @@ const TimingBoardPage = () => {
             // posted (and cleaned up by `drain`) without ever appearing in this mark list.
             if (item.eventId === eventId && item.station === stationId) {
                 if (outcome === 'ok') {
-                    markSaved(item.id)
+                    handleMarkSaved(item.id)
                 } else if (outcome === 'permanent') {
                     markFailed(item.id)
                 }
             }
             return {outcome, status}
         },
-        [eventId, stationId, markSaved, markFailed],
+        [eventId, stationId, handleMarkSaved, markFailed],
     )
     // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
     // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
@@ -194,9 +249,79 @@ const TimingBoardPage = () => {
         return () => document.removeEventListener('visibilitychange', handleVisibility)
     }, [runDrain])
 
-    const onBuffered = useCallback((buffered: boolean) => {
-        setBufferFailed(!buffered)
+    const onBuffered = useCallback((id: string, buffered: boolean) => {
+        if (buffered) return
+        setUnbufferedMarks(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
     }, [])
+
+    // --- Dead-letter recovery ------------------------------------------------------------------
+    //
+    // A dead letter is a captured time the server refused for good; dropping it silently would be data
+    // loss, but leaving it in a store nobody can reach is only marginally better. The error banner is
+    // therefore a way in: it opens a dialog listing what is stuck, from which the operator either
+    // requeues everything (the usual case — the cause was fixed in the meantime) or explicitly throws
+    // it away.
+    const [deadDialogOpen, setDeadDialogOpen] = useState(false)
+    const [deadItems, setDeadItems] = useState<PendingTimeMark[]>([])
+    const [deadBusy, setDeadBusy] = useState(false)
+
+    /** Re-read the dead store; also refreshes the banner counts so the two can't disagree. */
+    const refreshDead = useCallback(() => {
+        void listDead()
+            .then(items =>
+                setDeadItems([...items].sort((a, b) => b.timestampMillis - a.timestampMillis)),
+            )
+            .catch((error: unknown) => console.warn('[timing] dead letter list failed', error))
+    }, [])
+
+    const openDeadDialog = useCallback(() => {
+        refreshDead()
+        setDeadDialogOpen(true)
+    }, [refreshDead])
+
+    const handleRequeueDead = useCallback(() => {
+        setDeadBusy(true)
+        void requeueDead()
+            .then(() => {
+                setDeadDialogOpen(false)
+                setDeadItems([])
+                // Straight into a drain: the operator pressed "retry", so retry now rather than at the
+                // next 15s tick.
+                runDrain()
+                refreshCounts()
+            })
+            .catch((error: unknown) => console.warn('[timing] dead letter requeue failed', error))
+            .finally(() => setDeadBusy(false))
+    }, [runDrain, refreshCounts])
+
+    const handleDiscardDead = useCallback(() => {
+        confirmAction(
+            () => {
+                setDeadBusy(true)
+                void discardDead()
+                    .then(() => {
+                        setDeadDialogOpen(false)
+                        setDeadItems([])
+                        refreshCounts()
+                    })
+                    .catch((error: unknown) =>
+                        console.warn('[timing] dead letter discard failed', error),
+                    )
+                    .finally(() => setDeadBusy(false))
+            },
+            {
+                title: t('timing.board.deadDialog.discardConfirm.title'),
+                content: t('timing.board.deadDialog.discardConfirm.content'),
+                okText: t('timing.board.deadDialog.discard'),
+            },
+        )
+    }, [confirmAction, refreshCounts, t])
+
+    // The store can empty out underneath an open dialog (a requeued-elsewhere item, or a drain that
+    // resolved things), so follow the count down to zero rather than showing a stale empty list.
+    useEffect(() => {
+        if (deadDialogOpen && deadCount === 0) setDeadDialogOpen(false)
+    }, [deadDialogOpen, deadCount])
 
     // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
     // has focus (so typing a space in a field doesn't fire a capture), while a MUI dialog is open
@@ -268,11 +393,19 @@ const TimingBoardPage = () => {
                 </Alert>
             )}
             {deadCount > 0 && (
-                <Alert severity="error" sx={{flexShrink: 0}}>
+                <Alert
+                    severity="error"
+                    sx={{flexShrink: 0, cursor: 'pointer'}}
+                    onClick={openDeadDialog}
+                    action={
+                        <Button color="inherit" size="small" onClick={openDeadDialog}>
+                            {t('timing.board.deadDialog.open')}
+                        </Button>
+                    }>
                     {t('timing.board.banner.deadMarks', {count: deadCount})}
                 </Alert>
             )}
-            {bufferFailed && (
+            {unbufferedMarks.size > 0 && (
                 <Alert severity="error" sx={{flexShrink: 0}}>
                     {t('timing.board.banner.bufferFailed')}
                 </Alert>
@@ -292,7 +425,7 @@ const TimingBoardPage = () => {
                     now={clock.now}
                     unauthorized={showUnauthorizedBanner}
                     applyLocalMark={applyLocalMark}
-                    markSaved={markSaved}
+                    markSaved={handleMarkSaved}
                     markFailed={markFailed}
                     onBuffered={onBuffered}
                     onQueueChanged={refreshCounts}
@@ -311,6 +444,54 @@ const TimingBoardPage = () => {
                 }}>
                 <MarkList eventId={eventId} stationId={stationId} marks={marks} />
             </Box>
+
+            <Dialog
+                open={deadDialogOpen}
+                onClose={() => setDeadDialogOpen(false)}
+                fullWidth
+                maxWidth="xs">
+                <DialogTitle>{t('timing.board.deadDialog.title')}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{mb: 2}}>
+                        {t('timing.board.deadDialog.description')}
+                    </DialogContentText>
+                    <Stack
+                        divider={<Box sx={{borderBottom: 1, borderColor: 'divider'}} />}
+                        sx={{width: 1}}>
+                        {deadItems.map(item => (
+                            <Stack key={item.id} sx={{py: 0.75}}>
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        fontFamily: 'monospace',
+                                        fontVariantNumeric: 'tabular-nums',
+                                    }}>
+                                    {formatTimeOfDay(item.timestampMillis)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    {t('timing.board.deadDialog.item', {
+                                        station:
+                                            stations.find(s => s.id === item.station)?.name ??
+                                            item.station,
+                                        status: item.lastStatus ?? '–',
+                                    })}
+                                </Typography>
+                            </Stack>
+                        ))}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeadDialogOpen(false)} disabled={deadBusy}>
+                        {t('common.close')}
+                    </Button>
+                    <Button color="error" onClick={handleDiscardDead} disabled={deadBusy}>
+                        {t('timing.board.deadDialog.discard')}
+                    </Button>
+                    <Button variant="contained" onClick={handleRequeueDead} disabled={deadBusy}>
+                        {t('timing.board.deadDialog.requeue')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     )
 }
