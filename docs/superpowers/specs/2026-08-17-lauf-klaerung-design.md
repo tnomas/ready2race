@@ -31,27 +31,23 @@ den ganzen Betrieb der Anzeigen an:
 
 ## 1. Datenmodell
 
-Migration `V202608171200__match_clarification.sql`, drei Spalten auf `competition_match`:
+Migration `V202608171200__match_clarification.sql`, zwei Spalten auf `competition_match`:
 
 | Spalte | Bedeutung |
 |---|---|
-| `clarification_since timestamp` | wann die Klärung begann |
-| `clarification_reason varchar(255)` | der Pflichtgrund. Check-Constraint: `clarification_since is null or (clarification_reason is not null and btrim(clarification_reason) <> '')` — eine Klärung ohne Grund darf es nicht geben |
-| `clarification_resolved_at timestamp` | wann sie aufgehoben wurde; null = noch offen. Zweiter Constraint: nur setzbar, wenn `clarification_since` gesetzt ist |
+| `clarification_since timestamp` | gesetzt = in Klärung, null = nicht |
+| `clarification_reason varchar(255)` | der Pflichtgrund. Check-Constraint: beide Spalten gemeinsam gesetzt oder gemeinsam null, und `btrim(clarification_reason) <> ''` — eine Klärung ohne Grund darf es nicht geben, ein Grund ohne Klärung auch nicht |
 
 **Die eine Regel, aus der alles Weitere folgt:**
 
 ```
-in Klärung  ⇔  clarification_since is not null  und  clarification_resolved_at is null
+in Klärung  ⇔  clarification_since is not null
 ```
 
-Beim Aufheben bleiben `clarification_since` und `clarification_reason` **stehen**, nur
-`clarification_resolved_at` kommt dazu. Der beendete Lauf trägt damit die Spur „war in
-Klärung: …" — für Siegerehrung und Protokoll das eigentlich Wertvolle, und billiger als eine
-eigene Protokolltabelle. Deshalb darf **keine** Abfrage und keine Ableitung auf
-`clarification_since is not null` allein prüfen: das hielte jeden je geklärten Lauf für ewig
-in Klärung. Die drei Stellen, die es betrifft, sind der Zweig in `deriveMatchState`, der
-SQL-Filter in `CompetitionMatchRepo` und das Feld in `ChainSlot`.
+Aufheben und Beenden leeren **beide** Spalten. Es bleibt keine Spur „war in Klärung" am Lauf
+zurück; wer den Fall dokumentieren will, nutzt die bestehenden Schiedsrichter-Notizen am Boot
+(Entscheidung vom 17.08.2026 — eine dritte Spalte `clarification_resolved_at` war erwogen und
+wurde als Ballast verworfen).
 
 `activated_at` wird **nicht** angefasst. Der Lauf bleibt an den Start gerufen; wird die
 Klärung aufgehoben, steht er ohne Zutun wieder auf `RUNNING`.
@@ -62,16 +58,12 @@ Neuer Wert `CLARIFICATION` in `LiveDashboardMatchState` (Alias `MatchState`) und
 `LiveDashboardLogic.deriveMatchState` **genau ein neuer Zweig, ganz oben**:
 
 ```kotlin
-inClarification && finishedAt == null    -> CLARIFICATION
-activatedAt != null && startedAt == null -> PREPARING
-activatedAt != null                      -> RUNNING
-finishedAt != null                       -> FINISHED
+clarificationSince != null && finishedAt == null -> CLARIFICATION
+activatedAt != null && startedAt == null         -> PREPARING
+activatedAt != null                              -> RUNNING
+finishedAt != null                               -> FINISHED
 // Rest unverändert
 ```
-
-`inClarification` ist die Regel aus Abschnitt 1 (`since` gesetzt **und** `resolvedAt` null) —
-die Ableitung bekommt sie als ein Argument übergeben, nicht als zwei Zeitstempel. So kann sie
-in keiner Aufruferstelle falsch zusammengesetzt werden.
 
 Klärung schlägt die Aktivierung — das ist der ganze Zweck. Das Beenden schlägt die Klärung:
 freigegeben ist freigegeben. Die bestehende Reihenfolge `activated` vor `finished` bleibt
@@ -135,7 +127,7 @@ Athleten-Board-Laufkarte, `BoardMatchDetailElement`.
 
 | Stelle | Änderung |
 |---|---|
-| `CompetitionMatchRepo` (364, 528) | `and not (clarification_since is not null and clarification_resolved_at is null)` — nur die Anzeige-Abfragen |
+| `CompetitionMatchRepo` (364, 528) | `and clarification_since is null` — nur die Anzeige-Abfragen |
 | `ScheduleChain` / `ChainSlot` / `EventScheduleRepo` | Klärung zählt wie erledigt |
 | `LiveDashboardLogic.selectForScope(LIVE)` | `CLARIFICATION` **aufnehmen** — die Schiedsrichter müssen ihn behalten |
 | `common.ts` `isLiveMatch` | dito |
@@ -186,12 +178,10 @@ DELETE /event/{eventId}/live-dashboard/match/{matchId}/clarification
 ```
 
 - `PUT` auf einen Lauf, der bereits in Klärung ist, aktualisiert nur den Grund (ein Einspruch
-  wird präzisiert); `clarification_since` bleibt der erste Zeitpunkt. Auf einen Lauf, dessen
-  frühere Klärung aufgehoben wurde, beginnt er eine neue: `since = jetzt`,
-  `resolved_at = null`, neuer Grund. Ein zweiter Einspruch ist ein zweiter Fall.
-- `DELETE` setzt `clarification_resolved_at`; `since` und Grund bleiben als Spur stehen.
-- `/finish` hebt eine offene Klärung implizit auf (setzt `resolved_at`) — Beenden **ist** die
-  Freigabe, kein zweiter Klick.
+  wird präzisiert); `clarification_since` bleibt der erste Zeitpunkt. Auf einen Lauf ohne
+  Klärung beginnt er eine neue mit `since = jetzt`.
+- `DELETE` leert beide Spalten.
+- `/finish` leert sie ebenfalls — Beenden **ist** die Freigabe, kein zweiter Klick.
 - Beide bumpen `EventChangeMarker`, sonst hängen Board- und Live-Cache bis zur TTL hinterher.
 - `documentation.yaml` ist handgepflegt; der neue Enum-Wert und beide Endpoints müssen dort
   von Hand eingetragen werden, danach `types.gen.ts` / `sdk.gen.ts` neu erzeugen.
@@ -201,14 +191,14 @@ DELETE /event/{eventId}/live-dashboard/match/{matchId}/clarification
 
 | Datei | was |
 |---|---|
-| `LiveDashboardLogicTest` | Klärung schlägt Aktivierung, Beenden schlägt Klärung — Zweigreihenfolge festnageln. Dazu der Rückweg: ein Lauf mit gesetztem `resolved_at` steht wieder auf `RUNNING` und nicht auf `CLARIFICATION` |
+| `LiveDashboardLogicTest` | Klärung schlägt Aktivierung, Beenden schlägt Klärung — Zweigreihenfolge festnageln. Dazu der Rückweg: nach dem Aufheben steht der Lauf wieder auf `RUNNING` |
 | `MatchStatusLogicTest` | neuer Zähler `clarification`, jeder Lauf in genau einem Topf |
 | `ScheduleChainTest` | eine Startgruppe mit einem Lauf in Klärung hält die nächste nicht auf |
 | `BoardLogicTest` | Cursor und `resolveOffset` rücken vor, wenn der strittige Lauf fehlt |
 | `matchStatusChip.test.ts`, `timelineIndicator.test.ts` | Chip und Zeitstrahl-Farbe, kein Durchfallen auf neutral |
 | `common.test.ts` | `matchControls` bei Klärung, `isLiveMatch` behält ihn |
 | `streamOverlay.test.ts` | ein Lauf in Klärung verdrängt das jüngste Ergebnis nicht |
-| `testComprehension` (Testcontainers) | Setzen, leerer Grund → 400, Aufheben, erneutes Setzen beginnt einen neuen Fall, Beenden hebt implizit auf |
+| `testComprehension` (Testcontainers) | Setzen, leerer Grund → 400, Grund nachschärfen lässt `since` stehen, Aufheben leert beide Spalten, Beenden ebenso |
 
 ## 8. Risiken und bewusste Lücken
 
