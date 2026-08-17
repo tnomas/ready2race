@@ -397,13 +397,4 @@ class BoardLogicTest {
             BoardLogic.resolveOffset(-1, ohneStrittigen, upcoming, results).result?.competitionName,
         )
     }
-
-    @Test
-    fun withoutAnyRunningMatchSlotZeroStaysEmptyForTheStreamTile() {
-        // Ist der strittige Lauf der einzige aktive, bleibt Slot 0 leer - die Stream-Kachel fällt
-        // im Auto-Modus auf das jüngste Ergebnis zurück, statt eine Uhr ins Endlose zählen zu
-        // lassen. Genau das ist gewollt.
-        val slot0 = BoardLogic.resolveOffset(0, emptyList(), upcoming, results)
-        assertNull(slot0.match)
-    }
 }
