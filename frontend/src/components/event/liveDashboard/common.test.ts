@@ -4,6 +4,7 @@ import {
     buildLiveDashboardTimeline,
     canSubmitNote,
     centeredScrollTop,
+    clarificationMatches,
     competitionLabel,
     crewMemberLabel,
     dashboardCompetitionOptions,
@@ -201,6 +202,13 @@ describe('liveMatches', () => {
             liveMatches([beendet, laeuft, wartet, anstehend, abgesagt]).map(m => m.matchId),
         ).toEqual(['laeuft', 'wartet'])
     })
+
+    it('nimmt einen Lauf in Klärung aus der Live-Liste und sammelt ihn getrennt', () => {
+        const strittig = match({matchId: 'strittig', state: 'CLARIFICATION'})
+        const laeuft = match({matchId: 'laeuft', state: 'RUNNING'})
+        expect(liveMatches([laeuft, strittig])).toEqual([laeuft])
+        expect(clarificationMatches([laeuft, strittig])).toEqual([strittig])
+    })
 })
 
 describe('dashboardScope', () => {
@@ -393,6 +401,8 @@ describe('matchControls', () => {
             showFinish: true,
             showActivationToggle: true,
             showMarkStarted: false,
+            showClarify: true,
+            showResolveClarification: false,
         })
     })
 
@@ -401,6 +411,8 @@ describe('matchControls', () => {
             showFinish: true,
             showActivationToggle: false,
             showMarkStarted: false,
+            showClarify: true,
+            showResolveClarification: false,
         })
     })
 
@@ -409,6 +421,8 @@ describe('matchControls', () => {
             showFinish: false,
             showActivationToggle: true,
             showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: false,
         })
     })
 
@@ -417,6 +431,8 @@ describe('matchControls', () => {
             showFinish: false,
             showActivationToggle: false,
             showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: false,
         })
     })
 
@@ -425,18 +441,41 @@ describe('matchControls', () => {
             showFinish: false,
             showActivationToggle: false,
             showMarkStarted: false,
+            showClarify: true,
+            showResolveClarification: false,
         })
         expect(matchControls(match({state: 'RUNNING'}), false, false)).toEqual({
             showFinish: false,
             showActivationToggle: false,
             showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: false,
         })
         // Ohne Steuerungsrecht auch am Start kein „Läuft" - der Knopf schreibt einen Zeitstempel.
         expect(matchControls(match({state: 'PREPARING'}), false, false)).toEqual({
             showFinish: false,
             showActivationToggle: false,
             showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: false,
         })
+    })
+
+    it('bietet bei Klärung Beenden und Aufheben an, aber kein Aktivieren', () => {
+        expect(matchControls(match({state: 'CLARIFICATION'}), true, true)).toEqual({
+            showFinish: true,
+            showActivationToggle: false,
+            showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: true,
+        })
+    })
+
+    it('bietet Klärung nur bei einem Lauf an, der auch läuft', () => {
+        expect(matchControls(match({state: 'RUNNING'}), true, true).showClarify).toBe(true)
+        expect(matchControls(match({state: 'UPCOMING'}), true, true).showClarify).toBe(false)
+        // Ohne Steuerungsrecht gar nichts.
+        expect(matchControls(match({state: 'RUNNING'}), false, false).showClarify).toBe(false)
     })
 })
 

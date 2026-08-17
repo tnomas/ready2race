@@ -1743,6 +1743,7 @@
         "runningPlain": "Läuft",
         "partiallyScored": "Teilweise gewertet {{scored}}/{{total}}",
         "awaitingFinish": "Wartet auf Beenden",
+        "clarification": "Klärung",
         "finished": "Beendet",
         "cancelled": "Abgesagt",
         "unscheduled": "Ungeplant",
@@ -1757,6 +1758,7 @@
         "counter": {
           "preparing": "{{n}} in Vorbereitung",
           "running": "{{n}} läuft",
+          "clarification": "{{n}} in Klärung",
           "open": "{{n}} offen",
           "finished": "{{n}} beendet",
           "cancelled": "{{n}} abgesagt"
@@ -2137,6 +2139,7 @@
           "preparing": "In Vorbereitung",
           "running": "Läuft",
           "awaitingFinish": "Wartet auf Beenden",
+          "clarification": "Klärung",
           "linked": "Verknüpft",
           "waiting": "Lauf noch nicht gesetzt",
           "free": "Programmpunkt",

@@ -140,6 +140,13 @@ export const matchStatusChip = (
             : {labelKey: 'event.match.status.runningPlain', color: 'primary'}
     }
 
+    // Vor dem Freilos-Zweig und vor allen Ablesungen: Läuft gegen den Lauf ein Einspruch, ist das
+    // die Aussage - auch bei einem Freilos, das strittig geworden ist. „Läuft" wäre falsch
+    // (niemand fährt mehr), „Wartet auf Beenden" verschweigt, worauf gewartet wird.
+    if (status.state === 'CLARIFICATION') {
+        return {labelKey: 'event.match.status.clarification', color: 'warning'}
+    }
+
     // Erst hier, nicht weiter oben: Was tatsächlich passiert, schlägt weiterhin alles. Ein Freilos,
     // das jemand aktiviert hat, zeigt „In Vorbereitung"/„Läuft" — die Anzeige behauptet nicht, es
     // passiere nichts, während in der Arena etwas passiert.
@@ -273,6 +280,11 @@ export const roundCounterChips = (statuses: MatchStatusDto[], minMatches = 2): M
             n: count(s => s.state === 'RUNNING'),
             labelKey: 'event.match.status.counter.running',
             color: 'primary',
+        },
+        {
+            n: count(s => s.state === 'CLARIFICATION'),
+            labelKey: 'event.match.status.counter.clarification',
+            color: 'warning',
         },
         {
             n: count(

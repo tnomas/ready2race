@@ -9,9 +9,12 @@ import {
 } from '@api/types.gen.ts'
 
 /**
- * Die Läufe, die im Live-Tab stehen: die aktiven und die, die auf ihr Beenden warten. Gegenstück
- * zu `LiveDashboardLogic.selectForScope(LIVE)` im Backend — dort entscheidet dieselbe Regel, was
- * der Server im Live-Ausschnitt überhaupt ausliefert.
+ * Die Läufe, die im Live-Tab stehen: die aktiven und die, die auf ihr Beenden warten.
+ *
+ * Ein Lauf in Klärung gehört ausdrücklich NICHT dazu, obwohl der Server ihn im LIVE-Ausschnitt
+ * mitliefert (`LiveDashboardLogic.selectForScope`): Er steht darunter im eigenen, eingeklappten
+ * Abschnitt. In voller Kartenhöhe zwischen den laufenden Rennen wäre er genau das, was dieser
+ * Zustand abschaffen soll - ein Rennen, das den Blick festhält, obwohl nichts mehr passiert.
  *
  * AWAITING_FINISH gehört dazu, weil der Lauf sonst genau dort fehlte, wo jemand handeln muss:
  * alle Boote sind gewertet, aber niemand hat beendet.
@@ -24,6 +27,11 @@ export const isLiveMatch = (match: LiveDashboardMatchDto): boolean =>
 
 export const liveMatches = (matches: LiveDashboardMatchDto[]): LiveDashboardMatchDto[] =>
     matches.filter(isLiveMatch)
+
+/** Die Läufe, gegen die ein Einspruch läuft - der eingeklappte Abschnitt unter der Live-Spalte. */
+export const clarificationMatches = (
+    matches: LiveDashboardMatchDto[],
+): LiveDashboardMatchDto[] => matches.filter(match => match.state === 'CLARIFICATION')
 
 /** Die beiden Ansichten des Boards — schmal je eine, breit beide nebeneinander. */
 export type LiveDashboardTab = 'live' | 'matches'
@@ -183,14 +191,42 @@ export const matchControls = (
     match: LiveDashboardMatchDto,
     mayFinish: boolean,
     mayControl: boolean,
-): {showFinish: boolean; showActivationToggle: boolean; showMarkStarted: boolean} => {
+): {
+    showFinish: boolean
+    showActivationToggle: boolean
+    showMarkStarted: boolean
+    showClarify: boolean
+    showResolveClarification: boolean
+} => {
     if (match.state === 'SKIPPED') {
-        return {showFinish: false, showActivationToggle: false, showMarkStarted: false}
+        return {
+            showFinish: false,
+            showActivationToggle: false,
+            showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: false,
+        }
+    }
+    // In Klärung: Beenden IST die Freigabe und bleibt der Hauptweg; "Aufheben" ist der Rückweg,
+    // wenn der Einspruch zurückgezogen wird. Aktivieren wäre sinnlos (der Lauf ist aktiviert) und
+    // "Läuft" eine Feststellung über ein Rennen, das längst im Ziel ist.
+    if (match.state === 'CLARIFICATION') {
+        return {
+            showFinish: mayFinish,
+            showActivationToggle: false,
+            showMarkStarted: false,
+            showClarify: false,
+            showResolveClarification: mayControl,
+        }
     }
     return {
         showFinish: mayFinish && isLiveMatch(match),
         showActivationToggle: mayControl && match.state !== 'AWAITING_FINISH',
         showMarkStarted: mayControl && match.state === 'PREPARING',
+        // In Klärung setzen lohnt nur, wo der Lauf sonst die Anzeigen festhielte - also bei einem
+        // aktivierten oder durchgewerteten Lauf. Ein anstehender Lauf blockiert niemanden.
+        showClarify: mayControl && isLiveMatch(match),
+        showResolveClarification: false,
     }
 }
 

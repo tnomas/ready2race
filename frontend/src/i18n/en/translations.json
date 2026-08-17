@@ -1743,6 +1743,7 @@
         "runningPlain": "Running",
         "partiallyScored": "Partially scored {{scored}}/{{total}}",
         "awaitingFinish": "Waiting to be finished",
+        "clarification": "Under review",
         "finished": "Finished",
         "cancelled": "Cancelled",
         "unscheduled": "Unscheduled",
@@ -1757,6 +1758,7 @@
         "counter": {
           "preparing": "{{n}} preparing",
           "running": "{{n}} running",
+          "clarification": "{{n}} under review",
           "open": "{{n}} open",
           "finished": "{{n}} finished",
           "cancelled": "{{n}} cancelled"
@@ -2137,6 +2139,7 @@
           "preparing": "Preparing",
           "running": "Running",
           "awaitingFinish": "Waiting to finish",
+          "clarification": "Under review",
           "linked": "Linked",
           "waiting": "Race not set yet",
           "free": "Program item",

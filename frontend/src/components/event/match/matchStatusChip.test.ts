@@ -85,6 +85,25 @@ describe('matchStatusChip', () => {
         expect(chip).toEqual({labelKey: 'event.match.status.runningPlain', color: 'primary'})
     })
 
+    it('zeigt einen Lauf in Klärung als eigenen Chip', () => {
+        // Er darf nicht in den Zweigen darunter landen: "Läuft" wäre falsch (niemand fährt mehr),
+        // "Wartet auf Beenden" verschweigt, worauf gewartet wird.
+        expect(matchStatusChip(status({state: 'CLARIFICATION'}), null, new Date())).toEqual({
+            labelKey: 'event.match.status.clarification',
+            color: 'warning',
+        })
+    })
+
+    it('lässt die Klärung vor dem Freilos-Chip greifen', () => {
+        // Auch ein Freilos kann strittig sein - dann ist die Klärung die Aussage, nicht "offen".
+        const chip = matchStatusChip(
+            status({state: 'CLARIFICATION', bye: {cause: 'NO_OPPONENT', mustRace: false}}),
+            null,
+            new Date(),
+        )
+        expect(chip.labelKey).toBe('event.match.status.clarification')
+    })
+
     it('meldet einen teilweise gewerteten Lauf mit gefahren/erwartet', () => {
         const chip = matchStatusChip(status({teamsScored: 4, teamsRaced: 4}), minutesAgo(20), NOW)
         expect(chip).toEqual({
