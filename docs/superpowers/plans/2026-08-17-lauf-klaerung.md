@@ -1812,23 +1812,20 @@ Am Laufkopf, dort wo die übrigen Lauf-Handlungen sitzen (suche nach `match.stat
 
 ```tsx
                 {match.status.state === 'CLARIFICATION' ? (
-                    mayUpdate && (
-                        <Button
-                            size="small"
-                            onClick={async () => {
-                                const {error} = await clearMatchClarification({
-                                    path: {eventId, matchId: match.id},
-                                })
-                                if (error) {
-                                    feedback.error(t('event.liveDashboard.control.error'))
-                                }
-                                reload()
-                            }}>
-                            {t('event.liveDashboard.clarification.resolve')}
-                        </Button>
-                    )
+                    <Button
+                        size="small"
+                        onClick={async () => {
+                            const {error} = await clearMatchClarification({
+                                path: {eventId, matchId: match.id},
+                            })
+                            if (error) {
+                                feedback.error(t('event.liveDashboard.control.error'))
+                            }
+                            props.reloadRoundDto()
+                        }}>
+                        {t('event.liveDashboard.clarification.resolve')}
+                    </Button>
                 ) : (
-                    mayUpdate &&
                     (match.status.state === 'RUNNING' ||
                         match.status.state === 'PREPARING' ||
                         match.status.state === 'AWAITING_FINISH') && (
@@ -1842,11 +1839,18 @@ Am Laufkopf, dort wo die übrigen Lauf-Handlungen sitzen (suche nach `match.stat
                 )}
 ```
 
-Drei Namen musst du an die Datei anpassen, statt sie zu erfinden:
+Belegte Gegebenheiten dieser Datei — nicht neu suchen:
 
-- `mayUpdate` — das Recht, das diese Seite für ihre schreibenden Knöpfe schon verwendet. Finde es mit `grep -n "checkPrivilege" frontend/src/components/event/competition/excecution/*.tsx` und nimm dasselbe (`updateEventGlobal`, passend zum `authenticateAny` aus Task 7).
-- `match.id`, `eventId`, `reload()`, `feedback` — die in dieser Komponente vorhandenen Entsprechungen; sieh dir einen benachbarten schreibenden Knopf an.
+- **Keine Rechteprüfung nötig.** Der ganze Reiter „Durchführung" erscheint nur, wenn
+  `user.checkPrivilege(updateEventGlobal)` gilt (`CompetitionPage.tsx:152,157`). Wer diese
+  Komponente sieht, darf schreiben; ein zusätzliches `mayUpdate` wäre doppelt gemoppelt.
+- `feedback` (`useFeedback()`, Zeile 126), `props.reloadRoundDto()` (Zeile 170 zeigt die
+  Verwendung) und der direkte SDK-Import (Zeile 41) sind alle vorhanden. `match.id` ist die
+  Lauf-Kennung (`CompetitionMatchDto.id`), so rufen es die Nachbarknöpfe auch
+  (`competitionMatchId: match.id`).
 - `setClarifyingMatchId` — ein `useState<string | null>(null)` in dieser Komponente, das denselben `ClarificationDialog` aus Task 10 speist; der Dialog wird einmal am Ende des Komponenten-JSX gerendert und ruft im `onSubmit` `setMatchClarification({path: {eventId, matchId}, body: {reason}})`.
+- `eventId`: die Komponente destrukturiert `eventId: eventIdProp` — prüfe, welchen der beiden
+  Namen die Nachbaraufrufe verwenden, und nimm denselben.
 
 - [ ] **Schritt 2: Chip prüfen**
 
