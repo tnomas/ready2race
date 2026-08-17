@@ -81,14 +81,9 @@ class TimeMarkServiceTest {
         }
     }
 
-    // NOTE: full team-assignment coverage (upsert + detach against a real
-    // competition_match_team) is deferred to Task 7. Building that fixture here
-    // would require inserting through the whole competition_setup/-match chain
-    // (competition -> competition_properties -> competition_setup ->
-    // competition_setup_round -> competition_setup_match -> competition_match,
-    // plus event_registration -> competition_registration for the team side),
-    // which is disproportionate for this task and is pre-authorized to split
-    // off in the brief. Task 7's state test needs that fixture anyway.
+    // NOTE: full team-assignment round-trip coverage (upsert + detach against a
+    // real competition_match_team) lives in TimingStateTest, which owns the
+    // createTestMatchTeam fixture that builds the competition_setup/-match chain.
     @Test
     fun assignFailsForUnknownTimeMark() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
