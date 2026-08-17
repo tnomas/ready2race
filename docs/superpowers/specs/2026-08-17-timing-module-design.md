@@ -69,6 +69,12 @@ Posten area as the single entry point for all on-site positions.
     time mark with a running number; assignment to a team happens afterwards from
     the list of expected (started, not yet passed) teams.
   - Also: direct tap per team, undo (status change), history view.
+  - **Keyboard capture** (laptop operation): Space bar banks an unassigned mark
+    (two-step). Digit keys capture directly for a visible team slot. An
+    **armed mode**: the operator arms teams in
+    expected arrival order; each armed slot gets its own color-coded key
+    (A, B, C, … in arming order) that fires the mark for exactly that team.
+    Keystrokes use the same local-timestamp path as taps.
 - **Leitstand (control board)** —
   - Live view of all marks and assignments across stations; device status
     (connected, last sync).
