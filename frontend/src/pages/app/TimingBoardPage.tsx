@@ -1,16 +1,14 @@
-import {Box, Typography} from '@mui/material'
+import {Alert, Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {useEffect} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {useFetch} from '@utils/hooks.ts'
-import {getTimingStations} from '@api/sdk.gen.ts'
 import {updateAppTimingGlobal} from '@authorization/privileges.ts'
 import {timingEventRoute, timingStationRoute} from '@routes'
-import Throbber from '@components/Throbber.tsx'
+import BoardHeader from '@components/timing/BoardHeader.tsx'
+import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
+import {useServerClock} from '@utils/timing/useServerClock.ts'
 
-// Placeholder shell — Task 7 (Plan 2) replaces this with the real board
-// (clock, live state, capture area, mark list).
 const TimingBoardPage = () => {
     const {t} = useTranslation()
     const user = useUser()
@@ -24,26 +22,80 @@ const TimingBoardPage = () => {
         }
     }, [user, navigate])
 
-    const {data: stations, pending} = useFetch(
-        signal => getTimingStations({signal, path: {eventId}}),
-        {deps: [eventId]},
-    )
+    const clock = useServerClock()
+    const {marks, stations, wsStatus} = useTimingBoardState(eventId, stationId)
 
-    const station = stations?.find(s => s.id === stationId)
+    const station = stations.find(s => s.id === stationId)
+
+    const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
+    const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
+    const showClockDegradedBanner = clock.quality === 'DEGRADED'
 
     return (
-        <Box sx={{width: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2}}>
-            {pending && <Throbber />}
-            {station && (
-                <>
-                    <Typography variant="h3" textAlign="center">
-                        {station.name}
-                    </Typography>
-                    <Typography variant="body1" textAlign="center">
-                        {t('timing.boardComingSoon')}
-                    </Typography>
-                </>
+        <Box
+            sx={{
+                width: 1,
+                height: '100dvh',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}>
+            <BoardHeader
+                stationName={station?.name}
+                wsStatus={wsStatus}
+                clockQuality={clock.quality}
+                now={clock.now}
+            />
+
+            {showUnauthorizedBanner && (
+                <Alert severity="error" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.unauthorized')}
+                </Alert>
             )}
+            {!showUnauthorizedBanner && showReconnectBanner && (
+                <Alert severity="warning" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.reconnecting')}
+                </Alert>
+            )}
+            {showClockDegradedBanner && (
+                <Alert severity="warning" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.clockDegraded')}
+                </Alert>
+            )}
+
+            {/* Capture area — filled in by Task 8 (two-step capture button). */}
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            />
+
+            {/* Mark list — filled in by Task 8 (MarkList component). Minimal placeholder for now. */}
+            <Box
+                sx={{
+                    flex: '0 0 33%',
+                    minHeight: 0,
+                    overflowY: 'auto',
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    px: 2,
+                    py: 1,
+                }}>
+                {marks
+                    .slice()
+                    .reverse()
+                    .map(mark => (
+                        <Box key={mark.id} sx={{py: 0.5}}>
+                            {new Date(mark.timestampMillis).toLocaleTimeString()} — {mark.status}
+                            {mark.pending ? ` (${t('timing.board.mark.pending')})` : ''}
+                            {mark.failed ? ` (${t('timing.board.mark.failed')})` : ''}
+                        </Box>
+                    ))}
+            </Box>
         </Box>
     )
 }

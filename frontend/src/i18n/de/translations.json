@@ -1741,6 +1741,28 @@
         "SPLIT": "Zwischenzeit",
         "FINISH": "Ziel"
       }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Verbindet…",
+        "OPEN": "Verbunden",
+        "RECONNECTING": "Wird wiederhergestellt…",
+        "UNAUTHORIZED": "Nicht autorisiert"
+      },
+      "clockQuality": {
+        "SYNCING": "Synchronisiere…",
+        "OK": "Synchron",
+        "DEGRADED": "Beeinträchtigt"
+      },
+      "banner": {
+        "reconnecting": "Verbindung wird wiederhergestellt…",
+        "unauthorized": "Sitzung abgelaufen, bitte neu anmelden",
+        "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein"
+      },
+      "mark": {
+        "pending": "wird übertragen",
+        "failed": "fehlgeschlagen"
+      }
     }
   },
   "caterer": {

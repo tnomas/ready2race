@@ -1741,6 +1741,28 @@
         "SPLIT": "Split",
         "FINISH": "Finish"
       }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Connecting…",
+        "OPEN": "Connected",
+        "RECONNECTING": "Reconnecting…",
+        "UNAUTHORIZED": "Unauthorized"
+      },
+      "clockQuality": {
+        "SYNCING": "Syncing…",
+        "OK": "In sync",
+        "DEGRADED": "Degraded"
+      },
+      "banner": {
+        "reconnecting": "Reconnecting…",
+        "unauthorized": "Session expired, please log in again",
+        "clockDegraded": "Clock sync degraded – times may be inaccurate"
+      },
+      "mark": {
+        "pending": "sending",
+        "failed": "failed"
+      }
     }
   },
   "caterer": {

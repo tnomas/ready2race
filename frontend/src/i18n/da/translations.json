@@ -1741,6 +1741,28 @@
         "SPLIT": "Mellemtid",
         "FINISH": "Mål"
       }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Forbinder…",
+        "OPEN": "Forbundet",
+        "RECONNECTING": "Genopretter forbindelse…",
+        "UNAUTHORIZED": "Ikke autoriseret"
+      },
+      "clockQuality": {
+        "SYNCING": "Synkroniserer…",
+        "OK": "Synkroniseret",
+        "DEGRADED": "Forringet"
+      },
+      "banner": {
+        "reconnecting": "Genopretter forbindelse…",
+        "unauthorized": "Sessionen er udløbet, log venligst ind igen",
+        "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige"
+      },
+      "mark": {
+        "pending": "sender",
+        "failed": "mislykkedes"
+      }
     }
   },
   "caterer": {
