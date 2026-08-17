@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
@@ -22,7 +23,10 @@ object TimingService {
         request: TimingStationRequest,
         userId: UUID,
         eventId: UUID,
-    ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
+    ): App<TimingError, ApiResponse.Created> = KIO.comprehension {
+        val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name).orDie()
+        !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+
         val record = !request.toRecord(userId, eventId)
         val id = !TimingStationRepo.create(record).orDie()
         broadcastAsync(eventId, TimingWsMessage.StationsChanged)
@@ -40,8 +44,14 @@ object TimingService {
         request: TimingStationRequest,
         userId: UUID,
         stationId: UUID,
+        eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
+        !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+
+        val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name, excludingId = stationId).orDie()
+        !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+
         !TimingStationRepo.update(stationId) {
             name = request.name
             type = request.type.name
@@ -56,8 +66,11 @@ object TimingService {
 
     fun deleteStation(
         stationId: UUID,
+        eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
+        !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+
         val hasMarks = !TimingTimeMarkRepo.existsByStation(stationId).orDie()
         !KIO.failOn(hasMarks) { TimingError.StationHasTimeMarks }
         !TimingStationRepo.delete(stationId).orDie()
@@ -99,10 +112,15 @@ object TimingService {
     fun retractTimeMark(
         timeMarkId: UUID,
         eventId: UUID,
+        userId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
-        !TimingTimeMarkRepo.update(timeMarkId) { status = "RETRACTED" }.orDie()
+        !TimingTimeMarkRepo.update(timeMarkId) {
+            status = "RETRACTED"
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
         broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
         noData
@@ -121,6 +139,10 @@ object TimingService {
         if (team == null) {
             !TimingAssignmentRepo.deleteByTimeMark(timeMarkId).orDie()
         } else {
+            val teamEvent = !CompetitionMatchTeamRepo.getEventId(team).orDie()
+                .onNullFail { TimingError.TeamNotFound }
+            !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
+
             val existing = !TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie()
             if (existing == null) {
                 !TimingAssignmentRepo.create(

@@ -49,6 +49,28 @@ class TimingBroadcasterTest {
         assertEquals(1, receivedA.size)
     }
 
+    // Regression test for the NON_ABSENT mapper dropping a null competitionMatchTeam: without the
+    // @JsonInclude(ALWAYS) override on that field, a detach (competitionMatchTeam == null) would
+    // serialize with the key missing entirely, indistinguishable from a message that never carried
+    // it - clients need the explicit null to tell "no assignment" from "field absent".
+    @Test
+    fun assignmentChangedAlwaysSerializesCompetitionMatchTeamKeyEvenWhenNull() = runBlocking {
+        val eventId = UUID.randomUUID()
+        val received = concurrentList()
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+
+        try {
+            TimingBroadcaster.broadcast(eventId, TimingWsMessage.AssignmentChanged(UUID.randomUUID(), null))
+            awaitSize(received, 1)
+            assertTrue(
+                received.single().contains("\"competitionMatchTeam\":null"),
+                "expected an explicit null competitionMatchTeam key: ${received.single()}",
+            )
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
+    }
+
     @Test
     fun messagesAreDeliveredInBroadcastOrder() = runBlocking {
         val eventId = UUID.randomUUID()

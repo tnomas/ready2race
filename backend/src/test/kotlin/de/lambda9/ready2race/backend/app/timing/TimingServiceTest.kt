@@ -33,10 +33,80 @@ class TimingServiceTest {
 
     @Test
     fun deleteNonexistentStationFails() = testComprehension {
-        // add station, capture a time mark on it (TimingService.createTimeMark, Task 6 —
-        // for this task, assert only StationNotFound on deleting a random UUID:)
+        val (eventId, _) = !createTestEventWithAdmin()
+
         assertKIOFails(TimingError.StationNotFound) {
-            TimingService.deleteStation(java.util.UUID.randomUUID())
+            TimingService.deleteStation(java.util.UUID.randomUUID(), eventId)
+        }
+    }
+
+    @Test
+    fun addStationFailsOnDuplicateName() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Finish", type = TimingStationType.FINISH, sorting = 0),
+            userId,
+            eventId,
+        )
+
+        assertKIOFails(TimingError.StationNameTaken) {
+            TimingService.addStation(
+                TimingStationRequest(name = "Finish", type = TimingStationType.START, sorting = 1),
+                userId,
+                eventId,
+            )
+        }
+    }
+
+    @Test
+    fun updateStationFailsOnDuplicateName() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Finish", type = TimingStationType.FINISH, sorting = 0),
+            userId,
+            eventId,
+        )
+        val startResponse = !TimingService.addStation(
+            TimingStationRequest(name = "Start", type = TimingStationType.START, sorting = 1),
+            userId,
+            eventId,
+        )
+        val startId = (startResponse as ApiResponse.Created).id
+
+        assertKIOFails(TimingError.StationNameTaken) {
+            TimingService.updateStation(
+                TimingStationRequest(name = "Finish", type = TimingStationType.START, sorting = 1),
+                userId,
+                startId,
+                eventId,
+            )
+        }
+    }
+
+    @Test
+    fun updateStationFailsWhenStationBelongsToDifferentEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        val stationFromOtherEvent = !addTestStation(otherEventId, otherUserId)
+
+        assertKIOFails(TimingError.EventMismatch) {
+            TimingService.updateStation(
+                TimingStationRequest(name = "Finish", type = TimingStationType.FINISH, sorting = 0),
+                userId,
+                stationFromOtherEvent,
+                eventId,
+            )
+        }
+    }
+
+    @Test
+    fun deleteStationFailsWhenStationBelongsToDifferentEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        val stationFromOtherEvent = !addTestStation(otherEventId, otherUserId)
+
+        assertKIOFails(TimingError.EventMismatch) {
+            TimingService.deleteStation(stationFromOtherEvent, eventId)
         }
     }
 }

@@ -79,6 +79,23 @@ class TimingStateTest {
     }
 
     @Test
+    fun retractedMarkStaysVisibleInStateWithRetractedStatus() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+
+        !TimingService.retractTimeMark(markId, eventId, userId)
+
+        val state = !TimingService.getState(eventId)
+        val dto = (state as ApiResponse.Dto<TimingStateDto>).dto
+
+        assertEquals(1, dto.timeMarks.size)
+        val mark = dto.timeMarks.first { it.id == markId }
+        assertEquals("RETRACTED", mark.status)
+    }
+
+    @Test
     fun createTimeMarkFailsWhenStationBelongsToDifferentEvent() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val (otherEventId, otherUserId) = !createTestEventWithAdmin()

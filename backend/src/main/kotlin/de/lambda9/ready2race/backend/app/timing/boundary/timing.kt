@@ -46,17 +46,19 @@ fun Route.timing() {
                 put {
                     call.respondComprehension {
                         val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
                         val body = !receiveKIO(TimingStationRequest.example)
-                        TimingService.updateStation(body, user.id!!, stationId)
+                        TimingService.updateStation(body, user.id!!, stationId, eventId)
                     }
                 }
 
                 delete {
                     call.respondComprehension {
                         !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
-                        TimingService.deleteStation(stationId)
+                        TimingService.deleteStation(stationId, eventId)
                     }
                 }
             }
@@ -77,10 +79,10 @@ fun Route.timing() {
 
                 put("/retract") {
                     call.respondComprehension {
-                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
                         val eventId = !pathParam("eventId", uuid)
                         val timeMarkId = !pathParam("timeMarkId", uuid)
-                        TimingService.retractTimeMark(timeMarkId, eventId)
+                        TimingService.retractTimeMark(timeMarkId, eventId, user.id!!)
                     }
                 }
 

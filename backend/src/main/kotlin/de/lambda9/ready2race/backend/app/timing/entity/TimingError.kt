@@ -7,7 +7,9 @@ import io.ktor.http.*
 sealed interface TimingError : ServiceError {
     data object StationNotFound : TimingError
     data object StationHasTimeMarks : TimingError
+    data object StationNameTaken : TimingError
     data object TimeMarkNotFound : TimingError
+    data object TeamNotFound : TimingError
     data object EventMismatch : TimingError
 
     override fun respond(): ApiError = when (this) {
@@ -16,7 +18,12 @@ sealed interface TimingError : ServiceError {
             HttpStatusCode.Conflict,
             message = "Timing station has captured time marks and cannot be deleted"
         )
+        StationNameTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A timing station with this name already exists for this event"
+        )
         TimeMarkNotFound -> ApiError(HttpStatusCode.NotFound, message = "Time mark not found")
+        TeamNotFound -> ApiError(HttpStatusCode.NotFound, message = "Competition match team not found")
         EventMismatch -> ApiError(HttpStatusCode.BadRequest, message = "Resource does not belong to this event")
     }
 }

@@ -96,19 +96,21 @@ class TimeMarkServiceTest {
         val markId = UUID.randomUUID()
         !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
 
-        !TimingService.retractTimeMark(markId, eventId)
+        !TimingService.retractTimeMark(markId, eventId, userId)
 
         val mark = !TimingTimeMarkRepo.get(markId)
         assertNotNull(mark)
         assertEquals("RETRACTED", mark.status)
+        assertEquals(userId, mark.updatedBy)
+        assertNotNull(mark.updatedAt)
     }
 
     @Test
     fun retractFailsForUnknownTimeMark() = testComprehension {
-        val (eventId, _) = !createTestEventWithAdmin()
+        val (eventId, userId) = !createTestEventWithAdmin()
 
         assertKIOFails(TimingError.TimeMarkNotFound) {
-            TimingService.retractTimeMark(UUID.randomUUID(), eventId)
+            TimingService.retractTimeMark(UUID.randomUUID(), eventId, userId)
         }
     }
 
@@ -121,6 +123,32 @@ class TimeMarkServiceTest {
 
         assertKIOFails(TimingError.TimeMarkNotFound) {
             TimingService.assignTimeMark(AssignTimeMarkRequest(UUID.randomUUID()), userId, UUID.randomUUID(), eventId)
+        }
+    }
+
+    @Test
+    fun assignFailsForUnknownTeam() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+
+        assertKIOFails(TimingError.TeamNotFound) {
+            TimingService.assignTimeMark(AssignTimeMarkRequest(UUID.randomUUID()), userId, markId, eventId)
+        }
+    }
+
+    @Test
+    fun assignFailsForTeamFromDifferentEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+        val teamFromOtherEvent = !createTestMatchTeam(otherEventId)
+
+        assertKIOFails(TimingError.EventMismatch) {
+            TimingService.assignTimeMark(AssignTimeMarkRequest(teamFromOtherEvent), userId, markId, eventId)
         }
     }
 
@@ -148,7 +176,7 @@ class TimeMarkServiceTest {
         )
 
         assertKIOFails(TimingError.StationHasTimeMarks) {
-            TimingService.deleteStation(stationId)
+            TimingService.deleteStation(stationId, eventId)
         }
     }
 }

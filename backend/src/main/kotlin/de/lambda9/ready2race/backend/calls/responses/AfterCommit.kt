@@ -15,6 +15,11 @@ import kotlinx.coroutines.CancellationException
  *
  * When no buffer is installed - non-HTTP callers such as scheduled jobs or unit tests - [register]
  * falls back to running the effect immediately.
+ *
+ * Buffering only applies to the one transaction [respondKIO] wraps: KIO effects triggered outside
+ * of it - e.g. a bare comprehension `!` call in a [respondComprehension] block that runs its own
+ * `transact`/`unsafeRunSync` rather than going through that wrapping call - see no installed
+ * buffer and therefore also fall back to firing immediately.
  */
 object AfterCommit {
 

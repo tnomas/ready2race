@@ -8,8 +8,6 @@ import java.util.UUID
 
 object TimingTimeMarkRepo {
 
-    fun create(record: TimingTimeMarkRecord) = TIMING_TIME_MARK.insertReturning(record) { ID }
-
     // Atomic insert used for idempotent creation: if a concurrent request already
     // inserted the same id, this is a no-op instead of a primary-key violation.
     fun createIfAbsent(record: TimingTimeMarkRecord) = Jooq.query {

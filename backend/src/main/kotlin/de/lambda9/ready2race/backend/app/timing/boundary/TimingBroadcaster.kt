@@ -31,7 +31,14 @@ import java.util.concurrent.ConcurrentHashMap
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
     data class TimeMarkRetracted(val id: UUID) : TimingWsMessage()
-    data class AssignmentChanged(val timeMark: UUID, val competitionMatchTeam: UUID?) : TimingWsMessage()
+    data class AssignmentChanged(
+        val timeMark: UUID,
+        // Always emitted, even when null (a detach): the mapper below uses NON_ABSENT, which would
+        // otherwise drop a null competitionMatchTeam entirely and leave clients unable to tell a
+        // detach from a message that doesn't carry this field at all.
+        @field:JsonInclude(JsonInclude.Include.ALWAYS)
+        val competitionMatchTeam: UUID?,
+    ) : TimingWsMessage()
     data object StationsChanged : TimingWsMessage()
 }
 
