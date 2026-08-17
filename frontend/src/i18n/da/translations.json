@@ -1756,7 +1756,9 @@
       "banner": {
         "reconnecting": "Genopretter forbindelse…",
         "unauthorized": "Sessionen er udløbet, log venligst ind igen",
-        "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige"
+        "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige",
+        "queuedMarks_one": "{{count}} tid endnu ikke overført",
+        "queuedMarks_other": "{{count}} tider endnu ikke overført"
       },
       "stateError": "Data kunne ikke indlæses – prøver igen…",
       "capture": {

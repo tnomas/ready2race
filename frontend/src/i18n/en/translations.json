@@ -1756,7 +1756,9 @@
       "banner": {
         "reconnecting": "Reconnecting…",
         "unauthorized": "Session expired, please log in again",
-        "clockDegraded": "Clock sync degraded – times may be inaccurate"
+        "clockDegraded": "Clock sync degraded – times may be inaccurate",
+        "queuedMarks_one": "{{count}} time not yet submitted",
+        "queuedMarks_other": "{{count}} times not yet submitted"
       },
       "stateError": "Could not load data – retrying…",
       "capture": {

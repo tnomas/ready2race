@@ -5,6 +5,7 @@ import {forwardRef, MouseEvent, useCallback, useImperativeHandle} from 'react'
 import {createTimeMark} from '@api/sdk.gen.ts'
 import {TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
 import {playCaptureFeedback} from '@utils/timing/feedback.ts'
+import {enqueue} from '@utils/timing/offlineQueue.ts'
 
 export type CaptureButtonHandle = {
     /** Trigger the capture flow programmatically — used by the board page's Space-bar shortcut. */
@@ -26,6 +27,12 @@ export type CaptureButtonProps = {
     applyLocalMark: (mark: TimeMarkDto) => void
     markSaved: (id: string) => void
     markFailed: (id: string) => void
+    /**
+     * Called right after a failed capture has been written to the offline queue, so the board page
+     * can immediately refresh its queue-status banner instead of waiting for the next periodic
+     * drain/count check.
+     */
+    onQueued: () => void
 }
 
 /**
@@ -40,15 +47,16 @@ export type CaptureButtonProps = {
  * Space/Enter activation of a focused button) so a single physical press can never record twice.
  */
 const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(function CaptureButton(
-    {eventId, station, now, unauthorized, applyLocalMark, markSaved, markFailed},
+    {eventId, station, now, unauthorized, applyLocalMark, markSaved, markFailed, onQueued},
     ref,
 ) {
     const {t} = useTranslation()
 
     /**
-     * The full two-step capture flow, kept as ONE function so Task 9's offline queue can extend just
-     * the failure branch (currently `markFailed`) to also enqueue the mark for retry — nothing else
-     * here should need to change for that.
+     * The full two-step capture flow. On a failed POST (network error or non-2xx) the mark is both
+     * flagged `failed` (`markFailed`) and written to the offline queue (`enqueue`) for retry once
+     * connectivity returns; `onQueued` lets the board page refresh its queue-status banner right away
+     * instead of waiting for the next periodic drain/count check.
      *
      * The `unauthorized` guard lives here (not only in the button's `disabled` prop) so the Space-bar
      * shortcut — which calls this function directly via the imperative handle, bypassing the button's
@@ -78,15 +86,19 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
                     body: {id, station: station.id, timestampMillis: ts},
                 })
                 if (error !== undefined) {
+                    await enqueue({id, eventId, station: station.id, timestampMillis: ts})
                     markFailed(id)
+                    onQueued()
                     return
                 }
                 markSaved(id)
             } catch {
+                await enqueue({id, eventId, station: station.id, timestampMillis: ts})
                 markFailed(id)
+                onQueued()
             }
         })()
-    }, [now, station, unauthorized, eventId, applyLocalMark, markSaved, markFailed])
+    }, [now, station, unauthorized, eventId, applyLocalMark, markSaved, markFailed, onQueued])
 
     useImperativeHandle(ref, () => ({capture: captureMark}), [captureMark])
 

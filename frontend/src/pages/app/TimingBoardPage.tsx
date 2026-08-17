@@ -1,7 +1,7 @@
 import {Alert, Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
-import {useEffect, useRef} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {updateAppTimingGlobal} from '@authorization/privileges.ts'
 import {timingEventRoute, timingStationRoute} from '@routes'
@@ -10,6 +10,8 @@ import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
+import {createTimeMark} from '@api/sdk.gen.ts'
+import {count as countQueue, drain as drainQueue, PendingTimeMark} from '@utils/timing/offlineQueue.ts'
 
 const TimingBoardPage = () => {
     const {t} = useTranslation()
@@ -35,6 +37,95 @@ const TimingBoardPage = () => {
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
 
     const captureButtonRef = useRef<CaptureButtonHandle>(null)
+
+    // --- Offline queue: drain triggers + status banner -----------------------------------------
+    //
+    // The queue is global (marks from other events/stations captured on this device belong in it
+    // too), so `drain` always attempts every queued item regardless of the board currently shown.
+    // Per-item success is only turned into a `markSaved` call here when the item belongs to THIS
+    // board (same event + station) — an item for a different board is still posted (and removed
+    // from the queue on success) but must not touch this board's mark list.
+    const [queueCount, setQueueCount] = useState(0)
+    const queueCountRef = useRef(0)
+
+    const setQueueCountState = useCallback((next: number) => {
+        queueCountRef.current = next
+        setQueueCount(next)
+    }, [])
+
+    const postQueuedItem = useCallback(
+        async (item: PendingTimeMark): Promise<boolean> => {
+            let success: boolean
+            try {
+                const {error} = await createTimeMark({
+                    path: {eventId: item.eventId},
+                    body: {id: item.id, station: item.station, timestampMillis: item.timestampMillis},
+                })
+                success = error === undefined
+            } catch {
+                success = false
+            }
+            if (success && item.eventId === eventId && item.station === stationId) {
+                markSaved(item.id)
+            }
+            return success
+        },
+        [eventId, stationId, markSaved],
+    )
+    // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
+    // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
+    // used, on the next drain that actually runs.
+    const postQueuedItemRef = useRef(postQueuedItem)
+    useEffect(() => {
+        postQueuedItemRef.current = postQueuedItem
+    }, [postQueuedItem])
+
+    // `offlineQueue.drain` itself refuses to run two passes concurrently (a no-op returns the
+    // current count instead), so it's safe to call this from several independent triggers below
+    // without any additional coordination here.
+    const runDrain = useCallback(() => {
+        void drainQueue(item => postQueuedItemRef.current(item)).then(setQueueCountState)
+    }, [setQueueCountState])
+
+    // (d) Board mount: also refresh the count immediately so the banner doesn't wait for the drain
+    // to resolve, and drain right away — this covers "reload while offline, then reload online".
+    useEffect(() => {
+        void countQueue().then(setQueueCountState)
+        runDrain()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
+    // (b) Regained connectivity.
+    useEffect(() => {
+        const handleOnline = () => runDrain()
+        window.addEventListener('online', handleOnline)
+        return () => window.removeEventListener('online', handleOnline)
+    }, [runDrain])
+
+    // (a) Websocket (re)connect — trigger only on the CONNECTING/RECONNECTING → OPEN transition, not
+    // on every render where `wsStatus` happens to already be `OPEN`.
+    const prevWsStatusRef = useRef(wsStatus)
+    useEffect(() => {
+        if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
+            runDrain()
+        }
+        prevWsStatusRef.current = wsStatus
+    }, [wsStatus, runDrain])
+
+    // (c) Every 15s while the queue is non-empty (checked against the latest count via the ref, so
+    // the interval itself never needs to be recreated).
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (queueCountRef.current > 0) {
+                runDrain()
+            }
+        }, 15000)
+        return () => clearInterval(interval)
+    }, [runDrain])
+
+    const onQueued = useCallback(() => {
+        void countQueue().then(setQueueCountState)
+    }, [setQueueCountState])
 
     // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
     // has focus (so typing a space in a field doesn't fire a capture), while a MUI dialog is open
@@ -100,6 +191,11 @@ const TimingBoardPage = () => {
                     {t('timing.board.stateError')}
                 </Alert>
             )}
+            {queueCount > 0 && (
+                <Alert severity="warning" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.queuedMarks', {count: queueCount})}
+                </Alert>
+            )}
 
             <Box
                 sx={{
@@ -117,6 +213,7 @@ const TimingBoardPage = () => {
                     applyLocalMark={applyLocalMark}
                     markSaved={markSaved}
                     markFailed={markFailed}
+                    onQueued={onQueued}
                 />
             </Box>
 

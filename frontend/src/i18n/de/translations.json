@@ -1756,7 +1756,9 @@
       "banner": {
         "reconnecting": "Verbindung wird wiederhergestellt…",
         "unauthorized": "Sitzung abgelaufen, bitte neu anmelden",
-        "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein"
+        "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein",
+        "queuedMarks_one": "{{count}} Zeit noch nicht übertragen",
+        "queuedMarks_other": "{{count}} Zeiten noch nicht übertragen"
       },
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
       "capture": {
