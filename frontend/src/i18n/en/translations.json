@@ -1739,6 +1739,9 @@
         "START": "Start",
         "SPLIT": "Split",
         "FINISH": "Finish"
+      },
+      "error": {
+        "hasTimeMarks": "The station already has recorded times and cannot be deleted"
       }
     },
     "assign": {
@@ -1747,7 +1750,11 @@
       "assign": "Assign",
       "edit": "Edit assignment",
       "detach": "Remove assignment",
-      "loadError": "Teams could not be loaded"
+      "loadError": "Teams could not be loaded",
+      "error": "Assignment failed"
+    },
+    "mark": {
+      "retractError": "Undo failed"
     },
     "board": {
       "wsStatus": {

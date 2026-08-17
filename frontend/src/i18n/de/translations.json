@@ -1739,6 +1739,9 @@
         "START": "Start",
         "SPLIT": "Zwischenzeit",
         "FINISH": "Ziel"
+      },
+      "error": {
+        "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
       }
     },
     "assign": {
@@ -1747,7 +1750,11 @@
       "assign": "Zuordnen",
       "edit": "Zuordnung bearbeiten",
       "detach": "Zuordnung lösen",
-      "loadError": "Teams konnten nicht geladen werden"
+      "loadError": "Teams konnten nicht geladen werden",
+      "error": "Zuordnung fehlgeschlagen"
+    },
+    "mark": {
+      "retractError": "Rückgängig machen fehlgeschlagen"
     },
     "board": {
       "wsStatus": {

@@ -61,7 +61,7 @@ const TimingBoardPage = () => {
     }, [user, navigate])
 
     const clock = useServerClock()
-    const {marks, stations, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
+    const {marks, stations, refetch, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
         useTimingBoardState(eventId, stationId)
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
@@ -198,6 +198,11 @@ const TimingBoardPage = () => {
      * every trigger effect. Mirrors `useTimingBoardState`'s own guard: while `UNAUTHORIZED`, every
      * POST would just come back unauthorized too, so draining is pure noise (and would burn through
      * `attempts` on items that are perfectly fine).
+     *
+     * Skipping is safe precisely because the state is temporary: captures still go into the queue while
+     * unauthorized, and the websocket's 30s retry restores `OPEN` on its own once the session is valid
+     * again, at which point the (a) transition trigger below drains everything that piled up. Returning
+     * to the tab also triggers a drain, for the case where a re-login happened elsewhere.
      */
     const wsStatusRef = useRef(wsStatus)
 
@@ -264,6 +269,27 @@ const TimingBoardPage = () => {
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
     }, [runDrain])
+
+    // --- Staleness safety net -------------------------------------------------------------------
+    //
+    // The websocket is the board's only push channel, and a subscriber can go quiet without the socket
+    // ever closing (a proxy holding a half-open connection, a server-side fanout registration dropped
+    // without a close frame). None of the drain triggers above help there — the queue is empty, the
+    // status still reads OPEN, and the board silently shows a frozen list. So poll the full state
+    // outright: on every return to visibility, and once a minute while mounted. The refetch is
+    // epoch-guarded and merges rather than replaces (see `useTimingBoardState`), so an extra one is
+    // never harmful — just a wasted request in the normal case.
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') refetch()
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        const interval = setInterval(refetch, 60000)
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibility)
+            clearInterval(interval)
+        }
+    }, [refetch])
 
     const onBuffered = useCallback((id: string, buffered: boolean) => {
         if (buffered) return
@@ -339,11 +365,11 @@ const TimingBoardPage = () => {
         if (deadDialogOpen && deadCount === 0) setDeadDialogOpen(false)
     }, [deadDialogOpen, deadCount])
 
-    // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
-    // has focus (so typing a space in a field doesn't fire a capture), while a MUI dialog is open
-    // (e.g. a future assignment/confirmation dialog sits on top of the board), or while the session is
-    // unauthorized (mirrors CaptureButton's own `disabled` condition — that button also guards this
-    // internally, but the shortcut short-circuits here too so it never even calls into it).
+    // Space bar triggers the same capture flow as the button — skipped only while an
+    // input/textarea/select has focus (so typing a space in a field doesn't fire a capture) or while a
+    // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board). Notably *not*
+    // skipped while the session is unauthorized: like the button itself, the shortcut still captures,
+    // and the mark waits in the offline queue until the operator has logged in again.
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.code !== 'Space' && event.key !== ' ') return
@@ -357,7 +383,7 @@ const TimingBoardPage = () => {
                 (active instanceof HTMLElement && active.isContentEditable)
             const isDialogOpen = document.querySelector('[role="dialog"]') !== null
 
-            if (isFormField || isDialogOpen || showUnauthorizedBanner) return
+            if (isFormField || isDialogOpen) return
 
             event.preventDefault()
             captureButtonRef.current?.capture()
@@ -365,13 +391,21 @@ const TimingBoardPage = () => {
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [showUnauthorizedBanner])
+    }, [])
 
     return (
+        // The board is a full-screen capture surface, not a page inside the app shell: it is rendered
+        // through `AppLayout`, whose max-width container, padding and language widget would otherwise
+        // box it in and make the page scroll. Taking it out of flow with `position: fixed` + `inset: 0`
+        // above the layout chrome (drawer + 1, still below MUI's modal/snackbar layers at 1300/1400, so
+        // this board's dialogs and feedback snackbars keep working) is what actually makes it
+        // full-screen — `height: 100dvh` only sized the element, it did not cover anything.
         <Box
             sx={{
-                width: 1,
-                height: '100dvh',
+                position: 'fixed',
+                inset: 0,
+                zIndex: theme => theme.zIndex.drawer + 1,
+                bgcolor: 'background.default',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
@@ -444,7 +478,6 @@ const TimingBoardPage = () => {
                     eventId={eventId}
                     station={station}
                     now={clock.now}
-                    unauthorized={showUnauthorizedBanner}
                     applyLocalMark={applyLocalMark}
                     markSaved={handleMarkSaved}
                     markFailed={markFailed}

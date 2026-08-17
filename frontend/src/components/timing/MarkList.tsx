@@ -8,6 +8,7 @@ import {useTranslation} from 'react-i18next'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {retractTimeMark} from '@api/sdk.gen.ts'
 import {TimingTeamDto} from '@api/types.gen.ts'
+import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import AssignTeamDialog from '@components/timing/AssignTeamDialog.tsx'
 
@@ -60,6 +61,7 @@ export type MarkListProps = {
  */
 const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: MarkListProps) => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
     const [retracting, setRetracting] = useState<Set<string>>(new Set())
 
     // --- Team assignment ------------------------------------------------------------------------
@@ -153,31 +155,36 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
         })
     }, [marks])
 
+    /**
+     * Optimistic retract. A failure rolls the strike-through back, which on its own is far too quiet —
+     * the row simply reverts and the operator is left believing the undo worked. So every failure path
+     * also raises a snackbar: the rollback says *what* the state is, the feedback says *why*.
+     */
     const handleUndo = useCallback(
         (mark: BoardMark) => {
             setRetracting(prev => new Set(prev).add(mark.id))
+            const rollback = () => {
+                setRetracting(prev => {
+                    const next = new Set(prev)
+                    next.delete(mark.id)
+                    return next
+                })
+                feedback.error(t('timing.mark.retractError'))
+            }
             void (async () => {
                 try {
                     const {error} = await retractTimeMark({
                         path: {eventId, timeMarkId: mark.id},
                     })
                     if (error !== undefined) {
-                        setRetracting(prev => {
-                            const next = new Set(prev)
-                            next.delete(mark.id)
-                            return next
-                        })
+                        rollback()
                     }
                 } catch {
-                    setRetracting(prev => {
-                        const next = new Set(prev)
-                        next.delete(mark.id)
-                        return next
-                    })
+                    rollback()
                 }
             })()
         },
-        [eventId],
+        [eventId, feedback, t],
     )
 
     // Overlay the optimistic assignment (if any) so the dialog's "current team"/detach-button state
@@ -192,7 +199,11 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
         <Stack sx={{width: 1}} divider={<Box sx={{borderBottom: 1, borderColor: 'divider'}} />}>
             {reversedMarks.map(mark => {
                 const isRetracted = mark.status === 'RETRACTED' || retracting.has(mark.id)
-                const canUndo = mark.status === 'ACTIVE' && !mark.pending && !retracting.has(mark.id)
+                // `failed` disqualifies a mark just as `pending` does: in both cases the server has no
+                // record of it, so retracting or assigning it could only 404. The mark is still queued
+                // for submission — these actions become available once it is actually saved.
+                const isOnServer = !mark.pending && !mark.failed
+                const canUndo = mark.status === 'ACTIVE' && isOnServer && !retracting.has(mark.id)
 
                 let icon
                 if (mark.pending) {
@@ -239,7 +250,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                             </Typography>
                         )}
                         <Box sx={{flexGrow: 1}} />
-                        {mark.status === 'ACTIVE' && !mark.pending &&
+                        {mark.status === 'ACTIVE' && isOnServer &&
                             (() => {
                                 const effectiveTeamId = localAssignments.has(mark.id)
                                     ? localAssignments.get(mark.id)!

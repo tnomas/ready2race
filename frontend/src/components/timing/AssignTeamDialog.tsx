@@ -92,7 +92,9 @@ const AssignTeamDialog = ({
                 body: {competitionMatchTeam} as unknown as AssignTimeMarkRequest,
             }) as unknown as RequestResult<void, ApiError, false>)
             if (error !== undefined) {
-                feedback.error(error.message)
+                // Not `error.message`: the backend's message is untranslated English, and none of its
+                // failure cases are actionable enough to be worth distinguishing here.
+                feedback.error(t('timing.assign.error'))
                 onAssign(mark.id, previous)
             }
         } catch {

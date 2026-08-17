@@ -1739,6 +1739,9 @@
         "START": "Start",
         "SPLIT": "Mellemtid",
         "FINISH": "Mål"
+      },
+      "error": {
+        "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
       }
     },
     "assign": {
@@ -1747,7 +1750,11 @@
       "assign": "Tildel",
       "edit": "Rediger tildeling",
       "detach": "Fjern tildeling",
-      "loadError": "Hold kunne ikke indlæses"
+      "loadError": "Hold kunne ikke indlæses",
+      "error": "Tildeling mislykkedes"
+    },
+    "mark": {
+      "retractError": "Fortryd mislykkedes"
     },
     "board": {
       "wsStatus": {

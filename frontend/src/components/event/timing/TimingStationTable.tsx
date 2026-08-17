@@ -60,8 +60,15 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
             path: {eventId: dto.event, stationId: dto.id},
         }) as unknown as RequestResult<void, ApiError, false>
 
+    // The backend's own message is untranslated English, so map the one case it actually produces —
+    // 409, the station still has time marks referencing it — to a translated key, and fall back to the
+    // generic delete error for anything else.
     const onDeleteError = (error: ApiError) => {
-        feedback.error(error.message)
+        if (error.status.value === 409) {
+            feedback.error(t('timing.station.error.hasTimeMarks'))
+        } else {
+            feedback.error(t('entity.delete.error', {entity: props.entityName}))
+        }
     }
 
     const columns: GridColDef<TimingStationDto>[] = [

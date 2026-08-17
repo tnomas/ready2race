@@ -13,6 +13,13 @@ const MAX_BACKOFF_MILLIS = 10000
 const JITTER_RATIO = 0.2
 const STABLE_CONNECTION_MILLIS = 10000
 const AUTH_FAILURE_CLOSE_CODE = 1008
+/**
+ * Retry cadence while unauthorized. Deliberately slow and un-jittered: this is not a transient
+ * network fault that clears on its own in a second, it needs a human to log in again — but it *does*
+ * clear without a reload (a re-login in another view of the same tab refreshes `sessionStorage`), so
+ * the board must keep looking rather than staying broken until someone reloads it.
+ */
+const UNAUTHORIZED_RETRY_MILLIS = 30000
 
 function backoffMillis(attempt: number): number {
 	const capped = Math.min(BASE_BACKOFF_MILLIS * 2 ** attempt, MAX_BACKOFF_MILLIS)
@@ -32,9 +39,15 @@ function backoffMillis(attempt: number): number {
  * session token is invalid/expired, so `onopen` still fires once before the close. To avoid a 1 Hz
  * handshake+refetch loop in that case: the reconnect `attempt` counter is only reset once a
  * connection has stayed open for `STABLE_CONNECTION_MILLIS` (a bare `onopen` never resets it), and a
- * close with code 1008 is treated as terminal — status becomes `'UNAUTHORIZED'` and no further
- * reconnect is scheduled. If there's no session token at all, no socket is created and the status
- * goes straight to `'UNAUTHORIZED'`.
+ * close with code 1008 switches the status to `'UNAUTHORIZED'` and drops to a slow fixed retry every
+ * `UNAUTHORIZED_RETRY_MILLIS` instead of the normal backoff. The same slow retry covers "no session
+ * token at all" (no socket is created, status goes straight to `'UNAUTHORIZED'`).
+ *
+ * The unauthorized state is explicitly **not** terminal. Sessions expire on a quiet station (the
+ * board's only steady traffic is unauthenticated), and a re-login happening in the same tab must
+ * bring the board back on its own — a state that can only be left by reloading the page would strand
+ * an operator mid-event. Recovery is automatic: the next retry that connects flips the status back to
+ * `'OPEN'` and fires `onConnect`, which refetches state and lets the board drain its offline queue.
  *
  * `handlers` is kept in a ref (updated in its own depless effect) so reconnecting never
  * resubscribes per render.
@@ -75,12 +88,23 @@ export function useTimingWebSocket(
 			reconnectTimer = setTimeout(connect, delay)
 		}
 
+		/**
+		 * Stay in `'UNAUTHORIZED'` (the banner must keep telling the operator to log in again) but
+		 * keep probing on a slow fixed cadence, so a re-login elsewhere in the tab recovers the board
+		 * without a reload. Does not touch `attempt`: this isn't a backoff, and a later genuine
+		 * connection failure should still start from the normal fast retry.
+		 */
+		const armUnauthorizedRetry = () => {
+			setStatus('UNAUTHORIZED')
+			reconnectTimer = setTimeout(connect, UNAUTHORIZED_RETRY_MILLIS)
+		}
+
 		const connect = () => {
 			if (disposedRef.current) return
 
 			const token = sessionStorage.getItem('session')
 			if (token === null) {
-				setStatus('UNAUTHORIZED')
+				armUnauthorizedRetry()
 				return
 			}
 
@@ -150,7 +174,7 @@ export function useTimingWebSocket(
 					reconnectScheduled = true
 					clearStableTimer()
 					cleanupSocket()
-					setStatus('UNAUTHORIZED')
+					armUnauthorizedRetry()
 					return
 				}
 				scheduleReconnect()
