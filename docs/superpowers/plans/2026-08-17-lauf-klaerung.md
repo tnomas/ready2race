@@ -1343,14 +1343,20 @@ In `matchStatusChip.ts`, **vor** dem `bye`-Zweig und vor `FINISHED` (also direkt
     }
 ```
 
-Im Zähler-Block (`counter`, ~Zeile 268) einen Eintrag ergänzen, in derselben Form wie die Nachbarn:
+In `roundCounterChips` (~Zeile 260) einen Topf ergänzen — **direkt hinter dem `RUNNING`-Topf**,
+damit die Leiste dieselbe Reihenfolge liest wie `MatchStatusLogic.roundCounters` im Backend. Die
+Einträge dieser Liste haben drei Felder, `color` gehört dazu:
 
 ```typescript
         {
-            labelKey: 'event.match.status.counter.clarification',
             n: count(s => s.state === 'CLARIFICATION'),
+            labelKey: 'event.match.status.counter.clarification',
+            color: 'warning',
         },
 ```
+
+Töpfe ohne Läufe fallen ohnehin weg (`filter(bucket => bucket.n > 0)`), die Leiste wird also
+nicht länger, solange nichts strittig ist.
 
 - [ ] **Schritt 4: Zeitstrahl**
 
