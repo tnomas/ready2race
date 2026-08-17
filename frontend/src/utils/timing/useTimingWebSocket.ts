@@ -94,6 +94,8 @@ export function useTimingWebSocket(
 		}
 
 		const armReconnectTimer = () => {
+			// Non-auth failures: clear the flag since this path means failure is unrelated to auth
+			wasUnauthorized = false
 			setStatus('RECONNECTING')
 			const delay = backoffMillis(attempt)
 			attempt += 1
