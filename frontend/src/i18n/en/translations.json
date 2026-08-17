@@ -1853,6 +1853,16 @@
           "finishReservedForOffice": "For this event the regatta office finishes runs via the schedule. The run stays active — please tell the regatta office that it has finished."
         }
       },
+      "clarification": {
+        "sectionTitle": "Under review ({{n}})",
+        "set": "Mark under review",
+        "resolve": "Resolve",
+        "dialogTitle": "Put match under review",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Objection, lane contact",
+        "submit": "Mark under review",
+        "since": "since {{time}}"
+      },
       "substitution": {
         "short": "Substitution",
         "for": "Substituted for {{name}}"

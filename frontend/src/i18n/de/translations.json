@@ -1853,6 +1853,16 @@
           "finishReservedForOffice": "Für diese Veranstaltung beendet das Regattabüro die Läufe über den Zeitplan. Der Lauf bleibt aktiv — bitte dem Regattabüro melden, dass er im Ziel ist."
         }
       },
+      "clarification": {
+        "sectionTitle": "Klärung ({{n}})",
+        "set": "In Klärung",
+        "resolve": "Klärung aufheben",
+        "dialogTitle": "Lauf in Klärung setzen",
+        "reasonLabel": "Grund",
+        "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
+        "submit": "In Klärung setzen",
+        "since": "seit {{time}}"
+      },
       "substitution": {
         "short": "Ummeldung",
         "for": "Umgemeldet für {{name}}"

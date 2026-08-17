@@ -61,6 +61,11 @@ type Props = {
     /** Gibt den pausierten RaceClocker-Abruf dieses Laufs wieder frei. */
     onResumeAutoPull?: (matchId: string, competitionId: string) => Promise<void>
     /**
+     * Öffnet den Klärungs-Dialog für diesen Lauf. Die Karte reicht nur die `matchId` nach oben —
+     * der Grund ist Pflicht und wird im Dialog auf Seitenebene abgefragt, nicht hier.
+     */
+    onClarify?: (matchId: string) => void
+    /**
      * Ob der automatische RaceClocker-Abruf für diese Veranstaltung eingeschaltet ist. Dann trägt
      * der „Läuft"-Knopf den Hinweis, dass RaceClocker den Start ohnehin selbst meldet — bedienbar
      * bleibt er trotzdem (Feed-Ausfall, Zeitnahme ohne Startstempel).
@@ -79,6 +84,7 @@ const LiveDashboardMatchCard = ({
     onSetActivated,
     onMarkStarted,
     onResumeAutoPull,
+    onClarify,
     raceClockerAutoPull = false,
     shortLabels,
     detail,
@@ -94,7 +100,7 @@ const LiveDashboardMatchCard = ({
     const skipped = match.state === 'SKIPPED'
     // Vollständig gewertet, aber nicht beendet: der Lauf wartet auf den Beenden-Klick.
     const awaitingFinish = match.state === 'AWAITING_FINISH'
-    const {showFinish, showActivationToggle, showMarkStarted} = matchControls(
+    const {showFinish, showActivationToggle, showMarkStarted, showClarify} = matchControls(
         match,
         onFinish != null,
         onSetActivated != null,
@@ -694,7 +700,7 @@ const LiveDashboardMatchCard = ({
                         </Fragment>
                     )
                 })}
-                {(showFinish || showActivationToggle || showMarkStarted) && (
+                {(showFinish || showActivationToggle || showMarkStarted || showClarify) && (
                     /*
                         Fußzeile aufgeräumt (Rückmeldung vom 10.08.2026): Hinweistexte stehen
                         gedämpft ZEILEN­WEISE oben, die Knöpfe darunter in EINER rechtsbündigen
@@ -755,6 +761,19 @@ const LiveDashboardMatchCard = ({
                                     openTeamCount={openTeams.length}
                                     onFinish={openResults => onFinish(match.matchId, openResults)}
                                 />
+                            )}
+                            {/*
+                                In Klärung setzen: hinter "Beenden", weil sie sich am selben Lauf
+                                gegenseitig ausschließen (siehe matchControls) und der Knopf hier
+                                nur den Dialog öffnet — der Grund wird dort erfragt, nicht hier.
+                            */}
+                            {showClarify && onClarify && (
+                                <Button
+                                    size="small"
+                                    color="warning"
+                                    onClick={() => onClarify(match.matchId)}>
+                                    {t('event.liveDashboard.clarification.set')}
+                                </Button>
                             )}
                         </Stack>
                     </Stack>
