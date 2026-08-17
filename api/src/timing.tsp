@@ -1,9 +1,11 @@
 import "@typespec/http";
 import "@typespec/rest";
+import "@typespec/openapi";
 import "./common.tsp";
 
 using Http;
 using Rest;
+using OpenAPI;
 
 namespace Ready2Race;
 
@@ -103,14 +105,17 @@ interface TimingRoutes {
 
   @get
   @route("/state")
+  @operationId("getTimingState")
   getTimingState(@path eventId: uuid): TimingStateDto;
 
   @get
   @route("/stations")
+  @operationId("getTimingStations")
   listTimingStations(@path eventId: uuid): TimingStationDto[];
 
   @post
   @route("/stations")
+  @operationId("createTimingStation")
   createTimingStation(
     @path eventId: uuid,
     @body request: TimingStationRequest,
@@ -118,6 +123,7 @@ interface TimingRoutes {
 
   @put
   @route("/stations/{stationId}")
+  @operationId("updateTimingStation")
   updateTimingStation(
     @path eventId: uuid,
     @path stationId: uuid,
@@ -126,6 +132,7 @@ interface TimingRoutes {
 
   @delete
   @route("/stations/{stationId}")
+  @operationId("deleteTimingStation")
   deleteTimingStation(
     @path eventId: uuid,
     @path stationId: uuid,
@@ -133,6 +140,7 @@ interface TimingRoutes {
 
   @post
   @route("/timeMarks")
+  @operationId("createTimeMark")
   createTimeMark(
     @path eventId: uuid,
     @body request: CreateTimeMarkRequest,
@@ -140,6 +148,7 @@ interface TimingRoutes {
 
   @put
   @route("/timeMarks/{timeMarkId}/retract")
+  @operationId("retractTimeMark")
   retractTimeMark(
     @path eventId: uuid,
     @path timeMarkId: uuid,
@@ -147,6 +156,7 @@ interface TimingRoutes {
 
   @put
   @route("/timeMarks/{timeMarkId}/assignment")
+  @operationId("assignTimeMark")
   assignTimeMark(
     @path eventId: uuid,
     @path timeMarkId: uuid,
@@ -166,5 +176,6 @@ interface TimingGlobalRoutes {
   // before capturing time marks. Deliberately unauthenticated - it is safe to expose and
   // needs to be reachable before a session even exists.
   @post
+  @operationId("getServerTime")
   getServerTime(): ServerTimeResponse;
 }

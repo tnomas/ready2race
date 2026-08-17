@@ -149,6 +149,10 @@ export type AssignRequirementToNamedParticipantDto = {
     qrCodeRequired: boolean
 }
 
+export type AssignTimeMarkRequest = {
+    competitionMatchTeam?: uuid
+}
+
 export type BadRequestError = ApiError & {
     details?: {
         validExample?: unknown
@@ -690,6 +694,12 @@ export type CreateEventRequest = {
     allowSelfSubmission: boolean
     submissionNeedsVerification: boolean
     allowParticipantSelfRegistration: boolean
+}
+
+export type CreateTimeMarkRequest = {
+    id: uuid
+    station: uuid
+    timestampMillis: number
 }
 
 export type CustomFontDto = {
@@ -1824,6 +1834,10 @@ export type RunningMatchTeamInfo = {
 
 export type Scope = 'OWN' | 'GLOBAL'
 
+export type ServerTimeResponse = {
+    serverTimeMillis: number
+}
+
 export type SmtpConfigOverrideDto = {
     host: string
     port: number
@@ -1997,6 +2011,63 @@ export type ThemeConfigDto = {
     customLogo: CustomLogoDto
 }
 
+export type TimeMarkDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    timestampMillis: number
+    source: string
+    status: string
+    createdBy?: uuid
+    assignedTeam?: uuid
+}
+
+export type TimingStateDto = {
+    stations: Array<TimingStationDto>
+    timeMarks: Array<TimeMarkDto>
+}
+
+export type TimingStationDto = {
+    id: uuid
+    event: uuid
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+export type TimingStationRequest = {
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+/**
+ * Live timing: stations capture time marks (start/split/finish), which are then assigned to a
+ * competition match team to produce a result.
+ *
+ * In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
+ *
+ * - Path: `/api/ws/event/{eventId}/timing` (note the `/api/ws` prefix - this channel lives outside
+ * the regular `/api` REST routes documented in this spec).
+ * - Auth: browsers cannot set custom headers on a websocket handshake, so the session token is
+ * passed as the second entry of the `Sec-WebSocket-Protocol` header: connect with
+ * `new WebSocket(url, ["r2r", sessionToken])`. Non-browser clients may instead send the usual
+ * session header/cookie and omit the subprotocol.
+ * - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
+ * - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
+ * - `{ type: "timeMarkRetracted", id: uuid }`
+ * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
+ * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
+ * distinguish "no assignment" from a field that was never sent.
+ * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
+ * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on the
+ * server's ping/pong keepalive.
+ * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
+ * only then start applying incoming messages, to cover updates missed while disconnected.
+ */
+export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+
 export type TooManyRequestsError = ApiError & {
     details: {
         retryAfter: number
@@ -2120,6 +2191,8 @@ export type UpdateThemeRequest = {
 export type UploadMatchResultRequest = {
     config: string
 }
+
+export type uuid = string
 
 export type VerifyRegistrationRequest = {
     token: string
@@ -5844,3 +5917,143 @@ export type DownloadCertificatesOfParticipationData = {
 export type DownloadCertificatesOfParticipationResponse = Blob | File
 
 export type DownloadCertificatesOfParticipationError = BadRequestError | ApiError
+
+export type GetTimingStateData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingStateResponse = TimingStateDto
+
+export type GetTimingStateError = unknown
+
+export type GetTimingStationsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingStationsResponse = Array<TimingStationDto>
+
+export type GetTimingStationsError = unknown
+
+export type CreateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimingStationResponse = uuid
+
+export type CreateTimingStationError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type UpdateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type UpdateTimingStationResponse = void
+
+export type UpdateTimingStationError = unknown
+
+export type DeleteTimingStationData = {
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type DeleteTimingStationResponse = void
+
+export type DeleteTimingStationError = unknown
+
+export type CreateTimeMarkData = {
+    body: CreateTimeMarkRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimeMarkResponse = uuid
+
+export type CreateTimeMarkError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type AssignTimeMarkData = {
+    body: AssignTimeMarkRequest
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type AssignTimeMarkResponse = void
+
+export type AssignTimeMarkError = unknown
+
+export type RetractTimeMarkData = {
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type RetractTimeMarkResponse = void
+
+export type RetractTimeMarkError = unknown
+
+export type GetServerTimeResponse = ServerTimeResponse
+
+export type GetServerTimeError = unknown

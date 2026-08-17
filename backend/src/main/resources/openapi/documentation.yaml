@@ -6979,6 +6979,323 @@ paths:
           $ref: '#/components/responses/404'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/timing/state:
+    get:
+      operationId: getTimingState
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingStateDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/stations:
+    get:
+      operationId: getTimingStations
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingStationDto'
+      tags:
+        - Timing
+    post:
+      operationId: createTimingStation
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 500
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '501':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 501
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '502':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 502
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationRequest'
+  /event/{eventId}/timing/stations/{stationId}:
+    put:
+      operationId: updateTimingStation
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationRequest'
+    delete:
+      operationId: deleteTimingStation
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/timeMarks:
+    post:
+      operationId: createTimeMark
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 500
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '501':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 501
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '502':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 502
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimeMarkRequest'
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/assignment:
+    put:
+      operationId: assignTimeMark
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timeMarkId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTimeMarkRequest'
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/retract:
+    put:
+      operationId: retractTimeMark
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timeMarkId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /timing/serverTime:
+    post:
+      operationId: getServerTime
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTimeResponse'
+      tags:
+        - Timing
 
 components:
 
@@ -12874,3 +13191,147 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GapDocumentPlaceholderRequest'
+
+    TimingStationType:
+      type: string
+      enum:
+        - START
+        - SPLIT
+        - FINISH
+      description: |-
+        Live timing: stations capture time marks (start/split/finish), which are then assigned to a
+        competition match team to produce a result.
+
+        In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
+
+        - Path: `/api/ws/event/{eventId}/timing` (note the `/api/ws` prefix - this channel lives outside
+        the regular `/api` REST routes documented in this spec).
+        - Auth: browsers cannot set custom headers on a websocket handshake, so the session token is
+        passed as the second entry of the `Sec-WebSocket-Protocol` header: connect with
+        `new WebSocket(url, ["r2r", sessionToken])`. Non-browser clients may instead send the usual
+        session header/cookie and omit the subprotocol.
+        - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
+        - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
+        - `{ type: "timeMarkRetracted", id: uuid }`
+        - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
+        `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
+        distinguish "no assignment" from a field that was never sent.
+        - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
+        `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+        - The channel is receive-only: clients should ignore any data they send on it and rely on the
+        server's ping/pong keepalive.
+        - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
+        only then start applying incoming messages, to cover updates missed while disconnected.
+
+    TimingStationDto:
+      type: object
+      required:
+        - id
+        - event
+        - name
+        - type
+        - sorting
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        sorting:
+          type: integer
+          format: int32
+
+    TimingStationRequest:
+      type: object
+      required:
+        - name
+        - type
+        - sorting
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        sorting:
+          type: integer
+          format: int32
+
+    TimeMarkDto:
+      type: object
+      required:
+        - id
+        - event
+        - station
+        - timestampMillis
+        - source
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        station:
+          $ref: '#/components/schemas/uuid'
+        timestampMillis:
+          type: integer
+          format: int64
+        source:
+          type: string
+        status:
+          type: string
+        createdBy:
+          $ref: '#/components/schemas/uuid'
+        assignedTeam:
+          $ref: '#/components/schemas/uuid'
+
+    CreateTimeMarkRequest:
+      type: object
+      required:
+        - id
+        - station
+        - timestampMillis
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        station:
+          $ref: '#/components/schemas/uuid'
+        timestampMillis:
+          type: integer
+          format: int64
+
+    AssignTimeMarkRequest:
+      type: object
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+
+    TimingStateDto:
+      type: object
+      required:
+        - stations
+        - timeMarks
+      properties:
+        stations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingStationDto'
+        timeMarks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeMarkDto'
+
+    ServerTimeResponse:
+      type: object
+      required:
+        - serverTimeMillis
+      properties:
+        serverTimeMillis:
+          type: integer
+          format: int64
+
+    uuid:
+      type: string
+      format: uuid

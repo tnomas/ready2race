@@ -762,6 +762,32 @@ import type {
     DownloadCertificatesOfParticipationData,
     DownloadCertificatesOfParticipationError,
     DownloadCertificatesOfParticipationResponse,
+    GetTimingStateData,
+    GetTimingStateError,
+    GetTimingStateResponse,
+    GetTimingStationsData,
+    GetTimingStationsError,
+    GetTimingStationsResponse,
+    CreateTimingStationData,
+    CreateTimingStationError,
+    CreateTimingStationResponse,
+    UpdateTimingStationData,
+    UpdateTimingStationError,
+    UpdateTimingStationResponse,
+    DeleteTimingStationData,
+    DeleteTimingStationError,
+    DeleteTimingStationResponse,
+    CreateTimeMarkData,
+    CreateTimeMarkError,
+    CreateTimeMarkResponse,
+    AssignTimeMarkData,
+    AssignTimeMarkError,
+    AssignTimeMarkResponse,
+    RetractTimeMarkData,
+    RetractTimeMarkError,
+    RetractTimeMarkResponse,
+    GetServerTimeError,
+    GetServerTimeResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -3998,5 +4024,122 @@ export const downloadCertificatesOfParticipation = <ThrowOnError extends boolean
     >({
         ...options,
         url: '/event/{eventId}/certificatesOfParticipation',
+    })
+}
+
+export const getTimingState = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingStateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingStateResponse,
+        GetTimingStateError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/state',
+    })
+}
+
+export const getTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingStationsResponse,
+        GetTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations',
+    })
+}
+
+export const createTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingStationResponse,
+        CreateTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations',
+    })
+}
+
+export const updateTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingStationResponse,
+        UpdateTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+export const deleteTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingStationResponse,
+        DeleteTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+export const createTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimeMarkResponse,
+        CreateTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks',
+    })
+}
+
+export const assignTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AssignTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        AssignTimeMarkResponse,
+        AssignTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/assignment',
+    })
+}
+
+export const retractTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RetractTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        RetractTimeMarkResponse,
+        RetractTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/retract',
+    })
+}
+
+export const getServerTime = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<unknown, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        GetServerTimeResponse,
+        GetServerTimeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/timing/serverTime',
     })
 }
