@@ -10,6 +10,13 @@ model ParticipantDto {
   // Participant information
 }
 
+// Single competition a participant registers for during self-registration
+model ParticipantRegisterCompetitionRequest {
+  competitionId: uuid;
+  optionalFees?: uuid[];
+  ratingCategory?: uuid;
+}
+
 @route("/participant")
 @tag("Participant")
 interface ParticipantRoutes {
