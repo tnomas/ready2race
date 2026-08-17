@@ -174,8 +174,8 @@ das könnte das Regattabüro den Knopf auf seiner eigenen Seite nicht drücken.
 ## 6. Schnittstelle
 
 ```
-PUT    /event/{eventId}/live-dashboard/match/{matchId}/clarification   { reason }
-DELETE /event/{eventId}/live-dashboard/match/{matchId}/clarification
+PUT    /event/{eventId}/liveDashboard/match/{matchId}/clarification   { reason }
+DELETE /event/{eventId}/liveDashboard/match/{matchId}/clarification
 ```
 
 - `PUT` auf einen Lauf, der bereits in Klärung ist, aktualisiert nur den Grund (ein Einspruch
