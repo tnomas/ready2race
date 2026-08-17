@@ -5,7 +5,7 @@ import {forwardRef, MouseEvent, useCallback, useImperativeHandle} from 'react'
 import {createTimeMark} from '@api/sdk.gen.ts'
 import {TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
 import {playCaptureFeedback} from '@utils/timing/feedback.ts'
-import {enqueue} from '@utils/timing/offlineQueue.ts'
+import {enqueue, PendingTimeMark, remove as removeQueued} from '@utils/timing/offlineQueue.ts'
 
 export type CaptureButtonHandle = {
     /** Trigger the capture flow programmatically — used by the board page's Space-bar shortcut. */
@@ -28,16 +28,23 @@ export type CaptureButtonProps = {
     markSaved: (id: string) => void
     markFailed: (id: string) => void
     /**
-     * Called right after a failed capture has been written to the offline queue, so the board page
-     * can immediately refresh its queue-status banner instead of waiting for the next periodic
-     * drain/count check.
+     * Called exactly once per capture, right after the write-ahead enqueue attempt, with whether the
+     * mark actually made it into the durable queue. `false` means this capture exists only in memory
+     * and will be lost on reload — the board surfaces that as its own banner, because it is a
+     * materially worse situation than "queued, not yet submitted".
      */
-    onQueued: () => void
+    onBuffered: (buffered: boolean) => void
+    /**
+     * Called whenever the capture flow changed the queue's contents, so the board page can refresh
+     * its queue-status banner immediately instead of waiting for the next periodic drain/count check.
+     */
+    onQueueChanged: () => void
 }
 
 /**
  * The huge capture button: one tap (or a Space-bar press forwarded from the board page) records a
- * time mark at the current server-synced instant. Disabled — with a visible reason — until the
+ * time mark at the current server-synced instant, write-ahead-buffered in IndexedDB before the POST
+ * goes out (see `captureMark`). Disabled — with a visible reason — until the
  * clock is synced, since capture must never use a wrong (unsynced) clock; also disabled while the
  * session is unauthorized, since a capture that can never be saved shouldn't pretend to succeed.
  *
@@ -47,16 +54,32 @@ export type CaptureButtonProps = {
  * Space/Enter activation of a focused button) so a single physical press can never record twice.
  */
 const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(function CaptureButton(
-    {eventId, station, now, unauthorized, applyLocalMark, markSaved, markFailed, onQueued},
+    {
+        eventId,
+        station,
+        now,
+        unauthorized,
+        applyLocalMark,
+        markSaved,
+        markFailed,
+        onBuffered,
+        onQueueChanged,
+    },
     ref,
 ) {
     const {t} = useTranslation()
 
     /**
-     * The full two-step capture flow. On a failed POST (network error or non-2xx) the mark is both
-     * flagged `failed` (`markFailed`) and written to the offline queue (`enqueue`) for retry once
-     * connectivity returns; `onQueued` lets the board page refresh its queue-status banner right away
-     * instead of waiting for the next periodic drain/count check.
+     * The full capture flow, ordered **write-ahead**: the mark is put into the durable offline queue
+     * *before* the POST is attempted, and only removed again once the server has confirmed it. That
+     * makes the queue the single durable record of a capture — a tab killed mid-POST loses nothing,
+     * because the next drain re-POSTs the item and the server deduplicates by the mark's UUID. The old
+     * order (POST first, enqueue only on failure) had a window in which a capture existed nowhere but
+     * in memory.
+     *
+     * If the enqueue itself fails there is no durable record to fall back on, so the mark is flagged
+     * `failed` and the board is told via `onBuffered(false)`; the POST is still attempted, because an
+     * unbuffered capture that reaches the server is strictly better than one that does neither.
      *
      * The `unauthorized` guard lives here (not only in the button's `disabled` prop) so the Space-bar
      * shortcut — which calls this function directly via the imperative handle, bypassing the button's
@@ -67,10 +90,11 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
         if (ts === null || station === undefined || unauthorized) return
 
         const id = crypto.randomUUID()
+        const stationId = station.id
         const mark: TimeMarkDto = {
             id,
             event: eventId,
-            station: station.id,
+            station: stationId,
             timestampMillis: ts,
             source: 'APP_USER',
             status: 'ACTIVE',
@@ -80,25 +104,69 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
         playCaptureFeedback()
 
         void (async () => {
+            const item: PendingTimeMark = {
+                id,
+                eventId,
+                station: stationId,
+                timestampMillis: ts,
+                attempts: 0,
+            }
+
+            // Step 1: write-ahead into the durable queue.
+            let buffered = true
+            try {
+                await enqueue(item)
+            } catch (error) {
+                buffered = false
+                console.warn(
+                    `[timing] Zeitstempel ${id} konnte nicht gepuffert werden — Erfassung existiert nur im Speicher`,
+                    error,
+                )
+                markFailed(id)
+            }
+            onBuffered(buffered)
+            onQueueChanged()
+
+            // Step 2: POST. Attempted even when step 1 failed.
             try {
                 const {error} = await createTimeMark({
                     path: {eventId},
-                    body: {id, station: station.id, timestampMillis: ts},
+                    body: {id, station: stationId, timestampMillis: ts},
                 })
                 if (error !== undefined) {
-                    await enqueue({id, eventId, station: station.id, timestampMillis: ts})
+                    // Left in the queue on purpose — the banner picks it up and the next drain
+                    // retries (or dead-letters) it based on the response status it sees then.
                     markFailed(id)
-                    onQueued()
                     return
                 }
                 markSaved(id)
             } catch {
-                await enqueue({id, eventId, station: station.id, timestampMillis: ts})
                 markFailed(id)
-                onQueued()
+                return
             }
+
+            // Confirmed by the server: the queue entry has done its job.
+            try {
+                await removeQueued(id)
+            } catch (error) {
+                console.warn(
+                    `[timing] Zeitstempel ${id} wurde übertragen, konnte aber nicht aus der Warteschlange entfernt werden — der nächste Drain räumt auf`,
+                    error,
+                )
+            }
+            onQueueChanged()
         })()
-    }, [now, station, unauthorized, eventId, applyLocalMark, markSaved, markFailed, onQueued])
+    }, [
+        now,
+        station,
+        unauthorized,
+        eventId,
+        applyLocalMark,
+        markSaved,
+        markFailed,
+        onBuffered,
+        onQueueChanged,
+    ])
 
     useImperativeHandle(ref, () => ({capture: captureMark}), [captureMark])
 

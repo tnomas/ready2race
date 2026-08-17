@@ -11,7 +11,15 @@ import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
 import {createTimeMark} from '@api/sdk.gen.ts'
-import {count as countQueue, drain as drainQueue, PendingTimeMark} from '@utils/timing/offlineQueue.ts'
+import {
+    classifyStatus,
+    counts as queueCounts,
+    drain as drainQueue,
+    PendingTimeMark,
+    PostOutcome,
+    PostResult,
+    QueueCounts,
+} from '@utils/timing/offlineQueue.ts'
 
 const TimingBoardPage = () => {
     const {t} = useTranslation()
@@ -46,31 +54,65 @@ const TimingBoardPage = () => {
     // board (same event + station) — an item for a different board is still posted (and removed
     // from the queue on success) but must not touch this board's mark list.
     const [queueCount, setQueueCount] = useState(0)
+    const [deadCount, setDeadCount] = useState(0)
+    /** True once a capture failed to reach the durable queue — that mark exists only in memory. */
+    const [bufferFailed, setBufferFailed] = useState(false)
     const queueCountRef = useRef(0)
+    /**
+     * True while we don't know the real queue size — before the first successful count, or after one
+     * failed. The 15s tick must still fire in that case, otherwise a single failed `count()` on mount
+     * would gate every future drain for the lifetime of the board.
+     */
+    const countUnknownRef = useRef(true)
 
-    const setQueueCountState = useCallback((next: number) => {
-        queueCountRef.current = next
-        setQueueCount(next)
+    const applyCounts = useCallback((next: QueueCounts) => {
+        countUnknownRef.current = false
+        queueCountRef.current = next.pending
+        setQueueCount(next.pending)
+        setDeadCount(next.dead)
     }, [])
 
+    /** Never rejects: a failed count leaves the last known numbers and re-arms the tick. */
+    const refreshCounts = useCallback(() => {
+        void queueCounts()
+            .then(applyCounts)
+            .catch((error: unknown) => {
+                countUnknownRef.current = true
+                console.warn('[timing] offline queue count failed', error)
+            })
+    }, [applyCounts])
+
     const postQueuedItem = useCallback(
-        async (item: PendingTimeMark): Promise<boolean> => {
-            let success: boolean
+        async (item: PendingTimeMark): Promise<PostResult> => {
+            let outcome: PostOutcome
+            let status: number | undefined
             try {
-                const {error} = await createTimeMark({
+                const {error, response} = await createTimeMark({
                     path: {eventId: item.eventId},
-                    body: {id: item.id, station: item.station, timestampMillis: item.timestampMillis},
+                    body: {
+                        id: item.id,
+                        station: item.station,
+                        timestampMillis: item.timestampMillis,
+                    },
                 })
-                success = error === undefined
+                status = response.status
+                outcome = error === undefined ? 'ok' : classifyStatus(status)
             } catch {
-                success = false
+                // No response at all — network/DNS/offline. Always worth retrying.
+                outcome = 'retryable'
             }
-            if (success && item.eventId === eventId && item.station === stationId) {
-                markSaved(item.id)
+            // Only this board's own marks may be touched; items for other events/stations are
+            // posted (and cleaned up by `drain`) without ever appearing in this mark list.
+            if (item.eventId === eventId && item.station === stationId) {
+                if (outcome === 'ok') {
+                    markSaved(item.id)
+                } else if (outcome === 'permanent') {
+                    markFailed(item.id)
+                }
             }
-            return success
+            return {outcome, status}
         },
-        [eventId, stationId, markSaved],
+        [eventId, stationId, markSaved, markFailed],
     )
     // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
     // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
@@ -80,17 +122,32 @@ const TimingBoardPage = () => {
         postQueuedItemRef.current = postQueuedItem
     }, [postQueuedItem])
 
-    // `offlineQueue.drain` itself refuses to run two passes concurrently (a no-op returns the
-    // current count instead), so it's safe to call this from several independent triggers below
-    // without any additional coordination here.
-    const runDrain = useCallback(() => {
-        void drainQueue(item => postQueuedItemRef.current(item)).then(setQueueCountState)
-    }, [setQueueCountState])
+    /**
+     * Latest websocket status, mirrored so `runDrain` can consult it without becoming a dependency of
+     * every trigger effect. Mirrors `useTimingBoardState`'s own guard: while `UNAUTHORIZED`, every
+     * POST would just come back unauthorized too, so draining is pure noise (and would burn through
+     * `attempts` on items that are perfectly fine).
+     */
+    const wsStatusRef = useRef(wsStatus)
 
-    // (d) Board mount: also refresh the count immediately so the banner doesn't wait for the drain
+    // `offlineQueue.drain` itself refuses to run two passes concurrently (a no-op returns the
+    // current counts instead), so it's safe to call this from several independent triggers below
+    // without any additional coordination here. Never rejects — an unhandled rejection here would
+    // otherwise take out the whole drain-trigger chain.
+    const runDrain = useCallback(() => {
+        if (wsStatusRef.current === 'UNAUTHORIZED') return
+        void drainQueue(item => postQueuedItemRef.current(item))
+            .then(applyCounts)
+            .catch((error: unknown) => {
+                countUnknownRef.current = true
+                console.warn('[timing] offline queue drain failed', error)
+            })
+    }, [applyCounts])
+
+    // (d) Board mount: also refresh the counts immediately so the banner doesn't wait for the drain
     // to resolve, and drain right away — this covers "reload while offline, then reload online".
     useEffect(() => {
-        void countQueue().then(setQueueCountState)
+        refreshCounts()
         runDrain()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
@@ -103,29 +160,43 @@ const TimingBoardPage = () => {
     }, [runDrain])
 
     // (a) Websocket (re)connect — trigger only on the CONNECTING/RECONNECTING → OPEN transition, not
-    // on every render where `wsStatus` happens to already be `OPEN`.
+    // on every render where `wsStatus` happens to already be `OPEN`. Owns the `wsStatusRef` mirror,
+    // which it updates *before* the transition drain so the guard inside `runDrain` sees the new value.
     const prevWsStatusRef = useRef(wsStatus)
     useEffect(() => {
+        wsStatusRef.current = wsStatus
         if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
             runDrain()
         }
         prevWsStatusRef.current = wsStatus
     }, [wsStatus, runDrain])
 
-    // (c) Every 15s while the queue is non-empty (checked against the latest count via the ref, so
-    // the interval itself never needs to be recreated).
+    // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
+    // can never permanently silence the tick. Checked against the latest values via refs, so the
+    // interval itself never needs to be recreated.
     useEffect(() => {
         const interval = setInterval(() => {
-            if (queueCountRef.current > 0) {
+            if (queueCountRef.current > 0 || countUnknownRef.current) {
                 runDrain()
             }
         }, 15000)
         return () => clearInterval(interval)
     }, [runDrain])
 
-    const onQueued = useCallback(() => {
-        void countQueue().then(setQueueCountState)
-    }, [setQueueCountState])
+    // (e) Tab became visible again. Covers the very common phone case where the screen was locked (or
+    // the board backgrounded) across the connectivity change, so timers were throttled and neither
+    // `online` nor a websocket transition fired while the user was away.
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') runDrain()
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
+    }, [runDrain])
+
+    const onBuffered = useCallback((buffered: boolean) => {
+        setBufferFailed(!buffered)
+    }, [])
 
     // Space bar triggers the same capture flow as the button — skipped while an input/textarea/select
     // has focus (so typing a space in a field doesn't fire a capture), while a MUI dialog is open
@@ -196,6 +267,16 @@ const TimingBoardPage = () => {
                     {t('timing.board.banner.queuedMarks', {count: queueCount})}
                 </Alert>
             )}
+            {deadCount > 0 && (
+                <Alert severity="error" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.deadMarks', {count: deadCount})}
+                </Alert>
+            )}
+            {bufferFailed && (
+                <Alert severity="error" sx={{flexShrink: 0}}>
+                    {t('timing.board.banner.bufferFailed')}
+                </Alert>
+            )}
 
             <Box
                 sx={{
@@ -213,7 +294,8 @@ const TimingBoardPage = () => {
                     applyLocalMark={applyLocalMark}
                     markSaved={markSaved}
                     markFailed={markFailed}
-                    onQueued={onQueued}
+                    onBuffered={onBuffered}
+                    onQueueChanged={refreshCounts}
                 />
             </Box>
 
