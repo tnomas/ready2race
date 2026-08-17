@@ -7,6 +7,8 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
+import io.ktor.http.ContentType
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
 fun Route.timing() {
@@ -92,6 +94,17 @@ fun Route.timing() {
                     }
                 }
             }
+        }
+    }
+}
+
+fun Route.timingGlobal() {
+    route("/timing") {
+        post("/serverTime") {
+            call.respondText(
+                """{"serverTimeMillis":${System.currentTimeMillis()}}""",
+                ContentType.Application.Json,
+            )
         }
     }
 }
