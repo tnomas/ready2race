@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {lastLaps, streamOverlayContent} from './streamOverlay.ts'
+import {autoContent, lastLaps, streamOverlayContent} from './streamOverlay.ts'
 import {
     AthleteBoardMatch,
     AthleteBoardResult,
@@ -154,6 +154,16 @@ describe('streamOverlayContent', () => {
     it('LAPS ohne Runden bleibt leer', () => {
         const running = runningMatch([])
         expect(streamOverlayContent(view([slot(0, running)]), 'LAPS')).toBeNull()
+    })
+})
+
+describe('autoContent', () => {
+    it('lässt einen Lauf in Klärung das jüngste Ergebnis nicht verdrängen', () => {
+        // Der strittige Lauf fällt serverseitig aus dem Running-Block (CompetitionMatchRepo), also
+        // sieht die Kachel gar keinen laufenden Lauf mehr - und zeigt das jüngste Ergebnis statt
+        // einer Uhr, die auf ein hängendes Rennen zählt.
+        const ergebnis = result('ZF')
+        expect(autoContent(null, ergebnis)).toEqual({kind: 'result', result: ergebnis})
     })
 })
 

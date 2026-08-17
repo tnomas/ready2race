@@ -94,6 +94,17 @@ const AthleteBoardResultCard = ({
                                 variant="outlined"
                             />
                         )}
+                        {/* Ein Ergebnis aus einem Lauf in Klärung geht bewusst nach der
+                            bestehenden Sichtbarkeitsregel raus (Task 8) — dieser Chip macht
+                            sichtbar, dass es noch mit Vorbehalt steht. */}
+                        {result.clarification && (
+                            <Chip
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                                label={t('event.match.status.provisional')}
+                            />
+                        )}
                     </Stack>
                 </Box>
                 {/* Geplanter Start groß, darunter der tatsächliche — so ist eine Verschiebung

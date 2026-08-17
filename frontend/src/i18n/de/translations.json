@@ -1744,6 +1744,7 @@
         "partiallyScored": "Teilweise gewertet {{scored}}/{{total}}",
         "awaitingFinish": "Wartet auf Beenden",
         "clarification": "Klärung",
+        "provisional": "vorläufig · in Klärung",
         "finished": "Beendet",
         "cancelled": "Abgesagt",
         "unscheduled": "Ungeplant",

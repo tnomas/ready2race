@@ -1,11 +1,17 @@
-import {Stack} from '@mui/material'
+import {Stack, Typography, useTheme} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardResult, BoardElement} from '@api/types.gen.ts'
 import FitToHeight from './FitToHeight.tsx'
 import FlipList from '../FlipList.tsx'
 import StreamBoatRow from './StreamBoatRow.tsx'
 import StreamPanelShell from './StreamPanelShell.tsx'
-import {byNullsLast, competitionLabel, roundMatchLabel, streamNameForms} from './streamDisplay.ts'
+import {
+    byNullsLast,
+    competitionLabel,
+    roundMatchLabel,
+    solidOr,
+    streamNameForms,
+} from './streamDisplay.ts'
 
 interface ResultPanelProps {
     result: AthleteBoardResult
@@ -20,6 +26,7 @@ interface ResultPanelProps {
  */
 const ResultPanel = ({result, element}: ResultPanelProps) => {
     const {t} = useTranslation()
+    const theme = useTheme()
     const names = streamNameForms(element)
     const streamCrew = element.streamCrew ?? 'CLUBS_FIRST'
     const teams = [...result.teams].sort(byNullsLast(team => team.place))
@@ -33,7 +40,26 @@ const ResultPanel = ({result, element}: ResultPanelProps) => {
                 result.competitionShortName,
                 names.competitions,
             )}
-            roundLine={roundMatchLabel(result.roundName, result.matchName)}>
+            roundLine={roundMatchLabel(result.roundName, result.matchName)}
+            headerTrailing={
+                // Ein Ergebnis aus einem Lauf in Klärung geht bewusst nach der bestehenden
+                // Sichtbarkeitsregel raus (Task 8) — auf der Key-Fläche keine MUI-Chip- oder
+                // Halbtransparenz-Farbe (die würde beim Keying Farbsäume ziehen, siehe
+                // solidOr), sondern nur Text in Warnfarbe wie schon bei der Zeitstrafe
+                // (StreamBoatRow).
+                result.clarification ? (
+                    <Typography
+                        variant="h5"
+                        noWrap
+                        sx={{
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            color: solidOr(theme.palette.warning.light, '#ffb74d'),
+                        }}>
+                        {t('event.match.status.provisional')}
+                    </Typography>
+                ) : undefined
+            }>
             {/* Keine Bildlaufleiste auf einer TV-Grafik — eine Kachel scrollt nie; passt das
                 Feld nicht in die Panelhöhe, verkleinert FitToHeight es, statt die letzte
                 Bootszeile abzuschneiden. */}

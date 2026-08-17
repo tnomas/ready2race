@@ -1744,6 +1744,7 @@
         "partiallyScored": "Partially scored {{scored}}/{{total}}",
         "awaitingFinish": "Waiting to be finished",
         "clarification": "Under review",
+        "provisional": "provisional · under review",
         "finished": "Finished",
         "cancelled": "Cancelled",
         "unscheduled": "Unscheduled",
