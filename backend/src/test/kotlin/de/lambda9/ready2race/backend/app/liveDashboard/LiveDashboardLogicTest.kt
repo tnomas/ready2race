@@ -1081,22 +1081,13 @@ class LiveDashboardLogicTest {
     @Test
     fun clarificationInTheLiveScope() {
         // Die Schiedsrichter behalten ihn - nur die öffentlichen Anzeigen verlieren ihn.
-        val match = LiveDashboardMatchDto(
-            matchId = UUID.randomUUID(),
-            state = LiveDashboardMatchState.CLARIFICATION,
-            competitionId = UUID.randomUUID(),
-            competitionName = "CF1x",
-            categoryName = null,
-            roundName = null,
-            matchName = null,
-            executionOrder = 0,
-            startTime = start,
-            startedAt = start,
-            teams = emptyList(),
-        )
+        // Nutzt den bestehenden match()-Helfer (siehe unten bei --- selectForScope ---) statt eines
+        // eigenen DTO-Literals: der deckt bereits alle Pflichtfelder ab, ohne dass die Produktions-
+        // DTO dafür Vorgabewerte bräuchte.
+        val clarificationMatch = match(LiveDashboardMatchState.CLARIFICATION, "Vorlauf 1")
         assertEquals(
-            listOf(match),
-            LiveDashboardLogic.selectForScope(listOf(match), LiveDashboardScope.LIVE),
+            listOf(clarificationMatch),
+            LiveDashboardLogic.selectForScope(listOf(clarificationMatch), LiveDashboardScope.LIVE),
         )
     }
 }

@@ -208,15 +208,15 @@ data class LiveDashboardMatchDto(
     val competitionName: String,
     /** Rennnummer und Kurzname des Wettkampfs - das Board zeigt sie statt des ausgeschriebenen
      * Namens, wenn die Kurzform eingeschaltet ist (dieselbe Wahl wie im Zeitplan-Tab). */
-    val competitionIdentifier: String? = null,
-    val competitionShortName: String? = null,
+    val competitionIdentifier: String?,
+    val competitionShortName: String?,
     val categoryName: String?,
     val roundName: String?,
     val matchName: String?,
     val executionOrder: Int,
     val startTime: LocalDateTime?,
     val startedAt: LocalDateTime?,
-    val elapsedMinutes: Long? = null,
+    val elapsedMinutes: Long?,
     val teams: List<LiveDashboardTeamDto>,
     /**
      * Fehlercode des letzten fehlgeschlagenen automatischen Abrufs, null wenn er in Ordnung ist.
@@ -228,15 +228,15 @@ data class LiveDashboardMatchDto(
      * Job läuft. Die Karte zeigt den Zeitpunkt ohnehin nicht an; sie unterscheidet nur „Fehler" und
      * „pausiert" von „alles in Ordnung".
      */
-    val raceClockerPollError: String? = null,
+    val raceClockerPollError: String?,
     /** Gesetzt, solange der automatische Abruf diesen Lauf in Ruhe lässt, weil von Hand Ergebnisse eingetragen wurden. */
-    val raceClockerAutoPausedAt: LocalDateTime? = null,
+    val raceClockerAutoPausedAt: LocalDateTime?,
     /**
      * Gesetzt, wenn diese Paarung aus einer Neuberechnung stammt — und nur, solange der Lauf noch
      * nicht an den Start gerufen wurde. Ab da hat sich die Frage erledigt: Wer am Start steht,
      * fährt in dieser Aufstellung.
      */
-    val pairingsRecalculatedAt: LocalDateTime? = null,
+    val pairingsRecalculatedAt: LocalDateTime?,
 )
 
 /**
