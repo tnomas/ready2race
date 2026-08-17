@@ -14,6 +14,16 @@ sealed interface LiveDashboardError : ServiceError {
     /** Event steht auf chainProgressionMode = REGATTABUERO: Beenden geht dort nur über den Zeitplan. */
     data object FinishReservedForOffice : LiveDashboardError
 
+    /**
+     * setMatchClarification - ein beendeter Lauf lässt sich nicht mehr in Klärung setzen. Beenden
+     * IST die Freigabe: `finished_at` schlägt die Klärung in
+     * [de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardLogic.deriveMatchState],
+     * der Lauf bliebe also FINISHED, während beide Spalten still gesetzt wären - und weil beide
+     * Oberflächen den Knopf „Klärung aufheben" an den Zustand CLARIFICATION hängen, gäbe es keinen
+     * Weg zurück. Wer einen beendeten Lauf wieder streitig stellen will, setzt ihn zurück.
+     */
+    data class MatchAlreadyFinished(val matchId: UUID) : LiveDashboardError
+
     override fun respond(): ApiError = when (this) {
         is EventNotFound -> ApiError(
             status = HttpStatusCode.NotFound,
@@ -40,6 +50,12 @@ sealed interface LiveDashboardError : ServiceError {
             status = HttpStatusCode.Conflict,
             message = "Finishing is handled by the regatta office for this event",
             errorCode = ErrorCode.LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE,
+        )
+
+        is MatchAlreadyFinished -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Match $matchId is already finished and cannot be put into clarification",
+            errorCode = ErrorCode.LIVE_DASHBOARD_MATCH_ALREADY_FINISHED,
         )
     }
 }

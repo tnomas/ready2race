@@ -696,6 +696,13 @@ object LiveDashboardService {
      * Ein zweiter Aufruf schärft nur den Grund nach; [MatchClarificationRequest.reason] bleibt der
      * einzige Eingabewert, der Zeitpunkt selbst bleibt der erste, denn das "seit 14:37" der Zeile
      * meint den Beginn des Streits, nicht die letzte Formulierung.
+     *
+     * Auf einen BEENDETEN Lauf geht das nicht ([LiveDashboardError.MatchAlreadyFinished]): Beenden
+     * ist die Freigabe, `finished_at` schlägt die Klärung in
+     * [LiveDashboardLogic.deriveMatchState] - der Lauf bliebe FINISHED, während beide Spalten still
+     * gesetzt wären, und der Knopf „Klärung aufheben" (beide Oberflächen fragen nach dem Zustand
+     * CLARIFICATION) käme nirgends mehr an. Wer einen beendeten Lauf streitig stellen will, setzt
+     * ihn über die Durchführungsseite zurück.
      */
     fun setMatchClarification(
         eventId: UUID,
@@ -706,6 +713,11 @@ object LiveDashboardService {
         val exists = !EventRepo.exists(eventId).orDie()
         if (!exists) {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
+        }
+
+        val finished = !CompetitionMatchRepo.isFinished(matchId).orDie()
+        if (finished) {
+            return@comprehension KIO.fail(LiveDashboardError.MatchAlreadyFinished(matchId))
         }
 
         !CompetitionMatchRepo.update(matchId) {

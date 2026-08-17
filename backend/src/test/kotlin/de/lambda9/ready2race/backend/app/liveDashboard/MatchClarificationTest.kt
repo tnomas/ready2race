@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.club.CHAIN_SEED_TIME
 import de.lambda9.ready2race.backend.app.club.seedClubChain
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardService
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardError
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardScope
@@ -106,6 +107,32 @@ class MatchClarificationTest {
         assertNull(match.clarificationSince)
         assertNull(match.clarificationReason)
         assertEquals(LiveDashboardMatchState.FINISHED, match.state)
+    }
+
+    /**
+     * Die Gegenrichtung zu [finishingLiftsTheClarificationToo]: Auf einen beendeten Lauf lässt sich
+     * gar keine Klärung mehr setzen. Ohne diesen Riegel stünden beide Spalten still gesetzt an einem
+     * Lauf, der weiter FINISHED ableitet (finished_at schlägt die Klärung) - und weil beide
+     * Oberflächen „Klärung aufheben" an den Zustand CLARIFICATION hängen, käme niemand mehr an den
+     * Rückweg. Der Lauf bliebe aus jeder Abfrage heraus, die auf `clarification_since` filtert.
+     */
+    @Test
+    fun settingOnAFinishedMatchIsRejectedAndChangesNothing() = testComprehension {
+        val seeded = seedClubChain()
+        val userId = seedAuthor("Rita", "Ricci")
+
+        !LiveDashboardService.finishMatch(seeded.eventId, seeded.matchId, userId)
+
+        assertKIOFails(LiveDashboardError.MatchAlreadyFinished(seeded.matchId)) {
+            LiveDashboardService.setMatchClarification(
+                seeded.eventId, seeded.matchId, MatchClarificationRequest("Einspruch"), userId,
+            )
+        }
+
+        val match = dashboardMatch(seeded.eventId, seeded.matchId)
+        assertEquals(LiveDashboardMatchState.FINISHED, match.state)
+        assertNull(match.clarificationSince)
+        assertNull(match.clarificationReason)
     }
 
     private fun TestComprehensionScope<JEnv>.dashboardMatch(

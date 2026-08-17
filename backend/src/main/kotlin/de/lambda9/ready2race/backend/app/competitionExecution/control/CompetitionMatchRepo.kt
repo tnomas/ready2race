@@ -28,6 +28,13 @@ object CompetitionMatchRepo {
 
     fun exists(id: UUID) = COMPETITION_MATCH.exists { COMPETITION_SETUP_MATCH.eq(id) }
 
+    /**
+     * Ist der Lauf schon beendet? Ein Lauf, den es (noch) nicht gibt, ist es nicht - der Aufrufer
+     * unterscheidet beides nicht, ihm reicht die Frage "darf ich hier noch etwas verändern?".
+     */
+    fun isFinished(id: UUID) =
+        COMPETITION_MATCH.exists { COMPETITION_SETUP_MATCH.eq(id).and(FINISHED_AT.isNotNull) }
+
     // Of the given setup match ids, returns those that have already been created during execution.
     fun getExistingSetupMatchIds(ids: Collection<UUID>) =
         COMPETITION_MATCH.select({ COMPETITION_SETUP_MATCH }) { COMPETITION_SETUP_MATCH.`in`(ids) }
