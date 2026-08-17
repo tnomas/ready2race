@@ -25,17 +25,28 @@ export interface UseServerClockResult {
  */
 export function useServerClock(): UseServerClockResult {
 	const syncRef = useRef(new ClockSync())
-	const [, setTrigger] = useState(0)
+	const [quality, setQuality] = useState<ClockQuality>('SYNCING')
+	const disposedRef = useRef(false)
 
 	useEffect(() => {
 		const sync = syncRef.current
+		disposedRef.current = false
 
 		// Sample immediately on mount
 		const sampleNow = async () => {
+			if (disposedRef.current) return
+
 			try {
 				const t0 = Date.now()
 				const res = await getServerTime({})
 				const t1 = Date.now()
+
+				if (disposedRef.current) return
+
+				if (res.error) {
+					// Error in response, skip this sample
+					return
+				}
 
 				if (!res.data) {
 					// No data in response, skip this sample
@@ -47,8 +58,6 @@ export function useServerClock(): UseServerClockResult {
 				const offset = res.data.serverTimeMillis - midpoint
 
 				sync.ingest({ offset, latency }, performance.now())
-				// Trigger a re-render to update the quality state
-				setTrigger((prev) => prev + 1)
 			} catch {
 				// Network error or parse failure — skip this sample
 				// quality will degrade automatically after 30s
@@ -59,14 +68,24 @@ export function useServerClock(): UseServerClockResult {
 		sampleNow()
 
 		// Set up interval for every 5 seconds
-		const interval = setInterval(sampleNow, 5000)
+		const sampleInterval = setInterval(sampleNow, 5000)
+
+		// Independent 1-second ticker to keep quality live during outages
+		const qualityTicker = setInterval(() => {
+			if (disposedRef.current) return
+			const q = sync.quality(performance.now())
+			setQuality((prev) => (prev === q ? prev : q))
+		}, 1000)
 
 		// Cleanup on unmount
-		return () => clearInterval(interval)
+		return () => {
+			disposedRef.current = true
+			clearInterval(sampleInterval)
+			clearInterval(qualityTicker)
+		}
 	}, [])
 
 	const offset = syncRef.current.offset()
-	const quality = syncRef.current.quality(performance.now())
 
 	return {
 		now: () => {
