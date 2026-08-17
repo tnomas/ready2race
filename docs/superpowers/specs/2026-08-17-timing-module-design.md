@@ -40,11 +40,16 @@ with integration.
 ## Posten concept (frontend)
 
 New event area **"Posten"** — the shared pattern for all privileged positions
-(Zeitnahme now; Schiedsrichter exists, Livestream and Sprecherinnen later, the
-latter on a parallel branch). Event admins configure timing stations and assign
-app users to the Zeitnahme Posten. Boards open as dedicated full-screen work views
-(own route, new window, no app chrome). Auth uses the existing app-user login;
-every time mark records who captured it.
+(Zeitnahme now; Schiedsrichter moves in as part of this work, Livestream and
+Sprecherinnen later, the latter on a parallel branch). Event admins configure
+timing stations and assign app users to Posten. Boards open as dedicated
+full-screen work views (own route, new window, no app chrome). Auth uses the
+existing app-user login; every time mark records who captured it.
+
+The existing referee working view (Wettkampf-Check / result verification) is
+re-homed as the **Schiedsrichter board** under the Posten area: same entry
+pattern as the timing boards, unchanged approval logic. This establishes the
+Posten area as the single entry point for all on-site positions.
 
 ### Boards (v1)
 
@@ -84,8 +89,9 @@ every time mark records who captured it.
 
 - `timing_station` — per event: name, type `START | SPLIT | FINISH`, order.
 - `timing_time_mark` — **append-only log**: client-generated UUID (idempotency),
-  event, station, app user, timestamp (ms, server clock), status
-  `ACTIVE | RETRACTED`, created_at. The time value is never updated.
+  event, station, source (`APP_USER | HARDWARE`), app user or hardware device
+  reference, timestamp (ms, server clock), status `ACTIVE | RETRACTED`,
+  created_at. The time value is never updated.
 - `timing_assignment` — mutable mapping: time mark ↔ `competition_match_team`
   (UUID) + station context. Created, detached, re-attached freely; changes are
   audit-logged. Unassigned marks are first-class.
@@ -146,11 +152,27 @@ every time mark records who captured it.
 - Pre-event manual drill: multi-device run with deliberately wrong device clocks
   and forced network interruption.
 
+## Hardware triggers (prepared in v1, added incrementally)
+
+Arduino-based triggers (buzzers first, later possibly light barriers) will be
+added step by step. v1 prepares for them without building them:
+
+- Time marks carry a `source` (`APP_USER | HARDWARE`); the capture API is
+  device-agnostic — a hardware trigger POSTs the same idempotent time-mark
+  payload as a board.
+- Hardware devices authenticate with a station-scoped device token (issued in
+  the Leitstand), not an app-user session.
+- Hardware devices use the same clock-sync endpoint (NTP-light roundtrips) to
+  timestamp locally, so triggers behave identically to boards: capture locally,
+  deliver asynchronously.
+- Marks from hardware appear on boards and Leitstand like any other mark
+  (assignment, undo, audit all identical).
+
 ## Out of scope (v1)
 
 - Lap races / automatic lap counting (data model permits adding later).
-- Hardware triggers (light barrier, transponders) — a later add-on can post time
-  marks through the same API.
+- The hardware trigger devices themselves (firmware, gateway) — only the API
+  surface above is built in v1.
 - Livestream and Sprecherinnen boards (same Posten pattern, separate work).
 - Full-offline PWA operation (v1 buffers short outages; initial load needs
   connectivity).
