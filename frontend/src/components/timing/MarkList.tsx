@@ -77,8 +77,19 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
     )
 
     const handleAssign = useCallback((markId: string, competitionMatchTeam: string | null) => {
-        setLocalAssignments(prev => new Map(prev).set(markId, competitionMatchTeam))
-    }, [])
+        setLocalAssignments(prev => {
+            // If the new value equals the mark's real assignedTeam, delete the overlay entry
+            // so the map doesn't grow unbounded with redundant entries (especially on rollback).
+            const mark = marks.find(m => m.id === markId)
+            const realTeam = mark?.assignedTeam ?? null
+            if (realTeam === competitionMatchTeam) {
+                const next = new Map(prev)
+                next.delete(markId)
+                return next
+            }
+            return new Map(prev).set(markId, competitionMatchTeam)
+        })
+    }, [marks])
 
     // Once a mark's real `assignedTeam` matches the optimistic overlay, the overlay is redundant —
     // drop it so the map doesn't grow unbounded over a long session (mirrors the `retracting` cleanup
@@ -228,7 +239,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                             </Typography>
                         )}
                         <Box sx={{flexGrow: 1}} />
-                        {mark.status === 'ACTIVE' &&
+                        {mark.status === 'ACTIVE' && !mark.pending &&
                             (() => {
                                 const effectiveTeamId = localAssignments.has(mark.id)
                                     ? localAssignments.get(mark.id)!

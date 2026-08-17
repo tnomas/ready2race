@@ -68,7 +68,7 @@ const TimingBoardPage = () => {
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
     // change during a running board session), sorted client-side by start number so the picker lists
     // them in the order operators expect. Teams without a start number sort last.
-    const {data: teamsData, pending: teamsPending} = useFetch(signal =>
+    const {data: teamsData, pending: teamsPending, error: teamsError} = useFetch(signal =>
         getTimingTeams({signal, path: {eventId}}),
     )
     const teams = useMemo(
@@ -401,6 +401,11 @@ const TimingBoardPage = () => {
             {stateError && (
                 <Alert severity="error" sx={{flexShrink: 0}}>
                     {t('timing.board.stateError')}
+                </Alert>
+            )}
+            {teamsError && (
+                <Alert severity="error" sx={{flexShrink: 0}}>
+                    {t('timing.assign.loadError')}
                 </Alert>
             )}
             {queueCount > 0 && (

@@ -1746,7 +1746,8 @@
       "searchLabel": "Søg hold (startnummer eller navn)",
       "assign": "Tildel",
       "edit": "Rediger tildeling",
-      "detach": "Fjern tildeling"
+      "detach": "Fjern tildeling",
+      "loadError": "Hold kunne ikke indlæses"
     },
     "board": {
       "wsStatus": {

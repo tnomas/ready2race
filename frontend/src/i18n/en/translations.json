@@ -1746,7 +1746,8 @@
       "searchLabel": "Search team (start number or name)",
       "assign": "Assign",
       "edit": "Edit assignment",
-      "detach": "Remove assignment"
+      "detach": "Remove assignment",
+      "loadError": "Teams could not be loaded"
     },
     "board": {
       "wsStatus": {

@@ -1746,7 +1746,8 @@
       "searchLabel": "Team suchen (Startnummer oder Name)",
       "assign": "Zuordnen",
       "edit": "Zuordnung bearbeiten",
-      "detach": "Zuordnung lösen"
+      "detach": "Zuordnung lösen",
+      "loadError": "Teams konnten nicht geladen werden"
     },
     "board": {
       "wsStatus": {
