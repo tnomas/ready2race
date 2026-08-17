@@ -12,6 +12,9 @@ import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -24,6 +27,7 @@ object TimingService {
     ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
         val record = !request.toRecord(userId, eventId)
         val id = !TimingStationRepo.create(record).orDie()
+        broadcastAsync(eventId, TimingWsMessage.StationsChanged)
         KIO.ok(ApiResponse.Created(id))
     }
 
@@ -38,8 +42,9 @@ object TimingService {
         request: TimingStationRequest,
         userId: UUID,
         stationId: UUID,
-    ): App<TimingError, ApiResponse.NoData> =
-        TimingStationRepo.update(stationId) {
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
+        !TimingStationRepo.update(stationId) {
             name = request.name
             type = request.type.name
             sorting = request.sorting
@@ -47,15 +52,18 @@ object TimingService {
             updatedAt = LocalDateTime.now()
         }.orDie()
             .onNullFail { TimingError.StationNotFound }
-            .map { ApiResponse.NoData }
+        broadcastAsync(station.event, TimingWsMessage.StationsChanged)
+        noData
+    }
 
     fun deleteStation(
         stationId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
+        val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
         val hasMarks = !TimingTimeMarkRepo.existsByStation(stationId).orDie()
         !KIO.failOn(hasMarks) { TimingError.StationHasTimeMarks }
         !TimingStationRepo.delete(stationId).orDie()
+        broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData
     }
 
@@ -72,18 +80,20 @@ object TimingService {
                 .onNullFail { TimingError.StationNotFound }
             !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
-            !TimingTimeMarkRepo.createIfAbsent(
-                TimingTimeMarkRecord(
-                    id = request.id,
-                    event = eventId,
-                    station = request.station,
-                    timestampMillis = request.timestampMillis,
-                    source = "APP_USER",
-                    status = "ACTIVE",
-                    createdAt = LocalDateTime.now(),
-                    createdBy = userId,
-                )
-            ).orDie()
+            val record = TimingTimeMarkRecord(
+                id = request.id,
+                event = eventId,
+                station = request.station,
+                timestampMillis = request.timestampMillis,
+                source = "APP_USER",
+                status = "ACTIVE",
+                createdAt = LocalDateTime.now(),
+                createdBy = userId,
+            )
+            val inserted = !TimingTimeMarkRepo.createIfAbsent(record).orDie()
+            if (inserted > 0) {
+                broadcastAsync(eventId, TimingWsMessage.TimeMarkCreated(timeMarkDto(record, null)))
+            }
             KIO.ok(ApiResponse.Created(request.id))
         }
     }
@@ -96,6 +106,7 @@ object TimingService {
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
         !TimingTimeMarkRepo.update(timeMarkId) { status = "RETRACTED" }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
+        broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
         noData
     }
 
@@ -133,6 +144,7 @@ object TimingService {
                 }.orDie()
             }
         }
+        broadcastAsync(eventId, TimingWsMessage.AssignmentChanged(timeMarkId, request.competitionMatchTeam))
         noData
     }
 
@@ -152,6 +164,12 @@ object TimingService {
                         .map { timeMarkDto(it, assignmentByMark[it.id]) },
                 )
             )
+        }
+    }
+
+    private fun broadcastAsync(eventId: UUID, message: TimingWsMessage) {
+        CoroutineScope(Dispatchers.IO).launch {
+            TimingBroadcaster.broadcast(eventId, message)
         }
     }
 }

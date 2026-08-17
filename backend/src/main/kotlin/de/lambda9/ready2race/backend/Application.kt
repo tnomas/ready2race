@@ -60,6 +60,7 @@ fun Application.module(env: JEnv) {
     configureSessions()
     configureRequests()
     configureResponses()
+    configureSockets(env)
     configureRouting(env.env.config, env)
     configureStaticFiles(env.env.config.staticFilesPath)
 }
