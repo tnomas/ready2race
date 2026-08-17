@@ -6,6 +6,8 @@ import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -54,6 +56,83 @@ object TimingService {
         val hasMarks = !TimingTimeMarkRepo.existsByStation(stationId).orDie()
         !KIO.failOn(hasMarks) { TimingError.StationHasTimeMarks }
         !TimingStationRepo.delete(stationId).orDie()
+        noData
+    }
+
+    fun createTimeMark(
+        request: CreateTimeMarkRequest,
+        userId: UUID,
+        eventId: UUID,
+    ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
+        val exists = !TimingTimeMarkRepo.exists(request.id).orDie()
+        if (exists) {
+            KIO.ok(ApiResponse.Created(request.id))
+        } else {
+            val station = !TimingStationRepo.get(request.station).orDie()
+                .onNullFail { TimingError.StationNotFound }
+            !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+
+            val id = !TimingTimeMarkRepo.create(
+                TimingTimeMarkRecord(
+                    id = request.id,
+                    event = eventId,
+                    station = request.station,
+                    timestampMillis = request.timestampMillis,
+                    source = "APP_USER",
+                    status = "ACTIVE",
+                    createdAt = LocalDateTime.now(),
+                    createdBy = userId,
+                )
+            ).orDie()
+            KIO.ok(ApiResponse.Created(id))
+        }
+    }
+
+    fun retractTimeMark(
+        timeMarkId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
+        !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
+        !TimingTimeMarkRepo.update(timeMarkId) { status = "RETRACTED" }.orDie()
+            .onNullFail { TimingError.TimeMarkNotFound }
+        noData
+    }
+
+    fun assignTimeMark(
+        request: AssignTimeMarkRequest,
+        userId: UUID,
+        timeMarkId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
+        !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
+
+        val team = request.competitionMatchTeam
+        if (team == null) {
+            !TimingAssignmentRepo.deleteByTimeMark(timeMarkId).orDie()
+        } else {
+            val existing = !TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie()
+            if (existing == null) {
+                !TimingAssignmentRepo.create(
+                    TimingAssignmentRecord(
+                        id = UUID.randomUUID(),
+                        timeMark = timeMarkId,
+                        competitionMatchTeam = team,
+                        createdAt = LocalDateTime.now(),
+                        createdBy = userId,
+                        updatedAt = LocalDateTime.now(),
+                        updatedBy = userId,
+                    )
+                ).orDie()
+            } else {
+                !TimingAssignmentRepo.update(existing.id) {
+                    competitionMatchTeam = team
+                    updatedAt = LocalDateTime.now()
+                    updatedBy = userId
+                }.orDie()
+            }
+        }
         noData
     }
 }
