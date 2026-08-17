@@ -12,6 +12,14 @@ import io.ktor.server.routing.*
 fun Route.timing() {
     route("/timing") {
 
+        get("/state") {
+            call.respondComprehension {
+                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                TimingService.getState(eventId)
+            }
+        }
+
         route("/stations") {
 
             post {

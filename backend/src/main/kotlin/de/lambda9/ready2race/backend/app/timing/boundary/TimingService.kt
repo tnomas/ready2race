@@ -135,4 +135,23 @@ object TimingService {
         }
         noData
     }
+
+    fun getState(
+        eventId: UUID,
+    ): App<ServiceError, ApiResponse> = KIO.comprehension {
+        val stations = !TimingStationRepo.getByEvent(eventId).orDie()
+        val marks = !TimingTimeMarkRepo.getByEvent(eventId).orDie()
+        val assignments = !TimingAssignmentRepo.getByTimeMarks(marks.map { it.id }).orDie()
+        val assignmentByMark = assignments.associateBy({ it.timeMark }, { it.competitionMatchTeam })
+
+        stations.sortedBy { it.sorting }.traverse { it.toDto() }.map { stationDtos ->
+            ApiResponse.Dto(
+                TimingStateDto(
+                    stations = stationDtos,
+                    timeMarks = marks.sortedBy { it.timestampMillis }
+                        .map { timeMarkDto(it, assignmentByMark[it.id]) },
+                )
+            )
+        }
+    }
 }
