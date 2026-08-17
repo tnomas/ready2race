@@ -22,6 +22,14 @@ fun Route.timing() {
             }
         }
 
+        get("/teams") {
+            call.respondComprehension {
+                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                TimingService.getTeams(eventId)
+            }
+        }
+
         route("/stations") {
 
             post {

@@ -92,10 +92,20 @@ model ServerTimeResponse {
   serverTimeMillis: int64;
 }
 
+model TimingTeamDto {
+  competitionMatchTeam: uuid;
+  startNumber?: int32;
+  teamName?: string;
+  clubName?: string;
+  participantNames: string[];
+  competitionName?: string;
+  matchName?: string;
+}
+
 // ==========================================================================
 // Routes - event-scoped
 // ==========================================================================
-// GET /state, GET /stations: require UpdateAppTimingGlobal OR ReadEventGlobal
+// GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /stations, PUT /stations/{id}, DELETE /stations/{id}: require UpdateEventGlobal
 // POST /timeMarks, PUT /timeMarks/{id}/retract, PUT /timeMarks/{id}/assignment: require UpdateAppTimingGlobal OR UpdateEventGlobal
 
@@ -112,6 +122,11 @@ interface TimingRoutes {
   @route("/stations")
   @operationId("getTimingStations")
   listTimingStations(@path eventId: uuid): TimingStationDto[];
+
+  @get
+  @route("/teams")
+  @operationId("getTimingTeams")
+  listTimingTeams(@path eventId: uuid): TimingTeamDto[];
 
   @post
   @route("/stations")

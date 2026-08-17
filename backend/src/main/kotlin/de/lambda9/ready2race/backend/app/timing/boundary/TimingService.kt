@@ -10,6 +10,8 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
+import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -185,6 +187,37 @@ object TimingService {
                 )
             )
         }
+    }
+
+    fun getTeams(
+        eventId: UUID,
+    ): App<ServiceError, ApiResponse> = KIO.comprehension {
+        val records = !TimingTeamRepo.getByEvent(eventId).orDie()
+
+        val teams = records.groupBy { it[COMPETITION_MATCH_TEAM.ID] }
+            .mapNotNull { (teamId, groupedRecords) ->
+                if (teamId == null) return@mapNotNull null
+                val first = groupedRecords.first()
+                TimingTeamDto(
+                    competitionMatchTeam = teamId,
+                    startNumber = first[COMPETITION_MATCH_TEAM.START_NUMBER],
+                    teamName = first.get("team_name", String::class.java),
+                    clubName = first.get("club_name", String::class.java),
+                    participantNames = groupedRecords.mapNotNull { record ->
+                        val firstname = record[PARTICIPANT.FIRSTNAME]
+                        val lastname = record[PARTICIPANT.LASTNAME]
+                        if (firstname == null && lastname == null) {
+                            null
+                        } else {
+                            listOfNotNull(firstname, lastname).joinToString(" ")
+                        }
+                    },
+                    competitionName = first.get("competition_name", String::class.java),
+                    matchName = first.get("match_name", String::class.java),
+                )
+            }
+
+        KIO.ok(ApiResponse.ListDto(teams))
     }
 
     // Broadcasts must never be visible before the surrounding transaction committed - a client that

@@ -7296,6 +7296,26 @@ paths:
                 $ref: '#/components/schemas/ServerTimeResponse'
       tags:
         - Timing
+  /event/{eventId}/timing/teams:
+    get:
+      operationId: getTimingTeams
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingTeamDto'
+      tags:
+        - Timing
 
 components:
 
@@ -7511,6 +7531,7 @@ components:
         - APP_QR_MANAGEMENT
         - APP_COMPETITION_CHECK
         - APP_CATERER
+        - APP_TIMING
         - ADMINISTRATION
         - WEB_DAV
         - RESULT
@@ -13335,3 +13356,27 @@ components:
     uuid:
       type: string
       format: uuid
+
+    TimingTeamDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - participantNames
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        startNumber:
+          type: integer
+          format: int32
+        teamName:
+          type: string
+        clubName:
+          type: string
+        participantNames:
+          type: array
+          items:
+            type: string
+        competitionName:
+          type: string
+        matchName:
+          type: string

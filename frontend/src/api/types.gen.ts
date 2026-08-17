@@ -1730,6 +1730,7 @@ export type Resource =
     | 'APP_QR_MANAGEMENT'
     | 'APP_COMPETITION_CHECK'
     | 'APP_CATERER'
+    | 'APP_TIMING'
     | 'ADMINISTRATION'
     | 'WEB_DAV'
     | 'RESULT'
@@ -2067,6 +2068,16 @@ export type TimingStationRequest = {
  * only then start applying incoming messages, to cover updates missed while disconnected.
  */
 export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+
+export type TimingTeamDto = {
+    competitionMatchTeam: uuid
+    startNumber?: number
+    teamName?: string
+    clubName?: string
+    participantNames: Array<string>
+    competitionName?: string
+    matchName?: string
+}
 
 export type TooManyRequestsError = ApiError & {
     details: {
@@ -6057,3 +6068,13 @@ export type RetractTimeMarkError = unknown
 export type GetServerTimeResponse = ServerTimeResponse
 
 export type GetServerTimeError = unknown
+
+export type GetTimingTeamsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingTeamsResponse = Array<TimingTeamDto>
+
+export type GetTimingTeamsError = unknown

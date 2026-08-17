@@ -788,6 +788,9 @@ import type {
     RetractTimeMarkResponse,
     GetServerTimeError,
     GetServerTimeResponse,
+    GetTimingTeamsData,
+    GetTimingTeamsError,
+    GetTimingTeamsResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -4141,5 +4144,18 @@ export const getServerTime = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/timing/serverTime',
+    })
+}
+
+export const getTimingTeams = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingTeamsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingTeamsResponse,
+        GetTimingTeamsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/teams',
     })
 }
