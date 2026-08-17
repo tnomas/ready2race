@@ -25,6 +25,8 @@ object LiveDashboardRepo {
             COMPETITION_MATCH.STARTED_AT,
             COMPETITION_MATCH.ACTIVATED_AT,
             COMPETITION_MATCH.FINISHED_AT,
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
+            COMPETITION_MATCH.CLARIFICATION_REASON,
             // raceclocker_polled_at fehlt hier bewusst: Es ändert sich für jeden beobachteten Lauf
             // alle fünf Sekunden und würde den ETag des Dashboards bei jedem Abruf umwerfen.
             COMPETITION_MATCH.RACECLOCKER_POLL_ERROR,

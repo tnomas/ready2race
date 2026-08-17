@@ -252,6 +252,7 @@ object LiveDashboardService {
                 val startedAt = match[COMPETITION_MATCH.STARTED_AT]
                 val finishedAt = match[COMPETITION_MATCH.FINISHED_AT]
                 val activatedAt = match[COMPETITION_MATCH.ACTIVATED_AT]
+                val clarificationSince = match[COMPETITION_MATCH.CLARIFICATION_SINCE]
                 // Für die Arena-Prüfung zählt weiterhin die Aktivierung, nicht der Ist-Start: ein
                 // Boot, das an den Start gerufen ist, gehört raus - unabhängig davon, ob das Rennen
                 // schon unterwegs ist.
@@ -283,6 +284,7 @@ object LiveDashboardService {
                             // ein Ergebnis wartet - eine Abmeldung zählt dabei mit.
                             teamResults = teams.map { LiveDashboardLogic.teamIsSettled(it.place, it.failed, it.deregistered) },
                             skipped = matchId in skippedMatchIds,
+                            clarificationSince = clarificationSince,
                         ),
                         bye = byeByMatch[matchId],
                         competitionId = match.get("competition_id", UUID::class.java)!!,
@@ -295,6 +297,8 @@ object LiveDashboardService {
                         executionOrder = match[COMPETITION_SETUP_MATCH.EXECUTION_ORDER] ?: 0,
                         startTime = startTime,
                         startedAt = startedAt,
+                        clarificationSince = clarificationSince,
+                        clarificationReason = match[COMPETITION_MATCH.CLARIFICATION_REASON],
                         elapsedMinutes = startedAt?.let { Duration.between(it, now).toMinutes().coerceAtLeast(0) },
                         teams = teams,
                         raceClockerPollError = match[COMPETITION_MATCH.RACECLOCKER_POLL_ERROR],

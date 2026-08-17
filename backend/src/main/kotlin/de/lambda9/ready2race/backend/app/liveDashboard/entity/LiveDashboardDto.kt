@@ -216,6 +216,14 @@ data class LiveDashboardMatchDto(
     val executionOrder: Int,
     val startTime: LocalDateTime?,
     val startedAt: LocalDateTime?,
+    /**
+     * Seit wann dieser Lauf in Klärung ist - null, wenn er es nicht ist. Die Karte zeigt daraus
+     * das "seit 14:37" der eingeklappten Zeile; über den Zustand entscheidet [state], das
+     * dieselbe Spalte bereits verrechnet hat.
+     */
+    val clarificationSince: LocalDateTime? = null,
+    /** Der Grund, den die Schiedsrichter beim Setzen eingetippt haben. */
+    val clarificationReason: String? = null,
     val elapsedMinutes: Long?,
     val teams: List<LiveDashboardTeamDto>,
     /**
