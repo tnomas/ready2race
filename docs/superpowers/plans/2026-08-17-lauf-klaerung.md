@@ -497,8 +497,9 @@ git commit -m "Klärung: eigener Zähler und Grund im MatchStatus"
 - Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/liveDashboard/control/LiveDashboardRepo.kt:22-30`
 - Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/liveDashboard/boundary/LiveDashboardService.kt:250-300`
 - Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/liveDashboard/entity/LiveDashboardDto.kt` (`LiveDashboardMatchDto`)
-- Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/CompetitionMatchRepo.kt` (Auswahl der Durchführungsseite, ~Zeile 516)
-- Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/Conversions.kt:135-150`
+- Modify: `backend/src/main/resources/db/migration/afterMigrate.sql` (View `competition_match_with_teams`, ~Zeile 882)
+- Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/entity/CompetitionMatchWithTeams.kt`
+- Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/Conversions.kt` (zweimal: `CompetitionMatchWithTeams(...)` ~Zeile 194 und `MatchStatusLogic.matchStatus(...)` ~Zeile 135)
 
 **Interfaces:**
 - Consumes: die jOOQ-Spalten aus Task 1, `matchStatus(...)` aus Task 3.
@@ -551,18 +552,42 @@ Und im `LiveDashboardMatchDto(...)`-Aufruf nach `startedAt = startedAt,`:
 
 - [ ] **Schritt 4: Durchführungsseite versorgen**
 
-In `CompetitionMatchRepo.kt` die Auswahl, die die Durchführungsseite speist (die mit `cm.ACTIVATED_AT, cm.START_TIME` um Zeile 516), um beide Spalten ergänzen:
+Die Durchführungsseite liest **nicht** über eine Kotlin-Abfrage, sondern über die Datenbank-View
+`competition_match_with_teams` in `afterMigrate.sql` (~Zeile 882). Drei Stellen, in dieser
+Reihenfolge:
 
-```kotlin
-            cm.ACTIVATED_AT,
-            cm.START_TIME,
-            cm.CLARIFICATION_SINCE,
-            cm.CLARIFICATION_REASON,
+**(a)** In `afterMigrate.sql`, in der View `competition_match_with_teams`, nach
+`cm.pairings_recalculated_at,`:
+
+```sql
+       -- Klärung (V202608171200): funktional abhängig vom Primärschlüssel
+       -- cm.competition_setup_match, deshalb ohne eigenen group-by-Eintrag zulässig - wie
+       -- bye_must_race darüber. Die Durchführungsseite leitet daraus denselben Lauf-Zustand ab
+       -- wie das Schiedsrichter-Dashboard; ohne diese beiden Spalten stünde dort weiter "Läuft".
+       cm.clarification_since,
+       cm.clarification_reason,
 ```
 
-Trägt die Durchführungsseite ihre Daten über ein Zwischen-Entity statt direkt über den Record (prüfe die Aufrufer dieser Abfrage), ergänze dort dieselben zwei Felder mit den gleichen Namen: `clarificationSince`, `clarificationReason`.
+**(b)** In `CompetitionMatchWithTeams.kt` zwei Felder ergänzen, benannt wie überall sonst:
 
-In `competitionExecution/control/Conversions.kt:135` im `MatchStatusLogic.matchStatus(...)`-Aufruf nach `bye = byeByMatch[match.second.id],`:
+```kotlin
+    val clarificationSince: LocalDateTime?,
+    val clarificationReason: String?,
+```
+
+**(c)** In `Conversions.kt` im `CompetitionMatchWithTeams(...)`-Aufruf (~Zeile 194) nach
+`pairingsRecalculatedAt = match.pairingsRecalculatedAt,`:
+
+```kotlin
+                clarificationSince = match.clarificationSince,
+                clarificationReason = match.clarificationReason,
+```
+
+**Nicht** anfassen: `CompetitionMatchRepo.getMatchesByEvent` (~Zeile 480-530). Die Abfrage liefert
+`MatchForRunningStatusDto` an den internen Endpunkt `GET /event/{eventId}/matches?activated=`
+(Recht `ReadEventGlobal`) und hat mit der Durchführungsseite nichts zu tun.
+
+Danach in `Conversions.kt` im `MatchStatusLogic.matchStatus(...)`-Aufruf (~Zeile 135) nach `bye = byeByMatch[match.second.id],`:
 
 ```kotlin
                             clarificationSince = match.first.clarificationSince,
@@ -650,12 +675,17 @@ In `CompetitionMatchRepo.getRunningMatches`, direkt nach `.and(COMPETITION_MATCH
             .and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull)
 ```
 
-**Nicht anfassen:** die Abfragen in `raceclocker/control/RaceClockerPollRepo.kt`. Die Zeitnahme muss den Lauf weiter finden — Zeiten und Strafen laufen während der Klärung weiter ein.
+**Nicht anfassen:**
+- die Abfragen in `raceclocker/control/RaceClockerPollRepo.kt` — die Zeitnahme muss den Lauf weiter finden, Zeiten und Strafen laufen während der Klärung weiter ein;
+- `CompetitionMatchRepo.getMatchesByEvent` (~480–530). Sie liefert `MatchForRunningStatusDto` an den internen Endpunkt `GET /event/{eventId}/matches?activated=` (Recht `ReadEventGlobal`) und ist keine öffentliche Anzeige. Ein Filter dort änderte still die Bedeutung einer Verwaltungsabfrage.
 
 - [ ] **Schritt 4: Prüfen, dass der Filter nur an einer Stelle steht**
 
 Run: `grep -rn "CLARIFICATION_SINCE" backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/CompetitionMatchRepo.kt`
-Erwartet: genau die Zeilen aus Schritt 3 und die Auswahl aus Task 4 — kein Treffer in einer RaceClocker-Abfrage.
+Erwartet: **genau ein** Treffer — die Zeile aus Schritt 3 in `getRunningMatches`. Mehr Treffer heißen, der Filter sitzt auch in einer Abfrage, die ihn nicht bekommen darf.
+
+Run: `grep -rn "CLARIFICATION_SINCE" backend/src/main/kotlin/de/lambda9/ready2race/backend/app/raceclocker/`
+Erwartet: kein Treffer.
 
 - [ ] **Schritt 5: Tests**
 

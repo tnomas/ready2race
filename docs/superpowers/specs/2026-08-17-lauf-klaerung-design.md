@@ -127,7 +127,8 @@ Athleten-Board-Laufkarte, `BoardMatchDetailElement`.
 
 | Stelle | Änderung |
 |---|---|
-| `CompetitionMatchRepo` (364, 528) | `and clarification_since is null` — nur die Anzeige-Abfragen |
+| `CompetitionMatchRepo.getRunningMatches` (~364) | `and clarification_since is null`. **Nur diese eine Abfrage**: `getMatchesByEvent` (~480–530) bedient den internen Endpunkt `GET /event/{id}/matches?activated=` und ist keine öffentliche Anzeige |
+| View `competition_match_with_teams` (`afterMigrate.sql` ~882) | beide Spalten mitführen — die Durchführungsseite liest über diese View, nicht über eine Kotlin-Abfrage |
 | `ScheduleChain` / `ChainSlot` / `EventScheduleRepo` | Klärung zählt wie erledigt |
 | `LiveDashboardLogic.selectForScope(LIVE)` | `CLARIFICATION` **aufnehmen** — die Schiedsrichter müssen ihn behalten |
 | `common.ts` `isLiveMatch` | dito |
