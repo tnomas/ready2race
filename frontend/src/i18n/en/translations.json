@@ -1728,7 +1728,6 @@
     "title": "Timing",
     "selectEvent": "Select event",
     "selectStation": "Select station",
-    "boardComingSoon": "Board coming soon",
     "station": {
       "tabTitle": "Stations",
       "name": "Name",
@@ -1759,6 +1758,7 @@
         "unauthorized": "Session expired, please log in again",
         "clockDegraded": "Clock sync degraded – times may be inaccurate"
       },
+      "stateError": "Could not load data – retrying…",
       "mark": {
         "pending": "sending",
         "failed": "failed"

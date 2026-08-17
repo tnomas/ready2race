@@ -23,7 +23,7 @@ const TimingBoardPage = () => {
     }, [user, navigate])
 
     const clock = useServerClock()
-    const {marks, stations, wsStatus} = useTimingBoardState(eventId, stationId)
+    const {marks, stations, wsStatus, stateError} = useTimingBoardState(eventId, stationId)
 
     const station = stations.find(s => s.id === stationId)
 
@@ -60,6 +60,11 @@ const TimingBoardPage = () => {
             {showClockDegradedBanner && (
                 <Alert severity="warning" sx={{flexShrink: 0}}>
                     {t('timing.board.banner.clockDegraded')}
+                </Alert>
+            )}
+            {stateError && (
+                <Alert severity="error" sx={{flexShrink: 0}}>
+                    {t('timing.board.stateError')}
                 </Alert>
             )}
 

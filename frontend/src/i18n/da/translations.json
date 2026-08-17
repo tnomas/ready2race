@@ -1728,7 +1728,6 @@
     "title": "Tidtagning",
     "selectEvent": "Vælg arrangement",
     "selectStation": "Vælg post",
-    "boardComingSoon": "Tavle følger",
     "station": {
       "tabTitle": "Poster",
       "name": "Navn",
@@ -1759,6 +1758,7 @@
         "unauthorized": "Sessionen er udløbet, log venligst ind igen",
         "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige"
       },
+      "stateError": "Data kunne ikke indlæses – prøver igen…",
       "mark": {
         "pending": "sender",
         "failed": "mislykkedes"

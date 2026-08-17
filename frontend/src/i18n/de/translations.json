@@ -1728,7 +1728,6 @@
     "title": "Zeitnahme",
     "selectEvent": "Veranstaltung wählen",
     "selectStation": "Posten wählen",
-    "boardComingSoon": "Board folgt",
     "station": {
       "tabTitle": "Posten",
       "name": "Name",
@@ -1759,6 +1758,7 @@
         "unauthorized": "Sitzung abgelaufen, bitte neu anmelden",
         "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein"
       },
+      "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
       "mark": {
         "pending": "wird übertragen",
         "failed": "fehlgeschlagen"
