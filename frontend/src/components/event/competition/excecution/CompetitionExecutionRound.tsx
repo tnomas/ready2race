@@ -8,7 +8,6 @@ import {
     AccordionDetails,
     AccordionSummary,
     Box,
-    Button,
     Card,
     Divider,
     Stack,
@@ -289,6 +288,25 @@ const CompetitionExecutionRound = ({
                 okText: t('event.competition.execution.match.control.finish'),
             },
         )
+    }
+
+    /**
+     * Klärung aufheben — der Rückweg zum Knopf „In Klärung" daneben. Ohne Bestätigung, anders als
+     * Beenden und Zurücksetzen: Aufheben stellt nur den Zustand wieder her, den der Lauf vorher
+     * hatte (in aller Regel „Läuft"), und ein Verklicker kostet einen zweiten Klick auf „In
+     * Klärung". [props.setSubmitting] sperrt währenddessen die ganze Fußzeile — sonst schickte ein
+     * Doppelklick zwei DELETEs.
+     */
+    const handleResolveClarification = async (match: CompetitionMatchDto) => {
+        props.setSubmitting(true)
+        const {error} = await clearMatchClarification({
+            path: {eventId, matchId: match.id},
+        })
+        props.setSubmitting(false)
+        if (error) {
+            feedback.error(t('event.liveDashboard.control.error'))
+        }
+        props.reloadRoundDto()
     }
 
     /**
@@ -762,36 +780,29 @@ const CompetitionExecutionRound = ({
                                             Regattabüro spricht oft selbst mit dem protestierenden
                                             Verein und braucht den Knopf auch hier. */}
                                         {match.status.state === 'CLARIFICATION' ? (
-                                            <Button
-                                                size="small"
-                                                onClick={async () => {
-                                                    const {error} =
-                                                        await clearMatchClarification({
-                                                            path: {eventId, matchId: match.id},
-                                                        })
-                                                    if (error) {
-                                                        feedback.error(
-                                                            t(
-                                                                'event.liveDashboard.control.error',
-                                                            ),
-                                                        )
-                                                    }
-                                                    props.reloadRoundDto()
-                                                }}>
+                                            <LoadingButton
+                                                size={'small'}
+                                                variant={'outlined'}
+                                                pending={submitting}
+                                                onClick={() =>
+                                                    handleResolveClarification(match)
+                                                }>
                                                 {t('event.liveDashboard.clarification.resolve')}
-                                            </Button>
+                                            </LoadingButton>
                                         ) : (
                                             (match.status.state === 'RUNNING' ||
                                                 match.status.state === 'PREPARING' ||
                                                 match.status.state === 'AWAITING_FINISH') && (
-                                                <Button
-                                                    size="small"
-                                                    color="warning"
+                                                <LoadingButton
+                                                    size={'small'}
+                                                    variant={'outlined'}
+                                                    color={'warning'}
+                                                    pending={submitting}
                                                     onClick={() =>
                                                         setClarifyingMatchId(match.id)
                                                     }>
                                                     {t('event.liveDashboard.clarification.set')}
-                                                </Button>
+                                                </LoadingButton>
                                             )
                                         )}
                                     </Stack>

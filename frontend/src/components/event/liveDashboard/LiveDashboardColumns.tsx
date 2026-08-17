@@ -27,15 +27,12 @@ export type LiveDashboardActions = {
     onSkipSlot?: (slotId: string, label: string, time: string) => void
     /** Ob die Veranstaltung den automatischen RaceClocker-Abruf eingeschaltet hat. */
     raceClockerAutoPull?: boolean
-    /** Setzt den Lauf in Klärung — der Grund ist Pflicht. */
-    onClarify?: (matchId: string, reason: string) => Promise<void>
     /** Hebt die Klärung wieder auf; der Lauf ist danach wieder das, was er vorher war. */
     onResolveClarification?: (matchId: string) => Promise<void>
     /**
-     * Öffnet den Klärungs-Dialog für diesen Lauf — anders als `onClarify` (das den Grund schon
-     * braucht und erst beim Absenden im Dialog greift) reicht die Karte hier nur die `matchId`
-     * nach oben, der Dialog selbst sitzt auf Seitenebene (dasselbe Muster wie `onTeamClick` für
-     * die Team-Details).
+     * Öffnet den Klärungs-Dialog für diesen Lauf. Die Karte reicht nur die `matchId` nach oben; den
+     * Grund (Pflichtfeld) erfragt der Dialog auf Seitenebene und schickt ihn selbst ab — dasselbe
+     * Muster wie `onTeamClick` für die Team-Details.
      */
     onClarifyClick?: (matchId: string) => void
 }
@@ -72,6 +69,7 @@ const TimelineEntryCard = ({
                 shortLabels={shortLabels}
                 detail={detail}
                 onClarifyClick={actions.onClarifyClick}
+                onResolveClarification={actions.onResolveClarification}
             />
         </Box>
     ) : (

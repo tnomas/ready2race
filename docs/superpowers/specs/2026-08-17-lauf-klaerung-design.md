@@ -214,3 +214,15 @@ DELETE /event/{eventId}/liveDashboard/match/{matchId}/clarification
   Spalten hinzu und ist gutartig; der neue Enum-Wert in einem alten Frontend ist es nicht.
 - **Kein Zwang zur Klärung.** Niemand muss den Knopf drücken; ein Einspruch, den die
   Schiedsrichter sofort entscheiden, läuft weiter wie bisher.
+- **„Mein Event" führt den strittigen Lauf weiter unter „läuft gerade".** `MyEventService`
+  (~318) leitet diesen Block aus `activated_at` ab, nicht aus dem Zustand — und `activated_at`
+  bleibt bei einer Klärung ausdrücklich stehen (Abschnitt 1). Das naheliegende Ausschließen
+  wäre schlimmer als der Fehler: Der Lauf fiele damit unter „als Nächstes", samt Countdown auf
+  ein Rennen, das längst gefahren ist. Wo er stattdessen hingehört — eigener Abschnitt, stiller
+  Vermerk an der Zeile, oder schlicht so lassen —, ist eine Produktentscheidung und bewusst
+  offen gelassen.
+- **Eine Klärung hebt das Ergebnis in der öffentlichen Liste nach oben.**
+  `CompetitionMatchRepo.getMatchResults` sortiert nach `updated_at desc`; das Setzen der Klärung
+  schreibt die Zeile und schiebt den strittigen Lauf damit an die Spitze von „Zuletzt beendet".
+  Die Sortierung zu ändern beträfe jedes Ergebnis der Anwendung und wäre eine viel breitere
+  Änderung, als dieser Zustand tragen soll — sie bleibt deshalb, wie sie ist.

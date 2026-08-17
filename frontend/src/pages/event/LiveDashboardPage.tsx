@@ -586,11 +586,10 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
         onSkipSlot: mayControl && !staleState.actionsLocked ? handleSkipSlot : undefined,
         // Kein Handler, sondern ein Kennzeichen der Veranstaltung - bleibt unabhängig vom Stand.
         raceClockerAutoPull,
-        onClarify: mayControl && !staleState.actionsLocked ? handleClarify : undefined,
         onResolveClarification:
             mayControl && !staleState.actionsLocked ? handleResolveClarification : undefined,
-        // Öffnet nur den Dialog (wie onTeamClick für die Team-Details) — anders als onClarify
-        // braucht das hier noch keinen Grund, der kommt erst beim Absenden im Dialog.
+        // Öffnet nur den Dialog (wie onTeamClick für die Team-Details) — den Grund erfragt der
+        // Dialog auf dieser Seite und schickt ihn selbst über handleClarify ab.
         onClarifyClick:
             mayControl && !staleState.actionsLocked ? setClarifyMatchId : undefined,
     }
