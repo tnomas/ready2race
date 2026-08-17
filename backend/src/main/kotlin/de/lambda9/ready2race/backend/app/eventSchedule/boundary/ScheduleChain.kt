@@ -35,6 +35,14 @@ data class ChainSlot(
      * blockierte, wenn sie nur gerufen war.
      */
     val matchStartedAt: LocalDateTime? = null,
+    /**
+     * `competition_match.clarification_since is not null`: Gegen diesen Lauf läuft ein Einspruch,
+     * die Schiedsrichter geben ihn noch nicht frei. Für die Kette zählt er wie ein erledigter -
+     * er hält niemanden mehr auf. Ohne diesen Ausweg blockierte ein Streit, der VOR der
+     * vollständigen Wertung ausbricht, die ganze folgende Startgruppe: der Lauf bliebe offen
+     * ([matchOpen]) und sein Ist-Start ([matchStartedAt]) der Riegel.
+     */
+    val matchInClarification: Boolean = false,
 )
 
 sealed interface ChainDecision {
@@ -87,10 +95,13 @@ object ScheduleChain {
                 return ChainDecision.WaitingForRound
             }
 
-            // Alles, was in dieser Gruppe noch aussteht. Ein beendeter oder durchgewerteter Lauf
-            // gehört nicht dazu - er hält niemanden mehr auf.
+            // Alles, was in dieser Gruppe noch aussteht. Ein beendeter, durchgewerteter oder in
+            // Klärung stehender Lauf gehört nicht dazu - er hält niemanden mehr auf.
             val pending = group.filter {
-                it.state == EventScheduleSlotState.LINKED && !it.matchFinished && it.matchOpen
+                it.state == EventScheduleSlotState.LINKED &&
+                    !it.matchFinished &&
+                    it.matchOpen &&
+                    !it.matchInClarification
             }
 
             if (pending.any { it.matchStartedAt != null }) {
@@ -185,6 +196,7 @@ object ScheduleChainService {
                     matchOpen = r.get("match_open", Boolean::class.java) == true,
                     matchActivatedAt = r[COMPETITION_MATCH.ACTIVATED_AT],
                     matchStartedAt = r[COMPETITION_MATCH.STARTED_AT],
+                    matchInClarification = r[COMPETITION_MATCH.CLARIFICATION_SINCE] != null,
                 )
             })
         }
