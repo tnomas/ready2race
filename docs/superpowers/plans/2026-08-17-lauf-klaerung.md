@@ -120,7 +120,7 @@ Erwartet: beide Spalten erscheinen, `CLARIFICATION_SINCE` als `LocalDateTime?`, 
 
 ```bash
 git add backend/src/main/resources/db/migration/V202608171200__match_clarification.sql backend/src/main/kotlin/de/lambda9/ready2race/backend/database/generated
-git commit -m "Klaerung: Spalten auf competition_match"
+git commit -m "Klärung: Spalten auf competition_match"
 ```
 
 ---
@@ -316,7 +316,7 @@ Erwartet: PASS, alle Tests der Klasse.
 
 ```bash
 git add backend/src/main/kotlin/de/lambda9/ready2race/backend/app/liveDashboard backend/src/test/kotlin/de/lambda9/ready2race/backend/app/liveDashboard/LiveDashboardLogicTest.kt
-git commit -m "Klaerung: neuer Laufzustand in der geteilten Ableitung"
+git commit -m "Klärung: neuer Laufzustand in der geteilten Ableitung"
 ```
 
 ---
@@ -486,7 +486,7 @@ Erwartet: BUILD SUCCESS. `RoundCountersDto.clarification` hat **keinen** Vorgabe
 
 ```bash
 git add backend/src/main/kotlin/de/lambda9/ready2race/backend/app/matchStatus backend/src/test/kotlin/de/lambda9/ready2race/backend/app/matchStatus
-git commit -m "Klaerung: eigener Zaehler und Grund im MatchStatus"
+git commit -m "Klärung: eigener Zähler und Grund im MatchStatus"
 ```
 
 ---
@@ -583,7 +583,7 @@ Erwartet: PASS (die DB-Tests brauchen Docker, siehe Task 1 Schritt 3).
 
 ```bash
 git add backend/src/main/kotlin
-git commit -m "Klaerung: Spalten in Dashboard und Durchfuehrung durchgereicht"
+git commit -m "Klärung: Spalten in Dashboard und Durchführung durchgereicht"
 ```
 
 ---
@@ -666,7 +666,7 @@ Erwartet: PASS.
 
 ```bash
 git add backend/src/main/kotlin/de/lambda9/ready2race/backend/app/competitionExecution/control/CompetitionMatchRepo.kt backend/src/test/kotlin/de/lambda9/ready2race/backend/app/eventInfo/BoardLogicTest.kt
-git commit -m "Klaerung: strittige Laeufe fallen aus dem Running-Block"
+git commit -m "Klärung: strittige Läufe fallen aus dem Running-Block"
 ```
 
 ---
@@ -808,7 +808,7 @@ Erwartet: BUILD SUCCESS.
 
 ```bash
 git add backend/src/main/kotlin/de/lambda9/ready2race/backend/app/eventSchedule backend/src/test/kotlin/de/lambda9/ready2race/backend/app/eventSchedule/ScheduleChainTest.kt
-git commit -m "Klaerung: die Kette geht ueber strittige Laeufe hinweg"
+git commit -m "Klärung: die Kette geht über strittige Läufe hinweg"
 ```
 
 ---
@@ -1120,7 +1120,7 @@ Erwartet: der neue Wert steht in `LiveDashboardMatchState`.
 
 ```bash
 git add backend/src/main backend/src/test frontend/src/api
-git commit -m "Klaerung: Setzen und Aufheben ueber die API"
+git commit -m "Klärung: Setzen und Aufheben über die API"
 ```
 
 ---
@@ -1189,7 +1189,7 @@ Erwartet: `clarification` erscheint in `frontend/src/api/types.gen.ts` am Typ `A
 
 ```bash
 git add backend/src/main frontend/src/api
-git commit -m "Klaerung: Ergebnisse tragen den Vorbehalt"
+git commit -m "Klärung: Ergebnisse tragen den Vorbehalt"
 ```
 
 ---
@@ -1427,7 +1427,7 @@ Erwartet: keine neuen Fehler.
 
 ```bash
 git add frontend/src
-git commit -m "Klaerung: Chip, Zeitstrahl und Knoepfe im Frontend"
+git commit -m "Klärung: Chip, Zeitstrahl und Knöpfe im Frontend"
 ```
 
 ---
@@ -1733,7 +1733,7 @@ Erwartet: alles grün; `npm run build` deckt Typfehler in den neuen Komponenten 
 
 ```bash
 git add frontend/src
-git commit -m "Klaerung: eingeklappter Abschnitt im Schiedsrichter-Dashboard"
+git commit -m "Klärung: eingeklappter Abschnitt im Schiedsrichter-Dashboard"
 ```
 
 ---
@@ -1805,7 +1805,7 @@ Erwartet: grün.
 
 ```bash
 git add frontend/src/components/event/competition/excecution/CompetitionExecutionRound.tsx
-git commit -m "Klaerung: Knopf auf der Durchfuehrungsseite"
+git commit -m "Klärung: Knopf auf der Durchführungsseite"
 ```
 
 ---
@@ -1878,7 +1878,7 @@ Erwartet: grün.
 
 ```bash
 git add frontend/src
-git commit -m "Klaerung: vorlaeufige Ergebnisse sind als solche erkennbar"
+git commit -m "Klärung: vorläufige Ergebnisse sind als solche erkennbar"
 ```
 
 ---
