@@ -19,7 +19,14 @@ class TimingTeamsTest {
         val list = (response as ApiResponse.ListDto<TimingTeamDto>).data
 
         assertEquals(1, list.size)
-        assertEquals(teamId, list.first().competitionMatchTeam)
+        val team = list.first()
+
+        // Assert join field mapping
+        assertEquals(teamId, team.competitionMatchTeam)
+        assertEquals(1, team.startNumber)
+        assertEquals("Timing Test Competition", team.competitionName)
+        assertTrue(team.clubName?.startsWith("Timing Test Club-") == true, "Club name should match fixture pattern")
+        assertEquals(emptyList(), team.participantNames, "Fixture creates no participants")
     }
 
     @Test
