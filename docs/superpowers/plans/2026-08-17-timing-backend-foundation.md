@@ -13,7 +13,7 @@
 - Backend module layout: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/<module>/{boundary,control,entity}` — exactly like `app/eventDay`.
 - All service functions return `App<E, ApiResponse...>` KIO values; routes use `call.respondComprehension { ... }` (see `app/eventDay/boundary/eventDay.kt`).
 - Flyway migration naming: `V<yyyyMMddHHmm>__<snake_name>.sql` in `backend/src/main/resources/db/migration/`. Schema is `ready2race`.
-- After adding a migration, JOOQ classes MUST be regenerated: `cd backend && docker compose up -d && ./mvnw jooq:generate` — generated classes land in `backend/src/generated/` (referenced as `de.lambda9.ready2race.backend.database.generated.*`).
+- After adding a migration, JOOQ classes MUST be regenerated: `cd backend && docker compose up -d && ./mvnw jooq:generate` — generated classes land in `backend/target/generated-sources/jooq` (package `de.lambda9.ready2race.backend.database.generated.*`); they are build output and are NOT committed.
 - DB-backed tests use `testComprehension { ... }` from `backend/src/test/kotlin/de/lambda9/ready2race/testing/testing.kt` (Testcontainers Postgres); run with `cd backend && ./mvnw test -Dtest=<ClassName>`.
 - Time marks are NEVER updated or hard-deleted in this plan; retract = status change.
 - Git: commit after every green test cycle. Commit messages in English, imperative. NEVER mention Claude/AI in commits.
@@ -90,8 +90,8 @@ Expected: BUILD SUCCESS; generated sources now contain `TimingStationRecord`, `T
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/main/resources/db/migration/V202608171400__timing_module.sql backend/src/generated
-git commit -m "Add timing module tables and generated jooq classes"
+git add backend/src/main/resources/db/migration/V202608171400__timing_module.sql
+git commit -m "Add timing module tables"
 ```
 
 ---
