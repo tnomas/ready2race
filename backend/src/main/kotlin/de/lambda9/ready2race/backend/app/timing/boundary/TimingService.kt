@@ -139,12 +139,15 @@ object TimingService {
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
+        val assignment = !TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie()
         !TimingTimeMarkRepo.update(timeMarkId) {
             status = "RETRACTED"
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
+        // A retracted mark stops counting, so the boat's laps have to be rewritten without it.
+        !TimingLapService.syncLaps(eventId, listOfNotNull(assignment?.competitionMatchTeam), userId)
         broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
         noData
     }
@@ -188,6 +191,10 @@ object TimingService {
                 }.orDie()
             }
         }
+        // Both sides of a re-assignment are affected: the boat that loses the mark and the one that
+        // gains it. A split mark becomes (or stops being) one of their laps, and a start mark shifts
+        // all of them.
+        !TimingLapService.syncLaps(eventId, listOfNotNull(existing?.competitionMatchTeam, team), userId)
         broadcastAsync(eventId, TimingWsMessage.AssignmentChanged(timeMarkId, request.competitionMatchTeam))
         noData
     }

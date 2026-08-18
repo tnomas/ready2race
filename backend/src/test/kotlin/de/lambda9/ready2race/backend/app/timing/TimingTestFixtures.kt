@@ -71,9 +71,13 @@ fun addTestStation(
     eventId: UUID,
     userId: UUID,
     type: TimingStationType = TimingStationType.FINISH,
+    // Name and sorting matter for SPLIT stations: they become the name and the position of the lap
+    // rows written from their marks.
+    sorting: Int = 0,
+    name: String = "Station-${UUID.randomUUID()}",
 ): App<Any?, UUID> = KIO.comprehension {
     val response = !TimingService.addStation(
-        TimingStationRequest(name = "Station-${UUID.randomUUID()}", type = type, sorting = 0),
+        TimingStationRequest(name = name, type = type, sorting = sorting),
         userId,
         eventId,
     )

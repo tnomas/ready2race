@@ -347,6 +347,15 @@ object TimingSequenceService {
             timeMark = markId
         }.orDie()
 
+        // A fired start is a started heat for the rest of the application (rule 4 of the port plan):
+        // the same `started_at`/`activated_at` stamp the RaceClocker start detection and the
+        // office's "Läuft" button write, so LiveDashboard, the stream clock and the schedule react
+        // to an internally timed start exactly as they do to an external one. Idempotent, and inside
+        // this run's transaction - the mark and the stamp land together or not at all.
+        !TimingLapService.markMatchesStarted(sequence.event, listOf(entry.competitionMatchTeam), sequence.createdBy)
+        // The boat's laps are measured from its start, so a (re)fired start rewrites them.
+        !TimingLapService.syncLaps(sequence.event, listOf(entry.competitionMatchTeam), sequence.createdBy)
+
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,
