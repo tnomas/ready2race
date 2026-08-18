@@ -177,6 +177,22 @@ class TimingOfficialTimeServiceTest {
     }
 
     @Test
+    fun computeReportsNoMarksForExplicitTeamWithoutAnyMarks() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !createTestMatchTeam(eventId)
+
+        val result = (!TimingOfficialTimeService.computeOfficialTimes(eventId, userId, listOf(teamId))).dto
+
+        assertEquals(emptyList(), result.computed)
+        assertEquals(
+            listOf(OfficialTimeSkipDto(teamId, OfficialTimeSkipReason.NO_MARKS)),
+            result.skipped,
+        )
+        // No row is created for a team that could not be computed at all.
+        assertNull(!TimingOfficialTimeRepo.getByTeam(teamId))
+    }
+
+    @Test
     fun computeCanBeScopedToTeams() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
@@ -272,6 +288,22 @@ class TimingOfficialTimeServiceTest {
 
         assertTrue((!TimingOfficialTimeRepo.getByTeam(teams[0]))!!.dirty!!, "previous team must go dirty")
         assertTrue((!TimingOfficialTimeRepo.getByTeam(teams[1]))!!.dirty!!, "new team must go dirty")
+    }
+
+    @Test
+    fun retractingMarkMarksTeamDirty() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val teamId = !createTestMatchTeam(eventId)
+        !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
+        val finishMarkId = !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis)
+        !TimingOfficialTimeService.computeOfficialTimes(eventId, userId)
+        assertFalse((!TimingOfficialTimeRepo.getByTeam(teamId))!!.dirty!!)
+
+        !TimingService.retractTimeMark(finishMarkId, eventId, userId)
+
+        assertTrue((!TimingOfficialTimeRepo.getByTeam(teamId))!!.dirty!!)
     }
 
     @Test
@@ -419,6 +451,23 @@ class TimingOfficialTimeServiceTest {
         ) {
             TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
         }
+    }
+
+    // A referee can record a DNF/DNS/DSQ without ever calculating places (place stays null,
+    // placesCalculated stays false) - `failed` alone is just as much a worked-on result and must
+    // freeze the push the same way.
+    @Test
+    fun pushFailsWhenTeamWasFailedByReferee() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) { failed = true; failedReason = "DNF" }
+
+        assertKIOFails(
+            TimingError.PushConflict(listOf(OfficialTimePushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
+        ) {
+            TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+        }
+        assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
     }
 
     @Test

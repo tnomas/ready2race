@@ -211,6 +211,8 @@ enum OfficialTimeSkipReason {
   NO_FINISH_MARK;
   // The finish mark lies before the start mark - the marks are wrong, not the team.
   NEGATIVE_DURATION;
+  // `teams` named this id explicitly, but it has no marks at all - there is nothing to compute.
+  NO_MARKS;
 }
 
 model OfficialTimeSkipDto {
@@ -251,7 +253,9 @@ model OfficialTimePushConflictDto {
 }
 
 // `force` only overrides the RESULT_FROZEN conflict; a team without an effective time can never be
-// pushed because there is nothing to write.
+// pushed because there is nothing to write. Forcing only replaces the timecode (and failed/
+// failedReason) of an already-frozen team - it does NOT recalculate places. After a forced push,
+// a referee has to re-save that match's results for the place to reflect the pushed time.
 model PushOfficialTimesRequest {
   teams: uuid[];
   force?: boolean;
@@ -290,6 +294,9 @@ model TimingDeviceTokenRequest {
 // GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /stations, PUT /stations/{id}, DELETE /stations/{id}: require UpdateEventGlobal
 // POST /timeMarks, PUT /timeMarks/{id}/retract, PUT /timeMarks/{id}/assignment: require UpdateAppTimingGlobal OR UpdateEventGlobal
+//   POST /timeMarks alternatively accepts an `X-Timing-Device-Token` header instead of a session -
+//   see createTimeMark below. That branch is only taken when the header is present AND no session
+//   exists; a logged-in user's request always takes the ordinary privilege-checked path.
 // DELETE /timeMarks/retracted: require UpdateEventGlobal
 // GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal
 // POST /sequences, POST /sequences/{id}/start|abort, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
@@ -341,6 +348,11 @@ interface TimingRoutes {
     @path stationId: uuid,
   ): void;
 
+  // Accepts either a normal session with UpdateAppTimingGlobal or UpdateEventGlobal, OR an
+  // `X-Timing-Device-Token` header identifying a hardware timing device that cannot hold a
+  // session (see the header note in the auth matrix above). A device token binds the capture to
+  // its own station: it can never write marks for a different station than the one it was issued
+  // for. Marks captured this way are recorded with `source: "HARDWARE"` and no `createdBy`.
   @post
   @route("/timeMarks")
   @operationId("createTimeMark")
@@ -437,6 +449,9 @@ interface TimingRoutes {
     @body request: OfficialTimeOverrideRequest,
   ): void;
 
+  // See PushOfficialTimesRequest.force: a forced push never recalculates places, only the
+  // timecode snapshot - a referee must re-save the match's results afterwards for the place to
+  // reflect the pushed time.
   @post
   @route("/officialTimes/push")
   @operationId("pushOfficialTimes")

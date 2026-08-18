@@ -347,6 +347,17 @@ object TimingSequenceService {
             timeMark = markId
         }.orDie()
 
+        // A fired mark is assigned to its team from the moment it is created, so - exactly like
+        // TimingService.assignTimeMark's freshly created marks are documented not to need - it can
+        // change what the team's official time would compute to. Flagged in the same transaction as
+        // the mark itself, so the two can never drift apart.
+        //
+        // This calls the repo directly rather than TimingOfficialTimeService.markTeamsDirty: that
+        // method also broadcasts, and this runs inside the scheduler's transaction where no
+        // AfterCommit buffer is installed (see FireResult's doc comment) - registering there would
+        // send the websocket message before the commit instead of after it.
+        !TimingOfficialTimeRepo.markDirty(listOf(entry.competitionMatchTeam), sequence.createdBy).orDie()
+
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,

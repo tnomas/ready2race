@@ -1,12 +1,15 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.ActiveSequenceDto
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
+import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideRequest
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceEntryStatus
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceState
@@ -20,6 +23,7 @@ import de.lambda9.tailwind.core.extensions.kio.orDie
 import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -181,6 +185,37 @@ class TimingSequenceServiceTest {
 
         val entry = !TimingSequenceEntryRepo.get(fired.entryId).orDie()
         assertEquals(mark.id, entry!!.timeMark)
+    }
+
+    // fireEntry inserts the mark/assignment/entry-status update via repos directly (it runs from the
+    // scheduler, not through TimingService), so it is easy to forget the dirty hook every other
+    // timing mutation goes through - a stale official time would otherwise not be flagged even
+    // though the fired mark can change what it computes to.
+    @Test
+    fun firingEntryMarksTeamWithExistingOfficialTimeDirty() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+        !TimingOfficialTimeService.setOverride(
+            eventId,
+            team,
+            OfficialTimeOverrideRequest(overrideMillis = 60_000, penaltyMillis = null, resultStatus = null),
+            userId,
+        )
+        assertFalse((!TimingOfficialTimeRepo.getByTeam(team))!!.dirty!!)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 100 - LEAD_IN)
+
+        assertEquals(1, (!TimingSequenceService.fireDueEntries()).fired.size)
+
+        assertTrue((!TimingOfficialTimeRepo.getByTeam(team))!!.dirty!!)
     }
 
     @Test

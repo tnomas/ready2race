@@ -60,9 +60,14 @@ object TimingOfficialTimeService {
             .sortedBy { (_, times) -> times.finishMillis ?: times.startMillis }
             .map { (teamId, times) -> Triple(teamId, times, skipReason(times)) }
 
+        // An id the caller named explicitly has no entry in `markTimes` at all when it has no marks
+        // whatsoever - it would otherwise vanish from the response without a trace instead of
+        // showing up in `skipped` like every other uncomputable team does.
+        val withoutAnyMarks = teams.orEmpty().filter { !markTimes.containsKey(it) }
+
         val skipped = classified.mapNotNull { (teamId, _, reason) ->
             reason?.let { OfficialTimeSkipDto(teamId, it) }
-        }
+        } + withoutAnyMarks.map { OfficialTimeSkipDto(it, OfficialTimeSkipReason.NO_MARKS) }
 
         val now = LocalDateTime.now()
         val computed = !classified.filter { it.third == null }.traverse { (teamId, times, _) ->
@@ -153,7 +158,10 @@ object TimingOfficialTimeService {
      *
      * All or nothing: a single conflicting team fails the whole call (and rolls the transaction
      * back) with the per-team reasons attached, so an operator never ends up with half a round
-     * pushed. [PushOfficialTimesRequest.force] overrides the freeze boundary only.
+     * pushed. [PushOfficialTimesRequest.force] overrides the freeze boundary only - it never
+     * touches `place` / `places_calculated`. A forced push therefore only replaces the `timecode`
+     * snapshot (and `failed`/`failedReason`); the round's places are NOT recalculated, so a referee
+     * must re-save the results for this match afterwards for the place to reflect the pushed time.
      */
     fun pushOfficialTimes(
         eventId: UUID,
@@ -303,12 +311,15 @@ object TimingOfficialTimeService {
      *
      * The results flow has no dedicated approval flag: recording a result IS
      * `updateMatchResult(-ByFile)` writing `place` / `places_calculated` on the match team (and the
-     * round moving on afterwards, which `checkUpdateMatchResult` then locks). Either marker means a
-     * referee has already worked with this result, so overwriting its `timecode` snapshot silently
-     * would change an approved result - the push refuses unless it is forced.
+     * round moving on afterwards, which `checkUpdateMatchResult` then locks). `failed` is the same
+     * kind of marker for a non-finisher: a referee sets it (with `failedReason`) exactly where a
+     * place would otherwise go, so a DNF/DNS/DSQ a referee already recorded is just as much a
+     * worked-on result as a calculated place. Any of the three means a referee has already worked
+     * with this result, so overwriting its `timecode` snapshot silently would change an approved
+     * result - the push refuses unless it is forced.
      */
     private fun isFrozen(team: CompetitionMatchTeamRecord): Boolean =
-        team.placesCalculated == true || team.place != null
+        team.placesCalculated == true || team.place != null || team.failed == true
 
     private fun checkTeamOfEvent(
         teamId: UUID,
@@ -326,6 +337,12 @@ object TimingOfficialTimeService {
      *
      * [f] runs on the record either way, so callers describe the change once instead of duplicating
      * it for the insert and the update case.
+     *
+     * Race-safe by construction rather than by locking: [TimingOfficialTimeRepo.createIfAbsent]
+     * turns a losing concurrent insert (two overlapping computes, or a compute racing a manual
+     * override for the same team) into a no-op instead of a unique-constraint violation, and the
+     * loser then falls back to the same update path the "already existing" branch uses - so its
+     * change still lands instead of a 500.
      */
     private fun upsert(
         eventId: UUID,
@@ -335,7 +352,10 @@ object TimingOfficialTimeService {
         f: TimingOfficialTimeRecord.() -> Unit,
     ): App<Nothing, TimingOfficialTimeRecord> = KIO.comprehension {
         val existing = !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
-        if (existing == null) {
+        if (existing != null) {
+            val updated = !updateExisting(teamId, userId, now, f)
+            KIO.ok(updated ?: existing)
+        } else {
             val record = TimingOfficialTimeRecord(
                 id = UUID.randomUUID(),
                 competitionMatchTeam = teamId,
@@ -351,17 +371,28 @@ object TimingOfficialTimeService {
                 updatedAt = now,
                 updatedBy = userId,
             ).apply(f)
-            !TimingOfficialTimeRepo.create(record).orDie()
-            KIO.ok(record)
-        } else {
-            val updated = !TimingOfficialTimeRepo.update(teamId) {
-                f()
-                updatedAt = now
-                updatedBy = userId
-            }.orDie()
-            KIO.ok(updated ?: existing)
+            val inserted = !TimingOfficialTimeRepo.createIfAbsent(record).orDie()
+            if (inserted > 0) {
+                KIO.ok(record)
+            } else {
+                // Lost the race: another call inserted the row between our read and our insert.
+                // Fall back to updating it instead of dropping this call's change.
+                val updated = !updateExisting(teamId, userId, now, f)
+                KIO.ok(updated ?: record)
+            }
         }
     }
+
+    private fun updateExisting(
+        teamId: UUID,
+        userId: UUID,
+        now: LocalDateTime,
+        f: TimingOfficialTimeRecord.() -> Unit,
+    ): App<Nothing, TimingOfficialTimeRecord?> = TimingOfficialTimeRepo.update(teamId) {
+        f()
+        updatedAt = now
+        updatedBy = userId
+    }.orDie()
 
     /**
      * Start and finish instant per team, from the event's assigned ACTIVE marks.

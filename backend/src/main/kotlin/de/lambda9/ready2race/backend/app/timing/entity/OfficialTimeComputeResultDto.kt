@@ -26,4 +26,7 @@ enum class OfficialTimeSkipReason {
 
     /** The finish mark lies before the start mark - the marks are wrong, not the team. */
     NEGATIVE_DURATION,
+
+    /** [teams] named this id explicitly, but it has no marks at all - there is nothing to compute. */
+    NO_MARKS,
 }

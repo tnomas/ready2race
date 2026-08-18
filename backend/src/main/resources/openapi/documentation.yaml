@@ -13959,6 +13959,7 @@ components:
         - NO_START_MARK
         - NO_FINISH_MARK
         - NEGATIVE_DURATION
+        - NO_MARKS
 
     PushConflictReason:
       type: string

@@ -23,6 +23,20 @@ object TimingOfficialTimeRepo {
 
     fun create(record: TimingOfficialTimeRecord) = TIMING_OFFICIAL_TIME.insertReturning(record) { ID }
 
+    /**
+     * Race-safe insert for the boundary layer's read-then-insert upsert: two concurrent upserts for
+     * the same team (e.g. two overlapping computes, or a compute racing a manual override) can both
+     * read no existing row and both try to insert. The unique constraint on `competition_match_team`
+     * would turn the loser's insert into an uncaught 500; this makes it a no-op instead, so the
+     * caller can fall back to an update. Returns the number of rows inserted (0 or 1).
+     */
+    fun createIfAbsent(record: TimingOfficialTimeRecord): JIO<Int> = Jooq.query {
+        insertInto(TIMING_OFFICIAL_TIME)
+            .set(record)
+            .onConflictDoNothing()
+            .execute()
+    }
+
     fun getByTeam(teamId: UUID) = TIMING_OFFICIAL_TIME.selectOne { COMPETITION_MATCH_TEAM.eq(teamId) }
 
     fun getByEvent(eventId: UUID) = TIMING_OFFICIAL_TIME.select { EVENT.eq(eventId) }
