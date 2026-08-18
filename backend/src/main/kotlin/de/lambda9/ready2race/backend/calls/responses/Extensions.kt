@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.pagination.Page
 import de.lambda9.ready2race.backend.pagination.Sortable
 import de.lambda9.ready2race.backend.plugins.kioEnv
 import de.lambda9.tailwind.core.Cause
+import de.lambda9.tailwind.core.Exit
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.fold
@@ -128,53 +129,65 @@ suspend fun ApplicationCall.respondCause(
 suspend fun ApplicationCall.respondKIO(
     app: KIO<JEnv, ToApiError, ApiResponse>,
 ) {
-    val exit = app.transact().unsafeRunSync(kioEnv)
-    exit.fold(
-        onError = { respondError(it) },
-        onDefect = { respondDefect(it) },
-        onSuccess = { apiResponse ->
-            when (apiResponse) {
-                ApiResponse.NoData -> {
-                    response.status(HttpStatusCode.NoContent)
-                }
+    // Side effects that must not be visible before the transaction committed (e.g. websocket
+    // broadcasts) are buffered while the KIO runs and flushed at the end of this function.
+    val (exit, afterCommit) = AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
+    try {
+        exit.fold(
+            onError = { respondError(it) },
+            onDefect = { respondDefect(it) },
+            onSuccess = { apiResponse ->
+                when (apiResponse) {
+                    ApiResponse.NoData -> {
+                        response.status(HttpStatusCode.NoContent)
+                    }
 
-                is ApiResponse.Dto<*> -> {
-                    respond(apiResponse.dto)
-                }
+                    is ApiResponse.Dto<*> -> {
+                        respond(apiResponse.dto)
+                    }
 
-                is ApiResponse.ETagged<*> -> {
-                    respondETagged(apiResponse)
-                }
+                    is ApiResponse.ETagged<*> -> {
+                        respondETagged(apiResponse)
+                    }
 
-                is ApiResponse.ListDto<*> -> {
-                    respond(apiResponse.data)
-                }
+                    is ApiResponse.ListDto<*> -> {
+                        respond(apiResponse.data)
+                    }
 
-                is ApiResponse.Page<*, *> -> {
-                    respond(apiResponse)
-                }
+                    is ApiResponse.Page<*, *> -> {
+                        respond(apiResponse)
+                    }
 
-                is ApiResponse.File -> {
+                    is ApiResponse.File -> {
 
-                    val contentType = contentTypeForFileName(apiResponse.name)
+                        val contentType = contentTypeForFileName(apiResponse.name)
 
-                    response.header(
-                        HttpHeaders.ContentDisposition,
-                        ContentDisposition.Attachment.withParameter(
-                            ContentDisposition.Parameters.FileName,
-                            apiResponse.name
-                        ).toString()
-                    )
+                        response.header(
+                            HttpHeaders.ContentDisposition,
+                            ContentDisposition.Attachment.withParameter(
+                                ContentDisposition.Parameters.FileName,
+                                apiResponse.name
+                            ).toString()
+                        )
 
-                    respondBytes(apiResponse.bytes, contentType)
-                }
+                        respondBytes(apiResponse.bytes, contentType)
+                    }
 
-                is ApiResponse.Created -> {
-                    respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
+                    is ApiResponse.Created -> {
+                        respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
+                    }
                 }
             }
+        )
+    } finally {
+        // `transact` rolls back on both expected errors and defects, so buffered effects are
+        // dropped unless the transaction actually committed. This must run even if `respond`
+        // above throws or the request coroutine gets cancelled, otherwise a committed
+        // transaction's buffered effects (e.g. websocket broadcasts) would silently never fire.
+        if (exit is Exit.Success) {
+            AfterCommit.flush(afterCommit)
         }
-    )
+    }
 }
 
 suspend fun ApplicationCall.respondComprehension(
