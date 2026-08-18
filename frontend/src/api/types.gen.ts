@@ -3530,6 +3530,7 @@ export type Resource =
     | 'APP_QR_MANAGEMENT'
     | 'APP_COMPETITION_CHECK'
     | 'APP_CATERER'
+    | 'APP_TIMING'
     | 'ADMINISTRATION'
     | 'WEB_DAV'
     | 'RESULT'
