@@ -132,7 +132,7 @@ const TimingBoardPage = () => {
     const finishedTeams = useMemo(() => {
         const finished = new Set<string>()
         for (const mark of marks) {
-            if (mark.status === 'ACTIVE' && mark.assignedTeam !== undefined) {
+            if (mark.status === 'ACTIVE' && mark.assignedTeam != null) {
                 finished.add(mark.assignedTeam)
             }
         }
@@ -494,6 +494,7 @@ const TimingBoardPage = () => {
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.code !== 'Space' && event.key !== ' ') return
+            if (event.repeat) return
             if (isTypingContext() || isSpaceOwnedByFocusedControl()) return
 
             event.preventDefault()

@@ -262,6 +262,7 @@ const TeamCaptureGrid = ({
                     </Typography>
                 )}
                 <Box
+                    data-team-grid=""
                     sx={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
