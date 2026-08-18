@@ -36,6 +36,13 @@ export type UseTimingBoardStateResult = {
     markSaved: (id: string) => void
     /** Flag a local mark as failed (its POST did not succeed — candidate for the offline queue). */
     markFailed: (id: string) => void
+    /**
+     * Set (or clear, with `null`) a mark's team assignment locally, ahead of the authoritative
+     * `assignmentChanged` websocket echo. Used by the combined capture+assign flow to roll the
+     * optimistic assignment back when the assignment PUT fails — without it, the board would keep
+     * showing a team the server never recorded until the next full refetch.
+     */
+    applyLocalAssignment: (id: string, competitionMatchTeam: string | null) => void
 }
 
 const RETRY_BASE_MILLIS = 2000
@@ -414,6 +421,14 @@ export function useTimingBoardState(
         setAllMarks(prev => prev.map(m => (m.id === id ? {...m, pending: false, failed: true} : m)))
     }, [])
 
+    const applyLocalAssignment = useCallback((id: string, competitionMatchTeam: string | null) => {
+        setAllMarks(prev =>
+            prev.map(m =>
+                m.id === id ? {...m, assignedTeam: competitionMatchTeam ?? undefined} : m,
+            ),
+        )
+    }, [])
+
     // `stationId === null` is the Leitstand's cross-station view: no station filter at all, every
     // mark of the event. Any concrete id filters to that station, as the per-station boards need.
     const marks = useMemo(
@@ -430,5 +445,6 @@ export function useTimingBoardState(
         applyLocalMark,
         markSaved,
         markFailed,
+        applyLocalAssignment,
     }
 }

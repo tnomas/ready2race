@@ -1852,6 +1852,16 @@
         "pending": "sending",
         "failed": "failed",
         "undo": "Undo"
+      },
+      "teams": {
+        "viewTwoStep": "Two-step",
+        "viewTeams": "Teams",
+        "arm": "Arm",
+        "armHint": "Tap teams to put them on a key",
+        "armedFull": "At most {{count}} teams can be armed at the same time",
+        "unarm": "Disarm",
+        "hint": "Keys 1–9: start number · Space: time without assignment",
+        "empty": "No teams for this event"
       }
     },
     "leitstand": {

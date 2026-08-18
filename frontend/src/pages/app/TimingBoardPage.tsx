@@ -8,6 +8,8 @@ import {
     DialogContentText,
     DialogTitle,
     Stack,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography,
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
@@ -20,13 +22,16 @@ import {timingEventRoute, timingStationRoute} from '@routes'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
-import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
+import CaptureButton from '@components/timing/CaptureButton.tsx'
+import TeamCaptureGrid from '@components/timing/TeamCaptureGrid.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
 import SequencePanel from '@components/timing/SequencePanel.tsx'
+import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
+import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
-import {useFetch} from '@utils/hooks.ts'
+import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
     counts as queueCounts,
@@ -52,6 +57,7 @@ function formatTimeOfDay(ms: number): string {
 const TimingBoardPage = () => {
     const {t} = useTranslation()
     const user = useUser()
+    const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
     const navigate = useNavigate()
     const {eventId} = timingEventRoute.useParams()
@@ -66,8 +72,17 @@ const TimingBoardPage = () => {
     const clock = useServerClock()
     const sequenceState = useSequence(eventId, stationId)
     const {refetch: refetchSequence} = sequenceState
-    const {marks, stations, refetch, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
-        useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
+    const {
+        marks,
+        stations,
+        refetch,
+        wsStatus,
+        stateError,
+        applyLocalMark,
+        markSaved,
+        markFailed,
+        applyLocalAssignment,
+    } = useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
@@ -90,7 +105,39 @@ const TimingBoardPage = () => {
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
 
-    const captureButtonRef = useRef<CaptureButtonHandle>(null)
+    // --- Capture view -----------------------------------------------------------------------------
+    //
+    // Two ways to record a time, switched by the operator: the classic two-step button (bank a time,
+    // assign it afterwards from the mark list) and the direct-tap team grid (one gesture does both).
+    // Which one is right depends on the post, not on the software — a finish line with 60 teams
+    // streaming in wants the button, a split where the operator knows who is coming wants the grid —
+    // so this is a toggle rather than a decision baked into the station type.
+    //
+    // Except on START stations: those own the whole screen with their sequence panel, and their job is
+    // to start heats, not to attribute times to individual teams. The toggle is not rendered there.
+    const [captureView, setCaptureView] = useState<'TWO_STEP' | 'TEAMS'>('TWO_STEP')
+    const teamsViewAvailable = station !== undefined && station.type !== 'START'
+    const showTeamsView = teamsViewAvailable && captureView === 'TEAMS'
+
+    /**
+     * Teams that are done **at this station**: they have an ACTIVE mark here that is assigned to them.
+     * `marks` is already filtered to this station by `useTimingBoardState`, so no station check is
+     * needed — and it must stay that way, since a team having finished at the *previous* split says
+     * nothing about this one.
+     *
+     * Optimistic (`pending`) and queued (`failed`) marks count: the capture happened, the server just
+     * doesn't know yet, and offering the button again would double-record the team. Retracted marks do
+     * not count, so undoing a mis-tap frees the team up again.
+     */
+    const finishedTeams = useMemo(() => {
+        const finished = new Set<string>()
+        for (const mark of marks) {
+            if (mark.status === 'ACTIVE' && mark.assignedTeam !== undefined) {
+                finished.add(mark.assignedTeam)
+            }
+        }
+        return finished
+    }, [marks])
 
     // --- Offline queue: drain triggers + status banner -----------------------------------------
     //
@@ -177,6 +224,34 @@ const TimingBoardPage = () => {
                 // No response at all — network/DNS/offline. Always worth retrying.
                 outcome = 'retryable'
             }
+
+            // The assignment half of a direct-tap capture (`competitionMatchTeam` is absent on every
+            // two-step item, and on every item written before the field existed). Only attempted once
+            // the mark itself is stored, since assigning a mark the server doesn't have can only 404.
+            //
+            // A failed assignment deliberately does **not** change the outcome: the item still counts
+            // as drained and leaves the queue. The queue's job is the irreplaceable half — the observed
+            // time — and re-POSTing the mark forever to retry an assignment would keep the "not yet
+            // transmitted" banner up for a time that is safely stored. The mark simply stays
+            // unassigned and the operator attaches the team from the mark list, exactly as in the
+            // two-step flow.
+            if (outcome === 'ok' && item.competitionMatchTeam !== undefined) {
+                const assigned = await assignCapturedMark(
+                    item.eventId,
+                    item.id,
+                    item.competitionMatchTeam,
+                )
+                if (!assigned) {
+                    console.warn(
+                        `[timing] Zeitstempel ${item.id} wurde nachträglich übertragen, die Team-Zuordnung schlug jedoch fehl`,
+                    )
+                    if (item.eventId === eventId && item.station === stationId) {
+                        applyLocalAssignment(item.id, null)
+                        feedback.error(t('timing.assign.error'))
+                    }
+                }
+            }
+
             // Only this board's own marks may be touched; items for other events/stations are
             // posted (and cleaned up by `drain`) without ever appearing in this mark list.
             if (item.eventId === eventId && item.station === stationId) {
@@ -188,7 +263,7 @@ const TimingBoardPage = () => {
             }
             return {outcome, status}
         },
-        [eventId, stationId, handleMarkSaved, markFailed],
+        [eventId, stationId, handleMarkSaved, markFailed, applyLocalAssignment, feedback, t],
     )
     // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
     // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
@@ -304,6 +379,40 @@ const TimingBoardPage = () => {
         setUnbufferedMarks(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
     }, [])
 
+    /**
+     * A combined capture+assign whose mark went through but whose assignment did not. The time is
+     * safe; only the team is missing, so roll the optimistic assignment back (otherwise the board — and
+     * the team grid's "finished" state — would keep showing a team the server never recorded until the
+     * next full refetch) and say so, because the mark list looks perfectly healthy otherwise.
+     */
+    const handleAssignFailed = useCallback(
+        (markId: string) => {
+            applyLocalAssignment(markId, null)
+            feedback.error(t('timing.assign.error'))
+        },
+        [applyLocalAssignment, feedback, t],
+    )
+
+    /**
+     * The board's single capture flow, shared by the big two-step button, the Space shortcut and the
+     * team grid's taps/keys — see `useCaptureFlow` for the write-ahead protocol. Owning it here (rather
+     * than inside each surface) is what keeps "one physical press, one mark" true no matter which
+     * surface produced it.
+     */
+    const capture = useCaptureFlow({
+        eventId,
+        station,
+        now: clock.now,
+        applyLocalMark,
+        markSaved: handleMarkSaved,
+        markFailed,
+        onBuffered,
+        onQueueChanged: refreshCounts,
+        onAssignFailed: handleAssignFailed,
+    })
+    const captureRef = useRef<CaptureFn>(capture)
+    captureRef.current = capture
+
     // --- Dead-letter recovery ------------------------------------------------------------------
     //
     // A dead letter is a captured time the server refused for good; dropping it silently would be data
@@ -373,35 +482,22 @@ const TimingBoardPage = () => {
         if (deadDialogOpen && deadCount === 0) setDeadDialogOpen(false)
     }, [deadDialogOpen, deadCount])
 
-    // Space bar triggers the same capture flow as the button — skipped only while an
-    // input/textarea/select has focus (so typing a space in a field doesn't fire a capture), while a
-    // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board), or while a
-    // control *inside the start-sequence panel* has focus: space is the browser's own "activate the
-    // focused button" key there, and an operator tabbing to "Sequenz starten" and pressing space must
-    // start the sequence rather than silently record a time mark. Notably *not* skipped while the
-    // session is unauthorized: like the button itself, the shortcut still captures, and the mark waits
-    // in the offline queue until the operator has logged in again.
+    // Space bar banks an *unassigned* mark, in every capture view — including the team grid, where it
+    // is the escape hatch for "someone crossed the line and I don't know who yet". Skipped only while
+    // an input/textarea/select has focus (so typing a space in a field doesn't fire a capture), while a
+    // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board) — both via
+    // `isTypingContext` — or while a focused control owns the Space key itself (`isSpaceOwnedByFocused
+    // Control`: the start-sequence panel and the capture-view toggle, where an operator pressing space
+    // must activate the button rather than silently record a time mark). Notably *not* skipped while
+    // the session is unauthorized: like the button itself, the shortcut still captures, and the mark
+    // waits in the offline queue until the operator has logged in again.
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.code !== 'Space' && event.key !== ' ') return
-
-            const active = document.activeElement
-            const tag = active?.tagName
-            const isFormField =
-                tag === 'INPUT' ||
-                tag === 'TEXTAREA' ||
-                tag === 'SELECT' ||
-                (active instanceof HTMLElement && active.isContentEditable)
-            const isDialogOpen = document.querySelector('[role="dialog"]') !== null
-            const isSequencePanelControl =
-                (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A') &&
-                active instanceof HTMLElement &&
-                active.closest('[data-sequence-panel]') !== null
-
-            if (isFormField || isDialogOpen || isSequencePanelControl) return
+            if (isTypingContext() || isSpaceOwnedByFocusedControl()) return
 
             event.preventDefault()
-            captureButtonRef.current?.capture()
+            captureRef.current()
         }
 
         window.addEventListener('keydown', handleKeyDown)
@@ -501,24 +597,59 @@ const TimingBoardPage = () => {
                         />
                     </Box>
                 )}
+                {teamsViewAvailable && (
+                    <ToggleButtonGroup
+                        data-capture-view-toggle=""
+                        exclusive
+                        size="small"
+                        value={captureView}
+                        // `null` arrives when the already-selected button is pressed again; keeping the
+                        // current view then is what makes this a switch rather than a way to end up
+                        // with no capture surface at all.
+                        onChange={(_, value: 'TWO_STEP' | 'TEAMS' | null) => {
+                            if (value !== null) setCaptureView(value)
+                        }}
+                        sx={{flexShrink: 0, alignSelf: 'flex-start'}}>
+                        <ToggleButton value="TWO_STEP">
+                            {t('timing.board.teams.viewTwoStep')}
+                        </ToggleButton>
+                        <ToggleButton value="TEAMS">
+                            {t('timing.board.teams.viewTeams')}
+                        </ToggleButton>
+                    </ToggleButtonGroup>
+                )}
                 {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
                     `unlockAudio`): a board whose operator only ever taps the capture button would
                     otherwise stay mute for the sequence countdown beeps. */}
                 <Box
                     onPointerDown={unlockAudio}
-                    sx={{flexShrink: 0, display: 'flex', flexGrow: station?.type === 'START' ? 0 : 1}}>
-                    <CaptureButton
-                        ref={captureButtonRef}
-                        eventId={eventId}
-                        station={station}
-                        now={clock.now}
-                        applyLocalMark={applyLocalMark}
-                        markSaved={handleMarkSaved}
-                        markFailed={markFailed}
-                        onBuffered={onBuffered}
-                        onQueueChanged={refreshCounts}
-                        compact={station?.type === 'START'}
-                    />
+                    sx={{
+                        flexShrink: showTeamsView ? 1 : 0,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexGrow: station?.type === 'START' ? 0 : 1,
+                    }}>
+                    {showTeamsView ? (
+                        <TeamCaptureGrid
+                            teams={teams}
+                            teamsLoading={teamsPending}
+                            finishedTeams={finishedTeams}
+                            capture={capture}
+                            disabled={clock.now() === null || station === undefined}
+                            disabledReason={
+                                clock.now() === null
+                                    ? t('timing.board.capture.clockNotSynced')
+                                    : t('timing.board.capture.stationLoading')
+                            }
+                        />
+                    ) : (
+                        <CaptureButton
+                            station={station}
+                            now={clock.now}
+                            onCapture={capture}
+                            compact={station?.type === 'START'}
+                        />
+                    )}
                 </Box>
             </Box>
 

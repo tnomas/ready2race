@@ -1852,6 +1852,16 @@
         "pending": "wird übertragen",
         "failed": "fehlgeschlagen",
         "undo": "Rückgängig machen"
+      },
+      "teams": {
+        "viewTwoStep": "Zwei-Schritt",
+        "viewTeams": "Teams",
+        "arm": "Scharfstellen",
+        "armHint": "Teams antippen, um sie auf eine Taste zu legen",
+        "armedFull": "Es können höchstens {{count}} Teams gleichzeitig scharfgestellt werden",
+        "unarm": "Scharfstellung aufheben",
+        "hint": "Tasten 1–9: Startnummer · Leertaste: Zeit ohne Zuordnung",
+        "empty": "Keine Teams für dieses Event vorhanden"
       }
     },
     "leitstand": {

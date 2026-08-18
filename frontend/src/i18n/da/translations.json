@@ -1852,6 +1852,16 @@
         "pending": "sender",
         "failed": "mislykkedes",
         "undo": "Fortryd"
+      },
+      "teams": {
+        "viewTwoStep": "To trin",
+        "viewTeams": "Hold",
+        "arm": "Klargør",
+        "armHint": "Tryk på hold for at lægge dem på en tast",
+        "armedFull": "Højst {{count}} hold kan klargøres samtidig",
+        "unarm": "Fjern klargøring",
+        "hint": "Tasterne 1–9: startnummer · Mellemrum: tid uden tildeling",
+        "empty": "Ingen hold til dette event"
       }
     },
     "leitstand": {

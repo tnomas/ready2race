@@ -25,6 +25,19 @@ export type PendingTimeMark = {
     attempts: number
     /** HTTP status of the most recent attempt, if there was a response at all (diagnostics only). */
     lastStatus?: number
+    /**
+     * Team this capture was made *for*, when it came from the direct-tap team grid (capture and
+     * assignment are one operator gesture there). Purely additive and **optional**: two-step captures
+     * never set it, and items written before this field existed simply don't have it — which is why
+     * this needs no `DB_VERSION` bump, the store's shape is unchanged as far as IndexedDB is
+     * concerned. Consumers must treat `undefined` as "no assignment to make".
+     *
+     * The assignment is a *second* request (PUT .../assignment) that can only run once the mark POST
+     * succeeded, so it is deliberately not part of the mark's own payload: the queue's durability
+     * guarantee covers the mark (the thing that is irreplaceable), while a failed assignment merely
+     * leaves the mark unassigned and falls back to the ordinary two-step assignment UI.
+     */
+    competitionMatchTeam?: string
 }
 
 /**
@@ -287,6 +300,10 @@ export async function listDead(): Promise<PendingTimeMark[]> {
  * The usual reason a requeue is what the operator wants: the marks were dead-lettered by a status
  * that *was* their fault at the time (a 404 while the event was still being set up, say) and the
  * underlying cause has since been fixed. Returns the number of items moved.
+ *
+ * The rebuilt row lists its fields explicitly (rather than spreading) so the reset of `attempts` and
+ * `lastStatus` is visible — which means every *carried* field has to be named here too, including
+ * `competitionMatchTeam`: dropping it would silently turn a direct-tap capture into an unassigned one.
  */
 export async function requeueDead(): Promise<number> {
     const db = await openDb()
@@ -311,6 +328,7 @@ export async function requeueDead(): Promise<number> {
                         eventId: item.eventId,
                         station: item.station,
                         timestampMillis: item.timestampMillis,
+                        competitionMatchTeam: item.competitionMatchTeam,
                         attempts: 0,
                     })
                     dead.delete(item.id)
