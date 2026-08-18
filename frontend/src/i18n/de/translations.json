@@ -1756,6 +1756,47 @@
     "mark": {
       "retractError": "Rückgängig machen fehlgeschlagen"
     },
+    "sequence": {
+      "mode": {
+        "MASS": "Massenstart",
+        "INTERVAL": "Einzelstart"
+      },
+      "setup": {
+        "title": "Sequenz einrichten",
+        "intervalSeconds": "Abstand (Sekunden)",
+        "teamsCount_one": "{{count}} Team verfügbar",
+        "teamsCount_other": "{{count}} Teams verfügbar",
+        "armButton": "Alle Teams in Startnummern-Reihenfolge scharf stellen"
+      },
+      "armed": {
+        "title": "Sequenz scharf",
+        "start": "Sequenz starten"
+      },
+      "running": {
+        "finishing": "Wird abgeschlossen…",
+        "following": "Weitere Teams"
+      },
+      "summary": {
+        "titleDone": "Sequenz abgeschlossen",
+        "titleAborted": "Sequenz abgebrochen",
+        "reset": "Neue Sequenz"
+      },
+      "entry": {
+        "skip": "Überspringen",
+        "skipped": "Übersprungen"
+      },
+      "abort": "Abbrechen",
+      "abortConfirm": {
+        "title": "Sequenz wirklich abbrechen?",
+        "content": "Ausstehende Starts werden nicht mehr ausgelöst."
+      },
+      "error": {
+        "create": "Sequenz konnte nicht angelegt werden",
+        "start": "Sequenz konnte nicht gestartet werden",
+        "abort": "Abbrechen fehlgeschlagen",
+        "skip": "Überspringen fehlgeschlagen"
+      }
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Verbindet…",

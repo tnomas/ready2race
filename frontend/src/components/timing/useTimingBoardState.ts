@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {getTimingState, getTimingStations} from '@api/sdk.gen.ts'
-import {TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
+import {TimeMarkDto, TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
 import {TimingWsMessage} from '@utils/timing/timingSocket.ts'
 import {TimingWsStatus, useTimingWebSocket} from '@utils/timing/useTimingWebSocket.ts'
 
@@ -69,6 +69,11 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
         case 'stationsChanged':
             // Only affects `stations`, handled as a side effect by the caller.
             return marks
+        case 'sequenceChanged':
+            // Not mark data at all — handled by the optional `onSequenceChanged` callback in
+            // `useTimingBoardState`, not by this reducer. Present here only so the switch stays
+            // exhaustive over `TimingWsMessage`.
+            return marks
     }
 }
 
@@ -116,7 +121,11 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
  * `applyLocalMark` for the current event and is also treated as preservable, closing that gap; an id
  * is dropped from the set once a snapshot actually contains it, and the set is reset on event change.
  */
-export function useTimingBoardState(eventId: string, stationId: string): UseTimingBoardStateResult {
+export function useTimingBoardState(
+    eventId: string,
+    stationId: string,
+    onSequenceChanged?: (sequence: TimingSequenceDto) => void,
+): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
     const [stateError, setStateError] = useState(false)
@@ -145,6 +154,12 @@ export function useTimingBoardState(eventId: string, stationId: string): UseTimi
      * dropped once a snapshot actually contains it, and the whole set is reset on event change.
      */
     const locallyCreatedIdsRef = useRef<Set<string>>(new Set())
+
+    /** Latest `onSequenceChanged`, mirrored so `onMessage` doesn't need it as a dependency. */
+    const onSequenceChangedRef = useRef(onSequenceChanged)
+    useEffect(() => {
+        onSequenceChangedRef.current = onSequenceChanged
+    })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const retryAttemptRef = useRef(0)
@@ -331,6 +346,10 @@ export function useTimingBoardState(eventId: string, stationId: string): UseTimi
             if (message.type === 'stationsChanged') {
                 stationsVersionRef.current += 1
                 refetchStations()
+                return
+            }
+            if (message.type === 'sequenceChanged') {
+                onSequenceChangedRef.current?.(message.sequence)
                 return
             }
             setAllMarks(prev => applyWsMessage(prev, message))

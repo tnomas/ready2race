@@ -1756,6 +1756,47 @@
     "mark": {
       "retractError": "Undo failed"
     },
+    "sequence": {
+      "mode": {
+        "MASS": "Mass start",
+        "INTERVAL": "Interval start"
+      },
+      "setup": {
+        "title": "Set up sequence",
+        "intervalSeconds": "Interval (seconds)",
+        "teamsCount_one": "{{count}} team available",
+        "teamsCount_other": "{{count}} teams available",
+        "armButton": "Arm all teams in start-number order"
+      },
+      "armed": {
+        "title": "Sequence armed",
+        "start": "Start sequence"
+      },
+      "running": {
+        "finishing": "Finishing…",
+        "following": "Following teams"
+      },
+      "summary": {
+        "titleDone": "Sequence completed",
+        "titleAborted": "Sequence aborted",
+        "reset": "New sequence"
+      },
+      "entry": {
+        "skip": "Skip",
+        "skipped": "Skipped"
+      },
+      "abort": "Abort",
+      "abortConfirm": {
+        "title": "Abort sequence?",
+        "content": "Pending starts will no longer fire."
+      },
+      "error": {
+        "create": "Could not create sequence",
+        "start": "Could not start sequence",
+        "abort": "Abort failed",
+        "skip": "Skip failed"
+      }
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Connecting…",

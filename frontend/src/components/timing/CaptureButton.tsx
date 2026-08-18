@@ -36,6 +36,11 @@ export type CaptureButtonProps = {
      * its queue-status banner immediately instead of waiting for the next periodic drain/count check.
      */
     onQueueChanged: () => void
+    /**
+     * Renders a smaller button — used when this is the manual fallback shown below a `SequencePanel`
+     * on a START station, rather than the sole capture surface.
+     */
+    compact?: boolean
 }
 
 /**
@@ -64,6 +69,7 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
         markFailed,
         onBuffered,
         onQueueChanged,
+        compact,
     },
     ref,
 ) {
@@ -193,16 +199,16 @@ const CaptureButton = forwardRef<CaptureButtonHandle, CaptureButtonProps>(functi
                 sx={{
                     flexGrow: 1,
                     width: 1,
-                    minHeight: '40vh',
+                    minHeight: compact ? '12vh' : '40vh',
                     borderRadius: 2,
                     bgcolor: disabled ? 'action.disabledBackground' : 'primary.main',
                     color: disabled ? 'text.disabled' : 'primary.contrastText',
                     transition: 'background-color 0.1s',
                     '&:active': disabled ? undefined : {bgcolor: 'primary.dark'},
                 }}>
-                <Stack alignItems="center" spacing={2}>
-                    <FlagIcon sx={{fontSize: {xs: 64, sm: 96}}} />
-                    <Typography variant="h3" component="span" textAlign="center">
+                <Stack alignItems="center" spacing={compact ? 1 : 2}>
+                    <FlagIcon sx={{fontSize: compact ? {xs: 28, sm: 36} : {xs: 64, sm: 96}}} />
+                    <Typography variant={compact ? 'h6' : 'h3'} component="span" textAlign="center">
                         {station !== undefined ? t(`timing.station.types.${station.type}`) : ''}
                     </Typography>
                 </Stack>

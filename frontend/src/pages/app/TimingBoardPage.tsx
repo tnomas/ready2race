@@ -22,6 +22,8 @@ import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButton.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
+import SequencePanel from '@components/timing/SequencePanel.tsx'
+import {useSequence} from '@utils/timing/useSequence.ts'
 import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
 import {
@@ -61,8 +63,10 @@ const TimingBoardPage = () => {
     }, [user, navigate])
 
     const clock = useServerClock()
+    const sequenceState = useSequence(eventId, stationId)
+    const {refetch: refetchSequence} = sequenceState
     const {marks, stations, refetch, wsStatus, stateError, applyLocalMark, markSaved, markFailed} =
-        useTimingBoardState(eventId, stationId)
+        useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
@@ -243,9 +247,13 @@ const TimingBoardPage = () => {
         wsStatusRef.current = wsStatus
         if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
             runDrain()
+            // The active sequence (Task C) has the same "missed a message while disconnected" gap as
+            // marks/stations, so refetch it on the same reconnect transition. See `useSequence`'s docs
+            // for why this can't restore a DONE/ABORTED sequence (GET active never returns those).
+            refetchSequence()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, runDrain])
+    }, [wsStatus, runDrain, refetchSequence])
 
     // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
     // can never permanently silence the tick. Checked against the latest values via refs, so the
@@ -470,19 +478,35 @@ const TimingBoardPage = () => {
                     flexGrow: 1,
                     minHeight: 0,
                     display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
                     p: 2,
                 }}>
-                <CaptureButton
-                    ref={captureButtonRef}
-                    eventId={eventId}
-                    station={station}
-                    now={clock.now}
-                    applyLocalMark={applyLocalMark}
-                    markSaved={handleMarkSaved}
-                    markFailed={markFailed}
-                    onBuffered={onBuffered}
-                    onQueueChanged={refreshCounts}
-                />
+                {station?.type === 'START' && (
+                    <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex'}}>
+                        <SequencePanel
+                            stationId={stationId}
+                            teams={teams}
+                            teamsLoading={teamsPending}
+                            now={clock.now}
+                            sequenceState={sequenceState}
+                        />
+                    </Box>
+                )}
+                <Box sx={{flexShrink: 0, display: 'flex', flexGrow: station?.type === 'START' ? 0 : 1}}>
+                    <CaptureButton
+                        ref={captureButtonRef}
+                        eventId={eventId}
+                        station={station}
+                        now={clock.now}
+                        applyLocalMark={applyLocalMark}
+                        markSaved={handleMarkSaved}
+                        markFailed={markFailed}
+                        onBuffered={onBuffered}
+                        onQueueChanged={refreshCounts}
+                        compact={station?.type === 'START'}
+                    />
+                </Box>
             </Box>
 
             <Box

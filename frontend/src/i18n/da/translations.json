@@ -1756,6 +1756,47 @@
     "mark": {
       "retractError": "Fortryd mislykkedes"
     },
+    "sequence": {
+      "mode": {
+        "MASS": "Massestart",
+        "INTERVAL": "Intervalstart"
+      },
+      "setup": {
+        "title": "Opsæt sekvens",
+        "intervalSeconds": "Interval (sekunder)",
+        "teamsCount_one": "{{count}} hold tilgængeligt",
+        "teamsCount_other": "{{count}} hold tilgængelige",
+        "armButton": "Klargør alle hold i startnummerrækkefølge"
+      },
+      "armed": {
+        "title": "Sekvens klargjort",
+        "start": "Start sekvens"
+      },
+      "running": {
+        "finishing": "Afsluttes…",
+        "following": "Følgende hold"
+      },
+      "summary": {
+        "titleDone": "Sekvens afsluttet",
+        "titleAborted": "Sekvens afbrudt",
+        "reset": "Ny sekvens"
+      },
+      "entry": {
+        "skip": "Spring over",
+        "skipped": "Sprunget over"
+      },
+      "abort": "Afbryd",
+      "abortConfirm": {
+        "title": "Afbryd sekvens?",
+        "content": "Afventende starter udløses ikke længere."
+      },
+      "error": {
+        "create": "Sekvens kunne ikke oprettes",
+        "start": "Sekvens kunne ikke startes",
+        "abort": "Afbrydelse mislykkedes",
+        "skip": "Spring over mislykkedes"
+      }
+    },
     "board": {
       "wsStatus": {
         "CONNECTING": "Forbinder…",
