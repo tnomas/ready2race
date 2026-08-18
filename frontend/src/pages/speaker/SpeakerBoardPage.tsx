@@ -29,6 +29,8 @@ import {Link, useParams} from '@tanstack/react-router'
 import {format} from 'date-fns'
 import {useEffect, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
+import {EventInvalidationBridge} from '@utils/timing/useEventInvalidation.ts'
+import {hasAnySessionToken} from '@contexts/user/sessionToken.ts'
 
 const FETCH_LIMIT = 500
 
@@ -121,8 +123,17 @@ const SpeakerBoardPage = () => {
 
     const runningCount = matches.filter(match => match.status === 'RUNNING').length
 
+    // PORT-T6: Diese Seite ist öffentlich, ohne Anmeldung (siehe speakerEventRoute in routes.tsx) -
+    // anders als das LiveDashboard gibt es hier also nicht garantiert einen Sitzungstoken (den der
+    // WS-Kanal verlangt). Einmal beim Einhängen geprüft, nicht laufend beobachtet: Ist ein
+    // Sprecher im selben Browserprofil angemeldet, bekommt das Board sofortige Updates; rein
+    // öffentlich (kein Login) montiert bleibt es bei reinem Polling, ohne je einen
+    // Verbindungsversuch zu starten (siehe EventInvalidationBridge / useEventInvalidation.ts).
+    const [hasSessionToken] = useState(hasAnySessionToken)
+
     return (
         <SpeakerSettingsContext.Provider value={{settings, colors, updateSettings}}>
+            {hasSessionToken && <EventInvalidationBridge eventId={eventId} onInvalidate={reloadAll} />}
             <Box
             sx={{
                 minHeight: '100vh',

@@ -13,6 +13,14 @@ export interface PolledState<T> {
     // trägt die Stand-von-Warnung — bewusstes Pausieren im Hintergrund zählt nicht als
     // Fehler, weil dabei gar kein Abruf stattfindet.
     loadFailed: boolean
+    /**
+     * Löst sofort einen Abruf aus, unabhängig vom laufenden Takt-Timer (PORT-T6: von der
+     * WS-Invalidierung genutzt, siehe useEventInvalidation.ts). Der Takt selbst bleibt
+     * unverändert — dieser Aufruf ersetzt keinen Zyklus, er zieht nur den nächsten vor
+     * (runLoad räumt seinen eigenen Timer aus demselben finally-Block auf, der auch den
+     * regulären Takt stellt).
+     */
+    reload: () => void
 }
 
 /**
@@ -141,5 +149,14 @@ export const usePolledEndpoint = <T>(
         }
     }, [runLoad])
 
-    return {data, lastUpdated, notFound, initialLoad, loadFailed}
+    return {
+        data,
+        lastUpdated,
+        notFound,
+        initialLoad,
+        loadFailed,
+        reload: () => {
+            void runLoad()
+        },
+    }
 }

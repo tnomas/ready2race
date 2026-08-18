@@ -9,6 +9,11 @@ import {TimeMarkDto, TimingResultDto, TimingSequenceDto} from '@api/types.gen.ts
  * (`timeMarks`) — both exactly as the backend's `TimingWsMessage.ResultChanged` /
  * `.TimesDeleted` jackson subtypes declare them, since a push or a penalty entry changes many rows
  * at once and one message per row would flood every connected board.
+ *
+ * `eventStateChanged` (PORT-T6) carries no payload at all: it is a generic "something about this
+ * event changed, maybe refetch" signal broadcast from `EventChangeMarker.bump` — i.e. from *every*
+ * write path that feeds the polled public/live views (LiveDashboard, Speaker board, Board
+ * displays), not only the timing module. See `useEventInvalidation.ts`.
  */
 export type TimingWsMessage =
     | {type: 'timeMarkCreated'; mark: TimeMarkDto}
@@ -18,6 +23,7 @@ export type TimingWsMessage =
     | {type: 'sequenceChanged'; sequence: TimingSequenceDto}
     | {type: 'resultChanged'; results: TimingResultDto[]}
     | {type: 'timesDeleted'; timeMarks: string[]}
+    | {type: 'eventStateChanged'}
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
     'timeMarkCreated',
@@ -27,6 +33,7 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
     'sequenceChanged',
     'resultChanged',
     'timesDeleted',
+    'eventStateChanged',
 ])
 
 /**

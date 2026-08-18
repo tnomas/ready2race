@@ -96,6 +96,11 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             const deleted = new Set(message.timeMarks)
             return marks.filter(m => !deleted.has(m.id))
         }
+        case 'eventStateChanged':
+            // The generic event-wide invalidation signal (PORT-T6) - irrelevant to this board's own
+            // websocket feed (it already gets every mark/sequence/result change directly over this
+            // same channel). Present only so the switch stays exhaustive over `TimingWsMessage`.
+            return marks
     }
 }
 
