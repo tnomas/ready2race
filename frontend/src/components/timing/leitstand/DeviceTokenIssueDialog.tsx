@@ -52,15 +52,19 @@ const DeviceTokenIssueDialog = ({
     const [submitting, setSubmitting] = useState(false)
     const [issuedToken, setIssuedToken] = useState<string | null>(null)
 
-    // Reset on every open so a previous token can never be re-shown, and preselect the only sensible
-    // default when the event has exactly one station.
+    // Reset only on the false->true open transition so a previous token can never be re-shown, and
+    // preselect the only sensible default when the event has exactly one station. `stations` is
+    // deliberately NOT a dependency: the leitstand page refetches it on every visibilitychange, which
+    // would otherwise give this effect a new array identity and wipe the just-issued plaintext token
+    // out from under the operator while phase 2 is still showing it.
     useEffect(() => {
         if (!open) return
         setName('')
         setStation(stations.length === 1 ? stations[0].id : '')
         setIssuedToken(null)
         setSubmitting(false)
-    }, [open, stations])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open])
 
     const canSubmit = name.trim().length > 0 && station.length > 0 && !submitting
 
@@ -97,8 +101,21 @@ const DeviceTokenIssueDialog = ({
             .catch(() => feedback.error(t('timing.leitstand.devices.issue.copyError')))
     }
 
+    // Once the plaintext token is showing, it can only be dismissed via the explicit "done" button —
+    // not Escape, not a backdrop click — since closing any other way is the one action that discards a
+    // value the operator can never retrieve again.
+    const handleDialogClose = (_event: object, reason: 'backdropClick' | 'escapeKeyDown') => {
+        if (issuedToken !== null && (reason === 'backdropClick' || reason === 'escapeKeyDown')) return
+        onClose()
+    }
+
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+        <Dialog
+            open={open}
+            onClose={handleDialogClose}
+            disableEscapeKeyDown={issuedToken !== null}
+            fullWidth
+            maxWidth="sm">
             <DialogTitle>{t('timing.leitstand.devices.issue.title')}</DialogTitle>
             {issuedToken === null ? (
                 <>

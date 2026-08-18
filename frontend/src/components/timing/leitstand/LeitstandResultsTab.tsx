@@ -171,8 +171,14 @@ const LeitstandResultsTab = ({
     const allPushableSelected =
         pushableIds.length > 0 && pushableIds.every(id => selected.has(id)) && selected.size > 0
 
+    // Select all pushable rows unless every one of them is already selected, in which case clear.
+    // Using `prev.size > 0` here (instead of "all selected") would make the indeterminate state (some,
+    // but not all, rows selected) toggle to *nothing selected* instead of *everything selected*.
     const toggleSelectAll = useCallback(() => {
-        setSelected(prev => (prev.size > 0 ? new Set() : new Set(pushableIds)))
+        setSelected(prev => {
+            const allSelected = pushableIds.length > 0 && pushableIds.every(id => prev.has(id))
+            return allSelected ? new Set() : new Set(pushableIds)
+        })
     }, [pushableIds])
 
     const handleCompute = useCallback(() => {
@@ -237,8 +243,20 @@ const LeitstandResultsTab = ({
             feedback.warning(t('timing.leitstand.results.push.nothing'))
             return
         }
+        if (selected.size === 0) {
+            // Nothing is selected, which pushes every transferable row in the event. Confirm and name
+            // the count so an operator who simply forgot to select specific teams doesn't silently
+            // push results for the whole event.
+            confirmAction(() => runPush(teamIds, false), {
+                title: t('timing.leitstand.results.push.confirmAll.title'),
+                content: t('timing.leitstand.results.push.confirmAll.content', {
+                    count: teamIds.length,
+                }),
+            })
+            return
+        }
         runPush(teamIds, false)
-    }, [selected, pushableIds, runPush, feedback, t])
+    }, [selected, pushableIds, runPush, feedback, t, confirmAction])
 
     const handleForcePush = useCallback(() => {
         if (conflicts === null) return
@@ -252,12 +270,25 @@ const LeitstandResultsTab = ({
         )
         const teamIds = conflicts.teams.filter(id => !unfixable.has(id))
         if (teamIds.length === 0) return
+
+        // Name exactly what the force-push overrides: the frozen teams' start numbers, not just an
+        // abstract "these teams" — the operator should be able to recognize them without cross-checking
+        // the list above.
+        const frozenNumbers = conflicts.list
+            .filter(conflict => conflict.reason === 'RESULT_FROZEN')
+            .map(conflict => teamById.get(conflict.competitionMatchTeam)?.startNumber)
+            .filter((startNumber): startNumber is number => startNumber !== undefined)
+            .sort((a, b) => a - b)
+
         confirmAction(() => runPush(teamIds, true), {
             title: t('timing.leitstand.results.push.forceConfirm.title'),
-            content: t('timing.leitstand.results.push.forceConfirm.content'),
+            content: t('timing.leitstand.results.push.forceConfirm.content', {
+                count: frozenNumbers.length,
+                numbers: frozenNumbers.join(', '),
+            }),
             okText: t('timing.leitstand.results.push.force'),
         })
-    }, [conflicts, confirmAction, runPush, t])
+    }, [conflicts, confirmAction, runPush, t, teamById])
 
     const forceable = conflicts?.list.some(conflict => conflict.reason === 'RESULT_FROZEN') ?? false
 

@@ -39,6 +39,8 @@ export type LeitstandMarksTabProps = {
     stations: TimingStationDto[]
     teams: TimingTeamDto[]
     teamsLoading: boolean
+    /** Re-fetch the full timing state; called after a delete as a backstop for the websocket echo. */
+    refetch: () => void
 }
 
 /**
@@ -53,7 +55,9 @@ export type LeitstandMarksTabProps = {
  * The delete flow only ever removes RETRACTED marks — the server enforces that, and the button's
  * count reflects the current filter so "delete everything retracted at the finish" is one click. The
  * rows disappear through the websocket `timesDeleted` echo, not optimistically, so what is shown
- * always matches what the server actually deleted.
+ * always matches what the server actually deleted; `refetch` is called as well as a backstop in case
+ * that echo is missed (dropped connection, reconnect race), so the table can't be left showing marks
+ * the server has already deleted.
  */
 const LeitstandMarksTab = ({
     eventId,
@@ -61,6 +65,7 @@ const LeitstandMarksTab = ({
     stations,
     teams,
     teamsLoading,
+    refetch,
 }: LeitstandMarksTabProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
@@ -201,6 +206,7 @@ const LeitstandMarksTab = ({
                         feedback.success(
                             t('timing.leitstand.marks.delete.success', {count: data.timeMarks.length}),
                         )
+                        refetch()
                     } catch {
                         feedback.error(t('timing.leitstand.marks.delete.error'))
                     } finally {
@@ -220,7 +226,7 @@ const LeitstandMarksTab = ({
                 okText: t('timing.leitstand.marks.delete.action'),
             },
         )
-    }, [confirmAction, eventId, feedback, retractedCount, stationById, stationFilter, t])
+    }, [confirmAction, eventId, feedback, refetch, retractedCount, stationById, stationFilter, t])
 
     const rawAssignDialogMark = marks.find(m => m.id === assignDialogMarkId)
     const assignDialogMark =

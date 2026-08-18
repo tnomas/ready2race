@@ -1952,12 +1952,17 @@
           "success_one": "{{count}} Zeit übernommen",
           "success_other": "{{count}} Zeiten übernommen",
           "force": "Trotzdem übernehmen",
+          "confirmAll": {
+            "title": "Ergebnisse übernehmen?",
+            "content": "Alle {{count}} übertragbaren Ergebnisse übernehmen?"
+          },
           "forceConfirm": {
             "title": "Ergebnisse überschreiben?",
-            "content": "Für diese Teams ist das Ergebnis bereits festgeschrieben. Die Zeiten werden trotzdem überschrieben."
+            "content_one": "Für {{count}} Team (Startnummer {{numbers}}) ist das Ergebnis bereits festgeschrieben. Die Zeit wird trotzdem überschrieben.",
+            "content_other": "Für {{count}} Teams (Startnummern {{numbers}}) ist das Ergebnis bereits festgeschrieben. Die Zeiten werden trotzdem überschrieben."
           },
           "conflictTitle": "Übernahme nicht möglich",
-          "conflictDescription": "Für diese Teams wurde nichts übernommen:",
+          "conflictDescription": "Es wurde nichts übernommen. Konflikte:",
           "conflictReason": {
             "RESULT_FROZEN": "Ergebnis bereits festgeschrieben",
             "NO_EFFECTIVE_TIME": "Keine Zeit und kein Status gesetzt"

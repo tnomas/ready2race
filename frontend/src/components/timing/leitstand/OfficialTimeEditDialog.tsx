@@ -61,8 +61,10 @@ const OfficialTimeEditDialog = ({
     const [status, setStatus] = useState<OfficialTimeResultStatus>('NONE')
     const [submitting, setSubmitting] = useState(false)
 
-    // Re-seed from the row every time the dialog opens (and whenever the row changes underneath an
-    // open dialog, e.g. a recompute landing over the websocket) instead of keeping stale local input.
+    // Re-seed from the row only when the dialog opens (or is opened for a different row) — NOT on every
+    // `official` identity change. A websocket-driven recompute can replace the `official` object while
+    // the dialog is open for that same row; reseeding then would clobber whatever the operator is mid-
+    // typing. `official` is intentionally read from the closure rather than listed as a dependency.
     useEffect(() => {
         if (!open) return
         setOverrideInput(official?.overrideMillis !== undefined ? formatSeconds(official.overrideMillis) : '')
@@ -72,7 +74,8 @@ const OfficialTimeEditDialog = ({
                 : '',
         )
         setStatus(official?.resultStatus ?? 'NONE')
-    }, [open, official])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, competitionMatchTeam])
 
     const overrideMillis = overrideInput.trim().length === 0 ? null : parseSecondsToMillis(overrideInput)
     const penaltyMillis = penaltyInput.trim().length === 0 ? 0 : parseSecondsToMillis(penaltyInput)

@@ -183,6 +183,7 @@ const TimingLeitstandPage = () => {
                         stations={stations}
                         teams={teams}
                         teamsLoading={teamsPending}
+                        refetch={refetch}
                     />
                 )}
                 {tab === 'results' && (

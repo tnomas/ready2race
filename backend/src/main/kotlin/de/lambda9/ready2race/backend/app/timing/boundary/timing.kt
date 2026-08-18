@@ -27,7 +27,7 @@ fun Route.timing() {
 
         get("/state") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
                 TimingService.getState(eventId)
             }
@@ -35,7 +35,7 @@ fun Route.timing() {
 
         get("/teams") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
                 TimingService.getTeams(eventId)
             }
@@ -54,7 +54,7 @@ fun Route.timing() {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
                     TimingService.getStations(eventId)
                 }
@@ -203,7 +203,7 @@ fun Route.timing() {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
                     TimingOfficialTimeService.getForEvent(eventId)
                 }

@@ -76,6 +76,7 @@ private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
     val authorized = authenticateAnyWithToken(
         token,
         Privilege.UpdateAppTimingGlobal,
+        Privilege.UpdateEventGlobal,
         Privilege.ReadEventGlobal,
     ).unsafeRunSync(env).fold(
         onSuccess = { true },

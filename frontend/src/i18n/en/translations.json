@@ -1952,12 +1952,17 @@
           "success_one": "{{count}} time pushed",
           "success_other": "{{count}} times pushed",
           "force": "Push anyway",
+          "confirmAll": {
+            "title": "Push results?",
+            "content": "Push all {{count}} transferable results?"
+          },
           "forceConfirm": {
             "title": "Overwrite results?",
-            "content": "The result of these teams is already final. The times will be overwritten anyway."
+            "content_one": "The result of {{count}} team (start number {{numbers}}) is already final. The time will be overwritten anyway.",
+            "content_other": "The result of {{count}} teams (start numbers {{numbers}}) is already final. The times will be overwritten anyway."
           },
           "conflictTitle": "Push not possible",
-          "conflictDescription": "Nothing was pushed for these teams:",
+          "conflictDescription": "Nothing was pushed at all. Conflicts:",
           "conflictReason": {
             "RESULT_FROZEN": "Result already final",
             "NO_EFFECTIVE_TIME": "Neither a time nor a status is set"

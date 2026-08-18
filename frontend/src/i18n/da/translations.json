@@ -1952,12 +1952,17 @@
           "success_one": "{{count}} tid overført",
           "success_other": "{{count}} tider overført",
           "force": "Overfør alligevel",
+          "confirmAll": {
+            "title": "Overfør resultater?",
+            "content": "Overfør alle {{count}} overførbare resultater?"
+          },
           "forceConfirm": {
             "title": "Overskriv resultater?",
-            "content": "Resultatet for disse hold er allerede endeligt. Tiderne overskrives alligevel."
+            "content_one": "Resultatet for {{count}} hold (startnummer {{numbers}}) er allerede endeligt. Tiden overskrives alligevel.",
+            "content_other": "Resultatet for {{count}} hold (startnumre {{numbers}}) er allerede endeligt. Tiderne overskrives alligevel."
           },
           "conflictTitle": "Overførsel ikke mulig",
-          "conflictDescription": "Der blev ikke overført noget for disse hold:",
+          "conflictDescription": "Der blev ikke overført noget overhovedet. Konflikter:",
           "conflictReason": {
             "RESULT_FROZEN": "Resultatet er allerede endeligt",
             "NO_EFFECTIVE_TIME": "Hverken tid eller status er sat"
