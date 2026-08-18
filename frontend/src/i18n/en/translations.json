@@ -1743,6 +1743,8 @@
         "runningPlain": "Running",
         "partiallyScored": "Partially scored {{scored}}/{{total}}",
         "awaitingFinish": "Waiting to be finished",
+        "clarification": "Under review",
+        "provisional": "provisional · under review",
         "finished": "Finished",
         "cancelled": "Cancelled",
         "unscheduled": "Unscheduled",
@@ -1757,6 +1759,7 @@
         "counter": {
           "preparing": "{{n}} preparing",
           "running": "{{n}} running",
+          "clarification": "{{n}} under review",
           "open": "{{n}} open",
           "finished": "{{n}} finished",
           "cancelled": "{{n}} cancelled"
@@ -1850,6 +1853,16 @@
         "errorReason": {
           "finishReservedForOffice": "For this event the regatta office finishes runs via the schedule. The run stays active — please tell the regatta office that it has finished."
         }
+      },
+      "clarification": {
+        "sectionTitle": "Under review ({{n}})",
+        "set": "Mark under review",
+        "resolve": "Resolve",
+        "dialogTitle": "Put match under review",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Objection, lane contact",
+        "submit": "Mark under review",
+        "since": "since {{time}}"
       },
       "substitution": {
         "short": "Substitution",
@@ -2137,6 +2150,7 @@
           "preparing": "Preparing",
           "running": "Running",
           "awaitingFinish": "Waiting to finish",
+          "clarification": "Under review",
           "linked": "Linked",
           "waiting": "Race not set yet",
           "free": "Program item",

@@ -3,6 +3,7 @@ import {useTranslation} from 'react-i18next'
 import {LiveDashboardMatchDto} from '@api/types.gen.ts'
 import {MatchResultStatus} from '@utils/matchResultStatus.ts'
 import LiveDashboardMatchCard, {LiveDashboardPendingSlotCard} from './LiveDashboardMatchCard.tsx'
+import ClarificationSection from './ClarificationSection.tsx'
 import {
     dashboardEntryDomId,
     LiveDashboardDetailSettings,
@@ -26,6 +27,14 @@ export type LiveDashboardActions = {
     onSkipSlot?: (slotId: string, label: string, time: string) => void
     /** Ob die Veranstaltung den automatischen RaceClocker-Abruf eingeschaltet hat. */
     raceClockerAutoPull?: boolean
+    /** Hebt die Klärung wieder auf; der Lauf ist danach wieder das, was er vorher war. */
+    onResolveClarification?: (matchId: string) => Promise<void>
+    /**
+     * Öffnet den Klärungs-Dialog für diesen Lauf. Die Karte reicht nur die `matchId` nach oben; den
+     * Grund (Pflichtfeld) erfragt der Dialog auf Seitenebene und schickt ihn selbst ab — dasselbe
+     * Muster wie `onTeamClick` für die Team-Details.
+     */
+    onClarifyClick?: (matchId: string) => void
 }
 
 /**
@@ -59,6 +68,8 @@ const TimelineEntryCard = ({
                 raceClockerAutoPull={actions.raceClockerAutoPull}
                 shortLabels={shortLabels}
                 detail={detail}
+                onClarifyClick={actions.onClarifyClick}
+                onResolveClarification={actions.onResolveClarification}
             />
         </Box>
     ) : (
@@ -81,6 +92,8 @@ type LiveColumnProps = {
     actions: LiveDashboardActions
     shortLabels: boolean
     detail: LiveDashboardDetailSettings
+    /** Läufe mit laufendem Einspruch — eigener, eingeklappter Abschnitt unter den Karten. */
+    clarificationMatches: LiveDashboardMatchDto[]
 }
 
 /** Was jetzt eine Handlung verlangt: die laufenden Läufe, ersatzweise "Als Nächstes". */
@@ -91,6 +104,7 @@ export const LiveColumn = ({
     actions,
     shortLabels,
     detail,
+    clarificationMatches,
 }: LiveColumnProps) => {
     const {t} = useTranslation()
 
@@ -123,6 +137,7 @@ export const LiveColumn = ({
                     />
                 </>
             )}
+            <ClarificationSection matches={clarificationMatches} actions={actions} />
         </>
     )
 }

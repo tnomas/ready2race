@@ -72,6 +72,8 @@ class AutoRoundProgressionLogicTest {
         raceClockerPollError = null,
         raceClockerAutoPausedAt = null,
         pairingsRecalculatedAt = null,
+        clarificationSince = null,
+        clarificationReason = null,
         byeMustRace = byeMustRace,
         teams = teams,
     )

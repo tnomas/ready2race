@@ -54,6 +54,14 @@ describe('matchesOnDisplay', () => {
     })
 
     /**
+     * Ein Lauf in Klärung ist gefahren und stand auf den Anzeigen — nur seine Freigabe fehlt. Für
+     * die Warnung vor dem Löschen zählt er deshalb wie ein laufender.
+     */
+    it('zählt einen Lauf in Klärung', () => {
+        expect(matchesOnDisplay([match('CLARIFICATION'), match('UPCOMING')])).toBe(1)
+    })
+
+    /**
      * Ein abgesagter Lauf steht zwar im Zeitplan, aber seine Paarung hat niemand als Ereignis
      * gesehen — die öffentlichen Anzeigen blenden ihn aus.
      */

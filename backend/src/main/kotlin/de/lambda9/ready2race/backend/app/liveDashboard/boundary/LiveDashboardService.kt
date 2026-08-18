@@ -252,6 +252,7 @@ object LiveDashboardService {
                 val startedAt = match[COMPETITION_MATCH.STARTED_AT]
                 val finishedAt = match[COMPETITION_MATCH.FINISHED_AT]
                 val activatedAt = match[COMPETITION_MATCH.ACTIVATED_AT]
+                val clarificationSince = match[COMPETITION_MATCH.CLARIFICATION_SINCE]
                 // Für die Arena-Prüfung zählt weiterhin die Aktivierung, nicht der Ist-Start: ein
                 // Boot, das an den Start gerufen ist, gehört raus - unabhängig davon, ob das Rennen
                 // schon unterwegs ist.
@@ -283,6 +284,7 @@ object LiveDashboardService {
                             // ein Ergebnis wartet - eine Abmeldung zählt dabei mit.
                             teamResults = teams.map { LiveDashboardLogic.teamIsSettled(it.place, it.failed, it.deregistered) },
                             skipped = matchId in skippedMatchIds,
+                            clarificationSince = clarificationSince,
                         ),
                         bye = byeByMatch[matchId],
                         competitionId = match.get("competition_id", UUID::class.java)!!,
@@ -295,6 +297,8 @@ object LiveDashboardService {
                         executionOrder = match[COMPETITION_SETUP_MATCH.EXECUTION_ORDER] ?: 0,
                         startTime = startTime,
                         startedAt = startedAt,
+                        clarificationSince = clarificationSince,
+                        clarificationReason = match[COMPETITION_MATCH.CLARIFICATION_REASON],
                         elapsedMinutes = startedAt?.let { Duration.between(it, now).toMinutes().coerceAtLeast(0) },
                         teams = teams,
                         raceClockerPollError = match[COMPETITION_MATCH.RACECLOCKER_POLL_ERROR],
@@ -571,6 +575,11 @@ object LiveDashboardService {
             // `started_at` und pausiert den RaceClocker-Abruf, und beides wäre hier falsch.
             activatedAt = null
             finishedAt = LocalDateTime.now()
+            // Beenden IST die Freigabe - kein zweiter Klick. Ohne dieses Leeren bliebe der Merker
+            // stehen; der Zustand wäre zwar FINISHED (finishedAt schlägt die Klärung), aber jede
+            // Abfrage, die auf clarification_since filtert, verlöre den Lauf dauerhaft.
+            clarificationSince = null
+            clarificationReason = null
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -671,6 +680,85 @@ object LiveDashboardService {
         }.orDie()
 
         // „Läuft" soll sofort auf den Anzeigen stehen, nicht erst nach Ablauf der Cache-TTL.
+        EventChangeMarker.bump(eventId)
+
+        noData
+    }
+
+    /**
+     * Setzt einen Lauf in Klärung - der Weg für einen Einspruch, der noch nicht entschieden ist.
+     *
+     * `activated_at` bleibt ausdrücklich stehen: Der Lauf ist weiter an den Start gerufen, und nach
+     * dem Aufheben steht er ohne Zutun wieder auf RUNNING. Was sich ändert, ist allein der Zustand
+     * ([LiveDashboardLogic.deriveMatchState] prüft die Klärung VOR der Aktivierung) - und damit,
+     * dass die öffentlichen Anzeigen und die Kette ihn loslassen.
+     *
+     * Ein zweiter Aufruf schärft nur den Grund nach; [MatchClarificationRequest.reason] bleibt der
+     * einzige Eingabewert, der Zeitpunkt selbst bleibt der erste, denn das "seit 14:37" der Zeile
+     * meint den Beginn des Streits, nicht die letzte Formulierung.
+     *
+     * Auf einen BEENDETEN Lauf geht das nicht ([LiveDashboardError.MatchAlreadyFinished]): Beenden
+     * ist die Freigabe, `finished_at` schlägt die Klärung in
+     * [LiveDashboardLogic.deriveMatchState] - der Lauf bliebe FINISHED, während beide Spalten still
+     * gesetzt wären, und der Knopf „Klärung aufheben" (beide Oberflächen fragen nach dem Zustand
+     * CLARIFICATION) käme nirgends mehr an. Wer einen beendeten Lauf streitig stellen will, setzt
+     * ihn über die Durchführungsseite zurück.
+     */
+    fun setMatchClarification(
+        eventId: UUID,
+        matchId: UUID,
+        request: MatchClarificationRequest,
+        userId: UUID,
+    ): App<LiveDashboardError, ApiResponse.NoData> = KIO.comprehension {
+        val exists = !EventRepo.exists(eventId).orDie()
+        if (!exists) {
+            return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
+        }
+
+        val finished = !CompetitionMatchRepo.isFinished(matchId).orDie()
+        if (finished) {
+            return@comprehension KIO.fail(LiveDashboardError.MatchAlreadyFinished(matchId))
+        }
+
+        !CompetitionMatchRepo.update(matchId) {
+            if (clarificationSince == null) {
+                clarificationSince = LocalDateTime.now()
+            }
+            clarificationReason = request.reason.trim()
+            updatedBy = userId
+            updatedAt = LocalDateTime.now()
+        }.orDie()
+
+        // Der strittige Lauf soll sofort von den Anzeigen verschwinden, nicht erst nach Ablauf der
+        // Cache-TTL - genau darauf wartet die Regie am Stream.
+        EventChangeMarker.bump(eventId)
+
+        noData
+    }
+
+    /**
+     * Hebt die Klärung auf: beide Spalten werden geleert, der Lauf ist wieder das, was er vorher
+     * war (in aller Regel RUNNING). Es bleibt keine Spur zurück - eine Historie führt diese
+     * Tabelle bewusst nicht (Entscheidung vom 17.08.2026); wer den Fall dokumentieren will, nutzt
+     * die Schiedsrichter-Notizen am Boot.
+     */
+    fun clearMatchClarification(
+        eventId: UUID,
+        matchId: UUID,
+        userId: UUID,
+    ): App<LiveDashboardError, ApiResponse.NoData> = KIO.comprehension {
+        val exists = !EventRepo.exists(eventId).orDie()
+        if (!exists) {
+            return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
+        }
+
+        !CompetitionMatchRepo.update(matchId) {
+            clarificationSince = null
+            clarificationReason = null
+            updatedBy = userId
+            updatedAt = LocalDateTime.now()
+        }.orDie()
+
         EventChangeMarker.bump(eventId)
 
         noData

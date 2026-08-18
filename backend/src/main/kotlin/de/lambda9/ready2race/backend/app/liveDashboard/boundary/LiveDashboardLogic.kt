@@ -47,15 +47,17 @@ object LiveDashboardLogic {
     /**
      * Die Reihenfolge der Zweige ist die eigentliche Aussage:
      *
-     * 0. [LiveDashboardMatchState.PREPARING] und [LiveDashboardMatchState.RUNNING] teilen sich den
-     *    ersten Zweig: beides ist ein aktivierter Lauf, nur der Ist-Start unterscheidet sie.
-     * 1. [LiveDashboardMatchState.RUNNING] bleibt vorn. Ein aktiver Lauf mit vollständigen
+     * 0. [LiveDashboardMatchState.CLARIFICATION] steht ganz vorn, VOR der Aktivierung - siehe
+     *    Kommentar am Zweig selbst.
+     * 1. [LiveDashboardMatchState.PREPARING] und [LiveDashboardMatchState.RUNNING] teilen sich den
+     *    nächsten Zweig: beides ist ein aktivierter Lauf, nur der Ist-Start unterscheidet sie.
+     * 2. [LiveDashboardMatchState.RUNNING] bleibt vorn. Ein aktiver Lauf mit vollständigen
      *    Ergebnissen zeigt weiter "Läuft" und hat den Beenden-Knopf - dort ist nichts kaputt.
-     * 2. [LiveDashboardMatchState.FINISHED] heißt ausschließlich `finished_at is not null`, also
+     * 3. [LiveDashboardMatchState.FINISHED] heißt ausschließlich `finished_at is not null`, also
      *    "jemand hat beendet". Bis zum 06.08.2026 fiel hier auch "alle gewertet" hinein; genau das
      *    war der Fehler (Testkatalog D15): der Lauf verschwand aus dem Live-Tab und bot
      *    "Lauf aktivieren" statt "Lauf beenden" an.
-     * 3. [skipped] kommt aus dem Zeitstrahl-Slot des Laufs (siehe
+     * 4. [skipped] kommt aus dem Zeitstrahl-Slot des Laufs (siehe
      *    `EventScheduleLogic.skippedMatchIdOrNull`) und steht bewusst HINTER "läuft" und "beendet":
      *    Was tatsächlich passiert ist, schlägt den zurückgenommenen Plan. Ein abgesagter Lauf, der
      *    trotzdem aktiv ist, zeigt deshalb weiter RUNNING statt zu behaupten, es passiere nichts -
@@ -63,7 +65,7 @@ object LiveDashboardLogic {
      *    `EventScheduleService.setSlotSkipped`. Aus derselben Überlegung steht SKIPPED VOR
      *    [LiveDashboardMatchState.AWAITING_FINISH]: ein abgesagter Lauf braucht niemanden mehr,
      *    der ihn beendet.
-     * 4. [LiveDashboardMatchState.AWAITING_FINISH] trifft damit genau den Fall "nicht aktiv, nicht
+     * 5. [LiveDashboardMatchState.AWAITING_FINISH] trifft damit genau den Fall "nicht aktiv, nicht
      *    beendet, aber vollständig gewertet" - das Büro trägt nach, oder der Lauf wurde
      *    deaktiviert. Der Lauf bleibt sichtbar und wartet auf den Beenden-Klick; der
      *    RaceClocker-Pull meldet nur Daten und beendet nie (Entscheidung vom 04.08.2026).
@@ -78,7 +80,19 @@ object LiveDashboardLogic {
         finishedAt: LocalDateTime?,
         teamResults: List<Boolean>,
         skipped: Boolean = false,
+        /**
+         * `competition_match.clarification_since` - gesetzt heißt "in Klärung" (Einspruch läuft).
+         * Aufheben und Beenden leeren die Spalte; es gibt keinen zweiten Zeitstempel, gegen den
+         * hier zu prüfen wäre.
+         */
+        clarificationSince: LocalDateTime? = null,
     ): LiveDashboardMatchState = when {
+        // Ganz oben, VOR der Aktivierung: Genau das ist der Zweck dieses Zustands. Ein Lauf, gegen
+        // den ein Einspruch läuft, bleibt aktiviert (activated_at wird nicht angefasst) und stand
+        // deshalb dauerhaft auf RUNNING - eine einzige strittige Wertung hielt Stream-Uhr,
+        // Board-Cursor und Kette fest. Hinter finishedAt steht der Zweig trotzdem nicht: Beenden
+        // IST die Freigabe, und ein beendeter Lauf ist beendet.
+        clarificationSince != null && finishedAt == null -> LiveDashboardMatchState.CLARIFICATION
         // Aktiviert, aber ohne Ist-Start: der Lauf ist an den Start gerufen und noch nicht
         // unterwegs. Die Trennung trägt erst, seit der RaceClocker-Abruf den echten Start meldet -
         // vorher war "läuft" eine Behauptung, jetzt ist es ein Beleg.
@@ -186,7 +200,11 @@ object LiveDashboardLogic {
             .filter {
                 it.state == LiveDashboardMatchState.PREPARING ||
                     it.state == LiveDashboardMatchState.RUNNING ||
-                    it.state == LiveDashboardMatchState.AWAITING_FINISH
+                    it.state == LiveDashboardMatchState.AWAITING_FINISH ||
+                    // Die Klärung gehört in die Live-Spalte, auch wenn sie aus den öffentlichen
+                    // Anzeigen verschwindet: Auf dem Dashboard steht die Handlung noch aus, und
+                    // ohne sie hier hätte niemand mehr einen Knopf, um sie aufzuheben.
+                    it.state == LiveDashboardMatchState.CLARIFICATION
             }
             .ifEmpty {
                 listOfNotNull(matches.firstOrNull { it.state == LiveDashboardMatchState.UPCOMING })

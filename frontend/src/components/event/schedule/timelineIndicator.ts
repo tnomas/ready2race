@@ -18,6 +18,9 @@ export type TimelineEntryState =
     | 'preparing'
     | 'running'
     | 'awaitingFinish'
+    // Gegen den Lauf läuft ein Einspruch: eigenes Aussehen, kein "läuft" (niemand fährt mehr) und
+    // kein "awaitingFinish" (das wartet auf das Büro, hier auf die Schiedsrichter).
+    | 'clarification'
     | 'linked'
     | 'waiting'
     | 'free'
@@ -154,6 +157,10 @@ export const dashboardMatchState = (match: LiveDashboardMatchDto): TimelineEntry
         // auf dem Balken soll genau das ins Auge fallen, weil dort noch eine Handlung aussteht.
         case 'AWAITING_FINISH':
             return 'awaitingFinish'
+        // Eigenes Aussehen, kein "läuft": Auf dem Balken soll ins Auge fallen, dass hier eine
+        // Entscheidung aussteht - und zwar eine der Schiedsrichter, nicht des Büros.
+        case 'CLARIFICATION':
+            return 'clarification'
         // Same look as a cancelled slot in the Zeitplan tab: struck through and dimmed, not hidden.
         case 'SKIPPED':
             return 'skipped'
@@ -301,6 +308,12 @@ export const timelineEntryAppearance = (
             return appearance({color: 'info'})
         case 'awaitingFinish':
             return appearance({color: 'warning'})
+        // Dieselbe Warnfarbe wie awaitingFinish - beides heißt "jemand muss noch handeln" -, aber
+        // als Umriss statt gefüllt: Der Balken darf nicht behaupten, hier warte dieselbe Handlung
+        // (das Beenden durchs Büro) wie bei awaitingFinish. Hier ruht der Lauf, bis die
+        // Schiedsrichter entscheiden.
+        case 'clarification':
+            return appearance({color: 'warning', variant: 'outlined'})
         case 'waiting':
             return appearance({variant: 'outlined', dashed: true})
         case 'linked':

@@ -28,13 +28,15 @@ import LoadingButton from '@components/form/LoadingButton.tsx'
 import {useTranslation} from 'react-i18next'
 import {useFeedback} from '@utils/hooks.ts'
 import {teamNameSuffix} from '@utils/helpers.ts'
-import {Dispatch, Fragment, SetStateAction, SyntheticEvent, useRef} from 'react'
+import {Dispatch, Fragment, SetStateAction, SyntheticEvent, useRef, useState} from 'react'
 import {
+    clearMatchClarification,
     deleteCurrentCompetitionExecutionRound,
     finishMatchFromExecution,
     markMatchStartedFromExecution,
     reopenMatch,
     resetMatch,
+    setMatchClarification,
     skipScheduleRound,
     updateMatchActivation,
     updateMatchByeMustRace,
@@ -63,6 +65,7 @@ import {
 } from '@components/event/match/matchStatusChip.ts'
 import StatusChip from '@components/event/match/StatusChip.tsx'
 import {useNow} from '@components/event/match/useNow.ts'
+import ClarificationDialog from '@components/event/liveDashboard/ClarificationDialog.tsx'
 
 /**
  * DOM-Id der Lauf-Karte — Ankerpunkt für den Sprung aus dem Zeitplan (Veranstaltungs-Modus):
@@ -126,6 +129,10 @@ const CompetitionExecutionRound = ({
     const feedback = useFeedback()
     const theme = useTheme()
     const now = useNow()
+
+    // Trägt die Lauf-Id, für die der Klärungs-Dialog gerade offen ist — derselbe Dialog wie im
+    // Schiedsrichter-Dashboard (siehe LiveDashboardPage.tsx), hier fürs Regattabüro.
+    const [clarifyingMatchId, setClarifyingMatchId] = useState<string | null>(null)
 
     // Versteckter Datei-Wähler für den RaceClocker-Notfall-Import: der Menüpunkt merkt sich den
     // Lauf und klickt den Input; erst die Auswahl löst den Upload aus.
@@ -281,6 +288,25 @@ const CompetitionExecutionRound = ({
                 okText: t('event.competition.execution.match.control.finish'),
             },
         )
+    }
+
+    /**
+     * Klärung aufheben — der Rückweg zum Knopf „In Klärung" daneben. Ohne Bestätigung, anders als
+     * Beenden und Zurücksetzen: Aufheben stellt nur den Zustand wieder her, den der Lauf vorher
+     * hatte (in aller Regel „Läuft"), und ein Verklicker kostet einen zweiten Klick auf „In
+     * Klärung". [props.setSubmitting] sperrt währenddessen die ganze Fußzeile — sonst schickte ein
+     * Doppelklick zwei DELETEs.
+     */
+    const handleResolveClarification = async (match: CompetitionMatchDto) => {
+        props.setSubmitting(true)
+        const {error} = await clearMatchClarification({
+            path: {eventId, matchId: match.id},
+        })
+        props.setSubmitting(false)
+        if (error) {
+            feedback.error(t('event.liveDashboard.control.error'))
+        }
+        props.reloadRoundDto()
     }
 
     /**
@@ -750,6 +776,35 @@ const CompetitionExecutionRound = ({
                                                     )}
                                                 </LoadingButton>
                                             )}
+                                        {/* Dieselbe Klärung wie im Schiedsrichter-Dashboard: das
+                                            Regattabüro spricht oft selbst mit dem protestierenden
+                                            Verein und braucht den Knopf auch hier. */}
+                                        {match.status.state === 'CLARIFICATION' ? (
+                                            <LoadingButton
+                                                size={'small'}
+                                                variant={'outlined'}
+                                                pending={submitting}
+                                                onClick={() =>
+                                                    handleResolveClarification(match)
+                                                }>
+                                                {t('event.liveDashboard.clarification.resolve')}
+                                            </LoadingButton>
+                                        ) : (
+                                            (match.status.state === 'RUNNING' ||
+                                                match.status.state === 'PREPARING' ||
+                                                match.status.state === 'AWAITING_FINISH') && (
+                                                <LoadingButton
+                                                    size={'small'}
+                                                    variant={'outlined'}
+                                                    color={'warning'}
+                                                    pending={submitting}
+                                                    onClick={() =>
+                                                        setClarifyingMatchId(match.id)
+                                                    }>
+                                                    {t('event.liveDashboard.clarification.set')}
+                                                </LoadingButton>
+                                            )
+                                        )}
                                     </Stack>
                                 </Stack>
                                 <Stack direction={'column'} spacing={1}>
@@ -1078,6 +1133,22 @@ const CompetitionExecutionRound = ({
                     </Stack>
                 )}
             </Stack>
+            <ClarificationDialog
+                open={clarifyingMatchId !== null}
+                onClose={() => setClarifyingMatchId(null)}
+                onSubmit={async reason => {
+                    if (clarifyingMatchId !== null) {
+                        const {error} = await setMatchClarification({
+                            path: {eventId, matchId: clarifyingMatchId},
+                            body: {reason},
+                        })
+                        if (error) {
+                            feedback.error(t('event.liveDashboard.control.error'))
+                        }
+                        props.reloadRoundDto()
+                    }
+                }}
+            />
         </Fragment>
     )
 }

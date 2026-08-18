@@ -1743,6 +1743,8 @@
         "runningPlain": "Läuft",
         "partiallyScored": "Teilweise gewertet {{scored}}/{{total}}",
         "awaitingFinish": "Wartet auf Beenden",
+        "clarification": "Klärung",
+        "provisional": "vorläufig · in Klärung",
         "finished": "Beendet",
         "cancelled": "Abgesagt",
         "unscheduled": "Ungeplant",
@@ -1757,6 +1759,7 @@
         "counter": {
           "preparing": "{{n}} in Vorbereitung",
           "running": "{{n}} läuft",
+          "clarification": "{{n}} in Klärung",
           "open": "{{n}} offen",
           "finished": "{{n}} beendet",
           "cancelled": "{{n}} abgesagt"
@@ -1850,6 +1853,16 @@
         "errorReason": {
           "finishReservedForOffice": "Für diese Veranstaltung beendet das Regattabüro die Läufe über den Zeitplan. Der Lauf bleibt aktiv — bitte dem Regattabüro melden, dass er im Ziel ist."
         }
+      },
+      "clarification": {
+        "sectionTitle": "Klärung ({{n}})",
+        "set": "In Klärung",
+        "resolve": "Klärung aufheben",
+        "dialogTitle": "Lauf in Klärung setzen",
+        "reasonLabel": "Grund",
+        "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
+        "submit": "In Klärung setzen",
+        "since": "seit {{time}}"
       },
       "substitution": {
         "short": "Ummeldung",
@@ -2137,6 +2150,7 @@
           "preparing": "In Vorbereitung",
           "running": "Läuft",
           "awaitingFinish": "Wartet auf Beenden",
+          "clarification": "Klärung",
           "linked": "Verknüpft",
           "waiting": "Lauf noch nicht gesetzt",
           "free": "Programmpunkt",

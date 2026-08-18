@@ -23,7 +23,10 @@ const matchIsOnDisplay = (match: CompetitionMatchDto): boolean =>
     (match.status.state === 'PREPARING' ||
         match.status.state === 'RUNNING' ||
         match.status.state === 'FINISHED' ||
-        match.status.state === 'AWAITING_FINISH')
+        match.status.state === 'AWAITING_FINISH' ||
+        // Auch ein strittiger Lauf stand schon auf Anzeigen - er ist gefahren, nur nicht
+        // freigegeben. Für die Warnung vor dem Löschen zählt er wie ein laufender.
+        match.status.state === 'CLARIFICATION')
 
 /**
  * Wie viele Läufe dieser Runde bereits irgendwo zu sehen sind — die Zahl, mit der der

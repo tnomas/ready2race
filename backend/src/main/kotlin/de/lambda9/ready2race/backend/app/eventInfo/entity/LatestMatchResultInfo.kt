@@ -20,6 +20,12 @@ data class LatestMatchResultInfo(
     val startTime: LocalDateTime?,
     /** Tatsächlicher Start aus `competition_match.started_at`, falls gestempelt. */
     val startedAt: LocalDateTime?,
+    /**
+     * Gegen diesen Lauf läuft ein Einspruch (`competition_match.clarification_since` gesetzt). Das
+     * Ergebnis geht trotzdem nach der bestehenden Freigaberegel raus - es wird nur als vorläufig
+     * ausgewiesen (Entscheidung vom 17.08.2026). `PublicResultsVisibility` bleibt unberührt.
+     */
+    val clarification: Boolean = false,
     val teams: List<MatchResultTeamInfo>
 )
 

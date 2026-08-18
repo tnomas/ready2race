@@ -85,6 +85,42 @@ describe('matchStatusChip', () => {
         expect(chip).toEqual({labelKey: 'event.match.status.runningPlain', color: 'primary'})
     })
 
+    it('zeigt einen Lauf in Klärung als eigenen Chip', () => {
+        // Er darf nicht in den Zweigen darunter landen: "Läuft" wäre falsch (niemand fährt mehr),
+        // "Wartet auf Beenden" verschweigt, worauf gewartet wird.
+        expect(matchStatusChip(status({state: 'CLARIFICATION'}), null, new Date())).toEqual({
+            labelKey: 'event.match.status.clarification',
+            color: 'warning',
+            tooltip: undefined,
+        })
+    })
+
+    it('trägt den Grund der Klärung als Tooltip, nicht im Label', () => {
+        // Der Chip bleibt kurz ("Klärung"); der Grund gehört in den Tooltip, sonst sprengt er jede
+        // Kartenzeile. Ohne diesen Weg müsste das Regattabüro auf der Durchführungsseite ins
+        // Schiedsrichter-Dashboard wechseln, nur um zu erfahren, worum gestritten wird.
+        const chip = matchStatusChip(
+            status({
+                state: 'CLARIFICATION',
+                clarificationReason: 'Einspruch RV Hansa, Bahnberührung',
+            }),
+            null,
+            new Date(),
+        )
+        expect(chip.labelKey).toBe('event.match.status.clarification')
+        expect(chip.tooltip).toBe('Einspruch RV Hansa, Bahnberührung')
+    })
+
+    it('lässt die Klärung vor dem Freilos-Chip greifen', () => {
+        // Auch ein Freilos kann strittig sein - dann ist die Klärung die Aussage, nicht "offen".
+        const chip = matchStatusChip(
+            status({state: 'CLARIFICATION', bye: {cause: 'NO_OPPONENT', mustRace: false}}),
+            null,
+            new Date(),
+        )
+        expect(chip.labelKey).toBe('event.match.status.clarification')
+    })
+
     it('meldet einen teilweise gewerteten Lauf mit gefahren/erwartet', () => {
         const chip = matchStatusChip(status({teamsScored: 4, teamsRaced: 4}), minutesAgo(20), NOW)
         expect(chip).toEqual({

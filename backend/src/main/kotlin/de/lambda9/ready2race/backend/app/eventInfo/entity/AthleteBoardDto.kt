@@ -172,6 +172,12 @@ data class AthleteBoardResult(
     val startTime: LocalDateTime?,
     /** Tatsächlicher Start, falls gestempelt - erklärt eine Abweichung vom Zeitplan. */
     val actualStartTime: LocalDateTime?,
+    /**
+     * Gegen diesen Lauf läuft ein Einspruch (`competition_match.clarification_since` gesetzt). Das
+     * Ergebnis geht trotzdem nach der bestehenden Freigaberegel raus - es wird nur als vorläufig
+     * ausgewiesen (Entscheidung vom 17.08.2026). `PublicResultsVisibility` bleibt unberührt.
+     */
+    val clarification: Boolean = false,
     val teams: List<AthleteBoardResultTeam>,
 )
 

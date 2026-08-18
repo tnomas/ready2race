@@ -19,6 +19,16 @@ export type MatchChip = {
     color: ChipColor
     /** Nur „Abgesagt": der Lauf steht noch da, gilt aber nicht mehr. */
     strikeThrough?: boolean
+    /**
+     * Freitext für den Tooltip am Chip — anders als [labelKey] kein Übersetzungsschlüssel, sondern
+     * bereits die anzuzeigende Zeichenkette: Was hier steht, kommt aus den Daten (der Grund einer
+     * Klärung), nicht aus den Sprachdateien. Fehlt er, hat der Chip keinen Tooltip.
+     *
+     * Der Chip selbst bleibt kurz: „Klärung" ist die Aussage, der Grund die Begründung. Ohne diesen
+     * Weg müsste das Regattabüro auf der Durchführungsseite ins Schiedsrichter-Dashboard wechseln,
+     * nur um zu erfahren, worum gestritten wird.
+     */
+    tooltip?: string | null
 }
 
 /**
@@ -138,6 +148,20 @@ export const matchStatusChip = (
                   color: 'primary',
               }
             : {labelKey: 'event.match.status.runningPlain', color: 'primary'}
+    }
+
+    // Vor dem Freilos-Zweig und vor allen Ablesungen: Läuft gegen den Lauf ein Einspruch, ist das
+    // die Aussage - auch bei einem Freilos, das strittig geworden ist. „Läuft" wäre falsch
+    // (niemand fährt mehr), „Wartet auf Beenden" verschweigt, worauf gewartet wird.
+    if (status.state === 'CLARIFICATION') {
+        // Der Grund als Tooltip statt im Label: „Klärung · Einspruch RV Hansa, Bahnberührung" wäre
+        // ein Chip, der jede Kartenzeile sprengt. Fehlt er (ältere Antwort, Ansicht ohne das Feld),
+        // bleibt der Chip ohne Tooltip - siehe MatchChip.tooltip.
+        return {
+            labelKey: 'event.match.status.clarification',
+            color: 'warning',
+            tooltip: status.clarificationReason,
+        }
     }
 
     // Erst hier, nicht weiter oben: Was tatsächlich passiert, schlägt weiterhin alles. Ein Freilos,
@@ -273,6 +297,11 @@ export const roundCounterChips = (statuses: MatchStatusDto[], minMatches = 2): M
             n: count(s => s.state === 'RUNNING'),
             labelKey: 'event.match.status.counter.running',
             color: 'primary',
+        },
+        {
+            n: count(s => s.state === 'CLARIFICATION'),
+            labelKey: 'event.match.status.counter.clarification',
+            color: 'warning',
         },
         {
             n: count(

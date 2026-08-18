@@ -65,6 +65,12 @@ data class MatchStatusDto(
      * heute über sie verzweigt.
      */
     val bye: MatchByeDto? = null,
+    /**
+     * Der Grund der Klärung, solange [state] == [MatchState.CLARIFICATION] ist - der Text, den die
+     * Schiedsrichter beim Setzen eingetippt haben ("Einspruch RV Hansa, Bahnberührung"). Er ist
+     * reiner Ausweis: Über den Zustand entscheidet allein `clarification_since`, nicht dieses Feld.
+     */
+    val clarificationReason: String? = null,
 )
 
 /**
@@ -103,6 +109,12 @@ data class RoundCountersDto(
     /** Am Start gerufen, aber noch nicht unterwegs — zählt weder als „läuft" noch als „offen". */
     val preparing: Int,
     val running: Int,
+    /**
+     * In Klärung - ein eigener Topf und ausdrücklich nicht Teil von [open]. Ein strittiger Lauf
+     * ist keine offene Handlung des Regattabüros, sondern eine der Schiedsrichter; unter "offen"
+     * versteckt läse die Leiste sich, als fehlte nur ein Beenden-Klick.
+     */
+    val clarification: Int,
     val open: Int,
     val finished: Int,
     val skipped: Int,

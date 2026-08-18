@@ -7326,6 +7326,52 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/liveDashboard/match/{matchId}/clarification:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: matchId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setMatchClarification
+      description: "Puts the match into clarification (an objection is running). The match stays activated and drops out of the public displays and the activation chain. A second call only sharpens the reason - the timestamp stays the one from the first call. A finished match is rejected: finishing is the release, and the way back would be unreachable."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchClarificationRequest'
+      responses:
+        204:
+          description: Match put into clarification
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: clearMatchClarification
+      description: "Lifts the clarification: both columns are cleared and the match returns to the state it would derive without them (usually RUNNING)."
+      responses:
+        204:
+          description: Clarification lifted
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/liveDashboard:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -14133,6 +14179,12 @@ components:
           description: >-
             Set when this match is a bye. Like "overdue" and "partially scored" this is a reading,
             not a state of its own.
+        clarificationReason:
+          type: string
+          nullable: true
+          description: >-
+            The reason for the objection, while state is CLARIFICATION. A plain statement - the
+            state alone is decided by clarification_since, not this field.
 
     CompetitionMatchDto:
       type: object
@@ -15643,6 +15695,10 @@ components:
           format: date-time
           nullable: true
           description: "real start, if stamped"
+        clarification:
+          type: boolean
+          default: false
+          description: "an objection is running against this match (competition_match.clarification_since set) - the result goes out under the existing visibility rule, marked as provisional"
         teams:
           type: array
           items:
@@ -16004,6 +16060,10 @@ components:
           format: date-time
           nullable: true
           description: "real start, if stamped - explains a deviation from the schedule"
+        clarification:
+          type: boolean
+          default: false
+          description: "an objection is running against this match (competition_match.clarification_since set). The result still goes out under the existing visibility rule - it is only marked as provisional (decision from 2026-08-17). PublicResultsVisibility stays untouched"
         teams:
           type: array
           items:
@@ -16628,6 +16688,11 @@ components:
 
         PREPARING: the match has been called to the start (activated_at is set) but has no real
         start yet - the boats are still at the pontoon. RUNNING means activated AND started.
+
+
+        CLARIFICATION: an objection is being settled. The match stays activated and unfinished, but
+        drops out of the public displays and out of the activation chain - a single disputed match
+        must not hold the livestream clock or the next start group.
       enum:
         - PREPARING
         - RUNNING
@@ -16636,6 +16701,7 @@ components:
         - AWAITING_FINISH
         - UPCOMING
         - UNSCHEDULED
+        - CLARIFICATION
 
     LiveDashboardInvoiceState:
       type: string
@@ -16928,6 +16994,19 @@ components:
           type: string
           description: "must not be blank"
 
+    MatchClarificationRequest:
+      type: object
+      description: >-
+        Puts a match into clarification. Nothing but the reason is given - the server sets the
+        timestamp.
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          maxLength: 255
+          description: "must not be blank, at most 255 characters (the column width)"
+
     LiveDashboardTeamDetailDto:
       type: object
       required:
@@ -16999,6 +17078,18 @@ components:
           type: string
           format: date-time
           nullable: true
+        clarificationSince:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Since when this match is in clarification - null when it is not. The card reads the
+            "since 14:37" of the collapsed row from this; state, which already derives from the
+            same column, decides the state.
+        clarificationReason:
+          type: string
+          nullable: true
+          description: The reason the referees entered when setting the clarification.
         elapsedMinutes:
           type: integer
           format: int64

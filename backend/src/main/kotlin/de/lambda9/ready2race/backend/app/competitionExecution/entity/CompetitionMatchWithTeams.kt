@@ -26,6 +26,8 @@ data class CompetitionMatchWithTeams(
      * einmal gesetzt, wurde gelöscht und nach einer Ergebniskorrektur neu gerechnet.
      */
     val pairingsRecalculatedAt: LocalDateTime?,
+    val clarificationSince: LocalDateTime?,
+    val clarificationReason: String?,
     /**
      * Freilos "muss gefahren werden" (competition_match.bye_must_race): Der Lauf gilt operativ als
      * echtes Rennen — Ergebnissperre und Folgerunden-Automatik behandeln ihn wie jeden Lauf. Ohne
