@@ -609,6 +609,35 @@ class TimingSequenceServiceTest {
         assertEquals(ValidationResult.Valid, absent.validate())
     }
 
+    @Test
+    fun derivedLeadInIsClampedToMinimumBounds() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        // INTERVAL with intervalMillis=1000 (below MIN_LEAD_IN_MILLIS=3000)
+        // Without explicit leadInMillis, the derived default should clamp to 3000
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val startedAt = System.currentTimeMillis()
+        !shiftStart(sequenceId, startedAt)
+
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence!!
+
+        // Derived lead-in should be clamped to minimum (3000), not 1000
+        assertEquals(3000L, dto.leadInMillis)
+        val entries = dto.entries.sortedBy { it.position }
+        assertEquals(startedAt + 3000, entries[0].plannedStartMillis)
+        assertEquals(startedAt + 3000 + 1000, entries[1].plannedStartMillis)
+    }
+
     // The scheduler owns the wall clock, so tests move the sequence's start instant instead of
     // sleeping: shifting startedAtMillis into the past makes exactly the intended slots due.
     private fun shiftStart(sequenceId: java.util.UUID, startedAt: Long) =

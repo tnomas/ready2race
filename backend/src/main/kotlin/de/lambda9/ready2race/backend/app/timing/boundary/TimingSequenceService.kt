@@ -60,8 +60,10 @@ object TimingSequenceService {
         val sequenceId = UUID.randomUUID()
         // Unset lead-in defaults to one full cadence for INTERVAL (so the countdown covers exactly
         // the gap the operator already configured between starts) or a flat 10s for MASS.
+        // Derived defaults are clamped to the documented bounds to prevent invalid countdown lengths.
         val leadInMillis = request.leadInMillis ?: when (request.mode) {
-            SequenceMode.INTERVAL -> request.intervalMillis ?: CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS
+            SequenceMode.INTERVAL -> (request.intervalMillis ?: CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS)
+                .coerceIn(CreateSequenceRequest.MIN_LEAD_IN_MILLIS, CreateSequenceRequest.MAX_LEAD_IN_MILLIS)
             SequenceMode.MASS -> CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS
         }
         val record = TimingStartSequenceRecord(
