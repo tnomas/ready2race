@@ -5,9 +5,11 @@ import {
     TimingWsMessage,
 } from '@utils/timing/timingSocket.ts'
 import {readSessionToken} from '../../contexts/user/sessionToken.ts'
+import {useUser} from '@contexts/user/UserContext.ts'
 
 /**
- * The session token the websocket handshake authenticates with.
+ * Storage fallback for the websocket handshake token, used when the `UserProvider` context has none
+ * (see `resolveToken` below for why the context is asked first).
  *
  * Reading `sessionStorage.getItem('session')` — what this hook did on its original branch — no longer
  * finds anything: sessions now live in `localStorage` under `session.app` (helper app, everything
@@ -18,8 +20,24 @@ import {readSessionToken} from '../../contexts/user/sessionToken.ts'
  * also drops a token that has aged out, so an expired session lands in `'UNAUTHORIZED'` here rather
  * than being handed to the server only to be rejected with 1008.
  */
-function sessionToken(): string | null {
+function storageToken(): string | null {
     return readSessionToken(true) ?? readSessionToken(false)
+}
+
+/**
+ * Resolves the token a fresh websocket connection attempt authenticates with.
+ *
+ * The `UserProvider` context's `token` is asked first: it is exactly what the same render's REST
+ * calls authenticate with (see the request interceptor in `UserProvider.tsx`), so a helper who
+ * reaches `/app/timing` by a client-side navigation - already authenticated in this session, but
+ * possibly under a token that has since rotated, or one stored under the OTHER surface's storage key
+ * because they signed in through the administration interface first - gets the SAME token for the
+ * websocket as for every other request this render makes. Storage is only the fallback, for public
+ * pages that mount this hook (via `useEventInvalidation`) with no `UserProvider`-authenticated user
+ * at all - see that hook's docs on the auth nuance there.
+ */
+function resolveToken(contextToken: string | null): string | null {
+    return contextToken ?? storageToken()
 }
 
 export type TimingWsStatus = 'CONNECTING' | 'OPEN' | 'RECONNECTING' | 'UNAUTHORIZED'
@@ -92,6 +110,17 @@ export function useTimingWebSocket(
         handlersRef.current = handlers
     })
 
+    // The context token as of the latest render, mirrored into a ref so a (re)connect attempt made
+    // from inside a `setTimeout` - every retry after the first - reads the current value rather than
+    // the one captured when that timer was armed. `useUser()` always resolves here: `UserProvider`
+    // wraps the whole app (see `main.tsx`), including the public pages that reach this hook through
+    // `useEventInvalidation` without ever authenticating - `user.token` is simply `null` for those.
+    const user = useUser()
+    const contextTokenRef = useRef(user.token)
+    useEffect(() => {
+        contextTokenRef.current = user.token
+    })
+
     const disposedRef = useRef(false)
 
     useEffect(() => {
@@ -138,7 +167,7 @@ export function useTimingWebSocket(
         const connect = () => {
             if (disposedRef.current) return
 
-            const token = sessionToken()
+            const token = resolveToken(contextTokenRef.current)
             if (token === null) {
                 armUnauthorizedRetry()
                 return

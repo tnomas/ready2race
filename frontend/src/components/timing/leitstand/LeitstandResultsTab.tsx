@@ -22,7 +22,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import PublishIcon from '@mui/icons-material/Publish'
-import {useCallback, useMemo, useState} from 'react'
+import {useCallback, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {Link} from '@tanstack/react-router'
 import {pushTimingResults} from '@api/sdk.gen.ts'
@@ -181,8 +181,18 @@ const LeitstandResultsTab = ({
         })
     }
 
+    /**
+     * The team ids of the most recently attempted push - `undefined` for "push all". Kept so a force
+     * retry can re-send exactly what the operator originally selected (see `forcePush`): the 409 that
+     * produces `conflicts` only ever lists the CONFLICTING teams, and resending just those would
+     * silently drop every non-conflicting team from the original batch instead of pushing it through
+     * alongside the forced ones.
+     */
+    const lastAttemptedTeamIdsRef = useRef<string[] | undefined>(undefined)
+
     const runPush = useCallback(
         (teamIds: string[] | undefined, force: boolean) => {
+            lastAttemptedTeamIdsRef.current = teamIds
             setPushing(true)
             void (async () => {
                 try {
@@ -251,12 +261,20 @@ const LeitstandResultsTab = ({
     const canForce =
         conflicts !== null && conflicts.length > 0 && forcableConflicts.length === conflicts.length
 
+    /**
+     * Re-sends the ORIGINAL selection the failed push was attempted with (`lastAttemptedTeamIdsRef`),
+     * not the conflicting ids alone: the 409 only lists which of those teams are frozen, but every
+     * other, non-conflicting team from that same selection still needs to go out alongside them, or
+     * the retry would silently drop it from the push. The confirmation count, on the other hand, is
+     * still the number of frozen teams being forced - that is what the operator is confirming.
+     */
     const forcePush = () => {
-        const ids = conflicts?.map(conflict => conflict.competitionMatchTeam) ?? []
+        const ids = lastAttemptedTeamIdsRef.current ?? conflicts?.map(c => c.competitionMatchTeam) ?? []
+        const frozenCount = conflicts?.length ?? 0
         setConflicts(null)
         confirmAction(() => runPush(ids, true), {
             title: t('timing.leitstand.results.push.forceConfirm.title'),
-            content: t('timing.leitstand.results.push.forceConfirm.content', {count: ids.length}),
+            content: t('timing.leitstand.results.push.forceConfirm.content', {count: frozenCount}),
             okText: t('timing.leitstand.results.push.force'),
         })
     }

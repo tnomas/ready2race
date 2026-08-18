@@ -3664,6 +3664,7 @@
           "statusHelp": "DNS/DNF/DSQ ersetzen jede gemessene Zeit",
           "force": "Festgeschriebenes Ergebnis überschreiben",
           "forceHint": "Für dieses Team ist bereits eine Platzierung erfasst. Ohne diesen Schalter lehnt der Server die Änderung ab.",
+          "forceRequiredHint": "Für dieses Ergebnis ist doch bereits eine Platzierung festgeschrieben. Schalter oben aktivieren und erneut speichern, um sie zu überschreiben.",
           "invalidSeconds": "Bitte eine Zahl in Sekunden eingeben",
           "error": "Speichern fehlgeschlagen",
           "success": "Gespeichert"

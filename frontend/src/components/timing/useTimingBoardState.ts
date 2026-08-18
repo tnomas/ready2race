@@ -97,9 +97,11 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             return marks.filter(m => !deleted.has(m.id))
         }
         case 'eventStateChanged':
-            // The generic event-wide invalidation signal (PORT-T6) - irrelevant to this board's own
-            // websocket feed (it already gets every mark/sequence/result change directly over this
-            // same channel). Present only so the switch stays exhaustive over `TimingWsMessage`.
+            // The generic event-wide invalidation signal (PORT-T6) - irrelevant to the MARKS this
+            // reducer maintains (the board already gets every mark/sequence/result change directly
+            // over this same channel). It does drive a race-type refetch, but that is handled by the
+            // optional `onEventStateChanged` callback in `useTimingBoardState`, not here - present in
+            // this switch only so it stays exhaustive over `TimingWsMessage`.
             return marks
     }
 }
@@ -159,6 +161,14 @@ export function useTimingBoardState(
     stationId: string | null,
     onSequenceChanged?: (sequence: TimingSequenceDto) => void,
     onResultChanged?: (results: TimingResultDto[]) => void,
+    /**
+     * Called on the event-wide `eventStateChanged` push (PORT-T6) - the same generic invalidation
+     * signal `useEventInvalidation` subscribes public/polling views to. This board already has a live
+     * websocket feed for everything mark/sequence/result-shaped, so it does not need this signal for
+     * any of THAT; what it does not otherwise learn about is the current race type, which the caller
+     * loads separately via a plain (non-websocket) fetch and must re-issue itself on this callback.
+     */
+    onEventStateChanged?: () => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -193,9 +203,12 @@ export function useTimingBoardState(
     const onSequenceChangedRef = useRef(onSequenceChanged)
     /** Same for `onResultChanged` (the Leitstand's result-table feed). */
     const onResultChangedRef = useRef(onResultChanged)
+    /** Same for `onEventStateChanged` (the board's race-type refetch). */
+    const onEventStateChangedRef = useRef(onEventStateChanged)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
         onResultChangedRef.current = onResultChanged
+        onEventStateChangedRef.current = onEventStateChanged
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -391,6 +404,10 @@ export function useTimingBoardState(
             }
             if (message.type === 'resultChanged') {
                 onResultChangedRef.current?.(message.results)
+                return
+            }
+            if (message.type === 'eventStateChanged') {
+                onEventStateChangedRef.current?.()
                 return
             }
             setAllMarks(prev => applyWsMessage(prev, message))

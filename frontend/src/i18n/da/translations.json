@@ -3651,6 +3651,7 @@
           "statusHelp": "DNS/DNF/DSQ erstatter enhver målt tid",
           "force": "Overskriv et fastlåst resultat",
           "forceHint": "Der er allerede registreret en placering for dette hold. Uden denne kontakt afviser serveren ændringen.",
+          "forceRequiredHint": "Dette resultat er alligevel allerede fastlåst. Aktiver kontakten ovenfor, og gem igen for at overskrive det.",
           "invalidSeconds": "Indtast venligst et antal sekunder",
           "error": "Lagring mislykkedes",
           "success": "Gemt"

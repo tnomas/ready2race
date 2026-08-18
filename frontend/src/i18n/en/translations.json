@@ -3699,6 +3699,7 @@
           "statusHelp": "DNS/DNF/DSQ supersede any measured time",
           "force": "Overwrite a frozen result",
           "forceHint": "A place has already been recorded for this team. Without this switch the server rejects the change.",
+          "forceRequiredHint": "This result is already frozen after all. Enable the switch above and save again to overwrite it.",
           "invalidSeconds": "Please enter a number of seconds",
           "error": "Saving failed",
           "success": "Saved"

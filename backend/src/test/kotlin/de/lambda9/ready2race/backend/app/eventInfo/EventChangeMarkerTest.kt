@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.eventInfo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingWsMessage
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -165,6 +166,62 @@ class EventChangeMarkerTest {
             repeat(5) { EventChangeMarker.bump(eventId) }
             delay(200)
             assertEquals(1, received.size)
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
+    }
+
+    // --- Das Sendefenster wird erst beim tatsächlichen Versand belegt -----------------------------
+    // (nach dem AfterCommit-Flush-Entscheid bzw. der Abonnenten-Prüfung), nicht schon in [bump]
+    // selbst - siehe Klassendoc von `broadcastEventStateChanged`.
+
+    @Test
+    fun `bump ohne Abonnenten verbraucht das Sendefenster nicht`() = runBlocking {
+        val eventId = UUID.randomUUID()
+
+        // Kein Abonnent zum Zeitpunkt dieses ersten bump - er darf das Sendefenster nicht belegen.
+        EventChangeMarker.bump(eventId)
+
+        val received = Collections.synchronizedList(mutableListOf<String>())
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+        try {
+            // Käme das Fenster schon vom ersten (abonnentenlosen) bump belegt an, würde dieser
+            // zweite bump - jetzt mit Abonnent - noch innerhalb der Sperrfrist verworfen.
+            EventChangeMarker.bump(eventId)
+            withTimeout(5.seconds) {
+                while (received.isEmpty()) {
+                    delay(5)
+                }
+            }
+            assertTrue(received.single().contains("eventStateChanged"))
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
+    }
+
+    @Test
+    fun `ein zurückgerollter bump verbraucht das Sendefenster nicht`() = runBlocking {
+        val eventId = UUID.randomUUID()
+        val received = Collections.synchronizedList(mutableListOf<String>())
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+        try {
+            // Simuliert eine Transaktion, die am Ende zurückrollt: die registrierten Effekte werden
+            // eingesammelt, aber absichtlich nie geflusht.
+            AfterCommit.collect {
+                EventChangeMarker.bump(eventId)
+            }
+            delay(50)
+            assertTrue(received.isEmpty())
+
+            // Ein echter, nicht zurückgerollter bump danach muss sofort senden - der verworfene
+            // Versuch darf das Sendefenster nicht belegt haben.
+            EventChangeMarker.bump(eventId)
+            withTimeout(5.seconds) {
+                while (received.isEmpty()) {
+                    delay(5)
+                }
+            }
+            assertTrue(received.single().contains("eventStateChanged"))
         } finally {
             TimingBroadcaster.unsubscribe(subscription)
         }

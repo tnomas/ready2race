@@ -72,6 +72,20 @@ const TimingBoardPage = () => {
     const clock = useTimingServerClock()
     const sequenceState = useSequence(eventId, stationId)
     const {refetch: refetchSequence} = sequenceState
+
+    // Which race type applies to the next heat. Resolved by the server from the schedule, so the
+    // timekeeper does not have to be told the mode for every run. Refetched when the station changes
+    // (own `deps`) and also on the event-wide `eventStateChanged` push below (`onEventStateChanged`,
+    // wired into `useTimingBoardState` further down) - a race type swapped in the schedule while this
+    // board sits idle between heats must show up without waiting for a station change. It is a preset
+    // rather than live state, so it deliberately rides on this plain fetch instead of joining the
+    // websocket-driven mark/sequence/result state.
+    const {data: currentRaceType, reload: refetchRaceType} = useFetch(
+        signal => getCurrentTimingRaceType({signal, path: {eventId}, query: {stationId}}),
+        {deps: [eventId, stationId]},
+    )
+    const raceType = currentRaceType?.raceType ?? null
+
     const {
         marks,
         stations,
@@ -82,7 +96,13 @@ const TimingBoardPage = () => {
         markSaved,
         markFailed,
         applyLocalAssignment,
-    } = useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
+    } = useTimingBoardState(
+        eventId,
+        stationId,
+        sequenceState.applySequenceChanged,
+        undefined,
+        refetchRaceType,
+    )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
@@ -93,16 +113,6 @@ const TimingBoardPage = () => {
         pending: teamsPending,
         error: teamsError,
     } = useFetch(signal => getTimingTeams({signal, path: {eventId}}))
-
-    // Which race type applies to the next heat. Resolved by the server from the schedule, so the
-    // timekeeper does not have to be told the mode for every run. Refetched when the station changes;
-    // it is a preset, not live state, so it deliberately rides on the normal fetch instead of the
-    // websocket.
-    const {data: currentRaceType} = useFetch(
-        signal => getCurrentTimingRaceType({signal, path: {eventId}, query: {stationId}}),
-        {deps: [eventId, stationId]},
-    )
-    const raceType = currentRaceType?.raceType ?? null
     const teams = useMemo(
         () =>
             [...(teamsData ?? [])].sort(

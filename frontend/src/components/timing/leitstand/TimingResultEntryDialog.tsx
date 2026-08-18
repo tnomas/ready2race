@@ -46,9 +46,21 @@ export type TimingResultEntryDialogProps = {
  * A status other than NONE supersedes any measured time and also drops a previously pushed timecode —
  * that is the server's behaviour, not something reconstructed here.
  *
- * `force` is offered only when the row is `frozen` (a place recorded, or places calculated). Without
- * it the server answers 409 for such a team, so hiding the switch on an unfrozen row keeps the
- * destructive option out of the way in the ordinary case, and the hint spells out what it overrides.
+ * `force` is offered only when the row is frozen by a recorded PLACE - the narrower boundary
+ * `setResultEntry` actually gates on (see its backend doc). `TimingResultDto.frozen` is the broader
+ * `placeFrozen || failed` flag shared with the push endpoint, so a row that merely carries a DNS/DNF/
+ * DSQ status (no place recorded) reads `frozen: true` too, even though the entry endpoint does NOT
+ * require `force` for it - that status is exactly what this dialog is for changing, and a switch that
+ * does nothing for such a row would just be confusing. `resultStatus === 'NONE'` is what tells the two
+ * apart from here: with a status set, `frozen` can only be true because of that status, since a
+ * simultaneous place-freeze is the one case a plain 409 (see the `showForceHint` fallback below) can
+ * still catch.
+ *
+ * Hiding the switch on an unfrozen row keeps the destructive option out of the way in the ordinary
+ * case, and the static hint spells out what it overrides once it is shown. The rare gap - a row that
+ * is BOTH status-set and place-frozen, which this heuristic reads as "no switch needed" - is covered
+ * defensively: a 409 that still comes back without `force` reveals the switch after all, together with
+ * a hint that says so specifically, rather than just the generic save-failed toast.
  */
 const TimingResultEntryDialog = ({
     open,
@@ -67,6 +79,13 @@ const TimingResultEntryDialog = ({
     const [status, setStatus] = useState<TimingResultStatus>('NONE')
     const [force, setForce] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+    /**
+     * Set when a save came back 409 without `force` even though `placeBasedFreeze` (below) said the
+     * switch wasn't needed - the defensive fallback for the status-set-AND-place-frozen gap described
+     * in the component doc. Reveals the switch and a specific hint so the operator has a way out
+     * instead of a save button that fails forever with only a generic error toast.
+     */
+    const [showForceHint, setShowForceHint] = useState(false)
 
     // Re-seed from the row only when the dialog opens (or is opened for a different row) — NOT on every
     // `result` identity change. A websocket-driven recompute replaces the `result` object whenever a
@@ -78,8 +97,16 @@ const TimingResultEntryDialog = ({
         setNoteInput(result?.penaltyNote ?? '')
         setStatus(result?.resultStatus ?? 'NONE')
         setForce(false)
+        setShowForceHint(false)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, competitionMatchTeam])
+
+    /**
+     * The narrower, place-based freeze `setResultEntry` actually gates `force` on - see the component
+     * doc for why this isn't simply `result?.frozen`.
+     */
+    const placeBasedFreeze = result?.frozen === true && result?.resultStatus === 'NONE'
+    const showForceSwitch = placeBasedFreeze || showForceHint
 
     const trimmedPenalty = penaltyInput.trim().replace(',', '.')
     const penaltyValue = trimmedPenalty.length === 0 ? null : Number(trimmedPenalty)
@@ -91,7 +118,7 @@ const TimingResultEntryDialog = ({
         setSubmitting(true)
         void (async () => {
             try {
-                const {error} = await setTimingResult({
+                const {error, response} = await setTimingResult({
                     path: {eventId, competitionMatchTeamId: competitionMatchTeam},
                     body: {
                         penaltySeconds: penaltyValue,
@@ -103,7 +130,18 @@ const TimingResultEntryDialog = ({
                     },
                 })
                 if (error !== undefined) {
-                    feedback.error(t('timing.leitstand.results.entry.error'))
+                    // A 409 without `force` means the row turned out to be place-frozen after all,
+                    // despite `placeBasedFreeze` not showing the switch for it (the status-set-AND-
+                    // place-frozen gap in the component doc). Surface that specifically and reveal the
+                    // switch instead of just the generic error - the operator would otherwise have no
+                    // way to get past it. `force === true` still hitting a 409 is a genuine failure
+                    // (nothing left to add to the switch), so that keeps the generic toast.
+                    if (response.status === 409 && !force) {
+                        setShowForceHint(true)
+                        feedback.error(t('timing.leitstand.results.entry.forceRequiredHint'))
+                    } else {
+                        feedback.error(t('timing.leitstand.results.entry.error'))
+                    }
                     return
                 }
                 feedback.success(t('timing.leitstand.results.entry.success'))
@@ -159,7 +197,7 @@ const TimingResultEntryDialog = ({
                             </MenuItem>
                         ))}
                     </TextField>
-                    {result?.frozen === true && (
+                    {showForceSwitch && (
                         <Stack spacing={1}>
                             <Alert severity="warning">
                                 {t('timing.leitstand.results.entry.forceHint')}

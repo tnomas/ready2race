@@ -75,11 +75,19 @@ object EventChangeMarker {
      * geht deshalb, genau wie bei [TimingBroadcaster] selbst, über [AfterCommit]: erst nach einem
      * erfolgreichen Commit sichtbar, bei einem Rollback verworfen, und außerhalb einer HTTP-Anfrage
      * (Scheduler, Tests) sofort ausgeführt.
+     *
+     * [claimBroadcastSlot] wird bewusst ERST innerhalb des registrierten Effekts aufgerufen, nicht
+     * schon hier: ein zurückgerollter Bump darf das Sendefenster nicht verbrauchen (der Effekt läuft
+     * dann nie), und ein Bump ohne einen einzigen Abonnenten der Veranstaltung ebenfalls nicht - sonst
+     * würde ein Import ohne offenes Board oder eine zufällig verworfene Transaktion das Fenster für den
+     * nächsten, tatsächlich sichtbaren Push blockieren. Das Abonnenten-Prüfen selbst kostet kein Fenster,
+     * da es vor dem Belegungsversuch steht.
      */
     private fun broadcastEventStateChanged(eventId: UUID, now: Long = System.currentTimeMillis()) {
-        if (!claimBroadcastSlot(eventId, now)) return
         AfterCommit.register {
-            TimingBroadcaster.broadcast(eventId, TimingWsMessage.EventStateChanged)
+            if ((TimingBroadcaster.subscriptionCount(eventId) ?: 0) > 0 && claimBroadcastSlot(eventId, now)) {
+                TimingBroadcaster.broadcast(eventId, TimingWsMessage.EventStateChanged)
+            }
         }
     }
 
