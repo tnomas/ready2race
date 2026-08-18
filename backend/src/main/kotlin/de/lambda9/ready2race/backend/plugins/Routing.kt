@@ -32,6 +32,7 @@ import de.lambda9.ready2race.backend.app.ratingcategory.boundary.ratingCategory
 import de.lambda9.ready2race.backend.app.results.boundary.results
 import de.lambda9.ready2race.backend.app.role.boundary.role
 import de.lambda9.ready2race.backend.app.startListConfig.boundary.startListConfig
+import de.lambda9.ready2race.backend.app.timing.boundary.timingGlobal
 import de.lambda9.ready2race.backend.app.webDAV.boundary.webDAV
 import de.lambda9.ready2race.backend.app.workType.boundary.workType
 import de.lambda9.ready2race.backend.config.Config
@@ -78,6 +79,7 @@ fun Application.configureRouting(config: Config, env: JEnv) {
             email()
             challengeAccess()
             globalConfigurations(env)
+            timingGlobal()
         }
     }
 }
