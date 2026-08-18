@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingRaceTypeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStationRecord
@@ -38,6 +39,37 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
         )
     }
 )
+
+fun TimingRaceTypeRecord.toDto(): TimingRaceTypeDto = TimingRaceTypeDto(
+    id = id,
+    event = event,
+    name = name,
+    timed = timed ?: true,
+    startMode = SequenceMode.valueOf(startMode),
+    // Presets only survive where they mean something: a MASS race type has no cadence, and carrying
+    // one would offer the start board a value it must not use.
+    intervalMillis = intervalMillis.takeIf { startMode == SequenceMode.INTERVAL.name },
+    leadInMillis = leadInMillis,
+    sorting = sorting ?: 0,
+)
+
+fun TimingRaceTypeRequest.toRecord(userId: UUID, eventId: UUID): TimingRaceTypeRecord =
+    LocalDateTime.now().let { now ->
+        TimingRaceTypeRecord(
+            id = UUID.randomUUID(),
+            event = eventId,
+            name = name,
+            timed = timed,
+            startMode = startMode.name,
+            intervalMillis = intervalMillis.takeIf { startMode == SequenceMode.INTERVAL },
+            leadInMillis = leadInMillis,
+            sorting = sorting,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+    }
 
 fun sequenceDto(
     record: TimingStartSequenceRecord,

@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushTimingResultsRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingRaceTypeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingResultEntryRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
@@ -77,6 +78,60 @@ fun Route.timing() {
                         val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
                         TimingService.deleteStation(stationId, eventId)
+                    }
+                }
+            }
+        }
+
+        route("/raceTypes") {
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingRaceTypeService.getRaceTypes(eventId)
+                }
+            }
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingRaceTypeRequest.example)
+                    TimingRaceTypeService.addRaceType(body, user.id!!, eventId)
+                }
+            }
+
+            // The race type a station's board should assume for the work ahead. Readable by the same
+            // audience as the rest of the live timing state - a board is opened by a timekeeper, not
+            // by an event administrator.
+            get("/current") {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val stationId = !queryParam("stationId", uuid)
+                    TimingRaceTypeService.getCurrentRaceType(eventId, stationId)
+                }
+            }
+
+            route("/{raceTypeId}") {
+
+                put {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val raceTypeId = !pathParam("raceTypeId", uuid)
+                        val body = !receiveKIO(TimingRaceTypeRequest.example)
+                        TimingRaceTypeService.updateRaceType(body, user.id!!, raceTypeId, eventId)
+                    }
+                }
+
+                delete {
+                    call.respondComprehension {
+                        !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val raceTypeId = !pathParam("raceTypeId", uuid)
+                        TimingRaceTypeService.deleteRaceType(raceTypeId, eventId)
                     }
                 }
             }

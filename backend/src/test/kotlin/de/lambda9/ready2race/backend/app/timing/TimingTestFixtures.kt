@@ -244,3 +244,92 @@ fun addAssignedMark(
     !TimingService.assignTimeMark(AssignTimeMarkRequest(teamId), userId, markId, eventId)
     KIO.ok(markId)
 }
+
+/**
+ * A minimal competition with exactly one round and one materialized match, so the race-type
+ * resolution has something to look at.
+ *
+ * Returns the round id: the assignment lives on the round, and the tests need it to point the round
+ * at a race type (or to leave it unassigned).
+ */
+fun createTestScheduledRound(
+    eventId: UUID,
+    startTime: LocalDateTime?,
+    startedAt: LocalDateTime? = null,
+    finishedAt: LocalDateTime? = null,
+    raceTypeId: UUID? = null,
+    timingSystem: TimingSystem? = null,
+): App<Any?, UUID> = KIO.comprehension {
+    val now = LocalDateTime.now()
+
+    val competitionId = UUID.randomUUID()
+    !CompetitionRepo.create(
+        CompetitionRecord(
+            id = competitionId,
+            event = eventId,
+            timingSystem = timingSystem?.name,
+            createdAt = now,
+            updatedAt = now,
+        )
+    ).orDie()
+
+    val competitionPropertiesId = UUID.randomUUID()
+    !CompetitionPropertiesRepo.create(
+        CompetitionPropertiesRecord(
+            id = competitionPropertiesId,
+            competition = competitionId,
+            identifier = "TST-${UUID.randomUUID()}",
+            name = "Timing Test Competition",
+        )
+    ).orDie()
+
+    !CompetitionSetupRepo.create(
+        CompetitionSetupRecord(
+            competitionProperties = competitionPropertiesId,
+            createdAt = now,
+            updatedAt = now,
+        )
+    ).orDie()
+
+    val roundId = UUID.randomUUID()
+    !CompetitionSetupRoundRepo.create(
+        listOf(
+            CompetitionSetupRoundRecord(
+                id = roundId,
+                competitionSetup = competitionPropertiesId,
+                name = "Round 1",
+                required = true,
+                useDefaultSeeding = true,
+                placesOption = CompetitionSetupPlacesOption.ASCENDING.name,
+                timingRaceType = raceTypeId,
+            )
+        )
+    ).orDie()
+
+    val setupMatchId = UUID.randomUUID()
+    !CompetitionSetupMatchRepo.create(
+        listOf(
+            CompetitionSetupMatchRecord(
+                id = setupMatchId,
+                competitionSetupRound = roundId,
+                weighting = 1,
+                executionOrder = 1,
+            )
+        )
+    ).orDie()
+
+    !CompetitionMatchRepo.create(
+        listOf(
+            CompetitionMatchRecord(
+                competitionSetupMatch = setupMatchId,
+                startTime = startTime,
+                startedAt = startedAt,
+                finishedAt = finishedAt,
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+    ).orDie()
+
+    KIO.ok(roundId)
+}

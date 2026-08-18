@@ -11,6 +11,8 @@ import de.lambda9.ready2race.backend.app.competitionSetup.entity.*
 import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
+import de.lambda9.ready2race.backend.app.timing.control.TimingRaceTypeRepo
+import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
@@ -63,6 +65,13 @@ object CompetitionSetupService {
                 !CompetitionPropertiesRepo.getEventIdByCompetitionPropertiesId(competitionPropertiesId).orDie()
                     .onNullFail { EventError.NotFound }
             !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionSetupError.IsChallengeEvent }
+
+            // Race types are event-scoped. Checking them here keeps a foreign or stale id from
+            // reaching the foreign key (which would answer 500) and, worse, from letting one event's
+            // running order steer another event's boards.
+            val requestedRaceTypes = requestRounds.mapNotNull { it.timingRaceType }.toSet()
+            val knownRaceTypes = !TimingRaceTypeRepo.getIdsInEvent(eventId, requestedRaceTypes).orDie()
+            !KIO.failOn(!knownRaceTypes.containsAll(requestedRaceTypes)) { TimingError.RaceTypeNotFound }
         }
 
         // Determine which existing rounds have already been created during execution. Those rounds are locked:
@@ -202,6 +211,17 @@ object CompetitionSetupService {
         createdRoundsInOrder.forEach { created ->
             val index = requestRounds.indexOfFirst { it.id == created.id }
             !CompetitionSetupRoundRepo.updateNextRound(created.id, finalRoundIds.getOrNull(index + 1)).orDie()
+            // The one field of a locked round that stays editable. Everything else about a round
+            // that is already being raced is structure and must not move, but the race type only
+            // says how its heats are started - and a round already under way is exactly the one
+            // whose race type someone still needs to correct. Its record is never rewritten by the
+            // recreate path above, so it is written here.
+            if (competitionPropertiesId != null) {
+                !CompetitionSetupRoundRepo.updateRaceType(
+                    created.id,
+                    requestRounds.getOrNull(index)?.timingRaceType,
+                ).orDie()
+            }
         }
 
         unit

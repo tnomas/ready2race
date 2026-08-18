@@ -10005,6 +10005,149 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/timing/raceTypes:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingRaceTypes
+      description: >-
+        The reusable race types of this event ("Zeitfahren", "Finale Massenstart", "Show-Lauf"). A race
+        type answers how a run is started and whether it is measured at all; competition setup rounds
+        point at one of them (see `CompetitionSetupRoundDto.timingRaceType`).
+      responses:
+        200:
+          description: Timing race types successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingRaceTypeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: createTimingRaceType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingRaceTypeRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/raceTypes/current:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: stationId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCurrentTimingRaceType
+      description: >-
+        The race type that applies to the work this station's board is about to do: the race type of the
+        earliest un-started, unfinished match of the event whose round declares one, restricted to
+        competitions timed with this application. `raceType` is null when nothing applies - that is a
+        200, not a 404, so a polling board can tell "nothing assigned" from "request failed". The
+        station is validated against the event but does not narrow the search; stations are not tied to
+        rounds, so what happens next is an event-level question.
+      responses:
+        200:
+          description: Current timing race type successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentRaceTypeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/raceTypes/{raceTypeId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: raceTypeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateTimingRaceType
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingRaceTypeRequest'
+    delete:
+      operationId: deleteTimingRaceType
+      description: >-
+        Rounds that used the race type keep existing and simply lose their preset (the assignment is
+        cleared). A race type is a convenience, never a structural part of a setup.
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/timing/timeMarks:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -12685,6 +12828,15 @@ components:
           description: >-
             Read-only. False when the round has already been created during execution and therefore must not be
             changed. Ignored on incoming update requests.
+        timingRaceType:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Race type of this round (a timing race type of the same event), or null when the round has none. It
+            travels in this DTO rather than in an endpoint of its own because every round that is not yet locked is
+            deleted and re-created with a fresh id on each save. Ignored for setup templates, which belong to no
+            event. An id that is not a race type of this event answers 404.
         matches:
           type: array
           items:
@@ -19946,6 +20098,77 @@ components:
           $ref: '#/components/schemas/TimingStationType'
         sorting:
           type: integer
+
+    TimingRaceTypeDto:
+      type: object
+      required: [id, event, name, timed, startMode, sorting]
+      description: >-
+        A reusable race type of an event. It answers the two questions a timekeeper would otherwise
+        have to be told for every heat: is this run measured at all, and how is it started.
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        name:
+          type: string
+        timed:
+          type: boolean
+          description: False for runs that are held but not measured - boards then offer no capture at all.
+        startMode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Cadence preset for INTERVAL; null means the operator still picks one. Always null for MASS.
+        leadInMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: Countdown preset; null means the sequence keeps its own default.
+        sorting:
+          type: integer
+
+    TimingRaceTypeRequest:
+      type: object
+      required: [name, timed, startMode, sorting]
+      properties:
+        name:
+          type: string
+        timed:
+          type: boolean
+        startMode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Optional even for INTERVAL ("Einzelstart, Abstand entscheidet der Starter" is a legitimate
+            preset). When given, must be at least 1000. Dropped for MASS.
+        leadInMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: When given, must be between 3000 and 600000 - the same bounds a sequence enforces.
+        sorting:
+          type: integer
+
+    CurrentRaceTypeDto:
+      type: object
+      required: [raceType]
+      description: >-
+        What a station's board should assume for the work it is about to do. Wrapped so that "no race
+        type applies" stays a 200 with an explicit null.
+      properties:
+        raceType:
+          allOf:
+            - $ref: '#/components/schemas/TimingRaceTypeDto'
+          nullable: true
 
     TimeMarkDto:
       type: object

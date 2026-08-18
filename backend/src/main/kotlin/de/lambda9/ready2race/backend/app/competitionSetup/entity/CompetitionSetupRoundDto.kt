@@ -32,6 +32,12 @@ data class CompetitionSetupRoundDto(
     val isQualification: Boolean = false,
     // Per-participant-count overrides for match name / execution order (only deviations from the default).
     val matchNamings: List<CompetitionSetupMatchNamingDto>?,
+    // Race type of this round (timing_race_type of the same event), or null when the round has none.
+    // It travels in this DTO rather than in an endpoint of its own because every round that is not
+    // yet locked is deleted and re-created with a fresh id on each save - an assignment stored by
+    // round id would be wiped by the next setup edit. Ignored for setup templates: race types are
+    // event-scoped and a template belongs to no event.
+    val timingRaceType: UUID? = null,
     // Read-only: false when the round has already been created during execution and therefore must not be changed.
     // Ignored on incoming update requests.
     val updatable: Boolean = true,
@@ -104,6 +110,7 @@ data class CompetitionSetupRoundDto(
                 places = listOf(CompetitionSetupPlaceDto.example),
                 isQualification = false,
                 matchNamings = listOf(CompetitionSetupMatchNamingDto.example),
+                timingRaceType = null,
                 updatable = true,
             )
     }

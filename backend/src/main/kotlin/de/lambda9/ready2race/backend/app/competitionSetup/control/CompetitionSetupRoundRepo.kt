@@ -32,6 +32,18 @@ object CompetitionSetupRoundRepo {
     )
 
     /**
+     * Setzt den Renntyp einer Runde.
+     *
+     * Nur für bereits gesetzte ("locked") Runden nötig: alle anderen werden beim Speichern ohnehin
+     * neu angelegt und tragen den Wert aus dem Request. Eine laufende Runde ist aber genau die, bei
+     * der jemand den Renntyp noch korrigieren will, und ihr Datensatz wird sonst nie angefasst.
+     */
+    fun updateRaceType(id: UUID, raceTypeId: UUID?) = COMPETITION_SETUP_ROUND.update(
+        f = { timingRaceType = raceTypeId },
+        condition = { ID.eq(id) },
+    )
+
+    /**
      * Hält fest, dass diese Runde gesetzt wurde. Nur beim ersten Mal — der Zeitstempel ist die
      * Auskunft "es gab sie schon einmal" und darf beim Wiederholen nicht vorrücken, sonst ginge
      * genau die Unterscheidung verloren, für die er existiert.

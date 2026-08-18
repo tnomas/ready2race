@@ -1225,6 +1225,10 @@ export type CompetitionSetupRoundDto = {
      * Read-only. False when the round has already been created during execution and therefore must not be changed. Ignored on incoming update requests.
      */
     updatable: boolean
+    /**
+     * Race type of this round (a timing race type of the same event), or null when the round has none. It travels in this DTO rather than in an endpoint of its own because every round that is not yet locked is deleted and re-created with a fresh id on each save. Ignored for setup templates, which belong to no event. An id that is not a race type of this event answers 404.
+     */
+    timingRaceType?: string | null
     matches?: Array<CompetitionSetupMatchDto>
     groups?: Array<CompetitionSetupGroupDto>
     statisticEvaluations?: Array<CompetitionSetupGroupStatisticEvaluationDto>
@@ -1394,6 +1398,13 @@ export type CreateTimeMarkRequest = {
     id: string
     station: string
     timestampMillis: number
+}
+
+/**
+ * What a station's board should assume for the work it is about to do. Wrapped so that "no race type applies" stays a 200 with an explicit null.
+ */
+export type CurrentRaceTypeDto = {
+    raceType: TimingRaceTypeDto | null
 }
 
 export type CustomFontDto = {
@@ -4008,6 +4019,44 @@ export type TimingDeviceTokenIssuedDto = {
 export type TimingDeviceTokenRequest = {
     name: string
     station: string
+}
+
+/**
+ * A reusable race type of an event. It answers the two questions a timekeeper would otherwise have to be told for every heat: is this run measured at all, and how is it started.
+ */
+export type TimingRaceTypeDto = {
+    id: string
+    event: string
+    name: string
+    /**
+     * False for runs that are held but not measured - boards then offer no capture at all.
+     */
+    timed: boolean
+    startMode: SequenceMode
+    /**
+     * Cadence preset for INTERVAL; null means the operator still picks one. Always null for MASS.
+     */
+    intervalMillis?: number | null
+    /**
+     * Countdown preset; null means the sequence keeps its own default.
+     */
+    leadInMillis?: number | null
+    sorting: number
+}
+
+export type TimingRaceTypeRequest = {
+    name: string
+    timed: boolean
+    startMode: SequenceMode
+    /**
+     * Optional even for INTERVAL ("Einzelstart, Abstand entscheidet der Starter" is a legitimate preset). When given, must be at least 1000. Dropped for MASS.
+     */
+    intervalMillis?: number | null
+    /**
+     * When given, must be between 3000 and 600000 - the same bounds a sequence enforces.
+     */
+    leadInMillis?: number | null
+    sorting: number
 }
 
 /**
@@ -9351,6 +9400,63 @@ export type DeleteTimingStationData = {
 export type DeleteTimingStationResponse = void
 
 export type DeleteTimingStationError = BadRequestError | ApiError
+
+export type GetTimingRaceTypesData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingRaceTypesResponse = Array<TimingRaceTypeDto>
+
+export type GetTimingRaceTypesError = BadRequestError | ApiError
+
+export type CreateTimingRaceTypeData = {
+    body: TimingRaceTypeRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type CreateTimingRaceTypeResponse = string
+
+export type CreateTimingRaceTypeError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetCurrentTimingRaceTypeData = {
+    path: {
+        eventId: string
+    }
+    query: {
+        stationId: string
+    }
+}
+
+export type GetCurrentTimingRaceTypeResponse = CurrentRaceTypeDto
+
+export type GetCurrentTimingRaceTypeError = BadRequestError | ApiError
+
+export type UpdateTimingRaceTypeData = {
+    body: TimingRaceTypeRequest
+    path: {
+        eventId: string
+        raceTypeId: string
+    }
+}
+
+export type UpdateTimingRaceTypeResponse = void
+
+export type UpdateTimingRaceTypeError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeleteTimingRaceTypeData = {
+    path: {
+        eventId: string
+        raceTypeId: string
+    }
+}
+
+export type DeleteTimingRaceTypeResponse = void
+
+export type DeleteTimingRaceTypeError = BadRequestError | ApiError
 
 export type CreateTimeMarkData = {
     body: CreateTimeMarkRequest

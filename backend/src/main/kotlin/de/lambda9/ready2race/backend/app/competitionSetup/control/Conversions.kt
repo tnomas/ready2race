@@ -21,6 +21,10 @@ fun CompetitionSetupRoundDto.toRecord(
     useDefaultSeeding = useDefaultSeeding,
     placesOption = placesOption.name,
     isQualification = isQualification,
+    // Race types are event-scoped, so a template round can never carry one - dropping it here keeps
+    // a template that was built from a competition (or imported) from pointing at a foreign event's
+    // race type.
+    timingRaceType = timingRaceType.takeIf { competitionPropertiesId != null },
 )
 
 fun CompetitionSetupRoundRecord.toDto(
@@ -42,6 +46,7 @@ fun CompetitionSetupRoundRecord.toDto(
     places = places,
     isQualification = isQualification ?: false,
     matchNamings = matchNamings,
+    timingRaceType = timingRaceType,
     updatable = updatable,
 )
 

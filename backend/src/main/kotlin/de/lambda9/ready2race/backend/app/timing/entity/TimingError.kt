@@ -9,6 +9,8 @@ sealed interface TimingError : ServiceError {
     data object StationHasTimeMarks : TimingError
     data object StationNameTaken : TimingError
     data object StationSortingTaken : TimingError
+    data object RaceTypeNotFound : TimingError
+    data object RaceTypeNameTaken : TimingError
     data object TimeMarkNotFound : TimingError
     data object TeamNotFound : TimingError
     data object WrongTimingSystem : TimingError
@@ -44,6 +46,13 @@ sealed interface TimingError : ServiceError {
         StationSortingTaken -> ApiError(
             HttpStatusCode.Conflict,
             message = "Another split timing station of this event already uses this sorting"
+        )
+        // Also the answer when a competition setup assigns a race type of another event: the id is
+        // not a race type OF THIS EVENT, and saying more would leak another event's configuration.
+        RaceTypeNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing race type not found")
+        RaceTypeNameTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A timing race type with this name already exists for this event"
         )
         TimeMarkNotFound -> ApiError(HttpStatusCode.NotFound, message = "Time mark not found")
         TeamNotFound -> ApiError(HttpStatusCode.NotFound, message = "Competition match team not found")

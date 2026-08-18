@@ -1046,6 +1046,21 @@ import type {
     DeleteTimingStationData,
     DeleteTimingStationError,
     DeleteTimingStationResponse,
+    GetTimingRaceTypesData,
+    GetTimingRaceTypesError,
+    GetTimingRaceTypesResponse,
+    CreateTimingRaceTypeData,
+    CreateTimingRaceTypeError,
+    CreateTimingRaceTypeResponse,
+    GetCurrentTimingRaceTypeData,
+    GetCurrentTimingRaceTypeError,
+    GetCurrentTimingRaceTypeResponse,
+    UpdateTimingRaceTypeData,
+    UpdateTimingRaceTypeError,
+    UpdateTimingRaceTypeResponse,
+    DeleteTimingRaceTypeData,
+    DeleteTimingRaceTypeError,
+    DeleteTimingRaceTypeResponse,
     CreateTimeMarkData,
     CreateTimeMarkError,
     CreateTimeMarkResponse,
@@ -5772,6 +5787,80 @@ export const deleteTimingStation = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+/**
+ * The reusable race types of this event ("Zeitfahren", "Finale Massenstart", "Show-Lauf"). A race type answers how a run is started and whether it is measured at all; competition setup rounds point at one of them (see `CompetitionSetupRoundDto.timingRaceType`).
+ */
+export const getTimingRaceTypes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingRaceTypesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingRaceTypesResponse,
+        GetTimingRaceTypesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/raceTypes',
+    })
+}
+
+export const createTimingRaceType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingRaceTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingRaceTypeResponse,
+        CreateTimingRaceTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/raceTypes',
+    })
+}
+
+/**
+ * The race type that applies to the work this station's board is about to do: the race type of the earliest un-started, unfinished match of the event whose round declares one, restricted to competitions timed with this application. `raceType` is null when nothing applies - that is a 200, not a 404, so a polling board can tell "nothing assigned" from "request failed". The station is validated against the event but does not narrow the search; stations are not tied to rounds, so what happens next is an event-level question.
+ */
+export const getCurrentTimingRaceType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetCurrentTimingRaceTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetCurrentTimingRaceTypeResponse,
+        GetCurrentTimingRaceTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/raceTypes/current',
+    })
+}
+
+export const updateTimingRaceType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingRaceTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingRaceTypeResponse,
+        UpdateTimingRaceTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/raceTypes/{raceTypeId}',
+    })
+}
+
+/**
+ * Rounds that used the race type keep existing and simply lose their preset (the assignment is cleared). A race type is a convenience, never a structural part of a setup.
+ */
+export const deleteTimingRaceType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingRaceTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingRaceTypeResponse,
+        DeleteTimingRaceTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/raceTypes/{raceTypeId}',
     })
 }
 
