@@ -16,6 +16,8 @@ sealed interface TimingError : ServiceError {
     data object SequenceAlreadyActive : TimingError
     data object SequenceStateConflict : TimingError
     data object StationNotStartType : TimingError
+    data object OfficialTimeNotFound : TimingError
+    data class PushConflict(val conflicts: List<OfficialTimePushConflictDto>) : TimingError
 
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
@@ -43,6 +45,14 @@ sealed interface TimingError : ServiceError {
         StationNotStartType -> ApiError(
             HttpStatusCode.BadRequest,
             message = "Start sequences require a timing station of type START"
+        )
+        OfficialTimeNotFound -> ApiError(HttpStatusCode.NotFound, message = "Official time not found")
+        // Per-team detail so the Leitstand can name the teams it has to ask about (and offer the
+        // force option for the ones that are merely frozen).
+        is PushConflict -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "Official times could not be written to the results of all requested teams",
+            details = mapOf("conflicts" to conflicts)
         )
     }
 }

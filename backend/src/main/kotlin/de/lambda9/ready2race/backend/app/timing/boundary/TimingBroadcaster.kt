@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
+import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimeMarkDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingSequenceDto
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
@@ -29,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.AssignmentChanged::class, name = "assignmentChanged"),
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
+    JsonSubTypes.Type(TimingWsMessage.OfficialTimeChanged::class, name = "officialTimeChanged"),
+    JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -43,6 +46,16 @@ sealed class TimingWsMessage {
     ) : TimingWsMessage()
     data object StationsChanged : TimingWsMessage()
     data class SequenceChanged(val sequence: TimingSequenceDto) : TimingWsMessage()
+
+    /**
+     * Official times that changed - recomputed, overridden, pushed, or flagged dirty by a timing
+     * edit. Carries a list because a recompute or a batch push changes many rows at once, and one
+     * message per row would flood every connected board.
+     */
+    data class OfficialTimeChanged(val officialTimes: List<OfficialTimeDto>) : TimingWsMessage()
+
+    /** Ids of time marks that were physically deleted by the explicit "delete times" action. */
+    data class TimesDeleted(val timeMarks: List<UUID>) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

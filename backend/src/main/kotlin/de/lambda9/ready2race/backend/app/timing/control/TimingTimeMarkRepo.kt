@@ -26,4 +26,18 @@ object TimingTimeMarkRepo {
     fun existsByStation(stationId: UUID) = TIMING_TIME_MARK.exists { STATION.eq(stationId) }
 
     fun update(id: UUID, f: TimingTimeMarkRecord.() -> Unit) = TIMING_TIME_MARK.update(f) { ID.eq(id) }
+
+    /**
+     * Ids of the RETRACTED marks of an event, optionally narrowed to one station.
+     *
+     * The status filter lives here rather than in the caller: this list is what the explicit
+     * "delete times" action physically removes, and an ACTIVE mark must never end up in it.
+     */
+    fun getRetractedIds(eventId: UUID, stationId: UUID?) = TIMING_TIME_MARK.select({ ID }) {
+        EVENT.eq(eventId).and(STATUS.eq("RETRACTED")).let { cond ->
+            stationId?.let { cond.and(STATION.eq(it)) } ?: cond
+        }
+    }
+
+    fun deleteByIds(ids: List<UUID>) = TIMING_TIME_MARK.delete { ID.`in`(ids) }
 }

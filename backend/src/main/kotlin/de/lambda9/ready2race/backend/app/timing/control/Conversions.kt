@@ -2,10 +2,13 @@ package de.lambda9.ready2race.backend.app.timing.control
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.data.Timecode
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
+import de.lambda9.ready2race.backend.parsing.Parser
 import de.lambda9.tailwind.core.KIO
 import java.time.LocalDateTime
 import java.util.UUID
@@ -78,6 +81,80 @@ fun plannedStartMillis(record: TimingStartSequenceRecord, position: Int): Long? 
         SequenceMode.MASS -> startedAt + leadIn
         SequenceMode.INTERVAL -> startedAt + leadIn + position * (record.intervalMillis ?: 0L)
     }
+}
+
+/**
+ * The effective official time of [record], or null when it has none.
+ *
+ * `override ?? computed`, plus the penalty. A [OfficialTimeResultStatus] other than
+ * [OfficialTimeResultStatus.NONE] supersedes any time - a disqualified team has no time, however
+ * many marks it produced.
+ */
+fun effectiveMillis(record: TimingOfficialTimeRecord): Long? {
+    if (OfficialTimeResultStatus.valueOf(record.resultStatus!!) != OfficialTimeResultStatus.NONE) return null
+    val base = record.overrideMillis ?: record.computedMillis ?: return null
+    return base + (record.penaltyMillis ?: 0L)
+}
+
+fun officialTimeDto(
+    record: TimingOfficialTimeRecord,
+    startMillis: Long?,
+    finishMillis: Long?,
+): OfficialTimeDto = OfficialTimeDto(
+    competitionMatchTeam = record.competitionMatchTeam,
+    event = record.event,
+    startMillis = startMillis,
+    finishMillis = finishMillis,
+    computedMillis = record.computedMillis,
+    overrideMillis = record.overrideMillis,
+    penaltyMillis = record.penaltyMillis ?: 0L,
+    resultStatus = OfficialTimeResultStatus.valueOf(record.resultStatus!!),
+    effectiveMillis = effectiveMillis(record),
+    dirty = record.dirty ?: false,
+    pushedAt = record.pushedAt,
+)
+
+/**
+ * A team that has marks but no official-time row yet, rendered like one so the Leitstand table can
+ * list every team it might compute a time for.
+ */
+fun unpersistedOfficialTimeDto(
+    teamId: UUID,
+    eventId: UUID,
+    startMillis: Long?,
+    finishMillis: Long?,
+): OfficialTimeDto = OfficialTimeDto(
+    competitionMatchTeam = teamId,
+    event = eventId,
+    startMillis = startMillis,
+    finishMillis = finishMillis,
+    computedMillis = null,
+    overrideMillis = null,
+    penaltyMillis = 0L,
+    resultStatus = OfficialTimeResultStatus.NONE,
+    effectiveMillis = null,
+    dirty = false,
+    pushedAt = null,
+)
+
+/**
+ * The [Timecode] to persist for an official time of [effectiveMillis].
+ *
+ * Parity with the results import is the point here: the value is rendered and then read back through
+ * the very same [Parser.timecode] that `CompetitionExecutionService.updateMatchResult(-ByFile)` runs
+ * on a time cell, so the stored `base_unit` / `millisecond_precision` cannot drift from what an
+ * imported time of the same length would have produced. The base unit follows the magnitude (as a
+ * hand-typed or exported time would), the precision is always THREE because timing marks are
+ * millisecond-exact.
+ */
+fun officialTimecode(effectiveMillis: Long): Timecode {
+    val baseUnit = when {
+        effectiveMillis >= 3_600_000 -> Timecode.BaseUnit.HOURS
+        effectiveMillis >= 60_000 -> Timecode.BaseUnit.MINUTES
+        else -> Timecode.BaseUnit.SECONDS
+    }
+    val rendered = Timecode(effectiveMillis, baseUnit, Timecode.MillisecondPrecision.THREE).toString()
+    return Parser.timecode.parse(rendered)
 }
 
 fun timeMarkDto(record: TimingTimeMarkRecord, assignedTeam: UUID?): TimeMarkDto = TimeMarkDto(

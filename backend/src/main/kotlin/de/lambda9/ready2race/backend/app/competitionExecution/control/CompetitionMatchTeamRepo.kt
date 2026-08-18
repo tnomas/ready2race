@@ -27,6 +27,11 @@ object CompetitionMatchTeamRepo {
         }
     }
 
+    fun getById(teamId: UUID): JIO<CompetitionMatchTeamRecord?> = COMPETITION_MATCH_TEAM.selectOne { ID.eq(teamId) }
+
+    fun updateById(teamId: UUID, f: CompetitionMatchTeamRecord.() -> Unit) =
+        COMPETITION_MATCH_TEAM.update(f) { ID.eq(teamId) }
+
     fun getByMatchAndRegistrationId(matchId: UUID, registrationId: UUID): JIO<CompetitionMatchTeamRecord?> =
         COMPETITION_MATCH_TEAM.selectOne { COMPETITION_MATCH.eq(matchId).and(COMPETITION_REGISTRATION.eq(registrationId)) }
 

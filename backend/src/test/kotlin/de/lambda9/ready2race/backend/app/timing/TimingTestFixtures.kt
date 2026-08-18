@@ -14,6 +14,8 @@ import de.lambda9.ready2race.backend.app.competitionSetup.control.CompetitionSet
 import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetupPlacesOption
 import de.lambda9.ready2race.backend.app.eventRegistration.control.EventRegistrationRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
+import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.app.App
@@ -85,7 +87,10 @@ fun addTestStation(
 // Chain: club -> event_registration -> competition -> competition_properties
 //        -> competition_setup -> competition_setup_round -> competition_setup_match
 //        -> competition_match -> competition_registration -> competition_match_team
-fun createTestMatchTeam(eventId: UUID): App<Any?, UUID> = KIO.comprehension {
+fun createTestMatchTeam(eventId: UUID): App<Any?, UUID> =
+    createTestMatchTeams(eventId, 1).map { it.first() }
+
+fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> = KIO.comprehension {
     val now = LocalDateTime.now()
 
     val clubId = UUID.randomUUID()
@@ -185,19 +190,36 @@ fun createTestMatchTeam(eventId: UUID): App<Any?, UUID> = KIO.comprehension {
         )
     ).orDie()
 
-    val matchTeamId = UUID.randomUUID()
+    val matchTeamIds = List(teamCount) { UUID.randomUUID() }
     !CompetitionMatchTeamRepo.create(
-        listOf(
+        matchTeamIds.mapIndexed { index, id ->
             CompetitionMatchTeamRecord(
-                id = matchTeamId,
+                id = id,
                 competitionMatch = setupMatchId,
                 competitionRegistration = competitionRegistrationId,
-                startNumber = 1,
+                startNumber = index + 1,
                 createdAt = now,
                 updatedAt = now,
             )
-        )
+        }
     ).orDie()
 
-    KIO.ok(matchTeamId)
+    KIO.ok(matchTeamIds)
+}
+
+/**
+ * An ACTIVE time mark on [stationId] that is assigned to [teamId] - the shape the official-time
+ * layer consumes (only assigned, non-retracted marks count as start/finish).
+ */
+fun addAssignedMark(
+    eventId: UUID,
+    userId: UUID,
+    stationId: UUID,
+    teamId: UUID,
+    timestampMillis: Long,
+): App<Any?, UUID> = KIO.comprehension {
+    val markId = UUID.randomUUID()
+    !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, timestampMillis), userId, eventId)
+    !TimingService.assignTimeMark(AssignTimeMarkRequest(teamId), userId, markId, eventId)
+    KIO.ok(markId)
 }

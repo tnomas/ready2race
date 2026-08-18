@@ -84,6 +84,27 @@ object TimingService {
         request: CreateTimeMarkRequest,
         userId: UUID,
         eventId: UUID,
+    ): App<ServiceError, ApiResponse.Created> =
+        createMark(request, eventId, source = "APP_USER", createdBy = userId)
+
+    /**
+     * Capture path for timing hardware authenticated by a device token instead of a session.
+     *
+     * The mark is recorded as [source] `HARDWARE` with no `created_by`: there is no app user behind
+     * it, and the station the token is bound to has already been verified by
+     * [TimingDeviceTokenService.validate] before this is called.
+     */
+    fun createHardwareTimeMark(
+        request: CreateTimeMarkRequest,
+        eventId: UUID,
+    ): App<ServiceError, ApiResponse.Created> =
+        createMark(request, eventId, source = "HARDWARE", createdBy = null)
+
+    private fun createMark(
+        request: CreateTimeMarkRequest,
+        eventId: UUID,
+        source: String,
+        createdBy: UUID?,
     ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
         val exists = !TimingTimeMarkRepo.exists(request.id).orDie()
         if (exists) {
@@ -98,10 +119,10 @@ object TimingService {
                 event = eventId,
                 station = request.station,
                 timestampMillis = request.timestampMillis,
-                source = "APP_USER",
+                source = source,
                 status = "ACTIVE",
                 createdAt = LocalDateTime.now(),
-                createdBy = userId,
+                createdBy = createdBy,
             )
             val inserted = !TimingTimeMarkRepo.createIfAbsent(record).orDie()
             if (inserted > 0) {
@@ -118,12 +139,15 @@ object TimingService {
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
+        val assignedTeam = (!TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie())?.competitionMatchTeam
         !TimingTimeMarkRepo.update(timeMarkId) {
             status = "RETRACTED"
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
+        // Retracting a mark changes what the team's official time would compute to.
+        !TimingOfficialTimeService.markTeamsDirty(eventId, listOfNotNull(assignedTeam), userId)
         broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
         noData
     }
@@ -137,6 +161,10 @@ object TimingService {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
 
+        // Read before the change so the team the mark is moving away from can be flagged too.
+        val existing = !TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie()
+        val previousTeam = existing?.competitionMatchTeam
+
         val team = request.competitionMatchTeam
         if (team == null) {
             !TimingAssignmentRepo.deleteByTimeMark(timeMarkId).orDie()
@@ -145,7 +173,6 @@ object TimingService {
                 .onNullFail { TimingError.TeamNotFound }
             !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
 
-            val existing = !TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie()
             if (existing == null) {
                 !TimingAssignmentRepo.create(
                     TimingAssignmentRecord(
@@ -166,6 +193,10 @@ object TimingService {
                 }.orDie()
             }
         }
+        // Both ends of a move are affected: the team that loses the mark and the one that gains it.
+        // A freshly created mark needs no hook of its own - it carries no assignment yet, so the
+        // assignment that follows is what can change a team's official time.
+        !TimingOfficialTimeService.markTeamsDirty(eventId, listOfNotNull(previousTeam, team), userId)
         broadcastAsync(eventId, TimingWsMessage.AssignmentChanged(timeMarkId, request.competitionMatchTeam))
         noData
     }
