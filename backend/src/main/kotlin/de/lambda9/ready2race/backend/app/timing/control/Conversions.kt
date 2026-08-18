@@ -2,6 +2,8 @@ package de.lambda9.ready2race.backend.app.timing.control
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.tailwind.core.KIO
@@ -33,6 +35,46 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
         )
     }
 )
+
+fun sequenceDto(
+    record: TimingStartSequenceRecord,
+    entries: List<TimingStartSequenceEntryRecord>,
+): TimingSequenceDto {
+    val mode = SequenceMode.valueOf(record.mode)
+    return TimingSequenceDto(
+        id = record.id,
+        event = record.event,
+        station = record.station,
+        mode = mode,
+        intervalMillis = record.intervalMillis,
+        state = SequenceState.valueOf(record.state!!),
+        startedAtMillis = record.startedAtMillis,
+        entries = entries.sortedBy { it.position }.map { entry ->
+            TimingSequenceEntryDto(
+                id = entry.id,
+                competitionMatchTeam = entry.competitionMatchTeam,
+                position = entry.position,
+                status = SequenceEntryStatus.valueOf(entry.status!!),
+                plannedStartMillis = plannedStartMillis(record, entry.position),
+                timeMark = entry.timeMark,
+            )
+        },
+    )
+}
+
+/**
+ * When the entry at [position] is due, or `null` while the sequence has not been started.
+ *
+ * MASS fires everything at the start instant; INTERVAL gives every position its own slot, which is
+ * why a SKIPPED entry does not shift the ones behind it - its slot simply passes empty.
+ */
+fun plannedStartMillis(record: TimingStartSequenceRecord, position: Int): Long? {
+    val startedAt = record.startedAtMillis ?: return null
+    return when (SequenceMode.valueOf(record.mode)) {
+        SequenceMode.MASS -> startedAt
+        SequenceMode.INTERVAL -> startedAt + position * (record.intervalMillis ?: 0L)
+    }
+}
 
 fun timeMarkDto(record: TimingTimeMarkRecord, assignedTeam: UUID?): TimeMarkDto = TimeMarkDto(
     id = record.id,

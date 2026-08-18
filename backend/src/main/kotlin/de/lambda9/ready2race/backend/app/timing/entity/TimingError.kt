@@ -11,6 +11,11 @@ sealed interface TimingError : ServiceError {
     data object TimeMarkNotFound : TimingError
     data object TeamNotFound : TimingError
     data object EventMismatch : TimingError
+    data object SequenceNotFound : TimingError
+    data object SequenceEntryNotFound : TimingError
+    data object SequenceAlreadyActive : TimingError
+    data object SequenceStateConflict : TimingError
+    data object StationNotStartType : TimingError
 
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
@@ -25,5 +30,19 @@ sealed interface TimingError : ServiceError {
         TimeMarkNotFound -> ApiError(HttpStatusCode.NotFound, message = "Time mark not found")
         TeamNotFound -> ApiError(HttpStatusCode.NotFound, message = "Competition match team not found")
         EventMismatch -> ApiError(HttpStatusCode.BadRequest, message = "Resource does not belong to this event")
+        SequenceNotFound -> ApiError(HttpStatusCode.NotFound, message = "Start sequence not found")
+        SequenceEntryNotFound -> ApiError(HttpStatusCode.NotFound, message = "Start sequence entry not found")
+        SequenceAlreadyActive -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "This timing station already has an armed or running start sequence"
+        )
+        SequenceStateConflict -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "The start sequence is not in a state that allows this operation"
+        )
+        StationNotStartType -> ApiError(
+            HttpStatusCode.BadRequest,
+            message = "Start sequences require a timing station of type START"
+        )
     }
 }
