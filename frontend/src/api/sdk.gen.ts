@@ -1028,6 +1028,71 @@ import type {
     DownloadAwardCertificateData,
     DownloadAwardCertificateError,
     DownloadAwardCertificateResponse,
+    GetTimingStateData,
+    GetTimingStateError,
+    GetTimingStateResponse,
+    GetTimingTeamsData,
+    GetTimingTeamsError,
+    GetTimingTeamsResponse,
+    GetTimingStationsData,
+    GetTimingStationsError,
+    GetTimingStationsResponse,
+    CreateTimingStationData,
+    CreateTimingStationError,
+    CreateTimingStationResponse,
+    UpdateTimingStationData,
+    UpdateTimingStationError,
+    UpdateTimingStationResponse,
+    DeleteTimingStationData,
+    DeleteTimingStationError,
+    DeleteTimingStationResponse,
+    CreateTimeMarkData,
+    CreateTimeMarkError,
+    CreateTimeMarkResponse,
+    DeleteRetractedTimeMarksData,
+    DeleteRetractedTimeMarksError,
+    DeleteRetractedTimeMarksResponse,
+    RetractTimeMarkData,
+    RetractTimeMarkError,
+    RetractTimeMarkResponse,
+    AssignTimeMarkData,
+    AssignTimeMarkError,
+    AssignTimeMarkResponse,
+    GetTimingResultsData,
+    GetTimingResultsError,
+    GetTimingResultsResponse,
+    PushTimingResultsData,
+    PushTimingResultsError,
+    PushTimingResultsResponse,
+    SetTimingResultData,
+    SetTimingResultError,
+    SetTimingResultResponse,
+    CreateTimingSequenceData,
+    CreateTimingSequenceError,
+    CreateTimingSequenceResponse,
+    GetActiveTimingSequenceData,
+    GetActiveTimingSequenceError,
+    GetActiveTimingSequenceResponse,
+    StartTimingSequenceData,
+    StartTimingSequenceError,
+    StartTimingSequenceResponse,
+    AbortTimingSequenceData,
+    AbortTimingSequenceError,
+    AbortTimingSequenceResponse,
+    SkipTimingSequenceEntryData,
+    SkipTimingSequenceEntryError,
+    SkipTimingSequenceEntryResponse,
+    ListTimingDeviceTokensData,
+    ListTimingDeviceTokensError,
+    ListTimingDeviceTokensResponse,
+    IssueTimingDeviceTokenData,
+    IssueTimingDeviceTokenError,
+    IssueTimingDeviceTokenResponse,
+    RevokeTimingDeviceTokenData,
+    RevokeTimingDeviceTokenError,
+    RevokeTimingDeviceTokenResponse,
+    GetServerTimeError,
+    GetServerTimeResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -5589,5 +5654,375 @@ export const downloadAwardCertificate = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/competition/{competitionId}/awardCertificates/{registrationId}',
+    })
+}
+
+/**
+ * The current snapshot of live timing for this event: every station and every time mark (active and retracted alike - retracted marks are never removed from this snapshot, only physically deleted by deleteRetractedTimeMarks).
+ *
+ * In addition to this and the other routes below, timing state changes are pushed over a websocket channel:
+ *
+ * - Path: `/api/ws/event/{eventId}/timing` (note the `/api/ws` prefix - this channel lives outside the regular `/api` REST routes documented in this file).
+ * - Auth: browsers cannot set custom headers on a websocket handshake, so the session token is passed as the second entry of the `Sec-WebSocket-Protocol` header - connect with `new WebSocket(url, ["r2r", sessionToken])`. Non-browser clients may instead send the usual session header/cookie and omit the subprotocol.
+ * - Messages are JSON objects discriminated by a `type` field, mirroring the backend's `TimingWsMessage`:
+ *
+ * - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
+ *
+ * - `{ type: "timeMarkRetracted", id: uuid }`
+ *
+ * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
+ * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
+ * distinguish "no assignment" from a field that was never sent.
+ *
+ * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
+ * `GET /event/{eventId}/timing/stations` (or this state endpoint).
+ *
+ * - `{ type: "sequenceChanged", sequence: TimingSequenceDto }` - a start sequence was
+ * created, started, aborted, had an entry fire or get skipped, or completed. Boards
+ * watching that sequence's station should replace their local copy with `sequence`.
+ *
+ * - `{ type: "timesDeleted", timeMarks: uuid[] }` - the ids `deleteRetractedTimeMarks`
+ * physically removed; drop them from any local copy of the state.
+ *
+ * - `{ type: "resultChanged", results: TimingResultDto[] }` - one or more result rows
+ * changed (a penalty/status was entered, or a push wrote a result). Carries the full rows
+ * rather than ids so a result table can replace them directly.
+ *
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on the server's ping/pong keepalive.
+ * - On (re)connect, clients should always fetch this endpoint first and only then start applying incoming messages, to cover updates missed while disconnected.
+ */
+export const getTimingState = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingStateData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingStateResponse,
+        GetTimingStateError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/state',
+    })
+}
+
+/**
+ * Every competition match team of the event, flattened with display fields (crew names, club, competition/match) for timing boards to assign time marks to.
+ */
+export const getTimingTeams = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingTeamsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingTeamsResponse,
+        GetTimingTeamsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/teams',
+    })
+}
+
+export const getTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingStationsResponse,
+        GetTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations',
+    })
+}
+
+export const createTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingStationResponse,
+        CreateTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations',
+    })
+}
+
+export const updateTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingStationResponse,
+        UpdateTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+/**
+ * Fails if the station has already captured time marks (retract/delete those first).
+ */
+export const deleteTimingStation = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingStationData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingStationResponse,
+        DeleteTimingStationError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+/**
+ * Captures a time mark at a station. `id` is client-generated: capturing the same id twice (e.g. an app retrying after a dropped response) is idempotent and creates only one time mark.
+ *
+ * Accepts either a normal session (privilege UpdateAppTimingGlobal or UpdateEventGlobal), OR an `X-Timing-Device-Token` header identifying a hardware timing device that cannot hold a session. That branch is only taken when the header is present AND no session exists - a logged-in user's request always takes the ordinary privilege-checked path regardless of the header. A device token binds the capture to its own station: it can never write marks for a different station than the one it was issued for. Marks captured this way are recorded with `source: "HARDWARE"` and no `createdBy`.
+ */
+export const createTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimeMarkResponse,
+        CreateTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks',
+    })
+}
+
+/**
+ * The only path that ever hard-deletes a time mark ("Zeiten löschen"): retracted marks of the event, or of one station when `station` is given. ACTIVE marks are never touched - retracting a mark first is the deliberate step that makes it deletable.
+ */
+export const deleteRetractedTimeMarks = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteRetractedTimeMarksData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteRetractedTimeMarksResponse,
+        DeleteRetractedTimeMarksError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/retracted',
+    })
+}
+
+/**
+ * Soft-delete - the mark stays in the state (and in history) with status RETRACTED. Use deleteRetractedTimeMarks afterwards to physically remove it.
+ */
+export const retractTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RetractTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        RetractTimeMarkResponse,
+        RetractTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/retract',
+    })
+}
+
+/**
+ * Omit `competitionMatchTeam` (or send `null`) to detach the time mark from any team.
+ */
+export const assignTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AssignTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        AssignTimeMarkResponse,
+        AssignTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/assignment',
+    })
+}
+
+/**
+ * One row per competition match team that has assigned marks, or that already carries result data (a penalty, a status, or a pushed time) - nothing is stored twice: the measured part is recomputed from the marks on every read, and only the judged part (penalty, DNS/DNF/DSQ) is persisted. Sorted by computed final time, then finish time, then team id.
+ */
+export const getTimingResults = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingResultsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingResultsResponse,
+        GetTimingResultsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/results',
+    })
+}
+
+/**
+ * Copies computed results into the results flow (writes `timecode`, or `failed` + `failedReason` for a DNS/DNF/DSQ status). Two shapes: with `teams` given, every named team must be pushable, or the whole call fails; with `teams` omitted, every pushable team of the event is pushed and the rest is reported as `skipped`. In both shapes a team whose result is already frozen (a place entered, places calculated, or a referee's own failed-flag) is a hard conflict that fails the whole call unless `force` is set - and `force` only overrides that freeze, it never makes a team without a final time pushable. A forced push replaces the timecode snapshot but never recalculates places; a referee must re-save the match afterwards for the place to reflect the pushed time.
+ */
+export const pushTimingResults = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PushTimingResultsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        PushTimingResultsResponse,
+        PushTimingResultsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/results/compute-push',
+    })
+}
+
+/**
+ * Writes the judged part of one team's result: penalty and/or a DNS/DNF/DSQ status. PUT semantics - every field is replaced: an absent `penaltySeconds` clears the penalty, an absent `penaltyNote` clears the note, and an absent (or NONE) `resultStatus` clears the status. Setting a status other than NONE also drops any previously pushed timecode - a status supersedes every measured time.
+ */
+export const setTimingResult = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetTimingResultData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetTimingResultResponse,
+        SetTimingResultError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/results/{competitionMatchTeamId}',
+    })
+}
+
+/**
+ * Requires a timing station of type START that has no other armed or running sequence.
+ */
+export const createTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingSequenceResponse,
+        CreateTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences',
+    })
+}
+
+/**
+ * The sequence a station's board should show right now: the one that is ARMED/RUNNING, or - if there is none - the most recently finished (DONE/ABORTED) one, as long as it finished within the last 10 minutes. This lets a client that reconnects (or missed the terminal websocket broadcast) right after a sequence completes still render the outcome of a run that just ended, instead of seeing nothing at all. A station without an armed or running sequence and without a recent terminal one returns `sequence: null` - the normal case, not a missing resource.
+ */
+export const getActiveTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetActiveTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetActiveTimingSequenceResponse,
+        GetActiveTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/active',
+    })
+}
+
+/**
+ * Only valid from state ARMED. The server's clock becomes the record: every board derives its countdown from the started instant plus its own measured clock offset (see getServerTime), so nobody counts down against their local time.
+ */
+export const startTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<StartTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        StartTimingSequenceResponse,
+        StartTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/start',
+    })
+}
+
+/**
+ * Only valid while the sequence is active (ARMED or RUNNING). Leaves already-fired entries (and their marks) alone; only pending ones are called off.
+ */
+export const abortTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AbortTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AbortTimingSequenceResponse,
+        AbortTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/abort',
+    })
+}
+
+/**
+ * Only valid for a PENDING entry of an active sequence. If this was the last pending entry of an ARMED sequence, the sequence is resolved to ABORTED (a RUNNING sequence's completion is instead picked up by the scheduler).
+ */
+export const skipTimingSequenceEntry = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SkipTimingSequenceEntryData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        SkipTimingSequenceEntryResponse,
+        SkipTimingSequenceEntryError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip',
+    })
+}
+
+export const listTimingDeviceTokens = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ListTimingDeviceTokensData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        ListTimingDeviceTokensResponse,
+        ListTimingDeviceTokensError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens',
+    })
+}
+
+/**
+ * The response's plaintext `token` is the only moment it exists outside the device - only its hash is stored, so a lost token cannot be recovered and has to be revoked and reissued.
+ */
+export const issueTimingDeviceToken = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<IssueTimingDeviceTokenData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        IssueTimingDeviceTokenResponse,
+        IssueTimingDeviceTokenError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens',
+    })
+}
+
+export const revokeTimingDeviceToken = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RevokeTimingDeviceTokenData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        RevokeTimingDeviceTokenResponse,
+        RevokeTimingDeviceTokenError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens/{tokenId}',
+    })
+}
+
+/**
+ * Used by clients to measure and correct their local clock's offset against the server before capturing time marks (or rendering a sequence countdown). Deliberately unauthenticated - it is safe to expose and needs to be reachable before a session even exists.
+ */
+export const getServerTime = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<unknown, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        GetServerTimeResponse,
+        GetServerTimeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/timing/serverTime',
     })
 }

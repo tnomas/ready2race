@@ -14,6 +14,13 @@ export type ActionColors = {
     info: string
 }
 
+/**
+ * A station without an armed or running sequence is the normal case (the board then shows its setup form), not a missing resource - hence `sequence` being absent rather than a 404.
+ */
+export type ActiveSequenceDto = {
+    sequence?: TimingSequenceDto | null
+}
+
 export type AddEventExportBundleItemRequest = {
     document: string
 }
@@ -159,6 +166,13 @@ export type AssignGapDocumentTemplateRequest = {
 export type AssignRequirementToNamedParticipantDto = {
     requirementId: string
     qrCodeRequired: boolean
+}
+
+export type AssignTimeMarkRequest = {
+    /**
+     * Omit or set to null to detach the time mark from any team.
+     */
+    competitionMatchTeam?: string | null
 }
 
 export type AthleteBoardMatch = {
@@ -1356,6 +1370,32 @@ export type CreateEventRequest = {
     publicResultsVisibility?: PublicResultsVisibility
 }
 
+export type CreateSequenceRequest = {
+    station: string
+    mode: SequenceMode
+    /**
+     * Required (and must be >= 1000) for mode INTERVAL; ignored for MASS.
+     */
+    intervalMillis?: number | null
+    /**
+     * Ordered - index in this list becomes the entry position and therefore the start slot.
+     */
+    teams: Array<string>
+    /**
+     * Countdown before the first entry fires, in milliseconds. When absent, defaults to intervalMillis for mode INTERVAL (one full cadence) or 10000 for MASS. When given, must be between 3000 and 600000.
+     */
+    leadInMillis?: number | null
+}
+
+export type CreateTimeMarkRequest = {
+    /**
+     * Client-generated - capturing the same id twice is idempotent and creates only one time mark.
+     */
+    id: string
+    station: string
+    timestampMillis: number
+}
+
 export type CustomFontDto = {
     enabled: boolean
     filename?: string | null
@@ -1364,6 +1404,13 @@ export type CustomFontDto = {
 export type CustomLogoDto = {
     enabled: boolean
     filename?: string | null
+}
+
+export type DeletedTimeMarksDto = {
+    /**
+     * The ids the explicit "delete times" action physically removed.
+     */
+    timeMarks: Array<string>
 }
 
 export type DocumentTemplateDto = {
@@ -3327,6 +3374,14 @@ export type ProduceInvoicesRequest = {
  */
 export type PublicResultsVisibility = 'FINISHED_ONLY' | 'RESULTS_COMPLETE'
 
+/**
+ * Which teams' computed results to write into the results flow. With teams given, every named team must be pushable, or the whole call fails. With teams omitted, every pushable team of the event is pushed and the rest is reported as skipped. force only overrides an already-frozen result; it never makes a team without a final time pushable.
+ */
+export type PushTimingResultsRequest = {
+    teams?: Array<string> | null
+    force?: boolean
+}
+
 export type QrCodeAppuserResponse = {
     firstname: string
     lastname: string
@@ -3629,6 +3684,16 @@ export type ScheduleImportResultDto = {
 
 export type Scope = 'OWN' | 'GLOBAL'
 
+export type SequenceEntryStatus = 'PENDING' | 'STARTED' | 'SKIPPED'
+
+export type SequenceMode = 'MASS' | 'INTERVAL'
+
+export type SequenceState = 'ARMED' | 'RUNNING' | 'DONE' | 'ABORTED'
+
+export type ServerTimeResponse = {
+    serverTimeMillis: number
+}
+
 export type ShiftMode = 'PLUS_MINUTES' | 'SET_TIME' | 'COMPRESS_TO_TARGET' | 'PLUS_MINUTES_RANGE'
 
 export type ShiftPreviewDto = {
@@ -3863,6 +3928,26 @@ export type TimeCheckDto = {
 
 export type TimeCheckStatus = 'OK' | 'TOO_EARLY' | 'LATE' | 'NOT_CHECKED'
 
+export type TimeMarkDto = {
+    id: string
+    event: string
+    station: string
+    timestampMillis: number
+    /**
+     * "APP_USER" | "HARDWARE"
+     */
+    source: string
+    /**
+     * "ACTIVE" | "RETRACTED" - retracted marks stay in the state, never deleted
+     */
+    status: string
+    createdBy?: string | null
+    /**
+     * The competition match team this mark has been assigned to, if any.
+     */
+    assignedTeam?: string | null
+}
+
 export type TimingConfigDto = {
     timingSystem?: TimingSystem | null
     /**
@@ -3899,7 +3984,154 @@ export type TimingConfigRequest = {
     resultImportConfig?: string | null
 }
 
+/**
+ * Metadata of a hardware device token. Deliberately carries neither the token nor its hash.
+ */
+export type TimingDeviceTokenDto = {
+    id: string
+    event: string
+    station: string
+    name: string
+    revoked: boolean
+    createdAt: string
+}
+
+/**
+ * Response of an issue call - the only moment the plaintext token exists outside the device. Only its hash is stored, so a lost token cannot be recovered - it has to be revoked and reissued.
+ */
+export type TimingDeviceTokenIssuedDto = {
+    deviceToken: TimingDeviceTokenDto
+    token: string
+}
+
+export type TimingDeviceTokenRequest = {
+    name: string
+    station: string
+}
+
+/**
+ * One row of the Leitstand's result table. Nothing here is stored: startMillis/finishMillis are resolved live from the team's currently assigned, non-retracted marks, and computedFinalMillis is derived from them plus the penalty - `(finish - start) + penaltySeconds * 1000`, null whenever skipReason says why it cannot be formed or whenever resultStatus is not NONE (a status supersedes any time).
+ */
+export type TimingResultDto = {
+    competitionMatchTeam: string
+    event: string
+    competitionMatch: string
+    startMillis?: number | null
+    finishMillis?: number | null
+    /**
+     * `finish - start`, before the penalty is added - what the marks alone say.
+     */
+    measuredMillis?: number | null
+    penaltySeconds?: number | null
+    penaltyNote?: string | null
+    resultStatus: TimingResultStatus
+    computedFinalMillis?: number | null
+    skipReason?: TimingResultSkipReason | null
+    /**
+     * Whether the results flow already carries what a push would write.
+     */
+    pushed: boolean
+    /**
+     * `placesCalculated || place != null || failed` - a push needs `force` past this.
+     */
+    frozen: boolean
+}
+
+/**
+ * The judged part of a result: a penalty and/or a DNS/DNF/DSQ. PUT semantics - every field is replaced. An absent penaltySeconds clears the penalty, an absent penaltyNote clears the note, and an absent (or NONE) resultStatus clears the status.
+ */
+export type TimingResultEntryRequest = {
+    penaltySeconds?: number | null
+    penaltyNote?: string | null
+    resultStatus?: TimingResultStatus | null
+}
+
+/**
+ * Outcome of a push - what was written, and every team that was left out with the reason.
+ */
+export type TimingResultPushResultDto = {
+    pushed: Array<TimingResultDto>
+    skipped: Array<TimingResultSkipDto>
+}
+
+export type TimingResultSkipDto = {
+    competitionMatchTeam: string
+    reason: TimingResultSkipReason
+}
+
+/**
+ * Why a team has no computable final time.
+ */
+export type TimingResultSkipReason =
+    | 'NO_MARKS'
+    | 'NO_START_MARK'
+    | 'NO_FINISH_MARK'
+    | 'NEGATIVE_DURATION'
+
+export type TimingResultStatus = 'NONE' | 'DNS' | 'DNF' | 'DSQ'
+
+export type TimingSequenceDto = {
+    id: string
+    event: string
+    station: string
+    mode: SequenceMode
+    /**
+     * Only ever set for mode INTERVAL.
+     */
+    intervalMillis?: number | null
+    /**
+     * Countdown before the first entry fires, in milliseconds, counted from startedAtMillis. Gives clients room to run a countdown (with beeps) before anything actually starts.
+     */
+    leadInMillis: number
+    state: SequenceState
+    startedAtMillis?: number | null
+    entries: Array<TimingSequenceEntryDto>
+}
+
+export type TimingSequenceEntryDto = {
+    id: string
+    competitionMatchTeam: string
+    position: number
+    status: SequenceEntryStatus
+    /**
+     * Wall-clock instant (server epoch millis) this entry is scheduled to fire at, or null while the sequence has not been started yet.
+     */
+    plannedStartMillis?: number | null
+    timeMark?: string | null
+}
+
+export type TimingStateDto = {
+    stations: Array<TimingStationDto>
+    timeMarks: Array<TimeMarkDto>
+}
+
+export type TimingStationDto = {
+    id: string
+    event: string
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+export type TimingStationRequest = {
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+
 export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER'
+
+export type TimingTeamDto = {
+    competitionMatchTeam: string
+    startNumber?: number | null
+    teamName?: string | null
+    clubName?: string | null
+    participantNames: Array<string>
+    competitionName?: string | null
+    matchName?: string | null
+}
 
 export type TooManyRequestsError = ApiError & {
     details: {
@@ -9048,3 +9280,241 @@ export type DownloadAwardCertificateData = {
 export type DownloadAwardCertificateResponse = Blob | File
 
 export type DownloadAwardCertificateError = BadRequestError | ApiError
+
+export type GetTimingStateData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingStateResponse = TimingStateDto
+
+export type GetTimingStateError = BadRequestError | ApiError
+
+export type GetTimingTeamsData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingTeamsResponse = Array<TimingTeamDto>
+
+export type GetTimingTeamsError = BadRequestError | ApiError
+
+export type GetTimingStationsData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingStationsResponse = Array<TimingStationDto>
+
+export type GetTimingStationsError = BadRequestError | ApiError
+
+export type CreateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type CreateTimingStationResponse = string
+
+export type CreateTimingStationError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type UpdateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: string
+        stationId: string
+    }
+}
+
+export type UpdateTimingStationResponse = void
+
+export type UpdateTimingStationError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeleteTimingStationData = {
+    path: {
+        eventId: string
+        stationId: string
+    }
+}
+
+export type DeleteTimingStationResponse = void
+
+export type DeleteTimingStationError = BadRequestError | ApiError
+
+export type CreateTimeMarkData = {
+    body: CreateTimeMarkRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type CreateTimeMarkResponse = string
+
+export type CreateTimeMarkError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeleteRetractedTimeMarksData = {
+    path: {
+        eventId: string
+    }
+    query?: {
+        station?: string
+    }
+}
+
+export type DeleteRetractedTimeMarksResponse = DeletedTimeMarksDto
+
+export type DeleteRetractedTimeMarksError = BadRequestError | ApiError
+
+export type RetractTimeMarkData = {
+    path: {
+        eventId: string
+        timeMarkId: string
+    }
+}
+
+export type RetractTimeMarkResponse = void
+
+export type RetractTimeMarkError = BadRequestError | ApiError
+
+export type AssignTimeMarkData = {
+    body: AssignTimeMarkRequest
+    path: {
+        eventId: string
+        timeMarkId: string
+    }
+}
+
+export type AssignTimeMarkResponse = void
+
+export type AssignTimeMarkError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetTimingResultsData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingResultsResponse = Array<TimingResultDto>
+
+export type GetTimingResultsError = BadRequestError | ApiError
+
+export type PushTimingResultsData = {
+    body: PushTimingResultsRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type PushTimingResultsResponse = TimingResultPushResultDto
+
+export type PushTimingResultsError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type SetTimingResultData = {
+    body: TimingResultEntryRequest
+    path: {
+        competitionMatchTeamId: string
+        eventId: string
+    }
+}
+
+export type SetTimingResultResponse = void
+
+export type SetTimingResultError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type CreateTimingSequenceData = {
+    body: CreateSequenceRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type CreateTimingSequenceResponse = string
+
+export type CreateTimingSequenceError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetActiveTimingSequenceData = {
+    path: {
+        eventId: string
+    }
+    query: {
+        stationId: string
+    }
+}
+
+export type GetActiveTimingSequenceResponse = ActiveSequenceDto
+
+export type GetActiveTimingSequenceError = BadRequestError | ApiError
+
+export type StartTimingSequenceData = {
+    path: {
+        eventId: string
+        sequenceId: string
+    }
+}
+
+export type StartTimingSequenceResponse = void
+
+export type StartTimingSequenceError = BadRequestError | ApiError
+
+export type AbortTimingSequenceData = {
+    path: {
+        eventId: string
+        sequenceId: string
+    }
+}
+
+export type AbortTimingSequenceResponse = void
+
+export type AbortTimingSequenceError = BadRequestError | ApiError
+
+export type SkipTimingSequenceEntryData = {
+    path: {
+        entryId: string
+        eventId: string
+        sequenceId: string
+    }
+}
+
+export type SkipTimingSequenceEntryResponse = void
+
+export type SkipTimingSequenceEntryError = BadRequestError | ApiError
+
+export type ListTimingDeviceTokensData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type ListTimingDeviceTokensResponse = Array<TimingDeviceTokenDto>
+
+export type ListTimingDeviceTokensError = BadRequestError | ApiError
+
+export type IssueTimingDeviceTokenData = {
+    body: TimingDeviceTokenRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type IssueTimingDeviceTokenResponse = TimingDeviceTokenIssuedDto
+
+export type IssueTimingDeviceTokenError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type RevokeTimingDeviceTokenData = {
+    path: {
+        eventId: string
+        tokenId: string
+    }
+}
+
+export type RevokeTimingDeviceTokenResponse = void
+
+export type RevokeTimingDeviceTokenError = BadRequestError | ApiError
+
+export type GetServerTimeResponse = ServerTimeResponse
+
+export type GetServerTimeError = ApiError
