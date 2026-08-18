@@ -4044,6 +4044,10 @@ export type TimingResultEntryRequest = {
     penaltySeconds?: number | null
     penaltyNote?: string | null
     resultStatus?: TimingResultStatus | null
+    /**
+     * Overrides the freeze on a team whose place is already recorded (place set, or places calculated); without it such a team answers 409. A `failed` flag alone never freezes the entry - this endpoint is the way to change or clear a status.
+     */
+    force?: boolean
 }
 
 /**

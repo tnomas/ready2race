@@ -8,8 +8,10 @@ sealed interface TimingError : ServiceError {
     data object StationNotFound : TimingError
     data object StationHasTimeMarks : TimingError
     data object StationNameTaken : TimingError
+    data object StationSortingTaken : TimingError
     data object TimeMarkNotFound : TimingError
     data object TeamNotFound : TimingError
+    data object WrongTimingSystem : TimingError
     data object EventMismatch : TimingError
     data object SequenceNotFound : TimingError
     data object SequenceEntryNotFound : TimingError
@@ -35,8 +37,22 @@ sealed interface TimingError : ServiceError {
             HttpStatusCode.Conflict,
             message = "A timing station with this name already exists for this event"
         )
+        // The sorting of a SPLIT station IS the `position` of the lap rows its marks write, and that
+        // position is unique per boat. Two split stations sharing a sorting would silently drop one
+        // of the two laps (see TimingLapService.lapRecords), so the collision is refused where it is
+        // still visible - in the station admin.
+        StationSortingTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "Another split timing station of this event already uses this sorting"
+        )
         TimeMarkNotFound -> ApiError(HttpStatusCode.NotFound, message = "Time mark not found")
         TeamNotFound -> ApiError(HttpStatusCode.NotFound, message = "Competition match team not found")
+        // Structural protection for teams that are timed elsewhere: a RaceClocker boat must never
+        // receive an internal mark, because the lap sync would rewrite the laps its feed just wrote.
+        WrongTimingSystem -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "This team's competition is not timed with the internal timing system"
+        )
         EventMismatch -> ApiError(HttpStatusCode.BadRequest, message = "Resource does not belong to this event")
         SequenceNotFound -> ApiError(HttpStatusCode.NotFound, message = "Start sequence not found")
         SequenceEntryNotFound -> ApiError(HttpStatusCode.NotFound, message = "Start sequence entry not found")

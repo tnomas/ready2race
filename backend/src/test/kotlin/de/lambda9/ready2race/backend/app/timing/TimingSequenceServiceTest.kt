@@ -12,6 +12,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceState
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.validation.ValidationResult
@@ -80,6 +81,24 @@ class TimingSequenceServiceTest {
         assertKIOFails(TimingError.StationNotStartType) {
             TimingSequenceService.createSequence(
                 CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+                userId,
+                eventId,
+            )
+        }
+    }
+
+    // Firing creates the assignment directly, bypassing TimingService.assignTimeMark - so without
+    // this guard a sequence would be the way around the protection that keeps internal marks off a
+    // RaceClocker boat.
+    @Test
+    fun createSequenceRejectsATeamOfAnotherTimingSystem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val foreignTeam = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+
+        assertKIOFails(TimingError.WrongTimingSystem) {
+            TimingSequenceService.createSequence(
+                CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(foreignTeam)),
                 userId,
                 eventId,
             )

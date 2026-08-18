@@ -9,10 +9,13 @@ import de.lambda9.ready2race.backend.app.timing.control.AssignedMarkRow
 import de.lambda9.ready2race.backend.app.timing.control.TimingResultRepo
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchTeamLapRecord
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -48,6 +51,12 @@ object TimingLapService {
      * - **Marks before the start** (a split captured while the boat was still behind the line) are
      *   dropped instead of stored as a negative lap.
      *
+     * The boat's own `competition_match_team.started_at` is written from the same start mark - the
+     * column `applyLapsFromFeed` fills from the RaceClocker feed, and the one the time-trial views
+     * read to tell who is already on the water (`competition_match.started_at` only says that
+     * SOMEBODY started). Cleared again when the start mark is gone, for the same reason the laps are:
+     * it would describe a start that no longer exists.
+     *
      * Caveat by design: a boat whose laps came from a RaceClocker pull and that is then touched by
      * internal timing has them replaced. Both sources writing the same boat is a misconfiguration -
      * the timing system is chosen per event ([de.lambda9.ready2race.backend.app.timingConfig]) - and
@@ -67,13 +76,15 @@ object TimingLapService {
 
         !distinct.traverse { teamId ->
             KIO.comprehension {
-                val records = lapRecords(teamId, byTeam[teamId].orEmpty(), userId, now)
+                val teamMarks = byTeam[teamId].orEmpty()
+                val records = lapRecords(teamId, teamMarks, userId, now)
                 if (records.isNotEmpty()) {
                     !CompetitionMatchTeamLapRepo.upsert(records).orDie()
                 }
                 // Removes what the marks no longer support - a retracted split, or every lap of a
                 // boat that lost its start.
                 !CompetitionMatchTeamLapRepo.deleteBeyond(teamId, records.map { it.position }).orDie()
+                !writeTeamStartedAt(teamId, teamMarks, userId, now)
                 KIO.unit
             }
         }
@@ -93,6 +104,12 @@ object TimingLapService {
      * office's "Läuft" button write. Mirrors `CompetitionExecutionService.markMatchStarted`: both
      * stamps are only set when still empty, so a heat started by hand keeps its original instant and
      * a re-fired sequence never moves it.
+     *
+     * Carries that method's challenge-event guard too: a challenge event has no heats that run, and
+     * `started_at` means nothing there. It is a silent skip rather than an error because the only
+     * caller is the start scheduler ([TimingSequenceService.fireDueEntries], `App<Nothing, _>`) -
+     * there is no request to answer with a 409, and the mark itself is still perfectly valid. The
+     * boat's own start (see [syncLaps]) is written either way; only the match stamp is skipped.
      */
     fun markMatchesStarted(
         eventId: UUID,
@@ -101,6 +118,9 @@ object TimingLapService {
     ): App<Nothing, Unit> = KIO.comprehension {
         val distinct = teamIds.distinct()
         if (distinct.isEmpty()) return@comprehension KIO.unit
+
+        val isChallengeEvent = !EventRepo.isChallengeEvent(eventId).orDie()
+        if (isChallengeEvent == true) return@comprehension KIO.unit
 
         val teams = !CompetitionMatchTeamRepo.getByIds(distinct).orDie()
         val matchIds = teams.map { it.competitionMatch }.distinct()
@@ -121,6 +141,38 @@ object TimingLapService {
         }
 
         EventChangeMarker.bump(eventId)
+        KIO.unit
+    }
+
+    /**
+     * Stamps (or clears) the boat's own measured start from its currently assigned START marks.
+     *
+     * Unlike the match-level stamp this one is NOT idempotent-once: it follows the marks. A restart
+     * moves it, a retracted or re-assigned start mark clears it - the same "the feed is the truth"
+     * rule `applyLapsFromFeed` applies to the RaceClocker side, with the marks in the feed's place.
+     * The write is skipped when nothing changes, so an unrelated lap sync leaves the audit columns
+     * alone.
+     */
+    private fun writeTeamStartedAt(
+        teamId: UUID,
+        marks: List<AssignedMarkRow>,
+        userId: UUID?,
+        now: LocalDateTime,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val startMillis = marks.filter { it.stationType == TimingStationType.START }
+            .maxOfOrNull { it.timestampMillis }
+        val startedAtValue = startMillis?.let {
+            LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault())
+        }
+
+        val team = !CompetitionMatchTeamRepo.getById(teamId).orDie()
+        if (team == null || team.startedAt == startedAtValue) return@comprehension KIO.unit
+
+        !CompetitionMatchTeamRepo.updateById(teamId) {
+            startedAt = startedAtValue
+            updatedBy = userId
+            updatedAt = now
+        }.orDie()
         KIO.unit
     }
 

@@ -28,11 +28,31 @@ object TimingService {
     ): App<TimingError, ApiResponse.Created> = KIO.comprehension {
         val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name).orDie()
         !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+        !checkSortingFree(eventId, request)
 
         val record = !request.toRecord(userId, eventId)
         val id = !TimingStationRepo.create(record).orDie()
         broadcastAsync(eventId, TimingWsMessage.StationsChanged)
         KIO.ok(ApiResponse.Created(id))
+    }
+
+    /**
+     * Refuses a SPLIT station whose sorting another split station of the event already holds.
+     *
+     * The sorting of a split station is not cosmetic: it becomes the `position` of the lap rows its
+     * marks write, and that position is unique per boat. Two split stations sorted alike therefore
+     * lose one of the two laps without a trace ([TimingLapService] can only keep the first). Refusing
+     * it here puts the conflict where it can be fixed - in front of the person editing the stations.
+     */
+    private fun checkSortingFree(
+        eventId: UUID,
+        request: TimingStationRequest,
+        excludingId: UUID? = null,
+    ): App<TimingError, Unit> = KIO.comprehension {
+        if (request.type != TimingStationType.SPLIT) return@comprehension KIO.unit
+        val taken = !TimingStationRepo.existsByEventAndSplitSorting(eventId, request.sorting, excludingId).orDie()
+        !KIO.failOn(taken) { TimingError.StationSortingTaken }
+        KIO.unit
     }
 
     fun getStations(
@@ -53,6 +73,7 @@ object TimingService {
 
         val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name, excludingId = stationId).orDie()
         !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+        !checkSortingFree(eventId, request, excludingId = stationId)
 
         !TimingStationRepo.update(stationId) {
             name = request.name
@@ -170,6 +191,14 @@ object TimingService {
             val teamEvent = !CompetitionMatchTeamRepo.getEventId(team).orDie()
                 .onNullFail { TimingError.TeamNotFound }
             !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
+
+            // Structural protection, not a nicety: assigning a mark runs the lap sync, and that
+            // rewrites the boat's laps from the internal marks alone. On a RaceClocker boat - whose
+            // laps come from its feed - a single mis-tap would therefore wipe them. Refusing the
+            // assignment is the only place that can prevent it, because by the time syncLaps runs the
+            // damage is already the requested state.
+            val ready2race = !TimingTeamRepo.isReady2RaceTeam(team).orDie()
+            !KIO.failOn(!ready2race) { TimingError.WrongTimingSystem }
 
             if (existing == null) {
                 !TimingAssignmentRepo.create(

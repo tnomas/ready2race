@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.control.AssignedMarkRow
 import de.lambda9.ready2race.backend.app.timing.control.TimingResultRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingTeamRepo
 import de.lambda9.ready2race.backend.app.timing.control.measuredTimecode
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
@@ -59,6 +60,9 @@ object TimingResultService {
      * Every team of the event a Leitstand result row exists for: those with assigned marks, plus
      * those that already carry result data (a penalty, a status, or a pushed time) - a DNS boat has
      * no marks at all and would otherwise vanish from the table the moment it is entered.
+     *
+     * Restricted to the competitions this application actually times (see [resolveRows]): a mixed
+     * event is normal, and a RaceClocker boat has no internal measurement to show.
      */
     fun getResults(
         eventId: UUID,
@@ -88,6 +92,13 @@ object TimingResultService {
      * result. The penalty on the other hand does NOT touch the timecode - it only becomes part of a
      * time on the next push, which is what makes the push the single moment a measured time enters
      * the results flow.
+     *
+     * Frozen the same way a push is, but against a narrower boundary: only a recorded PLACE
+     * (`place`, or places calculated) blocks the entry, and [TimingResultEntryRequest.force]
+     * overrides it. `failed` deliberately does not - whatever set it, and whatever its reason reads
+     * like. For an internally timed boat this endpoint IS the referee's status tool, so it must be
+     * able to change a DSQ into a DNF or clear it again; a `failed` that blocked the entry would
+     * lock the only way back out of a status entered a minute ago.
      */
     fun setResultEntry(
         eventId: UUID,
@@ -98,6 +109,11 @@ object TimingResultService {
         val team = !checkTeamOfEvent(teamId, eventId)
         val status = request.resultStatus ?: TimingResultStatus.NONE
         val now = LocalDateTime.now()
+
+        val placeRecorded = team.placesCalculated == true || team.place != null
+        !KIO.failOn(placeRecorded && !request.force) {
+            TimingError.PushConflict(listOf(TimingResultPushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
+        }
 
         if (status != TimingResultStatus.NONE) {
             !TimecodeRepo.delete(teamId).orDie()
@@ -148,12 +164,23 @@ object TimingResultService {
         // An id the caller named explicitly may have no row at all (no marks, no result data). It
         // has to surface as a conflict instead of vanishing from the response without a trace.
         !requested.orEmpty().traverse { teamId -> checkTeamOfEvent(teamId, eventId) }
+        // `rows` is already scoped to READY2RACE, so an explicitly named team from a RaceClocker
+        // competition would otherwise look like "no final time". It is a different mistake and gets
+        // its own reason - and unlike the freeze, `force` never gets past it.
+        val ready2race = if (requested == null) {
+            emptySet()
+        } else {
+            !TimingTeamRepo.getReady2RaceTeamIds(eventId, requested).orDie()
+        }
 
         val candidates = requested?.map { teamId -> teamId to byTeam[teamId] }
             ?: rows.filter { pushable(it) }.map { it.competitionMatchTeam to it }
 
         val conflicts = candidates.mapNotNull { (teamId, row) ->
             when {
+                requested != null && !ready2race.contains(teamId) ->
+                    TimingResultPushConflictDto(teamId, PushConflictReason.WRONG_TIMING_SYSTEM)
+
                 row == null || !pushable(row) ->
                     TimingResultPushConflictDto(teamId, PushConflictReason.NO_FINAL_TIME)
 
@@ -238,7 +265,15 @@ object TimingResultService {
         KIO.ok(Unit)
     }
 
-    /** The Leitstand rows of an event, recomputed from the marks and the teams' result columns. */
+    /**
+     * The Leitstand rows of an event, recomputed from the marks and the teams' result columns.
+     *
+     * Scoped to the teams whose competition's EFFECTIVE timing system (the competition's own choice,
+     * else the event's default) is READY2RACE - the mirror image of the filter the RaceClocker poll
+     * applies. An event may well run both, and a boat that is timed externally has no internal
+     * measurement: showing it here would offer a push that could only overwrite what its own timing
+     * source produced.
+     */
     private fun resolveRows(eventId: UUID): App<Nothing, List<TimingResultDto>> = KIO.comprehension {
         val marks = !TimingResultRepo.getAssignedActiveMarks(eventId).orDie()
         val markTimes = markTimes(marks)
@@ -247,7 +282,10 @@ object TimingResultService {
         val teamIds = (markTimes.keys + withResultData).toList()
         if (teamIds.isEmpty()) return@comprehension KIO.ok(emptyList())
 
-        val teams = !CompetitionMatchTeamRepo.getByIds(teamIds).orDie()
+        val ready2race = !TimingTeamRepo.getReady2RaceTeamIds(eventId, teamIds).orDie()
+        if (ready2race.isEmpty()) return@comprehension KIO.ok(emptyList())
+
+        val teams = !CompetitionMatchTeamRepo.getByIds(ready2race).orDie()
         KIO.ok(teams.map { team -> resultDto(team, eventId, markTimes[team.id]) })
     }
 
@@ -310,22 +348,22 @@ object TimingResultService {
     }
 
     /**
-     * Whether a team's result is already recorded by somebody else, and therefore frozen.
+     * Whether a team's result is already recorded, and a PUSH therefore needs `force`.
      *
      * The results flow has no dedicated approval flag: recording a result IS
      * `updateMatchResult(-ByFile)` writing `place` / `places_calculated`. `failed` is the same kind
-     * of marker for a non-finisher - a referee sets it where a place would otherwise go.
+     * of marker for a non-finisher - it is set where a place would otherwise go.
      *
-     * With ONE exception, and it is the reason this is not a plain `failed == true`: a DNS/DNF/DSQ
-     * entered in the Leitstand ([setResultEntry]) writes that very flag, so a strict reading would
-     * let timing freeze itself out of its own entry. A `failed_reason` that carries one of the
-     * status tokens is therefore read as "this is the status timing itself would write" and does not
-     * freeze; a `failed` with free text (or none) is a referee's own call and does.
+     * Plain, with no reading of `failed_reason`. An earlier version exempted a reason that carried
+     * one of the status tokens, on the grounds that timing had written it itself - but a
+     * `failed_reason` is free text a referee also types, so the exemption made a push's behaviour
+     * depend on the wording of somebody's note. It bought nothing either: the ENTRY endpoint
+     * ([setResultEntry]) is the sanctioned way to change a status and is deliberately NOT frozen by
+     * `failed`, and a push right behind a status entry is a no-op anyway - a status supersedes every
+     * time, so there is nothing left for the push to write.
      */
     private fun isFrozen(team: CompetitionMatchTeamRecord): Boolean =
-        team.placesCalculated == true ||
-            team.place != null ||
-            (team.failed == true && TimingResultStatus.fromFailedReason(team.failedReason) == TimingResultStatus.NONE)
+        team.placesCalculated == true || team.place != null || team.failed == true
 
     private fun checkTeamOfEvent(
         teamId: UUID,

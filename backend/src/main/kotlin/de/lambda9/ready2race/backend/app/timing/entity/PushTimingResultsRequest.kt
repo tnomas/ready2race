@@ -50,7 +50,7 @@ data class TimingResultPushConflictDto(
 enum class PushConflictReason {
     /**
      * The team's result is already recorded in the results flow: a place was entered, places were
-     * calculated, or a referee flagged it failed. Any of the three means somebody has already worked
+     * calculated, or the team is flagged failed. Any of the three means somebody has already worked
      * with this result, so overwriting its `timecode` snapshot silently would change an approved
      * result - the push refuses unless it is forced.
      */
@@ -58,6 +58,13 @@ enum class PushConflictReason {
 
     /** Neither a computable time nor a DNS/DNF/DSQ status - there is nothing to write. */
     NO_FINAL_TIME,
+
+    /**
+     * The team's competition is not timed with this application (its effective timing system is not
+     * READY2RACE). Never forceable: internal timing has no measurement of this boat at all, and
+     * writing one would overwrite what its actual timing source produced.
+     */
+    WRONG_TIMING_SYSTEM,
 }
 
 /**

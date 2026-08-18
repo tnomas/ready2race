@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.testing.testComprehension
 import kotlinx.coroutines.delay
@@ -150,6 +151,23 @@ class TimeMarkServiceTest {
         assertKIOFails(TimingError.EventMismatch) {
             TimingService.assignTimeMark(AssignTimeMarkRequest(teamFromOtherEvent), userId, markId, eventId)
         }
+    }
+
+    // Structural protection against the RaceClocker lap wipe: assigning runs the lap sync, which
+    // rewrites a boat's laps from the internal marks alone. On a boat whose laps come from the
+    // RaceClocker feed, one mis-tap would erase them - so the assignment itself is refused.
+    @Test
+    fun assignFailsForATeamOfAnotherTimingSystem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+        val foreignTeam = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+
+        assertKIOFails(TimingError.WrongTimingSystem) {
+            TimingService.assignTimeMark(AssignTimeMarkRequest(foreignTeam), userId, markId, eventId)
+        }
+        assertNull(!TimingAssignmentRepo.getByTimeMark(markId))
     }
 
     @Test

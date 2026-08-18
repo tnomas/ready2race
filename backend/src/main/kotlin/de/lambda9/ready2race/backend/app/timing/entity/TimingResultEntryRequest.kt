@@ -17,11 +17,18 @@ import de.lambda9.ready2race.backend.validation.validators.Validator
  * why entering a penalty here is immediately visible in every result view - but it only reaches the
  * TIME once the result is pushed, because that is when `(finish - start) + penalty` is written into
  * `timecode`.
+ *
+ * [force] is the same override the push has, against the same boundary: a team whose PLACE is
+ * already recorded (`place` set, or places calculated) is a result somebody has worked with, and
+ * entering a penalty on it would change an approved result. Deliberately only the place freezes the
+ * entry - `failed` does not. The Leitstand IS the referee's tool for the status of an internally
+ * timed boat, so it has to be able to set, change and clear a DSQ without an override.
  */
 data class TimingResultEntryRequest(
     val penaltySeconds: Int? = null,
     val penaltyNote: String? = null,
     val resultStatus: TimingResultStatus? = null,
+    val force: Boolean = false,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -45,6 +52,7 @@ data class TimingResultEntryRequest(
                 penaltySeconds = 5,
                 penaltyNote = "Bojenberührung",
                 resultStatus = TimingResultStatus.NONE,
+                force = false,
             )
     }
 }

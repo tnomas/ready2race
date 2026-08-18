@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.ClubRecord
@@ -36,6 +37,11 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 // Insert a minimal event + app user directly via repos and return their ids.
+//
+// The event defaults to READY2RACE: every timing endpoint is scoped to the competitions this
+// application actually times (effective timing system = competition's own value, else the event's),
+// so without the default no fixture team would be in scope at all. A competition can still opt out
+// per-competition - see [createTestMatchTeams].
 fun createTestEventWithAdmin(): App<Any?, Pair<UUID, UUID>> = KIO.comprehension {
     val now = LocalDateTime.now()
     val userId = UUID.randomUUID()
@@ -57,6 +63,7 @@ fun createTestEventWithAdmin(): App<Any?, Pair<UUID, UUID>> = KIO.comprehension 
         de.lambda9.ready2race.backend.database.generated.tables.records.EventRecord(
             id = eventId,
             name = "Timing Test Event",
+            timingSystem = TimingSystem.READY2RACE.name,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,
@@ -91,10 +98,19 @@ fun addTestStation(
 // Chain: club -> event_registration -> competition -> competition_properties
 //        -> competition_setup -> competition_setup_round -> competition_setup_match
 //        -> competition_match -> competition_registration -> competition_match_team
-fun createTestMatchTeam(eventId: UUID): App<Any?, UUID> =
-    createTestMatchTeams(eventId, 1).map { it.first() }
+fun createTestMatchTeam(eventId: UUID, timingSystem: TimingSystem? = null): App<Any?, UUID> =
+    createTestMatchTeams(eventId, 1, timingSystem).map { it.first() }
 
-fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> = KIO.comprehension {
+/**
+ * [timingSystem] sets the COMPETITION's own timing system; null means it inherits the event's
+ * (READY2RACE, see [createTestEventWithAdmin]). Passing [TimingSystem.RACECLOCKER] is how the tests
+ * build a mixed event - one competition this application times, one it must keep its hands off.
+ */
+fun createTestMatchTeams(
+    eventId: UUID,
+    teamCount: Int,
+    timingSystem: TimingSystem? = null,
+): App<Any?, List<UUID>> = KIO.comprehension {
     val now = LocalDateTime.now()
 
     val clubId = UUID.randomUUID()
@@ -123,6 +139,7 @@ fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> =
         CompetitionRecord(
             id = competitionId,
             event = eventId,
+            timingSystem = timingSystem?.name,
             createdAt = now,
             updatedAt = now,
         )

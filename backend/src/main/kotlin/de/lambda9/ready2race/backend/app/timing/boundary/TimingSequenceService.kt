@@ -52,6 +52,10 @@ object TimingSequenceService {
                 val teamEvent = !CompetitionMatchTeamRepo.getEventId(teamId).orDie()
                     .onNullFail { TimingError.TeamNotFound }
                 !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
+                // Firing creates an assignment directly, bypassing TimingService.assignTimeMark - so
+                // the same guard has to stand here, or a sequence would be the way around it.
+                val ready2race = !TimingTeamRepo.isReady2RaceTeam(teamId).orDie()
+                !KIO.failOn(!ready2race) { TimingError.WrongTimingSystem }
                 KIO.ok(Unit)
             }
         }

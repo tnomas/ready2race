@@ -83,6 +83,102 @@ class TimingServiceTest {
         }
     }
 
+    // The sorting of a SPLIT station becomes the `position` of the lap rows its marks write, and that
+    // position is unique per boat: two split stations sorted alike would silently lose one of the
+    // two laps. The collision is refused where it is still fixable.
+    @Test
+    fun addStationFailsOnDuplicateSplitSorting() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Runde 1", type = TimingStationType.SPLIT, sorting = 2),
+            userId,
+            eventId,
+        )
+
+        assertKIOFails(TimingError.StationSortingTaken) {
+            TimingService.addStation(
+                TimingStationRequest(name = "Runde 2", type = TimingStationType.SPLIT, sorting = 2),
+                userId,
+                eventId,
+            )
+        }
+    }
+
+    @Test
+    fun updateStationFailsOnDuplicateSplitSorting() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Runde 1", type = TimingStationType.SPLIT, sorting = 2),
+            userId,
+            eventId,
+        )
+        val second = !TimingService.addStation(
+            TimingStationRequest(name = "Runde 2", type = TimingStationType.SPLIT, sorting = 3),
+            userId,
+            eventId,
+        )
+        val secondId = (second as ApiResponse.Created).id
+
+        assertKIOFails(TimingError.StationSortingTaken) {
+            TimingService.updateStation(
+                TimingStationRequest(name = "Runde 2", type = TimingStationType.SPLIT, sorting = 2),
+                userId,
+                secondId,
+                eventId,
+            )
+        }
+
+        // Keeping its own sorting is not a collision with itself.
+        !TimingService.updateStation(
+            TimingStationRequest(name = "Runde 2b", type = TimingStationType.SPLIT, sorting = 3),
+            userId,
+            secondId,
+            eventId,
+        )
+    }
+
+    // START and FINISH sortings only order the board columns and never become a lap position, so
+    // they may repeat - including alongside a split station.
+    @Test
+    fun nonSplitStationsMayShareASorting() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Start", type = TimingStationType.START, sorting = 1),
+            userId,
+            eventId,
+        )
+        !TimingService.addStation(
+            TimingStationRequest(name = "Ziel", type = TimingStationType.FINISH, sorting = 1),
+            userId,
+            eventId,
+        )
+        !TimingService.addStation(
+            TimingStationRequest(name = "Runde 1", type = TimingStationType.SPLIT, sorting = 1),
+            userId,
+            eventId,
+        )
+
+        assertEquals(3, ((!TimingService.getStations(eventId)) as ApiResponse.ListDto<TimingStationDto>).data.size)
+    }
+
+    // A split sorting is only taken within its own event.
+    @Test
+    fun splitSortingIsScopedToTheEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        !TimingService.addStation(
+            TimingStationRequest(name = "Runde 1", type = TimingStationType.SPLIT, sorting = 2),
+            userId,
+            eventId,
+        )
+
+        !TimingService.addStation(
+            TimingStationRequest(name = "Runde 1", type = TimingStationType.SPLIT, sorting = 2),
+            otherUserId,
+            otherEventId,
+        )
+    }
+
     @Test
     fun updateStationFailsWhenStationBelongsToDifferentEvent() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.competitionExecution.control.Competitio
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingResultService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMECODE
 import de.lambda9.ready2race.testing.testComprehension
@@ -222,6 +223,80 @@ class TimingResultServiceTest {
         assertEquals(TimingResultSkipReason.NO_MARKS, row.skipReason)
     }
 
+    // The entry is frozen by a recorded PLACE, exactly like the push - a penalty entered after the
+    // referee placed the field would change an approved result.
+    @Test
+    fun entryIsBlockedWhenAPlaceIsRecorded() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !timedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 1 }
+
+        assertKIOFails(
+            TimingError.PushConflict(listOf(TimingResultPushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
+        ) {
+            TimingResultService.setResultEntry(
+                eventId,
+                teamId,
+                TimingResultEntryRequest(penaltySeconds = 5),
+                userId,
+            )
+        }
+        assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.penaltySeconds)
+    }
+
+    @Test
+    fun entryIsBlockedWhenPlacesAreCalculated() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !timedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) { placesCalculated = true }
+
+        assertKIOFails(
+            TimingError.PushConflict(listOf(TimingResultPushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
+        ) {
+            TimingResultService.setResultEntry(
+                eventId,
+                teamId,
+                TimingResultEntryRequest(resultStatus = TimingResultStatus.DSQ),
+                userId,
+            )
+        }
+    }
+
+    @Test
+    fun forcedEntryOverridesTheFreeze() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !timedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 1 }
+
+        !TimingResultService.setResultEntry(
+            eventId,
+            teamId,
+            TimingResultEntryRequest(penaltySeconds = 5, force = true),
+            userId,
+        )
+
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertEquals(5, team!!.penaltySeconds)
+        // Force gets past the freeze and nothing else - the place the referee entered stands.
+        assertEquals(1, team.place)
+    }
+
+    // The Leitstand is the referee's status tool for an internally timed boat: `failed` must not
+    // lock it, whoever set it and whatever the reason reads like. Otherwise a DSQ entered a minute
+    // ago could never be corrected or cleared.
+    @Test
+    fun entryIsNotBlockedByAFailedFlag() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !timedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) { failed = true; failedReason = "Bootsschaden" }
+
+        !TimingResultService.setResultEntry(eventId, teamId, TimingResultEntryRequest(), userId)
+
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertFalse(team!!.failed!!)
+        assertNull(team.failedReason)
+    }
+
     @Test
     fun entryFailsForTeamOfDifferentEvent() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
@@ -317,6 +392,10 @@ class TimingResultServiceTest {
 
     // DNS/DNF/DSQ mirror the import's no-result handling: no timecode at all, the status token in
     // failed_reason, and the team flagged failed.
+    //
+    // Forced, and that is not incidental: a status makes the team `failed`, and `failed` freezes the
+    // push. Re-pushing a non-finisher is therefore always a deliberate act - which costs nothing,
+    // because the entry that set the status already wrote exactly this shape.
     @Test
     fun pushOfNonFinisherWritesFailedInsteadOfTimecode() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
@@ -328,7 +407,7 @@ class TimingResultServiceTest {
             userId,
         )
 
-        !TimingResultService.pushResults(eventId, PushTimingResultsRequest(listOf(teamId)), userId)
+        !TimingResultService.pushResults(eventId, PushTimingResultsRequest(listOf(teamId), force = true), userId)
 
         val team = !CompetitionMatchTeamRepo.getById(teamId)
         assertNull(team!!.timecode)
@@ -365,8 +444,7 @@ class TimingResultServiceTest {
     }
 
     // A referee can record a non-finisher without ever calculating places - `failed` alone is just
-    // as much a worked-on result and freezes the push the same way. The reason is the referee's own
-    // free text here, which is what tells the two cases apart (see the next test).
+    // as much a worked-on result and freezes the push the same way.
     @Test
     fun pushFailsWhenARefereeFlaggedTheTeamFailed() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
@@ -381,10 +459,12 @@ class TimingResultServiceTest {
         assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
     }
 
-    // The counterpart: a status entered in the Leitstand writes `failed` itself, so a strict
-    // "failed freezes" would lock timing out of its own entry.
+    // `failed` freezes the PUSH plainly - no reading of failed_reason, no exemption for a status the
+    // Leitstand wrote itself. Nothing is lost by that: the entry already put the status into the
+    // results flow, and a status supersedes every time, so the push it blocks would write nothing
+    // anyway. The way to change the status is the entry endpoint, which `failed` does NOT freeze.
     @Test
-    fun pushOfAStatusEnteredInTheLeitstandIsNotFrozen() = testComprehension {
+    fun pushOfATeamWithAStatusIsFrozenRegardlessOfItsReason() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val teamId = !timedTeam(eventId, userId)
         !TimingResultService.setResultEntry(
@@ -393,12 +473,88 @@ class TimingResultServiceTest {
             TimingResultEntryRequest(resultStatus = TimingResultStatus.DSQ),
             userId,
         )
+        assertTrue((!TimingResultService.getResults(eventId)).data.single().frozen)
 
-        !TimingResultService.pushResults(eventId, PushTimingResultsRequest(listOf(teamId)), userId)
+        assertKIOFails(
+            TimingError.PushConflict(listOf(TimingResultPushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
+        ) {
+            TimingResultService.pushResults(eventId, PushTimingResultsRequest(listOf(teamId)), userId)
+        }
 
+        // The status is already recorded - the refused push had nothing left to write.
         val team = !CompetitionMatchTeamRepo.getById(teamId)
         assertTrue(team!!.failed!!)
         assertEquals("DSQ", team.failedReason)
+    }
+
+    // ------------------------------------------------------ timing-system scoping
+
+    // A mixed event is normal: one competition timed by this application, one by RaceClocker. The
+    // Leitstand shows only what it actually measures.
+    @Test
+    fun resultsOnlyCoverReady2RaceCompetitions() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val ownTeam = !createTestMatchTeam(eventId)
+        val foreignTeam = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+        !addAssignedMark(eventId, userId, startStation, ownTeam, startMillis)
+        !addAssignedMark(eventId, userId, finishStation, ownTeam, finishMillis)
+        // The foreign team cannot even be given a mark (see assignFailsForATeamOfAnotherTimingSystem)
+        // - it carries result data instead, which is the other source resolveRows reads.
+        !CompetitionMatchTeamRepo.updateById(foreignTeam) { penaltySeconds = 5 }
+
+        val rows = (!TimingResultService.getResults(eventId)).data
+
+        assertEquals(listOf(ownTeam), rows.map { it.competitionMatchTeam })
+    }
+
+    @Test
+    fun pushAllIgnoresTeamsOfAnotherTimingSystem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val ownTeam = !createTestMatchTeam(eventId)
+        val foreignTeam = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+        !addAssignedMark(eventId, userId, startStation, ownTeam, startMillis)
+        !addAssignedMark(eventId, userId, finishStation, ownTeam, finishMillis)
+        !CompetitionMatchTeamRepo.updateById(foreignTeam) { penaltySeconds = 5 }
+
+        val result = (!TimingResultService.pushResults(eventId, PushTimingResultsRequest(), userId)).dto
+
+        assertEquals(listOf(ownTeam), result.pushed.map { it.competitionMatchTeam })
+        assertTrue(result.skipped.none { it.competitionMatchTeam == foreignTeam })
+        assertNull((!CompetitionMatchTeamRepo.getById(foreignTeam))!!.timecode)
+    }
+
+    // Named explicitly, the mistake gets its own reason instead of hiding behind "no final time" -
+    // and force never gets past it: there is no internal measurement of this boat at all.
+    @Test
+    fun pushRejectsANamedTeamOfAnotherTimingSystem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val foreignTeam = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+
+        assertKIOFails(
+            TimingError.PushConflict(
+                listOf(TimingResultPushConflictDto(foreignTeam, PushConflictReason.WRONG_TIMING_SYSTEM))
+            )
+        ) {
+            TimingResultService.pushResults(
+                eventId,
+                PushTimingResultsRequest(listOf(foreignTeam), force = true),
+                userId,
+            )
+        }
+    }
+
+    // A competition without its own choice inherits the event's - the same coalesce the RaceClocker
+    // poll reads from the other side.
+    @Test
+    fun aCompetitionWithoutItsOwnChoiceInheritsTheEventDefault() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !timedTeam(eventId, userId)
+
+        assertEquals(listOf(teamId), (!TimingResultService.getResults(eventId)).data.map { it.competitionMatchTeam })
     }
 
     @Test
