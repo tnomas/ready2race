@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.timing.control
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.data.Timecode
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
@@ -156,6 +157,15 @@ fun officialTimecode(effectiveMillis: Long): Timecode {
     val rendered = Timecode(effectiveMillis, baseUnit, Timecode.MillisecondPrecision.THREE).toString()
     return Parser.timecode.parse(rendered)
 }
+
+fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
+    id = id,
+    event = event,
+    station = station,
+    name = name,
+    revoked = revoked ?: false,
+    createdAt = createdAt,
+)
 
 fun timeMarkDto(record: TimingTimeMarkRecord, assignedTeam: UUID?): TimeMarkDto = TimeMarkDto(
     id = record.id,

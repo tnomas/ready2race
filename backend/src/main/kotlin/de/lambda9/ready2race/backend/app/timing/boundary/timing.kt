@@ -8,9 +8,15 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
+import de.lambda9.ready2race.backend.sessions.UserSession
 import io.ktor.http.ContentType
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.sessions.*
+
+/** Header a timing device presents instead of a session (see `TimingDeviceTokenService`). */
+const val TIMING_DEVICE_TOKEN_HEADER = "X-Timing-Device-Token"
 
 fun Route.timing() {
     route("/timing") {
@@ -77,10 +83,25 @@ fun Route.timing() {
 
             post {
                 call.respondComprehension {
-                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
-                    val body = !receiveKIO(CreateTimeMarkRequest.example)
-                    TimingService.createTimeMark(body, user.id!!, eventId)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    val hasSession = call.sessions.get<UserSession>()?.token != null
+
+                    // Timing hardware cannot hold a session, so it presents a station-scoped device
+                    // token instead. The branch is only taken when such a token is present AND no
+                    // session exists - a logged-in user's request keeps taking exactly the path it
+                    // took before, token header or not.
+                    if (deviceToken != null && !hasSession) {
+                        val body = !receiveKIO(CreateTimeMarkRequest.example)
+                        // Binds the capture to the token's own station: a finish-line device can
+                        // never write marks for the start line.
+                        !TimingDeviceTokenService.validate(deviceToken, eventId, body.station)
+                        TimingService.createHardwareTimeMark(body, eventId)
+                    } else {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val body = !receiveKIO(CreateTimeMarkRequest.example)
+                        TimingService.createTimeMark(body, user.id!!, eventId)
+                    }
                 }
             }
 

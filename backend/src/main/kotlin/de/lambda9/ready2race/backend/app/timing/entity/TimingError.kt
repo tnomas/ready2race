@@ -18,6 +18,8 @@ sealed interface TimingError : ServiceError {
     data object StationNotStartType : TimingError
     data object OfficialTimeNotFound : TimingError
     data class PushConflict(val conflicts: List<OfficialTimePushConflictDto>) : TimingError
+    data object DeviceTokenNotFound : TimingError
+    data object DeviceTokenInvalid : TimingError
 
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
@@ -54,5 +56,9 @@ sealed interface TimingError : ServiceError {
             message = "Official times could not be written to the results of all requested teams",
             details = mapOf("conflicts" to conflicts)
         )
+        DeviceTokenNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing device token not found")
+        // Never echoes anything about the presented token - an invalid token is invalid, whether it
+        // is unknown, revoked, or scoped to another event or station.
+        DeviceTokenInvalid -> ApiError(HttpStatusCode.Unauthorized, message = "Invalid timing device token")
     }
 }
