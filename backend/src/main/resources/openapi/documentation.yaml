@@ -13581,6 +13581,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/uuid'
+        leadInMillis:
+          type: integer
+          format: int64
 
     SequenceEntryStatus:
       type: string
@@ -13610,6 +13613,7 @@ components:
         - event
         - station
         - mode
+        - leadInMillis
         - state
         - entries
       properties:
@@ -13622,6 +13626,9 @@ components:
         mode:
           $ref: '#/components/schemas/SequenceMode'
         intervalMillis:
+          type: integer
+          format: int64
+        leadInMillis:
           type: integer
           format: int64
         state:

@@ -705,6 +705,7 @@ export type CreateSequenceRequest = {
     mode: SequenceMode
     intervalMillis?: number
     teams: Array<uuid>
+    leadInMillis?: number
 }
 
 export type CreateTimeMarkRequest = {
@@ -2046,6 +2047,7 @@ export type TimingSequenceDto = {
     station: uuid
     mode: SequenceMode
     intervalMillis?: number
+    leadInMillis: number
     state: SequenceState
     startedAtMillis?: number
     entries: Array<TimingSequenceEntryDto>

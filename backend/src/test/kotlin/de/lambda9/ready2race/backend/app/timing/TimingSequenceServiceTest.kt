@@ -14,16 +14,22 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
+import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.testing.testComprehension
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TimingSequenceServiceTest {
+
+    // Used throughout the firing-timing tests below to keep the due-time arithmetic simple and
+    // independent from the lead-in *default* rules, which get their own dedicated tests.
+    private val LEAD_IN = 3000L
 
     @Test
     fun createAndGetActiveRoundTrip() = testComprehension {
@@ -47,6 +53,8 @@ class TimingSequenceServiceTest {
         assertEquals(SequenceState.ARMED, dto.state)
         assertEquals(SequenceMode.INTERVAL, dto.mode)
         assertEquals(60000L, dto.intervalMillis)
+        // No lead-in was given, so INTERVAL defaults it to one full cadence.
+        assertEquals(60000L, dto.leadInMillis)
         assertNull(dto.startedAtMillis)
         assertEquals(listOf(teamA, teamB), dto.entries.map { it.competitionMatchTeam })
         assertEquals(listOf(0, 1), dto.entries.map { it.position })
@@ -100,21 +108,22 @@ class TimingSequenceServiceTest {
         val teamB = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB)),
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB), LEAD_IN),
             userId,
             eventId,
         )
         val sequenceId = (created as ApiResponse.Created).id
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
 
-        // Position 0 is 500ms overdue, position 1 is still 500ms away.
-        val firstStart = System.currentTimeMillis() - 500
+        // Position 0 (which fires at startedAt + LEAD_IN) is 500ms overdue, position 1 (one
+        // interval later) is still 500ms away.
+        val firstStart = System.currentTimeMillis() - 500 - LEAD_IN
         !shiftStart(sequenceId, firstStart)
 
         val firstRun = !TimingSequenceService.fireDueEntries()
         assertEquals(1, firstRun.fired.size)
         assertEquals(teamA, firstRun.fired.single().mark.assignedTeam)
-        assertEquals(firstStart, firstRun.fired.single().mark.timestampMillis)
+        assertEquals(firstStart + LEAD_IN, firstRun.fired.single().mark.timestampMillis)
 
         val afterFirst = !TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()
         assertEquals(
@@ -125,13 +134,13 @@ class TimingSequenceServiceTest {
         assertEquals(SequenceState.RUNNING.name, stillRunning!!.state)
 
         // Now position 1 is due as well.
-        val secondStart = System.currentTimeMillis() - 1500
+        val secondStart = System.currentTimeMillis() - 1500 - LEAD_IN
         !shiftStart(sequenceId, secondStart)
 
         val secondRun = !TimingSequenceService.fireDueEntries()
         assertEquals(1, secondRun.fired.size)
         assertEquals(teamB, secondRun.fired.single().mark.assignedTeam)
-        assertEquals(secondStart + 1000, secondRun.fired.single().mark.timestampMillis)
+        assertEquals(secondStart + LEAD_IN + 1000, secondRun.fired.single().mark.timestampMillis)
 
         val done = !TimingSequenceRepo.get(sequenceId).orDie()
         assertEquals(SequenceState.DONE.name, done!!.state)
@@ -145,13 +154,13 @@ class TimingSequenceServiceTest {
         val team = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team), LEAD_IN),
             userId,
             eventId,
         )
         val sequenceId = (created as ApiResponse.Created).id
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
-        val startedAt = System.currentTimeMillis() - 100
+        val startedAt = System.currentTimeMillis() - 100 - LEAD_IN
         !shiftStart(sequenceId, startedAt)
 
         val result = !TimingSequenceService.fireDueEntries()
@@ -161,7 +170,9 @@ class TimingSequenceServiceTest {
         assertNotNull(mark)
         assertEquals(stationId, mark.station)
         assertEquals(eventId, mark.event)
-        assertEquals(startedAt, mark.timestampMillis)
+        // The mark carries the planned instant, i.e. startedAt plus the lead-in - not the raw
+        // start instant itself.
+        assertEquals(startedAt + LEAD_IN, mark.timestampMillis)
         assertEquals("ACTIVE", mark.status)
 
         val assignment = !TimingAssignmentRepo.getByTimeMark(mark.id).orDie()
@@ -180,20 +191,20 @@ class TimingSequenceServiceTest {
         val teamB = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(teamA, teamB)),
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(teamA, teamB), LEAD_IN),
             userId,
             eventId,
         )
         val sequenceId = (created as ApiResponse.Created).id
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
-        val startedAt = System.currentTimeMillis() - 100
+        val startedAt = System.currentTimeMillis() - 100 - LEAD_IN
         !shiftStart(sequenceId, startedAt)
 
         val result = !TimingSequenceService.fireDueEntries()
 
         assertEquals(2, result.fired.size)
-        // One signal starts all: identical timestamps.
-        assertEquals(setOf(startedAt), result.fired.map { it.mark.timestampMillis }.toSet())
+        // One signal starts all, once the lead-in has elapsed: identical timestamps.
+        assertEquals(setOf(startedAt + LEAD_IN), result.fired.map { it.mark.timestampMillis }.toSet())
         assertEquals(setOf(teamA, teamB), result.fired.mapNotNull { it.mark.assignedTeam }.toSet())
 
         val done = !TimingSequenceRepo.get(sequenceId).orDie()
@@ -208,7 +219,7 @@ class TimingSequenceServiceTest {
         val teamB = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB)),
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB), LEAD_IN),
             userId,
             eventId,
         )
@@ -218,24 +229,24 @@ class TimingSequenceServiceTest {
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
 
         // The skipped slot at position 0 has passed - position 1 must NOT move up into it.
-        val firstStart = System.currentTimeMillis() - 500
+        val firstStart = System.currentTimeMillis() - 500 - LEAD_IN
         !shiftStart(sequenceId, firstStart)
         val firstRun = !TimingSequenceService.fireDueEntries()
         assertEquals(0, firstRun.fired.size)
 
-        val secondStart = System.currentTimeMillis() - 1500
+        val secondStart = System.currentTimeMillis() - 1500 - LEAD_IN
         !shiftStart(sequenceId, secondStart)
         val secondRun = !TimingSequenceService.fireDueEntries()
 
         assertEquals(1, secondRun.fired.size)
         assertEquals(teamB, secondRun.fired.single().mark.assignedTeam)
-        assertEquals(secondStart + 1000, secondRun.fired.single().mark.timestampMillis)
+        assertEquals(secondStart + LEAD_IN + 1000, secondRun.fired.single().mark.timestampMillis)
 
         val sequence = secondRun.changedSequences.single()
         assertEquals(SequenceState.DONE, sequence.state)
         assertEquals(SequenceEntryStatus.SKIPPED, sequence.entries.first().status)
-        assertEquals(secondStart, sequence.entries.first().plannedStartMillis)
-        assertEquals(secondStart + 1000, sequence.entries[1].plannedStartMillis)
+        assertEquals(secondStart + LEAD_IN, sequence.entries.first().plannedStartMillis)
+        assertEquals(secondStart + LEAD_IN + 1000, sequence.entries[1].plannedStartMillis)
     }
 
     @Test
@@ -245,13 +256,13 @@ class TimingSequenceServiceTest {
         val team = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team), LEAD_IN),
             userId,
             eventId,
         )
         val sequenceId = (created as ApiResponse.Created).id
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
-        !shiftStart(sequenceId, System.currentTimeMillis() - 100)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 100 - LEAD_IN)
 
         assertEquals(1, (!TimingSequenceService.fireDueEntries()).fired.size)
         // The sequence is DONE now, so a second run must be a no-op - no duplicate marks.
@@ -335,13 +346,13 @@ class TimingSequenceServiceTest {
         val teamB = !createTestMatchTeam(eventId)
 
         val created = !TimingSequenceService.createSequence(
-            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB)),
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB), LEAD_IN),
             userId,
             eventId,
         )
         val sequenceId = (created as ApiResponse.Created).id
         !TimingSequenceService.startSequence(sequenceId, userId, eventId)
-        !shiftStart(sequenceId, System.currentTimeMillis() - 500)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 500 - LEAD_IN)
         val fired = (!TimingSequenceService.fireDueEntries()).fired.single()
 
         assertKIOFails(TimingError.SequenceStateConflict) {
@@ -395,6 +406,7 @@ class TimingSequenceServiceTest {
             createdBy = userId,
             updatedAt = now,
             updatedBy = userId,
+            leadInMillis = CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS,
         )
 
         // Goes straight through the repo, bypassing TimingSequenceService's existsActiveForStation
@@ -490,6 +502,111 @@ class TimingSequenceServiceTest {
                 eventId,
             )
         }
+    }
+
+    @Test
+    fun massSequenceDefaultsLeadInToTenSeconds() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence
+        assertEquals(10000L, dto!!.leadInMillis)
+    }
+
+    @Test
+    fun intervalSequenceDefaultsLeadInToItsCadence() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 45000, listOf(team)),
+            userId,
+            eventId,
+        )
+
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence
+        assertEquals(45000L, dto!!.leadInMillis)
+    }
+
+    @Test
+    fun explicitLeadInOverridesTheDefaultAndOffsetsPlannedStarts() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        // A custom lead-in distinct from both the interval and the MASS default, so a bug that
+        // fell back to either default instead of honoring the request would fail this test.
+        val customLeadIn = 15000L
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB), customLeadIn),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val startedAt = System.currentTimeMillis()
+        !shiftStart(sequenceId, startedAt)
+
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence!!
+
+        assertEquals(customLeadIn, dto.leadInMillis)
+        val entries = dto.entries.sortedBy { it.position }
+        assertEquals(startedAt + customLeadIn, entries[0].plannedStartMillis)
+        assertEquals(startedAt + customLeadIn + 1000, entries[1].plannedStartMillis)
+    }
+
+    @Test
+    fun leadInBelowMinimumFailsValidation() {
+        val request = CreateSequenceRequest(
+            station = java.util.UUID.randomUUID(),
+            mode = SequenceMode.MASS,
+            intervalMillis = null,
+            teams = listOf(java.util.UUID.randomUUID()),
+            leadInMillis = CreateSequenceRequest.MIN_LEAD_IN_MILLIS - 1,
+        )
+        assertIs<ValidationResult.Invalid>(request.validate())
+    }
+
+    @Test
+    fun leadInAboveMaximumFailsValidation() {
+        val request = CreateSequenceRequest(
+            station = java.util.UUID.randomUUID(),
+            mode = SequenceMode.MASS,
+            intervalMillis = null,
+            teams = listOf(java.util.UUID.randomUUID()),
+            leadInMillis = CreateSequenceRequest.MAX_LEAD_IN_MILLIS + 1,
+        )
+        assertIs<ValidationResult.Invalid>(request.validate())
+    }
+
+    @Test
+    fun leadInAtTheBoundsPassesValidation() {
+        val team = java.util.UUID.randomUUID()
+        val lower = CreateSequenceRequest(
+            station = java.util.UUID.randomUUID(),
+            mode = SequenceMode.MASS,
+            intervalMillis = null,
+            teams = listOf(team),
+            leadInMillis = CreateSequenceRequest.MIN_LEAD_IN_MILLIS,
+        )
+        val upper = lower.copy(leadInMillis = CreateSequenceRequest.MAX_LEAD_IN_MILLIS)
+        val absent = lower.copy(leadInMillis = null)
+
+        assertEquals(ValidationResult.Valid, lower.validate())
+        assertEquals(ValidationResult.Valid, upper.validate())
+        assertEquals(ValidationResult.Valid, absent.validate())
     }
 
     // The scheduler owns the wall clock, so tests move the sequence's start instant instead of

@@ -143,6 +143,10 @@ model TimingSequenceDto {
 
   // Only ever set for mode INTERVAL.
   intervalMillis?: int64;
+
+  // Countdown before the first entry fires, in milliseconds, counted from startedAtMillis. Gives
+  // clients room to run a countdown (with beeps) before anything actually starts.
+  leadInMillis: int64;
   state: SequenceState;
   startedAtMillis?: int64;
   entries: TimingSequenceEntryDto[];
@@ -157,6 +161,11 @@ model CreateSequenceRequest {
 
   // Ordered: index in this list becomes the entry position and therefore the start slot.
   teams: uuid[];
+
+  // Countdown before the first entry fires, in milliseconds. When absent, defaults to
+  // intervalMillis for mode INTERVAL (one full cadence) or 10000 for MASS. When given, must be
+  // between 3000 and 600000.
+  leadInMillis?: int64;
 }
 
 // A station without an armed or running sequence is the normal case (the board then shows its

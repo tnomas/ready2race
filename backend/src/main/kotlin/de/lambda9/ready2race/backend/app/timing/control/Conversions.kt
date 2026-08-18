@@ -47,6 +47,7 @@ fun sequenceDto(
         station = record.station,
         mode = mode,
         intervalMillis = record.intervalMillis,
+        leadInMillis = record.leadInMillis!!,
         state = SequenceState.valueOf(record.state!!),
         startedAtMillis = record.startedAtMillis,
         entries = entries.sortedBy { it.position }.map { entry ->
@@ -65,14 +66,17 @@ fun sequenceDto(
 /**
  * When the entry at [position] is due, or `null` while the sequence has not been started.
  *
- * MASS fires everything at the start instant; INTERVAL gives every position its own slot, which is
- * why a SKIPPED entry does not shift the ones behind it - its slot simply passes empty.
+ * Every planned instant is offset by the sequence's lead-in - the countdown (and its beeps) run
+ * during that window, so the first entry only fires once it has elapsed. MASS fires everything at
+ * the same instant after the lead-in; INTERVAL gives every position its own slot on top of that,
+ * which is why a SKIPPED entry does not shift the ones behind it - its slot simply passes empty.
  */
 fun plannedStartMillis(record: TimingStartSequenceRecord, position: Int): Long? {
     val startedAt = record.startedAtMillis ?: return null
+    val leadIn = record.leadInMillis ?: 0L
     return when (SequenceMode.valueOf(record.mode)) {
-        SequenceMode.MASS -> startedAt
-        SequenceMode.INTERVAL -> startedAt + position * (record.intervalMillis ?: 0L)
+        SequenceMode.MASS -> startedAt + leadIn
+        SequenceMode.INTERVAL -> startedAt + leadIn + position * (record.intervalMillis ?: 0L)
     }
 }
 

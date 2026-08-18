@@ -8,6 +8,7 @@ data class TimingSequenceDto(
     val station: UUID,
     val mode: SequenceMode,
     val intervalMillis: Long?,
+    val leadInMillis: Long,
     val state: SequenceState,
     val startedAtMillis: Long?,
     val entries: List<TimingSequenceEntryDto>,

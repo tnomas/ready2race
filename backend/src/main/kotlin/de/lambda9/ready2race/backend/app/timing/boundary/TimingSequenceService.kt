@@ -58,6 +58,12 @@ object TimingSequenceService {
 
         val now = LocalDateTime.now()
         val sequenceId = UUID.randomUUID()
+        // Unset lead-in defaults to one full cadence for INTERVAL (so the countdown covers exactly
+        // the gap the operator already configured between starts) or a flat 10s for MASS.
+        val leadInMillis = request.leadInMillis ?: when (request.mode) {
+            SequenceMode.INTERVAL -> request.intervalMillis ?: CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS
+            SequenceMode.MASS -> CreateSequenceRequest.DEFAULT_MASS_LEAD_IN_MILLIS
+        }
         val record = TimingStartSequenceRecord(
             id = sequenceId,
             event = eventId,
@@ -65,6 +71,7 @@ object TimingSequenceService {
             mode = request.mode.name,
             // MASS has no cadence - never persist a stray interval that would confuse the DTO.
             intervalMillis = request.intervalMillis.takeIf { request.mode == SequenceMode.INTERVAL },
+            leadInMillis = leadInMillis,
             state = SequenceState.ARMED.name,
             startedAtMillis = null,
             createdAt = now,
