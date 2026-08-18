@@ -11,6 +11,27 @@ import org.jooq.impl.DSL
 import java.util.UUID
 
 object CompetitionMatchTeamRepo {
+
+    /**
+     * Der eigene Verein der *Person*, nicht der meldende Verein der Mannschaft. `CLUB` hängt in
+     * diesen Abfragen an `COMPETITION_REGISTRATION.CLUB` und beantwortet damit nur, wer gemeldet
+     * hat; für die Anzeige zählt aber, welchen Verein die Athleten tragen. Deshalb ein zweiter,
+     * aliasierter Join - ohne Alias hielte jOOQ beide für dieselbe Tabelle.
+     */
+    private val PARTICIPANT_CLUB = CLUB.`as`("participant_club")
+
+    /** Spaltenname, unter dem [PARTICIPANT_CLUB] in den Records der drei Anzeige-Abfragen steht. */
+    const val PARTICIPANT_CLUB_NAME = "participant_club_name"
+
+    /**
+     * Spaltennamen der Wertungskategorie. Aliasiert, weil `RATING_CATEGORY.ID`/`NAME` in einem
+     * Record neben `CLUB.NAME` und `NAMED_PARTICIPANT.NAME` sonst nicht eindeutig anzusprechen
+     * wären.
+     */
+    const val RATING_CATEGORY_ID = "rating_category_id"
+    const val RATING_CATEGORY_NAME = "rating_category_name"
+    const val RATING_CATEGORY_SORT_ORDER = "rating_category_sort_order"
+
     fun get(matchIds: List<UUID>): JIO<List<CompetitionMatchTeamRecord>> = Jooq.query {
         with(COMPETITION_MATCH_TEAM) {
             selectFrom(this)
@@ -61,16 +82,25 @@ object CompetitionMatchTeamRepo {
                 COMPETITION_MATCH_TEAM.PLACE,
                 COMPETITION_MATCH_TEAM.FAILED,
                 COMPETITION_MATCH_TEAM.FAILED_REASON,
+                COMPETITION_MATCH_TEAM.PENALTY_SECONDS,
+                COMPETITION_MATCH_TEAM.PENALTY_NOTE,
                 COMPETITION_REGISTRATION.NAME.`as`("team_name"),
+                COMPETITION_REGISTRATION.TEAM_NUMBER,
                 COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.isNotNull.`as`("deregistered"),
                 COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason"),
                 CLUB.NAME.`as`("club_name"),
                 PARTICIPANT.ID.`as`("participant_id"),
                 PARTICIPANT.FIRSTNAME,
                 PARTICIPANT.LASTNAME,
+                PARTICIPANT.YEAR,
+                PARTICIPANT.EXTERNAL,
                 PARTICIPANT.EXTERNAL_CLUB_NAME,
+                PARTICIPANT_CLUB.NAME.`as`(PARTICIPANT_CLUB_NAME),
                 NAMED_PARTICIPANT.NAME.`as`("named_role"),
                 EVENT.MIXED_TEAM_TERM,
+                RATING_CATEGORY.ID.`as`(RATING_CATEGORY_ID),
+                RATING_CATEGORY.NAME.`as`(RATING_CATEGORY_NAME),
+                EVENT_RATING_CATEGORY.SORT_ORDER.`as`(RATING_CATEGORY_SORT_ORDER),
                 TIMECODE.TIME,
                 TIMECODE.BASE_UNIT,
                 TIMECODE.MILLISECOND_PRECISION
@@ -84,6 +114,143 @@ object CompetitionMatchTeamRepo {
                 .leftJoin(COMPETITION_REGISTRATION_NAMED_PARTICIPANT)
                 .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
                 .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
+                .leftJoin(PARTICIPANT_CLUB).on(PARTICIPANT_CLUB.ID.eq(PARTICIPANT.CLUB))
+                .leftJoin(NAMED_PARTICIPANT)
+                .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
+                .leftJoin(COMPETITION_DEREGISTRATION)
+                .on(
+                    COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.eq(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION)
+                        .and(COMPETITION_DEREGISTRATION.COMPETITION_SETUP_ROUND.eq(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND))
+                )
+                .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
+                .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
+                .leftJoin(RATING_CATEGORY).on(RATING_CATEGORY.ID.eq(COMPETITION_REGISTRATION.RATING_CATEGORY))
+                // Die Reihenfolge der Ergebnisabschnitte haengt an der Zuordnung zur
+                // Veranstaltung, nicht an der Kategorie selbst - deshalb der zweite Join.
+                .leftJoin(EVENT_RATING_CATEGORY)
+                .on(
+                    EVENT_RATING_CATEGORY.EVENT.eq(EVENT_REGISTRATION.EVENT)
+                        .and(EVENT_RATING_CATEGORY.RATING_CATEGORY.eq(RATING_CATEGORY.ID))
+                )
+                .leftJoin(TIMECODE).on(COMPETITION_MATCH_TEAM.TIMECODE.eq(TIMECODE.ID))
+                .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
+                .and(COMPETITION_MATCH_TEAM.OUT.isTrue.not())
+                .orderBy(
+                    COMPETITION_MATCH_TEAM.PLACE.asc(),
+                    // Innerhalb einer Mannschaft: eine feste Reihenfolge der Crew. Ohne sie gibt
+                    // Postgres die Zeilen in beliebiger Reihenfolge zurück, und die Vereinskette
+                    // stünde bei jedem Abruf anders da - auf einer Anzeige, die im Sekundentakt
+                    // nachlädt, ist das ein flackerndes Boot.
+                    NAMED_PARTICIPANT.NAME.asc().nullsLast(),
+                    PARTICIPANT.LASTNAME.asc().nullsLast(),
+                    PARTICIPANT.ID.asc().nullsLast(),
+                )
+                .fetch()
+        }
+
+    fun getTeamsForUpcomingMatch(matchId: UUID) =
+        Jooq.query {
+            select(
+                COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION,
+                COMPETITION_MATCH_TEAM.START_NUMBER,
+                COMPETITION_REGISTRATION.NAME.`as`("team_name"),
+                COMPETITION_REGISTRATION.TEAM_NUMBER,
+                CLUB.NAME.`as`("club_name"),
+                PARTICIPANT.ID.`as`("participant_id"),
+                PARTICIPANT.FIRSTNAME,
+                PARTICIPANT.LASTNAME,
+                PARTICIPANT.YEAR,
+                PARTICIPANT.GENDER,
+                PARTICIPANT.EXTERNAL,
+                PARTICIPANT.EXTERNAL_CLUB_NAME,
+                PARTICIPANT_CLUB.NAME.`as`(PARTICIPANT_CLUB_NAME),
+                NAMED_PARTICIPANT.NAME.`as`("named_role"),
+                EVENT.MIXED_TEAM_TERM,
+                // Die Abmeldung gehört auch in die Startliste der öffentlichen Anzeigen: Ohne sie
+                // stand ein abgemeldetes Boot dort bis zum 14.08.2026 wie jedes andere in der
+                // Aufstellung, und am Steg war nicht zu erkennen, dass es nicht kommt.
+                COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.isNotNull.`as`("deregistered"),
+                COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason")
+            )
+                .from(COMPETITION_MATCH_TEAM)
+                .join(COMPETITION_SETUP_MATCH)
+                .on(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(COMPETITION_SETUP_MATCH.ID))
+                .join(COMPETITION_REGISTRATION)
+                .on(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+                .leftJoin(CLUB).on(CLUB.ID.eq(COMPETITION_REGISTRATION.CLUB))
+                .leftJoin(COMPETITION_REGISTRATION_NAMED_PARTICIPANT)
+                .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+                .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
+                .leftJoin(PARTICIPANT_CLUB).on(PARTICIPANT_CLUB.ID.eq(PARTICIPANT.CLUB))
+                .leftJoin(NAMED_PARTICIPANT)
+                .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
+                .leftJoin(COMPETITION_DEREGISTRATION)
+                .on(
+                    COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.eq(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION)
+                        .and(COMPETITION_DEREGISTRATION.COMPETITION_SETUP_ROUND.eq(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND))
+                )
+                .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
+                .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
+                .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
+                .orderBy(
+                    COMPETITION_MATCH_TEAM.START_NUMBER.asc().nullsLast(),
+                    COMPETITION_REGISTRATION.NAME.asc().nullsLast(),
+                    // Innerhalb einer Mannschaft: eine feste Reihenfolge der Crew. Ohne sie gibt
+                    // Postgres die Zeilen in beliebiger Reihenfolge zurück, und die Vereinskette
+                    // stünde bei jedem Abruf anders da - auf einer Anzeige, die im Sekundentakt
+                    // nachlädt, ist das ein flackerndes Boot.
+                    NAMED_PARTICIPANT.NAME.asc().nullsLast(),
+                    PARTICIPANT.LASTNAME.asc().nullsLast(),
+                    PARTICIPANT.ID.asc().nullsLast(),
+                )
+                .fetch()
+        }
+
+    // Zeit, Zeitstrafe und Ausscheidungsgrund sind hier bewusst mit dabei, obwohl der Lauf noch
+    // läuft: eine externe Zeitmessung schreibt Zeiten und Strafen ein, während die letzten Boote
+    // noch in der Arena sind, und die Athleten-Anzeige zeigt sie als Teilergebnis.
+    fun getTeamForRunningMatch(matchId: UUID) =
+        Jooq.query {
+            select(
+                COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION,
+                COMPETITION_MATCH_TEAM.START_NUMBER,
+                COMPETITION_MATCH_TEAM.PLACE,
+                COMPETITION_MATCH_TEAM.FAILED,
+                COMPETITION_MATCH_TEAM.FAILED_REASON,
+                COMPETITION_MATCH_TEAM.PENALTY_SECONDS,
+                COMPETITION_MATCH_TEAM.PENALTY_NOTE,
+                COMPETITION_REGISTRATION.NAME.`as`("team_name"),
+                COMPETITION_REGISTRATION.TEAM_NUMBER,
+                CLUB.NAME.`as`("club_name"),
+                PARTICIPANT.ID.`as`("participant_id"),
+                PARTICIPANT.FIRSTNAME,
+                PARTICIPANT.LASTNAME,
+                PARTICIPANT.YEAR,
+                PARTICIPANT.GENDER,
+                PARTICIPANT.EXTERNAL,
+                PARTICIPANT.EXTERNAL_CLUB_NAME,
+                PARTICIPANT_CLUB.NAME.`as`(PARTICIPANT_CLUB_NAME),
+                NAMED_PARTICIPANT.NAME.`as`("named_role"),
+                EVENT.MIXED_TEAM_TERM,
+                // Siehe getTeamsForUpcomingMatch: auch ein aktivierter Lauf kann ein abgemeldetes
+                // Boot in der Aufstellung führen, und die Anzeige soll es ausweisen statt es
+                // stillschweigend mitzuführen.
+                COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.isNotNull.`as`("deregistered"),
+                COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason"),
+                TIMECODE.TIME,
+                TIMECODE.BASE_UNIT,
+                TIMECODE.MILLISECOND_PRECISION
+            )
+                .from(COMPETITION_MATCH_TEAM)
+                .join(COMPETITION_SETUP_MATCH)
+                .on(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(COMPETITION_SETUP_MATCH.ID))
+                .join(COMPETITION_REGISTRATION)
+                .on(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+                .leftJoin(CLUB).on(CLUB.ID.eq(COMPETITION_REGISTRATION.CLUB))
+                .leftJoin(COMPETITION_REGISTRATION_NAMED_PARTICIPANT)
+                .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+                .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
+                .leftJoin(PARTICIPANT_CLUB).on(PARTICIPANT_CLUB.ID.eq(PARTICIPANT.CLUB))
                 .leftJoin(NAMED_PARTICIPANT)
                 .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
                 .leftJoin(COMPETITION_DEREGISTRATION)
@@ -95,78 +262,16 @@ object CompetitionMatchTeamRepo {
                 .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
                 .leftJoin(TIMECODE).on(COMPETITION_MATCH_TEAM.TIMECODE.eq(TIMECODE.ID))
                 .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
-                .and(COMPETITION_MATCH_TEAM.OUT.isTrue.not())
-                .orderBy(COMPETITION_MATCH_TEAM.PLACE.asc())
-                .fetch()
-        }
-
-    fun getTeamsForUpcomingMatch(matchId: UUID) =
-        Jooq.query {
-            select(
-                COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION,
-                COMPETITION_MATCH_TEAM.START_NUMBER,
-                COMPETITION_REGISTRATION.NAME.`as`("team_name"),
-                CLUB.NAME.`as`("club_name"),
-                PARTICIPANT.ID.`as`("participant_id"),
-                PARTICIPANT.FIRSTNAME,
-                PARTICIPANT.LASTNAME,
-                PARTICIPANT.YEAR,
-                PARTICIPANT.GENDER,
-                PARTICIPANT.EXTERNAL_CLUB_NAME,
-                NAMED_PARTICIPANT.NAME.`as`("named_role"),
-                EVENT.MIXED_TEAM_TERM
-            )
-                .from(COMPETITION_MATCH_TEAM)
-                .join(COMPETITION_REGISTRATION)
-                .on(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                .leftJoin(CLUB).on(CLUB.ID.eq(COMPETITION_REGISTRATION.CLUB))
-                .leftJoin(COMPETITION_REGISTRATION_NAMED_PARTICIPANT)
-                .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
-                .leftJoin(NAMED_PARTICIPANT)
-                .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
-                .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
-                .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
-                .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
                 .orderBy(
                     COMPETITION_MATCH_TEAM.START_NUMBER.asc().nullsLast(),
-                    COMPETITION_REGISTRATION.NAME.asc().nullsLast()
-                )
-                .fetch()
-        }
-
-    fun getTeamForRunningMatch(matchId: UUID) =
-        Jooq.query {
-            select(
-                COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION,
-                COMPETITION_MATCH_TEAM.START_NUMBER,
-                COMPETITION_MATCH_TEAM.PLACE,
-                COMPETITION_REGISTRATION.NAME.`as`("team_name"),
-                CLUB.NAME.`as`("club_name"),
-                PARTICIPANT.ID.`as`("participant_id"),
-                PARTICIPANT.FIRSTNAME,
-                PARTICIPANT.LASTNAME,
-                PARTICIPANT.YEAR,
-                PARTICIPANT.GENDER,
-                PARTICIPANT.EXTERNAL_CLUB_NAME,
-                NAMED_PARTICIPANT.NAME.`as`("named_role"),
-                EVENT.MIXED_TEAM_TERM
-            )
-                .from(COMPETITION_MATCH_TEAM)
-                .join(COMPETITION_REGISTRATION)
-                .on(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                .leftJoin(CLUB).on(CLUB.ID.eq(COMPETITION_REGISTRATION.CLUB))
-                .leftJoin(COMPETITION_REGISTRATION_NAMED_PARTICIPANT)
-                .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
-                .leftJoin(NAMED_PARTICIPANT)
-                .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
-                .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
-                .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
-                .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
-                .orderBy(
-                    COMPETITION_MATCH_TEAM.START_NUMBER.asc().nullsLast(),
-                    COMPETITION_REGISTRATION.NAME.asc().nullsLast()
+                    COMPETITION_REGISTRATION.NAME.asc().nullsLast(),
+                    // Innerhalb einer Mannschaft: eine feste Reihenfolge der Crew. Ohne sie gibt
+                    // Postgres die Zeilen in beliebiger Reihenfolge zurück, und die Vereinskette
+                    // stünde bei jedem Abruf anders da - auf einer Anzeige, die im Sekundentakt
+                    // nachlädt, ist das ein flackerndes Boot.
+                    NAMED_PARTICIPANT.NAME.asc().nullsLast(),
+                    PARTICIPANT.LASTNAME.asc().nullsLast(),
+                    PARTICIPANT.ID.asc().nullsLast(),
                 )
                 .fetch()
         }

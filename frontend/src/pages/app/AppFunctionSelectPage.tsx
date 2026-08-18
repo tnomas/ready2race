@@ -9,80 +9,63 @@ import {
     useMediaQuery,
     useTheme,
 } from '@mui/material'
-import {AppFunction, useAppSession} from '@contexts/app/AppSessionContext.tsx'
+import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 import {useEffect} from 'react'
 import {useTranslation} from 'react-i18next'
 import QrCodeIcon from '@mui/icons-material/QrCode'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
+import SportsScoreIcon from '@mui/icons-material/SportsScore'
 import TimerIcon from '@mui/icons-material/Timer'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {getUserAppRights} from '@components/qrApp/common.ts'
+import {AppEntry, appEntries} from '@components/qrApp/common.ts'
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import LogoutIcon from "@mui/icons-material/Logout";
 import {useNavigate} from '@tanstack/react-router'
+import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
+import {resetAppInstallation} from '@pwa/registerAppSW.ts'
 
-const APP_FUNCTIONS = [
-    {
-        fn: 'APP_QR_MANAGEMENT' as AppFunction,
-        labelKey: 'app.functionSelect.functions.qrManagement' as const,
-        icon: QrCodeIcon,
-    },
-    {
-        // Transition state: the Posten area (TimingStationSelectPage, "Weitere Posten" section)
-        // now offers a second, additive entry point into this same competition-check flow
-        // (gated by updateAppCompetitionCheckGlobal, same session-context eventId handoff).
-        // This card is intentionally NOT removed — competition-check-only users who never touch
-        // timing still need a direct way in, so removing it would break them mid-transition.
-        fn: 'APP_COMPETITION_CHECK' as AppFunction,
-        labelKey: 'app.functionSelect.functions.competitionCheck' as const,
-        icon: CheckCircleIcon,
-    },
-    {
-        fn: 'APP_EVENT_REQUIREMENT' as AppFunction,
-        labelKey: 'app.functionSelect.functions.eventRequirement' as const,
-        icon: AssignmentIcon,
-    },
-    {
-        fn: 'APP_CATERER' as AppFunction,
-        labelKey: 'app.functionSelect.functions.caterer' as const,
-        icon: RestaurantIcon,
-    },
-    {
-        fn: 'APP_TIMING' as AppFunction,
-        labelKey: 'app.functionSelect.functions.timing' as const,
-        icon: TimerIcon,
-        // Timing owns its own event/station routing (real URL params), so it navigates
-        // straight to its route tree instead of going through the shared AppView/eventId
-        // session-context mechanism the other app functions use.
-        path: '/app/timing' as const,
-    },
-] as const
+const ENTRY_ICONS: Record<string, typeof QrCodeIcon> = {
+    APP_QR_MANAGEMENT: QrCodeIcon,
+    APP_COMPETITION_CHECK: CheckCircleIcon,
+    APP_EVENT_REQUIREMENT: AssignmentIcon,
+    APP_CATERER: RestaurantIcon,
+    APP_TIMING: TimerIcon,
+    LIVE_DASHBOARD: SportsScoreIcon,
+}
 
 const AppFunctionSelectPage = () => {
     const {t} = useTranslation()
     const {setAppFunction, events, navigateTo} = useAppSession()
-    const navigate = useNavigate()
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
     const user = useUser()
+    const navigate = useNavigate()
+    const {confirmAction} = useConfirmation()
 
-    const availableAppFunctions = getUserAppRights(user)
+    const entries = appEntries(user)
 
     useEffect(() => {
-        if (availableAppFunctions.length === 0 && user.loggedIn) {
-            navigateTo("APP_Forbidden")
+        if (entries.length === 0 && user.loggedIn) {
+            navigateTo('APP_Forbidden')
         }
-    }, [setAppFunction, availableAppFunctions])
+    }, [entries.length, user.loggedIn, navigateTo])
 
-    const handleSelect = (fn: AppFunction, path?: string) => {
-        if (path) {
-            void navigate({to: path})
+    const handleSelect = (entry: AppEntry) => {
+        setAppFunction(entry.appFunction)
+        if (entry.path) {
+            void navigate({to: entry.path})
             return
         }
-        setAppFunction(fn)
-        navigateTo("APP_Scanner")
+        navigateTo(entry.target)
+    }
+
+    const handleReset = () => {
+        confirmAction(() => void resetAppInstallation(), {
+            content: t('app.reset.confirm'),
+            okText: t('app.reset.button'),
+        })
     }
 
     return (
@@ -107,11 +90,11 @@ const AppFunctionSelectPage = () => {
                 gap={{xs: 2, sm: 3}}
                 width="100%"
                 maxWidth="800px">
-                {APP_FUNCTIONS.filter(f => availableAppFunctions.includes(f.fn)).map(f => {
-                    const Icon = f.icon
+                {entries.map(entry => {
+                    const Icon = ENTRY_ICONS[entry.key]
                     return (
                         <Card
-                            key={f.fn}
+                            key={entry.key}
                             sx={{
                                 height: {xs: '180px', sm: '200px'},
                                 display: 'flex',
@@ -126,7 +109,7 @@ const AppFunctionSelectPage = () => {
                                 },
                             }}>
                             <CardActionArea
-                                onClick={() => handleSelect(f.fn, 'path' in f ? f.path : undefined)}
+                                onClick={() => handleSelect(entry)}
                                 sx={{
                                     height: '100%',
                                     display: 'flex',
@@ -148,7 +131,7 @@ const AppFunctionSelectPage = () => {
                                         sx={{
                                             fontWeight: isMobile ? 600 : 400,
                                         }}>
-                                        {t(f.labelKey)}
+                                        {t(entry.labelKey)}
                                     </Typography>
                                 </CardContent>
                             </CardActionArea>
@@ -175,6 +158,9 @@ const AppFunctionSelectPage = () => {
                     {t('user.settings.logout')}
                 </Button>
             )}
+            <Button onClick={handleReset} variant="text" size="small" sx={{mt: 1}}>
+                {t('app.reset.button')}
+            </Button>
         </Stack>
     )
 }

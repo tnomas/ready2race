@@ -2,7 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
-import de.lambda9.ready2race.backend.calls.requests.authenticate
+import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.queryParam
@@ -11,85 +11,145 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.tailwind.core.KIO
+import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
 
 fun Route.eventInfo() {
+    // Alle Endpoints in diesem Block sind öffentlich (kein authenticate). Das Rate-Limit
+    // ist eine grob dimensionierte Notbremse gegen Hämmern, siehe Requests.kt.
     route("/event/{eventId}/info") {
+        rateLimit(RateLimitName("publicInfo")) {
 
+            // Get upcoming competition matches
+            get("/upcoming-matches") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
 
-        // Get upcoming competition matches
-        get("/upcoming-matches") {
-            call.respondComprehension {
-                val eventId = !pathParam("eventId", uuid)
-                val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
-
-                EventInfoService.getUpcomingCompetitionMatches(eventId, limit)
+                    EventInfoService.getUpcomingCompetitionMatches(eventId, limit)
+                }
             }
-        }
 
-        // Get latest match results
-        get("/latest-match-results") {
-            call.respondComprehension {
-                val eventId = !pathParam("eventId", uuid)
-                val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
-                val competitionId = !optionalQueryParam("competitionId", uuid)
+            // Get latest match results. matchId grenzt auf das Feld eines einzelnen Laufs
+            // ein ("Mein Event") - die Sichtbarkeitsregel bleibt dieselbe wie ohne Filter.
+            get("/latest-match-results") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val competitionId = !optionalQueryParam("competitionId", uuid)
+                    val matchId = !optionalQueryParam("matchId", uuid)
 
-                EventInfoService.getLatestMatchResults(eventId, limit, competitionId)
+                    EventInfoService.getLatestMatchResults(eventId, limit, competitionId, matchId)
+                }
             }
-        }
 
-        // Get currently running matches
-        get("/running-matches") {
-            call.respondComprehension {
-                val eventId = !pathParam("eventId", uuid)
-                val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+            // Get currently running matches
+            get("/running-matches") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
 
-                EventInfoService.getRunningMatches(eventId, limit)
+                    EventInfoService.getRunningMatches(eventId, limit)
+                }
+            }
+
+            // Der Tab "Live" der öffentlichen Ergebnisanzeige: aktivierte UND anstehende Läufe,
+            // jeder mit seinem Zustand. Öffentlich wie die Endpoints darüber.
+            get("/live-matches") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+
+                    EventInfoService.getLiveMatches(eventId, limit)
+                }
+            }
+
+            // Der Tab "Zeitplan" der öffentlichen Ergebnisanzeige: das Tagesprogramm aus dem
+            // Zeitplan, Slots mit Zustand — ohne Aufstellungen und ohne Ergebnisse.
+            get("/program") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+
+                    BoardService.getProgram(eventId)
+                }
+            }
+
+            // Boards sind öffentlich abrufbar wie die Anzeigen darüber: montierte
+            // Bildschirme und Athleten-Handys laden ihre URL ohne Anmeldung. Die
+            // Kurzliste trägt die Umleitung der alten Athleten-Board-URL.
+            get("/boards") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+
+                    BoardService.getBoardNames(eventId)
+                }
+            }
+
+            // Alles, was die Anzeige eines Boards braucht, in einer Antwort.
+            get("/board/{boardId}") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val boardId = !pathParam("boardId", uuid)
+
+                    BoardService.getBoardView(eventId, boardId)
+                }
+            }
+
+            // Persönliches Dashboard, erreichbar über den QR-Code am Teilnehmerband.
+            // Öffentlich wie die Anzeigen darüber; welche Felder ein anonymer Aufruf sieht,
+            // entscheidet ausschließlich MyEventService.
+            get("/my-event/{qrCode}") {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val qrCode = !pathParam("qrCode")
+
+                    MyEventService.getMyEvent(eventId, qrCode)
+                }
             }
         }
     }
 
-    route("/event/{eventId}/info-views") {
-        // Get all info views for an event
+    // Die Board-Verwaltung trägt ein eigenes Rechtepaar (READ/UPDATE BOARD), damit eine
+    // Sprecher- oder Streamer-Rolle die Anzeigen pflegen kann, ohne das breite UPDATE EVENT
+    // (Wettkämpfe, Gebühren, Urkunden, Zeitnahme) zu bekommen. Die Event-Rechte bleiben
+    // gleichwertig zugelassen - bestehende Rollen verlieren dadurch nichts.
+    route("/event/{eventId}/boards") {
+        // Alle Boards einer Veranstaltung, mit voller Konfiguration (Verwaltungsmaske).
         get {
             call.respondComprehension {
-                val user = !authenticate(Privilege.ReadEventGlobal)
+                val user = !authenticateAny(Privilege.ReadBoardGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
-                val includeInactive = !call.optionalQueryParam("includeInactive") { it.toBoolean() }
 
-                EventInfoService.getInfoViews(eventId, includeInactive ?: false)
+                BoardService.getBoards(eventId)
             }
         }
 
-        // Create new info view
         post {
             call.respondComprehension {
-                val user = !authenticate(Privilege.UpdateEventGlobal)
+                val user = !authenticateAny(Privilege.UpdateBoardGlobal, Privilege.UpdateEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
-                val request = !receiveKIO(InfoViewConfigurationRequest.example)
+                val request = !receiveKIO(BoardRequest.example)
 
-                EventInfoService.createInfoView(eventId, request)
+                BoardService.createBoard(eventId, request)
             }
         }
 
-        // Update info view
-        put("/{viewId}") {
+        put("/{boardId}") {
             call.respondComprehension {
-                val user = !authenticate(Privilege.UpdateEventGlobal)
-                val viewId = !pathParam("viewId", uuid)
-                val request = !receiveKIO(InfoViewConfigurationRequest.example)
+                val user = !authenticateAny(Privilege.UpdateBoardGlobal, Privilege.UpdateEventGlobal)
+                val boardId = !pathParam("boardId", uuid)
+                val request = !receiveKIO(BoardRequest.example)
 
-                EventInfoService.updateInfoView(viewId, request)
+                BoardService.updateBoard(boardId, request)
             }
         }
 
-        // Delete info view
-        delete("/{viewId}") {
+        delete("/{boardId}") {
             call.respondComprehension {
-                val user = !authenticate(Privilege.UpdateEventGlobal)
-                val viewId = !pathParam("viewId", uuid)
+                val user = !authenticateAny(Privilege.UpdateBoardGlobal, Privilege.UpdateEventGlobal)
+                val boardId = !pathParam("boardId", uuid)
 
-                EventInfoService.deleteInfoView(viewId)
+                BoardService.deleteBoard(boardId)
             }
         }
     }

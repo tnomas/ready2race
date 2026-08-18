@@ -2,8 +2,10 @@ package de.lambda9.ready2race.backend.app.competitionExecution.boundary
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService.updateMatchResultFromRaceClocker
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
 import de.lambda9.ready2race.backend.app.eventDocument.boundary.EventDocumentService
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.OpenResultHandling
 import de.lambda9.ready2race.backend.app.substitution.boundary.substitution
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -17,11 +19,6 @@ import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-
-private enum class StartListFileTypeParam {
-    PDF,
-    CSV
-}
 
 fun Route.competitionExecution() {
     route("/competitionExecution") {
@@ -54,6 +51,22 @@ fun Route.competitionExecution() {
                 }
             }
         }
+        // Statisches Segment VOR der {competitionMatchId}-Route: Ktor bevorzugt exakte Segmente,
+        // "round" wird also nie als Match-Id gelesen.
+        get("/round/{setupRoundId}/startList") {
+            call.respondComprehension {
+                !authenticate(Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionId = !pathParam("competitionId", uuid)
+                val setupRoundId = !pathParam("setupRoundId", uuid)
+
+                CompetitionExecutionService.downloadRoundStartlist(
+                    eventId = eventId,
+                    competitionId = competitionId,
+                    setupRoundId = setupRoundId,
+                )
+            }
+        }
         route("/{competitionMatchId}") {
             route("/data") {
                 put {
@@ -72,23 +85,110 @@ fun Route.competitionExecution() {
                     }
                 }
             }
-            route("/running-state") {
+            route("/activation") {
                 put {
                     call.respondComprehension {
                         val user = !authenticate(Privilege.UpdateEventGlobal)
                         val eventId = !pathParam("eventId", uuid)
                         val competitionMatchId = !pathParam("competitionMatchId", uuid)
 
-                        val body = !receiveKIO<UpdateCompetitionMatchRunningStateRequest>(
-                            UpdateCompetitionMatchRunningStateRequest.example
+                        val body = !receiveKIO<UpdateCompetitionMatchActivationRequest>(
+                            UpdateCompetitionMatchActivationRequest.example
                         )
-                        CompetitionExecutionService.updateMatchRunningState(
+                        CompetitionExecutionService.updateMatchActivation(
                             eventId = eventId,
                             matchId = competitionMatchId,
                             userId = user.id!!,
                             request = body
                         )
                     }
+                }
+            }
+
+            // Ist-Start aus dem Büro — dasselbe „Läuft" wie im Schiedsrichter-Dashboard.
+            put("/mark-started") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    CompetitionExecutionService.markMatchStarted(
+                        eventId = eventId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                    )
+                }
+            }
+
+            // Freilos "muss gefahren werden" — nur an einem Freilos-Lauf, siehe Service-KDoc.
+            put("/bye-must-race") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    val body = !receiveKIO(UpdateMatchByeMustRaceRequest.example)
+                    CompetitionExecutionService.updateByeMustRace(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                        request = body,
+                    )
+                }
+            }
+
+            // Lauf beenden — in JEDEM chainProgressionMode erlaubt, wie der Zeitplan-Weg
+            // (/schedule/slot/{slotId}/finish) und anders als das Schiedsrichter-Dashboard,
+            // das im REGATTABUERO-Modus sperrt. Siehe Service-KDoc.
+            put("/finish") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+                    val openResults = !optionalQueryParam("openResults", enum<OpenResultHandling>())
+
+                    CompetitionExecutionService.finishMatch(
+                        eventId = eventId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                        openResults = openResults,
+                    )
+                }
+            }
+
+            // Beenden zurücknehmen — nur in der jüngsten Runde, siehe Service-KDoc.
+            put("/reopen") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    CompetitionExecutionService.reopenMatch(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                    )
+                }
+            }
+            // Lauf zurücksetzen — Ausführungszustand leeren, Aufstellung und UUIDs behalten
+            // (siehe Service-KDoc). Nur solange die Folgerunde keine erzeugten Läufe hat.
+            put("/reset") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    CompetitionExecutionService.resetMatch(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                    )
                 }
             }
             route("/results") {
@@ -121,7 +221,6 @@ fun Route.competitionExecution() {
                     val multiPartData = receiveMultipart()
 
                     var upload: File? = null
-                    var request: UploadMatchResultRequest? = null
 
                     var done = false
                     while (!done) {
@@ -137,13 +236,7 @@ fun Route.competitionExecution() {
                                             part.provider().toByteArray(),
                                         )
                                     } else {
-                                        KIO.fail(RequestError.File.Multiple)
-                                    }
-                                }
-
-                                is PartData.FormItem -> {
-                                    if (part.name == "request") {
-                                        request = jsonMapper.readValue<UploadMatchResultRequest>(part.value)
+                                        !KIO.fail(RequestError.File.Multiple)
                                     }
                                 }
 
@@ -154,7 +247,6 @@ fun Route.competitionExecution() {
                     }
 
                     val file = !KIO.failOnNull(upload) { RequestError.File.Missing }
-                    val req = !KIO.failOnNull(request) { RequestError.BodyMissing(UploadMatchResultRequest.example) }
 
                     !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }
 
@@ -163,10 +255,91 @@ fun Route.competitionExecution() {
                         competitionId = competitionId,
                         matchId = competitionMatchId,
                         file = file,
-                        request = req,
                         userId = user.id!!
                     )
 
+                }
+            }
+
+            // Notfallweg zum Live-Abruf: eine von RaceClocker heruntergeladene Ergebnis-xlsx
+            // einspielen, wenn am Steg das Netz fehlt. Eigener Parser fürs „Results"-Blatt.
+            put("/results-file/raceclocker") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    val multiPartData = receiveMultipart()
+
+                    var upload: File? = null
+                    var done = false
+                    while (!done) {
+                        val part = multiPartData.readPart()
+                        if (part == null) {
+                            done = true
+                        } else {
+                            when (part) {
+                                is PartData.FileItem -> {
+                                    if (upload == null) {
+                                        upload = File(
+                                            part.originalFileName!!,
+                                            part.provider().toByteArray(),
+                                        )
+                                    } else {
+                                        !KIO.fail(RequestError.File.Multiple)
+                                    }
+                                }
+
+                                else -> {}
+                            }
+                            part.dispose()
+                        }
+                    }
+
+                    val file = !KIO.failOnNull(upload) { RequestError.File.Missing }
+
+                    !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }
+
+                    CompetitionExecutionService.importRaceClockerResultsFile(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        file = file,
+                        userId = user.id!!,
+                    )
+                }
+            }
+
+            post("/results/from-raceclocker") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    updateMatchResultFromRaceClocker(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                    )
+                }
+            }
+
+            post("/results/raceclocker/resume") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val competitionId = !pathParam("competitionId", uuid)
+                    val competitionMatchId = !pathParam("competitionMatchId", uuid)
+
+                    CompetitionExecutionService.resumeRaceClockerAutoPull(
+                        eventId = eventId,
+                        competitionId = competitionId,
+                        matchId = competitionMatchId,
+                        userId = user.id!!,
+                    )
                 }
             }
 
@@ -175,20 +348,12 @@ fun Route.competitionExecution() {
                     !authenticate(Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
                     val competitionMatchId = !pathParam("competitionMatchId", uuid)
-                    val typeParam = !queryParam("fileType", enum<StartListFileTypeParam>())
-
-                    val type = when (typeParam) {
-                        StartListFileTypeParam.PDF -> StartListFileType.PDF
-                        StartListFileTypeParam.CSV -> {
-                            val config = !queryParam("config", uuid)
-                            StartListFileType.CSV(config)
-                        }
-                    }
+                    val fileType = !queryParam("fileType", enum<StartListFileType>())
 
                     CompetitionExecutionService.downloadStartlist(
                         eventId = eventId,
                         matchId = competitionMatchId,
-                        type = type
+                        type = fileType
                     )
                 }
             }
@@ -249,7 +414,7 @@ fun Route.competitionExecution() {
                                                 part.provider().toByteArray(),
                                             )
                                         } else {
-                                            KIO.fail(RequestError.File.Multiple)
+                                            !KIO.fail(RequestError.File.Multiple)
                                         }
                                     }
 
@@ -267,7 +432,7 @@ fun Route.competitionExecution() {
                         }
 
                         val req =
-                            !KIO.failOnNull(request) { RequestError.BodyMissing(UploadMatchResultRequest.example) }
+                            !KIO.failOnNull(request) { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
 
                         // TODO: check valid image
                         // !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }
@@ -342,7 +507,7 @@ fun Route.competitionExecution() {
                                                 part.provider().toByteArray(),
                                             )
                                         } else {
-                                            KIO.fail(RequestError.File.Multiple)
+                                            !KIO.fail(RequestError.File.Multiple)
                                         }
                                     }
 
@@ -360,7 +525,7 @@ fun Route.competitionExecution() {
                         }
 
                         val req =
-                            !KIO.failOnNull(request) { RequestError.BodyMissing(UploadMatchResultRequest.example) }
+                            !KIO.failOnNull(request) { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
 
                         // TODO: check valid image
                         // !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }

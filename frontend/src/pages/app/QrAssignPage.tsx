@@ -23,6 +23,10 @@ import UserAssignment from '@components/qrApp/assign/UserAssignment'
 import SystemUserScanner from '@components/qrApp/assign/SystemUserScanner'
 import {useFeedback} from '@utils/hooks.ts'
 import AppTopTitle from '@components/qrApp/AppTopTitle.tsx'
+import {
+    LiveDashboardApiError,
+    qrAssignErrorKey,
+} from '@components/event/liveDashboard/liveDashboardError.ts'
 
 type UserTyp = 'Participant' | 'User'
 
@@ -48,6 +52,18 @@ const QrAssignPage = () => {
             navigateTo('APP_Scanner')
         }
     }, [qr, navigateTo])
+
+    /**
+     * Warum die Zuweisung nicht geklappt hat. Beide bisherigen Meldungen klangen nach Scanfehler
+     * und schickten die Helfer dazu, es noch einmal zu scannen - beim mit Abstand haeufigsten
+     * Grund (Baendchen schon vergeben) hilft nur ein anderes Baendchen.
+     */
+    const showAssignError = (
+        error: LiveDashboardApiError,
+        fallbackKey: 'common.error.unexpected' | 'qrAssign.notAssigned',
+    ) => {
+        feedback.error(t(qrAssignErrorKey(error) ?? fallbackKey))
+    }
 
     const handleUserTypChange = (
         _event: React.MouseEvent<HTMLElement>,
@@ -95,7 +111,7 @@ const QrAssignPage = () => {
                 },
             })
             if (error) {
-                feedback.error(t('common.error.unexpected'))
+                showAssignError(error, 'common.error.unexpected')
             } else {
                 feedback.success(t('qrAssign.successParticipant'))
             }
@@ -108,7 +124,7 @@ const QrAssignPage = () => {
                 },
             })
             if (error) {
-                feedback.error(t('common.error.unexpected'))
+                showAssignError(error, 'common.error.unexpected')
             } else {
                 feedback.success(t('qrAssign.successUser'))
             }
@@ -140,7 +156,7 @@ const QrAssignPage = () => {
                     })
                     if (error) {
                         setScanningSystemUser(true)
-                        feedback.error(t('qrAssign.notAssigned'))
+                        showAssignError(error, 'qrAssign.notAssigned')
                     } else {
                         navigateTo('APP_Scanner')
 
@@ -157,7 +173,7 @@ const QrAssignPage = () => {
                     })
                     if (error) {
                         setScanningSystemUser(true)
-                        feedback.error(t('qrAssign.notAssigned'))
+                        showAssignError(error, 'qrAssign.notAssigned')
                     } else {
                         navigateTo('APP_Scanner')
                         feedback.success(t('qrAssign.success'))
@@ -180,7 +196,9 @@ const QrAssignPage = () => {
             spacing={3}
             alignItems="center"
             justifyContent="flex-start"
-            sx={{width: '100%', maxWidth: 600, px: 2, py: 3}}>
+            // mx: 'auto' zentriert die Spalte — das App-Layout streckt seine Kinder nur, auf dem
+            // Tablet klebte der auf 600px begrenzte Stack sonst am linken Rand.
+            sx={{width: '100%', maxWidth: 600, mx: 'auto', px: 2, py: 3}}>
             <Box sx={{width: '100%', textAlign: 'center'}}>
                 <AppTopTitle title={t('qrAssign.title')} disableBackButton={scanningSystemUser} />
                 <Typography variant="body2" color="text.secondary">

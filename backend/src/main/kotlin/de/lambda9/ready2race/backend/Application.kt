@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.email.boundary.EmailService
 import de.lambda9.ready2race.backend.app.email.entity.EmailError
 import de.lambda9.ready2race.backend.app.invoice.boundary.InvoiceService
 import de.lambda9.ready2race.backend.app.invoice.entity.ProduceInvoiceError
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVExportService
 import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVService
@@ -42,10 +43,13 @@ fun main(args: Array<String>): Unit = runBlocking {
     }.parseConfig()
     val (env, ds) = Env.create(config)
 
+    // Der issue/94-Merge bringt Migrationen mit älteren Versionsnummern als bereits angewendete —
+    // ohne outOfOrder schlägt der Start auf bestehenden Datenbanken fehl.
     Flyway(
         Flyway.configure()
             .dataSource(ds)
             .schemas("ready2race")
+            .outOfOrder(true)
     ).migrate()
 
     initializeDatabase(env)
@@ -181,6 +185,18 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
                             DynamicIntervalJobState.Processed
                         }
                     }
+            }
+
+            // Herzschlag im Sekundentakt, der je Veranstaltung entscheidet, ob ihr eingestellter
+            // Takt fällig ist (RaceClockerPollService). Ohne eine Veranstaltung mit eingeschalteter
+            // Automatik meldet er Empty und schläft 30 s - der Normalzustand außerhalb einer Regatta.
+            scheduleDynamic(
+                "Pull RaceClocker results",
+                emptyDelay = 30.seconds,
+                processedDelay = 1.seconds,
+                defectDelay = 30.seconds,
+            ) {
+                RaceClockerPollService.pollTick(env)
             }
 
             scheduleFixed("Delete expired session tokens", 5.minutes) {

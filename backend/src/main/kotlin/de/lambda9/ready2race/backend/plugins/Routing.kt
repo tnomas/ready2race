@@ -7,6 +7,8 @@ import de.lambda9.ready2race.backend.app.bankAccount.boundary.bankAccount
 import de.lambda9.ready2race.backend.app.captcha.boundary.captcha
 import de.lambda9.ready2race.backend.app.caterer.boundary.catererRoutes
 import de.lambda9.ready2race.backend.app.club.boundary.club
+import de.lambda9.ready2race.backend.app.club.boundary.clubNameRule
+import de.lambda9.ready2race.backend.app.club.boundary.clubShortName
 import de.lambda9.ready2race.backend.app.competitionCategory.boundary.competitionCategory
 import de.lambda9.ready2race.backend.app.competitionSetupTemplate.boundary.competitionSetupTemplate
 import de.lambda9.ready2race.backend.app.competitionTemplate.boundary.competitionTemplate
@@ -17,9 +19,11 @@ import de.lambda9.ready2race.backend.app.event.boundary.event
 import de.lambda9.ready2race.backend.app.eventDocumentType.boundary.eventDocumentType
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.eventInfo
 import de.lambda9.ready2race.backend.app.eventParticipant.boundary.challengeAccess
+import de.lambda9.ready2race.backend.app.eventSchedule.boundary.eventSchedule
 import de.lambda9.ready2race.backend.app.fee.boundary.fee
 import de.lambda9.ready2race.backend.app.globalConfigurations.boundary.globalConfigurations
 import de.lambda9.ready2race.backend.app.invoice.boundary.invoice
+import de.lambda9.ready2race.backend.app.liveDashboard.boundary.liveDashboard
 import de.lambda9.ready2race.backend.app.matchResultImportConfig.boundary.matchResultImportConfig
 import de.lambda9.ready2race.backend.app.namedParticipant.boundary.namedParticipant
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.participantRequirement
@@ -47,7 +51,11 @@ fun Application.configureRouting(config: Config, env: JEnv) {
             role()
             event()
             eventInfo()
+            liveDashboard()
+            eventSchedule()
             club()
+            clubShortName()
+            clubNameRule()
             namedParticipant()
             fee()
             participantRequirement()

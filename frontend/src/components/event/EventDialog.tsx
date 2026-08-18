@@ -7,7 +7,13 @@ import FormInputDateTime from '@components/form/input/FormInputDateTime.tsx'
 import {useForm} from 'react-hook-form-mui'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useCallback} from 'react'
-import {CreateEventRequest, EventDto, MatchResultType, UpdateEventRequest} from '@api/types.gen.ts'
+import {
+    CreateEventRequest,
+    EventDto,
+    MatchResultType,
+    PublicResultsVisibility,
+    UpdateEventRequest,
+} from '@api/types.gen.ts'
 import {addEvent, updateEvent} from '@api/sdk.gen.ts'
 import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
 import FormInputDate from '@components/form/input/FormInputDate.tsx'
@@ -30,6 +36,13 @@ type EventForm = {
     allowSelfSubmission: boolean
     submissionNeedsVerification: boolean
     allowParticipantSelfRegistration: boolean
+    // Die Durchführungs-Einstellungen (chainProgressionMode, autoCreateFollowingRounds,
+    // executionAutoRefresh) fehlen hier bewusst: Sie leben erst im Einstellungen-Tab einer
+    // bestehenden Veranstaltung (siehe EventExecutionSettings), den es beim Anlegen noch
+    // nicht gibt.
+    showBreaksOnPublicBoards: boolean
+    publicResultsVisibility: PublicResultsVisibility
+    allowCrossClubRegistration: boolean
 }
 
 const addAction = (formData: EventForm) => {
@@ -41,7 +54,7 @@ const addAction = (formData: EventForm) => {
 const editAction = (formData: EventForm, entity: EventDto) => {
     return updateEvent({
         path: {eventId: entity.id},
-        body: mapFormToUpdateRequest(formData, entity.challengeEvent),
+        body: mapFormToUpdateRequest(formData, entity),
     })
 }
 
@@ -65,6 +78,9 @@ const EventDialog = (props: BaseEntityDialogProps<EventDto>) => {
         allowSelfSubmission: false,
         submissionNeedsVerification: false,
         allowParticipantSelfRegistration: false,
+        showBreaksOnPublicBoards: false,
+        publicResultsVisibility: 'FINISHED_ONLY',
+        allowCrossClubRegistration: false,
     }
 
     const formContext = useForm<EventForm>()
@@ -75,6 +91,10 @@ const EventDialog = (props: BaseEntityDialogProps<EventDto>) => {
 
     const challengeEventWatch = formContext.watch('challengeEvent')
     const challengeResultTypes = [{id: 'DISTANCE', label: 'Distance (m)'}]
+    const publicResultsVisibilities: {id: PublicResultsVisibility; label: string}[] = [
+        {id: 'FINISHED_ONLY', label: t('event.publicResultsVisibility.FINISHED_ONLY')},
+        {id: 'RESULTS_COMPLETE', label: t('event.publicResultsVisibility.RESULTS_COMPLETE')},
+    ]
 
     return (
         <EntityDialog
@@ -145,6 +165,30 @@ const EventDialog = (props: BaseEntityDialogProps<EventDto>) => {
                     name={`allowParticipantSelfRegistration`}
                     label={t('event.allowParticipantSelfRegistration')}
                 />
+                <FormInputCheckbox
+                    name={`allowCrossClubRegistration`}
+                    label={t('event.allowCrossClubRegistration')}
+                />
+                <Typography variant={'body2'} color={'text.secondary'} sx={{mt: -1}}>
+                    {t('event.allowCrossClubRegistrationHint')}
+                </Typography>
+                <FormInputCheckbox
+                    name={`showBreaksOnPublicBoards`}
+                    label={t('event.showBreaksOnPublicBoards')}
+                />
+                <Typography variant={'body2'} color={'text.secondary'} sx={{mt: -1}}>
+                    {t('event.showBreaksOnPublicBoardsHint')}
+                </Typography>
+                <FormInputSelect
+                    label={t('event.publicResultsVisibility.label')}
+                    required={true}
+                    name="publicResultsVisibility"
+                    options={publicResultsVisibilities}
+                    fullWidth
+                />
+                <Typography variant={'body2'} color={'text.secondary'} sx={{mt: -1}}>
+                    {t('event.publicResultsVisibility.hint')}
+                </Typography>
                 <FormInputText name={'invoicePrefix'} label={t('event.invoice.prefix')} />
                 <FormInputDate name={'paymentDueBy'} label={t('event.invoice.paymentDueBy')} />
                 <FormInputDate
@@ -174,10 +218,17 @@ function mapFormToCreateRequest(formData: EventForm): CreateEventRequest {
         allowSelfSubmission: formData.allowSelfSubmission,
         submissionNeedsVerification: formData.submissionNeedsVerification,
         allowParticipantSelfRegistration: formData.allowParticipantSelfRegistration,
+        showBreaksOnPublicBoards: formData.showBreaksOnPublicBoards,
+        publicResultsVisibility: formData.publicResultsVisibility,
+        allowCrossClubRegistration: formData.allowCrossClubRegistration,
+        // chainProgressionMode, autoCreateFollowingRounds, executionAutoRefresh und
+        // executionAutoRefreshSeconds fehlen bewusst: Sie leben erst im Einstellungen-Tab
+        // einer bestehenden Veranstaltung (EventExecutionSettings); neue Events starten mit
+        // den Server-Defaults.
     }
 }
 
-function mapFormToUpdateRequest(formData: EventForm, challengeEvent: boolean): UpdateEventRequest {
+function mapFormToUpdateRequest(formData: EventForm, entity: EventDto): UpdateEventRequest {
     return {
         name: formData.name,
         description: takeIfNotEmpty(formData.description),
@@ -190,10 +241,19 @@ function mapFormToUpdateRequest(formData: EventForm, challengeEvent: boolean): U
         paymentDueBy: takeIfNotEmpty(formData.paymentDueBy),
         latePaymentDueBy: takeIfNotEmpty(formData.latePaymentDueBy),
         mixedTeamTerm: takeIfNotEmpty(formData.mixedTeamTerm),
-        challengeResultType: challengeEvent ? formData.challengeResultType : undefined,
+        challengeResultType: entity.challengeEvent ? formData.challengeResultType : undefined,
         allowSelfSubmission: formData.allowSelfSubmission,
         submissionNeedsVerification: formData.submissionNeedsVerification,
         allowParticipantSelfRegistration: formData.allowParticipantSelfRegistration,
+        showBreaksOnPublicBoards: formData.showBreaksOnPublicBoards,
+        publicResultsVisibility: formData.publicResultsVisibility,
+        allowCrossClubRegistration: formData.allowCrossClubRegistration,
+        // Nicht Teil dieses Dialogs (siehe ScheduleSettingsPopover) — der Endpunkt kennt aber
+        // kein Teil-Update, also gehen die gespeicherten Werte unverändert mit.
+        chainProgressionMode: entity.chainProgressionMode,
+        autoCreateFollowingRounds: entity.autoCreateFollowingRounds,
+        executionAutoRefresh: entity.executionAutoRefresh,
+        executionAutoRefreshSeconds: entity.executionAutoRefreshSeconds,
     }
 }
 
@@ -215,6 +275,9 @@ function mapDtoToForm(dto: EventDto): EventForm {
         allowSelfSubmission: dto.allowSelfSubmission,
         submissionNeedsVerification: dto.submissionNeedsVerification,
         allowParticipantSelfRegistration: dto.allowParticipantSelfRegistration,
+        showBreaksOnPublicBoards: dto.showBreaksOnPublicBoards ?? false,
+        publicResultsVisibility: dto.publicResultsVisibility ?? 'FINISHED_ONLY',
+        allowCrossClubRegistration: dto.allowCrossClubRegistration ?? false,
     }
 }
 

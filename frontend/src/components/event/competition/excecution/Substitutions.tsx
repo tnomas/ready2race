@@ -16,7 +16,10 @@ import {
     useTheme,
 } from '@mui/material'
 import {CompetitionRoundDto, SubstitutionDto, SubstitutionParticipantDto} from '@api/types.gen.ts'
-import {competitionRoute, eventRoute} from '@routes'
+import {
+    CompetitionScopeProps,
+    useCompetitionScope,
+} from '@components/event/competition/excecution/competitionScope.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {addSubstitution, deleteSubstitution, getPossibleSubOuts} from '@api/sdk.gen.ts'
 import {Fragment, useState} from 'react'
@@ -37,6 +40,10 @@ import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
 import {groupBy} from '@utils/helpers.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {createSubstitutionGlobal, deleteSubstitutionGlobal} from '@authorization/privileges.ts'
+import {
+    ExecutionApiError,
+    substitutionErrorKey,
+} from '@components/event/competition/excecution/executionError.ts'
 
 type SubstitutionWithSwap = {
     substitution: SubstitutionDto
@@ -51,7 +58,7 @@ export type ParticipantOptionGroup = {
     }[]
 }
 
-type Props = {
+type Props = CompetitionScopeProps & {
     reloadRoundDto: () => void
     roundDto: CompetitionRoundDto
     roundIndex: number
@@ -62,16 +69,28 @@ type Form = {
     participantOut: string
     reason: string
 }
-const Substitutions = ({reloadRoundDto, roundDto, roundIndex}: Props) => {
+const Substitutions = ({reloadRoundDto, roundDto, roundIndex, ...scope}: Props) => {
     const feedback = useFeedback()
     const {t} = useTranslation()
     const theme = useTheme()
     const user = useUser()
 
-    const {eventId} = eventRoute.useParams()
-    const {competitionId} = competitionRoute.useParams()
+    const {eventId, competitionId} = useCompetitionScope(scope)
 
     const {confirmAction} = useConfirmation()
+
+    /**
+     * Warum die Ummeldung abgelehnt wurde. [fallbackKey] ist die bisherige Sammelmeldung der
+     * jeweiligen Aktion und greift nur noch für Gründe ohne eigenen Code.
+     */
+    const showSubstitutionError = (
+        error: ExecutionApiError,
+        fallbackKey:
+            | 'event.competition.execution.substitution.add.error'
+            | 'event.competition.execution.substitution.delete.error',
+    ) => {
+        feedback.error(t(substitutionErrorKey(error) ?? fallbackKey))
+    }
 
     const substitutions: Array<SubstitutionWithSwap> = roundDto.substitutions
         .sort((a, b) => b.orderForRound - a.orderForRound)
@@ -167,7 +186,9 @@ const Substitutions = ({reloadRoundDto, roundDto, roundIndex}: Props) => {
         setSubmitting(false)
 
         if (error) {
-            feedback.error(t('event.competition.execution.substitution.add.error'))
+            // Vorher: t('…substitution.add.error') als String, obwohl de/da dort ein Objekt haben -
+            // in der Oberfläche stand deshalb der rohe Schlüssel.
+            showSubstitutionError(error, 'event.competition.execution.substitution.add.error')
         } else {
             formContext.reset()
             feedback.success(t('event.competition.execution.substitution.add.success'))
@@ -203,15 +224,14 @@ const Substitutions = ({reloadRoundDto, roundDto, roundIndex}: Props) => {
                 setSubmitting(false)
 
                 if (error) {
-                    if (error.status.value === 409) {
-                        feedback.error(
-                            t('event.competition.execution.substitution.delete.error.conflict'),
-                        )
-                    } else {
-                        feedback.error(
-                            t('event.competition.execution.substitution.delete.error.unexpected'),
-                        )
-                    }
+                    // Vorher: delete.error.conflict / .unexpected, obwohl delete.error ein String
+                    // ist - auch hier stand der rohe Schlüssel in der Oberfläche. Und "409" war
+                    // nur ein Stellvertreter für "eine spätere Ummeldung hängt daran"; der
+                    // ebenfalls mögliche Grund "stammt aus einer früheren Runde" fiel in den Rest.
+                    showSubstitutionError(
+                        error,
+                        'event.competition.execution.substitution.delete.error',
+                    )
                 } else {
                     feedback.success(t('event.competition.execution.substitution.delete.success'))
                 }
@@ -371,6 +391,8 @@ const Substitutions = ({reloadRoundDto, roundDto, roundIndex}: Props) => {
                                         </FormInputLabel>
                                         {participantOutValue && (
                                             <SubstitutionSelectParticipantIn
+                                                eventId={eventId}
+                                                competitionId={competitionId}
                                                 setupRoundId={roundDto.setupRoundId}
                                                 selectedParticipantOut={participantOutValue}
                                             />

@@ -8,12 +8,13 @@ import React, {
     useRef,
     useState,
 } from 'react'
-import {CheckQrCodeResponse, EventDto} from '@api/types.gen.ts'
+import {EventDto, QrCodeAppuserResponse, QrCodeParticipantResponse} from '@api/types.gen.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useNavigate} from '@tanstack/react-router'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getEvents} from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
+import {readCachedRead, writeCachedRead} from '@pwa/readCache.ts'
 
 export type AppFunction =
     | 'APP_QR_MANAGEMENT'
@@ -32,6 +33,7 @@ export type AppView =
     | 'App_User'
     | 'App_Login'
     | 'APP_Forbidden'
+    | 'APP_Dashboard'
 
 const appViewPaths: Record<AppView, string> = {
     APP_Event_List: '/app',
@@ -42,6 +44,7 @@ const appViewPaths: Record<AppView, string> = {
     App_User: '/app/user',
     App_Login: '/app/login',
     APP_Forbidden: '/app/forbidden',
+    APP_Dashboard: '/app/dashboard',
 }
 
 export type AppViewState = {
@@ -49,9 +52,13 @@ export type AppViewState = {
     replace?: boolean
 }
 
+// The app's QR scanning flow requires an authenticated staff session, so the backend
+// never returns the anonymous QrCodePublicResponse variant here.
+export type StaffQrCodeResponse = QrCodeParticipantResponse | QrCodeAppuserResponse
+
 export type QrState = {
     qrCodeId: string | null
-    response: CheckQrCodeResponse | null
+    response: StaffQrCodeResponse | null
     received: boolean
     handled: boolean
     update: (state: Omit<QrState, 'update' | 'reset'>) => void
@@ -77,23 +84,42 @@ export const AppSessionProvider: React.FC<PropsWithChildren> = ({children}) => {
     const feedback = useFeedback()
     const user = useUser()
     const [viewState, setViewState] = useState<AppViewState>()
-    // Persistiere appFunction im sessionStorage
+    // Ablage in localStorage, nicht sessionStorage: Beides gehört zur installierten Helfer-App und
+    // muss einen Neustart durch das Betriebssystem überstehen. Läge die Veranstaltung weiterhin
+    // in der Sitzungsablage, stünde nach einem Kaltstart im Flugmodus "Keine Veranstaltung
+    // gewählt" - und der Weg zurück führt über eine Liste, die das Netz braucht.
     const [appFunction, setAppFunctionState] = useState<AppFunction>(() => {
-        return (sessionStorage.getItem('appFunction') as AppFunction) || null
+        return (localStorage.getItem('appFunction') as AppFunction) || null
     })
 
     const [events, setEvents] = useState<EventDto[]>()
     const qrLastScanned = useRef<number>(0)
 
-    // Persistiere eventId im sessionStorage
     const [eventId, setEventIdValue] = useState<string>(() => {
-        return sessionStorage.getItem('eventId') || ''
+        return localStorage.getItem('eventId') || ''
     })
+
+    const cacheUserId = user.loggedIn ? user.id : ''
+
+    // Die Veranstaltungsliste kommt beim Start aus dem Bestand, damit die Auswahl ohne Netz nicht
+    // leer bleibt. Sie wird überschrieben, sobald ein echter Abruf durchkommt.
+    useEffect(() => {
+        if (!cacheUserId) {
+            return
+        }
+        const cached = readCachedRead<EventDto[]>('events', cacheUserId, 'alle')
+        if (cached) {
+            setEvents(prev => prev ?? cached.payload)
+        }
+    }, [cacheUserId])
 
     useFetch(signal => getEvents({signal}), {
         onResponse: response => {
             if (response.data) {
                 setEvents(response.data.data)
+                if (cacheUserId) {
+                    writeCachedRead('events', cacheUserId, 'alle', response.data.data)
+                }
             }
             if (response.error) {
                 feedback.error(t('common.load.error.multiple.short', {entity: t('event.event')}))
@@ -114,18 +140,18 @@ export const AppSessionProvider: React.FC<PropsWithChildren> = ({children}) => {
     const setAppFunction = (fn: AppFunction) => {
         setAppFunctionState(fn)
         if (fn) {
-            sessionStorage.setItem('appFunction', fn)
+            localStorage.setItem('appFunction', fn)
         } else {
-            sessionStorage.removeItem('appFunction')
+            localStorage.removeItem('appFunction')
         }
     }
 
     const setEventId = (fn: string) => {
         setEventIdValue(fn)
         if (fn.length > 0) {
-            sessionStorage.setItem('eventId', fn)
+            localStorage.setItem('eventId', fn)
         } else {
-            sessionStorage.removeItem('eventId')
+            localStorage.removeItem('eventId')
         }
     }
 

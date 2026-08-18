@@ -30,7 +30,15 @@ import {
 } from '@api/types.gen.ts'
 import DocumentTable from '@components/event/document/DocumentTable.tsx'
 import DocumentDialog from '@components/event/document/DocumentDialog.tsx'
-import {Forward, InfoOutlined, PlayCircleOutlined} from '@mui/icons-material'
+import ExportBundleCard from '@components/event/document/ExportBundleCard.tsx'
+import {
+    CampaignOutlined,
+    Forward,
+    InfoOutlined,
+    PlayCircleOutlined,
+    SportsScoreOutlined,
+    TuneOutlined,
+} from '@mui/icons-material'
 import {Link, useNavigate} from '@tanstack/react-router'
 import {useMemo, useRef, useState} from 'react'
 import TabPanel from '@components/tab/TabPanel.tsx'
@@ -40,8 +48,10 @@ import ParticipantForEventTable from '@components/participant/ParticipantForEven
 import {useUser} from '@contexts/user/UserContext.ts'
 import {
     createInvoiceGlobal,
+    readBoardGlobal,
     readClubOwn,
     readEventGlobal,
+    readLiveDashboardGlobal,
     readRegistrationGlobal,
     readRegistrationOwn,
     readUserGlobal,
@@ -52,6 +62,7 @@ import InlineLink from '@components/InlineLink.tsx'
 import TaskTable from '@components/event/task/TaskTable.tsx'
 import TaskDialog from '@components/event/task/TaskDialog.tsx'
 import {Shiftplan} from '@components/event/shiftplan/Shiftplan.tsx'
+import EventSchedule from '@components/event/schedule/EventSchedule.tsx'
 import {
     a11yProps,
     getFilename,
@@ -70,8 +81,16 @@ import ParticipantTrackingLogTable from '@components/event/participantTracking/P
 import EventRegistrations from '@components/event/competition/registration/EventRegistrations.tsx'
 import ManageRunningMatchesDialog from '@components/event/match/ManageRunningMatchesDialog.tsx'
 import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategoriesForEvent.tsx'
+import EventTimingConfig from '@components/event/timing/EventTimingConfig.tsx'
+import EventExecutionSettings from '@components/event/EventExecutionSettings.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import TimingStationPanel from '@components/event/timing/TimingStationPanel.tsx'
+import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
+import CheckSeverityDialog from '@components/event/liveDashboard/CheckSeverityDialog.tsx'
+import EventNoticeCard from '@components/eventNotice/EventNoticeCard.tsx'
+import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
+import SplitButton from '@components/SplitButton.tsx'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
 const EVENT_TABS = [
     'general',
@@ -79,6 +98,7 @@ const EVENT_TABS = [
     'participants',
     'registrations',
     'organization',
+    'schedule',
     'posten',
     'settings',
     'invoices',
@@ -107,14 +127,19 @@ const EventPage = () => {
     const reload = () => setLastRequested(Date.now())
 
     const [manageRunningMatchesOpen, setManageRunningMatchesOpen] = useState(false)
+    const [awardCertificateDialogOpen, setAwardCertificateDialogOpen] = useState(false)
+    const [checkSeverityOpen, setCheckSeverityOpen] = useState(false)
     const {data, pending} = useFetch(signal => getEvent({signal, path: {eventId: eventId}}), {
         onResponse: ({error}) => {
             if (error) {
                 feedback.error(t('common.load.error.single', {entity: t('event.event')}))
             }
         },
+
         deps: [eventId, lastRequested],
     })
+
+    useDocumentTitle(data?.name)
 
     const documentAdministrationProps = useEntityAdministration<EventDocumentDto>(
         t('event.document.document'),
@@ -182,9 +207,10 @@ const EventPage = () => {
         }
     }
 
-    const handleClubCertificatesDownload = async () => {
+    const handleClubCertificatesDownload = async (format: 'pdf' | 'docx' = 'pdf') => {
         const {data, error, response} = await downloadCertificatesOfParticipation({
             path: {eventId},
+            query: {format},
         })
 
         const anchor = downloadRef.current
@@ -248,6 +274,9 @@ const EventPage = () => {
                                 )}
                             {user.checkPrivilege(updateEventGlobal) && (
                                 <Tab label={t('event.tabs.posten')} {...tabProps('posten')} />
+                            )}
+                            {user.checkPrivilege(readEventGlobal) && (
+                                <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
                             )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.tabs.settings')} {...tabProps('settings')} />
@@ -347,6 +376,15 @@ const EventPage = () => {
                                                 <Trans i18nKey={'event.results.download'}/>
                                             </Button>
                                         )}
+                                    {user.checkPrivilege(readEventGlobal) &&
+                                        !data.challengeEvent && (
+                                            <Button
+                                                variant={'outlined'}
+                                                startIcon={<WorkspacePremium/>}
+                                                onClick={() => setAwardCertificateDialogOpen(true)}>
+                                                <Trans i18nKey={'event.action.downloadAwardCertificates'}/>
+                                            </Button>
+                                        )}
                                     {user.checkPrivilege(updateEventGlobal) &&
                                         data.challengeEvent &&
                                         data.challengesFinished && (
@@ -363,16 +401,27 @@ const EventPage = () => {
                                         user.clubId &&
                                         data.challengeEvent &&
                                         data.challengesFinished && (
-                                            <Button
-                                                variant={'outlined'}
-                                                onClick={handleClubCertificatesDownload}>
-                                                <Trans
-                                                    i18nKey={'event.action.downloadCertificates'}
-                                                />
-                                            </Button>
+                                            <SplitButton
+                                                main={{
+                                                    label: t('event.action.downloadCertificates'),
+                                                    onClick: () =>
+                                                        handleClubCertificatesDownload('pdf'),
+                                                }}
+                                                options={[
+                                                    {
+                                                        label: t(
+                                                            'event.action.downloadCertificatesWord',
+                                                        ),
+                                                        onClick: () =>
+                                                            handleClubCertificatesDownload('docx'),
+                                                    },
+                                                ]}
+                                            />
                                         )}
                                 </Card>
-                                {user.checkPrivilege(readEventGlobal) && !data.challengeEvent && (
+                                {(user.checkPrivilege(readEventGlobal) ||
+                                    user.checkPrivilege(readBoardGlobal)) &&
+                                    !data.challengeEvent && (
                                     <Card sx={{p: 2}}>
                                         <Typography variant="h6" sx={{mb: 1}}>
                                             {t('event.info.sectionTitle')}
@@ -391,15 +440,68 @@ const EventPage = () => {
                                                 {t('event.info.manageInfoViews')}
                                             </Button>
                                         </Link>
-                                        <Button
-                                            startIcon={<PlayCircleOutlined/>}
-                                            variant="outlined"
-                                            fullWidth
-                                            sx={{mt: 1}}
-                                            onClick={() => setManageRunningMatchesOpen(true)}>
-                                            {t('event.competition.execution.match.manageRunning')}
-                                        </Button>
+                                        <Link to={'/speaker/event/$eventId'} params={{eventId}}>
+                                            <Button
+                                                startIcon={<CampaignOutlined />}
+                                                variant="outlined"
+                                                fullWidth
+                                                sx={{mt: 1}}>
+                                                {t('speaker.openBoard')}
+                                            </Button>
+                                        </Link>
+                                        {/* Die laufenden Läufe sind Sache der Veranstaltung, nicht
+                                            der Anzeigen - eine reine Board-Rolle sieht sie nicht. */}
+                                        {user.checkPrivilege(readEventGlobal) && (
+                                            <Button
+                                                startIcon={<PlayCircleOutlined/>}
+                                                variant="outlined"
+                                                fullWidth
+                                                sx={{mt: 1}}
+                                                onClick={() => setManageRunningMatchesOpen(true)}>
+                                                {t('event.competition.execution.match.manageRunning')}
+                                            </Button>
+                                        )}
                                     </Card>
+                                )}
+                                {user.checkPrivilege(readLiveDashboardGlobal) && !data.challengeEvent && (
+                                    <Card sx={{p: 2}}>
+                                        <Typography variant="h6" sx={{mb: 1}}>
+                                            {t('event.liveDashboard.sectionTitle')}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{mb: 2}}>
+                                            {t('event.liveDashboard.pageDescription')}
+                                        </Typography>
+                                        <Link to={'/event/$eventId/liveDashboard'} params={{eventId}}>
+                                            <Button
+                                                startIcon={<SportsScoreOutlined/>}
+                                                variant="outlined"
+                                                fullWidth>
+                                                {t('event.liveDashboard.open')}
+                                            </Button>
+                                        </Link>
+                                        {user.checkPrivilege(updateEventGlobal) && (
+                                            <Button
+                                                startIcon={<TuneOutlined />}
+                                                variant="outlined"
+                                                fullWidth
+                                                sx={{mt: 1}}
+                                                onClick={() => setCheckSeverityOpen(true)}>
+                                                {t('event.liveDashboard.checkSeverity.manage')}
+                                            </Button>
+                                        )}
+                                    </Card>
+                                )}
+                                {/* Globaler Hinweis (z.B. Wetterwarnung): erscheint auf allen
+                                    öffentlichen Anzeigen und im Schiedsrichter-Dashboard. */}
+                                {user.checkPrivilege(updateEventGlobal) && (
+                                    <EventNoticeCard
+                                        eventId={eventId}
+                                        notice={data.notice}
+                                        onChanged={reload}
+                                    />
                                 )}
                             </Stack>
                         </TabPanel>
@@ -437,12 +539,20 @@ const EventPage = () => {
                                 <Shiftplan/>
                             </Stack>
                         </TabPanel>
+                        <TabPanel index={'schedule'} activeTab={activeTab}>
+                            <EventSchedule event={data}/>
+                        </TabPanel>
                         <TabPanel index={'posten'} activeTab={activeTab}>
                             <TimingStationPanel />
                         </TabPanel>
                         <TabPanel index={'settings'} activeTab={activeTab}>
                             <Stack spacing={4}>
                                 <RatingCategoriesForEvent/>
+                                {/* Wie Läufe am Renntag beendet und Folgerunden erzeugt werden -
+                                    aus dem Zeitplan-Popover hierher gezogen (12.08.2026), weil es
+                                    die Veranstaltung ändert und kein Geräte-Schalter ist. */}
+                                <EventExecutionSettings event={data} reloadEvent={reload}/>
+                                <EventTimingConfig />
                                 <DocumentTable
                                     {...documentAdministrationProps.table}
                                     title={t('event.document.documents')}
@@ -462,6 +572,14 @@ const EventPage = () => {
                                     ]}
                                 />
                                 <DocumentDialog {...documentAdministrationProps.dialog} />
+                                {/* Die Export-Mappe direkt beim Dokumente-Bereich: sie sortiert
+                                    genau diese Dokumente. lastRequested nimmt Uploads und
+                                    Löschungen der Tabelle mit - ein gelöschtes Dokument fällt
+                                    serverseitig auch aus der Mappe (on delete cascade). */}
+                                <ExportBundleCard
+                                    eventId={eventId}
+                                    lastRequested={documentAdministrationProps.table.lastRequested}
+                                />
                                 <ParticipantRequirementForEventTable
                                     {...participantRequirementAdministrationProps.table}
                                     title={t('participantRequirement.participantRequirements')}
@@ -496,6 +614,18 @@ const EventPage = () => {
                     eventId={eventId}
                 />
             )}
+            {checkSeverityOpen && (
+                <CheckSeverityDialog
+                    open={checkSeverityOpen}
+                    onClose={() => setCheckSeverityOpen(false)}
+                    eventId={eventId}
+                />
+            )}
+            <AwardCertificateDialog
+                open={awardCertificateDialogOpen}
+                onClose={() => setAwardCertificateDialogOpen(false)}
+                eventId={eventId}
+            />
         </Box>
     )
 }

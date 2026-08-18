@@ -6,4 +6,13 @@ enum class GapDocumentPlaceholderType {
     FULL_NAME,
     RESULT,
     EVENT_NAME,
+    PLACE,
+    COMPETITION_NAME,
+    COMPETITION_SHORT_NAME,
+    CLUB_NAME,
+    TEAM_NAME,
+    RATING_CATEGORY,
+    EVENT_DATE,
+    EVENT_LOCATION,
+    FREE_TEXT,
 }

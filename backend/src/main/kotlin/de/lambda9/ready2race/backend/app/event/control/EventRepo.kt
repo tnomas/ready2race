@@ -1,7 +1,10 @@
 package de.lambda9.ready2race.backend.app.event.control
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.event.entity.ChainProgressionMode
+import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
 import de.lambda9.ready2race.backend.app.event.entity.EventPublicViewSort
+import de.lambda9.ready2race.backend.app.event.entity.PublicResultsVisibility
 import de.lambda9.ready2race.backend.app.event.entity.EventViewSort
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.database.*
@@ -19,6 +22,53 @@ import java.time.LocalDateTime
 import java.util.*
 
 object EventRepo {
+
+    /** Nie null: die Spalte ist not-null mit Default, ein fehlendes Event fällt sicher auf DEAKTIVIERT zurück. */
+    fun getChainProgressionMode(eventId: UUID) = Jooq.query {
+        select(EVENT.CHAIN_PROGRESSION_MODE)
+            .from(EVENT)
+            .where(EVENT.ID.eq(eventId))
+            .fetchOne(EVENT.CHAIN_PROGRESSION_MODE)
+            ?.let { ChainProgressionMode.valueOf(it) } ?: ChainProgressionMode.DEAKTIVIERT
+    }
+
+    /** Nie null: die Spalte ist not-null mit Default, ein fehlendes Event fällt sicher auf "aus" zurück. */
+    fun getAutoCreateFollowingRounds(eventId: UUID) = Jooq.query {
+        select(EVENT.AUTO_CREATE_FOLLOWING_ROUNDS)
+            .from(EVENT)
+            .where(EVENT.ID.eq(eventId))
+            .fetchOne(EVENT.AUTO_CREATE_FOLLOWING_ROUNDS) ?: false
+    }
+
+    /** Nie null: die Spalte ist not-null mit Default, ein fehlendes Event fällt auf die sichere Stufe zurück. */
+    fun getPublicResultsVisibility(eventId: UUID) = Jooq.query {
+        select(EVENT.PUBLIC_RESULTS_VISIBILITY)
+            .from(EVENT)
+            .where(EVENT.ID.eq(eventId))
+            .fetchOne(EVENT.PUBLIC_RESULTS_VISIBILITY)
+            ?.let { PublicResultsVisibility.valueOf(it) } ?: PublicResultsVisibility.FINISHED_ONLY
+    }
+
+    fun getShowBreaksOnPublicBoards(eventId: UUID) = Jooq.query {
+        select(EVENT.SHOW_BREAKS_ON_PUBLIC_BOARDS)
+            .from(EVENT)
+            .where(EVENT.ID.eq(eventId))
+            .fetchOne(EVENT.SHOW_BREAKS_ON_PUBLIC_BOARDS) ?: false
+    }
+
+    /**
+     * Der veranstaltungsweite Hinweis, fertig als Antwort-Objekt - null heißt "kein Banner"
+     * (beide Spalten leer oder Veranstaltung unbekannt). Der gemeinsame Lese-Punkt für alle
+     * gepollten Antworten, die den Hinweis einbetten.
+     */
+    fun getNotice(eventId: UUID) = Jooq.query {
+        select(EVENT.NOTICE_TEXT, EVENT.NOTICE_SEVERITY)
+            .from(EVENT)
+            .where(EVENT.ID.eq(eventId))
+            .fetchOne()
+            ?.let { EventNoticeDto.fromColumns(it.value1(), it.value2()) }
+    }
+
 
     private fun EventView.searchFields() =
         listOf(NAME, REGISTRATION_AVAILABLE_FROM, REGISTRATION_AVAILABLE_TO, DESCRIPTION)

@@ -7,8 +7,12 @@ import de.lambda9.ready2race.backend.app.event.entity.EventDto
 import de.lambda9.ready2race.backend.app.event.entity.EventForExportDto
 import de.lambda9.ready2race.backend.app.event.entity.EventPublicDto
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventForExportRecord
+import de.lambda9.ready2race.backend.app.event.entity.ChainProgressionMode
 import de.lambda9.ready2race.backend.app.event.entity.CreateEventRequest
+import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
+import de.lambda9.ready2race.backend.app.event.entity.ExecutionAutoRefresh
 import de.lambda9.ready2race.backend.app.event.entity.MatchResultType
+import de.lambda9.ready2race.backend.app.event.entity.PublicResultsVisibility
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventPublicViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventViewRecord
@@ -37,6 +41,15 @@ fun CreateEventRequest.toRecord(userId: UUID): App<Nothing, EventRecord> =
                 selfSubmission = allowSelfSubmission,
                 submissionNeedsVerification = submissionNeedsVerification,
                 participantSelfRegistration = allowParticipantSelfRegistration,
+                // Server-Defaults: diese Einstellungen leben erst im Einstellungen-Tab einer
+                // bestehenden Veranstaltung (EventExecutionSettings), siehe CreateEventRequest.
+                chainProgressionMode = ChainProgressionMode.DEAKTIVIERT.name,
+                autoCreateFollowingRounds = false,
+                showBreaksOnPublicBoards = showBreaksOnPublicBoards,
+                publicResultsVisibility = publicResultsVisibility.name,
+                crossClubRegistration = allowCrossClubRegistration,
+                executionAutoRefresh = true,
+                executionAutoRefreshSeconds = ExecutionAutoRefresh.DEFAULT_SECONDS,
                 createdAt = now,
                 createdBy = userId,
                 updatedAt = now,
@@ -73,7 +86,17 @@ fun EventViewRecord.eventDto(scope: Privilege.Scope?, userClubId: UUID?): App<No
         allowSelfSubmission = selfSubmission!!,
         submissionNeedsVerification = submissionNeedsVerification!!,
         allowParticipantSelfRegistration = participantSelfRegistration!!,
+        chainProgressionMode = chainProgressionMode?.let { ChainProgressionMode.valueOf(it) }
+            ?: ChainProgressionMode.DEAKTIVIERT,
+        autoCreateFollowingRounds = autoCreateFollowingRounds ?: false,
+        showBreaksOnPublicBoards = showBreaksOnPublicBoards ?: false,
+        publicResultsVisibility = publicResultsVisibility?.let { PublicResultsVisibility.valueOf(it) }
+            ?: PublicResultsVisibility.FINISHED_ONLY,
+        allowCrossClubRegistration = crossClubRegistration ?: false,
+        executionAutoRefresh = executionAutoRefresh ?: true,
+        executionAutoRefreshSeconds = executionAutoRefreshSeconds ?: ExecutionAutoRefresh.DEFAULT_SECONDS,
         challengesFinished = challengeEnd?.let { it < LocalDateTime.now() },
+        notice = EventNoticeDto.fromColumns(noticeText, noticeSeverity),
     )
 )
 

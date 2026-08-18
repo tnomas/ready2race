@@ -1,0 +1,383 @@
+package de.lambda9.ready2race.backend.app.eventInfo
+
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardLogic
+import de.lambda9.ready2race.backend.app.eventInfo.entity.*
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+/**
+ * Die Offset-Auflösung ist das Herz des Board-Systems: eine Verschiebung um eins zeigt
+ * auf einem montierten Bildschirm den falschen Lauf, ohne dass es jemandem auffällt.
+ */
+class BoardLogicTest {
+
+    private fun match(name: String) = AthleteBoardMatch(
+        matchId = UUID.randomUUID(), competitionName = name, categoryName = null,
+        roundName = null, matchName = null, startTime = null,
+        state = MatchState.RUNNING, startState = AthleteBoardStartState.UNSCHEDULED,
+        teams = emptyList(),
+    )
+
+    private fun result(name: String) = AthleteBoardResult(
+        matchId = UUID.randomUUID(), competitionName = name, categoryName = null,
+        roundName = null, matchName = null, startTime = null, actualStartTime = null,
+        teams = emptyList(),
+    )
+
+    // running aufsteigend nach tatsächlichem Start, results neuestes zuerst, upcoming aufsteigend.
+    private val running = listOf(match("R-früh"), match("R-spät"))
+    private val upcoming = listOf(match("U1"), match("U2"))
+    private val results = listOf(result("E-neu"), result("E-alt"))
+
+    @Test
+    fun zeroIsTheLastStartedRunningMatch() {
+        assertEquals("R-spät", BoardLogic.resolveOffset(0, running, upcoming, results).match?.competitionName)
+    }
+
+    /**
+     * Überlappter Betrieb: das nächste Rennen ist an den Start gerufen, während das laufende
+     * noch fährt. Der Block führt beide, nach geplantem Start sortiert — vor dem Vorrang des
+     * Fahrenden sprang das Lower-Third im Livestream auf das vorbereitete Rennen.
+     */
+    @Test
+    fun zeroPrefersTheRacingMatchOverThePreparedOne() {
+        val mitVorbereitetem = listOf(
+            match("R-fährt"),
+            match("R-vorbereitet").copy(state = MatchState.PREPARING),
+        )
+        assertEquals(
+            "R-fährt",
+            BoardLogic.resolveOffset(0, mitVorbereitetem, upcoming, results).match?.competitionName,
+        )
+    }
+
+    /**
+     * Der vorbereitete Lauf liegt hinter dem Cursor und gehört damit nicht in die
+     * Vergangenheit: −1 muss weiterhin das jüngste Ergebnis treffen, nicht ihn.
+     */
+    @Test
+    fun thePreparedMatchDoesNotSlipIntoTheNegativeSlots() {
+        val mitVorbereitetem = listOf(
+            match("R-fährt"),
+            match("R-vorbereitet").copy(state = MatchState.PREPARING),
+        )
+        assertEquals(
+            "E-neu",
+            BoardLogic.resolveOffset(-1, mitVorbereitetem, upcoming, results).result?.competitionName,
+        )
+    }
+
+    /**
+     * Der Lauf am Steg bleibt sichtbar - er rückt auf die Zukunftsseite. Ein aktivierter Lauf
+     * fällt aus dem Upcoming-Block heraus (ACTIVATED_AT is null dort); ohne diesen Schritt
+     * wäre er auf der Athleten-Anzeige nirgends mehr zu sehen, obwohl genau er die Boote am
+     * Ufer betrifft.
+     */
+    @Test
+    fun thePreparedMatchBecomesTheNextSlot() {
+        val mitVorbereitetem = listOf(
+            match("R-fährt"),
+            match("R-vorbereitet").copy(state = MatchState.PREPARING),
+        )
+        assertEquals(
+            "R-vorbereitet",
+            BoardLogic.resolveOffset(1, mitVorbereitetem, upcoming, results).match?.competitionName,
+        )
+        assertEquals(
+            "U1",
+            BoardLogic.resolveOffset(2, mitVorbereitetem, upcoming, results).match?.competitionName,
+        )
+    }
+
+    /** Fährt keiner, ist der vorbereitete Lauf das Aktuellste, was die Arena zu zeigen hat. */
+    @Test
+    fun withoutARacingMatchThePreparedOneTakesTheCursor() {
+        val nurVorbereitet = listOf(match("R-vorbereitet").copy(state = MatchState.PREPARING))
+        assertEquals(
+            "R-vorbereitet",
+            BoardLogic.resolveOffset(0, nurVorbereitet, upcoming, results).match?.competitionName,
+        )
+    }
+
+    @Test
+    fun negativeOffsetsWalkThroughEarlierRunningThenResults() {
+        // -1 ist der parallel laufende frühere Lauf, erst -2 erreicht die Ergebnisse.
+        assertEquals("R-früh", BoardLogic.resolveOffset(-1, running, upcoming, results).match?.competitionName)
+        assertEquals("E-neu", BoardLogic.resolveOffset(-2, running, upcoming, results).result?.competitionName)
+        assertEquals("E-alt", BoardLogic.resolveOffset(-3, running, upcoming, results).result?.competitionName)
+    }
+
+    @Test
+    fun withoutRunningZeroIsEmptyAndNeighboursExist() {
+        val slot0 = BoardLogic.resolveOffset(0, emptyList(), upcoming, results)
+        assertNull(slot0.match)
+        assertNull(slot0.result)
+        assertEquals("E-neu", BoardLogic.resolveOffset(-1, emptyList(), upcoming, results).result?.competitionName)
+        assertEquals("U1", BoardLogic.resolveOffset(1, emptyList(), upcoming, results).match?.competitionName)
+    }
+
+    @Test
+    fun positiveOffsetsIndexUpcoming() {
+        assertEquals("U2", BoardLogic.resolveOffset(2, running, upcoming, results).match?.competitionName)
+        val beyond = BoardLogic.resolveOffset(3, running, upcoming, results)
+        assertNull(beyond.match)
+        assertNull(beyond.result)
+    }
+
+    @Test
+    fun dataNeedsCoverOffsetsAndLists() {
+        val config = BoardConfig(
+            columns = 2,
+            tiles = listOf(
+                BoardTile(
+                    elements = listOf(
+                        BoardElement(type = BoardElementType.MATCH, offset = -4),
+                        BoardElement(type = BoardElementType.MATCH, offset = 2),
+                    )
+                ),
+                BoardTile(
+                    elements = listOf(
+                        BoardElement(type = BoardElementType.MATCH_LIST, listMode = BoardListMode.UPCOMING, limit = 8),
+                        BoardElement(type = BoardElementType.MATCH_LIST, listMode = BoardListMode.UPCOMING, limit = 3),
+                        BoardElement(type = BoardElementType.TEXT, text = "Hi"),
+                    )
+                ),
+            ),
+        )
+        val needs = BoardLogic.dataNeeds(config)
+        assertEquals(setOf(-4, 2), needs.offsets)
+        // Negative Offsets können in parallel laufende Läufe zeigen: |min|+1 laufende abrufen.
+        assertEquals(5, needs.runningLimit)
+        assertEquals(8, needs.upcomingLimit) // max(Offset +2, Liste 8)
+        assertEquals(4, needs.resultsLimit) // |−4|
+        assertEquals(mapOf(BoardListMode.UPCOMING to 8), needs.listLimits)
+    }
+
+    @Test
+    fun dataNeedsCarryAnnouncerScheduleAndCeremonies() {
+        val competitionId = UUID.randomUUID()
+        val config = BoardConfig(
+            columns = 2,
+            tiles = listOf(
+                BoardTile(
+                    elements = listOf(
+                        BoardElement(type = BoardElementType.MATCH, offset = 0, showCrewDetails = true, showAdvancement = true),
+                        BoardElement(type = BoardElementType.MATCH_LIST, listMode = BoardListMode.SCHEDULE, limit = 10),
+                        // Dieselbe Ehrung zweimal konfiguriert wird nur einmal gerechnet.
+                        BoardElement(type = BoardElementType.AWARD_CEREMONY, competitionId = competitionId),
+                        BoardElement(type = BoardElementType.AWARD_CEREMONY, competitionId = competitionId),
+                    )
+                ),
+            ),
+        )
+        val needs = BoardLogic.dataNeeds(config)
+        assertEquals(true, needs.crewDetails)
+        assertEquals(true, needs.advancement)
+        assertEquals(true, needs.schedule)
+        assertEquals(1, needs.ceremonies.size)
+        assertEquals(competitionId, needs.ceremonies.single().competitionId)
+    }
+
+    @Test
+    fun dataNeedsWithoutMatchElementsStayMinimal() {
+        val config = BoardConfig(
+            columns = 1,
+            tiles = listOf(BoardTile(elements = listOf(BoardElement(type = BoardElementType.CLOCK)))),
+        )
+        val needs = BoardLogic.dataNeeds(config)
+        assertEquals(emptySet<Int>(), needs.offsets)
+        assertEquals(1, needs.runningLimit)
+        assertEquals(1, needs.upcomingLimit)
+        assertEquals(1, needs.resultsLimit)
+        assertEquals(false, needs.requirements)
+    }
+
+    // --- Programm-Reihenfolgen-Regel: Programmpunkte gelten als vorbei, sobald ein im
+    // Programm späterer Lauf Aktivität zeigt (der Prod-Fall vom 11.08.2026: Besprechung
+    // 15:00 nie „erledigt", Lauf 16:57 läuft — „Als Nächstes" darf nicht die Besprechung sein).
+
+    private fun at(hour: Int, minute: Int = 0) = java.time.LocalDateTime.of(2026, 8, 11, hour, minute)
+
+    private fun freeSlot(name: String, hour: Int) =
+        match(name).copy(name = name, startTime = at(hour))
+
+    @Test
+    fun aDelayedFreeSlotIsPassedOnceALaterMatchHasStarted() {
+        // Der 16:57-Lauf läuft: die 15-Uhr-Besprechung ist überholt, die 19-Uhr-Ehrung nicht.
+        // Der Filter sitzt in EventInfoService.mergeWithPendingPlaceholders VOR dem Limit,
+        // damit ein überholter Punkt den „Als Nächstes"-Block gar nicht erst besetzt.
+        val upcoming = listOf(
+            freeSlot("Besprechung", 15),
+            match("U-nach-dem-Laufenden").copy(startTime = at(17, 9)),
+            freeSlot("Siegerehrung", 19),
+        )
+        val cleaned = upcoming.filterNot {
+            it.name != null && BoardLogic.freeSlotPassed(it.startTime, at(16, 57))
+        }
+        assertEquals(listOf("U-nach-dem-Laufenden", "Siegerehrung"), cleaned.map { it.competitionName })
+        // „Als Nächstes" (+1) ist damit der Lauf nach dem laufenden, nicht die Besprechung.
+        assertEquals(
+            "U-nach-dem-Laufenden",
+            BoardLogic.resolveOffset(1, running, cleaned, results).match?.competitionName,
+        )
+    }
+
+    @Test
+    fun withoutAnyProgressNothingIsPassed() {
+        // Solange nichts gestartet ist, gibt es keine Schwelle — nichts gilt als überholt.
+        assertEquals(false, BoardLogic.freeSlotPassed(at(15), null))
+        // Gleichstand zählt als überholt: das Programm ist an diesem Punkt angekommen.
+        assertEquals(true, BoardLogic.freeSlotPassed(at(15), at(15)))
+        assertEquals(false, BoardLogic.freeSlotPassed(at(19), at(16, 57)))
+    }
+
+    @Test
+    fun theProgramMarksPassedFreeSlotsAsFinished() {
+        val program = listOf(
+            BoardProgramEntry(startTime = at(14), competitionName = "früh", state = BoardProgramState.FINISHED),
+            BoardProgramEntry(startTime = at(15), name = "Besprechung", state = BoardProgramState.UPCOMING),
+            BoardProgramEntry(startTime = at(16, 57), competitionName = "läuft", state = BoardProgramState.RUNNING),
+            BoardProgramEntry(startTime = at(19), name = "Siegerehrung", state = BoardProgramState.UPCOMING),
+            // Ein verspäteter LAUF bleibt anstehend — nur Programmpunkte kippen.
+            BoardProgramEntry(startTime = at(16), competitionName = "verspätet", state = BoardProgramState.UPCOMING),
+        )
+        val marked = BoardLogic.markPassedFreeSlots(program)
+        assertEquals(BoardProgramState.FINISHED, marked[1].state)
+        assertEquals(BoardProgramState.UPCOMING, marked[3].state)
+        assertEquals(BoardProgramState.UPCOMING, marked[4].state)
+    }
+
+    // --- Verspätung: started_at − start_time des zuletzt gestarteten Laufs ---
+
+    @Test
+    fun delayComesFromTheLatestStartedMatch() {
+        // Noch nichts gestartet: keine Aussage.
+        assertNull(BoardLogic.currentDelaySeconds(emptyList()))
+        // Verfrühung ist negativ.
+        assertEquals(-300L, BoardLogic.currentDelaySeconds(listOf(at(9, 55) to at(10, 0))))
+        // Mehrere Läufe: der zuletzt gestartete zählt, nicht der zuletzt geplante.
+        assertEquals(
+            18L * 60,
+            BoardLogic.currentDelaySeconds(
+                listOf(
+                    at(10, 0) to at(10, 0),
+                    at(11, 18) to at(11, 0),
+                )
+            ),
+        )
+        // Der zuletzt gestartete ohne geplante Zeit: nichts zu vergleichen.
+        assertNull(BoardLogic.currentDelaySeconds(listOf(at(10, 0) to at(10, 0), at(11, 0) to null)))
+    }
+
+    // Die Sprecher-Kachel: Offset zählt in die Slot-Menge, und die Detailtiefe (Crew,
+    // Weiterkommen, Bedingungen) ist ohne Schalter immer an.
+    @Test
+    fun dataNeedsOfMatchDetailForceFullDepth() {
+        val config = BoardConfig(
+            columns = 1,
+            tiles = listOf(
+                BoardTile(elements = listOf(BoardElement(type = BoardElementType.MATCH_DETAIL, offset = -1)))
+            ),
+        )
+        val needs = BoardLogic.dataNeeds(config)
+        assertEquals(setOf(-1), needs.offsets)
+        assertEquals(true, needs.crewDetails)
+        assertEquals(true, needs.advancement)
+        assertEquals(true, needs.requirements)
+    }
+
+    @Test
+    fun `dataNeeds meldet die Slots des Stream-Overlays an`() {
+        fun config(mode: StreamOverlayMode?) = BoardConfig(
+            columns = 1,
+            tiles = listOf(
+                BoardTile(elements = listOf(BoardElement(type = BoardElementType.STREAM, streamMode = mode)))
+            ),
+        )
+        // AUTO (auch als null): laufender Lauf + Ergebnis-Rückfall.
+        assertEquals(setOf(0, -1), BoardLogic.dataNeeds(config(null)).offsets)
+        assertEquals(setOf(0, -1), BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO)).offsets)
+        assertEquals(setOf(0), BoardLogic.dataNeeds(config(StreamOverlayMode.RUNNING)).offsets)
+        assertEquals(setOf(-1), BoardLogic.dataNeeds(config(StreamOverlayMode.RESULTS)).offsets)
+        assertEquals(setOf(1), BoardLogic.dataNeeds(config(StreamOverlayMode.UPCOMING)).offsets)
+    }
+
+    @Test
+    fun `dataNeeds der neuen Stream-Modi und der Boot-Darstellung`() {
+        fun config(mode: StreamOverlayMode?, crew: StreamCrewDisplay? = null, advancement: Boolean? = null) = BoardConfig(
+            columns = 1,
+            tiles = listOf(
+                BoardTile(elements = listOf(
+                    BoardElement(type = BoardElementType.STREAM, streamMode = mode, streamCrew = crew, showAdvancement = advancement)
+                ))
+            ),
+        )
+        assertEquals(setOf(0), BoardLogic.dataNeeds(config(StreamOverlayMode.LAPS)).offsets)
+        assertEquals(setOf(1), BoardLogic.dataNeeds(config(StreamOverlayMode.UPCOMING_LIST)).offsets)
+        assertEquals(true, BoardLogic.dataNeeds(config(StreamOverlayMode.UPCOMING_LIST)).upcomingLimit >= 5)
+        // Personen sind per Default sichtbar (CLUBS_FIRST) - Crew-Details werden angefordert.
+        assertEquals(true, BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO)).crewDetails)
+        assertEquals(true, BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO, StreamCrewDisplay.PARTICIPANTS_FIRST)).crewDetails)
+        // Nur-Vereine spart die Crew-Abfrage.
+        assertEquals(false, BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO, StreamCrewDisplay.CLUBS_ONLY)).crewDetails)
+        assertEquals(true, BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO, advancement = true)).advancement)
+    }
+
+    // UPCOMING_LIST braucht nicht nur den Slot +1 (für Kacheln, die nur ihn zeigen),
+    // sondern auch den `lists`-Block der Anzeige — sonst kann die STREAM-Kachel keine
+    // Liste anstehender Läufe rendern. Implizit wie ein MATCH_LIST(UPCOMING, 5): landet
+    // in listLimits, ohne dass BoardService.getBoardView etwas Eigenes bräuchte.
+    @Test
+    fun `UPCOMING_LIST fuellt den lists-Block ueber listLimits`() {
+        val config = BoardConfig(
+            columns = 1,
+            tiles = listOf(
+                BoardTile(elements = listOf(
+                    BoardElement(type = BoardElementType.STREAM, streamMode = StreamOverlayMode.UPCOMING_LIST)
+                ))
+            ),
+        )
+        val needs = BoardLogic.dataNeeds(config)
+        assertEquals(true, (needs.listLimits[BoardListMode.UPCOMING] ?: 0) >= 5)
+        assertEquals(needs.listLimits[BoardListMode.UPCOMING], needs.upcomingLimit)
+
+        // Existiert daneben eine MATCH_LIST(UPCOMING) mit größerem Limit, gewinnt das größere.
+        val withBiggerList = config.copy(
+            tiles = config.tiles + BoardTile(elements = listOf(
+                BoardElement(type = BoardElementType.MATCH_LIST, listMode = BoardListMode.UPCOMING, limit = 12)
+            ))
+        )
+        assertEquals(12, BoardLogic.dataNeeds(withBiggerList).listLimits[BoardListMode.UPCOMING])
+    }
+
+    // „Letztes Ergebnis" darf nicht am Slot −1 hängen: der zählt die Timeline rückwärts und
+    // trifft zuerst die früher gestarteten, noch laufenden Läufe. Fahren zwei Läufe
+    // gleichzeitig, kam dort ein laufender Lauf statt eines Ergebnisses an und die Kachel
+    // blieb leer. Über listLimits bekommt sie das jüngste Ergebnis unabhängig davon.
+    @Test
+    fun `RESULTS und AUTO fordern die Ergebnisliste an`() {
+        fun config(mode: StreamOverlayMode?) = BoardConfig(
+            columns = 1,
+            tiles = listOf(
+                BoardTile(elements = listOf(BoardElement(type = BoardElementType.STREAM, streamMode = mode)))
+            ),
+        )
+        assertEquals(1, BoardLogic.dataNeeds(config(StreamOverlayMode.RESULTS)).listLimits[BoardListMode.RESULTS])
+        assertEquals(1, BoardLogic.dataNeeds(config(StreamOverlayMode.AUTO)).listLimits[BoardListMode.RESULTS])
+        assertEquals(1, BoardLogic.dataNeeds(config(null)).listLimits[BoardListMode.RESULTS])
+        // Modi ohne Ergebnisbezug lassen die Liste weg.
+        assertEquals(null, BoardLogic.dataNeeds(config(StreamOverlayMode.RUNNING)).listLimits[BoardListMode.RESULTS])
+        assertEquals(null, BoardLogic.dataNeeds(config(StreamOverlayMode.UPCOMING)).listLimits[BoardListMode.RESULTS])
+
+        // Eine daneben konfigurierte Ergebnisliste mit größerem Limit gewinnt.
+        val withBiggerList = config(StreamOverlayMode.RESULTS).let {
+            it.copy(tiles = it.tiles + BoardTile(elements = listOf(
+                BoardElement(type = BoardElementType.MATCH_LIST, listMode = BoardListMode.RESULTS, limit = 6)
+            )))
+        }
+        assertEquals(6, BoardLogic.dataNeeds(withBiggerList).listLimits[BoardListMode.RESULTS])
+    }
+}

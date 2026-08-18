@@ -160,7 +160,19 @@ const CompetitionRegistrationTable = ({
                                             <TableCell
                                                 sx={{
                                                     width: '26%',
-                                                }}>{`${participant.firstname} ${participant.lastname}`}</TableCell>
+                                                }}>
+                                                {`${participant.firstname} ${participant.lastname}`}
+                                                {participant.year != null && (
+                                                    <Typography
+                                                        variant={'caption'}
+                                                        color={'text.secondary'}
+                                                        sx={{display: 'block'}}>
+                                                        {t('club.participant.yearShort', {
+                                                            year: participant.year,
+                                                        })}
+                                                    </Typography>
+                                                )}
+                                            </TableCell>
                                             <TableCell sx={{width: '26%'}}>
                                                 {np.namedParticipantName}
                                             </TableCell>
@@ -245,7 +257,7 @@ const CompetitionRegistrationTable = ({
                     },
                 })
                 if (error) {
-                    if (error.status.value === 409) {
+                    if (error.errorCode === 'DEREGISTRATION_IS_LOCKED') {
                         feedback.error(
                             t(
                                 'event.competition.registration.deregister.revertDeregistration.error.locked',
@@ -318,7 +330,10 @@ const CompetitionRegistrationTable = ({
                 deleteRequest={deleteRequest}
                 onDeleteError={onDeleteError}
                 entityName={t('event.registration.registration')}
-                creatable={props.registrationInitialized && (props.documentsAccepted ?? false)}
+                creatable={
+                    user.checkPrivilege(updateRegistrationGlobal) ||
+                    (props.registrationInitialized && (props.documentsAccepted ?? false))
+                }
                 deletableIf={writable}
                 editableIf={writable}
                 customEntityActions={customEntityActions}
