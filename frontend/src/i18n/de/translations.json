@@ -1728,6 +1728,13 @@
     "title": "Zeitnahme",
     "selectEvent": "Veranstaltung wählen",
     "selectStation": "Posten wählen",
+    "sections": {
+      "timing": "Zeitnahme",
+      "other": "Weitere Posten"
+    },
+    "referee": {
+      "title": "Schiedsrichter"
+    },
     "station": {
       "tabTitle": "Posten",
       "name": "Name",

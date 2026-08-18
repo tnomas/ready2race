@@ -1728,6 +1728,13 @@
     "title": "Timing",
     "selectEvent": "Select event",
     "selectStation": "Select station",
+    "sections": {
+      "timing": "Timing",
+      "other": "Other posts"
+    },
+    "referee": {
+      "title": "Referee"
+    },
     "station": {
       "tabTitle": "Stations",
       "name": "Name",

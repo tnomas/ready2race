@@ -30,6 +30,11 @@ const APP_FUNCTIONS = [
         icon: QrCodeIcon,
     },
     {
+        // Transition state: the Posten area (TimingStationSelectPage, "Weitere Posten" section)
+        // now offers a second, additive entry point into this same competition-check flow
+        // (gated by updateAppCompetitionCheckGlobal, same session-context eventId handoff).
+        // This card is intentionally NOT removed — competition-check-only users who never touch
+        // timing still need a direct way in, so removing it would break them mid-transition.
         fn: 'APP_COMPETITION_CHECK' as AppFunction,
         labelKey: 'app.functionSelect.functions.competitionCheck' as const,
         icon: CheckCircleIcon,

@@ -1728,6 +1728,13 @@
     "title": "Tidtagning",
     "selectEvent": "Vælg arrangement",
     "selectStation": "Vælg post",
+    "sections": {
+      "timing": "Tidtagning",
+      "other": "Andre poster"
+    },
+    "referee": {
+      "title": "Dommer"
+    },
     "station": {
       "tabTitle": "Poster",
       "name": "Navn",
