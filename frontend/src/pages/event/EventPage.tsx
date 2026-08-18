@@ -58,6 +58,7 @@ import {
     updateEventGlobal,
 } from '@authorization/privileges.ts'
 import TabSelectionContainer from '@components/tab/TabSelectionContainer.tsx'
+import TimingStationPanel from '@components/event/timing/TimingStationPanel.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import TaskTable from '@components/event/task/TaskTable.tsx'
 import TaskDialog from '@components/event/task/TaskDialog.tsx'
@@ -97,6 +98,7 @@ const EVENT_TABS = [
     'participants',
     'registrations',
     'organization',
+    'posten',
     'schedule',
     'settings',
     'invoices',
@@ -270,6 +272,12 @@ const EventPage = () => {
                                         {...tabProps('organization')}
                                     />
                                 )}
+                            {/* Die Zeitnahme-Posten der Veranstaltung: Verwaltung neben der
+                                Organisation, weil ein Posten eine Einrichtung des Renntags ist -
+                                die Erfassung selbst läuft in der Helfer-App unter /app/timing. */}
+                            {user.checkPrivilege(updateEventGlobal) && (
+                                <Tab label={t('event.tabs.posten')} {...tabProps('posten')} />
+                            )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
                             )}
@@ -533,6 +541,9 @@ const EventPage = () => {
                                 <TaskDialog {...taskProps.dialog} eventId={eventId}/>
                                 <Shiftplan/>
                             </Stack>
+                        </TabPanel>
+                        <TabPanel index={'posten'} activeTab={activeTab}>
+                            <TimingStationPanel />
                         </TabPanel>
                         <TabPanel index={'schedule'} activeTab={activeTab}>
                             <EventSchedule event={data}/>
