@@ -13,8 +13,10 @@ import de.lambda9.ready2race.backend.app.timing.entity.SequenceState
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.testing.testComprehension
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -372,6 +374,121 @@ class TimingSequenceServiceTest {
 
         assertKIOFails(TimingError.SequenceNotFound) {
             TimingSequenceService.startSequence(java.util.UUID.randomUUID(), userId, eventId)
+        }
+    }
+
+    @Test
+    fun secondDirectInsertForSameStationIsRejectedByUniqueIndex() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val now = LocalDateTime.now()
+
+        fun armedRecord() = TimingStartSequenceRecord(
+            id = java.util.UUID.randomUUID(),
+            event = eventId,
+            station = stationId,
+            mode = SequenceMode.MASS.name,
+            intervalMillis = null,
+            state = SequenceState.ARMED.name,
+            startedAtMillis = null,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+
+        // Goes straight through the repo, bypassing TimingSequenceService's existsActiveForStation
+        // pre-check entirely - this is what exercises the uq_timing_sequence_active_station
+        // partial unique index (and TimingSequenceRepo.create's onConflict handling) rather than
+        // the pre-check's ordinary 409 path.
+        val first = !TimingSequenceRepo.create(armedRecord()).orDie()
+        assertNotNull(first)
+
+        val second = !TimingSequenceRepo.create(armedRecord()).orDie()
+        assertNull(second)
+    }
+
+    @Test
+    fun getActiveSequenceFallsBackToRecentlyFinishedSequence() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+
+        // No active sequence anymore, but it only just finished - a client that missed the
+        // terminal broadcast must still be able to render its outcome.
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence
+
+        assertNotNull(dto)
+        assertEquals(sequenceId, dto.id)
+        assertEquals(SequenceState.ABORTED, dto.state)
+    }
+
+    @Test
+    fun getActiveSequenceIgnoresStaleFinishedSequence() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+
+        // Well past the 10 minute window - old news, so the board should fall back to its normal
+        // "no active sequence" state rather than resurfacing ancient history.
+        !TimingSequenceRepo.update(sequenceId) {
+            updatedAt = LocalDateTime.now().minusMinutes(11)
+        }.orDie()
+
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        assertNull(((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence)
+    }
+
+    @Test
+    fun skippingLastPendingEntryAbortsArmedSequence() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(teamA, teamB)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()).sortedBy { it.position }
+
+        !TimingSequenceService.skipEntry(entries[0].id, userId, eventId)
+        // One PENDING entry is still left, so the sequence must stay ARMED.
+        val stillArmed = !TimingSequenceRepo.get(sequenceId).orDie()
+        assertEquals(SequenceState.ARMED.name, stillArmed!!.state)
+
+        !TimingSequenceService.skipEntry(entries[1].id, userId, eventId)
+        // Nothing pending left and it never started - the scheduler will never touch this
+        // sequence, so skipEntry itself must resolve it instead of leaving it stuck ARMED.
+        val aborted = !TimingSequenceRepo.get(sequenceId).orDie()
+        assertEquals(SequenceState.ABORTED.name, aborted!!.state)
+
+        // The station is free again, same as after an operator-triggered abort.
+        assertKIOSucceeds {
+            TimingSequenceService.createSequence(
+                CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(teamA)),
+                userId,
+                eventId,
+            )
         }
     }
 

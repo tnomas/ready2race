@@ -16,6 +16,7 @@ import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -28,6 +29,9 @@ import java.util.UUID
  * [fireDueEntries] is called from the scheduler and documents its own transaction/broadcast contract.
  */
 object TimingSequenceService {
+
+    /** How long a finished sequence still counts as "active" for [getActiveSequence]'s fallback. */
+    private val RECENT_TERMINAL_WINDOW: Duration = Duration.ofMinutes(10)
 
     fun createSequence(
         request: CreateSequenceRequest,
@@ -68,7 +72,11 @@ object TimingSequenceService {
             updatedAt = now,
             updatedBy = userId,
         )
-        !TimingSequenceRepo.create(record).orDie()
+        // Backstops the pre-check above against the race where two requests for the same station
+        // both pass it: the partial unique index makes the insert a no-op instead of a live
+        // second sequence, and that shows up here as a null id.
+        val insertedId = !TimingSequenceRepo.create(record).orDie()
+        !KIO.failOn(insertedId == null) { TimingError.SequenceAlreadyActive }
 
         // The request's list order IS the start order: the index becomes the position, and the
         // position is the slot the entry fires in - which is why skipping never shifts anyone.
@@ -88,6 +96,13 @@ object TimingSequenceService {
         KIO.ok(ApiResponse.Created(sequenceId))
     }
 
+    /**
+     * The sequence a station's board should show right now: the one that is ARMED/RUNNING, or -
+     * if there is none - the most recently finished (DONE/ABORTED) one, as long as it finished
+     * within [RECENT_TERMINAL_WINDOW]. Without that fallback, a client that reconnects (or simply
+     * missed the terminal websocket broadcast) right after a sequence completes would see nothing
+     * at all instead of the summary of what just happened.
+     */
     fun getActiveSequence(
         eventId: UUID,
         stationId: UUID,
@@ -95,7 +110,13 @@ object TimingSequenceService {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
         !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
-        val sequence = !TimingSequenceRepo.getActiveByStation(stationId).orDie()
+        val active = !TimingSequenceRepo.getActiveByStation(stationId).orDie()
+        val sequence = if (active != null) {
+            active
+        } else {
+            val since = LocalDateTime.now().minus(RECENT_TERMINAL_WINDOW)
+            !TimingSequenceRepo.getRecentTerminalByStation(stationId, since).orDie()
+        }
         val dto = if (sequence == null) {
             null
         } else {
@@ -161,14 +182,26 @@ object TimingSequenceService {
             status = SequenceEntryStatus.SKIPPED.name
         }.orDie().onNullFail { TimingError.SequenceEntryNotFound }
 
+        // An ARMED sequence with nothing left to fire (everything skipped, nothing ever started)
+        // would otherwise sit stuck ARMED forever - the scheduler only resolves RUNNING sequences,
+        // and this one never started. Resolving it to ABORTED here is the same terminal state an
+        // operator-triggered abort would produce.
+        val stillPending = !TimingSequenceEntryRepo.existsPending(entry.sequence).orDie()
+        val fullySkipped = sequence.stateEnum == SequenceState.ARMED && !stillPending
+
         // Entries carry no audit columns of their own, so the change is recorded on the sequence.
         val updated = !TimingSequenceRepo.update(entry.sequence) {
+            if (fullySkipped) {
+                state = SequenceState.ABORTED.name
+            }
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
 
-        // Deliberately does not complete the sequence when this was the last pending entry: the
-        // scheduler owns the DONE transition and picks it up on its next tick (within a second).
+        // Deliberately does not complete a RUNNING sequence when this was the last pending entry:
+        // the scheduler owns that DONE transition and picks it up on its next tick (within a
+        // second). An ARMED sequence never reaches the scheduler though, which is why it is
+        // resolved above instead.
         !broadcastSequence(updated)
         noData
     }

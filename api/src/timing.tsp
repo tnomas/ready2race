@@ -161,6 +161,11 @@ model CreateSequenceRequest {
 
 // A station without an armed or running sequence is the normal case (the board then shows its
 // setup form), not a missing resource - hence `sequence` being absent rather than a 404.
+//
+// `sequence` is not limited to ARMED/RUNNING: if the station has none of those, the most recently
+// finished (DONE/ABORTED) sequence is returned instead, as long as it finished within the last 10
+// minutes. This lets a client that reconnects (or missed the terminal websocket broadcast) still
+// render the outcome of a run that just ended, instead of seeing nothing at all.
 model ActiveSequenceDto {
   sequence?: TimingSequenceDto;
 }

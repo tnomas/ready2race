@@ -15,8 +15,6 @@ object TimingSequenceEntryRepo {
 
     fun getBySequence(sequenceId: UUID) = TIMING_START_SEQUENCE_ENTRY.select { SEQUENCE.eq(sequenceId) }
 
-    fun getBySequences(sequenceIds: List<UUID>) = TIMING_START_SEQUENCE_ENTRY.select { SEQUENCE.`in`(sequenceIds) }
-
     fun existsPending(sequenceId: UUID) = TIMING_START_SEQUENCE_ENTRY.exists {
         SEQUENCE.eq(sequenceId).and(STATUS.eq(SequenceEntryStatus.PENDING.name))
     }
