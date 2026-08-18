@@ -38,7 +38,7 @@ data class TimingResultDto(
     val frozen: Boolean,
 )
 
-/** Why a team has no computable final time, or null when it has one. */
+/** Why a team has no computable final time, or why "push everything" left it out. */
 enum class TimingResultSkipReason {
     /** No marks at all - nothing to compute from. */
     NO_MARKS,
@@ -51,6 +51,21 @@ enum class TimingResultSkipReason {
 
     /** The finish mark lies before the start mark - the marks are wrong, not the team. */
     NEGATIVE_DURATION,
+
+    /**
+     * "Push everything" only: the team has a place recorded (`place`, or places calculated), the
+     * same freeze an explicit push answers with [PushConflictReason.RESULT_FROZEN]. Push-all does
+     * not fail the batch over it - the team is left out and reported here instead.
+     */
+    RESULT_FROZEN,
+
+    /**
+     * "Push everything" only: the team is `failed` (a DNS/DNF/DSQ status was entered) but has no
+     * place recorded. Unlike [RESULT_FROZEN] this alone must not block the rest of the batch - a
+     * status is itself a recorded outcome, not a boat still on the water, so push-all leaves it out
+     * rather than treating it as a conflict.
+     */
+    STATUS_SET,
 }
 
 data class TimingResultSkipDto(

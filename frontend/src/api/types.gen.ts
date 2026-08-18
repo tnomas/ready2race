@@ -4064,13 +4064,15 @@ export type TimingResultSkipDto = {
 }
 
 /**
- * Why a team has no computable final time.
+ * Why a team has no computable final time, or why "push everything" left it out. RESULT_FROZEN and STATUS_SET only occur in a push-all response: a place-frozen or status-frozen team is left out of the batch instead of failing it.
  */
 export type TimingResultSkipReason =
     | 'NO_MARKS'
     | 'NO_START_MARK'
     | 'NO_FINISH_MARK'
     | 'NEGATIVE_DURATION'
+    | 'RESULT_FROZEN'
+    | 'STATUS_SET'
 
 export type TimingResultStatus = 'NONE' | 'DNS' | 'DNF' | 'DSQ'
 

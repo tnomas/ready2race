@@ -308,6 +308,25 @@ class TimingResultServiceTest {
         }
     }
 
+    // A RaceClocker boat has no internal measurement at all - the entry endpoint is this
+    // application's own `failed`/penalty tool and must not fight the boat's actual timing source,
+    // exactly like TimingService.assignTimeMark refuses a mark for the same team.
+    @Test
+    fun entryRejectsATeamOfAnotherTimingSystem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !createTestMatchTeam(eventId, TimingSystem.RACECLOCKER)
+
+        assertKIOFails(TimingError.WrongTimingSystem) {
+            TimingResultService.setResultEntry(
+                eventId,
+                teamId,
+                TimingResultEntryRequest(resultStatus = TimingResultStatus.DSQ),
+                userId,
+            )
+        }
+        assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.failedReason)
+    }
+
     // ---------------------------------------------------------------- push
 
     @Test
@@ -630,6 +649,66 @@ class TimingResultServiceTest {
             result.skipped,
         )
         assertEquals(teams[0], (!CompetitionMatchTeamRepo.getById(teams[0]))!!.timecode)
+        assertNull((!CompetitionMatchTeamRepo.getById(teams[1]))!!.timecode)
+    }
+
+    // A DSQ is a recorded outcome, not a boat still on the water - push-all must not treat it like a
+    // conflict that fails the whole batch the way an explicit list still does (see
+    // pushOfATeamWithAStatusIsFrozenRegardlessOfItsReason).
+    @Test
+    fun pushAllSkipsAStatusFrozenTeamAndStillPushesTheRest() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val teams = !createTestMatchTeams(eventId, 2)
+        teams.forEach { teamId ->
+            !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
+            !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis)
+        }
+        !TimingResultService.setResultEntry(
+            eventId,
+            teams[1],
+            TimingResultEntryRequest(resultStatus = TimingResultStatus.DSQ),
+            userId,
+        )
+
+        val result = (!TimingResultService.pushResults(eventId, PushTimingResultsRequest(), userId)).dto
+
+        assertEquals(listOf(teams[0]), result.pushed.map { it.competitionMatchTeam })
+        assertEquals(
+            listOf(TimingResultSkipDto(teams[1], TimingResultSkipReason.STATUS_SET)),
+            result.skipped,
+        )
+        assertEquals(teams[0], (!CompetitionMatchTeamRepo.getById(teams[0]))!!.timecode)
+        // The DSQ itself is untouched by the skip - it was already recorded by the entry above.
+        val dsqTeam = !CompetitionMatchTeamRepo.getById(teams[1])
+        assertNull(dsqTeam!!.timecode)
+        assertTrue(dsqTeam.failed!!)
+        assertEquals("DSQ", dsqTeam.failedReason)
+    }
+
+    // A place is worked-on the same way an explicit push still refuses outright - push-all leaves it
+    // out under its OWN reason (RESULT_FROZEN) rather than STATUS_SET, since a place is a stronger
+    // signal than a bare status and takes priority when (hypothetically) both apply.
+    @Test
+    fun pushAllSkipsAPlaceFrozenTeamAndStillPushesTheRest() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val teams = !createTestMatchTeams(eventId, 2)
+        teams.forEach { teamId ->
+            !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
+            !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis)
+        }
+        !CompetitionMatchTeamRepo.updateById(teams[1]) { placesCalculated = true }
+
+        val result = (!TimingResultService.pushResults(eventId, PushTimingResultsRequest(), userId)).dto
+
+        assertEquals(listOf(teams[0]), result.pushed.map { it.competitionMatchTeam })
+        assertEquals(
+            listOf(TimingResultSkipDto(teams[1], TimingResultSkipReason.RESULT_FROZEN)),
+            result.skipped,
+        )
         assertNull((!CompetitionMatchTeamRepo.getById(teams[1]))!!.timecode)
     }
 }

@@ -99,6 +99,10 @@ object TimingResultService {
      * like. For an internally timed boat this endpoint IS the referee's status tool, so it must be
      * able to change a DSQ into a DNF or clear it again; a `failed` that blocked the entry would
      * lock the only way back out of a status entered a minute ago.
+     *
+     * Scoped to READY2RACE the same way [TimingService.assignTimeMark] refuses a mark: a RaceClocker
+     * boat has no internal measurement, and this endpoint's `failed`/penalty columns are exactly what
+     * that boat's own feed writes - entering a status here would fight the actual timing source.
      */
     fun setResultEntry(
         eventId: UUID,
@@ -107,6 +111,9 @@ object TimingResultService {
         userId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         val team = !checkTeamOfEvent(teamId, eventId)
+        val ready2race = !TimingTeamRepo.isReady2RaceTeam(teamId).orDie()
+        !KIO.failOn(!ready2race) { TimingError.WrongTimingSystem }
+
         val status = request.resultStatus ?: TimingResultStatus.NONE
         val now = LocalDateTime.now()
 
@@ -144,9 +151,17 @@ object TimingResultService {
      * Copies the computed results into the results flow.
      *
      * See [PushTimingResultsRequest] for why an explicit team list is stricter than "push
-     * everything". A frozen team fails the whole call in both shapes, so an operator never ends up
-     * with half a round pushed; [PushTimingResultsRequest.force] overrides that freeze and only
-     * that.
+     * everything":
+     *
+     * - **Explicit list**: a frozen team fails the WHOLE call with a 409, so an operator never ends
+     *   up with half a round pushed; [PushTimingResultsRequest.force] overrides that freeze and only
+     *   that.
+     * - **Push-all** (`teams == null`): a frozen team is left out and reported in `skipped` instead -
+     *   the same reason "push everything" already leaves out boats with no final time. A running
+     *   regatta always has a few teams somebody already worked with (a DSQ entered, a place typed in
+     *   for an earlier heat); refusing the whole batch over one of them would make the button
+     *   useless. [PushTimingResultsRequest.force] therefore has no effect on push-all: there is no
+     *   conflict there to force past.
      *
      * A forced push replaces the `timecode` snapshot (and `failed`/`failed_reason`) but never
      * recalculates places, so a referee has to re-save the match afterwards for the place to reflect
@@ -157,7 +172,9 @@ object TimingResultService {
         request: PushTimingResultsRequest,
         userId: UUID,
     ): App<ServiceError, ApiResponse.Dto<TimingResultPushResultDto>> = KIO.comprehension {
-        val rows = !resolveRows(eventId)
+        val resolved = !resolveRowsWithTeams(eventId)
+        val rows = resolved.map { it.dto }
+        val teamsById = resolved.associate { it.dto.competitionMatchTeam to it.team }
         val byTeam = rows.associateBy { it.competitionMatchTeam }
 
         val requested = request.teams
@@ -173,8 +190,12 @@ object TimingResultService {
             !TimingTeamRepo.getReady2RaceTeamIds(eventId, requested).orDie()
         }
 
+        // Push-all drops a frozen-but-pushable row before it ever becomes a candidate - see
+        // frozenSkipReason below for where it resurfaces, in `skipped` rather than as a conflict. An
+        // explicit list keeps every named row as a candidate, frozen or not, so the freeze still
+        // surfaces as a conflict (below) and `force` still gets a chance to override it.
         val candidates = requested?.map { teamId -> teamId to byTeam[teamId] }
-            ?: rows.filter { pushable(it) }.map { it.competitionMatchTeam to it }
+            ?: rows.filter { pushable(it) && !it.frozen }.map { it.competitionMatchTeam to it }
 
         val conflicts = candidates.mapNotNull { (teamId, row) ->
             when {
@@ -207,8 +228,14 @@ object TimingResultService {
         }
 
         val skipped = if (requested == null) {
-            rows.filter { !pushable(it) }
+            val noFinalTime = rows.filter { !pushable(it) }
                 .mapNotNull { row -> row.skipReason?.let { TimingResultSkipDto(row.competitionMatchTeam, it) } }
+            val alreadyFrozen = rows.filter { pushable(it) && it.frozen }
+                .map { row ->
+                    val team = teamsById.getValue(row.competitionMatchTeam)
+                    TimingResultSkipDto(row.competitionMatchTeam, frozenSkipReason(team))
+                }
+            noFinalTime + alreadyFrozen
         } else {
             emptyList()
         }
@@ -265,6 +292,12 @@ object TimingResultService {
         KIO.ok(Unit)
     }
 
+    /** One Leitstand row together with the raw team record it was computed from. */
+    private data class ResolvedRow(
+        val dto: TimingResultDto,
+        val team: CompetitionMatchTeamRecord,
+    )
+
     /**
      * The Leitstand rows of an event, recomputed from the marks and the teams' result columns.
      *
@@ -275,6 +308,16 @@ object TimingResultService {
      * source produced.
      */
     private fun resolveRows(eventId: UUID): App<Nothing, List<TimingResultDto>> = KIO.comprehension {
+        val resolved = !resolveRowsWithTeams(eventId)
+        KIO.ok(resolved.map { it.dto })
+    }
+
+    /**
+     * Same rows as [resolveRows], paired with the raw team record - [pushResults] needs it to tell
+     * apart WHY a push-all row is frozen (a place, versus only a status), which the [TimingResultDto]
+     * itself only exposes as one combined [TimingResultDto.frozen] flag.
+     */
+    private fun resolveRowsWithTeams(eventId: UUID): App<Nothing, List<ResolvedRow>> = KIO.comprehension {
         val marks = !TimingResultRepo.getAssignedActiveMarks(eventId).orDie()
         val markTimes = markTimes(marks)
         val withResultData = !TimingResultRepo.getTeamIdsWithResultData(eventId).orDie()
@@ -286,7 +329,7 @@ object TimingResultService {
         if (ready2race.isEmpty()) return@comprehension KIO.ok(emptyList())
 
         val teams = !CompetitionMatchTeamRepo.getByIds(ready2race).orDie()
-        KIO.ok(teams.map { team -> resultDto(team, eventId, markTimes[team.id]) })
+        KIO.ok(teams.map { team -> ResolvedRow(resultDto(team, eventId, markTimes[team.id]), team) })
     }
 
     /**
@@ -363,7 +406,18 @@ object TimingResultService {
      * time, so there is nothing left for the push to write.
      */
     private fun isFrozen(team: CompetitionMatchTeamRecord): Boolean =
-        team.placesCalculated == true || team.place != null || team.failed == true
+        placeFrozen(team) || team.failed == true
+
+    /** Whether a place is already recorded for this team - the narrower freeze [setResultEntry] uses. */
+    private fun placeFrozen(team: CompetitionMatchTeamRecord): Boolean =
+        team.placesCalculated == true || team.place != null
+
+    /**
+     * Which [TimingResultSkipReason] push-all reports for a row that is [pushable] but [isFrozen] -
+     * a place takes priority over a mere status, mirroring the order [isFrozen] itself checks in.
+     */
+    private fun frozenSkipReason(team: CompetitionMatchTeamRecord): TimingResultSkipReason =
+        if (placeFrozen(team)) TimingResultSkipReason.RESULT_FROZEN else TimingResultSkipReason.STATUS_SET
 
     private fun checkTeamOfEvent(
         teamId: UUID,
