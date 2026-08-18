@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
     JsonSubTypes.Type(TimingWsMessage.ResultChanged::class, name = "resultChanged"),
+    JsonSubTypes.Type(TimingWsMessage.EventStateChanged::class, name = "eventStateChanged"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -57,6 +58,16 @@ sealed class TimingWsMessage {
      * list - the alternative would be a refetch of the whole event on every keystroke of a penalty.
      */
     data class ResultChanged(val results: List<TimingResultDto>) : TimingWsMessage()
+
+    /**
+     * Generic invalidation signal for the event, carrying no payload beyond the eventId already
+     * implied by the channel. Broadcast centrally from [de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker.bump]
+     * - i.e. from *every* write path that feeds the polled public/live views (LiveDashboard,
+     * Speaker board, Board displays), not only the timing module. Those views already poll on a
+     * fixed cadence and treat this purely as a "maybe refetch a little early" hint: they never
+     * surface websocket connection state, and polling remains their source of truth and fallback.
+     */
+    data object EventStateChanged : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

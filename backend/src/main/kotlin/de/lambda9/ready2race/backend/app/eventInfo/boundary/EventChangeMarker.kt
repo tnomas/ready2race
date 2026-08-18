@@ -1,5 +1,8 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingWsMessage
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -26,14 +29,37 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * Die Karte wächst nur mit der Zahl der Veranstaltungen mit Schreibaktivität und wird nie
  * aufgeräumt — ein Long je Veranstaltung, dieselbe Größenordnung wie die Caches selbst.
+ *
+ * Seit PORT-T6 ist [bump] außerdem die EINE zentrale Stelle, die den WS-Kanal der Veranstaltung
+ * über `eventStateChanged` (siehe [TimingWsMessage.EventStateChanged]) informiert — bewusst
+ * hier und nicht an jeder einzelnen Aufrufstelle, denn genau die Aufrufer, die mit der
+ * Zeitnahme nichts zu tun haben (Zeitplan, RaceClocker, Hinweisbanner, ...), sollen die
+ * gepollten Live-Ansichten (LiveDashboard, Speaker-Board, Board-Anzeigen) ebenso sofort
+ * anstoßen können wie die Zeitnahme selbst.
  */
 object EventChangeMarker {
 
     private val counters = ConcurrentHashMap<UUID, AtomicLong>()
 
+    /**
+     * Letzter tatsächlich gesendeter `eventStateChanged`-Zeitpunkt (Epoch-Millis) je Veranstaltung
+     * — die Drossel für [broadcastEventStateChanged].
+     */
+    private val lastBroadcastAt = ConcurrentHashMap<UUID, Long>()
+
+    /**
+     * Mindestabstand zwischen zwei `eventStateChanged`-Pushes derselben Veranstaltung. Ein Import
+     * oder ein RaceClocker-Poll kann [bump] in kurzer Folge viele Male aufrufen; ohne Drossel würde
+     * jeder einzelne Aufruf einen Push auslösen und die gepollten Ansichten mit Refetches fluten.
+     * Verpasste Zwischenstände sind unschädlich - die betroffenen Ansichten pollen ohnehin weiter
+     * und holen den letzten Stand spätestens im nächsten Takt.
+     */
+    internal const val BROADCAST_WINDOW_MILLIS = 2000L
+
     /** Meldet eine Änderung an der Veranstaltung — alle Cache-Einträge davor sind damit alt. */
     fun bump(eventId: UUID) {
         counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
+        broadcastEventStateChanged(eventId)
     }
 
     /**
@@ -41,4 +67,43 @@ object EventChangeMarker {
      * steigend — ein Cache-Eintrag vergleicht den Stand von seinem Bauzeitpunkt mit diesem.
      */
     fun current(eventId: UUID): Long = counters[eventId]?.get() ?: 0L
+
+    /**
+     * Stößt (gedrosselt) den `eventStateChanged`-Push für [eventId] an.
+     *
+     * [bump] läuft innerhalb laufender Transaktionen (siehe Klassendoc) - der eigentliche Versand
+     * geht deshalb, genau wie bei [TimingBroadcaster] selbst, über [AfterCommit]: erst nach einem
+     * erfolgreichen Commit sichtbar, bei einem Rollback verworfen, und außerhalb einer HTTP-Anfrage
+     * (Scheduler, Tests) sofort ausgeführt.
+     */
+    private fun broadcastEventStateChanged(eventId: UUID, now: Long = System.currentTimeMillis()) {
+        if (!claimBroadcastSlot(eventId, now)) return
+        AfterCommit.register {
+            TimingBroadcaster.broadcast(eventId, TimingWsMessage.EventStateChanged)
+        }
+    }
+
+    /**
+     * Versucht, für [eventId] zum Zeitpunkt [now] ein Sendefenster zu belegen: liefert `true` und
+     * merkt sich [now], wenn der letzte Versand mindestens [BROADCAST_WINDOW_MILLIS] zurückliegt
+     * (oder noch nie stattfand) — sonst `false`, ohne den gemerkten Zeitpunkt zu verändern.
+     *
+     * Reine Funktion von [now] (kein `Thread.sleep`, kein Timer) und deshalb ohne Wartezeit
+     * testbar; atomar über [ConcurrentHashMap.compute], damit zwei gleichzeitige [bump]-Aufrufe
+     * derselben Veranstaltung nicht beide das Fenster belegen.
+     *
+     * Intern sichtbar für Tests, die die Drossel unabhängig vom Versand selbst prüfen wollen.
+     */
+    internal fun claimBroadcastSlot(eventId: UUID, now: Long): Boolean {
+        var claimed = false
+        lastBroadcastAt.compute(eventId) { _, previous ->
+            if (previous == null || now - previous >= BROADCAST_WINDOW_MILLIS) {
+                claimed = true
+                now
+            } else {
+                previous
+            }
+        }
+        return claimed
+    }
 }
