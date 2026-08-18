@@ -7316,6 +7316,182 @@ paths:
                   $ref: '#/components/schemas/TimingTeamDto'
       tags:
         - Timing
+  /event/{eventId}/timing/sequences:
+    post:
+      operationId: createTimingSequence
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 500
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '501':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 501
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+        '502':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - message
+                properties:
+                  status:
+                    type: number
+                    enum:
+                      - 502
+                  message:
+                    type: string
+                  details:
+                    type: object
+                    unevaluatedProperties:
+                      type: string
+                  errorCode:
+                    $ref: '#/components/schemas/ErrorCode'
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSequenceRequest'
+  /event/{eventId}/timing/sequences/active:
+    get:
+      operationId: getActiveTimingSequence
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveSequenceDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/abort:
+    post:
+      operationId: abortTimingSequence
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip:
+    post:
+      operationId: skipTimingSequenceEntry
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/start:
+    post:
+      operationId: startTimingSequence
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
 
 components:
 
@@ -13380,3 +13556,103 @@ components:
           type: string
         matchName:
           type: string
+
+    ActiveSequenceDto:
+      type: object
+      properties:
+        sequence:
+          $ref: '#/components/schemas/TimingSequenceDto'
+
+    CreateSequenceRequest:
+      type: object
+      required:
+        - station
+        - mode
+        - teams
+      properties:
+        station:
+          $ref: '#/components/schemas/uuid'
+        mode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/uuid'
+
+    SequenceEntryStatus:
+      type: string
+      enum:
+        - PENDING
+        - STARTED
+        - SKIPPED
+
+    SequenceMode:
+      type: string
+      enum:
+        - MASS
+        - INTERVAL
+
+    SequenceState:
+      type: string
+      enum:
+        - ARMED
+        - RUNNING
+        - DONE
+        - ABORTED
+
+    TimingSequenceDto:
+      type: object
+      required:
+        - id
+        - event
+        - station
+        - mode
+        - state
+        - entries
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        station:
+          $ref: '#/components/schemas/uuid'
+        mode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+        state:
+          $ref: '#/components/schemas/SequenceState'
+        startedAtMillis:
+          type: integer
+          format: int64
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingSequenceEntryDto'
+
+    TimingSequenceEntryDto:
+      type: object
+      required:
+        - id
+        - competitionMatchTeam
+        - position
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        position:
+          type: integer
+          format: int32
+        status:
+          $ref: '#/components/schemas/SequenceEntryStatus'
+        plannedStartMillis:
+          type: integer
+          format: int64
+        timeMark:
+          $ref: '#/components/schemas/uuid'

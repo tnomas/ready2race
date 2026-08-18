@@ -791,6 +791,21 @@ import type {
     GetTimingTeamsData,
     GetTimingTeamsError,
     GetTimingTeamsResponse,
+    CreateTimingSequenceData,
+    CreateTimingSequenceError,
+    CreateTimingSequenceResponse,
+    GetActiveTimingSequenceData,
+    GetActiveTimingSequenceError,
+    GetActiveTimingSequenceResponse,
+    AbortTimingSequenceData,
+    AbortTimingSequenceError,
+    AbortTimingSequenceResponse,
+    SkipTimingSequenceEntryData,
+    SkipTimingSequenceEntryError,
+    SkipTimingSequenceEntryResponse,
+    StartTimingSequenceData,
+    StartTimingSequenceError,
+    StartTimingSequenceResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -4157,5 +4172,70 @@ export const getTimingTeams = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/teams',
+    })
+}
+
+export const createTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingSequenceResponse,
+        CreateTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences',
+    })
+}
+
+export const getActiveTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetActiveTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetActiveTimingSequenceResponse,
+        GetActiveTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/active',
+    })
+}
+
+export const abortTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AbortTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AbortTimingSequenceResponse,
+        AbortTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/abort',
+    })
+}
+
+export const skipTimingSequenceEntry = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SkipTimingSequenceEntryData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        SkipTimingSequenceEntryResponse,
+        SkipTimingSequenceEntryError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip',
+    })
+}
+
+export const startTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<StartTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        StartTimingSequenceResponse,
+        StartTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/start',
     })
 }

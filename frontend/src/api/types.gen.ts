@@ -14,6 +14,10 @@ export type ActionColors = {
     info: string
 }
 
+export type ActiveSequenceDto = {
+    sequence?: TimingSequenceDto
+}
+
 export type ApiError = {
     status: {
         value: number
@@ -694,6 +698,13 @@ export type CreateEventRequest = {
     allowSelfSubmission: boolean
     submissionNeedsVerification: boolean
     allowParticipantSelfRegistration: boolean
+}
+
+export type CreateSequenceRequest = {
+    station: uuid
+    mode: SequenceMode
+    intervalMillis?: number
+    teams: Array<uuid>
 }
 
 export type CreateTimeMarkRequest = {
@@ -1835,6 +1846,12 @@ export type RunningMatchTeamInfo = {
 
 export type Scope = 'OWN' | 'GLOBAL'
 
+export type SequenceEntryStatus = 'PENDING' | 'STARTED' | 'SKIPPED'
+
+export type SequenceMode = 'MASS' | 'INTERVAL'
+
+export type SequenceState = 'ARMED' | 'RUNNING' | 'DONE' | 'ABORTED'
+
 export type ServerTimeResponse = {
     serverTimeMillis: number
 }
@@ -2021,6 +2038,26 @@ export type TimeMarkDto = {
     status: string
     createdBy?: uuid
     assignedTeam?: uuid
+}
+
+export type TimingSequenceDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    mode: SequenceMode
+    intervalMillis?: number
+    state: SequenceState
+    startedAtMillis?: number
+    entries: Array<TimingSequenceEntryDto>
+}
+
+export type TimingSequenceEntryDto = {
+    id: uuid
+    competitionMatchTeam: uuid
+    position: number
+    status: SequenceEntryStatus
+    plannedStartMillis?: number
+    timeMark?: uuid
 }
 
 export type TimingStateDto = {
@@ -6078,3 +6115,85 @@ export type GetTimingTeamsData = {
 export type GetTimingTeamsResponse = Array<TimingTeamDto>
 
 export type GetTimingTeamsError = unknown
+
+export type CreateTimingSequenceData = {
+    body: CreateSequenceRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimingSequenceResponse = uuid
+
+export type CreateTimingSequenceError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type GetActiveTimingSequenceData = {
+    path: {
+        eventId: uuid
+    }
+    query: {
+        stationId: uuid
+    }
+}
+
+export type GetActiveTimingSequenceResponse = ActiveSequenceDto
+
+export type GetActiveTimingSequenceError = unknown
+
+export type AbortTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type AbortTimingSequenceResponse = void
+
+export type AbortTimingSequenceError = unknown
+
+export type SkipTimingSequenceEntryData = {
+    path: {
+        entryId: uuid
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type SkipTimingSequenceEntryResponse = void
+
+export type SkipTimingSequenceEntryError = unknown
+
+export type StartTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type StartTimingSequenceResponse = void
+
+export type StartTimingSequenceError = unknown

@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
@@ -53,38 +54,37 @@ object TimingSequenceService {
 
         val now = LocalDateTime.now()
         val sequenceId = UUID.randomUUID()
-        !TimingSequenceRepo.create(
-            TimingStartSequenceRecord(
-                id = sequenceId,
-                event = eventId,
-                station = request.station,
-                mode = request.mode.name,
-                // MASS has no cadence - never persist a stray interval that would confuse the DTO.
-                intervalMillis = request.intervalMillis.takeIf { request.mode == SequenceMode.INTERVAL },
-                state = SequenceState.ARMED.name,
-                startedAtMillis = null,
-                createdAt = now,
-                createdBy = userId,
-                updatedAt = now,
-                updatedBy = userId,
-            )
-        ).orDie()
+        val record = TimingStartSequenceRecord(
+            id = sequenceId,
+            event = eventId,
+            station = request.station,
+            mode = request.mode.name,
+            // MASS has no cadence - never persist a stray interval that would confuse the DTO.
+            intervalMillis = request.intervalMillis.takeIf { request.mode == SequenceMode.INTERVAL },
+            state = SequenceState.ARMED.name,
+            startedAtMillis = null,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+        !TimingSequenceRepo.create(record).orDie()
 
         // The request's list order IS the start order: the index becomes the position, and the
         // position is the slot the entry fires in - which is why skipping never shifts anyone.
-        !TimingSequenceEntryRepo.create(
-            request.teams.mapIndexed { index, teamId ->
-                TimingStartSequenceEntryRecord(
-                    id = UUID.randomUUID(),
-                    sequence = sequenceId,
-                    competitionMatchTeam = teamId,
-                    position = index,
-                    status = SequenceEntryStatus.PENDING.name,
-                    timeMark = null,
-                )
-            }
-        ).orDie()
+        val entries = request.teams.mapIndexed { index, teamId ->
+            TimingStartSequenceEntryRecord(
+                id = UUID.randomUUID(),
+                sequence = sequenceId,
+                competitionMatchTeam = teamId,
+                position = index,
+                status = SequenceEntryStatus.PENDING.name,
+                timeMark = null,
+            )
+        }
+        !TimingSequenceEntryRepo.create(entries).orDie()
 
+        broadcastAsync(eventId, sequenceDto(record, entries))
         KIO.ok(ApiResponse.Created(sequenceId))
     }
 
@@ -116,12 +116,14 @@ object TimingSequenceService {
         // The server's clock is the record: every board derives its countdown from this instant plus
         // its own measured clock offset, so nobody counts down against their local time.
         val startedAt = System.currentTimeMillis()
-        !TimingSequenceRepo.update(sequenceId) {
+        val updated = !TimingSequenceRepo.update(sequenceId) {
             state = SequenceState.RUNNING.name
             startedAtMillis = startedAt
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        !broadcastSequence(updated)
         noData
     }
 
@@ -135,11 +137,13 @@ object TimingSequenceService {
 
         // Leaves already fired entries (and their marks) alone - only the pending ones are called
         // off, which is exactly what an abort means at a start line.
-        !TimingSequenceRepo.update(sequenceId) {
+        val updated = !TimingSequenceRepo.update(sequenceId) {
             state = SequenceState.ABORTED.name
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        !broadcastSequence(updated)
         noData
     }
 
@@ -158,13 +162,14 @@ object TimingSequenceService {
         }.orDie().onNullFail { TimingError.SequenceEntryNotFound }
 
         // Entries carry no audit columns of their own, so the change is recorded on the sequence.
-        !TimingSequenceRepo.update(entry.sequence) {
+        val updated = !TimingSequenceRepo.update(entry.sequence) {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
-        }.orDie()
+        }.orDie().onNullFail { TimingError.SequenceNotFound }
 
         // Deliberately does not complete the sequence when this was the last pending entry: the
         // scheduler owns the DONE transition and picks it up on its next tick (within a second).
+        !broadcastSequence(updated)
         noData
     }
 
@@ -219,6 +224,9 @@ object TimingSequenceService {
                 eventId,
                 TimingWsMessage.AssignmentChanged(entry.mark.id, entry.mark.assignedTeam),
             )
+        }
+        result.changedSequences.forEach { sequence ->
+            TimingBroadcaster.broadcast(sequence.event, TimingWsMessage.SequenceChanged(sequence))
         }
     }
 
@@ -317,4 +325,20 @@ object TimingSequenceService {
 
     private val TimingStartSequenceRecord.stateEnum: SequenceState
         get() = SequenceState.valueOf(state!!)
+
+    /** Re-reads [record]'s entries and broadcasts the resulting DTO after commit. */
+    private fun broadcastSequence(record: TimingStartSequenceRecord): App<Nothing, Unit> = KIO.comprehension {
+        val entries = !TimingSequenceEntryRepo.getBySequence(record.id).orDie()
+        broadcastAsync(record.event, sequenceDto(record, entries))
+        KIO.ok(Unit)
+    }
+
+    // Mirrors TimingService.broadcastAsync: the mutation runs inside respondKIO's transaction, so
+    // the broadcast must wait until that transaction has committed - AfterCommit buffers it there
+    // (and runs it immediately for non-HTTP callers).
+    private fun broadcastAsync(eventId: UUID, sequence: TimingSequenceDto) {
+        AfterCommit.register {
+            TimingBroadcaster.broadcast(eventId, TimingWsMessage.SequenceChanged(sequence))
+        }
+    }
 }

@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
@@ -101,6 +102,61 @@ fun Route.timing() {
                         val timeMarkId = !pathParam("timeMarkId", uuid)
                         val body = !receiveKIO(AssignTimeMarkRequest.example)
                         TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
+                    }
+                }
+            }
+        }
+
+        route("/sequences") {
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(CreateSequenceRequest.example)
+                    TimingSequenceService.createSequence(body, user.id!!, eventId)
+                }
+            }
+
+            get("/active") {
+                call.respondComprehension {
+                    !authenticateAny(
+                        Privilege.UpdateAppTimingGlobal,
+                        Privilege.UpdateEventGlobal,
+                        Privilege.ReadEventGlobal,
+                    )
+                    val eventId = !pathParam("eventId", uuid)
+                    val stationId = !queryParam("stationId", uuid)
+                    TimingSequenceService.getActiveSequence(eventId, stationId)
+                }
+            }
+
+            route("/{sequenceId}") {
+
+                post("/start") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val sequenceId = !pathParam("sequenceId", uuid)
+                        TimingSequenceService.startSequence(sequenceId, user.id!!, eventId)
+                    }
+                }
+
+                post("/abort") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val sequenceId = !pathParam("sequenceId", uuid)
+                        TimingSequenceService.abortSequence(sequenceId, user.id!!, eventId)
+                    }
+                }
+
+                post("/entries/{entryId}/skip") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val entryId = !pathParam("entryId", uuid)
+                        TimingSequenceService.skipEntry(entryId, user.id!!, eventId)
                     }
                 }
             }

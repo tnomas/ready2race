@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.lambda9.ready2race.backend.app.timing.entity.TimeMarkDto
+import de.lambda9.ready2race.backend.app.timing.entity.TimingSequenceDto
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -27,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.TimeMarkRetracted::class, name = "timeMarkRetracted"),
     JsonSubTypes.Type(TimingWsMessage.AssignmentChanged::class, name = "assignmentChanged"),
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
+    JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -40,6 +42,7 @@ sealed class TimingWsMessage {
         val competitionMatchTeam: UUID?,
     ) : TimingWsMessage()
     data object StationsChanged : TimingWsMessage()
+    data class SequenceChanged(val sequence: TimingSequenceDto) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

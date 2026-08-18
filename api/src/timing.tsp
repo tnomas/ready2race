@@ -29,6 +29,9 @@ namespace Ready2Race;
  *     distinguish "no assignment" from a field that was never sent.
  *   - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
  *     `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ *   - `{ type: "sequenceChanged", sequence: TimingSequenceDto }` - a start sequence (see below) was
+ *     created, started, aborted, had an entry fire or get skipped, or completed. Boards watching
+ *     that sequence's station should replace their local copy with `sequence`.
  * - The channel is receive-only: clients should ignore any data they send on it and rely on the
  *   server's ping/pong keepalive.
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
@@ -102,12 +105,74 @@ model TimingTeamDto {
   matchName?: string;
 }
 
+enum SequenceMode {
+  MASS;
+  INTERVAL;
+}
+
+enum SequenceState {
+  ARMED;
+  RUNNING;
+  DONE;
+  ABORTED;
+}
+
+enum SequenceEntryStatus {
+  PENDING;
+  STARTED;
+  SKIPPED;
+}
+
+model TimingSequenceEntryDto {
+  id: uuid;
+  competitionMatchTeam: uuid;
+  position: int32;
+  status: SequenceEntryStatus;
+
+  // Wall-clock instant (server epoch millis) this entry is scheduled to fire at, or absent while
+  // the sequence has not been started yet.
+  plannedStartMillis?: int64;
+  timeMark?: uuid;
+}
+
+model TimingSequenceDto {
+  id: uuid;
+  event: uuid;
+  station: uuid;
+  mode: SequenceMode;
+
+  // Only ever set for mode INTERVAL.
+  intervalMillis?: int64;
+  state: SequenceState;
+  startedAtMillis?: int64;
+  entries: TimingSequenceEntryDto[];
+}
+
+model CreateSequenceRequest {
+  station: uuid;
+  mode: SequenceMode;
+
+  // Required (and must be >= 1000) for mode INTERVAL; ignored for MASS.
+  intervalMillis?: int64;
+
+  // Ordered: index in this list becomes the entry position and therefore the start slot.
+  teams: uuid[];
+}
+
+// A station without an armed or running sequence is the normal case (the board then shows its
+// setup form), not a missing resource - hence `sequence` being absent rather than a 404.
+model ActiveSequenceDto {
+  sequence?: TimingSequenceDto;
+}
+
 // ==========================================================================
 // Routes - event-scoped
 // ==========================================================================
 // GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /stations, PUT /stations/{id}, DELETE /stations/{id}: require UpdateEventGlobal
 // POST /timeMarks, PUT /timeMarks/{id}/retract, PUT /timeMarks/{id}/assignment: require UpdateAppTimingGlobal OR UpdateEventGlobal
+// GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal
+// POST /sequences, POST /sequences/{id}/start|abort, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
 
 @route("/event/{eventId}/timing")
 @tag("Timing")
@@ -176,6 +241,47 @@ interface TimingRoutes {
     @path eventId: uuid,
     @path timeMarkId: uuid,
     @body request: AssignTimeMarkRequest,
+  ): void;
+
+  @post
+  @route("/sequences")
+  @operationId("createTimingSequence")
+  createTimingSequence(
+    @path eventId: uuid,
+    @body request: CreateSequenceRequest,
+  ): Created;
+
+  @get
+  @route("/sequences/active")
+  @operationId("getActiveTimingSequence")
+  getActiveTimingSequence(
+    @path eventId: uuid,
+    @query stationId: uuid,
+  ): ActiveSequenceDto;
+
+  @post
+  @route("/sequences/{sequenceId}/start")
+  @operationId("startTimingSequence")
+  startTimingSequence(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+  ): void;
+
+  @post
+  @route("/sequences/{sequenceId}/abort")
+  @operationId("abortTimingSequence")
+  abortTimingSequence(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+  ): void;
+
+  @post
+  @route("/sequences/{sequenceId}/entries/{entryId}/skip")
+  @operationId("skipTimingSequenceEntry")
+  skipTimingSequenceEntry(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+    @path entryId: uuid,
   ): void;
 }
 
