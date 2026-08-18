@@ -179,14 +179,123 @@ model ActiveSequenceDto {
   sequence?: TimingSequenceDto;
 }
 
+enum OfficialTimeResultStatus {
+  NONE;
+  DNS;
+  DNF;
+  DSQ;
+}
+
+// One row of the Leitstand's result table. `startMillis`/`finishMillis` are resolved live from the
+// team's currently assigned, non-retracted marks (not stored); `effectiveMillis` is the value a
+// push would write - `(overrideMillis ?? computedMillis) + penaltyMillis`, or absent when there is
+// no base time or when `resultStatus` is not `NONE`.
+model OfficialTimeDto {
+  competitionMatchTeam: uuid;
+  event: uuid;
+  startMillis?: int64;
+  finishMillis?: int64;
+  computedMillis?: int64;
+  overrideMillis?: int64;
+  penaltyMillis: int64;
+  resultStatus: OfficialTimeResultStatus;
+  effectiveMillis?: int64;
+  dirty: boolean;
+  pushedAt?: dateTime;
+}
+
+enum OfficialTimeSkipReason {
+  // Marks exist, but none on a START station - the difference cannot be formed.
+  NO_START_MARK;
+  // Started but not finished yet (or the finish mark was retracted).
+  NO_FINISH_MARK;
+  // The finish mark lies before the start mark - the marks are wrong, not the team.
+  NEGATIVE_DURATION;
+}
+
+model OfficialTimeSkipDto {
+  competitionMatchTeam: uuid;
+  reason: OfficialTimeSkipReason;
+}
+
+model OfficialTimeComputeResultDto {
+  computed: OfficialTimeDto[];
+  skipped: OfficialTimeSkipDto[];
+}
+
+// Which teams to recompute. Absent or omitted recomputes the whole event.
+model ComputeOfficialTimesRequest {
+  teams?: uuid[];
+}
+
+// PUT semantics: every field is replaced - an absent `overrideMillis` clears a previous override,
+// an absent `penaltyMillis` resets the penalty to 0, and an absent `resultStatus` resets it to
+// `NONE`.
+model OfficialTimeOverrideRequest {
+  overrideMillis?: int64;
+  penaltyMillis?: int64;
+  resultStatus?: OfficialTimeResultStatus;
+}
+
+enum PushConflictReason {
+  // The team's result is already recorded in the results flow (a place was entered, or places
+  // were calculated) - overridable with `force`.
+  RESULT_FROZEN;
+  // Neither a computed nor an overridden time, and no DNS/DNF/DSQ status - nothing to write.
+  NO_EFFECTIVE_TIME;
+}
+
+model OfficialTimePushConflictDto {
+  competitionMatchTeam: uuid;
+  reason: PushConflictReason;
+}
+
+// `force` only overrides the RESULT_FROZEN conflict; a team without an effective time can never be
+// pushed because there is nothing to write.
+model PushOfficialTimesRequest {
+  teams: uuid[];
+  force?: boolean;
+}
+
+// The ids the explicit "delete times" action physically removed.
+model DeletedTimeMarksDto {
+  timeMarks: uuid[];
+}
+
+// Metadata of a hardware device token. Deliberately carries neither the token nor its hash.
+model TimingDeviceTokenDto {
+  id: uuid;
+  event: uuid;
+  station: uuid;
+  name: string;
+  revoked: boolean;
+  createdAt: dateTime;
+}
+
+// Response of an issue call: the only moment the plaintext `token` exists outside the device. Only
+// its hash is stored, so a lost token cannot be recovered - it has to be revoked and reissued.
+model TimingDeviceTokenIssuedDto {
+  deviceToken: TimingDeviceTokenDto;
+  token: string;
+}
+
+model TimingDeviceTokenRequest {
+  name: string;
+  station: uuid;
+}
+
 // ==========================================================================
 // Routes - event-scoped
 // ==========================================================================
 // GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /stations, PUT /stations/{id}, DELETE /stations/{id}: require UpdateEventGlobal
 // POST /timeMarks, PUT /timeMarks/{id}/retract, PUT /timeMarks/{id}/assignment: require UpdateAppTimingGlobal OR UpdateEventGlobal
+// DELETE /timeMarks/retracted: require UpdateEventGlobal
 // GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal
 // POST /sequences, POST /sequences/{id}/start|abort, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
+// GET /officialTimes: require UpdateAppTimingGlobal OR ReadEventGlobal
+// POST /officialTimes/compute, PUT /officialTimes/{id}, POST /officialTimes/push: require UpdateEventGlobal
+// GET /deviceTokens, POST /deviceTokens, DELETE /deviceTokens/{id}: require UpdateEventGlobal
 
 @route("/event/{eventId}/timing")
 @tag("Timing")
@@ -296,6 +405,65 @@ interface TimingRoutes {
     @path eventId: uuid,
     @path sequenceId: uuid,
     @path entryId: uuid,
+  ): void;
+
+  @delete
+  @route("/timeMarks/retracted")
+  @operationId("deleteRetractedTimeMarks")
+  deleteRetractedTimeMarks(
+    @path eventId: uuid,
+    @query station?: uuid,
+  ): DeletedTimeMarksDto;
+
+  @get
+  @route("/officialTimes")
+  @operationId("getOfficialTimes")
+  getOfficialTimes(@path eventId: uuid): OfficialTimeDto[];
+
+  @post
+  @route("/officialTimes/compute")
+  @operationId("computeOfficialTimes")
+  computeOfficialTimes(
+    @path eventId: uuid,
+    @body request: ComputeOfficialTimesRequest,
+  ): OfficialTimeComputeResultDto;
+
+  @put
+  @route("/officialTimes/{competitionMatchTeamId}")
+  @operationId("setOfficialTimeOverride")
+  setOfficialTimeOverride(
+    @path eventId: uuid,
+    @path competitionMatchTeamId: uuid,
+    @body request: OfficialTimeOverrideRequest,
+  ): void;
+
+  @post
+  @route("/officialTimes/push")
+  @operationId("pushOfficialTimes")
+  pushOfficialTimes(
+    @path eventId: uuid,
+    @body request: PushOfficialTimesRequest,
+  ): void;
+
+  @get
+  @route("/deviceTokens")
+  @operationId("listTimingDeviceTokens")
+  listTimingDeviceTokens(@path eventId: uuid): TimingDeviceTokenDto[];
+
+  @post
+  @route("/deviceTokens")
+  @operationId("issueTimingDeviceToken")
+  issueTimingDeviceToken(
+    @path eventId: uuid,
+    @body request: TimingDeviceTokenRequest,
+  ): TimingDeviceTokenIssuedDto;
+
+  @delete
+  @route("/deviceTokens/{tokenId}")
+  @operationId("revokeTimingDeviceToken")
+  revokeTimingDeviceToken(
+    @path eventId: uuid,
+    @path tokenId: uuid,
   ): void;
 }
 

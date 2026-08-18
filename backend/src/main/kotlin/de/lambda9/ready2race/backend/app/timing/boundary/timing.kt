@@ -2,8 +2,12 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.ComputeOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideRequest
+import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -80,6 +84,18 @@ fun Route.timing() {
         }
 
         route("/timeMarks") {
+
+            // The only path that ever hard-deletes a time mark ("Zeiten löschen"): retracted marks
+            // of the event, or of one station when the query param is given. ACTIVE marks are never
+            // touched by this endpoint - retracting first is the deliberate step that allows it.
+            delete("/retracted") {
+                call.respondComprehension {
+                    !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val stationId = !optionalQueryParam("station", uuid)
+                    TimingOfficialTimeService.deleteRetractedMarks(eventId, stationId)
+                }
+            }
 
             post {
                 call.respondComprehension {
@@ -179,6 +195,74 @@ fun Route.timing() {
                         val entryId = !pathParam("entryId", uuid)
                         TimingSequenceService.skipEntry(entryId, user.id!!, eventId)
                     }
+                }
+            }
+        }
+
+        route("/officialTimes") {
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingOfficialTimeService.getForEvent(eventId)
+                }
+            }
+
+            post("/compute") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(ComputeOfficialTimesRequest.example)
+                    TimingOfficialTimeService.computeOfficialTimes(eventId, user.id!!, body.teams)
+                }
+            }
+
+            put("/{competitionMatchTeamId}") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val teamId = !pathParam("competitionMatchTeamId", uuid)
+                    val body = !receiveKIO(OfficialTimeOverrideRequest.example)
+                    TimingOfficialTimeService.setOverride(eventId, teamId, body, user.id!!)
+                }
+            }
+
+            post("/push") {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(PushOfficialTimesRequest.example)
+                    TimingOfficialTimeService.pushOfficialTimes(eventId, body, user.id!!)
+                }
+            }
+        }
+
+        route("/deviceTokens") {
+
+            get {
+                call.respondComprehension {
+                    !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingDeviceTokenService.list(eventId)
+                }
+            }
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingDeviceTokenRequest.example)
+                    TimingDeviceTokenService.issue(eventId, body, user.id!!)
+                }
+            }
+
+            delete("/{tokenId}") {
+                call.respondComprehension {
+                    !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val tokenId = !pathParam("tokenId", uuid)
+                    TimingDeviceTokenService.revoke(eventId, tokenId)
                 }
             }
         }

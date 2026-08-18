@@ -7492,6 +7492,181 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/timeMarks/retracted:
+    delete:
+      operationId: deleteRetractedTimeMarks
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: station
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/uuid'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletedTimeMarksDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/officialTimes:
+    get:
+      operationId: getOfficialTimes
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfficialTimeDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/officialTimes/compute:
+    post:
+      operationId: computeOfficialTimes
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficialTimeComputeResultDto'
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputeOfficialTimesRequest'
+  /event/{eventId}/timing/officialTimes/push:
+    post:
+      operationId: pushOfficialTimes
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushOfficialTimesRequest'
+  /event/{eventId}/timing/officialTimes/{competitionMatchTeamId}:
+    put:
+      operationId: setOfficialTimeOverride
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: competitionMatchTeamId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficialTimeOverrideRequest'
+  /event/{eventId}/timing/deviceTokens:
+    get:
+      operationId: listTimingDeviceTokens
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingDeviceTokenDto'
+      tags:
+        - Timing
+    post:
+      operationId: issueTimingDeviceToken
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingDeviceTokenIssuedDto'
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingDeviceTokenRequest'
+  /event/{eventId}/timing/deviceTokens/{tokenId}:
+    delete:
+      operationId: revokeTimingDeviceToken
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
 
 components:
 
@@ -13662,4 +13837,189 @@ components:
           type: integer
           format: int64
         timeMark:
+          $ref: '#/components/schemas/uuid'
+
+    ComputeOfficialTimesRequest:
+      type: object
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/uuid'
+
+    DeletedTimeMarksDto:
+      type: object
+      required:
+        - timeMarks
+      properties:
+        timeMarks:
+          type: array
+          items:
+            $ref: '#/components/schemas/uuid'
+
+    OfficialTimeComputeResultDto:
+      type: object
+      required:
+        - computed
+        - skipped
+      properties:
+        computed:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficialTimeDto'
+        skipped:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficialTimeSkipDto'
+
+    OfficialTimeDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - event
+        - penaltyMillis
+        - resultStatus
+        - dirty
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        startMillis:
+          type: integer
+          format: int64
+        finishMillis:
+          type: integer
+          format: int64
+        computedMillis:
+          type: integer
+          format: int64
+        overrideMillis:
+          type: integer
+          format: int64
+        penaltyMillis:
+          type: integer
+          format: int64
+        resultStatus:
+          $ref: '#/components/schemas/OfficialTimeResultStatus'
+        effectiveMillis:
+          type: integer
+          format: int64
+        dirty:
+          type: boolean
+        pushedAt:
+          type: string
+          format: date-time
+
+    OfficialTimeOverrideRequest:
+      type: object
+      properties:
+        overrideMillis:
+          type: integer
+          format: int64
+        penaltyMillis:
+          type: integer
+          format: int64
+        resultStatus:
+          $ref: '#/components/schemas/OfficialTimeResultStatus'
+
+    OfficialTimePushConflictDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - reason
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        reason:
+          $ref: '#/components/schemas/PushConflictReason'
+
+    OfficialTimeResultStatus:
+      type: string
+      enum:
+        - NONE
+        - DNS
+        - DNF
+        - DSQ
+
+    OfficialTimeSkipDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - reason
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        reason:
+          $ref: '#/components/schemas/OfficialTimeSkipReason'
+
+    OfficialTimeSkipReason:
+      type: string
+      enum:
+        - NO_START_MARK
+        - NO_FINISH_MARK
+        - NEGATIVE_DURATION
+
+    PushConflictReason:
+      type: string
+      enum:
+        - RESULT_FROZEN
+        - NO_EFFECTIVE_TIME
+
+    PushOfficialTimesRequest:
+      type: object
+      required:
+        - teams
+      properties:
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/uuid'
+        force:
+          type: boolean
+
+    TimingDeviceTokenDto:
+      type: object
+      required:
+        - id
+        - event
+        - station
+        - name
+        - revoked
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        station:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        revoked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    TimingDeviceTokenIssuedDto:
+      type: object
+      required:
+        - deviceToken
+        - token
+      properties:
+        deviceToken:
+          $ref: '#/components/schemas/TimingDeviceTokenDto'
+        token:
+          type: string
+
+    TimingDeviceTokenRequest:
+      type: object
+      required:
+        - name
+        - station
+      properties:
+        name:
+          type: string
+        station:
           $ref: '#/components/schemas/uuid'

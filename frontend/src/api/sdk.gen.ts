@@ -806,6 +806,30 @@ import type {
     StartTimingSequenceData,
     StartTimingSequenceError,
     StartTimingSequenceResponse,
+    DeleteRetractedTimeMarksData,
+    DeleteRetractedTimeMarksError,
+    DeleteRetractedTimeMarksResponse,
+    GetOfficialTimesData,
+    GetOfficialTimesError,
+    GetOfficialTimesResponse,
+    ComputeOfficialTimesData,
+    ComputeOfficialTimesError,
+    ComputeOfficialTimesResponse,
+    PushOfficialTimesData,
+    PushOfficialTimesError,
+    PushOfficialTimesResponse,
+    SetOfficialTimeOverrideData,
+    SetOfficialTimeOverrideError,
+    SetOfficialTimeOverrideResponse,
+    ListTimingDeviceTokensData,
+    ListTimingDeviceTokensError,
+    ListTimingDeviceTokensResponse,
+    IssueTimingDeviceTokenData,
+    IssueTimingDeviceTokenError,
+    IssueTimingDeviceTokenResponse,
+    RevokeTimingDeviceTokenData,
+    RevokeTimingDeviceTokenError,
+    RevokeTimingDeviceTokenResponse,
 } from './types.gen'
 
 export const client = createClient(createConfig())
@@ -4237,5 +4261,109 @@ export const startTimingSequence = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/sequences/{sequenceId}/start',
+    })
+}
+
+export const deleteRetractedTimeMarks = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteRetractedTimeMarksData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteRetractedTimeMarksResponse,
+        DeleteRetractedTimeMarksError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/retracted',
+    })
+}
+
+export const getOfficialTimes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetOfficialTimesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetOfficialTimesResponse,
+        GetOfficialTimesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/officialTimes',
+    })
+}
+
+export const computeOfficialTimes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ComputeOfficialTimesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ComputeOfficialTimesResponse,
+        ComputeOfficialTimesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/officialTimes/compute',
+    })
+}
+
+export const pushOfficialTimes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PushOfficialTimesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        PushOfficialTimesResponse,
+        PushOfficialTimesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/officialTimes/push',
+    })
+}
+
+export const setOfficialTimeOverride = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetOfficialTimeOverrideData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetOfficialTimeOverrideResponse,
+        SetOfficialTimeOverrideError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/officialTimes/{competitionMatchTeamId}',
+    })
+}
+
+export const listTimingDeviceTokens = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ListTimingDeviceTokensData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        ListTimingDeviceTokensResponse,
+        ListTimingDeviceTokensError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens',
+    })
+}
+
+export const issueTimingDeviceToken = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<IssueTimingDeviceTokenData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        IssueTimingDeviceTokenResponse,
+        IssueTimingDeviceTokenError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens',
+    })
+}
+
+export const revokeTimingDeviceToken = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RevokeTimingDeviceTokenData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        RevokeTimingDeviceTokenResponse,
+        RevokeTimingDeviceTokenError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/deviceTokens/{tokenId}',
     })
 }

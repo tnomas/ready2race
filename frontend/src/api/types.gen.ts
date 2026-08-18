@@ -664,6 +664,10 @@ export type CompetitionTemplateDto = {
     setupTemplate?: CompetitionSetupTemplateOverviewDto
 }
 
+export type ComputeOfficialTimesRequest = {
+    teams?: Array<uuid>
+}
+
 export type ContactInformationDto = {
     id: string
     name: string
@@ -722,6 +726,10 @@ export type CustomFontDto = {
 export type CustomLogoDto = {
     enabled: boolean
     filename?: string | null
+}
+
+export type DeletedTimeMarksDto = {
+    timeMarks: Array<uuid>
 }
 
 export type DocumentTemplateDto = {
@@ -1348,6 +1356,45 @@ export type NamedParticipantWithRequirementsDto = {
     qrCodeRequired: boolean
 }
 
+export type OfficialTimeComputeResultDto = {
+    computed: Array<OfficialTimeDto>
+    skipped: Array<OfficialTimeSkipDto>
+}
+
+export type OfficialTimeDto = {
+    competitionMatchTeam: uuid
+    event: uuid
+    startMillis?: number
+    finishMillis?: number
+    computedMillis?: number
+    overrideMillis?: number
+    penaltyMillis: number
+    resultStatus: OfficialTimeResultStatus
+    effectiveMillis?: number
+    dirty: boolean
+    pushedAt?: string
+}
+
+export type OfficialTimeOverrideRequest = {
+    overrideMillis?: number
+    penaltyMillis?: number
+    resultStatus?: OfficialTimeResultStatus
+}
+
+export type OfficialTimePushConflictDto = {
+    competitionMatchTeam: uuid
+    reason: PushConflictReason
+}
+
+export type OfficialTimeResultStatus = 'NONE' | 'DNS' | 'DNF' | 'DSQ'
+
+export type OfficialTimeSkipDto = {
+    competitionMatchTeam: uuid
+    reason: OfficialTimeSkipReason
+}
+
+export type OfficialTimeSkipReason = 'NO_START_MARK' | 'NO_FINISH_MARK' | 'NEGATIVE_DURATION'
+
 export type OpenForRegistrationType = 'REGULAR' | 'LATE' | 'CLOSED'
 
 export type Order = {
@@ -1661,6 +1708,13 @@ export type PrivilegeDto = {
 
 export type ProduceInvoicesRequest = {
     type: RegistrationInvoiceType
+}
+
+export type PushConflictReason = 'RESULT_FROZEN' | 'NO_EFFECTIVE_TIME'
+
+export type PushOfficialTimesRequest = {
+    teams: Array<uuid>
+    force?: boolean
 }
 
 export type QrCodeAppuserResponse = {
@@ -2039,6 +2093,25 @@ export type TimeMarkDto = {
     status: string
     createdBy?: uuid
     assignedTeam?: uuid
+}
+
+export type TimingDeviceTokenDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    name: string
+    revoked: boolean
+    createdAt: string
+}
+
+export type TimingDeviceTokenIssuedDto = {
+    deviceToken: TimingDeviceTokenDto
+    token: string
+}
+
+export type TimingDeviceTokenRequest = {
+    name: string
+    station: uuid
 }
 
 export type TimingSequenceDto = {
@@ -6199,3 +6272,92 @@ export type StartTimingSequenceData = {
 export type StartTimingSequenceResponse = void
 
 export type StartTimingSequenceError = unknown
+
+export type DeleteRetractedTimeMarksData = {
+    path: {
+        eventId: uuid
+    }
+    query?: {
+        station?: uuid
+    }
+}
+
+export type DeleteRetractedTimeMarksResponse = DeletedTimeMarksDto
+
+export type DeleteRetractedTimeMarksError = unknown
+
+export type GetOfficialTimesData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetOfficialTimesResponse = Array<OfficialTimeDto>
+
+export type GetOfficialTimesError = unknown
+
+export type ComputeOfficialTimesData = {
+    body: ComputeOfficialTimesRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type ComputeOfficialTimesResponse = OfficialTimeComputeResultDto
+
+export type ComputeOfficialTimesError = unknown
+
+export type PushOfficialTimesData = {
+    body: PushOfficialTimesRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type PushOfficialTimesResponse = void
+
+export type PushOfficialTimesError = unknown
+
+export type SetOfficialTimeOverrideData = {
+    body: OfficialTimeOverrideRequest
+    path: {
+        competitionMatchTeamId: uuid
+        eventId: uuid
+    }
+}
+
+export type SetOfficialTimeOverrideResponse = void
+
+export type SetOfficialTimeOverrideError = unknown
+
+export type ListTimingDeviceTokensData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type ListTimingDeviceTokensResponse = Array<TimingDeviceTokenDto>
+
+export type ListTimingDeviceTokensError = unknown
+
+export type IssueTimingDeviceTokenData = {
+    body: TimingDeviceTokenRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type IssueTimingDeviceTokenResponse = TimingDeviceTokenIssuedDto
+
+export type IssueTimingDeviceTokenError = unknown
+
+export type RevokeTimingDeviceTokenData = {
+    path: {
+        eventId: uuid
+        tokenId: uuid
+    }
+}
+
+export type RevokeTimingDeviceTokenResponse = void
+
+export type RevokeTimingDeviceTokenError = unknown
