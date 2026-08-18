@@ -65,9 +65,13 @@ fun createTestEventWithAdmin(): App<Any?, Pair<UUID, UUID>> = KIO.comprehension 
     KIO.ok(eventId to userId)
 }
 
-fun addTestStation(eventId: UUID, userId: UUID): App<Any?, UUID> = KIO.comprehension {
+fun addTestStation(
+    eventId: UUID,
+    userId: UUID,
+    type: TimingStationType = TimingStationType.FINISH,
+): App<Any?, UUID> = KIO.comprehension {
     val response = !TimingService.addStation(
-        TimingStationRequest(name = "Station-${UUID.randomUUID()}", type = TimingStationType.FINISH, sorting = 0),
+        TimingStationRequest(name = "Station-${UUID.randomUUID()}", type = type, sorting = 0),
         userId,
         eventId,
     )
