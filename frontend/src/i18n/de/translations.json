@@ -1764,9 +1764,11 @@
       "setup": {
         "title": "Sequenz einrichten",
         "intervalSeconds": "Abstand (Sekunden)",
-        "teamsCount_one": "{{count}} Team verfügbar",
-        "teamsCount_other": "{{count}} Teams verfügbar",
-        "armButton": "Alle Teams in Startnummern-Reihenfolge scharf stellen"
+        "leadInSeconds": "Vorlauf (Sekunden)",
+        "leadInHelp": "Zeit vom Start der Sequenz bis zum ersten Start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} von {{total}} ausgewählt",
+        "orderHint": "Startreihenfolge folgt der Startnummer",
+        "armButton": "Sequenz scharf stellen"
       },
       "armed": {
         "title": "Sequenz scharf",
@@ -1774,7 +1776,8 @@
       },
       "running": {
         "finishing": "Wird abgeschlossen…",
-        "following": "Weitere Teams"
+        "following": "Weitere Teams",
+        "overdue": "läuft…"
       },
       "summary": {
         "titleDone": "Sequenz abgeschlossen",
@@ -1783,18 +1786,27 @@
       },
       "entry": {
         "skip": "Überspringen",
-        "skipped": "Übersprungen"
+        "skipped": "Übersprungen",
+        "skipConfirm": {
+          "title": "Team überspringen?",
+          "content": "{{team}} wird nicht gestartet. Das kann nicht rückgängig gemacht werden."
+        }
       },
       "abort": "Abbrechen",
       "abortConfirm": {
         "title": "Sequenz wirklich abbrechen?",
         "content": "Ausstehende Starts werden nicht mehr ausgelöst."
       },
+      "loadError": "Sequenz konnte nicht geladen werden",
+      "retry": "Erneut versuchen",
       "error": {
         "create": "Sequenz konnte nicht angelegt werden",
         "start": "Sequenz konnte nicht gestartet werden",
         "abort": "Abbrechen fehlgeschlagen",
-        "skip": "Überspringen fehlgeschlagen"
+        "skip": "Überspringen fehlgeschlagen",
+        "invalidInterval": "Abstand muss mindestens 1 Sekunde betragen",
+        "invalidLeadIn": "Vorlauf muss zwischen {{min}} und {{max}} Sekunden liegen",
+        "noTeams": "Mindestens ein Team auswählen"
       }
     },
     "board": {

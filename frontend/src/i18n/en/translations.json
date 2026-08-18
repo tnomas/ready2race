@@ -1764,9 +1764,11 @@
       "setup": {
         "title": "Set up sequence",
         "intervalSeconds": "Interval (seconds)",
-        "teamsCount_one": "{{count}} team available",
-        "teamsCount_other": "{{count}} teams available",
-        "armButton": "Arm all teams in start-number order"
+        "leadInSeconds": "Lead-in (seconds)",
+        "leadInHelp": "Time from starting the sequence to the first start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} of {{total}} selected",
+        "orderHint": "Start order follows the start number",
+        "armButton": "Arm sequence"
       },
       "armed": {
         "title": "Sequence armed",
@@ -1774,7 +1776,8 @@
       },
       "running": {
         "finishing": "Finishing…",
-        "following": "Following teams"
+        "following": "Following teams",
+        "overdue": "in progress…"
       },
       "summary": {
         "titleDone": "Sequence completed",
@@ -1783,18 +1786,27 @@
       },
       "entry": {
         "skip": "Skip",
-        "skipped": "Skipped"
+        "skipped": "Skipped",
+        "skipConfirm": {
+          "title": "Skip team?",
+          "content": "{{team}} will not be started. This cannot be undone."
+        }
       },
       "abort": "Abort",
       "abortConfirm": {
         "title": "Abort sequence?",
         "content": "Pending starts will no longer fire."
       },
+      "loadError": "Could not load sequence",
+      "retry": "Try again",
       "error": {
         "create": "Could not create sequence",
         "start": "Could not start sequence",
         "abort": "Abort failed",
-        "skip": "Skip failed"
+        "skip": "Skip failed",
+        "invalidInterval": "Interval must be at least 1 second",
+        "invalidLeadIn": "Lead-in must be between {{min}} and {{max}} seconds",
+        "noTeams": "Select at least one team"
       }
     },
     "board": {

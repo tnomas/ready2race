@@ -1,6 +1,47 @@
 let ctx: AudioContext | null = null
 
 /**
+ * Create (and resume) the shared `AudioContext` from inside a user gesture.
+ *
+ * Browsers only allow an `AudioContext` to leave the `suspended` state from a user-gesture handler.
+ * A board that never taps its own capture button — e.g. a second device that only *watches* a
+ * sequence someone else started — would therefore stay silent for the countdown beeps, because the
+ * first `playCountdownBeep` runs from a `requestAnimationFrame` callback and has no gesture to
+ * borrow. So this is wired to a `pointerdown` listener on the sequence panel root (and to the
+ * capture button): *any* touch anywhere on the board unlocks audio for the rest of the session.
+ *
+ * Idempotent and best-effort: no WebAudio, or a context that refuses to resume, must never throw.
+ */
+export function unlockAudio() {
+    try {
+        ctx = ctx ?? new AudioContext()
+        if (ctx.state === 'suspended') {
+            void ctx.resume()
+        }
+    } catch {
+        // audio unavailable — ignore
+    }
+}
+
+/** Synthesized single tone, fire-and-forget. Silent (never throwing) when audio is unavailable. */
+function playTone(frequency: number, durationSeconds: number) {
+    try {
+        unlockAudio()
+        if (ctx === null) return
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.frequency.value = frequency
+        gain.gain.setValueAtTime(0.2, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSeconds)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start()
+        osc.stop(ctx.currentTime + durationSeconds)
+    } catch {
+        // audio unavailable — ignore
+    }
+}
+
+/**
  * Fire-and-forget capture feedback: a short WebAudio beep plus a device vibration, so the operator
  * gets non-visual confirmation that a tap registered even without watching the screen. No audio
  * assets — the beep is synthesized. Both channels are best-effort: a browser without WebAudio (or
@@ -8,19 +49,7 @@ let ctx: AudioContext | null = null
  * must not block the capture flow.
  */
 export function playCaptureFeedback() {
-    try {
-        ctx = ctx ?? new AudioContext()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.frequency.value = 880
-        gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15)
-        osc.connect(gain).connect(ctx.destination)
-        osc.start()
-        osc.stop(ctx.currentTime + 0.15)
-    } catch {
-        // audio unavailable — ignore
-    }
+    playTone(880, 0.15)
     navigator.vibrate?.(80)
 }
 
@@ -32,18 +61,5 @@ export function playCaptureFeedback() {
  * synchronization is needed beyond every board reading the same `now()`.
  */
 export function playCountdownBeep(final: boolean) {
-    try {
-        ctx = ctx ?? new AudioContext()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        const duration = final ? 0.4 : 0.1
-        osc.frequency.value = final ? 900 : 600
-        gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration)
-        osc.connect(gain).connect(ctx.destination)
-        osc.start()
-        osc.stop(ctx.currentTime + duration)
-    } catch {
-        // audio unavailable — ignore
-    }
+    playTone(final ? 900 : 600, final ? 0.4 : 0.1)
 }

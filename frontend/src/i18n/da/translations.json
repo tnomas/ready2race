@@ -1764,9 +1764,11 @@
       "setup": {
         "title": "Opsæt sekvens",
         "intervalSeconds": "Interval (sekunder)",
-        "teamsCount_one": "{{count}} hold tilgængeligt",
-        "teamsCount_other": "{{count}} hold tilgængelige",
-        "armButton": "Klargør alle hold i startnummerrækkefølge"
+        "leadInSeconds": "Optakt (sekunder)",
+        "leadInHelp": "Tid fra sekvensen startes til første start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} af {{total}} valgt",
+        "orderHint": "Startrækkefølgen følger startnummeret",
+        "armButton": "Klargør sekvens"
       },
       "armed": {
         "title": "Sekvens klargjort",
@@ -1774,7 +1776,8 @@
       },
       "running": {
         "finishing": "Afsluttes…",
-        "following": "Følgende hold"
+        "following": "Følgende hold",
+        "overdue": "i gang…"
       },
       "summary": {
         "titleDone": "Sekvens afsluttet",
@@ -1783,18 +1786,27 @@
       },
       "entry": {
         "skip": "Spring over",
-        "skipped": "Sprunget over"
+        "skipped": "Sprunget over",
+        "skipConfirm": {
+          "title": "Spring hold over?",
+          "content": "{{team}} bliver ikke startet. Det kan ikke fortrydes."
+        }
       },
       "abort": "Afbryd",
       "abortConfirm": {
         "title": "Afbryd sekvens?",
         "content": "Afventende starter udløses ikke længere."
       },
+      "loadError": "Sekvens kunne ikke indlæses",
+      "retry": "Prøv igen",
       "error": {
         "create": "Sekvens kunne ikke oprettes",
         "start": "Sekvens kunne ikke startes",
         "abort": "Afbrydelse mislykkedes",
-        "skip": "Spring over mislykkedes"
+        "skip": "Spring over mislykkedes",
+        "invalidInterval": "Interval skal være mindst 1 sekund",
+        "invalidLeadIn": "Optakt skal være mellem {{min}} og {{max}} sekunder",
+        "noTeams": "Vælg mindst ét hold"
       }
     },
     "board": {

@@ -24,6 +24,7 @@ import CaptureButton, {CaptureButtonHandle} from '@components/timing/CaptureButt
 import MarkList from '@components/timing/MarkList.tsx'
 import SequencePanel from '@components/timing/SequencePanel.tsx'
 import {useSequence} from '@utils/timing/useSequence.ts'
+import {unlockAudio} from '@utils/timing/feedback.ts'
 import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
 import {
@@ -373,10 +374,13 @@ const TimingBoardPage = () => {
     }, [deadDialogOpen, deadCount])
 
     // Space bar triggers the same capture flow as the button — skipped only while an
-    // input/textarea/select has focus (so typing a space in a field doesn't fire a capture) or while a
-    // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board). Notably *not*
-    // skipped while the session is unauthorized: like the button itself, the shortcut still captures,
-    // and the mark waits in the offline queue until the operator has logged in again.
+    // input/textarea/select has focus (so typing a space in a field doesn't fire a capture), while a
+    // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board), or while a
+    // control *inside the start-sequence panel* has focus: space is the browser's own "activate the
+    // focused button" key there, and an operator tabbing to "Sequenz starten" and pressing space must
+    // start the sequence rather than silently record a time mark. Notably *not* skipped while the
+    // session is unauthorized: like the button itself, the shortcut still captures, and the mark waits
+    // in the offline queue until the operator has logged in again.
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.code !== 'Space' && event.key !== ' ') return
@@ -389,8 +393,12 @@ const TimingBoardPage = () => {
                 tag === 'SELECT' ||
                 (active instanceof HTMLElement && active.isContentEditable)
             const isDialogOpen = document.querySelector('[role="dialog"]') !== null
+            const isSequencePanelControl =
+                (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A') &&
+                active instanceof HTMLElement &&
+                active.closest('[data-sequence-panel]') !== null
 
-            if (isFormField || isDialogOpen) return
+            if (isFormField || isDialogOpen || isSequencePanelControl) return
 
             event.preventDefault()
             captureButtonRef.current?.capture()
@@ -493,7 +501,12 @@ const TimingBoardPage = () => {
                         />
                     </Box>
                 )}
-                <Box sx={{flexShrink: 0, display: 'flex', flexGrow: station?.type === 'START' ? 0 : 1}}>
+                {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
+                    `unlockAudio`): a board whose operator only ever taps the capture button would
+                    otherwise stay mute for the sequence countdown beeps. */}
+                <Box
+                    onPointerDown={unlockAudio}
+                    sx={{flexShrink: 0, display: 'flex', flexGrow: station?.type === 'START' ? 0 : 1}}>
                     <CaptureButton
                         ref={captureButtonRef}
                         eventId={eventId}

@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useRef, useState} from 'react'
 import {
     abortTimingSequence,
     createTimingSequence,
@@ -44,6 +44,24 @@ export type UseSequenceResult = {
  * panel would jump straight back to the setup form). Those three rely entirely on the
  * `sequenceChanged` broadcast — which the backend sends for every mutation — to deliver the
  * terminal-state dto.
+ *
+ * **Refetch / live-feed race.** Same shape as `useTimingBoardState`'s, and guarded the same way:
+ *
+ * - *Epoch*: every `refetch` takes `epoch = ++epochRef.current`; a response whose epoch is no longer
+ *   the current one is discarded, so two overlapping GETs always resolve last-issued-wins regardless
+ *   of network timing.
+ * - *Websocket wins*: `applySequenceChanged` bumps `wsVersionRef`. A GET captures that version when
+ *   its request starts and drops its own (older) snapshot if a push landed meanwhile — a
+ *   `sequenceChanged` is by definition newer than any request already on the wire, and would
+ *   otherwise be overwritten by e.g. an ABORTED → "nothing active" snapshot.
+ * - *Station*: a snapshot (like a push) is ignored unless it is for this station, so a station switch
+ *   with a GET still in flight can't show the previous station's sequence.
+ *
+ * **Dismissal.** `reset` ("Neue Sequenz") records the id it dismissed in `dismissedSequenceIdRef`,
+ * and both `refetch` and `applySequenceChanged` ignore that id from then on — otherwise a late
+ * websocket echo or the next reconnect refetch would resurrect the summary the operator just closed.
+ * Dismissal is deliberately per-mount: a *fresh* mount still shows a recent terminal sequence, which
+ * is how an operator who reloaded the board gets the summary back.
  */
 export function useSequence(eventId: string, stationId: string): UseSequenceResult {
     const [sequence, setSequence] = useState<TimingSequenceDto | undefined>(undefined)
@@ -51,29 +69,57 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
     const [error, setError] = useState(false)
     const [busy, setBusy] = useState(false)
 
+    /** Monotonic GET counter — only the newest in-flight refetch may apply its response. */
+    const epochRef = useRef(0)
+    /** Bumped on every applied `sequenceChanged`; an in-flight GET that sees it change stands down. */
+    const wsVersionRef = useRef(0)
+    /** Id of the sequence the operator explicitly dismissed via `reset`, if any. */
+    const dismissedSequenceIdRef = useRef<string | undefined>(undefined)
+
     const refetch = useCallback(() => {
+        const epoch = ++epochRef.current
+        const wsVersion = wsVersionRef.current
         setLoading(true)
         void getActiveTimingSequence({path: {eventId}, query: {stationId}})
             .then(({data, error: err}) => {
+                // Superseded by a newer refetch (or by an event/station switch).
+                if (epoch !== epochRef.current) return
                 if (err !== undefined) {
                     setError(true)
                     return
                 }
-                setSequence(data?.sequence)
                 setError(false)
+                // A `sequenceChanged` arrived while this GET was in flight — it is newer than this
+                // snapshot, so keep what the push wrote.
+                if (wsVersion !== wsVersionRef.current) return
+                const next = data?.sequence
+                if (next !== undefined) {
+                    if (next.station !== stationId) return
+                    if (next.id === dismissedSequenceIdRef.current) return
+                }
+                setSequence(next)
             })
-            .catch(() => setError(true))
-            .finally(() => setLoading(false))
+            .catch(() => {
+                if (epoch !== epochRef.current) return
+                setError(true)
+            })
+            .finally(() => {
+                if (epoch !== epochRef.current) return
+                setLoading(false)
+            })
     }, [eventId, stationId])
 
     useEffect(() => {
         setSequence(undefined)
+        dismissedSequenceIdRef.current = undefined
         refetch()
     }, [refetch])
 
     const applySequenceChanged = useCallback(
         (next: TimingSequenceDto) => {
             if (next.station !== stationId) return
+            if (next.id === dismissedSequenceIdRef.current) return
+            wsVersionRef.current++
             setSequence(next)
         },
         [stationId],
@@ -85,6 +131,8 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
             try {
                 const {error: err} = await createTimingSequence({path: {eventId}, body: request})
                 if (err !== undefined) return false
+                // A brand-new sequence has a new id, so a previous dismissal can never suppress it.
+                dismissedSequenceIdRef.current = undefined
                 refetch()
                 return true
             } catch {
@@ -144,7 +192,14 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
         [eventId, sequence],
     )
 
-    const reset = useCallback(() => setSequence(undefined), [])
+    const reset = useCallback(() => {
+        // Only ever reachable from the terminal summary view; remembering the id is what keeps a late
+        // websocket echo or the next reconnect refetch from re-opening it.
+        if (sequence !== undefined) {
+            dismissedSequenceIdRef.current = sequence.id
+        }
+        setSequence(undefined)
+    }, [sequence])
 
     return {
         sequence,

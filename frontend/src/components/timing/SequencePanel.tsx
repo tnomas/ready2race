@@ -1,9 +1,12 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
+import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {
     Alert,
+    Box,
     Button,
+    Checkbox,
     Chip,
     Divider,
+    FormControlLabel,
     IconButton,
     Stack,
     TextField,
@@ -18,9 +21,10 @@ import ReplayIcon from '@mui/icons-material/Replay'
 import {useTranslation} from 'react-i18next'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import Throbber from '@components/Throbber.tsx'
 import {SequenceMode, TimingSequenceDto, TimingSequenceEntryDto, TimingTeamDto} from '@api/types.gen.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
-import {playCountdownBeep} from '@utils/timing/feedback.ts'
+import {playCountdownBeep, unlockAudio} from '@utils/timing/feedback.ts'
 
 export type SequencePanelProps = {
     stationId: string
@@ -29,6 +33,13 @@ export type SequencePanelProps = {
     now: () => number | null
     sequenceState: UseSequenceResult
 }
+
+const DEFAULT_INTERVAL_SECONDS = 60
+/** Matches the backend's MASS default (`SequenceService`), and the initial value shown for MASS. */
+const DEFAULT_LEAD_IN_SECONDS = 10
+/** Server-side bounds for `leadInMillis` — validated here too so the request isn't wasted. */
+const LEAD_IN_MIN_SECONDS = 3
+const LEAD_IN_MAX_SECONDS = 600
 
 /** Short human label for a team: `#12 · Team Name`, falling back to whatever is available. */
 function teamLabel(team: TimingTeamDto | undefined, fallbackId: string): string {
@@ -60,19 +71,40 @@ function formatCountdown(remainingMillis: number): string {
 const COUNTDOWN_PLACEHOLDER = '--:--'
 
 /**
+ * How far past T-0 the countdown keeps showing `00:00` before it switches to the "in progress" label.
+ * A small grace window is deliberate: the scheduler fires within a tick or so of T-0, and a display
+ * that flips the instant the target passes would flicker on every start. Past that, a frozen `00:00`
+ * would be a lie — the start already happened (or the scheduler is late) — so say so instead.
+ */
+const OVERDUE_GRACE_MILLIS = 2000
+
+/**
  * Big rAF-driven countdown to `targetMillis`, written directly into a ref'd element's `textContent`
  * (like `BoardHeader`'s clock) so the rest of the panel doesn't re-render every frame. Also fires the
  * countdown beeps (`playCountdownBeep`) at T-5..T-1 (short) and T-0 (long/final), guarding against
  * repeats within the same second via `lastBeepedSecondRef`. Resets that guard whenever `targetMillis`
  * changes (INTERVAL mode moves the target to the next entry once the current one fires).
+ *
+ * Once the target is more than `OVERDUE_GRACE_MILLIS` in the past it renders `overdueLabel` with a
+ * pulse (`data-overdue`) instead of a stuck `00:00`.
  */
-const RunningCountdown = ({targetMillis, now}: {targetMillis: number; now: () => number | null}) => {
+const RunningCountdown = ({
+    targetMillis,
+    now,
+    overdueLabel,
+}: {
+    targetMillis: number
+    now: () => number | null
+    overdueLabel: string
+}) => {
     const textRef = useRef<HTMLSpanElement | null>(null)
     const nowRef = useRef(now)
+    const overdueLabelRef = useRef(overdueLabel)
     const lastBeepedSecondRef = useRef<number>(Number.NaN)
 
     useEffect(() => {
         nowRef.current = now
+        overdueLabelRef.current = overdueLabel
     })
 
     useEffect(() => {
@@ -81,9 +113,14 @@ const RunningCountdown = ({targetMillis, now}: {targetMillis: number; now: () =>
 
         const tick = () => {
             const current = nowRef.current()
-            if (current !== null && textRef.current) {
+            const element = textRef.current
+            if (current !== null && element) {
                 const remaining = targetMillis - current
-                textRef.current.textContent = formatCountdown(remaining)
+                const overdue = remaining < -OVERDUE_GRACE_MILLIS
+                const text = overdue ? overdueLabelRef.current : formatCountdown(remaining)
+                if (element.textContent !== text) element.textContent = text
+                const overdueFlag = overdue ? 'true' : 'false'
+                if (element.dataset.overdue !== overdueFlag) element.dataset.overdue = overdueFlag
 
                 const secondsRemaining = Math.ceil(remaining / 1000)
                 if (secondsRemaining !== lastBeepedSecondRef.current) {
@@ -107,40 +144,141 @@ const RunningCountdown = ({targetMillis, now}: {targetMillis: number; now: () =>
             ref={textRef}
             component="span"
             variant="h1"
-            sx={{fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700}}>
+            sx={{
+                fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
+                fontWeight: 700,
+                '@keyframes sequenceOverduePulse': {
+                    '0%': {opacity: 1},
+                    '50%': {opacity: 0.4},
+                    '100%': {opacity: 1},
+                },
+                '&[data-overdue="true"]': {
+                    fontSize: '2.5rem',
+                    animation: 'sequenceOverduePulse 1.2s ease-in-out infinite',
+                },
+            }}>
             {COUNTDOWN_PLACEHOLDER}
         </Typography>
     )
 }
 
-type SetupFormProps = {
+export type CreateSequenceParams = {
     mode: SequenceMode
-    intervalSeconds: number
-    teamsCount: number
-    disabled: boolean
-    onModeChange: (mode: SequenceMode) => void
-    onIntervalChange: (seconds: number) => void
-    onCreate: () => void
+    intervalMillis: number | undefined
+    leadInMillis: number
+    teams: string[]
+}
+
+type SetupFormProps = {
+    /** Event teams, already in start-number order — the armed order is exactly this order. */
+    teams: TimingTeamDto[]
+    teamsLoading: boolean
+    busy: boolean
+    onCreate: (params: CreateSequenceParams) => void
 }
 
 /**
- * Minimal setup form (see Plan-3 Task C timebox note): mode toggle, interval field (INTERVAL only),
- * and a single button that arms the sequence with *all* loaded teams in start-number order — no
- * per-team ordered multi-select/remove UI.
+ * Setup form: mode toggle, interval field (INTERVAL only), lead-in field, and a checkbox list of the
+ * event's teams (select-all on top, all selected by default). The armed order is the start-number
+ * order the list is rendered in — reordering by hand is a deliberate v1 cut (see the Task C report).
+ *
+ * The two number fields are kept as *strings* so they may be transiently empty while typing (snapping
+ * an empty field to a minimum makes it impossible to replace "60" with "5"); they are validated when
+ * the operator submits.
  */
-const SetupForm = ({
-    mode,
-    intervalSeconds,
-    teamsCount,
-    disabled,
-    onModeChange,
-    onIntervalChange,
-    onCreate,
-}: SetupFormProps) => {
+const SetupForm = ({teams, teamsLoading, busy, onCreate}: SetupFormProps) => {
     const {t} = useTranslation()
 
+    const [mode, setMode] = useState<SequenceMode>('MASS')
+    const [intervalInput, setIntervalInput] = useState(String(DEFAULT_INTERVAL_SECONDS))
+    const [leadInInput, setLeadInInput] = useState(String(DEFAULT_LEAD_IN_SECONDS))
+    /**
+     * Until the operator types their own lead-in, the field mirrors the backend's defaults: the
+     * interval for INTERVAL mode (so the first start gets the same gap as every following one) and
+     * 10s for MASS. Once edited, the value is theirs and nothing overwrites it again.
+     */
+    const [leadInEdited, setLeadInEdited] = useState(false)
+    const [invalidField, setInvalidField] = useState<'interval' | 'leadIn' | 'teams' | undefined>(
+        undefined,
+    )
+
+    const [selected, setSelected] = useState<Set<string>>(new Set())
+    // Teams load asynchronously, so the default "all selected" has to be (re-)applied whenever the
+    // roster itself changes rather than only on mount.
+    useEffect(() => {
+        setSelected(new Set(teams.map(team => team.competitionMatchTeam)))
+    }, [teams])
+
+    const handleModeChange = (next: SequenceMode) => {
+        setMode(next)
+        if (!leadInEdited) {
+            setLeadInInput(next === 'INTERVAL' ? intervalInput : String(DEFAULT_LEAD_IN_SECONDS))
+        }
+    }
+
+    const handleIntervalChange = (value: string) => {
+        setIntervalInput(value)
+        if (!leadInEdited && mode === 'INTERVAL') setLeadInInput(value)
+    }
+
+    const handleLeadInChange = (value: string) => {
+        setLeadInEdited(true)
+        setLeadInInput(value)
+    }
+
+    const toggleTeam = (id: string) => {
+        setSelected(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const allSelected = teams.length > 0 && selected.size === teams.length
+    const someSelected = selected.size > 0 && !allSelected
+
+    const toggleAll = () => {
+        setSelected(allSelected ? new Set() : new Set(teams.map(team => team.competitionMatchTeam)))
+    }
+
+    const handleSubmit = () => {
+        const intervalSeconds = Number(intervalInput)
+        if (
+            mode === 'INTERVAL' &&
+            (!Number.isFinite(intervalSeconds) || Math.floor(intervalSeconds) < 1)
+        ) {
+            setInvalidField('interval')
+            return
+        }
+        const leadInSeconds = Number(leadInInput)
+        if (
+            !Number.isFinite(leadInSeconds) ||
+            leadInSeconds < LEAD_IN_MIN_SECONDS ||
+            leadInSeconds > LEAD_IN_MAX_SECONDS
+        ) {
+            setInvalidField('leadIn')
+            return
+        }
+        const selectedTeams = teams
+            .filter(team => selected.has(team.competitionMatchTeam))
+            .map(team => team.competitionMatchTeam)
+        if (selectedTeams.length === 0) {
+            setInvalidField('teams')
+            return
+        }
+        setInvalidField(undefined)
+        onCreate({
+            mode,
+            intervalMillis: mode === 'INTERVAL' ? Math.floor(intervalSeconds) * 1000 : undefined,
+            leadInMillis: Math.round(leadInSeconds * 1000),
+            teams: selectedTeams,
+        })
+    }
+
     return (
-        <Stack sx={{flexGrow: 1, width: 1, maxWidth: 480, mx: 'auto'}} spacing={3} justifyContent="center">
+        <Stack sx={{flexGrow: 1, width: 1, maxWidth: 480, mx: 'auto'}} spacing={2}>
             <Typography variant="h5" textAlign="center">
                 {t('timing.sequence.setup.title')}
             </Typography>
@@ -149,7 +287,7 @@ const SetupForm = ({
                 exclusive
                 fullWidth
                 onChange={(_, value: SequenceMode | null) => {
-                    if (value !== null) onModeChange(value)
+                    if (value !== null) handleModeChange(value)
                 }}>
                 <ToggleButton value="MASS">{t('timing.sequence.mode.MASS')}</ToggleButton>
                 <ToggleButton value="INTERVAL">{t('timing.sequence.mode.INTERVAL')}</ToggleButton>
@@ -158,16 +296,87 @@ const SetupForm = ({
                 <TextField
                     type="number"
                     label={t('timing.sequence.setup.intervalSeconds')}
-                    value={intervalSeconds}
-                    onChange={event => onIntervalChange(Math.max(1, Number(event.target.value) || 0))}
+                    value={intervalInput}
+                    onChange={event => handleIntervalChange(event.target.value)}
+                    error={invalidField === 'interval'}
+                    helperText={
+                        invalidField === 'interval'
+                            ? t('timing.sequence.error.invalidInterval')
+                            : undefined
+                    }
                     slotProps={{htmlInput: {min: 1}}}
                     fullWidth
                 />
             )}
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-                {t('timing.sequence.setup.teamsCount', {count: teamsCount})}
+            <TextField
+                type="number"
+                label={t('timing.sequence.setup.leadInSeconds')}
+                value={leadInInput}
+                onChange={event => handleLeadInChange(event.target.value)}
+                error={invalidField === 'leadIn'}
+                helperText={
+                    invalidField === 'leadIn'
+                        ? t('timing.sequence.error.invalidLeadIn', {
+                              min: LEAD_IN_MIN_SECONDS,
+                              max: LEAD_IN_MAX_SECONDS,
+                          })
+                        : t('timing.sequence.setup.leadInHelp', {
+                              min: LEAD_IN_MIN_SECONDS,
+                              max: LEAD_IN_MAX_SECONDS,
+                          })
+                }
+                slotProps={{htmlInput: {min: LEAD_IN_MIN_SECONDS, max: LEAD_IN_MAX_SECONDS}}}
+                fullWidth
+            />
+            <Divider />
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={allSelected}
+                            indeterminate={someSelected}
+                            disabled={teams.length === 0}
+                            onChange={toggleAll}
+                        />
+                    }
+                    label={t('common.selectAll')}
+                />
+                <Typography variant="caption" color="text.secondary">
+                    {t('timing.sequence.setup.selectedCount', {
+                        selected: selected.size,
+                        total: teams.length,
+                    })}
+                </Typography>
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+                {t('timing.sequence.setup.orderHint')}
             </Typography>
-            <Button variant="contained" size="large" disabled={disabled} onClick={onCreate}>
+            {teamsLoading ? (
+                <Throbber />
+            ) : (
+                <Stack sx={{maxHeight: 280, overflowY: 'auto'}}>
+                    {teams.map(team => (
+                        <FormControlLabel
+                            key={team.competitionMatchTeam}
+                            control={
+                                <Checkbox
+                                    checked={selected.has(team.competitionMatchTeam)}
+                                    onChange={() => toggleTeam(team.competitionMatchTeam)}
+                                />
+                            }
+                            label={teamLabel(team, team.competitionMatchTeam)}
+                        />
+                    ))}
+                </Stack>
+            )}
+            {invalidField === 'teams' && (
+                <Alert severity="warning">{t('timing.sequence.error.noTeams')}</Alert>
+            )}
+            <Button
+                variant="contained"
+                size="large"
+                disabled={busy || teamsLoading || teams.length === 0}
+                onClick={handleSubmit}>
                 {t('timing.sequence.setup.armButton')}
             </Button>
         </Stack>
@@ -178,10 +387,11 @@ type EntryRowProps = {
     entry: TimingSequenceEntryDto
     label: string
     skippable: boolean
-    onSkip: (entryId: string) => void
+    busy: boolean
+    onSkip: (entryId: string, teamLabel: string) => void
 }
 
-const EntryRow = ({entry, label, skippable, onSkip}: EntryRowProps) => {
+const EntryRow = ({entry, label, skippable, busy, onSkip}: EntryRowProps) => {
     const {t} = useTranslation()
     return (
         <Stack direction="row" alignItems="center" spacing={1} sx={{py: 0.5}}>
@@ -201,6 +411,10 @@ const EntryRow = ({entry, label, skippable, onSkip}: EntryRowProps) => {
                 }}>
                 {label}
             </Typography>
+            {/* `plannedStartMillis` *is* the mark time for a fired entry, by design: the backend writes
+                the planned instant as the time mark rather than the moment its scheduler happened to
+                wake up, so every start of a sequence is exactly on the announced grid. Showing the
+                planned value here is therefore showing the recorded start, not an estimate of it. */}
             {entry.status === 'STARTED' && entry.plannedStartMillis !== undefined && (
                 <Chip
                     size="small"
@@ -216,7 +430,8 @@ const EntryRow = ({entry, label, skippable, onSkip}: EntryRowProps) => {
                 <IconButton
                     size="small"
                     aria-label={t('timing.sequence.entry.skip')}
-                    onClick={() => onSkip(entry.id)}>
+                    disabled={busy}
+                    onClick={() => onSkip(entry.id, label)}>
                     <SkipNextIcon fontSize="small" />
                 </IconButton>
             )}
@@ -230,7 +445,7 @@ type ArmedViewProps = {
     busy: boolean
     onStart: () => void
     onAbort: () => void
-    onSkip: (entryId: string) => void
+    onSkip: (entryId: string, teamLabel: string) => void
 }
 
 const ArmedView = ({sequence, label, busy, onStart, onAbort, onSkip}: ArmedViewProps) => {
@@ -241,7 +456,7 @@ const ArmedView = ({sequence, label, busy, onStart, onAbort, onSkip}: ArmedViewP
     )
 
     return (
-        <Stack sx={{flexGrow: 1, width: 1, minHeight: 0}} spacing={2}>
+        <Stack sx={{flexGrow: 1, width: 1, minHeight: 'min-content'}} spacing={2}>
             <Typography variant="h5" textAlign="center">
                 {t('timing.sequence.armed.title')}
             </Typography>
@@ -252,6 +467,7 @@ const ArmedView = ({sequence, label, busy, onStart, onAbort, onSkip}: ArmedViewP
                         entry={entry}
                         label={label(entry.competitionMatchTeam)}
                         skippable
+                        busy={busy}
                         onSkip={onSkip}
                     />
                 ))}
@@ -277,7 +493,7 @@ type RunningViewProps = {
     now: () => number | null
     busy: boolean
     onAbort: () => void
-    onSkip: (entryId: string) => void
+    onSkip: (entryId: string, teamLabel: string) => void
 }
 
 const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewProps) => {
@@ -294,13 +510,20 @@ const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewP
     const targetMillis = next?.plannedStartMillis ?? sequence.startedAtMillis
 
     return (
-        <Stack sx={{flexGrow: 1, width: 1, minHeight: 0}} spacing={2} alignItems="center">
+        <Stack
+            sx={{flexGrow: 1, width: 1, minHeight: 'min-content'}}
+            spacing={2}
+            alignItems="center">
             {next === undefined ? (
                 <Typography variant="h5">{t('timing.sequence.running.finishing')}</Typography>
             ) : (
                 <>
                     {targetMillis !== undefined && (
-                        <RunningCountdown targetMillis={targetMillis} now={now} />
+                        <RunningCountdown
+                            targetMillis={targetMillis}
+                            now={now}
+                            overdueLabel={t('timing.sequence.running.overdue')}
+                        />
                     )}
                     <Typography variant="h4" textAlign="center" noWrap sx={{maxWidth: 1}}>
                         {label(next.competitionMatchTeam)}
@@ -320,6 +543,7 @@ const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewP
                             entry={entry}
                             label={label(entry.competitionMatchTeam)}
                             skippable
+                            busy={busy}
                             onSkip={onSkip}
                         />
                     ))}
@@ -332,6 +556,7 @@ const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewP
                                 entry={entry}
                                 label={label(entry.competitionMatchTeam)}
                                 skippable={false}
+                                busy={busy}
                                 onSkip={onSkip}
                             />
                         ))}
@@ -339,12 +564,13 @@ const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewP
                 )}
             </Stack>
             {next !== undefined && (
-                <IconButton
+                <Button
                     size="small"
-                    aria-label={t('timing.sequence.entry.skip')}
-                    onClick={() => onSkip(next.id)}>
-                    <SkipNextIcon />
-                </IconButton>
+                    startIcon={<SkipNextIcon />}
+                    disabled={busy}
+                    onClick={() => onSkip(next.id, label(next.competitionMatchTeam))}>
+                    {t('timing.sequence.entry.skip')}
+                </Button>
             )}
             <Button
                 color="error"
@@ -372,7 +598,7 @@ const SummaryView = ({sequence, label, onReset}: SummaryViewProps) => {
     )
 
     return (
-        <Stack sx={{flexGrow: 1, width: 1, minHeight: 0}} spacing={2}>
+        <Stack sx={{flexGrow: 1, width: 1, minHeight: 'min-content'}} spacing={2}>
             <Alert severity={sequence.state === 'DONE' ? 'success' : 'warning'}>
                 {sequence.state === 'DONE'
                     ? t('timing.sequence.summary.titleDone')
@@ -385,6 +611,7 @@ const SummaryView = ({sequence, label, onReset}: SummaryViewProps) => {
                         entry={entry}
                         label={label(entry.competitionMatchTeam)}
                         skippable={false}
+                        busy={false}
                         onSkip={() => {}}
                     />
                 ))}
@@ -401,12 +628,16 @@ const SummaryView = ({sequence, label, onReset}: SummaryViewProps) => {
  * (none/ARMED/RUNNING/DONE/ABORTED) to the corresponding view — see the plan
  * (`docs/superpowers/plans/2026-08-18-timing-start-sequences.md`, Task C) for the state machine.
  * Rendered above a smaller manual `CaptureButton` fallback by `TimingBoardPage`.
+ *
+ * The root carries `data-sequence-panel` (so the board's space-bar capture shortcut can tell that a
+ * button inside this panel has focus and stand down) and unlocks the WebAudio context on any pointer
+ * gesture, so a device that only *watches* a sequence still beeps along with the countdown.
  */
 const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: SequencePanelProps) => {
     const {t} = useTranslation()
     const {confirmAction} = useConfirmation()
     const feedback = useFeedback()
-    const {sequence, busy, create, start, abort, skip, reset} = sequenceState
+    const {sequence, loading, error, busy, refetch, create, start, abort, skip, reset} = sequenceState
 
     const teamsById = useMemo(() => {
         const map = new Map<string, TimingTeamDto>()
@@ -416,19 +647,26 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
 
     const label = useCallback((id: string) => teamLabel(teamsById.get(id), id), [teamsById])
 
-    const [mode, setMode] = useState<SequenceMode>('MASS')
-    const [intervalSeconds, setIntervalSeconds] = useState(60)
+    /** The armed order: start number ascending, teams without one last. */
+    const orderedTeams = useMemo(
+        () => [...teams].sort((a, b) => (a.startNumber ?? Infinity) - (b.startNumber ?? Infinity)),
+        [teams],
+    )
 
-    const handleCreate = useCallback(() => {
-        void create({
-            station: stationId,
-            mode,
-            intervalMillis: mode === 'INTERVAL' ? intervalSeconds * 1000 : undefined,
-            teams: teams.map(team => team.competitionMatchTeam),
-        }).then(ok => {
-            if (!ok) feedback.error(t('timing.sequence.error.create'))
-        })
-    }, [create, stationId, mode, intervalSeconds, teams, feedback, t])
+    const handleCreate = useCallback(
+        (params: CreateSequenceParams) => {
+            void create({
+                station: stationId,
+                mode: params.mode,
+                intervalMillis: params.intervalMillis,
+                leadInMillis: params.leadInMillis,
+                teams: params.teams,
+            }).then(ok => {
+                if (!ok) feedback.error(t('timing.sequence.error.create'))
+            })
+        },
+        [create, stationId, feedback, t],
+    )
 
     const handleStart = useCallback(() => {
         void start().then(ok => {
@@ -451,31 +689,57 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
         )
     }, [confirmAction, abort, feedback, t])
 
+    // Skipping is irreversible (there is no "unskip"), and the buttons sit right next to the big
+    // running countdown on a touch screen — so it always goes through a confirmation naming the team,
+    // and is disabled while another mutation is in flight.
     const handleSkip = useCallback(
-        (entryId: string) => {
-            void skip(entryId).then(ok => {
-                if (!ok) feedback.error(t('timing.sequence.error.skip'))
-            })
+        (entryId: string, teamName: string) => {
+            confirmAction(
+                () => {
+                    void skip(entryId).then(ok => {
+                        if (!ok) feedback.error(t('timing.sequence.error.skip'))
+                    })
+                },
+                {
+                    title: t('timing.sequence.entry.skipConfirm.title'),
+                    content: t('timing.sequence.entry.skipConfirm.content', {team: teamName}),
+                    okText: t('timing.sequence.entry.skip'),
+                },
+            )
         },
-        [skip, feedback, t],
+        [confirmAction, skip, feedback, t],
     )
 
+    let content: ReactNode
     if (sequence === undefined) {
-        return (
-            <SetupForm
-                mode={mode}
-                intervalSeconds={intervalSeconds}
-                teamsCount={teams.length}
-                disabled={busy || teamsLoading || teams.length === 0}
-                onModeChange={setMode}
-                onIntervalChange={setIntervalSeconds}
-                onCreate={handleCreate}
-            />
-        )
-    }
-
-    if (sequence.state === 'ARMED') {
-        return (
+        if (loading) {
+            content = <Throbber />
+        } else if (error) {
+            content = (
+                <Stack sx={{width: 1, maxWidth: 480, mx: 'auto'}} spacing={2}>
+                    <Alert
+                        severity="error"
+                        action={
+                            <Button color="inherit" size="small" onClick={refetch}>
+                                {t('timing.sequence.retry')}
+                            </Button>
+                        }>
+                        {t('timing.sequence.loadError')}
+                    </Alert>
+                </Stack>
+            )
+        } else {
+            content = (
+                <SetupForm
+                    teams={orderedTeams}
+                    teamsLoading={teamsLoading}
+                    busy={busy}
+                    onCreate={handleCreate}
+                />
+            )
+        }
+    } else if (sequence.state === 'ARMED') {
+        content = (
             <ArmedView
                 sequence={sequence}
                 label={label}
@@ -485,10 +749,8 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
                 onSkip={handleSkip}
             />
         )
-    }
-
-    if (sequence.state === 'RUNNING') {
-        return (
+    } else if (sequence.state === 'RUNNING') {
+        content = (
             <RunningView
                 sequence={sequence}
                 label={label}
@@ -498,9 +760,29 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
                 onSkip={handleSkip}
             />
         )
+    } else {
+        content = <SummaryView sequence={sequence} label={label} onReset={reset} />
     }
 
-    return <SummaryView sequence={sequence} label={label} onReset={reset} />
+    return (
+        <Box
+            data-sequence-panel=""
+            onPointerDown={unlockAudio}
+            sx={{
+                flexGrow: 1,
+                width: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                // The panel is its own scroll container: on a short viewport (a phone in landscape,
+                // or with several board banners showing) the content's own minimum height can exceed
+                // the space left over, and the abort button must stay reachable rather than being
+                // clipped by the board's `overflow: hidden`.
+                overflowY: 'auto',
+            }}>
+            {content}
+        </Box>
+    )
 }
 
 export default SequencePanel
