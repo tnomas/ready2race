@@ -957,7 +957,9 @@
               "roundOf32": "SF"
             }
           },
-          "remove": "Fjern runde"
+          "remove": "Fjern runde",
+          "timingRaceType": "Løbstype",
+          "timingRaceTypeNone": "Ingen løbstype"
         },
         "naming": {
           "title": "Navngivning pr. deltagerantal",
@@ -3693,6 +3695,26 @@
           }
         }
       }
+    },
+    "raceType": {
+      "title": "Løbstyper",
+      "entityName": "Løbstype",
+      "name": "Navn",
+      "add": "Tilføj løbstype",
+      "edit": "Rediger løbstype",
+      "timed": "Med tidtagning",
+      "timedYes": "Ja",
+      "timedNo": "Nej",
+      "untimedHint": "Løbet afvikles, men måles ikke. Startbrættet tilbyder ingen tidtagning for det.",
+      "startMode": "Starttype",
+      "interval": "Interval",
+      "leadIn": "Optakt",
+      "intervalSeconds": "Interval (sekunder)",
+      "leadInSeconds": "Optakt (sekunder)",
+      "presetOptional": "Lad stå tomt, hvis starteren beslutter det på stedet",
+      "sorting": "Rækkefølge",
+      "prefilled": "Forudfyldt fra løbstypen \"{{name}}\". Du kan stadig ændre det.",
+      "untimedRun": "Ingen tidtagning for dette løb ({{name}})."
     }
   }
 }

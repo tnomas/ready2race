@@ -24,6 +24,7 @@ import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import {
     SequenceMode,
+    TimingRaceTypeDto,
     TimingSequenceDto,
     TimingSequenceEntryDto,
     TimingTeamDto,
@@ -37,6 +38,17 @@ export type SequencePanelProps = {
     teamsLoading: boolean
     now: () => number | null
     sequenceState: UseSequenceResult
+    /**
+     * The race type resolved for the next heat, if any. It only prefills the setup form - the
+     * operator can still change everything, because the schedule is a plan and the start line is
+     * reality.
+     */
+    raceType?: TimingRaceTypeDto | null
+}
+
+/** Whole seconds of a millisecond preset, or undefined when the race type leaves it open. */
+function millisToSeconds(millis: number | null | undefined): number | undefined {
+    return millis == null ? undefined : Math.round(millis / 1000)
 }
 
 const DEFAULT_INTERVAL_SECONDS = 60
@@ -181,6 +193,8 @@ type SetupFormProps = {
     teamsLoading: boolean
     busy: boolean
     onCreate: (params: CreateSequenceParams) => void
+    /** Prefills mode and the two number fields when the schedule says what is coming next. */
+    raceType?: TimingRaceTypeDto | null
 }
 
 /**
@@ -192,18 +206,24 @@ type SetupFormProps = {
  * an empty field to a minimum makes it impossible to replace "60" with "5"); they are validated when
  * the operator submits.
  */
-const SetupForm = ({teams, teamsLoading, busy, onCreate}: SetupFormProps) => {
+const SetupForm = ({teams, teamsLoading, busy, onCreate, raceType}: SetupFormProps) => {
     const {t} = useTranslation()
 
-    const [mode, setMode] = useState<SequenceMode>('MASS')
-    const [intervalInput, setIntervalInput] = useState(String(DEFAULT_INTERVAL_SECONDS))
-    const [leadInInput, setLeadInInput] = useState(String(DEFAULT_LEAD_IN_SECONDS))
+    const [mode, setMode] = useState<SequenceMode>(raceType?.startMode ?? 'MASS')
+    const [intervalInput, setIntervalInput] = useState(
+        String(millisToSeconds(raceType?.intervalMillis) ?? DEFAULT_INTERVAL_SECONDS),
+    )
+    const [leadInInput, setLeadInInput] = useState(
+        String(millisToSeconds(raceType?.leadInMillis) ?? DEFAULT_LEAD_IN_SECONDS),
+    )
     /**
      * Until the operator types their own lead-in, the field mirrors the backend's defaults: the
      * interval for INTERVAL mode (so the first start gets the same gap as every following one) and
      * 10s for MASS. Once edited, the value is theirs and nothing overwrites it again.
      */
-    const [leadInEdited, setLeadInEdited] = useState(false)
+    // A race type that brings its own lead-in has already made the decision the mirroring below
+    // exists for - treating it as "edited" keeps a mode switch from overwriting the preset.
+    const [leadInEdited, setLeadInEdited] = useState(raceType?.leadInMillis != null)
     const [invalidField, setInvalidField] = useState<'interval' | 'leadIn' | 'teams' | undefined>(
         undefined,
     )
@@ -287,6 +307,13 @@ const SetupForm = ({teams, teamsLoading, busy, onCreate}: SetupFormProps) => {
             <Typography variant="h5" textAlign="center">
                 {t('timing.sequence.setup.title')}
             </Typography>
+            {/* The preset is visible, not silent: the operator has to be able to see WHY the form
+                opened the way it did - and to override it, because the schedule is a plan. */}
+            {raceType != null && (
+                <Alert severity="info">
+                    {t('timing.raceType.prefilled', {name: raceType.name})}
+                </Alert>
+            )}
             <ToggleButtonGroup
                 value={mode}
                 exclusive
@@ -644,6 +671,7 @@ const SequencePanel = ({
     teamsLoading,
     now,
     sequenceState,
+    raceType,
 }: SequencePanelProps) => {
     const {t} = useTranslation()
     const {confirmAction} = useConfirmation()
@@ -743,10 +771,15 @@ const SequencePanel = ({
         } else {
             content = (
                 <SetupForm
+                    // Remounting on a race-type change is deliberate: the form's initial values ARE
+                    // the preset, and a schedule that has moved on must not leave the previous
+                    // heat's mode standing in a form nobody touched yet.
+                    key={raceType?.id ?? 'none'}
                     teams={orderedTeams}
                     teamsLoading={teamsLoading}
                     busy={busy}
                     onCreate={handleCreate}
+                    raceType={raceType}
                 />
             )
         }

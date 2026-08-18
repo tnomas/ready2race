@@ -957,7 +957,9 @@
               "roundOf32": "R32"
             }
           },
-          "remove": "Remove round"
+          "remove": "Remove round",
+          "timingRaceType": "Race type",
+          "timingRaceTypeNone": "No race type"
         },
         "naming": {
           "title": "Naming per participant count",
@@ -3706,6 +3708,26 @@
           "hint": "Full manual time and place corrections are made in the competition execution view."
         }
       }
+    },
+    "raceType": {
+      "title": "Race types",
+      "entityName": "Race type",
+      "name": "Name",
+      "add": "Add race type",
+      "edit": "Edit race type",
+      "timed": "Timed",
+      "timedYes": "Yes",
+      "timedNo": "No",
+      "untimedHint": "The run is held but not measured. The start board offers no time capture for it.",
+      "startMode": "Start mode",
+      "interval": "Interval",
+      "leadIn": "Lead-in",
+      "intervalSeconds": "Interval (seconds)",
+      "leadInSeconds": "Lead-in (seconds)",
+      "presetOptional": "Leave empty if the starter decides on site",
+      "sorting": "Order",
+      "prefilled": "Prefilled from race type \"{{name}}\". You can still change it.",
+      "untimedRun": "No timing for this run ({{name}})."
     }
   }
 }

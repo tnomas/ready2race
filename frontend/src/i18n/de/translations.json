@@ -957,7 +957,9 @@
               "roundOf32": "SF"
             }
           },
-          "remove": "Runde entfernen"
+          "remove": "Runde entfernen",
+          "timingRaceType": "Renntyp",
+          "timingRaceTypeNone": "Kein Renntyp"
         },
         "naming": {
           "title": "Benennung je Teilnehmerzahl",
@@ -3706,6 +3708,26 @@
           }
         }
       }
+    },
+    "raceType": {
+      "title": "Renntypen",
+      "entityName": "Renntyp",
+      "name": "Name",
+      "add": "Renntyp hinzufügen",
+      "edit": "Renntyp bearbeiten",
+      "timed": "Mit Zeitnahme",
+      "timedYes": "Ja",
+      "timedNo": "Nein",
+      "untimedHint": "Der Lauf wird gefahren, aber nicht gemessen. Das Startbrett bietet dafür keine Zeiterfassung an.",
+      "startMode": "Startart",
+      "interval": "Abstand",
+      "leadIn": "Vorlauf",
+      "intervalSeconds": "Abstand (Sekunden)",
+      "leadInSeconds": "Vorlauf (Sekunden)",
+      "presetOptional": "Leer lassen, wenn der Starter das vor Ort entscheidet",
+      "sorting": "Reihenfolge",
+      "prefilled": "Vorbelegt aus dem Renntyp „{{name}}“. Änderungen bleiben möglich.",
+      "untimedRun": "Keine Zeitnahme für diesen Lauf ({{name}})."
     }
   }
 }

@@ -36,6 +36,7 @@ import {
     updatePreviousRoundParticipants,
 } from '@components/event/competition/setup/common.ts'
 import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
+import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
 import {useTranslation} from 'react-i18next'
 import Add from '@mui/icons-material/Add'
 import Info from '@mui/icons-material/Info'
@@ -60,6 +61,9 @@ type Props = {
     // Best-case global seed pairings per match (weighting order) for this bracket round, at full capacity.
     // Undefined for qualification / group rounds, which have no bracket matchup preview.
     bracketMatchupSeedings?: number[][]
+    // Selectable race types of the event, including the empty "no race type" entry. Undefined in the
+    // setup-template editor, which has no event and therefore no race types.
+    raceTypeOptions?: Array<{id: string; label: string}>
 }
 const CompetitionSetupRound = ({round, formContext, removeRound, teamCounts, ...props}: Props) => {
     const defaultMatchTeamSize = 2
@@ -368,6 +372,22 @@ const CompetitionSetupRound = ({round, formContext, removeRound, teamCounts, ...
                                 <Alert severity="info">
                                     {t('event.competition.setup.round.lockedInfo')}
                                 </Alert>
+                            )}
+                            {/* Deliberately outside the locked fieldset below: the race type is the
+                                one field of a round that stays editable while it is being raced. It
+                                says how the heats are started, not what the round IS - and a round
+                                already under way is exactly the one whose race type someone still
+                                needs to correct. Only rendered where race types exist at all
+                                (a setup template belongs to no event). */}
+                            {props.raceTypeOptions !== undefined && (
+                                <Box sx={{maxWidth: 250}}>
+                                    <FormInputSelect
+                                        name={`rounds.${round.index}.timingRaceType`}
+                                        label={t('event.competition.setup.round.timingRaceType')}
+                                        options={props.raceTypeOptions}
+                                        fullWidth
+                                    />
+                                </Box>
                             )}
                             <Box
                                 component={props.locked ? 'fieldset' : 'div'}

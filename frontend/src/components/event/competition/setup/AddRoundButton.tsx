@@ -27,6 +27,7 @@ const AddRoundButton = ({index, insertRound}: Props) => {
                         useStartTimeOffsets: false,
                         isQualification: false,
                         matchNamings: [],
+                        timingRaceType: '',
                     })
                 }}
                 sx={{width: 1}}

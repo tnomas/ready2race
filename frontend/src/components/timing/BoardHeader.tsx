@@ -37,6 +37,10 @@ export type BoardHeaderProps = {
     wsStatus: TimingWsStatus
     clockQuality: ClockQuality
     now: () => number | null
+    /** Name of the race type resolved for the next heat, if the schedule declares one. */
+    raceTypeName?: string
+    /** True when that race type is not measured at all - the chip then says so rather than implying work. */
+    raceTypeUntimed?: boolean
 }
 
 /**
@@ -48,7 +52,14 @@ export type BoardHeaderProps = {
  * second. `now` is read through a ref updated every render so the loop itself only needs to start
  * once and is cancelled on unmount.
  */
-const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProps) => {
+const BoardHeader = ({
+    stationName,
+    wsStatus,
+    clockQuality,
+    now,
+    raceTypeName,
+    raceTypeUntimed,
+}: BoardHeaderProps) => {
     const {t} = useTranslation()
     const clockRef = useRef<HTMLSpanElement | null>(null)
     const nowRef = useRef(now)
@@ -91,6 +102,16 @@ const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProp
                     {CLOCK_PLACEHOLDER}
                 </Typography>
                 <Stack direction="row" spacing={1}>
+                    {/* What is coming next, in the operator's line of sight - the whole point of the
+                        race types is that nobody has to be told the mode heat by heat. */}
+                    {raceTypeName !== undefined && (
+                        <Chip
+                            size="small"
+                            color={raceTypeUntimed ? 'default' : 'info'}
+                            variant={raceTypeUntimed ? 'outlined' : 'filled'}
+                            label={raceTypeName}
+                        />
+                    )}
                     <Chip
                         size="small"
                         color={WS_STATUS_COLOR[wsStatus]}

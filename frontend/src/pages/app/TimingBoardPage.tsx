@@ -30,7 +30,7 @@ import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
-import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
+import {createTimeMark, getCurrentTimingRaceType, getTimingTeams} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
@@ -93,6 +93,16 @@ const TimingBoardPage = () => {
         pending: teamsPending,
         error: teamsError,
     } = useFetch(signal => getTimingTeams({signal, path: {eventId}}))
+
+    // Which race type applies to the next heat. Resolved by the server from the schedule, so the
+    // timekeeper does not have to be told the mode for every run. Refetched when the station changes;
+    // it is a preset, not live state, so it deliberately rides on the normal fetch instead of the
+    // websocket.
+    const {data: currentRaceType} = useFetch(
+        signal => getCurrentTimingRaceType({signal, path: {eventId}, query: {stationId}}),
+        {deps: [eventId, stationId]},
+    )
+    const raceType = currentRaceType?.raceType ?? null
     const teams = useMemo(
         () =>
             [...(teamsData ?? [])].sort(
@@ -102,6 +112,9 @@ const TimingBoardPage = () => {
     )
 
     const station = stations.find(s => s.id === stationId)
+
+    // Only the START board reacts to an untimed race type in v1 (see the notice below).
+    const untimedRun = station?.type === 'START' && raceType?.timed === false
 
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
@@ -529,6 +542,8 @@ const TimingBoardPage = () => {
                 wsStatus={wsStatus}
                 clockQuality={clock.quality}
                 now={clock.now}
+                raceTypeName={raceType?.name}
+                raceTypeUntimed={raceType?.timed === false}
             />
 
             {showUnauthorizedBanner && (
@@ -589,7 +604,7 @@ const TimingBoardPage = () => {
                     gap: 2,
                     p: 2,
                 }}>
-                {station?.type === 'START' && (
+                {station?.type === 'START' && !untimedRun && (
                     <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex'}}>
                         <SequencePanel
                             stationId={stationId}
@@ -597,8 +612,18 @@ const TimingBoardPage = () => {
                             teamsLoading={teamsPending}
                             now={clock.now}
                             sequenceState={sequenceState}
+                            raceType={raceType}
                         />
                     </Box>
+                )}
+                {/* An untimed race type ("Show-Lauf") is held but not measured, so this board has
+                    nothing to do for it. v1 limitation: only the START board reacts - split and
+                    finish stations still show their capture surface, because suppressing it there
+                    would have to follow each individual heat rather than the next one. */}
+                {untimedRun && (
+                    <Alert severity="info" sx={{flexShrink: 0}}>
+                        {t('timing.raceType.untimedRun', {name: raceType?.name ?? ''})}
+                    </Alert>
                 )}
                 {teamsViewAvailable && (
                     <ToggleButtonGroup
@@ -629,7 +654,7 @@ const TimingBoardPage = () => {
                     sx={{
                         flexShrink: showTeamsView ? 1 : 0,
                         minHeight: 0,
-                        display: 'flex',
+                        display: untimedRun ? 'none' : 'flex',
                         flexGrow: station?.type === 'START' ? 0 : 1,
                     }}>
                     {showTeamsView ? (
