@@ -1853,6 +1853,165 @@
         "failed": "fehlgeschlagen",
         "undo": "Rückgängig machen"
       }
+    },
+    "leitstand": {
+      "title": "Leitstand",
+      "entryHint": "Alle Posten",
+      "tab": {
+        "times": "Zeiten",
+        "results": "Ergebnisse",
+        "devices": "Geräte"
+      },
+      "marks": {
+        "stationFilter": "Posten",
+        "allStations": "Alle Posten",
+        "unassignedOnly": "Nur unzugeordnete",
+        "count_one": "{{count}} Zeit",
+        "count_other": "{{count}} Zeiten",
+        "unassigned": "nicht zugeordnet",
+        "empty": "Keine Zeiten erfasst",
+        "column": {
+          "station": "Posten",
+          "time": "Zeit",
+          "status": "Status",
+          "source": "Quelle",
+          "team": "Team",
+          "actions": "Aktionen"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "RETRACTED": "Zurückgenommen"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Gelöschte Zeiten endgültig entfernen",
+          "hint_one": "{{count}} zurückgenommene Zeit",
+          "hint_other": "{{count}} zurückgenommene Zeiten",
+          "confirm": {
+            "title": "Zeiten endgültig entfernen?",
+            "contentAll_one": "{{count}} zurückgenommene Zeit wird endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentAll_other": "{{count}} zurückgenommene Zeiten werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentStation_one": "{{count}} zurückgenommene Zeit am Posten {{station}} wird endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentStation_other": "{{count}} zurückgenommene Zeiten am Posten {{station}} werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden."
+          },
+          "success_one": "{{count}} Zeit entfernt",
+          "success_other": "{{count}} Zeiten entfernt",
+          "error": "Zeiten konnten nicht entfernt werden"
+        }
+      },
+      "results": {
+        "loadError": "Offizielle Zeiten konnten nicht geladen werden",
+        "empty": "Keine Teams vorhanden",
+        "selectedCount_one": "{{count}} Zeile ausgewählt",
+        "selectedCount_other": "{{count}} Zeilen ausgewählt",
+        "pushableCount_one": "{{count}} Zeile übertragbar",
+        "pushableCount_other": "{{count}} Zeilen übertragbar",
+        "penaltyValue": "+{{seconds}} s",
+        "dirty": "Veraltet",
+        "dirtyHint": "Seit der Berechnung bzw. Übernahme wurde eine Zeit geändert – neu berechnen und erneut übernehmen",
+        "notPushed": "nicht übernommen",
+        "column": {
+          "team": "Startnr. / Team",
+          "start": "Startzeit",
+          "finish": "Zielzeit",
+          "computed": "Berechnet",
+          "override": "Override",
+          "penalty": "Strafzeit",
+          "status": "Status",
+          "effective": "Effektiv",
+          "pushed": "Übernommen"
+        },
+        "status": {
+          "NONE": "Kein Status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "compute": {
+          "action": "Neu berechnen",
+          "error": "Berechnung fehlgeschlagen",
+          "resultTitle": "Berechnung abgeschlossen",
+          "computedCount_one": "{{count}} Zeit berechnet",
+          "computedCount_other": "{{count}} Zeiten berechnet",
+          "skippedCount_one": "{{count}} Team übersprungen",
+          "skippedCount_other": "{{count}} Teams übersprungen",
+          "noSkips": "Kein Team wurde übersprungen",
+          "skipReason": {
+            "NO_START_MARK": "Keine Startzeit",
+            "NO_FINISH_MARK": "Keine Zielzeit",
+            "NEGATIVE_DURATION": "Zielzeit liegt vor der Startzeit"
+          }
+        },
+        "push": {
+          "action": "In Ergebnisse übernehmen",
+          "error": "Übernahme fehlgeschlagen",
+          "nothing": "Keine übertragbaren Zeiten vorhanden",
+          "success_one": "{{count}} Zeit übernommen",
+          "success_other": "{{count}} Zeiten übernommen",
+          "force": "Trotzdem übernehmen",
+          "forceConfirm": {
+            "title": "Ergebnisse überschreiben?",
+            "content": "Für diese Teams ist das Ergebnis bereits festgeschrieben. Die Zeiten werden trotzdem überschrieben."
+          },
+          "conflictTitle": "Übernahme nicht möglich",
+          "conflictDescription": "Für diese Teams wurde nichts übernommen:",
+          "conflictReason": {
+            "RESULT_FROZEN": "Ergebnis bereits festgeschrieben",
+            "NO_EFFECTIVE_TIME": "Keine Zeit und kein Status gesetzt"
+          }
+        },
+        "edit": {
+          "action": "Zeit bearbeiten",
+          "title": "Offizielle Zeit bearbeiten",
+          "overrideSeconds": "Override (Sekunden)",
+          "overrideHelp": "Leer lassen, um die berechnete Zeit zu verwenden",
+          "penaltySeconds": "Strafzeit (Sekunden)",
+          "penaltyHelp": "Wird zur Zeit addiert; leer bedeutet keine Strafzeit",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ ersetzen die Zeit im Ergebnis",
+          "invalidSeconds": "Bitte eine Zahl in Sekunden eingeben",
+          "error": "Speichern fehlgeschlagen",
+          "success": "Zeit gespeichert"
+        }
+      },
+      "devices": {
+        "loadError": "Geräte-Token konnten nicht geladen werden",
+        "noStations": "Es gibt noch keine Posten – Token können erst danach ausgestellt werden",
+        "empty": "Keine Geräte-Token vorhanden",
+        "column": {
+          "name": "Name",
+          "station": "Posten",
+          "created": "Erstellt",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Aktiv",
+          "REVOKED": "Widerrufen"
+        },
+        "issue": {
+          "action": "Token ausstellen",
+          "title": "Geräte-Token ausstellen",
+          "error": "Token konnte nicht ausgestellt werden",
+          "onceWarning": "Dieser Token wird nur einmal angezeigt. Jetzt kopieren und sicher hinterlegen.",
+          "copy": "Token kopieren",
+          "copied": "Token kopiert",
+          "copyError": "Token konnte nicht kopiert werden",
+          "usageHint": "Das Gerät sendet den Token im Header X-Timing-Device-Token.",
+          "done": "Fertig"
+        },
+        "revoke": {
+          "action": "Widerrufen",
+          "error": "Widerrufen fehlgeschlagen",
+          "success": "Token widerrufen",
+          "confirm": {
+            "title": "Token widerrufen?",
+            "content": "Das Gerät „{{name}}“ kann danach keine Zeiten mehr senden."
+          }
+        }
+      }
     }
   },
   "caterer": {

@@ -56,6 +56,7 @@ import ChallengePage from './pages/challenge/ChallengePage.tsx'
 import TimingEventsPage from './pages/app/TimingEventsPage.tsx'
 import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
 import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
+import TimingLeitstandPage from './pages/app/TimingLeitstandPage.tsx'
 
 const checkAuth = (context: User, location: ParsedLocation, privilege?: Privilege) => {
     if (!context.loggedIn) {
@@ -474,6 +475,17 @@ export const timingStationSelectIndexRoute = createRoute({
     },
 })
 
+// Declared before `timingStationRoute` and matched ahead of it: `leitstand` is a static segment, so
+// it must win over the sibling `$stationId` param route.
+export const timingLeitstandRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: 'leitstand',
+    component: () => <TimingLeitstandPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
 export const timingStationRoute = createRoute({
     getParentRoute: () => timingEventRoute,
     path: '$stationId',
@@ -561,6 +573,7 @@ const routeTree = rootRoute.addChildren([
             timingEventsIndexRoute,
             timingEventRoute.addChildren([
                 timingStationSelectIndexRoute,
+                timingLeitstandRoute,
                 timingStationRoute,
             ]),
         ]),

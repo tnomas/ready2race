@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {getTimingState, getTimingStations} from '@api/sdk.gen.ts'
-import {TimeMarkDto, TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
+import {OfficialTimeDto, TimeMarkDto, TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
 import {TimingWsMessage} from '@utils/timing/timingSocket.ts'
 import {TimingWsStatus, useTimingWebSocket} from '@utils/timing/useTimingWebSocket.ts'
 
@@ -16,7 +16,11 @@ export type BoardMark = TimeMarkDto & {
 }
 
 export type UseTimingBoardStateResult = {
-    /** This station's marks, in the order the server/websocket delivered them. */
+    /**
+     * This station's marks, in the order the server/websocket delivered them — or, when the hook was
+     * called with `stationId === null` (the Leitstand's cross-station view), the event's marks from
+     * every station.
+     */
     marks: BoardMark[]
     /** All stations of the event (used e.g. to resolve the current station's name/type). */
     stations: TimingStationDto[]
@@ -74,6 +78,17 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             // `useTimingBoardState`, not by this reducer. Present here only so the switch stays
             // exhaustive over `TimingWsMessage`.
             return marks
+        case 'officialTimeChanged':
+            // Result-table data, not mark data — handled by the optional `onOfficialTimeChanged`
+            // callback (see `sequenceChanged` above for the same shape).
+            return marks
+        case 'timesDeleted': {
+            // The explicit "delete times" action hard-deletes retracted marks, so the rows have to
+            // disappear rather than change status. Included in the reducer (and therefore in the
+            // replay path) because a snapshot that predates the delete would otherwise resurrect them.
+            const deleted = new Set(message.timeMarks)
+            return marks.filter(m => !deleted.has(m.id))
+        }
     }
 }
 
@@ -120,11 +135,18 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
  * snapshot — and would be dropped. `locallyCreatedIdsRef` tracks every id ever passed to
  * `applyLocalMark` for the current event and is also treated as preservable, closing that gap; an id
  * is dropped from the set once a snapshot actually contains it, and the set is reset on event change.
+ *
+ * **All-stations variant.** Passing `stationId === null` drops the station filter, so `marks` is the
+ * event's full cross-station list — that is what the Leitstand renders. Everything else (snapshot,
+ * websocket feed, replay, optimistic capture flow) is identical; `MarkList` and the capture
+ * components stay per-station by construction (their sequence numbering is keyed on one station), so
+ * they are not reused in that mode.
  */
 export function useTimingBoardState(
     eventId: string,
-    stationId: string,
+    stationId: string | null,
     onSequenceChanged?: (sequence: TimingSequenceDto) => void,
+    onOfficialTimeChanged?: (officialTimes: OfficialTimeDto[]) => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -157,8 +179,11 @@ export function useTimingBoardState(
 
     /** Latest `onSequenceChanged`, mirrored so `onMessage` doesn't need it as a dependency. */
     const onSequenceChangedRef = useRef(onSequenceChanged)
+    /** Same for `onOfficialTimeChanged` (the Leitstand's result-table feed). */
+    const onOfficialTimeChangedRef = useRef(onOfficialTimeChanged)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
+        onOfficialTimeChangedRef.current = onOfficialTimeChanged
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -352,6 +377,10 @@ export function useTimingBoardState(
                 onSequenceChangedRef.current?.(message.sequence)
                 return
             }
+            if (message.type === 'officialTimeChanged') {
+                onOfficialTimeChangedRef.current?.(message.officialTimes)
+                return
+            }
             setAllMarks(prev => applyWsMessage(prev, message))
         },
         [refetchStations],
@@ -385,7 +414,12 @@ export function useTimingBoardState(
         setAllMarks(prev => prev.map(m => (m.id === id ? {...m, pending: false, failed: true} : m)))
     }, [])
 
-    const marks = useMemo(() => allMarks.filter(m => m.station === stationId), [allMarks, stationId])
+    // `stationId === null` is the Leitstand's cross-station view: no station filter at all, every
+    // mark of the event. Any concrete id filters to that station, as the per-station boards need.
+    const marks = useMemo(
+        () => (stationId === null ? allMarks : allMarks.filter(m => m.station === stationId)),
+        [allMarks, stationId],
+    )
 
     return {
         marks,

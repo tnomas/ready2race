@@ -5,7 +5,7 @@ import {useEffect} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useFetch} from '@utils/hooks.ts'
 import {getTimingStations} from '@api/sdk.gen.ts'
-import {updateAppTimingGlobal} from '@authorization/privileges.ts'
+import {updateAppTimingGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import {timingEventRoute} from '@routes'
 import Throbber from '@components/Throbber.tsx'
 
@@ -56,6 +56,33 @@ const TimingStationSelectPage = () => {
                         </CardActionArea>
                     </Card>
                 ))}
+                {/* The Leitstand is not a station: it is the control desk over all of them, and it
+                    writes into the event's results — hence the stricter privilege than the operator
+                    boards above. */}
+                {user.checkPrivilege(updateEventGlobal) && (
+                    <Card sx={{minHeight: 96, width: 1}}>
+                        <CardActionArea
+                            onClick={() =>
+                                void navigate({
+                                    to: '/app/timing/$eventId/leitstand',
+                                    params: {eventId},
+                                })
+                            }
+                            sx={{
+                                height: 1,
+                                minHeight: 96,
+                                display: 'flex',
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                px: 3,
+                                py: 2,
+                            }}>
+                            <Typography variant="h6">{t('timing.leitstand.title')}</Typography>
+                            <Chip label={t('timing.leitstand.entryHint')} color="secondary" />
+                        </CardActionArea>
+                    </Card>
+                )}
                 {pending && <Throbber />}
             </Stack>
         </Box>

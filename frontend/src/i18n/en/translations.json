@@ -1853,6 +1853,165 @@
         "failed": "failed",
         "undo": "Undo"
       }
+    },
+    "leitstand": {
+      "title": "Control desk",
+      "entryHint": "All stations",
+      "tab": {
+        "times": "Times",
+        "results": "Results",
+        "devices": "Devices"
+      },
+      "marks": {
+        "stationFilter": "Station",
+        "allStations": "All stations",
+        "unassignedOnly": "Unassigned only",
+        "count_one": "{{count}} time",
+        "count_other": "{{count}} times",
+        "unassigned": "unassigned",
+        "empty": "No times captured",
+        "column": {
+          "station": "Station",
+          "time": "Time",
+          "status": "Status",
+          "source": "Source",
+          "team": "Team",
+          "actions": "Actions"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "RETRACTED": "Retracted"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Permanently remove retracted times",
+          "hint_one": "{{count}} retracted time",
+          "hint_other": "{{count}} retracted times",
+          "confirm": {
+            "title": "Permanently remove times?",
+            "contentAll_one": "{{count}} retracted time will be deleted permanently. This cannot be undone.",
+            "contentAll_other": "{{count}} retracted times will be deleted permanently. This cannot be undone.",
+            "contentStation_one": "{{count}} retracted time at station {{station}} will be deleted permanently. This cannot be undone.",
+            "contentStation_other": "{{count}} retracted times at station {{station}} will be deleted permanently. This cannot be undone."
+          },
+          "success_one": "{{count}} time removed",
+          "success_other": "{{count}} times removed",
+          "error": "Times could not be removed"
+        }
+      },
+      "results": {
+        "loadError": "Official times could not be loaded",
+        "empty": "No teams available",
+        "selectedCount_one": "{{count}} row selected",
+        "selectedCount_other": "{{count}} rows selected",
+        "pushableCount_one": "{{count}} row ready to push",
+        "pushableCount_other": "{{count}} rows ready to push",
+        "penaltyValue": "+{{seconds}} s",
+        "dirty": "Outdated",
+        "dirtyHint": "A time changed since this was computed or pushed – recompute and push again",
+        "notPushed": "not pushed",
+        "column": {
+          "team": "Start no. / team",
+          "start": "Start time",
+          "finish": "Finish time",
+          "computed": "Computed",
+          "override": "Override",
+          "penalty": "Penalty",
+          "status": "Status",
+          "effective": "Effective",
+          "pushed": "Pushed"
+        },
+        "status": {
+          "NONE": "No status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "compute": {
+          "action": "Recompute",
+          "error": "Computation failed",
+          "resultTitle": "Computation finished",
+          "computedCount_one": "{{count}} time computed",
+          "computedCount_other": "{{count}} times computed",
+          "skippedCount_one": "{{count}} team skipped",
+          "skippedCount_other": "{{count}} teams skipped",
+          "noSkips": "No team was skipped",
+          "skipReason": {
+            "NO_START_MARK": "No start time",
+            "NO_FINISH_MARK": "No finish time",
+            "NEGATIVE_DURATION": "Finish time is before the start time"
+          }
+        },
+        "push": {
+          "action": "Push to results",
+          "error": "Push failed",
+          "nothing": "Nothing to push",
+          "success_one": "{{count}} time pushed",
+          "success_other": "{{count}} times pushed",
+          "force": "Push anyway",
+          "forceConfirm": {
+            "title": "Overwrite results?",
+            "content": "The result of these teams is already final. The times will be overwritten anyway."
+          },
+          "conflictTitle": "Push not possible",
+          "conflictDescription": "Nothing was pushed for these teams:",
+          "conflictReason": {
+            "RESULT_FROZEN": "Result already final",
+            "NO_EFFECTIVE_TIME": "Neither a time nor a status is set"
+          }
+        },
+        "edit": {
+          "action": "Edit time",
+          "title": "Edit official time",
+          "overrideSeconds": "Override (seconds)",
+          "overrideHelp": "Leave empty to use the computed time",
+          "penaltySeconds": "Penalty (seconds)",
+          "penaltyHelp": "Added to the time; empty means no penalty",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ replace the time in the result",
+          "invalidSeconds": "Please enter a number of seconds",
+          "error": "Saving failed",
+          "success": "Time saved"
+        }
+      },
+      "devices": {
+        "loadError": "Device tokens could not be loaded",
+        "noStations": "There are no stations yet – tokens can only be issued afterwards",
+        "empty": "No device tokens",
+        "column": {
+          "name": "Name",
+          "station": "Station",
+          "created": "Created",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Active",
+          "REVOKED": "Revoked"
+        },
+        "issue": {
+          "action": "Issue token",
+          "title": "Issue device token",
+          "error": "Token could not be issued",
+          "onceWarning": "This token is shown only once. Copy it now and store it securely.",
+          "copy": "Copy token",
+          "copied": "Token copied",
+          "copyError": "Token could not be copied",
+          "usageHint": "The device sends the token in the X-Timing-Device-Token header.",
+          "done": "Done"
+        },
+        "revoke": {
+          "action": "Revoke",
+          "error": "Revoking failed",
+          "success": "Token revoked",
+          "confirm": {
+            "title": "Revoke token?",
+            "content": "The device “{{name}}” will no longer be able to send times."
+          }
+        }
+      }
     }
   },
   "caterer": {

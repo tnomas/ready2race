@@ -1,9 +1,14 @@
 import Config from '../../Config'
-import { TimeMarkDto, TimingSequenceDto } from '../../api'
+import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto } from '../../api'
 
 /**
  * Discriminated union of messages pushed by the timing websocket channel.
  * Mirrors the backend contract documented alongside `TimingStationType` in the generated API types.
+ *
+ * `officialTimeChanged` carries a *list* (`officialTimes`) and `timesDeleted` a *list* of mark ids
+ * (`timeMarks`) — both exactly as the backend's `TimingWsMessage.OfficialTimeChanged` /
+ * `.TimesDeleted` jackson subtypes declare them, since a recompute or a batch push changes many rows
+ * at once and one message per row would flood every connected board.
  */
 export type TimingWsMessage =
 	| { type: 'timeMarkCreated'; mark: TimeMarkDto }
@@ -11,6 +16,8 @@ export type TimingWsMessage =
 	| { type: 'assignmentChanged'; timeMark: string; competitionMatchTeam: string | null }
 	| { type: 'stationsChanged' }
 	| { type: 'sequenceChanged'; sequence: TimingSequenceDto }
+	| { type: 'officialTimeChanged'; officialTimes: OfficialTimeDto[] }
+	| { type: 'timesDeleted'; timeMarks: string[] }
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
@@ -18,6 +25,8 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'assignmentChanged',
 	'stationsChanged',
 	'sequenceChanged',
+	'officialTimeChanged',
+	'timesDeleted',
 ])
 
 /**

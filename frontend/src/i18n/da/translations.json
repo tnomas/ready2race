@@ -1853,6 +1853,165 @@
         "failed": "mislykkedes",
         "undo": "Fortryd"
       }
+    },
+    "leitstand": {
+      "title": "Kontrolpult",
+      "entryHint": "Alle poster",
+      "tab": {
+        "times": "Tider",
+        "results": "Resultater",
+        "devices": "Enheder"
+      },
+      "marks": {
+        "stationFilter": "Post",
+        "allStations": "Alle poster",
+        "unassignedOnly": "Kun ikke-tilknyttede",
+        "count_one": "{{count}} tid",
+        "count_other": "{{count}} tider",
+        "unassigned": "ikke tilknyttet",
+        "empty": "Ingen tider registreret",
+        "column": {
+          "station": "Post",
+          "time": "Tid",
+          "status": "Status",
+          "source": "Kilde",
+          "team": "Hold",
+          "actions": "Handlinger"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "RETRACTED": "Tilbagetrukket"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Fjern tilbagetrukne tider permanent",
+          "hint_one": "{{count}} tilbagetrukket tid",
+          "hint_other": "{{count}} tilbagetrukne tider",
+          "confirm": {
+            "title": "Fjern tider permanent?",
+            "contentAll_one": "{{count}} tilbagetrukket tid slettes permanent. Det kan ikke fortrydes.",
+            "contentAll_other": "{{count}} tilbagetrukne tider slettes permanent. Det kan ikke fortrydes.",
+            "contentStation_one": "{{count}} tilbagetrukket tid på posten {{station}} slettes permanent. Det kan ikke fortrydes.",
+            "contentStation_other": "{{count}} tilbagetrukne tider på posten {{station}} slettes permanent. Det kan ikke fortrydes."
+          },
+          "success_one": "{{count}} tid fjernet",
+          "success_other": "{{count}} tider fjernet",
+          "error": "Tiderne kunne ikke fjernes"
+        }
+      },
+      "results": {
+        "loadError": "Officielle tider kunne ikke indlæses",
+        "empty": "Ingen hold tilgængelige",
+        "selectedCount_one": "{{count}} række valgt",
+        "selectedCount_other": "{{count}} rækker valgt",
+        "pushableCount_one": "{{count}} række klar til overførsel",
+        "pushableCount_other": "{{count}} rækker klar til overførsel",
+        "penaltyValue": "+{{seconds}} s",
+        "dirty": "Forældet",
+        "dirtyHint": "En tid er ændret siden beregningen eller overførslen – beregn igen og overfør på ny",
+        "notPushed": "ikke overført",
+        "column": {
+          "team": "Startnr. / hold",
+          "start": "Starttid",
+          "finish": "Sluttid",
+          "computed": "Beregnet",
+          "override": "Override",
+          "penalty": "Straftid",
+          "status": "Status",
+          "effective": "Effektiv",
+          "pushed": "Overført"
+        },
+        "status": {
+          "NONE": "Ingen status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "compute": {
+          "action": "Beregn igen",
+          "error": "Beregningen mislykkedes",
+          "resultTitle": "Beregning afsluttet",
+          "computedCount_one": "{{count}} tid beregnet",
+          "computedCount_other": "{{count}} tider beregnet",
+          "skippedCount_one": "{{count}} hold sprunget over",
+          "skippedCount_other": "{{count}} hold sprunget over",
+          "noSkips": "Ingen hold blev sprunget over",
+          "skipReason": {
+            "NO_START_MARK": "Ingen starttid",
+            "NO_FINISH_MARK": "Ingen sluttid",
+            "NEGATIVE_DURATION": "Sluttiden ligger før starttiden"
+          }
+        },
+        "push": {
+          "action": "Overfør til resultater",
+          "error": "Overførslen mislykkedes",
+          "nothing": "Intet at overføre",
+          "success_one": "{{count}} tid overført",
+          "success_other": "{{count}} tider overført",
+          "force": "Overfør alligevel",
+          "forceConfirm": {
+            "title": "Overskriv resultater?",
+            "content": "Resultatet for disse hold er allerede endeligt. Tiderne overskrives alligevel."
+          },
+          "conflictTitle": "Overførsel ikke mulig",
+          "conflictDescription": "Der blev ikke overført noget for disse hold:",
+          "conflictReason": {
+            "RESULT_FROZEN": "Resultatet er allerede endeligt",
+            "NO_EFFECTIVE_TIME": "Hverken tid eller status er sat"
+          }
+        },
+        "edit": {
+          "action": "Rediger tid",
+          "title": "Rediger officiel tid",
+          "overrideSeconds": "Override (sekunder)",
+          "overrideHelp": "Lad feltet være tomt for at bruge den beregnede tid",
+          "penaltySeconds": "Straftid (sekunder)",
+          "penaltyHelp": "Lægges til tiden; tomt betyder ingen straftid",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ erstatter tiden i resultatet",
+          "invalidSeconds": "Indtast et antal sekunder",
+          "error": "Kunne ikke gemmes",
+          "success": "Tid gemt"
+        }
+      },
+      "devices": {
+        "loadError": "Enhedstokens kunne ikke indlæses",
+        "noStations": "Der findes endnu ingen poster – tokens kan først udstedes derefter",
+        "empty": "Ingen enhedstokens",
+        "column": {
+          "name": "Navn",
+          "station": "Post",
+          "created": "Oprettet",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Aktiv",
+          "REVOKED": "Tilbagekaldt"
+        },
+        "issue": {
+          "action": "Udsted token",
+          "title": "Udsted enhedstoken",
+          "error": "Token kunne ikke udstedes",
+          "onceWarning": "Dette token vises kun én gang. Kopiér det nu og gem det sikkert.",
+          "copy": "Kopiér token",
+          "copied": "Token kopieret",
+          "copyError": "Token kunne ikke kopieres",
+          "usageHint": "Enheden sender tokenet i headeren X-Timing-Device-Token.",
+          "done": "Færdig"
+        },
+        "revoke": {
+          "action": "Tilbagekald",
+          "error": "Tilbagekaldelsen mislykkedes",
+          "success": "Token tilbagekaldt",
+          "confirm": {
+            "title": "Tilbagekald token?",
+            "content": "Enheden “{{name}}” kan derefter ikke længere sende tider."
+          }
+        }
+      }
     }
   },
   "caterer": {
