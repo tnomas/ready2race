@@ -19,6 +19,12 @@ sealed interface TimingError : ServiceError {
     data object DeviceTokenNotFound : TimingError
     data object DeviceTokenInvalid : TimingError
 
+    /**
+     * At least one team of a push could not be written. All or nothing: the whole call fails with
+     * the per-team reasons attached, so an operator never ends up with half a round pushed.
+     */
+    data class PushConflict(val conflicts: List<TimingResultPushConflictDto>) : TimingError
+
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
         StationHasTimeMarks -> ApiError(
@@ -45,6 +51,11 @@ sealed interface TimingError : ServiceError {
         StationNotStartType -> ApiError(
             HttpStatusCode.BadRequest,
             message = "Start sequences require a timing station of type START"
+        )
+        is PushConflict -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "Timing results could not be written for all requested teams",
+            details = mapOf("conflicts" to conflicts)
         )
         DeviceTokenNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing device token not found")
         // Never echoes anything about the presented token - an invalid token is invalid, whether it

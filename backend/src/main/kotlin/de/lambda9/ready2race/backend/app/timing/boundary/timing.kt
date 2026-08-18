@@ -4,7 +4,9 @@ import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.PushTimingResultsRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingResultEntryRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -137,6 +139,42 @@ fun Route.timing() {
                         val body = !receiveKIO(AssignTimeMarkRequest.example)
                         TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
                     }
+                }
+            }
+        }
+
+        route("/results") {
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(
+                        Privilege.UpdateAppTimingGlobal,
+                        Privilege.UpdateEventGlobal,
+                        Privilege.ReadEventGlobal,
+                    )
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingResultService.getResults(eventId)
+                }
+            }
+
+            // Compute and write in one step: there is nothing to compute ahead of time, the times
+            // are derived from the marks on every read (see TimingResultService).
+            post("/compute-push") {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(PushTimingResultsRequest.example)
+                    TimingResultService.pushResults(eventId, body, user.id!!)
+                }
+            }
+
+            put("/{competitionMatchTeamId}") {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val teamId = !pathParam("competitionMatchTeamId", uuid)
+                    val body = !receiveKIO(TimingResultEntryRequest.example)
+                    TimingResultService.setResultEntry(eventId, teamId, body, user.id!!)
                 }
             }
         }

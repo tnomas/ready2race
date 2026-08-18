@@ -50,6 +50,9 @@ object CompetitionMatchTeamRepo {
 
     fun getById(teamId: UUID): JIO<CompetitionMatchTeamRecord?> = COMPETITION_MATCH_TEAM.selectOne { ID.eq(teamId) }
 
+    fun getByIds(teamIds: Collection<UUID>): JIO<List<CompetitionMatchTeamRecord>> =
+        COMPETITION_MATCH_TEAM.select { ID.`in`(teamIds) }
+
     fun updateById(teamId: UUID, f: CompetitionMatchTeamRecord.() -> Unit) =
         COMPETITION_MATCH_TEAM.update(f) { ID.eq(teamId) }
 

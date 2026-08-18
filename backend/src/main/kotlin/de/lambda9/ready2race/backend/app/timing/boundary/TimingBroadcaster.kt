@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.lambda9.ready2race.backend.app.timing.entity.TimeMarkDto
+import de.lambda9.ready2race.backend.app.timing.entity.TimingResultDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingSequenceDto
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -30,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
+    JsonSubTypes.Type(TimingWsMessage.ResultChanged::class, name = "resultChanged"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -47,6 +49,14 @@ sealed class TimingWsMessage {
 
     /** Ids of time marks that were physically deleted by the explicit "delete times" action. */
     data class TimesDeleted(val timeMarks: List<UUID>) : TimingWsMessage()
+
+    /**
+     * Result rows that changed: a penalty or status was entered, or a result was pushed.
+     *
+     * Carries the full rows rather than ids because the Leitstand's result table is exactly this
+     * list - the alternative would be a refetch of the whole event on every keystroke of a penalty.
+     */
+    data class ResultChanged(val results: List<TimingResultDto>) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit
