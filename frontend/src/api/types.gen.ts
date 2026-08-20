@@ -1208,6 +1208,8 @@ export type LatestMatchResultInfo = {
     matchNumber?: number | null
     updatedAt: string
     startTime?: string
+    timingProviderName?: string | null
+    timingProviderUrl?: string | null
     teams: Array<MatchResultTeamInfo>
 }
 
@@ -1242,6 +1244,8 @@ export type MatchResultImportConfigDto = {
     colTeamRegistrationId: string
     colTeamPlace?: string
     colTeamTime?: string
+    attributionName?: string
+    attributionUrl?: string
 }
 
 export type MatchResultImportConfigRequest = {
@@ -1253,6 +1257,14 @@ export type MatchResultImportConfigRequest = {
     colTeamRegistrationId: string
     colTeamPlace?: string
     colTeamTime?: string
+    /**
+     * Display name of the external timing provider, shown with a reference link on public result views (e.g. "RaceClocker").
+     */
+    attributionName?: string
+    /**
+     * Website of the external timing provider the public attribution links to.
+     */
+    attributionUrl?: string
 }
 
 export type MatchResultTeamInfo = {

@@ -14,6 +14,8 @@ data class LatestMatchResultInfo(
     val matchNumber: Int?,
     val updatedAt: LocalDateTime,
     val startTime: LocalDateTime?,
+    val timingProviderName: String?,
+    val timingProviderUrl: String?,
     val teams: List<MatchResultTeamInfo>
 )
 

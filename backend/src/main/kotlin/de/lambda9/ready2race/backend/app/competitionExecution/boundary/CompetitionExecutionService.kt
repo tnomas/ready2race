@@ -500,10 +500,12 @@ object CompetitionExecutionService {
     private fun prepareForNewPlaces(
         matchId: UUID,
         userId: UUID,
+        resultImportConfig: UUID?,
     ): App<Nothing, Unit> = KIO.comprehension {
 
         !CompetitionMatchRepo.update(matchId) {
             currentlyRunning = false
+            this.resultImportConfig = resultImportConfig
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -525,7 +527,7 @@ object CompetitionExecutionService {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         !checkUpdateMatchResult(competitionId, matchId)
-        !prepareForNewPlaces(matchId, userId)
+        !prepareForNewPlaces(matchId, userId, resultImportConfig = null)
 
         val noPlaces = request.teamResults.filter { !it.failed }.any { it.place == null }
 
@@ -587,10 +589,11 @@ object CompetitionExecutionService {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         val match = !checkUpdateMatchResult(competitionId, matchId)
-        !prepareForNewPlaces(matchId, userId)
 
         val config = !MatchResultImportConfigRepo.get(request.config).orDie()
             .onNullFail { MatchResultImportConfigError.NotFound }
+
+        !prepareForNewPlaces(matchId, userId, resultImportConfig = config.id)
 
         val identifierColumn = config.colTeamRegistrationId
 

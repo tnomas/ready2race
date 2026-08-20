@@ -46,6 +46,8 @@ object CompetitionMatchRepo {
             COMPETITION.ID.`as`("competition_id"),
             COMPETITION_VIEW.NAME.`as`("competition_name"),
             COMPETITION_VIEW.CATEGORY_NAME,
+            MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_NAME.`as`("timing_provider_name"),
+            MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_URL.`as`("timing_provider_url"),
         )
             .from(COMPETITION_MATCH)
             .join(COMPETITION_SETUP_MATCH)
@@ -56,6 +58,8 @@ object CompetitionMatchRepo {
             .on(COMPETITION_SETUP_ROUND.COMPETITION_SETUP.eq(COMPETITION_PROPERTIES.ID))
             .join(COMPETITION).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
             .leftJoin(COMPETITION_VIEW).on(COMPETITION_VIEW.ID.eq(COMPETITION.ID))
+            .leftJoin(MATCH_RESULT_IMPORT_CONFIG)
+            .on(COMPETITION_MATCH.RESULT_IMPORT_CONFIG.eq(MATCH_RESULT_IMPORT_CONFIG.ID))
             .where(COMPETITION.EVENT.eq(eventId))
             .and(
                 notExists(

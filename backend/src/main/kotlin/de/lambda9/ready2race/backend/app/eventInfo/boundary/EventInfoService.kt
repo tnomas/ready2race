@@ -123,6 +123,8 @@ object EventInfoService {
                 matchNumber = null, // Could be parsed from match name if needed
                 updatedAt = match[COMPETITION_MATCH.UPDATED_AT]!!,
                 startTime = match[COMPETITION_MATCH.START_TIME],
+                timingProviderName = match.get("timing_provider_name", String::class.java),
+                timingProviderUrl = match.get("timing_provider_url", String::class.java),
                 teams = teams
             )
         }

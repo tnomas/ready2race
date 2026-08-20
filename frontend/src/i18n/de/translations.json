@@ -1493,6 +1493,11 @@
         },
         "error": {
           "noPlaceOrTime": "Bitte geben Sie die Spalte für Plätze oder Zeiten an."
+        },
+        "attribution": {
+          "name": "Zeitmessungsanbieter (Attribution)",
+          "url": "Website des Zeitmessungsanbieters",
+          "hint": "Wird als Verweis mit Link in den öffentlichen Ergebnissen angezeigt, wenn Ergebnisse mit dieser Konfiguration importiert wurden."
         }
       }
     },
@@ -1774,6 +1779,9 @@
     },
     "individualRanking": {
       "error": "Fehler beim Laden der Individualrangliste"
+    },
+    "timing": {
+      "attribution": "Zeitmessung durch"
     },
     "noResults": "Keine Ergebnisse",
     "challengeTabs": {
