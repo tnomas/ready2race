@@ -8888,6 +8888,7 @@ components:
             - EQUAL
             - ASCENDING
             - CUSTOM
+            - PER_MATCH
         places:
           type: array
           items:
@@ -10726,6 +10727,11 @@ components:
             $ref: '#/components/schemas/CompetitionTeamNamedParticipantDto'
         place:
           type: integer
+        matchName:
+          type: string
+          description: >-
+            Name of the match the place was scored in. Only set when the round scores places
+            separately per match (each match has its own first place).
         deregistered:
           type: boolean
         deregistrationReason:

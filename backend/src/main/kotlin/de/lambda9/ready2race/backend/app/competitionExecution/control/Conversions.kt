@@ -160,7 +160,7 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
 )
 
 
-fun CompetitionMatchTeamWithRegistration.toCompetitionTeamPlaceDto(place: Int) = KIO.ok(
+fun CompetitionMatchTeamWithRegistration.toCompetitionTeamPlaceDto(place: Int, matchName: String? = null) = KIO.ok(
     CompetitionTeamPlaceDto(
         competitionRegistrationId = competitionRegistration,
         teamNumber = teamNumber!!, // This should not be null because competition_match_teams are not created if the registration teamNumber is missing
@@ -169,6 +169,7 @@ fun CompetitionMatchTeamWithRegistration.toCompetitionTeamPlaceDto(place: Int) =
         clubName = clubName,
         namedParticipants = participants.toNamedParticipantsDto(),
         place = place,
+        matchName = matchName,
         deregistered = deregistered,
         deregistrationReason = deregistrationReason,
         actualClubName = singletonOrFallback(participants.map { it.externalClubName }.toSet(), mixedTeamTerm)

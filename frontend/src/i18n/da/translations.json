@@ -739,7 +739,8 @@
           "placesOption": {
             "equal": "Ligestillet (placering = {{place}})",
             "ascending": "Stigende (placering = seedning)",
-            "custom": "Brugerdefineret"
+            "custom": "Brugerdefineret",
+            "perMatch": "Pr. kamp (placering = placering i kampen)"
           }
         },
         "tournamentTree": {

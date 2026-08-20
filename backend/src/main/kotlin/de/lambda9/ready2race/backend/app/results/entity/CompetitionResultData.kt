@@ -20,6 +20,9 @@ data class EventResultData(
 
     data class TeamResultData(
         val place: Int,
+        // Only set when the round scores places separately per match (each match has its own first place)
+        val matchName: String?,
+        val matchWeighting: Int?,
         val clubName: String,
         val teamName: String?,
         val participatingClubName: String?,

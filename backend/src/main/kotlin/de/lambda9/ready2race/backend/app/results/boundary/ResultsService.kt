@@ -335,7 +335,7 @@ object ResultsService {
                             name = competition.name!!,
                             shortName = competition.shortName,
                             days = competition.eventDays!!.map { it!! },
-                            teams = places.map { (team, place) ->
+                            teams = places.map { (team, place, matchName, matchWeighting) ->
 
                                 val substitutions =
                                     !SubstitutionRepo.getOriginalsByCompetitionRegistration(team.competitionRegistration)
@@ -351,6 +351,8 @@ object ResultsService {
 
                                 EventResultData.TeamResultData(
                                     place = place,
+                                    matchName = matchName,
+                                    matchWeighting = matchWeighting,
                                     clubName = team.clubName,
                                     teamName = team.registrationName,
                                     participatingClubName = actualClubName,
@@ -540,7 +542,8 @@ object ResultsService {
                             fontSize = 11f,
                         ) { "Keine Ergebnisse" }
                     } else {
-                        competition.teams.sortedBy { it.place }.forEach { team ->
+                        competition.teams.sortedWith(compareBy({ it.place }, { it.matchWeighting ?: 0 }))
+                            .forEach { team ->
                             block(
                                 padding = Padding(0f, 0f, 0f, 25f)
                             ) {
@@ -552,6 +555,12 @@ object ResultsService {
                                         centered = true,
                                     ) {
                                         team.place.toString()
+                                    }
+                                    team.matchName?.let {
+                                        text(
+                                            fontSize = 9f,
+                                            centered = true,
+                                        ) { it }
                                     }
                                 }
 

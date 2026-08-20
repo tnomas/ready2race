@@ -11,6 +11,8 @@ data class CompetitionTeamPlaceDto(
     val actualClubName: String?,
     val namedParticipants: List<CompetitionTeamNamedParticipantDto>,
     val place: Int,
+    // Name of the match the place was scored in. Only set when the round scores places separately per match
+    val matchName: String?,
     val deregistered: Boolean,
     val deregistrationReason: String?,
 )

@@ -95,9 +95,18 @@ const CompetitionPlaces = () => {
                                     sx={{
                                         justifyContent: 'space-between',
                                     }}>
-                                    <Typography variant={team.place ? 'h5' : 'body1'}>
-                                        {team.place}
-                                    </Typography>
+                                    <Box>
+                                        <Typography variant={team.place ? 'h5' : 'body1'}>
+                                            {team.place}
+                                        </Typography>
+                                        {team.matchName && (
+                                            <Typography
+                                                color={'textSecondary'}
+                                                variant={'body2'}>
+                                                {team.matchName}
+                                            </Typography>
+                                        )}
+                                    </Box>
                                     <Box>
                                         <Typography textAlign={'right'}>
                                             {team.actualClubName ?? team.clubName}

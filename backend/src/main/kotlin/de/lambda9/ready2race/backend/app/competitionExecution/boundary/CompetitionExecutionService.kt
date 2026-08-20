@@ -932,7 +932,7 @@ object CompetitionExecutionService {
 
     fun computeCompetitionPlaces(
         competitionId: UUID,
-    ): App<ServiceError, List<Pair<CompetitionMatchTeamWithRegistration, Int>>> = KIO.comprehension {
+    ): App<ServiceError, List<TeamPlacement>> = KIO.comprehension {
         val setupRoundRecords = !CompetitionSetupService.getSetupRoundsWithMatches(competitionId)
         val setupRounds = sortRounds(setupRoundRecords)
 
@@ -961,7 +961,7 @@ object CompetitionExecutionService {
                     }
 
                 val seedingList =
-                    if (round.placesOption != CompetitionSetupPlacesOption.ASCENDING.name || round.placesOption != CompetitionSetupPlacesOption.CUSTOM.name) { // Only relevant if the placesOption is "ascending" or "custom"
+                    if (round.placesOption == CompetitionSetupPlacesOption.ASCENDING.name || round.placesOption == CompetitionSetupPlacesOption.CUSTOM.name) { // Only relevant if the placesOption is "ascending" or "custom"
                         getSeedingList(
                             currentRoundTeams = round.setupMatches.sortedBy { it.weighting }.map { it.teams },
                             maxTeamsNeeded = setupRounds.getOrNull(roundIdx + 1)?.setupMatches?.sumOf { it.teams ?: 0 }
@@ -987,16 +987,29 @@ object CompetitionExecutionService {
 
                     val teamToPlace = when (round.placesOption) {
                         CompetitionSetupPlacesOption.EQUAL.name -> {
-                            team to if (!isLastRound) {
+                            val place = if (!isLastRound) {
                                 setupRounds[roundIdx + 1].matches.flatMap { m -> m.teams.toList() }.size + 1 // Place is one higher than the count of participants in the next round
                             } else 1 // 1 if this is the final round
+                            TeamPlacement(team, place, null, null)
                         }
 
                         CompetitionSetupPlacesOption.ASCENDING.name ->
-                            team to seedingList!![matchIndex][realPlace - 1]
+                            TeamPlacement(team, seedingList!![matchIndex][realPlace - 1], null, null)
+
+                        CompetitionSetupPlacesOption.PER_MATCH.name -> {
+                            // The place is scored separately within each match, so every match can have its own first place
+                            val setupMatch =
+                                round.setupMatches.first { it.id == sortedRoundMatches[matchIndex].competitionSetupMatch }
+                            TeamPlacement(team, realPlace, setupMatch.name, setupMatch.weighting)
+                        }
 
                         else ->
-                            team to round.places.first { it.roundOutcome == seedingList!![matchIndex][realPlace - 1] }.place
+                            TeamPlacement(
+                                team,
+                                round.places.first { it.roundOutcome == seedingList!![matchIndex][realPlace - 1] }.place,
+                                null,
+                                null,
+                            )
                     }
                     teamToPlace
                 }
@@ -1021,8 +1034,8 @@ object CompetitionExecutionService {
         computeCompetitionPlaces(competitionId)
             .andThen { places ->
                 places
-                    .sortedBy { it.second }
-                    .traverse { it.first.toCompetitionTeamPlaceDto(it.second) }
+                    .sortedWith(compareBy({ it.place }, { it.matchWeighting ?: 0 }))
+                    .traverse { it.team.toCompetitionTeamPlaceDto(it.place, it.matchName) }
             }.map {
                 ApiResponse.ListDto(
                     it
@@ -1214,14 +1227,14 @@ object CompetitionExecutionService {
     }
 
     fun buildCompetitionPlacesCsv(
-        teamsData:  List<Pair<CompetitionMatchTeamWithRegistration, Int>>,
+        teamsData:  List<TeamPlacement>,
         competitionData: EventDataForCompetitionResultsData
     ): ByteArray {
 
         val bytes = ByteArrayOutputStream().use { out ->
             CSV.write(
                 out,
-                teamsData.sortedBy { it.second }
+                teamsData.sortedWith(compareBy({ it.place }, { it.matchWeighting ?: 0 }))
             ) {
 
                 column("Veranstaltung") { competitionData.eventName }
@@ -1230,10 +1243,13 @@ object CompetitionExecutionService {
                     column("Veranstaltungsende") { competitionData.eventDateRange.second.format(DateTimeFormatter.ISO_LOCAL_DATE) }
                 }
                 column("Wettkampf") { competitionData.competitionName }
-                column("Platz") { second.toString()}
-                column("Team") { singletonOrFallback(first.participants.map { it.externalClubName }.toSet(), first.mixedTeamTerm)?: first.clubName }
-                column("Anmelder") { first.clubName + if (first.teamNumber != null) " | ${first.teamNumber}" else "" }
-                column("Teammitglieder"){ first.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.externalClubName?:first.clubName})" }}
+                column("Platz") { place.toString()}
+                if (teamsData.any { it.matchName != null }) {
+                    column("Partie") { matchName ?: "" }
+                }
+                column("Team") { singletonOrFallback(team.participants.map { it.externalClubName }.toSet(), team.mixedTeamTerm)?: team.clubName }
+                column("Anmelder") { team.clubName + if (team.teamNumber != null) " | ${team.teamNumber}" else "" }
+                column("Teammitglieder"){ team.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.externalClubName?:team.clubName})" }}
 
             }
             out.toByteArray()
