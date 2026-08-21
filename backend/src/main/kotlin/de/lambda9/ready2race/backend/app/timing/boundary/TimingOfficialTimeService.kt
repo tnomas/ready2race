@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
@@ -205,6 +206,13 @@ object TimingOfficialTimeService {
             }
         }
 
+        // A push is a manual write on the same fields the RaceClocker poll job writes, so it pauses
+        // a configured auto-pull like every other manual path (mask, file upload) - otherwise the
+        // next poll tick would overwrite the pushed result. No-op without RaceClocker on the match.
+        !pushables.map { (team) -> team.competitionMatch!! }.distinct().traverse { matchId ->
+            CompetitionExecutionService.pauseRaceClockerAutoPull(matchId)
+        }
+
         val markTimes = !resolveMarkTimes(eventId)
         broadcastAsync(
             eventId,
@@ -299,6 +307,16 @@ object TimingOfficialTimeService {
             timecode = timecodeId
             failed = status != OfficialTimeResultStatus.NONE
             failedReason = status.name.takeIf { status != OfficialTimeResultStatus.NONE }
+            // Same convention as the RaceClocker feed (V202608061202): the written time already
+            // includes the penalty; the columns exist so referees and result lists can see why a
+            // time deviates. Rounded because the column is whole seconds while the Leitstand
+            // stores millis - the exact value stays in the timecode. The push is the source of
+            // truth for this moment, so a previous manual penalty (and its note) is replaced, not
+            // kept alongside a time it no longer describes.
+            penaltySeconds = (official.penaltyMillis ?: 0L)
+                .takeIf { it > 0 }
+                ?.let { ((it + 500) / 1000).toInt() }
+            penaltyNote = null
             updatedBy = userId
             updatedAt = now
         }.orDie()

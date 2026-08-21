@@ -7,7 +7,10 @@ import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.data.Timecode
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMECODE
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -585,6 +588,110 @@ class TimingOfficialTimeServiceTest {
         assertKIOFails(TimingError.EventMismatch) {
             TimingOfficialTimeService.deleteRetractedMarks(eventId, otherStation)
         }
+    }
+
+    // ------------------------------------------- push: penalty columns & RaceClocker
+
+    // The pushed timecode already contains the penalty (same convention as the RaceClocker feed:
+    // the reported time includes it). `penalty_seconds`/`penalty_note` are the separate display
+    // columns everything downstream reads (referee mask, boards, results) to explain why a time
+    // deviates - a push has to fill them, or a Leitstand penalty is invisible outside the Leitstand.
+
+    @Test
+    fun pushWritesPenaltySecondsAlongsideTheIncludedTime() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        !TimingOfficialTimeService.setOverride(
+            eventId,
+            teamId,
+            OfficialTimeOverrideRequest(overrideMillis = null, penaltyMillis = 5_000, resultStatus = null),
+            userId,
+        )
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertEquals(5, team!!.penaltySeconds)
+        val timecode = !Jooq.query { selectFrom(TIMECODE).where(TIMECODE.ID.eq(teamId)).fetchOne() }
+        assertEquals(95_000L, timecode!!.time)
+    }
+
+    @Test
+    fun pushRoundsAFractionalPenaltyForTheDisplayColumn() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        !TimingOfficialTimeService.setOverride(
+            eventId,
+            teamId,
+            OfficialTimeOverrideRequest(overrideMillis = null, penaltyMillis = 5_500, resultStatus = null),
+            userId,
+        )
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        // The display column is whole seconds; the exact penalty stays in the pushed time.
+        assertEquals(6, (!CompetitionMatchTeamRepo.getById(teamId))!!.penaltySeconds)
+        val timecode = !Jooq.query { selectFrom(TIMECODE).where(TIMECODE.ID.eq(teamId)).fetchOne() }
+        assertEquals(95_500L, timecode!!.time)
+    }
+
+    @Test
+    fun pushClearsAStalePenaltyWhenTheOfficialTimeHasNone() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        !CompetitionMatchTeamRepo.updateById(teamId) {
+            penaltySeconds = 10
+            penaltyNote = "Frühstart"
+        }.orDie()
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        // The push is the source of truth for the moment it happens - a leftover manual penalty
+        // would claim the pushed time deviates for a reason that no longer exists.
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertNull(team!!.penaltySeconds)
+        assertNull(team.penaltyNote)
+    }
+
+    // Every manual write path pauses a configured RaceClocker auto-pull so the next poll tick does
+    // not overwrite what was just written. The push writes the same fields, so it has to do the
+    // same - otherwise poll and push overwrite each other on a match with auto-pull enabled.
+
+    @Test
+    fun pushPausesAConfiguredRaceClockerAutoPull() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        !Jooq.query {
+            update(EVENT)
+                .set(EVENT.RACECLOCKER_AUTO_PULL, true)
+                .set(EVENT.TIMING_SYSTEM, TimingSystem.RACECLOCKER.name)
+                .where(EVENT.ID.eq(eventId))
+                .execute()
+        }
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        val matchId = (!CompetitionMatchTeamRepo.getById(teamId))!!.competitionMatch
+        val match = !Jooq.query {
+            selectFrom(COMPETITION_MATCH).where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId)).fetchOne()
+        }
+        assertNotNull(match!!.raceclockerAutoPausedAt)
+    }
+
+    @Test
+    fun pushLeavesAutoPullUntouchedWithoutRaceClocker() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        // Without RaceClocker configured there is nothing to pause - a set timestamp would render
+        // a misleading "Automatischer Abruf pausiert" note on the match.
+        val matchId = (!CompetitionMatchTeamRepo.getById(teamId))!!.competitionMatch
+        val match = !Jooq.query {
+            selectFrom(COMPETITION_MATCH).where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId)).fetchOne()
+        }
+        assertNull(match!!.raceclockerAutoPausedAt)
     }
 
 }
