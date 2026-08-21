@@ -9,7 +9,7 @@ import {useForm} from 'react-hook-form-mui'
 import {useCallback} from 'react'
 import {Stack} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {eventIndexRoute} from '@routes'
+import {eventRoute} from '@routes'
 import {RequestResult} from '@hey-api/client-fetch'
 
 type Form = {
@@ -27,7 +27,7 @@ const defaultValues: Form = {
 const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => {
     const {t} = useTranslation()
 
-    const {eventId} = eventIndexRoute.useParams()
+    const {eventId} = eventRoute.useParams()
 
     const typeOptions = [
         {id: 'START', label: t('timing.station.types.START')},

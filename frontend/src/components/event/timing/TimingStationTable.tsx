@@ -2,7 +2,7 @@ import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {BaseEntityTableProps, PageResponse} from '@utils/types.ts'
 import {ApiError, TimingStationDto} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
-import {eventIndexRoute} from '@routes'
+import {eventRoute} from '@routes'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import EntityTable from '@components/EntityTable.tsx'
 import {deleteTimingStation, getTimingStations} from '@api/sdk.gen.ts'
@@ -23,7 +23,7 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const {eventId} = eventIndexRoute.useParams()
+    const {eventId} = eventRoute.useParams()
 
     // getTimingStations has no GetError union in the generated client (it merges to `unknown`
     // since the tsp op has no declared error responses); the runtime shape is still the usual

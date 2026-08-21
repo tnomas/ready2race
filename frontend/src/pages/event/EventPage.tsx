@@ -84,7 +84,6 @@ import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategorie
 import EventTimingConfig from '@components/event/timing/EventTimingConfig.tsx'
 import EventExecutionSettings from '@components/event/EventExecutionSettings.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
-import TimingStationPanel from '@components/event/timing/TimingStationPanel.tsx'
 import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
 import CheckSeverityDialog from '@components/event/liveDashboard/CheckSeverityDialog.tsx'
 import EventNoticeCard from '@components/eventNotice/EventNoticeCard.tsx'
@@ -99,7 +98,6 @@ const EVENT_TABS = [
     'registrations',
     'organization',
     'schedule',
-    'posten',
     'settings',
     'invoices',
 ] as const
@@ -272,9 +270,6 @@ const EventPage = () => {
                                         {...tabProps('organization')}
                                     />
                                 )}
-                            {user.checkPrivilege(updateEventGlobal) && (
-                                <Tab label={t('event.tabs.posten')} {...tabProps('posten')} />
-                            )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
                             )}
@@ -541,9 +536,6 @@ const EventPage = () => {
                         </TabPanel>
                         <TabPanel index={'schedule'} activeTab={activeTab}>
                             <EventSchedule event={data}/>
-                        </TabPanel>
-                        <TabPanel index={'posten'} activeTab={activeTab}>
-                            <TimingStationPanel />
                         </TabPanel>
                         <TabPanel index={'settings'} activeTab={activeTab}>
                             <Stack spacing={4}>
