@@ -196,7 +196,7 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
                                 </Card>
                             ))}
                             {'timingProviderName' in match && (
-                                <TimingProviderAttribution matches={[match]} />
+                                <TimingProviderAttribution sources={[match]} />
                             )}
                         </Stack>
                     </DialogContent>

@@ -5579,6 +5579,25 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/info/timing-providers:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingProviders
+      responses:
+        200:
+          description: External timing providers whose imported results are shown for this event
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingProviderInfo'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/info/running-matches:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -11436,6 +11455,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ParticipantInfo'
+
+    TimingProviderInfo:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          nullable: true
 
     RunningMatchInfo:
       type: object

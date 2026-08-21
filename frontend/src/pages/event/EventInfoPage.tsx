@@ -10,8 +10,9 @@ import {useFetch} from '@utils/hooks'
 import InfoViewConfiguration from '@components/event/info/InfoViewConfiguration'
 import InfoViewDisplay from '@components/event/info/InfoViewDisplay'
 import ViewRotationControl from '@components/event/info/ViewRotationControl'
+import TimingProviderAttribution from '@components/results/TimingProviderAttribution.tsx'
 import {InfoViewConfigurationDto} from '@api/types.gen'
-import {getInfoViews} from '@api/sdk.gen'
+import {getInfoViews, getTimingProviders} from '@api/sdk.gen'
 import {eventInfoRoute} from '@routes'
 
 const EventInfoPage = () => {
@@ -32,6 +33,34 @@ const EventInfoPage = () => {
     const {data: viewsData, pending} = useFetch(signal => getInfoViews({signal, path: {eventId}}), {
         deps: [eventId, viewsRefreshKey],
     })
+
+    // External timing providers whose imported results are shown for this event (attribution may be
+    // required by the provider's terms, e.g. RaceClocker)
+    const {data: timingProviders} = useFetch(
+        signal => getTimingProviders({signal, path: {eventId}}),
+        {deps: [eventId, dataRefreshKey]},
+    )
+
+    const timingAttribution = timingProviders && timingProviders.length > 0 && (
+        <Box
+            sx={{
+                position: 'absolute',
+                bottom: 8,
+                right: 16,
+                zIndex: 10,
+                px: 1,
+                borderRadius: 1,
+                bgcolor: 'background.paper',
+                opacity: 0.9,
+            }}>
+            <TimingProviderAttribution
+                sources={timingProviders.map(provider => ({
+                    timingProviderName: provider.name,
+                    timingProviderUrl: provider.url,
+                }))}
+            />
+        </Box>
+    )
 
     useEffect(() => {
         if (viewsData) {
@@ -220,6 +249,9 @@ const EventInfoPage = () => {
                     </Box>
                 )}
 
+                {/* Timing provider attribution */}
+                {!configOpen && timingAttribution}
+
                 {/* No views message */}
                 {!currentView && !configOpen && (
                     <Box
@@ -318,6 +350,9 @@ const EventInfoPage = () => {
                             )}
                         </Box>
                     )}
+
+                    {/* Timing provider attribution in fullscreen */}
+                    {timingAttribution}
 
                     {/* No views message in fullscreen */}
                     {!currentView && (

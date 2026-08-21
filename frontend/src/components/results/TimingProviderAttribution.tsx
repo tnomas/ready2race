@@ -8,19 +8,19 @@ type TimingProviderSource = {
 }
 
 type Props = {
-    matches: TimingProviderSource[]
+    sources: TimingProviderSource[]
 }
 
 // Attribution of the external timing provider (e.g. RaceClocker) whose terms require a visible
 // reference/link wherever their timing data is published.
-const TimingProviderAttribution = ({matches}: Props) => {
+const TimingProviderAttribution = ({sources}: Props) => {
     const {t} = useTranslation()
 
     const providers = [
         ...new Map(
-            matches
-                .filter(match => match.timingProviderName)
-                .map(match => [match.timingProviderName!, match.timingProviderUrl ?? null]),
+            sources
+                .filter(source => source.timingProviderName)
+                .map(source => [source.timingProviderName!, source.timingProviderUrl ?? null]),
         ).entries(),
     ]
 

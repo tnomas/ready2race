@@ -38,6 +38,15 @@ fun Route.eventInfo() {
             }
         }
 
+        // Get external timing providers whose imported results are shown for this event
+        get("/timing-providers") {
+            call.respondComprehension {
+                val eventId = !pathParam("eventId", uuid)
+
+                EventInfoService.getTimingProviders(eventId)
+            }
+        }
+
         // Get currently running matches
         get("/running-matches") {
             call.respondComprehension {

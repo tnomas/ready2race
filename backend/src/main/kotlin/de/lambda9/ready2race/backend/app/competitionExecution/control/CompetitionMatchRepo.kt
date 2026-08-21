@@ -101,6 +101,28 @@ object CompetitionMatchRepo {
             .fetch()
     }
 
+    // External timing providers whose imported results are shown for this event (for public attribution).
+    fun getTimingProvidersByEvent(eventId: UUID) = Jooq.query {
+        selectDistinct(
+            MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_NAME,
+            MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_URL,
+        )
+            .from(COMPETITION_MATCH)
+            .join(MATCH_RESULT_IMPORT_CONFIG)
+            .on(COMPETITION_MATCH.RESULT_IMPORT_CONFIG.eq(MATCH_RESULT_IMPORT_CONFIG.ID))
+            .join(COMPETITION_SETUP_MATCH)
+            .on(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(COMPETITION_SETUP_MATCH.ID))
+            .join(COMPETITION_SETUP_ROUND)
+            .on(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND.eq(COMPETITION_SETUP_ROUND.ID))
+            .join(COMPETITION_PROPERTIES)
+            .on(COMPETITION_SETUP_ROUND.COMPETITION_SETUP.eq(COMPETITION_PROPERTIES.ID))
+            .join(COMPETITION).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
+            .where(COMPETITION.EVENT.eq(eventId))
+            .and(MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_NAME.isNotNull)
+            .orderBy(MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_NAME.asc())
+            .fetch()
+    }
+
     fun getRunningMatches(
         eventId: UUID,
         limit: Int

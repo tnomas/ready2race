@@ -2009,6 +2009,11 @@ export type ThemeConfigDto = {
     customLogo: CustomLogoDto
 }
 
+export type TimingProviderInfo = {
+    name: string
+    url?: string | null
+}
+
 export type TooManyRequestsError = ApiError & {
     details: {
         retryAfter: number
@@ -5225,6 +5230,16 @@ export type GetLatestMatchResultsData = {
 export type GetLatestMatchResultsResponse = Array<LatestMatchResultInfo>
 
 export type GetLatestMatchResultsError = ApiError
+
+export type GetTimingProvidersData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingProvidersResponse = Array<TimingProviderInfo>
+
+export type GetTimingProvidersError = ApiError
 
 export type GetRunningMatchesData = {
     path: {

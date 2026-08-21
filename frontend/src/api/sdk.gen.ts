@@ -614,6 +614,9 @@ import type {
     GetLatestMatchResultsData,
     GetLatestMatchResultsError,
     GetLatestMatchResultsResponse,
+    GetTimingProvidersData,
+    GetTimingProvidersError,
+    GetTimingProvidersResponse,
     GetRunningMatchesData,
     GetRunningMatchesError,
     GetRunningMatchesResponse,
@@ -3303,6 +3306,19 @@ export const getLatestMatchResults = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/info/latest-match-results',
+    })
+}
+
+export const getTimingProviders = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingProvidersData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingProvidersResponse,
+        GetTimingProvidersError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/info/timing-providers',
     })
 }
 

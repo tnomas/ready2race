@@ -146,7 +146,7 @@ const MatchResults = ({eventId, competitionSelected, setCompetitionSelected}: Pr
                                     key={match.matchId}
                                 />
                             ))}
-                        <TimingProviderAttribution matches={matchResultsData ?? []} />
+                        <TimingProviderAttribution sources={matchResultsData ?? []} />
                     </>
                 )}
             </Stack>

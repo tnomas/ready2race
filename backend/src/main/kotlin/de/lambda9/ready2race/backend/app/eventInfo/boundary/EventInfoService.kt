@@ -132,6 +132,20 @@ object EventInfoService {
         KIO.ok(ApiResponse.ListDto(result))
     }
 
+    fun getTimingProviders(
+        eventId: UUID,
+    ): App<Nothing, ApiResponse.ListDto<TimingProviderInfo>> = KIO.comprehension {
+
+        val records = !CompetitionMatchRepo.getTimingProvidersByEvent(eventId).orDie()
+
+        KIO.ok(ApiResponse.ListDto(records.map {
+            TimingProviderInfo(
+                name = it[MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_NAME]!!,
+                url = it[MATCH_RESULT_IMPORT_CONFIG.ATTRIBUTION_URL],
+            )
+        }))
+    }
+
     fun getUpcomingCompetitionMatches(
         eventId: UUID,
         limit: Int = 10,

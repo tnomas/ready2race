@@ -23,7 +23,6 @@ import {getLatestMatchResults} from '@api/sdk.gen'
 import {EmojiEvents} from '@mui/icons-material'
 import SinglePlaceColored from '@components/event/info/views/SinglePlaceColored.tsx'
 import {sortByPlaces} from '@utils/helpers.ts'
-import TimingProviderAttribution from '@components/results/TimingProviderAttribution.tsx'
 
 interface LatestMatchResultsViewProps {
     eventId: string
@@ -177,7 +176,6 @@ export const LatestMatchResultsView: React.FC<LatestMatchResultsViewProps> = ({e
                         </CardContent>
                     </Card>
                 ))}
-                <TimingProviderAttribution matches={data} />
             </Stack>
         </Box>
     )
