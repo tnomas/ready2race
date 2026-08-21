@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.tailwind.core.KIO
@@ -245,6 +246,10 @@ object TimingService {
                     },
                     competitionName = first.get("competition_name", String::class.java),
                     matchName = first.get("match_name", String::class.java),
+                    matchPhase = TimingMatchPhase.of(
+                        activatedAt = first[COMPETITION_MATCH.ACTIVATED_AT],
+                        finishedAt = first[COMPETITION_MATCH.FINISHED_AT],
+                    ),
                 )
             }
 

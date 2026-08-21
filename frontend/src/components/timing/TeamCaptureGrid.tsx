@@ -271,6 +271,10 @@ const TeamCaptureGrid = ({
                     {teams.map(team => {
                         const teamId = team.competitionMatchTeam
                         const finished = finishedTeams.has(teamId)
+                        // Not disabled - a mark for a team whose match is already finished is a
+                        // legitimate late capture - but visually stepped back like a captured team,
+                        // so the currently expected teams (sorted first by the board page) stand out.
+                        const matchOver = team.matchPhase === 'DONE'
                         const armedIndex = armed.indexOf(teamId)
                         const color =
                             armedIndex === -1
@@ -293,7 +297,7 @@ const TeamCaptureGrid = ({
                                     borderColor: color ?? 'divider',
                                     bgcolor: finished ? 'action.disabledBackground' : 'background.paper',
                                     color: finished ? 'text.disabled' : 'text.primary',
-                                    opacity: finished ? 0.6 : 1,
+                                    opacity: finished ? 0.6 : matchOver ? 0.7 : 1,
                                     textAlign: 'left',
                                     '&:active': finished ? undefined : {bgcolor: 'action.selected'},
                                 }}>

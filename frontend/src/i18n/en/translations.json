@@ -3043,7 +3043,12 @@
         "armedFull": "At most {{count}} teams can be armed at the same time",
         "unarm": "Disarm",
         "hint": "Keys 1–9: start number · Space: time without assignment",
-        "empty": "No teams for this event"
+        "empty": "No teams for this event",
+        "phase": {
+          "ACTIVE": "Expected now",
+          "OPEN": "Still ahead",
+          "DONE": "Match finished"
+        }
       }
     },
     "leitstand": {
@@ -3135,7 +3140,7 @@
             "NO_START_MARK": "No start time",
             "NO_FINISH_MARK": "No finish time",
             "NEGATIVE_DURATION": "Finish time is before the start time",
-              "NO_MARKS": "No time marks"
+            "NO_MARKS": "No time marks"
           }
         },
         "push": {

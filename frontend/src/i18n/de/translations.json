@@ -3043,7 +3043,12 @@
         "armedFull": "Es können höchstens {{count}} Teams gleichzeitig scharfgestellt werden",
         "unarm": "Scharfstellung aufheben",
         "hint": "Tasten 1–9: Startnummer · Leertaste: Zeit ohne Zuordnung",
-        "empty": "Keine Teams für dieses Event vorhanden"
+        "empty": "Keine Teams für dieses Event vorhanden",
+        "phase": {
+          "ACTIVE": "Jetzt erwartet",
+          "OPEN": "Noch offen",
+          "DONE": "Lauf beendet"
+        }
       }
     },
     "leitstand": {
@@ -3135,7 +3140,7 @@
             "NO_START_MARK": "Keine Startzeit",
             "NO_FINISH_MARK": "Keine Zielzeit",
             "NEGATIVE_DURATION": "Zielzeit liegt vor der Startzeit",
-              "NO_MARKS": "Keine Zeitmarken"
+            "NO_MARKS": "Keine Zeitmarken"
           }
         },
         "push": {

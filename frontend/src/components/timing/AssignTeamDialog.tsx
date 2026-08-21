@@ -116,6 +116,10 @@ const AssignTeamDialog = ({
                     disabled={submitting}
                     autoHighlight
                     openOnFocus
+                    // The board page orders teams by phase (orderTeamsForBoard), which is exactly
+                    // the presorting MUI requires for groupBy - the currently expected teams form
+                    // the first group instead of drowning between all of the event's teams.
+                    groupBy={team => t(`timing.board.teams.phase.${team.matchPhase}`)}
                     getOptionLabel={teamPrimaryLabel}
                     isOptionEqualToValue={(option, value) =>
                         option.competitionMatchTeam === value.competitionMatchTeam

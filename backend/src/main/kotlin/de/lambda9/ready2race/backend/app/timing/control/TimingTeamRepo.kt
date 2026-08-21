@@ -18,6 +18,8 @@ object TimingTeamRepo {
             CLUB.NAME.`as`("club_name"),
             COMPETITION_PROPERTIES.NAME.`as`("competition_name"),
             COMPETITION_SETUP_MATCH.NAME.`as`("match_name"),
+            COMPETITION_MATCH.ACTIVATED_AT,
+            COMPETITION_MATCH.FINISHED_AT,
             PARTICIPANT.FIRSTNAME,
             PARTICIPANT.LASTNAME,
         )
@@ -29,6 +31,10 @@ object TimingTeamRepo {
             .join(COMPETITION_PROPERTIES)
             .on(COMPETITION_SETUP_ROUND.COMPETITION_SETUP.eq(COMPETITION_PROPERTIES.ID))
             .join(COMPETITION).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
+            // Left join: a team without a materialized match instance (should not happen, but the
+            // FK targets the setup match, not the instance) must stay visible rather than vanish.
+            .leftJoin(COMPETITION_MATCH)
+            .on(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(COMPETITION_SETUP_MATCH.ID))
             .leftJoin(COMPETITION_REGISTRATION)
             .on(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
             .leftJoin(CLUB).on(CLUB.ID.eq(COMPETITION_REGISTRATION.CLUB))
@@ -36,6 +42,9 @@ object TimingTeamRepo {
             .on(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
             .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
             .where(COMPETITION.EVENT.eq(eventId))
+            // A bye is never raced (V202608121300 materializes the name for exactly this kind of
+            // check), so its team is no capture or assignment target - unless it must race.
+            .and(COMPETITION_MATCH.BYE_NAME.isNull.or(COMPETITION_MATCH.BYE_MUST_RACE.isTrue))
             .fetch()
     }
 }

@@ -4020,6 +4020,14 @@ export type TimingDeviceTokenRequest = {
     station: uuid
 }
 
+/**
+ * The team's match as the boards need it: ACTIVE = called up or on the water (these teams are
+ * expected right now), OPEN = still ahead, DONE = finished. Deliberately coarser than the
+ * match state of the execution views; the branch order mirrors its derivation. Teams of a bye
+ * match are not returned at all unless the bye is set to "must race".
+ */
+export type TimingMatchPhase = 'ACTIVE' | 'OPEN' | 'DONE'
+
 export type TimingSequenceDto = {
     id: uuid
     event: uuid
@@ -4097,6 +4105,7 @@ export type TimingTeamDto = {
     participantNames: Array<string>
     competitionName?: string
     matchName?: string
+    matchPhase: TimingMatchPhase
 }
 
 export type TooManyRequestsError = ApiError & {

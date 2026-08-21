@@ -3030,7 +3030,12 @@
         "armedFull": "Højst {{count}} hold kan klargøres samtidig",
         "unarm": "Fjern klargøring",
         "hint": "Tasterne 1–9: startnummer · Mellemrum: tid uden tildeling",
-        "empty": "Ingen hold til dette event"
+        "empty": "Ingen hold til dette event",
+        "phase": {
+          "ACTIVE": "Forventes nu",
+          "OPEN": "Stadig forude",
+          "DONE": "Løb afsluttet"
+        }
       }
     },
     "leitstand": {
@@ -3122,7 +3127,7 @@
             "NO_START_MARK": "Ingen starttid",
             "NO_FINISH_MARK": "Ingen sluttid",
             "NEGATIVE_DURATION": "Sluttiden ligger før starttiden",
-              "NO_MARKS": "Ingen tidsmarkeringer"
+            "NO_MARKS": "Ingen tidsmarkeringer"
           }
         },
         "push": {

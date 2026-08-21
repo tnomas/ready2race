@@ -30,6 +30,7 @@ import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
+import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
@@ -86,18 +87,12 @@ const TimingBoardPage = () => {
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
-    // change during a running board session), sorted client-side by start number so the picker lists
-    // them in the order operators expect. Teams without a start number sort last.
+    // change during a running board session), ordered client-side so the currently expected teams
+    // (active matches) come first — see orderTeamsForBoard.
     const {data: teamsData, pending: teamsPending, error: teamsError} = useFetch(signal =>
         getTimingTeams({signal, path: {eventId}}),
     )
-    const teams = useMemo(
-        () =>
-            [...(teamsData ?? [])].sort(
-                (a, b) => (a.startNumber ?? Infinity) - (b.startNumber ?? Infinity),
-            ),
-        [teamsData],
-    )
+    const teams = useMemo(() => orderTeamsForBoard(teamsData ?? []), [teamsData])
 
     const station = stations.find(s => s.id === stationId)
 

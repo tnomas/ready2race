@@ -19971,6 +19971,7 @@ components:
       required:
         - competitionMatchTeam
         - participantNames
+        - matchPhase
       properties:
         competitionMatchTeam:
           $ref: '#/components/schemas/uuid'
@@ -19989,6 +19990,20 @@ components:
           type: string
         matchName:
           type: string
+        matchPhase:
+          $ref: '#/components/schemas/TimingMatchPhase'
+
+    TimingMatchPhase:
+      type: string
+      enum:
+        - ACTIVE
+        - OPEN
+        - DONE
+      description: |-
+        The team's match as the boards need it: ACTIVE = called up or on the water (these teams are
+        expected right now), OPEN = still ahead, DONE = finished. Deliberately coarser than the
+        match state of the execution views; the branch order mirrors its derivation. Teams of a bye
+        match are not returned at all unless the bye is set to "must race".
 
     ActiveSequenceDto:
       type: object
