@@ -205,6 +205,9 @@ object EventScheduleRepo {
             // noch aktivierbar ist, der andere, ob seine Startgruppe die Kette blockiert
             // (ScheduleChain.decideNext).
             COMPETITION_MATCH.STARTED_AT,
+            // Ein Lauf in Klärung zählt für die Kette wie erledigt (ScheduleChain.decideNext) - er
+            // hält seine Startgruppe nicht länger auf.
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
             roundMaterialized,
             matchOpen,
         )

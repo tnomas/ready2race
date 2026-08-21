@@ -94,6 +94,22 @@ const AthleteBoardResultCard = ({
                                 variant="outlined"
                             />
                         )}
+                        {/* Ein Wächter, der heute nicht anschlägt: Der Board-Pfad bestellt seine
+                            Ergebnisse immer mit confirmedOnly (BoardService), also FINISHED_ONLY —
+                            und Beenden leert beide Klärungs-Spalten. `clarification` kommt hier
+                            deshalb derzeit stets als false an. Der Chip steht trotzdem, für den
+                            Tag, an dem das Board die Freigaberegel der Veranstaltung übernimmt;
+                            ausgeliefert wird der Vorbehalt heute über die öffentliche
+                            Ergebnisseite und „Mein Event" (ResultsMatchCard, MyEventResultField).
+                        */}
+                        {result.clarification && (
+                            <Chip
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                                label={t('event.match.status.provisional')}
+                            />
+                        )}
                     </Stack>
                 </Box>
                 {/* Geplanter Start groß, darunter der tatsächliche — so ist eine Verschiebung

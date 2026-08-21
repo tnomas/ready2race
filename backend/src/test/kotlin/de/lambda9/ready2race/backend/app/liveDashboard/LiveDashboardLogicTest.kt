@@ -1004,4 +1004,90 @@ class LiveDashboardLogicTest {
         assertEquals(null, LiveDashboardLogic.roleAbbreviation(null))
         assertEquals(null, LiveDashboardLogic.roleAbbreviation("   "))
     }
+
+    // --- deriveMatchState: Klärung ---
+
+    @Test
+    fun clarificationBeatsActivation() {
+        // Der Fall, um den es geht: Der Lauf ist gefahren, niemand hat beendet, weil ein Einspruch
+        // läuft. Ohne diesen Zweig stünde er dauerhaft auf RUNNING und hielte Stream-Uhr,
+        // Board-Cursor und Kette an sich fest.
+        assertEquals(
+            LiveDashboardMatchState.CLARIFICATION,
+            LiveDashboardLogic.deriveMatchState(
+                activatedAt = start.minusMinutes(20),
+                startedAt = start.minusMinutes(15),
+                startTime = start,
+                finishedAt = null,
+                teamResults = listOf(true, true),
+                clarificationSince = start.minusMinutes(2),
+            )
+        )
+    }
+
+    @Test
+    fun finishingBeatsClarification() {
+        // Freigegeben ist freigegeben. Der Fall entsteht im Betrieb gar nicht (Beenden leert den
+        // Merker), aber die Reihenfolge soll auch dann stimmen, wenn jemand direkt in die
+        // Datenbank schreibt.
+        assertEquals(
+            LiveDashboardMatchState.FINISHED,
+            LiveDashboardLogic.deriveMatchState(
+                activatedAt = null,
+                startedAt = start.minusMinutes(15),
+                startTime = start,
+                finishedAt = start.plusMinutes(5),
+                teamResults = listOf(true, true),
+                clarificationSince = start.minusMinutes(2),
+            )
+        )
+    }
+
+    @Test
+    fun clarificationAlsoCatchesAMatchThatIsNotFullyScoredYet() {
+        // Ein Streit kann vor der vollständigen Wertung ausbrechen. Auch dann darf der Lauf nicht
+        // als "läuft" stehen bleiben - genau dieser Fall blockierte zusätzlich die Kette.
+        assertEquals(
+            LiveDashboardMatchState.CLARIFICATION,
+            LiveDashboardLogic.deriveMatchState(
+                activatedAt = start.minusMinutes(20),
+                startedAt = start.minusMinutes(15),
+                startTime = start,
+                finishedAt = null,
+                teamResults = listOf(true, false),
+                clarificationSince = start.minusMinutes(2),
+            )
+        )
+    }
+
+    @Test
+    fun liftingTheClarificationPutsTheMatchBackOnRunning() {
+        // Der Rückweg: Aufheben leert den Merker, activated_at bleibt stehen - der Lauf ist wieder
+        // das, was er vorher war. Ohne diesen Test bliebe unbemerkt, wenn jemand beim Aufheben
+        // zusätzlich activated_at löscht.
+        assertEquals(
+            LiveDashboardMatchState.RUNNING,
+            LiveDashboardLogic.deriveMatchState(
+                activatedAt = start.minusMinutes(20),
+                startedAt = start.minusMinutes(15),
+                startTime = start,
+                finishedAt = null,
+                teamResults = listOf(true, true),
+                clarificationSince = null,
+            )
+        )
+    }
+
+    @Test
+    fun clarificationInTheLiveScope() {
+        // Die Schiedsrichter behalten ihn - nur die öffentlichen Anzeigen verlieren ihn.
+        // Nutzt den bestehenden match()-Helfer (siehe unten bei --- selectForScope ---) statt eines
+        // eigenen DTO-Literals: der deckt bereits alle Pflichtfelder ab, ohne dass die Produktions-
+        // DTO dafür Vorgabewerte bräuchte.
+        val clarificationMatch = match(LiveDashboardMatchState.CLARIFICATION, "Vorlauf 1")
+        assertEquals(
+            listOf(clarificationMatch),
+            LiveDashboardLogic.selectForScope(listOf(clarificationMatch), LiveDashboardScope.LIVE),
+        )
+    }
 }

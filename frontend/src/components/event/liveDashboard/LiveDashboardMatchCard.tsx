@@ -61,6 +61,17 @@ type Props = {
     /** Gibt den pausierten RaceClocker-Abruf dieses Laufs wieder frei. */
     onResumeAutoPull?: (matchId: string, competitionId: string) => Promise<void>
     /**
+     * Öffnet den Klärungs-Dialog für diesen Lauf. Die Karte reicht nur die `matchId` nach oben —
+     * der Grund ist Pflicht und wird im Dialog auf Seitenebene abgefragt, nicht hier.
+     */
+    onClarifyClick?: (matchId: string) => void
+    /**
+     * Hebt die Klärung wieder auf. Derselbe Rückweg wie im eingeklappten Abschnitt der Live-Spalte
+     * — ein strittiger Lauf steht in der Läufe-Spalte als volle Karte, und dort darf der Ausweg
+     * nicht fehlen, nur weil er woanders auch angeboten wird.
+     */
+    onResolveClarification?: (matchId: string) => Promise<void>
+    /**
      * Ob der automatische RaceClocker-Abruf für diese Veranstaltung eingeschaltet ist. Dann trägt
      * der „Läuft"-Knopf den Hinweis, dass RaceClocker den Start ohnehin selbst meldet — bedienbar
      * bleibt er trotzdem (Feed-Ausfall, Zeitnahme ohne Startstempel).
@@ -79,6 +90,8 @@ const LiveDashboardMatchCard = ({
     onSetActivated,
     onMarkStarted,
     onResumeAutoPull,
+    onClarifyClick,
+    onResolveClarification,
     raceClockerAutoPull = false,
     shortLabels,
     detail,
@@ -94,11 +107,13 @@ const LiveDashboardMatchCard = ({
     const skipped = match.state === 'SKIPPED'
     // Vollständig gewertet, aber nicht beendet: der Lauf wartet auf den Beenden-Klick.
     const awaitingFinish = match.state === 'AWAITING_FINISH'
-    const {showFinish, showActivationToggle, showMarkStarted} = matchControls(
-        match,
-        onFinish != null,
-        onSetActivated != null,
-    )
+    const {
+        showFinish,
+        showActivationToggle,
+        showMarkStarted,
+        showClarify,
+        showResolveClarification,
+    } = matchControls(match, onFinish != null, onSetActivated != null)
     /**
      * Der Zustandstext der Karte kommt aus derselben Ableitung wie in Durchführung und Zeitplan —
      * die Karte entscheidet nichts mehr selbst, sie malt nur. Vorher stand hier eigene Textlogik
@@ -694,7 +709,11 @@ const LiveDashboardMatchCard = ({
                         </Fragment>
                     )
                 })}
-                {(showFinish || showActivationToggle || showMarkStarted) && (
+                {(showFinish ||
+                    showActivationToggle ||
+                    showMarkStarted ||
+                    showClarify ||
+                    showResolveClarification) && (
                     /*
                         Fußzeile aufgeräumt (Rückmeldung vom 10.08.2026): Hinweistexte stehen
                         gedämpft ZEILEN­WEISE oben, die Knöpfe darunter in EINER rechtsbündigen
@@ -755,6 +774,33 @@ const LiveDashboardMatchCard = ({
                                     openTeamCount={openTeams.length}
                                     onFinish={openResults => onFinish(match.matchId, openResults)}
                                 />
+                            )}
+                            {/*
+                                In Klärung setzen: hinter "Beenden", weil sie sich am selben Lauf
+                                gegenseitig ausschließen (siehe matchControls) und der Knopf hier
+                                nur den Dialog öffnet — der Grund wird dort erfragt, nicht hier.
+                            */}
+                            {showClarify && onClarifyClick && (
+                                <Button
+                                    size="small"
+                                    color="warning"
+                                    onClick={() => onClarifyClick(match.matchId)}>
+                                    {t('event.liveDashboard.clarification.set')}
+                                </Button>
+                            )}
+                            {/*
+                                Der Rückweg aus der Klärung, derselbe wie im eingeklappten
+                                Abschnitt der Live-Spalte: ein strittiger Lauf steht in der
+                                Läufe-Spalte als volle Karte, und dort bot die Karte bis hierher
+                                „Lauf beenden" an, aber kein Aufheben — der Ausweg lag nur in der
+                                anderen Spalte.
+                            */}
+                            {showResolveClarification && onResolveClarification && (
+                                <Button
+                                    size="small"
+                                    onClick={() => onResolveClarification(match.matchId)}>
+                                    {t('event.liveDashboard.clarification.resolve')}
+                                </Button>
                             )}
                         </Stack>
                     </Stack>

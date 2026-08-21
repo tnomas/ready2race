@@ -130,6 +130,10 @@ describe('dashboardMatchState', () => {
     it('gives a match waiting to be finished its own look, neither running nor finished', () => {
         expect(dashboardMatchState(match({state: 'AWAITING_FINISH'}))).toBe('awaitingFinish')
     })
+
+    it('gibt der Klärung ein eigenes Aussehen auf dem Balken', () => {
+        expect(dashboardMatchState(match({state: 'CLARIFICATION'}))).toBe('clarification')
+    })
 })
 
 describe('scheduleSlotsToEntries', () => {

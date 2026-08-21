@@ -69,6 +69,19 @@ const ResultsMatchCard = <M extends ResultsMatchInfo>({
     // "Zeitfahren" als Runde und "Zeitfahren" als Laufname: einmal reicht.
     const matchName = match.matchName !== match.roundName ? match.matchName : undefined
 
+    /*
+        Der Vorbehalt am veröffentlichten Ergebnis: Steht die Veranstaltung auf RESULTS_COMPLETE,
+        gehen Plätze und Zeiten eines strittigen Laufs bewusst schon raus (Abschnitt 8 der Spec) —
+        aber nur, weil sie sichtbar als vorläufig ausgewiesen sind. Genau diese Seite ist der Ort,
+        an dem das passieren muss.
+
+        Das Feld gibt es nur an LatestMatchResultInfo, nicht an den beiden Live-DTOs, die diese
+        Karte ebenfalls trägt; der `in`-Test ist die Verengung auf den Ergebnis-Fall. Gemalt wird er
+        als dritter StatusChip in derselben Spalte wie Zustand und Abmeldung — die Karte hat für
+        kleine Zustandsmarker genau diesen einen Platz.
+    */
+    const provisional = 'clarification' in match && match.clarification === true
+
     const content = (
         <CardContent>
             <Stack spacing={0.5}>
@@ -121,6 +134,16 @@ const ResultsMatchCard = <M extends ResultsMatchInfo>({
                         }}>
                         <StatusChip chip={statusChip ?? null} />
                         <StatusChip chip={secondaryChip ?? null} />
+                        <StatusChip
+                            chip={
+                                provisional
+                                    ? {
+                                          labelKey: 'event.match.status.provisional',
+                                          color: 'warning',
+                                      }
+                                    : null
+                            }
+                        />
                         {match.startTime && (
                             <Typography>
                                 {format(new Date(match.startTime), t('format.datetime'))}

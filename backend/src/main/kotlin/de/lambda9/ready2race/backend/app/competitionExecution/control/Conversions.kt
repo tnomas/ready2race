@@ -147,6 +147,8 @@ fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
                             },
                             teamsInArena = teamsInArenaPerMatch[index],
                             bye = byeByMatch[match.second.id],
+                            clarificationSince = match.first.clarificationSince,
+                            clarificationReason = match.first.clarificationReason,
                         ),
                         raceClockerPolledAt = match.first.raceClockerPolledAt,
                         raceClockerPollError = match.first.raceClockerPollError,
@@ -202,6 +204,8 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
                 raceClockerPollError = match.raceclockerPollError,
                 raceClockerAutoPausedAt = match.raceclockerAutoPausedAt,
                 pairingsRecalculatedAt = match.pairingsRecalculatedAt,
+                clarificationSince = match.clarificationSince,
+                clarificationReason = match.clarificationReason,
                 byeMustRace = match.byeMustRace ?: false,
                 byeName = match.byeName,
                 teams = match.teams!!.filterNotNull().map { team ->

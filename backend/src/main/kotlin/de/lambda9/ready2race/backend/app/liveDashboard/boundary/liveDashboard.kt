@@ -2,10 +2,12 @@ package de.lambda9.ready2race.backend.app.liveDashboard.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardScope
+import de.lambda9.ready2race.backend.app.liveDashboard.entity.MatchClarificationRequest
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.MatchTeamNoteRequest
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.OpenResultHandling
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.UpdateCheckSeverityRequest
 import de.lambda9.ready2race.backend.calls.requests.authenticate
+import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.queryParam
@@ -115,6 +117,43 @@ fun Route.liveDashboard() {
                 val activated = !queryParam("activated") { it.toBoolean() }
 
                 LiveDashboardService.setMatchActivated(eventId, matchId, activated, user.id!!)
+            }
+        }
+
+        // Ein Lauf in Klärung: Einspruch läuft, die Schiedsrichter geben ihn noch nicht frei. Er
+        // verschwindet damit aus den öffentlichen Anzeigen und aus der Kette, bleibt aber auf dem
+        // Dashboard.
+        //
+        // authenticateAny statt authenticate: Dieselbe Handlung gibt es auf zwei Oberflächen mit
+        // zwei verschiedenen Rechten - Dashboard (UpdateLiveDashboardGlobal) und
+        // Durchführungsseite (UpdateEventGlobal). Ein eigenes Privileg wäre der dritte Schlüssel
+        // für dieselbe Tür.
+        route("/match/{matchId}/clarification") {
+            put {
+                call.respondComprehension {
+                    val user = !authenticateAny(
+                        Privilege.UpdateLiveDashboardGlobal,
+                        Privilege.UpdateEventGlobal,
+                    )
+                    val eventId = !pathParam("eventId", uuid)
+                    val matchId = !pathParam("matchId", uuid)
+                    val body = !receiveKIO(MatchClarificationRequest.example)
+
+                    LiveDashboardService.setMatchClarification(eventId, matchId, body, user.id!!)
+                }
+            }
+
+            delete {
+                call.respondComprehension {
+                    val user = !authenticateAny(
+                        Privilege.UpdateLiveDashboardGlobal,
+                        Privilege.UpdateEventGlobal,
+                    )
+                    val eventId = !pathParam("eventId", uuid)
+                    val matchId = !pathParam("matchId", uuid)
+
+                    LiveDashboardService.clearMatchClarification(eventId, matchId, user.id!!)
+                }
             }
         }
     }

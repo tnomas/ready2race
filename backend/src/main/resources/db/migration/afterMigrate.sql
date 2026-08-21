@@ -910,6 +910,12 @@ select cm.competition_setup_match,
        cm.raceclocker_poll_error,
        cm.raceclocker_auto_paused_at,
        cm.pairings_recalculated_at,
+       -- Klärung (V202608171200): funktional abhängig vom Primärschlüssel
+       -- cm.competition_setup_match, deshalb ohne eigenen group-by-Eintrag zulässig - wie
+       -- bye_must_race darüber. Die Durchführungsseite leitet daraus denselben Lauf-Zustand ab
+       -- wie das Schiedsrichter-Dashboard; ohne diese beiden Spalten stünde dort weiter "Läuft".
+       cm.clarification_since,
+       cm.clarification_reason,
        -- Freilos "muss gefahren werden" (V202608111800): funktional abhängig vom Primärschlüssel
        -- cm.competition_setup_match, deshalb ohne eigenen group-by-Eintrag zulässig.
        cm.bye_must_race,

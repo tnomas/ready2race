@@ -1748,6 +1748,8 @@
         "runningPlain": "Läuft",
         "partiallyScored": "Teilweise gewertet {{scored}}/{{total}}",
         "awaitingFinish": "Wartet auf Beenden",
+        "clarification": "Klärung",
+        "provisional": "vorläufig · in Klärung",
         "finished": "Beendet",
         "cancelled": "Abgesagt",
         "unscheduled": "Ungeplant",
@@ -1762,6 +1764,7 @@
         "counter": {
           "preparing": "{{n}} in Vorbereitung",
           "running": "{{n}} läuft",
+          "clarification": "{{n}} in Klärung",
           "open": "{{n}} offen",
           "finished": "{{n}} beendet",
           "cancelled": "{{n}} abgesagt"
@@ -1855,6 +1858,16 @@
         "errorReason": {
           "finishReservedForOffice": "Für diese Veranstaltung beendet das Regattabüro die Läufe über den Zeitplan. Der Lauf bleibt aktiv — bitte dem Regattabüro melden, dass er im Ziel ist."
         }
+      },
+      "clarification": {
+        "sectionTitle": "Klärung ({{n}})",
+        "set": "In Klärung",
+        "resolve": "Klärung aufheben",
+        "dialogTitle": "Lauf in Klärung setzen",
+        "reasonLabel": "Grund",
+        "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
+        "submit": "In Klärung setzen",
+        "since": "seit {{time}}"
       },
       "substitution": {
         "short": "Ummeldung",
@@ -2142,6 +2155,7 @@
           "preparing": "In Vorbereitung",
           "running": "Läuft",
           "awaitingFinish": "Wartet auf Beenden",
+          "clarification": "Klärung",
           "linked": "Verknüpft",
           "waiting": "Lauf noch nicht gesetzt",
           "free": "Programmpunkt",
@@ -3324,5 +3338,85 @@
     "team": "Mannschaft",
     "deregistered": "Abgemeldet",
     "noMatches": "Für dich ist noch kein Lauf eingetragen."
+  },
+  "speaker": {
+    "title": "Sprecher-Board",
+    "subtitle": "Interaktives Board für Regatta-Sprecher:innen",
+    "selectEvent": "Veranstaltung auswählen",
+    "liveCount": "{{count}} live",
+    "openBoard": "Sprecher-Board öffnen",
+    "tabs": {
+      "timeline": "Zeitstrahl",
+      "program": "Programm",
+      "results": "Ergebnisse"
+    },
+    "status": {
+      "UPCOMING": "Ausstehend",
+      "RUNNING": "Live",
+      "FINISHED": "Beendet",
+      "liveShort": "LIVE",
+      "CANCELLED": "Abgesagt"
+    },
+    "timeline": {
+      "empty": "Keine Rennen mit Startzeit gefunden.",
+      "now": "Jetzt"
+    },
+    "program": {
+      "searchPlaceholder": "Suche: Rennen, Verein, Name …",
+      "all": "Alle",
+      "status": "Status",
+      "competition": "Wettkampf",
+      "round": "Runde / Rennen",
+      "teams": "Teams",
+      "badges": "Hinweise",
+      "empty": "Keine Rennen für die aktuellen Filter.",
+      "openDetails": "Details öffnen"
+    },
+    "match": {
+      "start": "Start",
+      "elapsed": "läuft seit {{minutes}} min",
+      "place": "Platz",
+      "startNumber": "Start-Nr.",
+      "team": "Team / Verein",
+      "participants": "Teilnehmer:innen",
+      "time": "Zeit",
+      "yearShort": "Jg.",
+      "failed": "DNF",
+      "deregistered": "Abgemeldet"
+    },
+    "results": {
+      "empty": "Noch keine Ergebnisse vorhanden.",
+      "updated": "Stand"
+    },
+    "badges": {
+      "doubleStartTooltip": "Startet auch in:",
+      "medalTooltip": "Medaillen an diesem Wochenende:"
+    },
+    "participant": {
+      "startCount": "{{count}} Start",
+      "startCount_other": "{{count}} Starts",
+      "backOnWater": "Muss schnell wieder aufs Wasser: nächster Start {{time}} Uhr (in {{minutes}} min)",
+      "tightTurnaround": "nur {{minutes}} min Wechselzeit"
+    },
+    "settings": {
+      "title": "Anzeige anpassen",
+      "storedLocally": "Wird lokal auf diesem Gerät gespeichert",
+      "theme": "Farbschema",
+      "themeDark": "Dunkel",
+      "themeBlack": "Schwarz",
+      "themeLight": "Hell",
+      "scale": "Größe",
+      "colors": "Status-Farben",
+      "color": {
+        "upcoming": "Ausstehend",
+        "running": "Live",
+        "finished": "Beendet",
+        "now": "Jetzt-Linie / Warnungen"
+      },
+      "resetColors": "Farben zurücksetzen",
+      "refresh": "Aktualisierung",
+      "turnaround": "Wechselzeit-Warnung",
+      "resetAll": "Alles zurücksetzen"
+    }
   }
 }

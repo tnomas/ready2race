@@ -57,6 +57,10 @@ object MatchStatusLogic {
         teams: List<MatchStatusTeam>,
         teamsInArena: Int? = null,
         bye: MatchByeDto? = null,
+        /** `competition_match.clarification_since` - siehe `LiveDashboardLogic.deriveMatchState`. */
+        clarificationSince: LocalDateTime? = null,
+        /** `competition_match.clarification_reason` - reiner Ausweis, entscheidet keinen Zustand. */
+        clarificationReason: String? = null,
     ): MatchStatusDto {
         val scored = scoredCount(teams)
         return MatchStatusDto(
@@ -72,6 +76,7 @@ object MatchStatusLogic {
                     LiveDashboardLogic.teamIsSettled(it.place, it.failed, it.deregistered)
                 },
                 skipped = skipped,
+                clarificationSince = clarificationSince,
             ),
             startedAt = startedAt,
             teamsTotal = teams.size,
@@ -80,6 +85,7 @@ object MatchStatusLogic {
             teamsDeregistered = deregisteredCount(teams),
             teamsInArena = teamsInArena,
             bye = bye,
+            clarificationReason = clarificationReason,
         )
     }
 
@@ -177,6 +183,7 @@ object MatchStatusLogic {
         total = statuses.size,
         preparing = statuses.count { it.state == MatchState.PREPARING },
         running = statuses.count { it.state == MatchState.RUNNING },
+        clarification = statuses.count { it.state == MatchState.CLARIFICATION },
         open = statuses.count {
             it.state == MatchState.AWAITING_FINISH ||
                 it.state == MatchState.UPCOMING ||

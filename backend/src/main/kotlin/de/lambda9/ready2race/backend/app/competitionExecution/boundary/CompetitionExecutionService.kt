@@ -1857,6 +1857,12 @@ object CompetitionExecutionService {
             activatedAt = null
             startedAt = null
             finishedAt = null
+            // Ein zurückgesetzter Lauf muss wieder gefahren werden können - genau das ist der Fall
+            // nach einem Einspruch (Streit → Reset → Wiederholung). Bliebe die Klärung stehen,
+            // leitete der Lauf ohne finished_at dauerhaft CLARIFICATION ab, und `ScheduleChain`
+            // zählte ihn für immer als erledigt: die Kette riefe ihn nie wieder an den Start.
+            clarificationSince = null
+            clarificationReason = null
             // GESETZT statt geleert: Solange RaceClocker den alten Stand noch führt, würde der
             // nächste Poll-Takt die soeben gelöschten Ergebnisse sofort wieder einspielen - der
             // Reset höbe sich selbst auf (Nutzer-Beobachtung 12.08.2026). Die Kette ist dieselbe
@@ -1928,6 +1934,12 @@ object CompetitionExecutionService {
      *
      * Beenden geht bewusst NICHT über diesen Weg: Dort fällt zwar auch die Aktivierung, aber der
      * Ist-Start bleibt stehen (er ist eine Tatsache) und pausiert werden darf nichts.
+     *
+     * Eine laufende Klärung überlebt das Deaktivieren ausdrücklich - anders als beim Zurücksetzen
+     * ([resetMatch]), das den ganzen Ausführungsstand räumt. Deaktivieren nimmt nur den Ruf an den
+     * Start zurück; der Einspruch ist davon unberührt und wird über seinen eigenen Knopf beendet.
+     * Der Lauf bleibt dabei erreichbar: ohne `finished_at` leitet er weiter CLARIFICATION ab und
+     * steht damit im Klärungs-Abschnitt des Dashboards mit „Klärung aufheben".
      */
     fun setMatchActivation(matchId: UUID, activated: Boolean, userId: UUID): App<Nothing, Unit> =
         KIO.comprehension {

@@ -157,6 +157,22 @@ export const MyEventResultField = ({eventId, result}: MyEventResultFieldProps) =
 
     return (
         <Box sx={{pb: 1}}>
+            {/*
+                Der Vorbehalt am eigenen Ergebnis: Ein strittiger Lauf geht nach der bestehenden
+                Freigaberegel raus (Abschnitt 8 der Spec) — aber nur, weil er sichtbar als
+                vorläufig ausgewiesen ist. Ohne diesen Chip stünden Platz und Zeit hier wie ein
+                fertiges Ergebnis, während der Einspruch noch läuft. Derselbe kleine Chip wie das
+                „Dein Boot" der Feldzeile, nur in Warnfarbe.
+            */}
+            {state.match.clarification && (
+                <Chip
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    label={t('event.match.status.provisional')}
+                    sx={{mb: 0.5}}
+                />
+            )}
             {sections.map(section => (
                 <Box key={section.category?.id ?? 'none'}>
                     {showHeadings && (

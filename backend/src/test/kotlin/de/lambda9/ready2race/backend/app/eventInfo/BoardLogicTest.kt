@@ -380,4 +380,21 @@ class BoardLogicTest {
         }
         assertEquals(6, BoardLogic.dataNeeds(withBiggerList).listLimits[BoardListMode.RESULTS])
     }
+
+    @Test
+    fun aMatchInClarificationNoLongerHoldsTheCursor() {
+        // Der eigentliche Zweck des Zustands: Der strittige Lauf fällt in getRunningMatches per
+        // SQL aus dem Running-Block heraus - hier nachgestellt, indem er in der Liste fehlt. Der
+        // Cursor rückt auf den nächsten Lauf, und Slot -1 zeigt wieder Ergebnisse statt des
+        // hängenden Rennens.
+        val ohneStrittigen = listOf(match("R-spät"))
+        assertEquals(
+            "R-spät",
+            BoardLogic.resolveOffset(0, ohneStrittigen, upcoming, results).match?.competitionName,
+        )
+        assertEquals(
+            "E-neu",
+            BoardLogic.resolveOffset(-1, ohneStrittigen, upcoming, results).result?.competitionName,
+        )
+    }
 }

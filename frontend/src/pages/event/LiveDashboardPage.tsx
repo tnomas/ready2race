@@ -21,12 +21,14 @@ import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
 import {
     addLiveDashboardTeamNote,
+    clearMatchClarification,
     deleteLiveDashboardTeamNote,
     finishLiveDashboardMatch,
     getEventTimingConfig,
     getLiveDashboard,
     resumeRaceClockerAutoPull,
     setLiveDashboardMatchActivated,
+    setMatchClarification,
     skipScheduleSlot,
     startLiveDashboardMatch,
 } from '@api/sdk.gen.ts'
@@ -36,6 +38,7 @@ import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {updateLiveDashboardGlobal} from '@authorization/privileges.ts'
 import LiveDashboardTeamDialog from '@components/event/liveDashboard/LiveDashboardTeamDialog.tsx'
+import ClarificationDialog from '@components/event/liveDashboard/ClarificationDialog.tsx'
 import EventNoticeBanner from '@components/eventNotice/EventNoticeBanner.tsx'
 import RefreshCountdown from '@components/event/liveDashboard/RefreshCountdown.tsx'
 import DashboardSettingsPopover from '@components/event/liveDashboard/DashboardSettingsPopover.tsx'
@@ -62,6 +65,7 @@ import {
 import {
     buildLiveDashboardTimeline,
     centeredScrollTop,
+    clarificationMatches,
     DASHBOARD_FONT_SCALES,
     dashboardCompetitionOptions,
     dashboardCrew,
@@ -228,6 +232,9 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
         matchId: string
         teamId: string
     } | null>(null)
+    // Der Dialog selbst sitzt auf Seitenebene (wie die Team-Details oben) — die Karte reicht nur
+    // die matchId nach oben, der Grund wird erst hier abgefragt.
+    const [clarifyMatchId, setClarifyMatchId] = useState<string | null>(null)
     const runningIdsRef = useRef<string | null>(null)
     const tabRef = useRef<LiveDashboardTab>('live')
     const wideRef = useRef(wide)
@@ -355,6 +362,9 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     // Der Live-Tab zeigt, was jetzt eine Handlung verlangt: die laufenden Läufe UND die, die
     // vollständig gewertet auf ihr Beenden warten (siehe liveMatches / selectForScope im Backend).
     const currentMatches = liveMatches(filteredMatches)
+    // Läufe mit laufendem Einspruch — eigener, eingeklappter Abschnitt unter der Live-Spalte
+    // (siehe ClarificationSection); isLiveMatch schließt sie bewusst aus currentMatches aus.
+    const matchesInClarification = clarificationMatches(filteredMatches)
     const nextUpcoming = filteredMatches.find(m => m.state === 'UPCOMING')
     const scheduledMatches = filteredMatches.filter(m => m.state !== 'UNSCHEDULED')
     const unscheduledMatches = filteredMatches.filter(m => m.state === 'UNSCHEDULED')
@@ -480,6 +490,27 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     }
 
     /**
+     * Setzt den Lauf in Klärung. Der Grund kommt aus dem Dialog und ist Pflicht — der Knopf dort
+     * ist ohne Text deaktiviert, der Server lehnt ihn zusätzlich ab.
+     */
+    const handleClarify = async (matchId: string, reason: string) => {
+        const {error} = await setMatchClarification({path: {eventId, matchId}, body: {reason}})
+        if (error) {
+            feedback.error(t('event.liveDashboard.control.error'))
+        }
+        dashboardData.reload()
+    }
+
+    /** Hebt die Klärung auf; der Lauf ist danach wieder das, was er vorher war. */
+    const handleResolveClarification = async (matchId: string) => {
+        const {error} = await clearMatchClarification({path: {eventId, matchId}})
+        if (error) {
+            feedback.error(t('event.liveDashboard.control.error'))
+        }
+        dashboardData.reload()
+    }
+
+    /**
      * Gibt den automatischen RaceClocker-Abruf wieder frei. Der Knopf gehört hierher, weil das
      * Deaktivieren eines Laufs die Automatik pausiert und im Dashboard deaktiviert wird — im
      * Durchführungs-Tab käme der Schiedsrichter am Steg nicht vorbei.
@@ -555,6 +586,12 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
         onSkipSlot: mayControl && !staleState.actionsLocked ? handleSkipSlot : undefined,
         // Kein Handler, sondern ein Kennzeichen der Veranstaltung - bleibt unabhängig vom Stand.
         raceClockerAutoPull,
+        onResolveClarification:
+            mayControl && !staleState.actionsLocked ? handleResolveClarification : undefined,
+        // Öffnet nur den Dialog (wie onTeamClick für die Team-Details) — den Grund erfragt der
+        // Dialog auf dieser Seite und schickt ihn selbst über handleClarify ab.
+        onClarifyClick:
+            mayControl && !staleState.actionsLocked ? setClarifyMatchId : undefined,
     }
 
     const liveColumn = (
@@ -565,6 +602,7 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             actions={actions}
             shortLabels={shortLabels}
             detail={detail}
+            clarificationMatches={matchesInClarification}
         />
     )
     const matchListColumn = (
@@ -798,6 +836,15 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                 onDeleteNote={
                     mayControl && !staleState.actionsLocked ? handleDeleteNote : undefined
                 }
+            />
+            <ClarificationDialog
+                open={clarifyMatchId !== null}
+                onClose={() => setClarifyMatchId(null)}
+                onSubmit={async reason => {
+                    if (clarifyMatchId !== null) {
+                        await handleClarify(clarifyMatchId, reason)
+                    }
+                }}
             />
             {/* Nur schmal: breit stehen beide Ansichten nebeneinander, eine über die ganze
                 Fensterbreite geklebte Telefonleiste hätte dort nichts zu schalten. */}

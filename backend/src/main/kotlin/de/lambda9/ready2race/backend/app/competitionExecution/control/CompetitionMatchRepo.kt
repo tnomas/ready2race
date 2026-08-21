@@ -28,6 +28,13 @@ object CompetitionMatchRepo {
 
     fun exists(id: UUID) = COMPETITION_MATCH.exists { COMPETITION_SETUP_MATCH.eq(id) }
 
+    /**
+     * Ist der Lauf schon beendet? Ein Lauf, den es (noch) nicht gibt, ist es nicht - der Aufrufer
+     * unterscheidet beides nicht, ihm reicht die Frage "darf ich hier noch etwas verändern?".
+     */
+    fun isFinished(id: UUID) =
+        COMPETITION_MATCH.exists { COMPETITION_SETUP_MATCH.eq(id).and(FINISHED_AT.isNotNull) }
+
     // Of the given setup match ids, returns those that have already been created during execution.
     fun getExistingSetupMatchIds(ids: Collection<UUID>) =
         COMPETITION_MATCH.select({ COMPETITION_SETUP_MATCH }) { COMPETITION_SETUP_MATCH.`in`(ids) }
@@ -238,6 +245,7 @@ object CompetitionMatchRepo {
             COMPETITION_MATCH.UPDATED_AT,
             COMPETITION_MATCH.START_TIME,
             COMPETITION_MATCH.STARTED_AT,
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
             // Freilose zeigen ihren materialisierten Namen (V202608121300).
             DSL.coalesce(COMPETITION_MATCH.BYE_NAME, COMPETITION_SETUP_MATCH.NAME).`as`("match_name"),
             COMPETITION_SETUP_ROUND.NAME.`as`("round_name"),
@@ -365,6 +373,12 @@ object CompetitionMatchRepo {
             .leftJoin(COMPETITION_VIEW).on(COMPETITION_VIEW.ID.eq(COMPETITION.ID))
             .where(COMPETITION.EVENT.eq(eventId))
             .and(COMPETITION_MATCH.ACTIVATED_AT.isNotNull)
+            // Ein Lauf in Klärung bleibt aktiviert (activated_at wird nicht angefasst), gehört aber
+            // nicht mehr in den Running-Block: Sonst hielte er über BoardLogic.cursorIndex den
+            // Cursor fest, und Stream-Uhr, Lower-Third und Athleten-Anzeige rückten nicht nach.
+            // Aus getUpcomingMatchesForBoard fällt er ohnehin heraus (die Abfrage verlangt
+            // activated_at is null) - er kommt also auch nicht als "als nächstes" zurück.
+            .and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull)
             .orderBy(
                 COMPETITION_MATCH.START_TIME.asc(),
                 COMPETITION_SETUP_MATCH.EXECUTION_ORDER.asc()

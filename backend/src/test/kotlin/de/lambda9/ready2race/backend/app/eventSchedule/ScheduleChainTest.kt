@@ -21,8 +21,10 @@ class ScheduleChainTest {
         open: Boolean = true,
         activatedAt: LocalDateTime? = null,
         startedAt: LocalDateTime? = null,
+        inClarification: Boolean = false,
     ) = ChainSlot(
         UUID.randomUUID(), base.plusMinutes(min), state, matchId, finished, open, activatedAt, startedAt,
+        inClarification,
     )
 
     @Test
@@ -295,5 +297,33 @@ class ScheduleChainTest {
         val next = ChainSlot(UUID.randomUUID(), base.plusMinutes(20), LINKED, m, matchFinished = false, matchOpen = true)
 
         assertEquals(ChainDecision.Activate(listOf(m)), ScheduleChain.decideNext(listOf(finished, next)))
+    }
+
+    @Test
+    fun aMatchInClarificationDoesNotHoldTheNextStartGroup() {
+        // Der strittige Lauf ist gefahren (started_at gesetzt) und nicht beendet. Ohne diesen Fall
+        // stünde er als "pending" in seiner Gruppe, sein Ist-Start bliebe der Riegel, und die
+        // nächste Startgruppe käme nie an die Reihe - ein Einspruch hielte die ganze Regatta an.
+        val naechster = UUID.randomUUID()
+        val decision = ScheduleChain.decideNext(
+            listOf(
+                slot(
+                    10, LINKED, UUID.randomUUID(),
+                    activatedAt = base, startedAt = base.plusMinutes(1), inClarification = true,
+                ),
+                slot(20, LINKED, naechster),
+            )
+        )
+        assertEquals(ChainDecision.Activate(listOf(naechster)), decision)
+    }
+
+    @Test
+    fun aMatchInClarificationIsNotActivatedAgain() {
+        // Er ist erledigt für die Kette - nicht ihr nächster Auftrag. Ohne die Filterung stünde er
+        // als "aktivierbar" da, sobald jemand die Aktivierung zurückgenommen hätte.
+        val decision = ScheduleChain.decideNext(
+            listOf(slot(10, LINKED, UUID.randomUUID(), inClarification = true))
+        )
+        assertIs<ChainDecision.NothingToDo>(decision)
     }
 }
