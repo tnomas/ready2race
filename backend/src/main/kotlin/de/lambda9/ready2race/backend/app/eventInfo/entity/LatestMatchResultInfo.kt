@@ -26,6 +26,9 @@ data class LatestMatchResultInfo(
      * ausgewiesen (Entscheidung vom 17.08.2026). `PublicResultsVisibility` bleibt unberührt.
      */
     val clarification: Boolean = false,
+    /** Nennung der externen Zeitnahme, falls die Ergebnisse von dort kamen. */
+    val timingProviderName: String?,
+    val timingProviderUrl: String?,
     val teams: List<MatchResultTeamInfo>
 )
 

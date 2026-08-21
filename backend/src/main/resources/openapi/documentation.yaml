@@ -11144,6 +11144,8 @@ components:
         - competitionRegistrationCount
         - participantCount
         - eventDocumentsOfficiallyAccepted
+        - regularFees
+        - lateFees
       properties:
         id:
           type: string
@@ -11172,6 +11174,12 @@ components:
           type: number
         eventDocumentsOfficiallyAccepted:
           type: boolean
+        regularFees:
+          type: string
+          format: decimal
+        lateFees:
+          type: string
+          format: decimal
 
     RegistrationMailRecipientDto:
       type: object
@@ -12045,6 +12053,7 @@ components:
             - EQUAL
             - ASCENDING
             - CUSTOM
+            - PER_MATCH
         places:
           type: array
           items:
@@ -14552,6 +14561,12 @@ components:
           type: integer
           nullable: true
           description: "the place within the rating category, counted from 1; null for excluded teams"
+        matchName:
+          type: string
+          nullable: true
+          description: >-
+            Name of the match the place was scored in. Only set when the round scores places
+            separately per match (each match has its own first place).
         deregistered:
           type: boolean
         deregistrationReason:
@@ -15699,6 +15714,12 @@ components:
           type: boolean
           default: false
           description: "an objection is running against this match (competition_match.clarification_since set) - the result goes out under the existing visibility rule, marked as provisional"
+        timingProviderName:
+          type: string
+          nullable: true
+        timingProviderUrl:
+          type: string
+          nullable: true
         teams:
           type: array
           items:
@@ -17960,6 +17981,12 @@ components:
           type: string
         colTeamTime:
           type: string
+        attributionName:
+          type: string
+          description: Display name of the external timing provider, shown with a reference link on public result views (e.g. "RaceClocker").
+        attributionUrl:
+          type: string
+          description: Website of the external timing provider the public attribution links to.
 
     MatchResultImportConfigDto:
       type: object
@@ -17980,6 +18007,10 @@ components:
         colTeamPlace:
           type: string
         colTeamTime:
+          type: string
+        attributionName:
+          type: string
+        attributionUrl:
           type: string
 
     EventInvoicesInfoDto:

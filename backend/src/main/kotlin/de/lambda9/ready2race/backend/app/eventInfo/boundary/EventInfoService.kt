@@ -112,6 +112,8 @@ object EventInfoService {
                 startTime = match[COMPETITION_MATCH.START_TIME],
                 startedAt = match[COMPETITION_MATCH.STARTED_AT],
                 clarification = match[COMPETITION_MATCH.CLARIFICATION_SINCE] != null,
+                timingProviderName = match[COMPETITION_MATCH.TIMING_PROVIDER_NAME],
+                timingProviderUrl = match[COMPETITION_MATCH.TIMING_PROVIDER_URL],
                 teams = teams
             )
         }

@@ -993,7 +993,8 @@
           "placesOption": {
             "equal": "Ligestillet (placering = {{place}})",
             "ascending": "Stigende (placering = seedning)",
-            "custom": "Brugerdefineret"
+            "custom": "Brugerdefineret",
+            "perMatch": "Pr. kamp (placering = placering i kampen)"
           }
         },
         "tournamentTree": {
@@ -1557,6 +1558,10 @@
       "summary": "Opsummering",
       "schedule": "Program",
       "message": "Besked",
+      "fees": {
+        "total": "Tilmeldingsgebyrer",
+        "split": "{{regular}} regulær + {{late}} eftertilmeldt"
+      },
       "optionalFee": "Valgfrit",
       "totalFees": "Tilmeldingsgebyr",
       "lateTotalFees": "Eftertilmeldingsgebyr",
@@ -2600,6 +2605,11 @@
         },
         "error": {
           "noPlaceOrTime": "Angiv venligst kolonnen for placeringer eller tider."
+        },
+        "attribution": {
+          "name": "Tidtagningsudbyder (kreditering)",
+          "url": "Tidtagningsudbyderens websted",
+          "hint": "Vises som en henvisning med link på de offentlige resultater, når resultater er importeret med denne konfiguration."
         }
       }
     },
@@ -2941,6 +2951,9 @@
     },
     "individualRanking": {
       "error": "Fejl ved indlæsning af individuel rangliste"
+    },
+    "timing": {
+      "attribution": "Tidtagning af"
     },
     "noResults": "Ingen resultater",
     "challengeTabs": {

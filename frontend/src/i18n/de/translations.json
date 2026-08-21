@@ -993,7 +993,8 @@
           "placesOption": {
             "equal": "Gleichgestellt (Platz = {{place}})",
             "ascending": "Aufsteigend (Platz = Setzung)",
-            "custom": "Benutzerdefiniert"
+            "custom": "Benutzerdefiniert",
+            "perMatch": "Pro Partie (Platz = Platz in der Partie)"
           }
         },
         "tournamentTree": {
@@ -1557,6 +1558,10 @@
       "summary": "Zusammenfassung",
       "schedule": "Programm",
       "message": "Nachricht",
+      "fees": {
+        "total": "Meldegelder",
+        "split": "{{regular}} regulär + {{late}} nachgemeldet"
+      },
       "optionalFee": "Optional",
       "totalFees": "Meldegebühr",
       "lateTotalFees": "Nachmeldegebühr",
@@ -2627,6 +2632,11 @@
         },
         "error": {
           "noPlaceOrTime": "Bitte geben Sie die Spalte für Plätze oder Zeiten an."
+        },
+        "attribution": {
+          "name": "Zeitmessungsanbieter (Attribution)",
+          "url": "Website des Zeitmessungsanbieters",
+          "hint": "Wird als Verweis mit Link in den öffentlichen Ergebnissen angezeigt, wenn Ergebnisse mit dieser Konfiguration importiert wurden."
         }
       }
     },
@@ -2968,6 +2978,9 @@
     },
     "individualRanking": {
       "error": "Fehler beim Laden der Individualrangliste"
+    },
+    "timing": {
+      "attribution": "Zeitmessung durch"
     },
     "noResults": "Keine Ergebnisse",
     "challengeTabs": {

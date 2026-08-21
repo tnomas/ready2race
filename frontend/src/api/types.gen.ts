@@ -1219,7 +1219,7 @@ export type CompetitionSetupRoundDto = {
     groups?: Array<CompetitionSetupGroupDto>
     statisticEvaluations?: Array<CompetitionSetupGroupStatisticEvaluationDto>
     useDefaultSeeding: boolean
-    placesOption: 'EQUAL' | 'ASCENDING' | 'CUSTOM'
+    placesOption: 'EQUAL' | 'ASCENDING' | 'CUSTOM' | 'PER_MATCH'
     places?: Array<CompetitionSetupPlaceDto>
     /**
      * Marks a preliminary / qualification round. The number of teams qualifying out of the qualification round(s) defines the fixed bracket size N used to resolve the match namings.
@@ -1228,7 +1228,7 @@ export type CompetitionSetupRoundDto = {
     matchNamings?: Array<CompetitionSetupMatchNamingDto>
 }
 
-export type placesOption = 'EQUAL' | 'ASCENDING' | 'CUSTOM'
+export type placesOption = 'EQUAL' | 'ASCENDING' | 'CUSTOM' | 'PER_MATCH'
 
 export type CompetitionSetupTemplateDto = {
     id: string
@@ -1291,6 +1291,10 @@ export type CompetitionTeamPlaceDto = {
      * the place within the rating category, counted from 1; null for excluded teams
      */
     categoryPlace?: number | null
+    /**
+     * Name of the match the place was scored in. Only set when the round scores places separately per match (each match has its own first place).
+     */
+    matchName?: string | null
     deregistered: boolean
     deregistrationReason?: string
     excluded: boolean
@@ -1843,6 +1847,8 @@ export type EventRegistrationViewDto = {
     competitionRegistrationCount: number
     participantCount: number
     eventDocumentsOfficiallyAccepted: boolean
+    regularFees: string
+    lateFees: string
 }
 
 export type EventScheduleDto = {
@@ -2224,6 +2230,8 @@ export type LatestMatchResultInfo = {
      * an objection is running against this match (competition_match.clarification_since set) - the result goes out under the existing visibility rule, marked as provisional
      */
     clarification?: boolean
+    timingProviderName?: string | null
+    timingProviderUrl?: string | null
     teams: Array<MatchResultTeamInfo>
 }
 
@@ -2547,6 +2555,8 @@ export type MatchResultImportConfigDto = {
     colTeamRegistrationId: string
     colTeamPlace?: string
     colTeamTime?: string
+    attributionName?: string
+    attributionUrl?: string
 }
 
 export type MatchResultImportConfigRequest = {
@@ -2558,6 +2568,14 @@ export type MatchResultImportConfigRequest = {
     colTeamRegistrationId: string
     colTeamPlace?: string
     colTeamTime?: string
+    /**
+     * Display name of the external timing provider, shown with a reference link on public result views (e.g. "RaceClocker").
+     */
+    attributionName?: string
+    /**
+     * Website of the external timing provider the public attribution links to.
+     */
+    attributionUrl?: string
 }
 
 export type MatchResultTeamInfo = {
