@@ -38,6 +38,10 @@ data class EventResultData(
         val place: Int?,
         /** Die Partie, in der der Platz gefahren wurde - nur bei Wertung je Partie gesetzt. */
         val matchName: String?,
+        /** Die gefahrene Zeit; enthält eine etwaige Zeitstrafe bereits. Null ohne Zeit oder DNF/DSQ. */
+        val time: String?,
+        /** „Zeitstrafe +10 s (Frühstart)" - als Hinweis neben der Zeit, null ohne Strafe. */
+        val penalty: String?,
         val clubName: String,
         val teamName: String?,
         val participatingClubName: String?,
