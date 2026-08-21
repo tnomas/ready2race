@@ -14,6 +14,10 @@ export type ActionColors = {
     info: string
 }
 
+export type ActiveSequenceDto = {
+    sequence?: TimingSequenceDto
+}
+
 export type AddEventExportBundleItemRequest = {
     document: string
 }
@@ -159,6 +163,10 @@ export type AssignGapDocumentTemplateRequest = {
 export type AssignRequirementToNamedParticipantDto = {
     requirementId: string
     qrCodeRequired: boolean
+}
+
+export type AssignTimeMarkRequest = {
+    competitionMatchTeam?: uuid
 }
 
 export type AthleteBoardMatch = {
@@ -1319,6 +1327,10 @@ export type CompetitionTimingDeviationDto = {
     resultImportConfig?: string | null
 }
 
+export type ComputeOfficialTimesRequest = {
+    teams?: Array<uuid>
+}
+
 export type ContactInformationDto = {
     id: string
     name: string
@@ -1364,6 +1376,20 @@ export type CreateEventRequest = {
     publicResultsVisibility?: PublicResultsVisibility
 }
 
+export type CreateSequenceRequest = {
+    station: uuid
+    mode: SequenceMode
+    intervalMillis?: number
+    teams: Array<uuid>
+    leadInMillis?: number
+}
+
+export type CreateTimeMarkRequest = {
+    id: uuid
+    station: uuid
+    timestampMillis: number
+}
+
 export type CustomFontDto = {
     enabled: boolean
     filename?: string | null
@@ -1372,6 +1398,10 @@ export type CustomFontDto = {
 export type CustomLogoDto = {
     enabled: boolean
     filename?: string | null
+}
+
+export type DeletedTimeMarksDto = {
+    timeMarks: Array<uuid>
 }
 
 export type DocumentTemplateDto = {
@@ -2857,6 +2887,49 @@ export type NamedParticipantWithRequirementsDto = {
     qrCodeRequired: boolean
 }
 
+export type OfficialTimeComputeResultDto = {
+    computed: Array<OfficialTimeDto>
+    skipped: Array<OfficialTimeSkipDto>
+}
+
+export type OfficialTimeDto = {
+    competitionMatchTeam: uuid
+    event: uuid
+    startMillis?: number
+    finishMillis?: number
+    computedMillis?: number
+    overrideMillis?: number
+    penaltyMillis: number
+    resultStatus: OfficialTimeResultStatus
+    effectiveMillis?: number
+    dirty: boolean
+    pushedAt?: string
+}
+
+export type OfficialTimeOverrideRequest = {
+    overrideMillis?: number
+    penaltyMillis?: number
+    resultStatus?: OfficialTimeResultStatus
+}
+
+export type OfficialTimePushConflictDto = {
+    competitionMatchTeam: uuid
+    reason: PushConflictReason
+}
+
+export type OfficialTimeResultStatus = 'NONE' | 'DNS' | 'DNF' | 'DSQ'
+
+export type OfficialTimeSkipDto = {
+    competitionMatchTeam: uuid
+    reason: OfficialTimeSkipReason
+}
+
+export type OfficialTimeSkipReason =
+    | 'NO_START_MARK'
+    | 'NO_FINISH_MARK'
+    | 'NEGATIVE_DURATION'
+    | 'NO_MARKS'
+
 export type OpenForRegistrationType = 'REGULAR' | 'LATE' | 'CLOSED'
 
 export type Order = {
@@ -3378,6 +3451,13 @@ export type ProduceInvoicesRequest = {
  */
 export type PublicResultsVisibility = 'FINISHED_ONLY' | 'RESULTS_COMPLETE'
 
+export type PushConflictReason = 'RESULT_FROZEN' | 'NO_EFFECTIVE_TIME'
+
+export type PushOfficialTimesRequest = {
+    teams: Array<uuid>
+    force?: boolean
+}
+
 export type QrCodeAppuserResponse = {
     firstname: string
     lastname: string
@@ -3526,6 +3606,7 @@ export type Resource =
     | 'APP_QR_MANAGEMENT'
     | 'APP_COMPETITION_CHECK'
     | 'APP_CATERER'
+    | 'APP_TIMING'
     | 'ADMINISTRATION'
     | 'WEB_DAV'
     | 'RESULT'
@@ -3679,6 +3760,16 @@ export type ScheduleImportResultDto = {
 }
 
 export type Scope = 'OWN' | 'GLOBAL'
+
+export type SequenceEntryStatus = 'PENDING' | 'STARTED' | 'SKIPPED'
+
+export type SequenceMode = 'MASS' | 'INTERVAL'
+
+export type SequenceState = 'ARMED' | 'RUNNING' | 'DONE' | 'ABORTED'
+
+export type ServerTimeResponse = {
+    serverTimeMillis: number
+}
 
 export type ShiftMode = 'PLUS_MINUTES' | 'SET_TIME' | 'COMPRESS_TO_TARGET' | 'PLUS_MINUTES_RANGE'
 
@@ -3914,6 +4005,17 @@ export type TimeCheckDto = {
 
 export type TimeCheckStatus = 'OK' | 'TOO_EARLY' | 'LATE' | 'NOT_CHECKED'
 
+export type TimeMarkDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    timestampMillis: number
+    source: string
+    status: string
+    createdBy?: uuid
+    assignedTeam?: uuid
+}
+
 export type TimingConfigDto = {
     timingSystem?: TimingSystem | null
     /**
@@ -3950,7 +4052,112 @@ export type TimingConfigRequest = {
     resultImportConfig?: string | null
 }
 
+export type TimingDeviceTokenDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    name: string
+    revoked: boolean
+    createdAt: string
+}
+
+export type TimingDeviceTokenIssuedDto = {
+    deviceToken: TimingDeviceTokenDto
+    token: string
+}
+
+export type TimingDeviceTokenRequest = {
+    name: string
+    station: uuid
+}
+
+/**
+ * The team's match as the boards need it: ACTIVE = called up or on the water (these teams are
+ * expected right now), OPEN = still ahead, DONE = finished. Deliberately coarser than the
+ * match state of the execution views; the branch order mirrors its derivation. Teams of a bye
+ * match are not returned at all unless the bye is set to "must race".
+ */
+export type TimingMatchPhase = 'ACTIVE' | 'OPEN' | 'DONE'
+
+export type TimingSequenceDto = {
+    id: uuid
+    event: uuid
+    station: uuid
+    mode: SequenceMode
+    intervalMillis?: number
+    leadInMillis: number
+    state: SequenceState
+    startedAtMillis?: number
+    entries: Array<TimingSequenceEntryDto>
+}
+
+export type TimingSequenceEntryDto = {
+    id: uuid
+    competitionMatchTeam: uuid
+    position: number
+    status: SequenceEntryStatus
+    plannedStartMillis?: number
+    timeMark?: uuid
+}
+
+export type TimingStateDto = {
+    stations: Array<TimingStationDto>
+    timeMarks: Array<TimeMarkDto>
+}
+
+export type TimingStationDto = {
+    id: uuid
+    event: uuid
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+export type TimingStationRequest = {
+    name: string
+    type: TimingStationType
+    sorting: number
+}
+
+/**
+ * Live timing: stations capture time marks (start/split/finish), which are then assigned to a
+ * competition match team to produce a result.
+ *
+ * In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
+ *
+ * - Path: `/api/ws/event/{eventId}/timing` (note the `/api/ws` prefix - this channel lives outside
+ * the regular `/api` REST routes documented in this spec).
+ * - Auth: browsers cannot set custom headers on a websocket handshake, so the session token is
+ * passed as the second entry of the `Sec-WebSocket-Protocol` header: connect with
+ * `new WebSocket(url, ["r2r", sessionToken])`. Non-browser clients may instead send the usual
+ * session header/cookie and omit the subprotocol.
+ * - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
+ * - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
+ * - `{ type: "timeMarkRetracted", id: uuid }`
+ * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
+ * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
+ * distinguish "no assignment" from a field that was never sent.
+ * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
+ * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on the
+ * server's ping/pong keepalive.
+ * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
+ * only then start applying incoming messages, to cover updates missed while disconnected.
+ */
+export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+
 export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER'
+
+export type TimingTeamDto = {
+    competitionMatchTeam: uuid
+    startNumber?: number
+    teamName?: string
+    clubName?: string
+    participantNames: Array<string>
+    competitionName?: string
+    matchName?: string
+    matchPhase: TimingMatchPhase
+}
 
 export type TooManyRequestsError = ApiError & {
     details: {
@@ -4186,6 +4393,8 @@ export type UpsertScheduleSlotRequest = {
     name?: string | null
     durationMinutes?: number | null
 }
+
+export type uuid = string
 
 export type VerifyRegistrationRequest = {
     token: string
@@ -8996,6 +9205,327 @@ export type DownloadCertificatesOfParticipationData = {
 export type DownloadCertificatesOfParticipationResponse = Blob | File
 
 export type DownloadCertificatesOfParticipationError = BadRequestError | ApiError
+
+export type GetTimingStateData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingStateResponse = TimingStateDto
+
+export type GetTimingStateError = unknown
+
+export type GetTimingStationsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingStationsResponse = Array<TimingStationDto>
+
+export type GetTimingStationsError = unknown
+
+export type CreateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimingStationResponse = uuid
+
+export type CreateTimingStationError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type UpdateTimingStationData = {
+    body: TimingStationRequest
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type UpdateTimingStationResponse = void
+
+export type UpdateTimingStationError = unknown
+
+export type DeleteTimingStationData = {
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type DeleteTimingStationResponse = void
+
+export type DeleteTimingStationError = unknown
+
+export type CreateTimeMarkData = {
+    body: CreateTimeMarkRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimeMarkResponse = uuid
+
+export type CreateTimeMarkError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type AssignTimeMarkData = {
+    body: AssignTimeMarkRequest
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type AssignTimeMarkResponse = void
+
+export type AssignTimeMarkError = unknown
+
+export type RetractTimeMarkData = {
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type RetractTimeMarkResponse = void
+
+export type RetractTimeMarkError = unknown
+
+export type GetServerTimeResponse = ServerTimeResponse
+
+export type GetServerTimeError = unknown
+
+export type GetTimingTeamsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingTeamsResponse = Array<TimingTeamDto>
+
+export type GetTimingTeamsError = unknown
+
+export type CreateTimingSequenceData = {
+    body: CreateSequenceRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type CreateTimingSequenceResponse = uuid
+
+export type CreateTimingSequenceError =
+    | {
+          status: 500
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 501
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+    | {
+          status: 502
+          message: string
+          details?: {
+              [key: string]: unknown
+          }
+          errorCode?: ErrorCode
+      }
+
+export type GetActiveTimingSequenceData = {
+    path: {
+        eventId: uuid
+    }
+    query: {
+        stationId: uuid
+    }
+}
+
+export type GetActiveTimingSequenceResponse = ActiveSequenceDto
+
+export type GetActiveTimingSequenceError = unknown
+
+export type AbortTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type AbortTimingSequenceResponse = void
+
+export type AbortTimingSequenceError = unknown
+
+export type SkipTimingSequenceEntryData = {
+    path: {
+        entryId: uuid
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type SkipTimingSequenceEntryResponse = void
+
+export type SkipTimingSequenceEntryError = unknown
+
+export type StartTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type StartTimingSequenceResponse = void
+
+export type StartTimingSequenceError = unknown
+
+export type DeleteRetractedTimeMarksData = {
+    path: {
+        eventId: uuid
+    }
+    query?: {
+        station?: uuid
+    }
+}
+
+export type DeleteRetractedTimeMarksResponse = DeletedTimeMarksDto
+
+export type DeleteRetractedTimeMarksError = unknown
+
+export type GetOfficialTimesData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetOfficialTimesResponse = Array<OfficialTimeDto>
+
+export type GetOfficialTimesError = unknown
+
+export type ComputeOfficialTimesData = {
+    body: ComputeOfficialTimesRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type ComputeOfficialTimesResponse = OfficialTimeComputeResultDto
+
+export type ComputeOfficialTimesError = unknown
+
+export type PushOfficialTimesData = {
+    body: PushOfficialTimesRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type PushOfficialTimesResponse = void
+
+export type PushOfficialTimesError = unknown
+
+export type SetOfficialTimeOverrideData = {
+    body: OfficialTimeOverrideRequest
+    path: {
+        competitionMatchTeamId: uuid
+        eventId: uuid
+    }
+}
+
+export type SetOfficialTimeOverrideResponse = void
+
+export type SetOfficialTimeOverrideError = unknown
+
+export type ListTimingDeviceTokensData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type ListTimingDeviceTokensResponse = Array<TimingDeviceTokenDto>
+
+export type ListTimingDeviceTokensError = unknown
+
+export type IssueTimingDeviceTokenData = {
+    body: TimingDeviceTokenRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type IssueTimingDeviceTokenResponse = TimingDeviceTokenIssuedDto
+
+export type IssueTimingDeviceTokenError = unknown
+
+export type RevokeTimingDeviceTokenData = {
+    path: {
+        eventId: uuid
+        tokenId: uuid
+    }
+}
+
+export type RevokeTimingDeviceTokenResponse = void
+
+export type RevokeTimingDeviceTokenError = unknown
 
 export type DownloadAwardCertificatesForEventData = {
     path: {

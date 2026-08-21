@@ -1,6 +1,8 @@
 import "@typespec/http";
 import "@typespec/rest";
 import "./common.tsp";
+import "./participant.tsp";
+import "./task.tsp";
 import "./workShift.tsp";
 
 using Http;
@@ -145,7 +147,7 @@ interface UserRoutes {
   getUserTasks(
     @path userId: string, // UUID
     // Pagination parameters
-  ): TaskWithResponsibleUsersDto[]; // Reference to task module
+  ): TaskDto[]; // Reference to task module
 
   // Get work shifts for user
   @get

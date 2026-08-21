@@ -12,6 +12,7 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailError
 import de.lambda9.ready2race.backend.app.invoice.boundary.InvoiceService
 import de.lambda9.ready2race.backend.app.invoice.entity.ProduceInvoiceError
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVExportService
 import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVService
 import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVImportService
@@ -22,6 +23,7 @@ import de.lambda9.ready2race.backend.plugins.*
 import de.lambda9.ready2race.backend.schedule.DynamicIntervalJobState
 import de.lambda9.ready2race.backend.schedule.Scheduler
 import de.lambda9.tailwind.core.extensions.kio.recoverDefault
+import de.lambda9.tailwind.jooq.transact
 import io.github.cdimascio.dotenv.dotenv
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.server.application.*
@@ -64,6 +66,7 @@ fun Application.module(env: JEnv) {
     configureSessions()
     configureRequests()
     configureResponses()
+    configureSockets(env)
     configureRouting(env.env.config, env)
     configureStaticFiles(env.env.config.staticFilesPath)
 }
@@ -160,6 +163,28 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
 
             scheduleDynamic("Import next file from WebDAV Server", 10.seconds) {
                 WebDAVImportService.importNext(env)
+            }
+
+            // Start sequences fire on the server's clock, so this has to tick at least as fast as
+            // the resolution boards render (one second).
+            //
+            // `transact` here rather than inside the service for two reasons: it makes one whole run
+            // atomic (an entry's mark, assignment and status flip either all land or none do, and a
+            // crashed run is simply redone on the next tick), and it gives us a commit boundary to
+            // hang the broadcasts off. The scheduler runs outside `respondKIO`, so `AfterCommit` has
+            // no buffer installed and would fire effects mid-transaction; broadcasting from `map` -
+            // which only runs once `transact` committed - reproduces the after-commit guarantee.
+            scheduleDynamic("Fire due start sequence entries", 1.seconds) {
+                TimingSequenceService.fireDueEntries()
+                    .transact()
+                    .map { result ->
+                        TimingSequenceService.broadcastFireResult(result)
+                        if (result.fired.isEmpty() && result.changedSequences.isEmpty()) {
+                            DynamicIntervalJobState.Empty
+                        } else {
+                            DynamicIntervalJobState.Processed
+                        }
+                    }
             }
 
             // Herzschlag im Sekundentakt, der je Veranstaltung entscheidet, ob ihr eingestellter

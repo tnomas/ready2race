@@ -788,13 +788,16 @@ object CompetitionExecutionService {
      * Der manuelle Pull pausiert bewusst NICHT: Er ist derselbe Weg wie die Automatik, nur von Hand
      * ausgelöst, und darf sie nicht abwürgen.
      *
+     * Öffentlich, weil auch der Zeitnahme-Push (`TimingOfficialTimeService.pushOfficialTimes`) ein
+     * Handschreibpfad auf dieselben Felder ist und dieselbe Regel braucht.
+     *
      * Pausiert wird nur dort, wo es eine Automatik gibt. Sonst sammelte jede Veranstaltung ohne
      * RaceClocker - und das sind nach der Migration erst einmal alle - an jedem von Hand
      * eingetragenen Lauf einen Vermerk ein, den die Oberfläche als „Automatischer Abruf pausiert"
      * anzeigt und der sich auf nichts bezieht. Die Prüfung steht im Repo des Jobs, damit die
      * Bedingung an genau einer Stelle formuliert ist.
      */
-    private fun pauseRaceClockerAutoPull(matchId: UUID): App<Nothing, Unit> = KIO.comprehension {
+    fun pauseRaceClockerAutoPull(matchId: UUID): App<Nothing, Unit> = KIO.comprehension {
         val configured = !RaceClockerPollRepo.isAutoPullConfigured(matchId).orDie()
         if (!configured) return@comprehension unit
 

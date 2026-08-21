@@ -17,10 +17,12 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import SportsScoreIcon from '@mui/icons-material/SportsScore'
+import TimerIcon from '@mui/icons-material/Timer'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {AppEntry, appEntries} from '@components/qrApp/common.ts'
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import LogoutIcon from "@mui/icons-material/Logout";
+import {useNavigate} from '@tanstack/react-router'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {resetAppInstallation} from '@pwa/registerAppSW.ts'
 
@@ -29,6 +31,7 @@ const ENTRY_ICONS: Record<string, typeof QrCodeIcon> = {
     APP_COMPETITION_CHECK: CheckCircleIcon,
     APP_EVENT_REQUIREMENT: AssignmentIcon,
     APP_CATERER: RestaurantIcon,
+    APP_TIMING: TimerIcon,
     LIVE_DASHBOARD: SportsScoreIcon,
 }
 
@@ -38,6 +41,7 @@ const AppFunctionSelectPage = () => {
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
     const user = useUser()
+    const navigate = useNavigate()
     const {confirmAction} = useConfirmation()
 
     const entries = appEntries(user)
@@ -50,6 +54,10 @@ const AppFunctionSelectPage = () => {
 
     const handleSelect = (entry: AppEntry) => {
         setAppFunction(entry.appFunction)
+        if (entry.path) {
+            void navigate({to: entry.path})
+            return
+        }
         navigateTo(entry.target)
     }
 

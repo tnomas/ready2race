@@ -40,6 +40,11 @@ export const updateAppCatererGlobal: Privilege = {
     resource: 'APP_CATERER',
     scope: 'GLOBAL',
 }
+export const updateAppTimingGlobal: Privilege = {
+    action: 'UPDATE',
+    resource: 'APP_TIMING',
+    scope: 'GLOBAL',
+}
 
 export const createRegistrationGlobal: Privilege = {
     action: 'CREATE',

@@ -41,9 +41,10 @@ import "./src/startListConfig.tsp";
 import "./src/substitution.tsp";
 import "./src/task.tsp";
 import "./src/timecode.tsp";
+import "./src/timing.tsp";
 import "./src/webDAV.tsp";
 import "./src/workShift.tsp";
 import "./src/workType.tsp";
 
 @service(#{ title: "Ready2race" })
-namespace Ready2Race
+namespace Ready2Race;

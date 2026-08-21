@@ -81,7 +81,7 @@ alias ServerError = InternalServerError | NotImplemented | BadGateway;
 
 alias OK<Body> = ApiResponse<200, Body> | ServerError;
 alias Created = ApiResponse<201, uuid> | ServerError;
-alias NoContent = ApiResponse<204, never> | ServerError;
+alias NoContent = ApiResponse<204, void> | ServerError;
 
 model UrlPaginationParameters {
     @query limit?: int32;

@@ -48,6 +48,11 @@ object CompetitionMatchTeamRepo {
         }
     }
 
+    fun getById(teamId: UUID): JIO<CompetitionMatchTeamRecord?> = COMPETITION_MATCH_TEAM.selectOne { ID.eq(teamId) }
+
+    fun updateById(teamId: UUID, f: CompetitionMatchTeamRecord.() -> Unit) =
+        COMPETITION_MATCH_TEAM.update(f) { ID.eq(teamId) }
+
     fun getByMatchAndRegistrationId(matchId: UUID, registrationId: UUID): JIO<CompetitionMatchTeamRecord?> =
         COMPETITION_MATCH_TEAM.selectOne { COMPETITION_MATCH.eq(matchId).and(COMPETITION_REGISTRATION.eq(registrationId)) }
 
@@ -282,6 +287,17 @@ object CompetitionMatchTeamRepo {
 
     fun getByCompetitionRegistrations(competitionRegistrationIds: List<UUID>) =
         COMPETITION_MATCH_TEAM.select { COMPETITION_REGISTRATION.`in`(competitionRegistrationIds) }
+
+    // Minimal lookup for callers (e.g. timing time-mark assignment) that only need to know which
+    // event a match team belongs to, without pulling in the full registration/club/participant join.
+    fun getEventId(teamId: UUID): JIO<UUID?> = Jooq.query {
+        select(EVENT_REGISTRATION.EVENT)
+            .from(COMPETITION_MATCH_TEAM)
+            .join(COMPETITION_REGISTRATION).on(COMPETITION_REGISTRATION.ID.eq(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION))
+            .join(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
+            .where(COMPETITION_MATCH_TEAM.ID.eq(teamId))
+            .fetchOneInto(UUID::class.java)
+    }
 
     fun deleteTimecodesByMatchIds(matchIds: List<UUID>) = Jooq.query {
         deleteFrom(TIMECODE).where(DSL.exists(
