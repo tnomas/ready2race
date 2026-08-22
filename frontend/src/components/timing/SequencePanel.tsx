@@ -1,4 +1,4 @@
-import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react'
+import {ReactNode, useCallback, useEffect, useMemo, useState} from 'react'
 import {
     Alert,
     Box,
@@ -24,7 +24,10 @@ import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import {SequenceMode, TimingSequenceDto, TimingSequenceEntryDto, TimingTeamDto} from '@api/types.gen.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
-import {playCountdownBeep, unlockAudio} from '@utils/timing/feedback.ts'
+import {unlockAudio} from '@utils/timing/feedback.ts'
+import {sortedEntries, splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
+import {teamLabel} from '@utils/timing/teamLabel.ts'
+import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 
 export type SequencePanelProps = {
     stationId: string
@@ -41,17 +44,6 @@ const DEFAULT_LEAD_IN_SECONDS = 10
 const LEAD_IN_MIN_SECONDS = 3
 const LEAD_IN_MAX_SECONDS = 600
 
-/** Short human label for a team: `#12 · Team Name`, falling back to whatever is available. */
-function teamLabel(team: TimingTeamDto | undefined, fallbackId: string): string {
-    if (team === undefined) return fallbackId
-    const bits: string[] = []
-    if (team.startNumber !== undefined) bits.push(`#${team.startNumber}`)
-    if (team.teamName) bits.push(team.teamName)
-    else if (team.clubName) bits.push(team.clubName)
-    else if (team.participantNames.length > 0) bits.push(team.participantNames.join(' / '))
-    return bits.length > 0 ? bits.join(' · ') : fallbackId
-}
-
 /** Wall-clock time at 1s precision, e.g. for a fired entry's planned/actual start. */
 function formatTimeOfDay(ms: number): string {
     const date = new Date(ms)
@@ -59,108 +51,6 @@ function formatTimeOfDay(ms: number): string {
     const mm = String(date.getMinutes()).padStart(2, '0')
     const ss = String(date.getSeconds()).padStart(2, '0')
     return `${hh}:${mm}:${ss}`
-}
-
-function formatCountdown(remainingMillis: number): string {
-    const totalSeconds = Math.max(0, Math.ceil(remainingMillis / 1000))
-    const mm = Math.floor(totalSeconds / 60)
-    const ss = totalSeconds % 60
-    return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
-}
-
-const COUNTDOWN_PLACEHOLDER = '--:--'
-
-/**
- * How far past T-0 the countdown keeps showing `00:00` before it switches to the "in progress" label.
- * A small grace window is deliberate: the scheduler fires within a tick or so of T-0, and a display
- * that flips the instant the target passes would flicker on every start. Past that, a frozen `00:00`
- * would be a lie — the start already happened (or the scheduler is late) — so say so instead.
- */
-const OVERDUE_GRACE_MILLIS = 2000
-
-/**
- * Big rAF-driven countdown to `targetMillis`, written directly into a ref'd element's `textContent`
- * (like `BoardHeader`'s clock) so the rest of the panel doesn't re-render every frame. Also fires the
- * countdown beeps (`playCountdownBeep`) at T-5..T-1 (short) and T-0 (long/final), guarding against
- * repeats within the same second via `lastBeepedSecondRef`. Resets that guard whenever `targetMillis`
- * changes (INTERVAL mode moves the target to the next entry once the current one fires).
- *
- * Once the target is more than `OVERDUE_GRACE_MILLIS` in the past it renders `overdueLabel` with a
- * pulse (`data-overdue`) instead of a stuck `00:00`.
- */
-const RunningCountdown = ({
-    targetMillis,
-    now,
-    overdueLabel,
-}: {
-    targetMillis: number
-    now: () => number | null
-    overdueLabel: string
-}) => {
-    const textRef = useRef<HTMLSpanElement | null>(null)
-    const nowRef = useRef(now)
-    const overdueLabelRef = useRef(overdueLabel)
-    const lastBeepedSecondRef = useRef<number>(Number.NaN)
-
-    useEffect(() => {
-        nowRef.current = now
-        overdueLabelRef.current = overdueLabel
-    })
-
-    useEffect(() => {
-        lastBeepedSecondRef.current = Number.NaN
-        let rafId: number
-
-        const tick = () => {
-            const current = nowRef.current()
-            const element = textRef.current
-            if (current !== null && element) {
-                const remaining = targetMillis - current
-                const overdue = remaining < -OVERDUE_GRACE_MILLIS
-                const text = overdue ? overdueLabelRef.current : formatCountdown(remaining)
-                if (element.textContent !== text) element.textContent = text
-                const overdueFlag = overdue ? 'true' : 'false'
-                if (element.dataset.overdue !== overdueFlag) element.dataset.overdue = overdueFlag
-
-                const secondsRemaining = Math.ceil(remaining / 1000)
-                if (secondsRemaining !== lastBeepedSecondRef.current) {
-                    lastBeepedSecondRef.current = secondsRemaining
-                    if (secondsRemaining >= 1 && secondsRemaining <= 5) {
-                        playCountdownBeep(false)
-                    } else if (secondsRemaining === 0) {
-                        playCountdownBeep(true)
-                    }
-                }
-            }
-            rafId = requestAnimationFrame(tick)
-        }
-
-        rafId = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(rafId)
-    }, [targetMillis])
-
-    return (
-        <Typography
-            ref={textRef}
-            component="span"
-            variant="h1"
-            sx={{
-                fontFamily: 'monospace',
-                fontVariantNumeric: 'tabular-nums',
-                fontWeight: 700,
-                '@keyframes sequenceOverduePulse': {
-                    '0%': {opacity: 1},
-                    '50%': {opacity: 0.4},
-                    '100%': {opacity: 1},
-                },
-                '&[data-overdue="true"]': {
-                    fontSize: '2.5rem',
-                    animation: 'sequenceOverduePulse 1.2s ease-in-out infinite',
-                },
-            }}>
-            {COUNTDOWN_PLACEHOLDER}
-        </Typography>
-    )
 }
 
 export type CreateSequenceParams = {
@@ -450,10 +340,7 @@ type ArmedViewProps = {
 
 const ArmedView = ({sequence, label, busy, onStart, onAbort, onSkip}: ArmedViewProps) => {
     const {t} = useTranslation()
-    const entries = useMemo(
-        () => [...sequence.entries].sort((a, b) => a.position - b.position),
-        [sequence.entries],
-    )
+    const entries = useMemo(() => sortedEntries(sequence), [sequence])
 
     return (
         <Stack sx={{flexGrow: 1, width: 1, minHeight: 'min-content'}} spacing={2}>
@@ -498,16 +385,11 @@ type RunningViewProps = {
 
 const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewProps) => {
     const {t} = useTranslation()
-    const entries = useMemo(
-        () => [...sequence.entries].sort((a, b) => a.position - b.position),
-        [sequence.entries],
+    // Gemeinsame Ableitung mit dem Startbildschirm (Zeitnahme) - siehe sequenceDisplay.ts.
+    const {next, following, settled, targetMillis} = useMemo(
+        () => splitRunningEntries(sequence),
+        [sequence],
     )
-    const pending = entries.filter(entry => entry.status === 'PENDING')
-    const next = pending[0]
-    const following = pending.slice(1)
-    const settled = entries.filter(entry => entry.status !== 'PENDING')
-
-    const targetMillis = next?.plannedStartMillis ?? sequence.startedAtMillis
 
     return (
         <Stack
@@ -519,7 +401,7 @@ const RunningView = ({sequence, label, now, busy, onAbort, onSkip}: RunningViewP
             ) : (
                 <>
                     {targetMillis !== undefined && (
-                        <RunningCountdown
+                        <SequenceCountdown
                             targetMillis={targetMillis}
                             now={now}
                             overdueLabel={t('timing.sequence.running.overdue')}
@@ -592,10 +474,7 @@ type SummaryViewProps = {
 
 const SummaryView = ({sequence, label, onReset}: SummaryViewProps) => {
     const {t} = useTranslation()
-    const entries = useMemo(
-        () => [...sequence.entries].sort((a, b) => a.position - b.position),
-        [sequence.entries],
-    )
+    const entries = useMemo(() => sortedEntries(sequence), [sequence])
 
     return (
         <Stack sx={{flexGrow: 1, width: 1, minHeight: 'min-content'}} spacing={2}>
