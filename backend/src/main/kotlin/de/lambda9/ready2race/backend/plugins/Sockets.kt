@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.plugins
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
 import de.lambda9.ready2race.backend.calls.requests.authenticateAnyWithToken
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
@@ -73,22 +74,36 @@ private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
         return
     }
 
-    val authorized = authenticateAnyWithToken(
+    val sessionAuthorized = authenticateAnyWithToken(
         token,
         Privilege.UpdateAppTimingGlobal,
         Privilege.UpdateEventGlobal,
         Privilege.ReadEventGlobal,
     ).unsafeRunSync(env).fold(
         onSuccess = { true },
-        onError = { error ->
-            logger.info { "Rejecting timing ws handshake for event $eventId: $error" }
-            false
-        },
+        onError = { false },
         onDefect = { defect ->
             logger.warn(defect) { "Rejecting timing ws handshake for event $eventId: authentication failed" }
             false
         },
     )
+
+    // Kein gültiger Sitzungstoken? Dann kann der Token-Slot des Subprotokolls auch ein
+    // Geräte-Token tragen: geteilte Posten-Links (Erfassung/Startbildschirm) laufen ohne
+    // Anmeldung und brauchen den Live-Kanal trotzdem. Dieselben Tokens wie beim
+    // Zeitmarken-POST, dieselbe Widerrufbarkeit über den Leitstand-Geräte-Reiter.
+    val authorized = sessionAuthorized || TimingDeviceTokenService.validateForEvent(token, eventId)
+        .unsafeRunSync(env).fold(
+            onSuccess = { true },
+            onError = { error ->
+                logger.info { "Rejecting timing ws handshake for event $eventId: $error" }
+                false
+            },
+            onDefect = { defect ->
+                logger.warn(defect) { "Rejecting timing ws handshake for event $eventId: device token check failed" }
+                false
+            },
+        )
     if (!authorized) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
         return

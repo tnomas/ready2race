@@ -25,18 +25,35 @@ const val TIMING_DEVICE_TOKEN_HEADER = "X-Timing-Device-Token"
 fun Route.timing() {
     route("/timing") {
 
+        // Die Lese-Endpunkte der Boards (Zustand, Teams, Posten, aktive Sequenz) akzeptieren
+        // zusätzlich zur Nutzersitzung ein Geräte-Token: geteilte Posten-Links (Erfassung,
+        // Startbildschirm) tragen es in der URL und müssen den Veranstaltungszustand lesen
+        // können, ohne dass jemand am Gerät angemeldet ist. Wie beim Zeitmarken-POST greift der
+        // Token-Zweig nur ohne Sitzung - ein angemeldeter Nutzer nimmt exakt den bisherigen Weg.
+        // Schreibende Endpunkte (außer dem Zeitmarken-POST mit seiner Posten-Bindung) verlangen
+        // weiterhin eine Sitzung.
         get("/state") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
+                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                } else {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                }
                 TimingService.getState(eventId)
             }
         }
 
         get("/teams") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
+                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                } else {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                }
                 TimingService.getTeams(eventId)
             }
         }
@@ -54,8 +71,13 @@ fun Route.timing() {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
                     TimingService.getStations(eventId)
                 }
             }
@@ -157,12 +179,17 @@ fun Route.timing() {
 
             get("/active") {
                 call.respondComprehension {
-                    !authenticateAny(
-                        Privilege.UpdateAppTimingGlobal,
-                        Privilege.UpdateEventGlobal,
-                        Privilege.ReadEventGlobal,
-                    )
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(
+                            Privilege.UpdateAppTimingGlobal,
+                            Privilege.UpdateEventGlobal,
+                            Privilege.ReadEventGlobal,
+                        )
+                    }
                     val stationId = !queryParam("stationId", uuid)
                     TimingSequenceService.getActiveSequence(eventId, stationId)
                 }

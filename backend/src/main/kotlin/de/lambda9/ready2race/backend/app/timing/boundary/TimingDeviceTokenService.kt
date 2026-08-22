@@ -112,6 +112,34 @@ object TimingDeviceTokenService {
     }
 
     /**
+     * Wie [validate], aber nur an die Veranstaltung gebunden, nicht an einen Posten.
+     *
+     * Für die Lese-Endpunkte der Zeitnahme (Zustand, Teams, Posten, aktive Sequenz) und den
+     * WebSocket: ein geteilter Posten-Link (Erfassung oder Startbildschirm) trägt das Geräte-Token
+     * in der URL, und die Boards lesen den Zustand der ganzen Veranstaltung — dieselbe
+     * Sichtbarkeit, die jede angemeldete Zeitnahme-Rolle hat. Schreibend bleibt das Token auf den
+     * Posten von [validate] beschränkt (Zeitmarken-POST); alle weiteren Mutationen verlangen
+     * weiterhin eine Nutzersitzung. Jede Ablehnung ist auch hier das eine
+     * [TimingError.DeviceTokenInvalid], ohne etwas über den präsentierten Wert zu verraten.
+     */
+    fun validateForEvent(
+        plainToken: String,
+        eventId: UUID,
+    ): App<TimingError, TimingDeviceTokenRecord> = KIO.comprehension {
+        val expected = hash(plainToken)
+        val record = !TimingDeviceTokenRepo.getByHash(expected).orDie()
+            .onNullFail { TimingError.DeviceTokenInvalid }
+
+        val valid = MessageDigest.isEqual(
+            record.tokenHash.toByteArray(Charsets.UTF_8),
+            expected.toByteArray(Charsets.UTF_8),
+        ) && record.revoked != true && record.event == eventId
+
+        !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
+        KIO.ok(record)
+    }
+
+    /**
      * SHA-256, hex encoded.
      *
      * Unlike a user password this is high-entropy machine-generated material, so a fast digest is
