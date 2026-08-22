@@ -7,7 +7,6 @@ import {getTimingTeams} from '@api/sdk.gen.ts'
 import {updateEventGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useFetch} from '@utils/hooks.ts'
-import {timingEventRoute} from '@routes'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import LeitstandMarksTab from '@components/timing/leitstand/LeitstandMarksTab.tsx'
@@ -36,12 +35,21 @@ const TABS: LeitstandTab[] = ['times', 'results', 'devices']
  * for the cross-station view, plus `useOfficialTimes` for the result table's own feed
  * (`officialTimeChanged`). The two are separate because they load from separate endpoints and only the
  * marks half is part of `/timing/state`.
+ *
+ * Route-unabhängig: die Seite hängt seit dem Betrieb-Umbau (22.08.2026) sowohl unter
+ * `/app/timing/$eventId/leitstand` als auch kanonisch unter `/event/$eventId/timing/leitstand` —
+ * Parameter und Rücksprungziel kommen deshalb als Props von der jeweiligen Route.
  */
-const TimingLeitstandPage = () => {
+export type TimingLeitstandPageProps = {
+    eventId: string
+    /** Wohin der Zurück-Pfeil führt - je nach Mount die App-Postenwahl oder der Betrieb-Reiter. */
+    onBack: () => void
+}
+
+const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
     const {t} = useTranslation()
     const user = useUser()
     const navigate = useNavigate()
-    const {eventId} = timingEventRoute.useParams()
 
     useEffect(() => {
         if (!user.checkPrivilege(updateEventGlobal)) {
@@ -156,11 +164,7 @@ const TimingLeitstandPage = () => {
                 spacing={1}
                 sx={{flexShrink: 0, borderBottom: 1, borderColor: 'divider', px: 1}}>
                 <Tooltip title={t('common.back')}>
-                    <IconButton
-                        aria-label={t('common.back')}
-                        onClick={() =>
-                            void navigate({to: '/app/timing/$eventId', params: {eventId}})
-                        }>
+                    <IconButton aria-label={t('common.back')} onClick={onBack}>
                         <ArrowBackIcon />
                     </IconButton>
                 </Tooltip>

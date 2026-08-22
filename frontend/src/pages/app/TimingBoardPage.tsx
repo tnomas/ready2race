@@ -17,9 +17,9 @@ import {useNavigate} from '@tanstack/react-router'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
-import {updateAppTimingGlobal} from '@authorization/privileges.ts'
-import {timingEventRoute, timingStationRoute} from '@routes'
+import {updateAppTimingGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
+import {deviceSessionForStation} from '@utils/timing/deviceSession.ts'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
@@ -55,20 +55,35 @@ function formatTimeOfDay(ms: number): string {
     return `${hh}:${mm}:${ss}`
 }
 
-const TimingBoardPage = () => {
+/**
+ * Route-unabhängig: hängt unter `/app/timing/$eventId/$stationId` (App-Welt) und kanonisch unter
+ * `/event/$eventId/timing/$stationId` (Betrieb-Reiter, geteilte Posten-Links) — Parameter kommen
+ * als Props von der jeweiligen Route.
+ */
+export type TimingBoardPageProps = {
+    eventId: string
+    stationId: string
+}
+
+const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const {t} = useTranslation()
     const user = useUser()
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
     const navigate = useNavigate()
-    const {eventId} = timingEventRoute.useParams()
-    const {stationId} = timingStationRoute.useParams()
 
     useEffect(() => {
-        if (!user.checkPrivilege(updateAppTimingGlobal)) {
+        // Ein geteiltes Gerät hat keine Sitzung, sondern das Geräte-Token dieses Postens - dann
+        // greift die Privilegien-Prüfung nicht (die Lese- und Erfassungswege authentifiziert der
+        // Server über das Token). updateEventGlobal zählt wie serverseitig ebenfalls.
+        if (deviceSessionForStation(eventId, stationId) !== null) return
+        if (
+            !user.checkPrivilege(updateAppTimingGlobal) &&
+            !user.checkPrivilege(updateEventGlobal)
+        ) {
             void navigate({to: '/app/forbidden'})
         }
-    }, [user, navigate])
+    }, [user, navigate, eventId, stationId])
 
     const clock = useServerClock()
     const sequenceState = useSequence(eventId, stationId)

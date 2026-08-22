@@ -5,6 +5,7 @@ import {
     ParsedLocation,
     redirect,
     SearchSchemaInput,
+    useNavigate,
 } from '@tanstack/react-router'
 import {AuthenticatedUser, User} from './contexts/user/UserContext.ts'
 import RootLayout from './layouts/RootLayout.tsx'
@@ -13,11 +14,18 @@ import {Action, Privilege, Resource, Scope} from './api'
 import {
     readInvoiceGlobal,
     readAdministrationConfigGlobal,
+    readEventGlobal,
     readUserGlobal,
+    updateAppTimingGlobal,
     updateEventGlobal,
     updateUserGlobal,
     readLiveDashboardGlobal,
 } from './authorization/privileges.ts'
+import {
+    deviceSessionForEvent,
+    deviceSessionForStation,
+    writeDeviceSession,
+} from './utils/timing/deviceSession.ts'
 import UsersPage from './pages/user/UsersPage.tsx'
 import UserPage from './pages/user/UserPage.tsx'
 import RolesPage from './pages/user/RolesPage.tsx'
@@ -64,6 +72,7 @@ import TimingEventsPage from './pages/app/TimingEventsPage.tsx'
 import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
 import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
 import TimingLeitstandPage from './pages/app/TimingLeitstandPage.tsx'
+import TimingStartDisplayPage from './pages/app/TimingStartDisplayPage.tsx'
 import {Outlet} from '@tanstack/react-router'
 import SpeakerBoardPage from './pages/speaker/SpeakerBoardPage.tsx'
 import SelectSpeakerEventPage from './pages/speaker/SelectSpeakerEventPage.tsx'
@@ -335,6 +344,139 @@ export const eventLiveDashboardRoute = createRoute({
     },
 })
 
+// --- Zeitnahme unter der Veranstaltung -------------------------------------------------------
+//
+// Die Zeitnahme ist Teil einer Veranstaltung, also sind das hier die kanonischen Adressen
+// (Betrieb-Reiter, geteilte Posten-Links, QR-Codes):
+//
+//   /event/$eventId/timing/leitstand            Leitstand (Laptop der Zeitnahme-Leitung)
+//   /event/$eventId/timing/$stationId           Erfassungsboard eines Postens
+//   /event/$eventId/timing/$stationId/anzeige   Startbildschirm (Zeitnahme) eines START-Postens
+//
+// Die /app/timing-Welt bleibt daneben bestehen (Geräte-Wahlseiten, PWA); ihre Überarbeitung
+// kommt separat, neue Links zeigen aber nur noch hierher. Die Board-/Leitstand-Seiten selbst
+// sind route-unabhängig und werden von beiden Welten mit Props gemountet.
+//
+// Erfassung und Startbildschirm akzeptieren zusätzlich zur Nutzersitzung ein Geräte-Token aus
+// der URL (`?token=…`, ausgestellt und widerrufbar über den Leitstand-Geräte-Reiter): geteilte
+// Handys und Anzeige-Bildschirme am Posten haben keine Anmeldung. Das Token wird beim ersten
+// Aufruf clientseitig abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt,
+// damit es nicht in Verlauf oder Screenshots hängen bleibt.
+
+type TimingTokenSearch = {
+    token?: string
+}
+
+const validateTimingTokenSearch = ({
+    token,
+}: {token?: string} & SearchSchemaInput): TimingTokenSearch => ({
+    token: typeof token === 'string' && token !== '' ? token : undefined,
+})
+
+export const eventTimingRoute = createRoute({
+    getParentRoute: () => eventRoute,
+    path: 'timing',
+})
+
+export const eventTimingLeitstandRoute = createRoute({
+    getParentRoute: () => eventTimingRoute,
+    path: 'leitstand',
+    component: function EventTimingLeitstand() {
+        const {eventId} = eventRoute.useParams()
+        const navigate = useNavigate()
+        return (
+            <TimingLeitstandPage
+                eventId={eventId}
+                onBack={() =>
+                    void navigate({
+                        to: '/event/$eventId',
+                        params: {eventId},
+                        search: {tab: 'betrieb'},
+                    })
+                }
+            />
+        )
+    },
+    beforeLoad: ({context, location}) => {
+        // Wie die Seite selbst: alles hier schreibt in die Ergebnisse der Veranstaltung.
+        checkAuth(context, location, updateEventGlobal)
+    },
+})
+
+// Vor `eventTimingStationRoute` deklariert: das statische Suffix `anzeige` muss gegen die reine
+// `$stationId`-Route gewinnen.
+export const eventTimingStartDisplayRoute = createRoute({
+    getParentRoute: () => eventTimingRoute,
+    path: '$stationId/anzeige',
+    validateSearch: validateTimingTokenSearch,
+    component: function EventTimingStartDisplay() {
+        const {eventId} = eventRoute.useParams()
+        const {stationId} = eventTimingStartDisplayRoute.useParams()
+        return <TimingStartDisplayPage eventId={eventId} stationId={stationId} />
+    },
+    beforeLoad: ({context, location, params, search}) => {
+        if (search.token !== undefined) {
+            writeDeviceSession({
+                token: search.token,
+                event: params.eventId,
+                station: params.stationId,
+            })
+            throw redirect({
+                to: '/event/$eventId/timing/$stationId/anzeige',
+                params,
+                search: {},
+                replace: true,
+            })
+        }
+        // Anzeige ist rein lesend, deshalb reicht die Veranstaltungs-Bindung des Tokens.
+        if (deviceSessionForEvent(params.eventId) !== null) return
+        checkAuth(context, location)
+        if (
+            !context.checkPrivilege(updateAppTimingGlobal) &&
+            !context.checkPrivilege(updateEventGlobal) &&
+            !context.checkPrivilege(readEventGlobal)
+        ) {
+            throw redirect({to: '/dashboard'})
+        }
+    },
+})
+
+export const eventTimingStationRoute = createRoute({
+    getParentRoute: () => eventTimingRoute,
+    path: '$stationId',
+    validateSearch: validateTimingTokenSearch,
+    component: function EventTimingStation() {
+        const {eventId} = eventRoute.useParams()
+        const {stationId} = eventTimingStationRoute.useParams()
+        return <TimingBoardPage eventId={eventId} stationId={stationId} />
+    },
+    beforeLoad: ({context, location, params, search}) => {
+        if (search.token !== undefined) {
+            writeDeviceSession({
+                token: search.token,
+                event: params.eventId,
+                station: params.stationId,
+            })
+            throw redirect({
+                to: '/event/$eventId/timing/$stationId',
+                params,
+                search: {},
+                replace: true,
+            })
+        }
+        // Erfassung verlangt die Posten-Bindung: der Zeitmarken-POST geht serverseitig ohnehin
+        // nur für den Posten des Tokens durch, ein Board am falschen Posten erfasste ins Leere.
+        if (deviceSessionForStation(params.eventId, params.stationId) !== null) return
+        checkAuth(context, location)
+        if (
+            !context.checkPrivilege(updateAppTimingGlobal) &&
+            !context.checkPrivilege(updateEventGlobal)
+        ) {
+            throw redirect({to: '/dashboard'})
+        }
+    },
+})
+
 export const eventDayRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'eventDay/$eventDayId',
@@ -504,7 +646,16 @@ export const timingStationSelectIndexRoute = createRoute({
 export const timingLeitstandRoute = createRoute({
     getParentRoute: () => timingEventRoute,
     path: 'leitstand',
-    component: () => <TimingLeitstandPage />,
+    component: function AppTimingLeitstand() {
+        const {eventId} = timingEventRoute.useParams()
+        const navigate = useNavigate()
+        return (
+            <TimingLeitstandPage
+                eventId={eventId}
+                onBack={() => void navigate({to: '/app/timing/$eventId', params: {eventId}})}
+            />
+        )
+    },
     beforeLoad: ({context}) => {
         checkAuthApp(context)
     },
@@ -513,7 +664,11 @@ export const timingLeitstandRoute = createRoute({
 export const timingStationRoute = createRoute({
     getParentRoute: () => timingEventRoute,
     path: '$stationId',
-    component: () => <TimingBoardPage />,
+    component: function AppTimingStation() {
+        const {eventId} = timingEventRoute.useParams()
+        const {stationId} = timingStationRoute.useParams()
+        return <TimingBoardPage eventId={eventId} stationId={stationId} />
+    },
     beforeLoad: ({context}) => {
         checkAuthApp(context)
     },
@@ -627,6 +782,11 @@ const routeTree = rootRoute.addChildren([
                 eventRegistrationRoute,
                 eventInfoRoute,
                 eventLiveDashboardRoute,
+                eventTimingRoute.addChildren([
+                    eventTimingLeitstandRoute,
+                    eventTimingStartDisplayRoute,
+                    eventTimingStationRoute,
+                ]),
                 eventDayRoute.addChildren([eventDayIndexRoute]),
                 competitionRoute.addChildren([competitionIndexRoute]),
                 eventRegisterRoute.addChildren([eventRegisterIndexRoute]),

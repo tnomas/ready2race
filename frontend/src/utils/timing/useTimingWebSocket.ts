@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { buildTimingWsUrl, parseTimingWsMessage, TimingWsMessage } from './timingSocket'
+import { readSessionToken } from '@contexts/user/sessionToken.ts'
+import { deviceSessionForEvent } from './deviceSession.ts'
 
 export type TimingWsStatus = 'CONNECTING' | 'OPEN' | 'RECONNECTING' | 'UNAUTHORIZED'
 
@@ -117,7 +119,16 @@ export function useTimingWebSocket(
 		const connect = () => {
 			if (disposedRef.current) return
 
-			const token = sessionStorage.getItem('session')
+			// Sitzungstoken aus der localStorage-Ablage (beide Oberflächen; der frühere direkte
+			// sessionStorage-Zugriff las nur noch den Legacy-Schlüssel, den die Migration in
+			// sessionToken.ts längst wegräumt). Ohne Sitzung darf der Token-Slot des Subprotokolls
+			// auch das Geräte-Token eines geteilten Posten-Links tragen - der Server prüft beide
+			// Deutungen (Sockets.kt).
+			const token =
+				readSessionToken(true) ??
+				readSessionToken(false) ??
+				deviceSessionForEvent(eventId)?.token ??
+				null
 			if (token === null) {
 				armUnauthorizedRetry()
 				return
