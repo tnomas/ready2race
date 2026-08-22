@@ -3,6 +3,9 @@ import {BoardViewDto} from '@api/types.gen'
 import {usePolledEndpoint, PolledState} from '@utils/usePolledEndpoint.ts'
 
 const FALLBACK_INTERVAL_SECONDS = 15
+// Früher als bei „Mein Event": Vor dem Board steht niemand, der von sich aus nachlädt, und ein
+// fest montierter Bildschirm mit altem Stand ist im Rennbetrieb teurer als eine Warnung zuviel.
+const STALE_AFTER_MISSED_INTERVALS = 2
 
 export type BoardViewState = PolledState<BoardViewDto>
 
@@ -24,4 +27,5 @@ export const useBoardViewData = (eventId: string, boardId: string): BoardViewSta
                 ? data.refreshIntervalSeconds
                 : FALLBACK_INTERVAL_SECONDS,
         [eventId, boardId],
+        STALE_AFTER_MISSED_INTERVALS,
     )

@@ -12,8 +12,6 @@ import {useServerClock} from '@components/event/info/athleteBoard/useServerClock
 import {boardDisplayRoute} from '@routes'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
-const STALE_AFTER_MISSED_INTERVALS = 2
-
 /**
  * Die öffentliche Anzeige eines Boards — Nachfolgerin der Athleten-Board-Seite. Ohne
  * Anmeldung und ohne Bedienelemente außer Vollbild: ein fest montierter Bildschirm hat
@@ -25,10 +23,7 @@ const BoardDisplayPage = () => {
     const {t} = useTranslation()
     const {eventId, boardId} = boardDisplayRoute.useParams()
 
-    const {data, lastUpdated, notFound, initialLoad, loadFailed} = useBoardViewData(
-        eventId,
-        boardId,
-    )
+    const {data, notFound, initialLoad, loadFailed, stale} = useBoardViewData(eventId, boardId)
     useDocumentTitle(data?.eventName)
     const now = useServerClock(data?.serverTime)
 
@@ -130,16 +125,6 @@ const BoardDisplayPage = () => {
     // Uhr-Elemente und die "Stand"-Zeile genau auf dem Bildschirm, für den die
     // Verankerung gedacht ist.
     const asOfTime = new Date(data.serverTime)
-    const staleThresholdMs =
-        (data.refreshIntervalSeconds > 0 ? data.refreshIntervalSeconds : 15) *
-        STALE_AFTER_MISSED_INTERVALS *
-        1000
-    // Beide Bedingungen, nicht nur die Uhr: Im Hintergrund pausiert das Polling bewusst,
-    // dabei altert lastUpdated ohne dass die Verbindung gestört wäre. Erst ein
-    // tatsächlich fehlgeschlagener Abruf macht aus dem Altern eine Warnung.
-    const stale =
-        loadFailed && lastUpdated !== null && Date.now() - lastUpdated.getTime() > staleThresholdMs
-
     const showHeader = data.config.showHeader !== false
 
     // Stream-Boards laufen als OBS-Browserquelle vor Chroma-Key: JEDES Chrome (Kopf,
@@ -236,9 +221,7 @@ const BoardDisplayPage = () => {
                         boxShadow: 1,
                         '&:hover': {bgcolor: 'background.paper'},
                     }}
-                    aria-label={
-                        fullscreen ? t('common.exitFullscreen') : t('common.fullscreen')
-                    }>
+                    aria-label={fullscreen ? t('common.exitFullscreen') : t('common.fullscreen')}>
                     {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                 </IconButton>
             </Fade>

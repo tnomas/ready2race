@@ -21,9 +21,6 @@ import {MyEventRequirements} from './MyEventRequirements.tsx'
 import EventNoticeBanner from '@components/eventNotice/EventNoticeBanner.tsx'
 
 const FALLBACK_INTERVAL_SECONDS = 15
-// Wie beim Athleten-Board: erst ein tatsächlich fehlgeschlagener Abruf macht aus einem
-// alternden Stand eine Warnung.
-const STALE_AFTER_MISSED_INTERVALS = 3
 
 const BlockHeading = ({title}: {title: string}) => (
     <Typography
@@ -49,11 +46,13 @@ type MyEventContentProps = {
 const MyEventContent = ({eventId, qrCode, onDisplayName, onForget}: MyEventContentProps) => {
     const {t} = useTranslation()
 
-    const {data, lastUpdated, notFound, initialLoad, loadFailed} = usePolledEndpoint<MyEventDto>(
-        signal => getMyEvent({signal, path: {eventId, qrCode}}),
-        d => (d.refreshIntervalSeconds > 0 ? d.refreshIntervalSeconds : FALLBACK_INTERVAL_SECONDS),
-        [eventId, qrCode],
-    )
+    const {data, lastUpdated, notFound, initialLoad, loadFailed, stale} =
+        usePolledEndpoint<MyEventDto>(
+            signal => getMyEvent({signal, path: {eventId, qrCode}}),
+            d =>
+                d.refreshIntervalSeconds > 0 ? d.refreshIntervalSeconds : FALLBACK_INTERVAL_SECONDS,
+            [eventId, qrCode],
+        )
 
     const displayName = data?.displayName
     useEffect(() => {
@@ -86,13 +85,6 @@ const MyEventContent = ({eventId, qrCode, onDisplayName, onForget}: MyEventConte
         }
         return <Throbber />
     }
-
-    const staleThresholdMs =
-        (data.refreshIntervalSeconds || FALLBACK_INTERVAL_SECONDS) *
-        STALE_AFTER_MISSED_INTERVALS *
-        1000
-    const stale =
-        loadFailed && lastUpdated !== null && Date.now() - lastUpdated.getTime() > staleThresholdMs
 
     const scheduled = [...data.running, ...data.upcoming]
     // Läuft der eigene Lauf bereits, ist er das, was oben stehen muss — sonst der nächste.
