@@ -3249,6 +3249,13 @@ object CompetitionExecutionService {
                 if (teamsData.any { it.matchName != null }) {
                     column("Partie") { matchName ?: "" }
                 }
+                // Ohne Wertung keine Zeit: bei DNF/DSQ sähe sie aus wie ein Ergebnis. Die Zeit
+                // enthält eine etwaige Zeitstrafe bereits; die Strafspalte ist der Hinweis dazu.
+                column("Zeit") { if (team.failed) "" else (team.timeString ?: "") }
+                column("Zeitstrafe") {
+                    if (team.failed) ""
+                    else (PenaltyText.format(team.penaltySeconds, team.penaltyNote) ?: "")
+                }
                 column("Team") { singletonOrFallback(team.participants.map { it.externalClubName }.toSet(), team.mixedTeamTerm)?: team.clubName }
                 column("Anmelder") { team.clubName + if (team.teamNumber != null) " | ${team.teamNumber}" else "" }
                 column("Teammitglieder"){ team.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.externalClubName?:team.clubName})" }}

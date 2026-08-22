@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.awardCeremony.boundary
 
 import de.lambda9.ready2race.backend.app.awardCeremony.entity.*
 import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
+import de.lambda9.ready2race.backend.app.competitionExecution.entity.PenaltyText
 import de.lambda9.ready2race.backend.app.club.boundary.ClubNameKey
 import de.lambda9.ready2race.backend.app.ratingcategory.boundary.RankedEntry
 import java.time.LocalDateTime
@@ -118,14 +119,10 @@ object AwardCeremonyLogic {
     ).joinToString(" · ")
 
     /**
-     * Die Strafe hängt an den Sekunden, nicht an der Notiz: eine Notiz ohne Sekunden ist keine
-     * Zeitstrafe und darf auf dem Blatt nicht wie eine aussehen.
+     * Siehe [PenaltyText.format] - die Formatierung wohnt bei den Ergebnisdaten, weil Ergebnis-PDF
+     * und Platzierungs-CSV sie ebenfalls brauchen; hier bleibt der eingespielte Name des Bogens.
      */
-    fun formatPenalty(seconds: Int?, note: String?): String? = seconds?.let {
-        val text = "Zeitstrafe +$it s"
-        val reason = note?.takeIf { n -> n.isNotBlank() }
-        if (reason == null) text else "$text ($reason)"
-    }
+    fun formatPenalty(seconds: Int?, note: String?): String? = PenaltyText.format(seconds, note)
 
     /**
      * Der Laufname ist die genauere Angabe („Finale A") und verdrängt deshalb den Rundennamen

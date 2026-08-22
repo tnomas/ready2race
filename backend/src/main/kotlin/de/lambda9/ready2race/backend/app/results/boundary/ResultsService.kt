@@ -13,6 +13,7 @@ import de.lambda9.ready2race.backend.app.results.control.ChallengeResultParticip
 import de.lambda9.ready2race.backend.app.results.control.ChallengeResultTeamViewRepo
 import de.lambda9.ready2race.backend.app.results.control.ResultsRepo
 import de.lambda9.ready2race.backend.app.results.control.toDto
+import de.lambda9.ready2race.backend.app.competitionExecution.entity.PenaltyText
 import de.lambda9.ready2race.backend.app.results.entity.*
 import de.lambda9.ready2race.backend.app.substitution.boundary.SubstitutionService
 import de.lambda9.ready2race.backend.app.substitution.control.SubstitutionRepo
@@ -356,6 +357,11 @@ object ResultsService {
                                 EventResultData.TeamResultData(
                                     place = entry.item.categoryPlace,
                                     matchName = entry.item.matchName,
+                                    // Ohne Wertung keine Zeit: bei DNF/DSQ stünde sonst eine
+                                    // Zeit neben dem "-", die aussieht wie ein Ergebnis.
+                                    time = team.timeString.takeIf { !team.failed },
+                                    penalty = if (team.failed) null
+                                        else PenaltyText.format(team.penaltySeconds, team.penaltyNote),
                                     clubName = team.clubName,
                                     teamName = team.registrationName,
                                     participatingClubName = actualClubName,
@@ -581,6 +587,18 @@ object ResultsService {
                                     team.matchName?.let {
                                         text(
                                             fontSize = 9f,
+                                            centered = true,
+                                        ) { it }
+                                    }
+                                    team.time?.let {
+                                        text(
+                                            fontSize = 9f,
+                                            centered = true,
+                                        ) { it }
+                                    }
+                                    team.penalty?.let {
+                                        text(
+                                            fontSize = 8f,
                                             centered = true,
                                         ) { it }
                                     }
