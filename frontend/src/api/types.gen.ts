@@ -1698,6 +1698,18 @@ export type EventDto = {
     executionAutoRefreshSeconds: number
     challengesFinished?: boolean
     notice?: EventNoticeDto
+    /**
+     * Start of on-site operations: the earliest operationsStart across all event days, falling back to the start of the day where none is maintained. Together with lastEventDay it forms the window in which the helper app offers the event for selection. Deliberately a date rather than a computed flag, because the app caches its event list for offline use.
+     */
+    operationsStartsAt?: string
+    /**
+     * The first event day, for display only. Not operationsStartsAt, which may fall on the previous evening.
+     */
+    firstEventDay?: string
+    /**
+     * The last event day; the operations window closes at the end of it
+     */
+    lastEventDay?: string
 }
 
 export type EventExportBundleItemDto = {
@@ -1717,18 +1729,6 @@ export type EventExportBundleItemKind = 'DOCUMENT' | 'GENERATED_STARTLISTS'
 
 export type EventExportBundleOrderRequest = {
     itemIds: Array<string>
-    /**
-     * Start of on-site operations: the earliest operationsStart across all event days, falling back to the start of the day where none is maintained. Together with lastEventDay it forms the window in which the helper app offers the event for selection. Deliberately a date rather than a computed flag, because the app caches its event list for offline use.
-     */
-    operationsStartsAt?: string
-    /**
-     * The first event day, for display only. Not operationsStartsAt, which may fall on the previous evening.
-     */
-    firstEventDay?: string
-    /**
-     * The last event day; the operations window closes at the end of it
-     */
-    lastEventDay?: string
 }
 
 export type EventForExportDto = {

@@ -11741,6 +11741,18 @@ components:
           type: boolean
         notice:
           $ref: '#/components/schemas/EventNoticeDto'
+        operationsStartsAt:
+          type: string
+          format: date-time
+          description: "Start of on-site operations: the earliest operationsStart across all event days, falling back to the start of the day where none is maintained. Together with lastEventDay it forms the window in which the helper app offers the event for selection. Deliberately a date rather than a computed flag, because the app caches its event list for offline use."
+        firstEventDay:
+          type: string
+          format: date
+          description: "The first event day, for display only. Not operationsStartsAt, which may fall on the previous evening."
+        lastEventDay:
+          type: string
+          format: date
+          description: "The last event day; the operations window closes at the end of it"
 
     EventNoticeSeverity:
       type: string
@@ -11767,18 +11779,6 @@ components:
           type: string
         severity:
           $ref: '#/components/schemas/EventNoticeSeverity'
-        operationsStartsAt:
-          type: string
-          format: date-time
-          description: "Start of on-site operations: the earliest operationsStart across all event days, falling back to the start of the day where none is maintained. Together with lastEventDay it forms the window in which the helper app offers the event for selection. Deliberately a date rather than a computed flag, because the app caches its event list for offline use."
-        firstEventDay:
-          type: string
-          format: date
-          description: "The first event day, for display only. Not operationsStartsAt, which may fall on the previous evening."
-        lastEventDay:
-          type: string
-          format: date
-          description: "The last event day; the operations window closes at the end of it"
 
     EventPublicDto:
       type: object
