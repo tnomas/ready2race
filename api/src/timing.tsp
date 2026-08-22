@@ -292,13 +292,18 @@ model TimingDeviceTokenRequest {
 // Routes - event-scoped
 // ==========================================================================
 // GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
+//   These reads (and GET /sequences/active plus the websocket) alternatively accept an
+//   `X-Timing-Device-Token` header instead of a session: shared station links (capture board,
+//   start display) carry the device token in their URL and read the whole event's timing state.
+//   Event-bound only (`validateForEvent`) - the station binding stays a write-side concern of
+//   POST /timeMarks. The branch is only taken when the header is present AND no session exists.
 // POST /stations, PUT /stations/{id}, DELETE /stations/{id}: require UpdateEventGlobal
 // POST /timeMarks, PUT /timeMarks/{id}/retract, PUT /timeMarks/{id}/assignment: require UpdateAppTimingGlobal OR UpdateEventGlobal
 //   POST /timeMarks alternatively accepts an `X-Timing-Device-Token` header instead of a session -
 //   see createTimeMark below. That branch is only taken when the header is present AND no session
 //   exists; a logged-in user's request always takes the ordinary privilege-checked path.
 // DELETE /timeMarks/retracted: require UpdateEventGlobal
-// GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal
+// GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal (or device token, see above)
 // POST /sequences, POST /sequences/{id}/start|abort, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
 // GET /officialTimes: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /officialTimes/compute, PUT /officialTimes/{id}, POST /officialTimes/push: require UpdateEventGlobal
