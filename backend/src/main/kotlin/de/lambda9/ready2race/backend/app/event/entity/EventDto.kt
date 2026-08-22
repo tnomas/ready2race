@@ -51,4 +51,25 @@ data class EventDto(
     val challengesFinished: Boolean?,
     /** Der veranstaltungsweite Hinweisbanner (z.B. Wetterwarnung); null = kein Banner. */
     val notice: EventNoticeDto?,
+    /**
+     * Ab wann an dieser Veranstaltung vor Ort gearbeitet wird — das Minimum über alle
+     * Veranstaltungstage, mit Rückfall auf den Tagesbeginn, wo nichts gepflegt ist.
+     *
+     * Zusammen mit [lastEventDay] das Fenster, in dem die Helfer-App die Veranstaltung zur Wahl
+     * stellt. Bewusst als Datum und nicht als fertiges „läuft gerade": Die App speichert ihre
+     * Veranstaltungsliste für den Offline-Betrieb zwischen, und ein berechnetes Kennzeichen wäre
+     * am nächsten Morgen falsch. Ein Datum altert nicht.
+     *
+     * Null nur bei einer Veranstaltung ganz ohne Tage.
+     */
+    val operationsStartsAt: LocalDateTime?,
+    /**
+     * Der erste Veranstaltungstag — allein für die Anzeige.
+     *
+     * Nicht [operationsStartsAt] dafür verwenden: Der Betrieb beginnt oft am Vorabend, und
+     * „ab 13.08." als Datum einer Regatta, die am 14.08. anfängt, wäre schlicht falsch.
+     */
+    val firstEventDay: LocalDate?,
+    /** Der letzte Veranstaltungstag; das Fenster schließt mit dessen Ablauf. */
+    val lastEventDay: LocalDate?,
 )

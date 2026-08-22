@@ -17,6 +17,7 @@ fun EventDayRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, EventDay
                 date = date,
                 name = name,
                 description = description,
+                operationsStart = operationsStart,
                 createdAt = now,
                 createdBy = userId,
                 updatedAt = now,
@@ -32,5 +33,6 @@ fun EventDayRecord.eventDayDto(): App<Nothing, EventDayDto> = KIO.ok(
         date = date,
         name = name,
         description = description,
+        operationsStart = operationsStart,
     )
 )

@@ -97,6 +97,9 @@ fun EventViewRecord.eventDto(scope: Privilege.Scope?, userClubId: UUID?): App<No
         executionAutoRefreshSeconds = executionAutoRefreshSeconds ?: ExecutionAutoRefresh.DEFAULT_SECONDS,
         challengesFinished = challengeEnd?.let { it < LocalDateTime.now() },
         notice = EventNoticeDto.fromColumns(noticeText, noticeSeverity),
+        operationsStartsAt = operationsStart,
+        firstEventDay = firstEventDay,
+        lastEventDay = lastEventDay,
     )
 )
 

@@ -759,7 +759,9 @@
       "date": "Datum",
       "name": "Name",
       "description": "Beschreibung",
-      "assignedCompetitions": "Wettkämpfe an diesem Tag"
+      "assignedCompetitions": "Wettkämpfe an diesem Tag",
+      "operationsStart": "Betrieb ab",
+      "operationsStartHint": "Ab wann vor Ort gearbeitet wird — Akkreditierung, Bedingungen, Check-in. Darf am Vorabend liegen. Leer: ab Tagesbeginn."
     },
     "competition": {
       "competition": "Wettkampf",
@@ -2885,7 +2887,14 @@
   },
   "qrEvents": {
     "title": "Events",
-    "switchApp": "App wechseln"
+    "switchApp": "App wechseln",
+    "operating": "Im Betrieb",
+    "none": "Gerade läuft kein Event.",
+    "noneHint": "Der Betrieb beginnt mit der Akkreditierung des ersten Tages.",
+    "showAll": "Alle Events",
+    "all": "Alle Events",
+    "back": "Zurück",
+    "noDays": "Keine Veranstaltungstage hinterlegt"
   },
   "app": {
     "functionSelect": {

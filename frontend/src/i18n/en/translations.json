@@ -759,7 +759,9 @@
       "date": "Date",
       "name": "Name",
       "description": "Description",
-      "assignedCompetitions": "Competitions on this day"
+      "assignedCompetitions": "Competitions on this day",
+      "operationsStart": "Operations from",
+      "operationsStartHint": "When on-site work starts — accreditation, requirements, check-in. May fall on the previous evening. Empty: from the start of the day."
     },
     "competition": {
       "competition": "Competition",
@@ -2885,7 +2887,14 @@
   },
   "qrEvents": {
     "title": "Events",
-    "switchApp": "Switch app"
+    "switchApp": "Switch app",
+    "operating": "In operation",
+    "none": "No event is currently running.",
+    "noneHint": "Operations begin with the accreditation of the first day.",
+    "showAll": "All events",
+    "all": "All events",
+    "back": "Back",
+    "noDays": "No event days set"
   },
   "app": {
     "functionSelect": {
