@@ -76,6 +76,8 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import {format} from 'date-fns'
 import AppUserWithQrCodeTable from '@components/event/appUser/AppUserWithQrCodeTable.tsx'
 import InvoicesTab from './tabs/InvoicesTab.tsx'
+import BetriebTab from './tabs/BetriebTab.tsx'
+import {visibleBetriebTiles} from './tabs/betriebTiles.ts'
 import {AppUserWithQrCodeDto} from '@api/types.gen.ts'
 import ParticipantTrackingLogTable from '@components/event/participantTracking/ParticipantTrackingLogTable.tsx'
 import EventRegistrations from '@components/event/competition/registration/EventRegistrations.tsx'
@@ -98,6 +100,7 @@ const EVENT_TABS = [
     'registrations',
     'organization',
     'schedule',
+    'betrieb',
     'settings',
     'invoices',
 ] as const
@@ -272,6 +275,12 @@ const EventPage = () => {
                                 )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
+                            )}
+                            {/* Betrieb: alles, womit die Regatta am Renntag gefahren wird. Der
+                                Reiter erscheint nur, wenn mindestens eine Kachel sichtbar wäre -
+                                die Regeln dazu liegen (getestet) in betriebTiles.ts. */}
+                            {visibleBetriebTiles(user.checkPrivilege).length > 0 && (
+                                <Tab label={t('event.tabs.betrieb')} {...tabProps('betrieb')} />
                             )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.tabs.settings')} {...tabProps('settings')} />
@@ -536,6 +545,9 @@ const EventPage = () => {
                         </TabPanel>
                         <TabPanel index={'schedule'} activeTab={activeTab}>
                             <EventSchedule event={data}/>
+                        </TabPanel>
+                        <TabPanel index={'betrieb'} activeTab={activeTab}>
+                            <BetriebTab eventId={eventId} switchTab={switchTab}/>
                         </TabPanel>
                         <TabPanel index={'settings'} activeTab={activeTab}>
                             <Stack spacing={4}>

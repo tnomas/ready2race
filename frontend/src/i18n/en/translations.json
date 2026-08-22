@@ -1621,7 +1621,8 @@
       "settings": "Settings",
       "actions": "Actions",
       "organisation": "Organisation",
-      "invoices": "Invoices"
+      "invoices": "Invoices",
+      "betrieb": "Operations"
     },
     "notice": {
       "title": "Global notice",
@@ -2345,6 +2346,37 @@
         "upcomingListTitle": "Upcoming matches",
         "inMinutes": "in {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
+      "referee": {
+        "title": "Referee",
+        "description": "The live dashboard shows running and upcoming matches, checks and decisions for the referees.",
+        "open": "Open live dashboard"
+      },
+      "speaker": {
+        "title": "Speaker",
+        "description": "The speaker view bundles start lists, results and running matches for the commentary.",
+        "open": "Open speaker view"
+      },
+      "timing": {
+        "title": "Timing",
+        "description": "Control desk for the timing lead on a laptop, below it the stations (start, split, finish) with direct links: open capture, start display for START stations, \"Share to device\" for phones and screens without a login.",
+        "openLeitstand": "Open control desk",
+        "mobileHint": "For phones at a station there is also the mobile entry page:",
+        "mobileLink": "Open mobile capture"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards and stream overlays for the video direction: public displays and chroma-key tiles for OBS.",
+        "open": "Manage boards & stream overlays"
+      },
+      "helpers": {
+        "title": "Helpers",
+        "description": "The helper app for phones (QR scanning, check-in/out, tasks) and the event’s shift plan.",
+        "openApp": "Open helper app",
+        "shifts": "Go to shift plan (organisation)"
+      }
     }
   },
   "task": {
@@ -2956,6 +2988,23 @@
       },
       "error": {
         "hasTimeMarks": "The station already has recorded times and cannot be deleted"
+      },
+      "openCapture": "Open capture",
+      "openStartDisplay": "Open start display",
+      "share": {
+        "action": "Share to device",
+        "title": "Share station \"{{station}}\" to a device",
+        "description": "Creates a link with device access: the device (shared phone, display screen) needs no login. Access can be revoked at any time in the control desk under \"Devices\".",
+        "nameHelp": "Name of the device as it appears in the control desk under \"Devices\"",
+        "createLink": "Create link",
+        "onceWarning": "The link is shown only this once. Photograph or copy it now — afterwards only a new link helps.",
+        "copied": "Link copied",
+        "copy": "Copy link",
+        "revokeHint": "Revoke at any time in the control desk, \"Devices\" tab. A revoked access makes the link unusable immediately.",
+        "target": {
+          "capture": "Capture",
+          "display": "Start display"
+        }
       }
     },
     "assign": {
@@ -3247,6 +3296,17 @@
           }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Start display",
+      "idle": "No start sequence active",
+      "armed": "Start sequence armed",
+      "finishing": "All starts fired",
+      "done": "Start sequence finished",
+      "aborted": "Start sequence aborted",
+      "next": "On the start",
+      "following": "Up next",
+      "notStart": "This station is not a start station — the start display shows nothing here."
     }
   },
   "caterer": {

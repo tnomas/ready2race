@@ -1621,7 +1621,8 @@
       "settings": "Einstellungen",
       "actions": "Aktionen",
       "organisation": "Organisation",
-      "invoices": "Rechnungen"
+      "invoices": "Rechnungen",
+      "betrieb": "Betrieb"
     },
     "notice": {
       "title": "Globaler Hinweis",
@@ -2345,6 +2346,37 @@
         "upcomingListTitle": "Nächste Läufe",
         "inMinutes": "in {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "referee": {
+        "title": "Schiedsrichter:in",
+        "description": "Das Live-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
+        "open": "Live-Dashboard öffnen"
+      },
+      "speaker": {
+        "title": "Sprecher:in",
+        "description": "Die Sprecher-Ansicht bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
+        "open": "Sprecher-Ansicht öffnen"
+      },
+      "timing": {
+        "title": "Zeitnahme",
+        "description": "Leitstand für die Zeitnahme-Leitung am Laptop, darunter die Posten (Start, Zwischenzeit, Ziel) mit direkten Links: Erfassung öffnen, Startbildschirm für START-Posten, „Auf Gerät teilen\" für Handys und Bildschirme ohne Anmeldung.",
+        "openLeitstand": "Leitstand öffnen",
+        "mobileHint": "Für Handys am Posten gibt es zusätzlich die mobile Einstiegsseite:",
+        "mobileLink": "Mobile Erfassung öffnen"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards und Stream-Overlays für die Bildregie: öffentliche Anzeigen und Chroma-Key-Kacheln für OBS.",
+        "open": "Boards & Stream-Overlays verwalten"
+      },
+      "helpers": {
+        "title": "Helfer:innen",
+        "description": "Die Helfer-App fürs Handy (QR-Scannen, Check-in/-out, Aufgaben) und der Schichtplan der Veranstaltung.",
+        "openApp": "Helfer-App öffnen",
+        "shifts": "Zum Schichtplan (Organisation)"
+      }
     }
   },
   "task": {
@@ -2956,6 +2988,23 @@
       },
       "error": {
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
+      },
+      "openCapture": "Erfassung öffnen",
+      "openStartDisplay": "Startbildschirm öffnen",
+      "share": {
+        "action": "Auf Gerät teilen",
+        "title": "Posten „{{station}}\" auf Gerät teilen",
+        "description": "Erzeugt einen Link mit Geräte-Zugang: das Gerät (geteiltes Handy, Anzeige-Bildschirm) braucht keine Anmeldung. Der Zugang lässt sich jederzeit im Leitstand unter „Geräte\" widerrufen.",
+        "nameHelp": "Name des Geräts, wie er im Leitstand unter „Geräte\" erscheint",
+        "createLink": "Link erzeugen",
+        "onceWarning": "Der Link wird nur dieses eine Mal angezeigt. Jetzt abfotografieren oder kopieren — danach hilft nur ein neuer Link.",
+        "copied": "Link kopiert",
+        "copy": "Link kopieren",
+        "revokeHint": "Widerruf jederzeit im Leitstand, Reiter „Geräte\". Ein widerrufener Zugang macht den Link sofort unbrauchbar.",
+        "target": {
+          "capture": "Erfassung",
+          "display": "Startbildschirm"
+        }
       }
     },
     "assign": {
@@ -3247,6 +3296,17 @@
           }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Startbildschirm",
+      "idle": "Keine Startsequenz aktiv",
+      "armed": "Startsequenz vorbereitet",
+      "finishing": "Alle Starts erfolgt",
+      "done": "Startsequenz abgeschlossen",
+      "aborted": "Startsequenz abgebrochen",
+      "next": "Am Start",
+      "following": "Danach",
+      "notStart": "Dieser Posten ist kein Start-Posten — der Startbildschirm zeigt hier nichts an."
     }
   },
   "caterer": {

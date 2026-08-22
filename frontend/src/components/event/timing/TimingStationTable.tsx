@@ -1,4 +1,13 @@
-import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
+import {
+    GridActionsCellItem,
+    GridColDef,
+    GridPaginationModel,
+    GridSortModel,
+} from '@mui/x-data-grid'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import SmartDisplayOutlinedIcon from '@mui/icons-material/SmartDisplayOutlined'
+import QrCode2Icon from '@mui/icons-material/QrCode2'
+import {useState} from 'react'
 import {BaseEntityTableProps, PageResponse} from '@utils/types.ts'
 import {ApiError, TimingStationDto} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
@@ -8,6 +17,7 @@ import EntityTable from '@components/EntityTable.tsx'
 import {deleteTimingStation, getTimingStations} from '@api/sdk.gen.ts'
 import {RequestResult} from '@hey-api/client-fetch'
 import {useFeedback} from '@utils/hooks.ts'
+import TimingStationShareDialog from '@components/event/timing/TimingStationShareDialog.tsx'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -24,6 +34,37 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
     const feedback = useFeedback()
 
     const {eventId} = eventRoute.useParams()
+
+    const [shareStation, setShareStation] = useState<TimingStationDto | null>(null)
+
+    // Direkte Wege vom Posten zur Arbeit am Renntag: Erfassung und (für START-Posten) der
+    // Startbildschirm öffnen in neuem Fenster - am Renntag laufen sie auf eigenen Bildschirmen.
+    // „Auf Gerät teilen" erzeugt einen Link mit Geräte-Token für Geräte ohne Anmeldung.
+    const stationUrl = (station: TimingStationDto) =>
+        `${window.location.origin}/event/${eventId}/timing/${station.id}`
+
+    const customEntityActions = (station: TimingStationDto) => [
+        <GridActionsCellItem
+            icon={<OpenInNewIcon />}
+            label={t('timing.station.openCapture')}
+            onClick={() => window.open(stationUrl(station), '_blank', 'noopener')}
+            showInMenu
+        />,
+        station.type === 'START' && (
+            <GridActionsCellItem
+                icon={<SmartDisplayOutlinedIcon />}
+                label={t('timing.station.openStartDisplay')}
+                onClick={() => window.open(`${stationUrl(station)}/anzeige`, '_blank', 'noopener')}
+                showInMenu
+            />
+        ),
+        <GridActionsCellItem
+            icon={<QrCode2Icon />}
+            label={t('timing.station.share.action')}
+            onClick={() => setShareStation(station)}
+            showInMenu
+        />,
+    ]
 
     // getTimingStations has no GetError union in the generated client (it merges to `unknown`
     // since the tsp op has no declared error responses); the runtime shape is still the usual
@@ -94,18 +135,29 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
     ]
 
     return (
-        <EntityTable
-            {...props}
-            parentResource={'EVENT'}
-            initialPagination={initialPagination}
-            pageSizeOptions={pageSizeOptions}
-            initialSort={initialSort}
-            columns={columns}
-            dataRequest={dataRequest}
-            deleteRequest={deleteRequest}
-            onDeleteError={onDeleteError}
-            gridProps={{paginationMode: 'client', sortingMode: 'client'}}
-        />
+        <>
+            <EntityTable
+                {...props}
+                parentResource={'EVENT'}
+                initialPagination={initialPagination}
+                pageSizeOptions={pageSizeOptions}
+                initialSort={initialSort}
+                columns={columns}
+                dataRequest={dataRequest}
+                deleteRequest={deleteRequest}
+                onDeleteError={onDeleteError}
+                customEntityActions={customEntityActions}
+                gridProps={{paginationMode: 'client', sortingMode: 'client'}}
+            />
+            {shareStation !== null && (
+                <TimingStationShareDialog
+                    open
+                    onClose={() => setShareStation(null)}
+                    eventId={eventId}
+                    station={shareStation}
+                />
+            )}
+        </>
     )
 }
 

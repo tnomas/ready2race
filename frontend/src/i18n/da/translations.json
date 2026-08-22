@@ -1621,7 +1621,8 @@
       "settings": "Indstillinger",
       "actions": "Handlinger",
       "organisation": "Organisation",
-      "invoices": "Fakturaer"
+      "invoices": "Fakturaer",
+      "betrieb": "Drift"
     },
     "notice": {
       "title": "Global meddelelse",
@@ -2325,6 +2326,37 @@
         "upcomingListTitle": "Næste løb",
         "inMinutes": "om {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
+      "referee": {
+        "title": "Dommer",
+        "description": "Live-dashboardet viser igangværende og kommende løb, kontroller og afgørelser for dommerne.",
+        "open": "Åbn live-dashboard"
+      },
+      "speaker": {
+        "title": "Speaker",
+        "description": "Speaker-visningen samler startlister, resultater og igangværende løb til speakeren.",
+        "open": "Åbn speaker-visning"
+      },
+      "timing": {
+        "title": "Tidtagning",
+        "description": "Kontrolpult til tidtagningslederen på en bærbar, derunder posterne (start, mellemtid, mål) med direkte links: åbn registrering, startskærm for START-poster, \"Del til enhed\" for telefoner og skærme uden login.",
+        "openLeitstand": "Åbn kontrolpult",
+        "mobileHint": "Til telefoner ved en post findes desuden den mobile indgangsside:",
+        "mobileLink": "Åbn mobil registrering"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards og stream-overlays til billedproduktionen: offentlige visninger og chroma-key-felter til OBS.",
+        "open": "Administrér boards & stream-overlays"
+      },
+      "helpers": {
+        "title": "Hjælpere",
+        "description": "Hjælper-appen til telefonen (QR-scanning, check-in/-ud, opgaver) og stævnets vagtplan.",
+        "openApp": "Åbn hjælper-app",
+        "shifts": "Til vagtplanen (organisation)"
+      }
     }
   },
   "task": {
@@ -2929,6 +2961,23 @@
       },
       "error": {
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
+      },
+      "openCapture": "Åbn registrering",
+      "openStartDisplay": "Åbn startskærm",
+      "share": {
+        "action": "Del til enhed",
+        "title": "Del posten \"{{station}}\" til en enhed",
+        "description": "Opretter et link med enhedsadgang: enheden (delt telefon, visningsskærm) behøver intet login. Adgangen kan til enhver tid tilbagekaldes i kontrolpulten under \"Enheder\".",
+        "nameHelp": "Enhedens navn, som det vises i kontrolpulten under \"Enheder\"",
+        "createLink": "Opret link",
+        "onceWarning": "Linket vises kun denne ene gang. Fotografér eller kopiér det nu — bagefter hjælper kun et nyt link.",
+        "copied": "Link kopieret",
+        "copy": "Kopiér link",
+        "revokeHint": "Tilbagekald til enhver tid i kontrolpulten, fanen \"Enheder\". En tilbagekaldt adgang gør linket ubrugeligt med det samme.",
+        "target": {
+          "capture": "Registrering",
+          "display": "Startskærm"
+        }
       }
     },
     "assign": {
@@ -3220,6 +3269,17 @@
           }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Startskærm",
+      "idle": "Ingen startsekvens aktiv",
+      "armed": "Startsekvens klargjort",
+      "finishing": "Alle starter afviklet",
+      "done": "Startsekvens afsluttet",
+      "aborted": "Startsekvens afbrudt",
+      "next": "Ved starten",
+      "following": "Derefter",
+      "notStart": "Denne post er ikke en startpost — startskærmen viser intet her."
     }
   },
   "caterer": {
