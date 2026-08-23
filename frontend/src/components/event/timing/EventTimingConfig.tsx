@@ -18,6 +18,7 @@ import {CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
+import EventCompetitionTimingSection from './EventCompetitionTimingSection.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
@@ -399,6 +400,17 @@ const EventTimingConfig = () => {
                             <Trans i18nKey={'common.save'} />
                         </SubmitButton>
                     </Box>
+
+                    {/* Zentrale Pflege je Wettkampf: System-Override und Zeitnahmetyp direkt hier
+                        statt durch jeden Wettkampf zu klicken (Wunsch vom 23.08.2026). Unterhalb
+                        des Speichern-Knopfs, weil jede Zeile sofort speichert — oberhalb sähe sie
+                        aus wie Teil des Formulars. Immer sichtbar, nicht nur bei einem System:
+                        „drei Wettkämpfe auf Fremdsystem, der Rest intern" ist der Anwendungsfall.
+                        Das Live-Radio darüber speist die „Erbt (…)"-Beschriftung; die
+                        Abweichungsliste darunter zieht wie bei der Rennen-Zuordnung erst beim
+                        nächsten Laden nach — ein Reload hier würde das Formular zurücksetzen. */}
+                    <Divider />
+                    <EventCompetitionTimingSection eventId={eventId} eventSystem={timingSystem} />
 
                     {/* Die Reichweite dieser Voreinstellung: welche Wettkämpfe ihr bei System oder
                         Dateiformat nicht folgen. Ohne diese Liste ändert man hier ein Format und

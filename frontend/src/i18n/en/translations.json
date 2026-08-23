@@ -1693,6 +1693,20 @@
         "startlist": "own start list export",
         "resultImport": "own race results import"
       },
+      "competitions": {
+        "title": "Competitions",
+        "hint": "Assign timing system and timing mode per competition right here, without clicking through the competitions. Every change saves immediately. \"Inherits\" follows the defaults above; deviations of individual rounds are still managed in the competition's timing tab.",
+        "competition": "Competition",
+        "system": "Timing system",
+        "mode": "Timing mode",
+        "inherit": "Inherits ({{system}})",
+        "modeUnset": "none",
+        "noModes": "At least one competition uses internal timing, but no timing modes exist yet. The timing mode management appears above once \"Internal timing\" is selected as the timing system.",
+        "saved": "Competition timing system saved",
+        "modeSaved": "Competition timing mode saved",
+        "roundDeviations_one": "+ {{count}} round deviation",
+        "roundDeviations_other": "+ {{count}} round deviations"
+      },
       "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing tab of each competition.",
       "modes": {
         "title": "Timing modes",

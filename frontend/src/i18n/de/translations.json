@@ -1693,6 +1693,20 @@
         "startlist": "eigener Startlisten Export",
         "resultImport": "eigener Rennergebnisse Import"
       },
+      "competitions": {
+        "title": "Wettkämpfe",
+        "hint": "Zeitnahme-System und Zeitnahmetyp direkt je Wettkampf zuweisen, ohne durch die Wettkämpfe zu klicken. Jede Änderung speichert sofort. „Erbt“ folgt der Voreinstellung oben; Abweichungen einzelner Runden werden weiterhin im Zeitnahme-Tab des Wettkampfs gepflegt.",
+        "competition": "Wettkampf",
+        "system": "Zeitnahme-System",
+        "mode": "Zeitnahmetyp",
+        "inherit": "Erbt ({{system}})",
+        "modeUnset": "keiner",
+        "noModes": "Mindestens ein Wettkampf nutzt die interne Zeitnahme, aber es sind noch keine Zeitnahmetypen angelegt. Die Verwaltung der Zeitnahmetypen erscheint oben, sobald als Zeitnahme-System „Interne Zeitnahme“ gewählt ist.",
+        "saved": "Zeitnahme-System des Wettkampfs gespeichert",
+        "modeSaved": "Zeitnahmetyp des Wettkampfs gespeichert",
+        "roundDeviations_one": "+ {{count}} Runden-Abweichung",
+        "roundDeviations_other": "+ {{count}} Runden-Abweichungen"
+      },
       "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahme-Tab der Wettkämpfe zu.",
       "modes": {
         "title": "Zeitnahmetypen",

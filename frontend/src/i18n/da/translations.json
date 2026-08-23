@@ -1693,6 +1693,20 @@
         "startlist": "egen startliste-eksport",
         "resultImport": "egen løbsresultater-import"
       },
+      "competitions": {
+        "title": "Konkurrencer",
+        "hint": "Tildel tidtagningssystem og tidtagningstype pr. konkurrence direkte her uden at klikke gennem konkurrencerne. Hver ændring gemmes med det samme. \"Arver\" følger standarden ovenfor; afvigelser for enkelte runder vedligeholdes fortsat i konkurrencens tidtagningsfane.",
+        "competition": "Konkurrence",
+        "system": "Tidtagningssystem",
+        "mode": "Tidtagningstype",
+        "inherit": "Arver ({{system}})",
+        "modeUnset": "ingen",
+        "noModes": "Mindst én konkurrence bruger intern tidtagning, men der er endnu ingen tidtagningstyper. Administrationen af tidtagningstyper vises ovenfor, når \"Intern tidtagning\" er valgt som tidtagningssystem.",
+        "saved": "Konkurrencens tidtagningssystem gemt",
+        "modeSaved": "Konkurrencens tidtagningstype gemt",
+        "roundDeviations_one": "+ {{count}} rundeafvigelse",
+        "roundDeviations_other": "+ {{count}} rundeafvigelser"
+      },
       "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i konkurrencernes tidtagningsfane.",
       "modes": {
         "title": "Tidtagningstyper",
