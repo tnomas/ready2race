@@ -1391,7 +1391,25 @@
         },
         "saved": "Zeitnahme-Einstellungen gespeichert",
         "invalid": "Bitte wählen Sie ein Rennen dieser Veranstaltung aus.",
-        "race": "RaceClocker-Rennen"
+        "race": "RaceClocker-Rennen",
+        "modes": {
+          "title": "Zeitnahmetyp dieses Wettkampfs",
+          "hint": "Der Zeitnahmetyp bestimmt, wie der Startposten die Läufe dieses Wettkampfs startet — Einzelstart im Intervall oder Welle, mit welchem Countdown-Vorlauf. Runden ohne eigene Auswahl erben vom Wettkampf.",
+          "competitionWide": "Zeitnahmetyp (ganzer Wettkampf)",
+          "unset": "nicht gesetzt",
+          "unsetWarning": "Ohne Zeitnahmetyp kann der Startposten für diesen Wettkampf keine Startsequenz mit einem Griff erzeugen — die Läufe lassen sich dann nur von Hand einrichten.",
+          "inherit": "erbt vom Wettkampf",
+          "inherits": "erbt: {{mode}}",
+          "inheritsNothing": "erbt: nicht gesetzt — für diese Runde gilt kein Zeitnahmetyp",
+          "roundsHint": "Abweichung je Runde — leer heißt: die Runde erbt den Zeitnahmetyp des Wettkampfs.",
+          "saved": "Zeitnahmetyp-Zuordnung gespeichert",
+          "detailInterval": "Intervall {{seconds}} s",
+          "noModes": {
+            "1": "Für diese Veranstaltung sind noch keine Zeitnahmetypen angelegt. Sie werden ",
+            "2": "in den Zeitnahme-Einstellungen der Veranstaltung",
+            "3": " gepflegt."
+          }
+        }
       },
       "places": {
         "places": "Platzierungen",
@@ -1674,6 +1692,37 @@
         "system": "eigenes System",
         "startlist": "eigener Startlisten Export",
         "resultImport": "eigener Rennergebnisse Import"
+      },
+      "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahme-Tab der Wettkämpfe zu.",
+      "modes": {
+        "title": "Zeitnahmetypen",
+        "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie je Wettkampf oder Runde im Zeitnahme-Tab des Wettkampfs.",
+        "none": "Noch keine Zeitnahmetypen angelegt.",
+        "add": "Zeitnahmetyp anlegen",
+        "edit": "Zeitnahmetyp bearbeiten",
+        "name": "Name",
+        "startGrouping": {
+          "label": "Startart",
+          "EINZEL": "Einzelstart",
+          "WELLE": "Welle"
+        },
+        "intervalSeconds": "Startintervall (Sekunden)",
+        "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
+        "invalidInterval": "Das Intervall muss mindestens 1 Sekunde betragen — oder leer bleiben für Start von Hand.",
+        "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
+        "leadInHelp": "Countdown vor dem (ersten) Start.",
+        "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
+        "withLaps": "Mit Rundenzeiten (Zwischenzeit-Posten)",
+        "describe": {
+          "interval": "Intervall {{seconds}} s",
+          "manualStart": "Start von Hand",
+          "leadIn": "Vorlauf {{seconds}} s",
+          "withLaps": "mit Runden"
+        },
+        "saved": "Zeitnahmetyp gespeichert",
+        "deleted": "Zeitnahmetyp gelöscht",
+        "deleteConfirm": "Soll der Zeitnahmetyp „{{name}}“ wirklich gelöscht werden?",
+        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einem Wettkampf oder einer Runde zugeordnet. Entfernen Sie zuerst die Zuordnungen im Zeitnahme-Tab der Wettkämpfe."
       },
       "races": {
         "title": "RaceClocker-Rennen",

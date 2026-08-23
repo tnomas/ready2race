@@ -1391,7 +1391,25 @@
         },
         "saved": "Timing settings saved",
         "invalid": "Please select a race belonging to this event.",
-        "race": "RaceClocker race"
+        "race": "RaceClocker race",
+        "modes": {
+          "title": "Timing mode of this competition",
+          "hint": "The timing mode defines how the start station starts this competition's races — individual starts at an interval or a wave, and with which countdown lead-in. Rounds without their own selection inherit from the competition.",
+          "competitionWide": "Timing mode (whole competition)",
+          "unset": "not set",
+          "unsetWarning": "Without a timing mode the start station cannot create a start sequence for this competition in one tap — its races can only be set up manually.",
+          "inherit": "inherits from the competition",
+          "inherits": "inherits: {{mode}}",
+          "inheritsNothing": "inherits: not set — no timing mode applies to this round",
+          "roundsHint": "Per-round override — empty means the round inherits the competition's timing mode.",
+          "saved": "Timing mode assignment saved",
+          "detailInterval": "interval {{seconds}} s",
+          "noModes": {
+            "1": "No timing modes have been created for this event yet. They are managed ",
+            "2": "in the event's timing settings",
+            "3": "."
+          }
+        }
       },
       "places": {
         "places": "Places",
@@ -1674,6 +1692,37 @@
         "system": "own system",
         "startlist": "own start list export",
         "resultImport": "own race results import"
+      },
+      "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing tab of each competition.",
+      "modes": {
+        "title": "Timing modes",
+        "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned per competition or round in the competition's timing tab.",
+        "none": "No timing modes created yet.",
+        "add": "Add timing mode",
+        "edit": "Edit timing mode",
+        "name": "Name",
+        "startGrouping": {
+          "label": "Start type",
+          "EINZEL": "Individual start",
+          "WELLE": "Wave"
+        },
+        "intervalSeconds": "Start interval (seconds)",
+        "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
+        "invalidInterval": "The interval must be at least 1 second — or stay empty for manual starts.",
+        "leadInSeconds": "Countdown lead-in (seconds)",
+        "leadInHelp": "Countdown before the (first) start.",
+        "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
+        "withLaps": "With lap times (split stations)",
+        "describe": {
+          "interval": "interval {{seconds}} s",
+          "manualStart": "manual start",
+          "leadIn": "lead-in {{seconds}} s",
+          "withLaps": "with laps"
+        },
+        "saved": "Timing mode saved",
+        "deleted": "Timing mode deleted",
+        "deleteConfirm": "Really delete the timing mode \"{{name}}\"?",
+        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one competition or round. Remove the assignments in the competitions' timing tabs first."
       },
       "races": {
         "title": "RaceClocker races",

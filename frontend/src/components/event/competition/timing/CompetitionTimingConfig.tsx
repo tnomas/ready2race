@@ -28,6 +28,7 @@ import {AutocompleteOption} from '@utils/types.ts'
 
 /** Ein geladenes Format aus den Listen der Konfiguration — anders als [AutocompleteOption] nie null. */
 type ConfigOption = {id: string; label: string}
+import TimingModeAssignmentSection from './TimingModeAssignmentSection.tsx'
 import {
     effectiveTimingSystem,
     emptyTimingForm,
@@ -262,6 +263,20 @@ const CompetitionTimingConfig = () => {
                         </Stack>
                     )}
 
+                    {/* Hauseigene Zeitnahme: die Zuordnung der Zeitnahmetypen steht wie die
+                        Rennen-Anwahl ÜBER dem Überschreiben-Schalter und außerhalb seiner
+                        Reichweite — sie ist keine Abweichung von der Veranstaltung, sondern die
+                        Konfiguration dieses Wettkampfs, mit eigenen Endpunkten. */}
+                    {effectiveSystem === 'INTERN' && (
+                        <Stack spacing={4}>
+                            <TimingModeAssignmentSection
+                                eventId={eventId}
+                                competitionId={competitionId}
+                            />
+                            <Divider />
+                        </Stack>
+                    )}
+
                     <Box>
                         <FormControlLabel
                             control={
@@ -305,11 +320,19 @@ const CompetitionTimingConfig = () => {
                                     id: 'WEBSCORER',
                                     label: t('event.competition.timing.systems.webscorer'),
                                 },
+                                {
+                                    id: 'INTERN',
+                                    label: t('event.competition.timing.systems.intern'),
+                                },
                             ]}
                         />
                     )}
 
-                    {override && effectiveSystem !== 'NONE' && (
+                    {/* Nur die Fremdsysteme haben Dateiformate — die hauseigene Zeitnahme
+                        exportiert und importiert nichts. */}
+                    {override &&
+                        (effectiveSystem === 'RACECLOCKER' ||
+                            effectiveSystem === 'WEBSCORER') && (
                         <Stack spacing={4}>
                             <Divider />
                             {/* Die Presets sind kein Override: sie hängen an den Spalten dieser

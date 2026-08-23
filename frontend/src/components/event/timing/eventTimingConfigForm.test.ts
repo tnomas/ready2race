@@ -51,6 +51,21 @@ describe('mapEventTimingFormToRequest', () => {
         expect(request.resultImportConfig).toBe('33333333-3333-3333-3333-333333333333')
     })
 
+    it('verwirft die Formate bei der hauseigenen Zeitnahme', () => {
+        // INTERN kennt weder Startlisten-Export noch Ergebnis-Import — wie bei NONE darf kein
+        // unsichtbares Format gespeichert bleiben.
+        const request = mapEventTimingFormToRequest({
+            ...emptyEventTimingForm,
+            timingSystem: 'INTERN',
+            startlistConfig: {id: '22222222-2222-2222-2222-222222222222', label: 'R'},
+            resultImportConfig: {id: '33333333-3333-3333-3333-333333333333', label: 'I'},
+        })
+
+        expect(request.timingSystem).toBe('INTERN')
+        expect(request.startlistConfig).toBeNull()
+        expect(request.resultImportConfig).toBeNull()
+    })
+
     it('verwirft die Formate, wenn kein System gesetzt ist', () => {
         const request = mapEventTimingFormToRequest({
             ...emptyEventTimingForm,

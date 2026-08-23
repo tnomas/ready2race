@@ -86,8 +86,12 @@ export const mapTimingFormToRequest = (form: TimingForm): TimingConfigRequest =>
     // Effektiv statt lokal: erbt der Wettkampf RaceClocker von der Veranstaltung, ist die
     // Rennen-Anwahl sichtbar und ihre Eingaben sind gezielte Zuordnungen — die dürfen nicht beim
     // Speichern verschwinden, nur weil das lokale System-Feld auf "NONE" (= erben) steht.
-    const raceClocker = effectiveTimingSystem(form) === 'RACECLOCKER'
-    const configured = effectiveTimingSystem(form) !== 'NONE'
+    const effective = effectiveTimingSystem(form)
+    const raceClocker = effective === 'RACECLOCKER'
+    // Die beiden Dateiformate gehören zu den Fremdsystemen (Startlisten-Export, Ergebnis-Import).
+    // Die hauseigene Zeitnahme (INTERN) exportiert und importiert nichts — ihre Presets werden wie
+    // bei NONE verworfen, sonst stünde ein unsichtbares Format in der Datenbank.
+    const configured = effective === 'RACECLOCKER' || effective === 'WEBSCORER'
 
     return {
         timingSystem: form.timingSystem === 'NONE' ? null : form.timingSystem,
@@ -111,6 +115,9 @@ export const timingConfigWarnings = (form: TimingForm): TimingWarning[] => {
     // Auf den effektiven Werten gerechnet: was die Veranstaltung vorbelegt, fehlt nicht.
     const system = effectiveTimingSystem(form)
     if (system === 'NONE') return []
+    // Die hauseigene Zeitnahme braucht weder Rennen noch Dateiformate — ihre eigene Lücke
+    // (fehlender Zeitnahmetyp) zeigt der Zuordnungs-Abschnitt selbst an.
+    if (system === 'INTERN') return []
 
     // Rennen werden pro Wettkampf zugewiesen, nicht von der Veranstaltung geerbt.
     const race = form.race?.id

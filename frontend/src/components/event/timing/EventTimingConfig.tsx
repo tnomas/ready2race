@@ -17,6 +17,7 @@ import {
 import {CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
+import TimingModePanel from './TimingModePanel.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
@@ -196,8 +197,21 @@ const EventTimingConfig = () => {
                             {id: 'NONE', label: t('event.timing.systems.none')},
                             {id: 'RACECLOCKER', label: t('event.timing.systems.raceclocker')},
                             {id: 'WEBSCORER', label: t('event.timing.systems.webscorer')},
+                            {id: 'INTERN', label: t('event.timing.systems.intern')},
                         ]}
                     />
+
+                    {/* Die hauseigene Zeitnahme: statt Rennen und Dateiformaten werden hier die
+                        Zeitnahmetypen gepflegt, aus denen die Startposten ihre Sequenzen ableiten.
+                        Zugeordnet werden sie je Wettkampf/Runde im Zeitnahme-Tab des Wettkampfs. */}
+                    {timingSystem === 'INTERN' && (
+                        <Stack spacing={4}>
+                            <Alert variant={'outlined'} severity={'info'}>
+                                <Trans i18nKey={'event.timing.internHint'} />
+                            </Alert>
+                            <TimingModePanel eventId={eventId} />
+                        </Stack>
+                    )}
 
                     {timingSystem === 'RACECLOCKER' && (
                         <Stack spacing={4}>
@@ -350,8 +364,10 @@ const EventTimingConfig = () => {
 
                     {/* Die beiden Dateiformate: welche Spalten exportiert und importiert werden.
                         Auch sie gelten für die ganze Veranstaltung, weil alle Wettkämpfe in dieselben
-                        Rennen im Fremdsystem laufen und dort dieselbe Spaltenzuordnung brauchen. */}
-                    {timingSystem !== 'NONE' && (
+                        Rennen im Fremdsystem laufen und dort dieselbe Spaltenzuordnung brauchen.
+                        Nur für die Fremdsysteme — die hauseigene Zeitnahme exportiert und
+                        importiert keine Dateien. */}
+                    {(timingSystem === 'RACECLOCKER' || timingSystem === 'WEBSCORER') && (
                         <Stack spacing={4}>
                             <FormInputAutocomplete
                                 name={'startlistConfig'}

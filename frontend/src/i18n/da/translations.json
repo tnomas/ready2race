@@ -1391,7 +1391,25 @@
         },
         "saved": "Tidtagningsindstillinger gemt",
         "invalid": "Vælg venligst et løb, der hører til dette stævne.",
-        "race": "RaceClocker-løb"
+        "race": "RaceClocker-løb",
+        "modes": {
+          "title": "Tidtagningstype for denne konkurrence",
+          "hint": "Tidtagningstypen bestemmer, hvordan startposten starter denne konkurrences løb — enkeltstart med interval eller bølge, og med hvilken nedtælling. Runder uden eget valg arver fra konkurrencen.",
+          "competitionWide": "Tidtagningstype (hele konkurrencen)",
+          "unset": "ikke angivet",
+          "unsetWarning": "Uden tidtagningstype kan startposten ikke oprette en startsekvens for denne konkurrence med ét tryk — løbene kan så kun sættes op manuelt.",
+          "inherit": "arver fra konkurrencen",
+          "inherits": "arver: {{mode}}",
+          "inheritsNothing": "arver: ikke angivet — ingen tidtagningstype gælder for denne runde",
+          "roundsHint": "Afvigelse pr. runde — tomt betyder, at runden arver konkurrencens tidtagningstype.",
+          "saved": "Tildeling af tidtagningstype gemt",
+          "detailInterval": "interval {{seconds}} s",
+          "noModes": {
+            "1": "Der er endnu ikke oprettet tidtagningstyper for dette stævne. De vedligeholdes ",
+            "2": "i stævnets tidtagningsindstillinger",
+            "3": "."
+          }
+        }
       },
       "places": {
         "places": "Placeringer",
@@ -1674,6 +1692,37 @@
         "system": "eget system",
         "startlist": "egen startliste-eksport",
         "resultImport": "egen løbsresultater-import"
+      },
+      "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i konkurrencernes tidtagningsfane.",
+      "modes": {
+        "title": "Tidtagningstyper",
+        "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles pr. konkurrence eller runde i konkurrencens tidtagningsfane.",
+        "none": "Endnu ingen tidtagningstyper oprettet.",
+        "add": "Opret tidtagningstype",
+        "edit": "Rediger tidtagningstype",
+        "name": "Navn",
+        "startGrouping": {
+          "label": "Starttype",
+          "EINZEL": "Enkeltstart",
+          "WELLE": "Bølge"
+        },
+        "intervalSeconds": "Startinterval (sekunder)",
+        "intervalHelp": "Lad feltet stå tomt, hvis hver start udløses manuelt. Med en værdi følger starterne automatisk med dette interval (enkeltstart mod uret).",
+        "invalidInterval": "Intervallet skal være mindst 1 sekund — eller stå tomt for manuel start.",
+        "leadInSeconds": "Nedtælling før start (sekunder)",
+        "leadInHelp": "Nedtælling før den (første) start.",
+        "invalidLeadIn": "Angiv venligst et antal sekunder på 0 eller mere.",
+        "withLaps": "Med omgangstider (mellemtidsposter)",
+        "describe": {
+          "interval": "interval {{seconds}} s",
+          "manualStart": "manuel start",
+          "leadIn": "nedtælling {{seconds}} s",
+          "withLaps": "med omgange"
+        },
+        "saved": "Tidtagningstype gemt",
+        "deleted": "Tidtagningstype slettet",
+        "deleteConfirm": "Skal tidtagningstypen \"{{name}}\" virkelig slettes?",
+        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst én konkurrence eller runde. Fjern først tildelingerne i konkurrencernes tidtagningsfane."
       },
       "races": {
         "title": "RaceClocker-løb",

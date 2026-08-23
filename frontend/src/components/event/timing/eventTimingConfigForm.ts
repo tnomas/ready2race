@@ -57,7 +57,9 @@ export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingF
  */
 export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingConfigRequest => {
     const raceClocker = form.timingSystem === 'RACECLOCKER'
-    const configured = form.timingSystem !== 'NONE'
+    // Nur die Fremdsysteme exportieren Startlisten und importieren Ergebnisse — die hauseigene
+    // Zeitnahme (INTERN) hat keine Dateiformate, ihre Presets werden wie bei NONE verworfen.
+    const configured = form.timingSystem === 'RACECLOCKER' || form.timingSystem === 'WEBSCORER'
 
     return {
         timingSystem: form.timingSystem === 'NONE' ? null : form.timingSystem,

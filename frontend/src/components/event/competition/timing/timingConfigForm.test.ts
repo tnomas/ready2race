@@ -98,6 +98,24 @@ describe('mapTimingFormToRequest', () => {
         expect(request.race).toBeNull()
     })
 
+    it('verwirft Rennen-Anwahl und Presets bei der hauseigenen Zeitnahme', () => {
+        // INTERN exportiert keine Startlisten und importiert keine Ergebnisse — ein unsichtbar
+        // gespeichertes Format wäre dieselbe Falle wie bei NONE. Auch ein RaceClocker-Rennen hat
+        // an einem intern gezeiteten Wettkampf nichts verloren.
+        const request = mapTimingFormToRequest({
+            ...emptyTimingForm,
+            timingSystem: 'INTERN',
+            race: {id: shortCourseRace, label: 'Kurzstrecke'},
+            startlistConfig: {id: startlistPreset, label: 'Läufe'},
+            resultImportConfig: {id: importPreset, label: 'Webscorer xlsx'},
+        })
+
+        expect(request.timingSystem).toBe('INTERN')
+        expect(request.race).toBeNull()
+        expect(request.startlistConfig).toBeNull()
+        expect(request.resultImportConfig).toBeNull()
+    })
+
     it('verwirft alle Presets, wenn kein System gesetzt ist', () => {
         // Bei NONE zeigt der Tab kein Preset-Feld. Ein gespeichertes Preset waere damit
         // unsichtbar und wuerde vom Export trotzdem benutzt, weil die serverseitige
@@ -222,6 +240,15 @@ describe('timingConfigWarnings', () => {
         })
 
         expect(warnings).toEqual([])
+    })
+
+    it('schweigt bei der hauseigenen Zeitnahme', () => {
+        // INTERN braucht weder Rennen noch Dateiformate; die eigene Lücke (fehlender
+        // Zeitnahmetyp) meldet der Zuordnungs-Abschnitt selbst.
+        expect(timingConfigWarnings({...emptyTimingForm, timingSystem: 'INTERN'})).toEqual([])
+        expect(
+            timingConfigWarnings({...emptyTimingForm, eventTimingSystem: 'INTERN'}),
+        ).toEqual([])
     })
 
     it('schweigt, wenn alles eingerichtet ist', () => {
