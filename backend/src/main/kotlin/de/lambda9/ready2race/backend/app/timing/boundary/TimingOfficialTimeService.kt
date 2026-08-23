@@ -103,8 +103,12 @@ object TimingOfficialTimeService {
      * Neuberechnung einen Maschinenwert auch wieder AB, wenn seine Grundlage weg ist (Marke
      * zurückgenommen/umgehängt) - sonst stünde am Lauf eine Zeit, die es nicht mehr gibt.
      *
-     * Gibt die frische Zeile zurück, wenn sich irgendetwas geändert hat (Berechnung, Team-Ergebnis
-     * oder dirty-Kennzeichen), sonst null - der Broadcast bleibt so auf das Nötige beschränkt.
+     * Gibt den FRISCHEN STAND des Teams zurück, sobald es Marken oder eine Zeile hat - auch wenn
+     * nichts geschrieben wurde: der Aufruf kommt stets von einer Mutation an genau diesem Team,
+     * und Leitstand/Boards brauchen die neuen Start-/Zielwerte live, um den Grund einer (noch)
+     * fehlenden Zeit zu zeigen („kein Start", „kein Ziel"). Ohne Zeile kommt derselbe Platzhalter
+     * wie in [getForEvent]. Nur ein Team ganz ohne Marken und Zeile meldet nichts (null) - sonst
+     * bekäme jedes Boot, das schlicht noch nicht dran war, eine Rausch-Nachricht.
      */
     private fun recomputeAndApplyTeam(
         eventId: UUID,
@@ -129,19 +133,26 @@ object TimingOfficialTimeService {
             recomputeChanged = true
         }
 
-        // Kein Rechenergebnis, keine Zeile: es gibt nichts zu übernehmen und nichts abzuräumen.
-        val official = record ?: return@comprehension KIO.ok(null)
+        // Kein Rechenergebnis, keine Zeile: nichts zu übernehmen und nichts abzuräumen. Teams MIT
+        // Marken melden trotzdem ihren Stand (Platzhalter wie in getForEvent) - Zielzeit ohne
+        // Start wäre sonst bis zum nächsten Neuladen unsichtbar.
+        val official = record
+            ?: return@comprehension KIO.ok(
+                times?.let { unpersistedOfficialTimeDto(teamId, eventId, it.startMillis, it.finishMillis) }
+            )
 
         val team = !CompetitionMatchTeamRepo.getById(teamId).orDie()
             ?: return@comprehension KIO.ok(null)
         val applyChanged = !applyToTeam(official, team, settings, userId, now)
 
-        if (recomputeChanged || applyChanged) {
-            val fresh = !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
-            KIO.ok(fresh?.let { officialTimeDto(it, times?.startMillis, times?.finishMillis) })
+        // Auch ohne Schreibvorgang geht der frische Stand zurück (siehe KDoc): nur nach einer
+        // Änderung muss die Zeile neu gelesen werden, sonst trägt `official` sie bereits.
+        val fresh = if (recomputeChanged || applyChanged) {
+            !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
         } else {
-            KIO.ok(null)
+            official
         }
+        KIO.ok(fresh?.let { officialTimeDto(it, times?.startMillis, times?.finishMillis) })
     }
 
     /**

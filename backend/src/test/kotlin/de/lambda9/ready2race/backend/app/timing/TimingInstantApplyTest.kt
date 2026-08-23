@@ -391,10 +391,10 @@ class TimingInstantApplyTest {
         assertEquals(track.teamId, team.timecode)
     }
 
-    // ---------------------------------------------------------------- Idempotenz
+    // ---------------------------------------------------------------- Idempotenz & Stand-Meldung
 
     @Test
-    fun reapplyingAnUnchangedStateWritesNothing() = testComprehension {
+    fun reapplyingAnUnchangedStateWritesNothingButReportsTheState() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val track = !prepareTrack(eventId, userId)
         !addAssignedMark(eventId, userId, track.startStation, track.teamId, startMillis)
@@ -403,8 +403,45 @@ class TimingInstantApplyTest {
 
         val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
 
-        assertEquals(emptyList(), changed)
+        // Der Rückgabewert meldet den aktuellen Stand des Teams (die Boards folgen jeder
+        // Mutation live), auch wenn nichts zu schreiben war ...
+        assertEquals(90_000L, changed.single().computedMillis)
+        // ... geschrieben wird dabei aber nichts: Zeile und Team bleiben unangetastet.
         val after = !CompetitionMatchTeamRepo.getById(track.teamId)
         assertEquals(before!!.updatedAt, after!!.updatedAt)
+    }
+
+    // Zielzeit ohne Start: es entsteht keine Zeile und nichts wird geschrieben — aber der Aufruf
+    // meldet den Stand als Platzhalter (wie getForEvent), sonst erfahren Leitstand und Boards
+    // erst nach einem Neuladen, DASS ein Ziel ohne Start dasteht, und können den Grund
+    // („kein Start") nicht anzeigen.
+    @Test
+    fun finishWithoutStartReportsThePlaceholderState() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val track = !prepareTrack(eventId, userId)
+        !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
+
+        val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
+
+        val dto = changed.single()
+        assertEquals(track.teamId, dto.competitionMatchTeam)
+        assertEquals(finishMillis, dto.finishMillis)
+        assertNull(dto.startMillis)
+        assertNull(dto.computedMillis)
+        assertNull(dto.effectiveMillis)
+        // Platzhalter heißt: weiterhin keine persistierte Zeile.
+        assertNull(!TimingOfficialTimeRepo.getByTeam(track.teamId))
+    }
+
+    // Ein Team ganz ohne Marken und ohne Zeile hat nichts zu melden — kein Platzhalter-Rauschen
+    // für Boote, die schlicht noch nicht dran waren.
+    @Test
+    fun teamWithoutMarksAndRowStaysSilent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val track = !prepareTrack(eventId, userId)
+
+        val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
+
+        assertEquals(emptyList(), changed)
     }
 }
