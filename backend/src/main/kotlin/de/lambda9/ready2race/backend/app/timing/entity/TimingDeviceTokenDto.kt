@@ -10,6 +10,12 @@ data class TimingDeviceTokenDto(
     val station: UUID,
     val name: String,
     val revoked: Boolean,
+    /**
+     * True für automatisch über den Posten-Share-Link ausgestellte Tokens (Wiederverwendung beim
+     * nächsten Klick), false für von Hand ausgestellte Hardware-Tokens (Klartext nur einmalig in
+     * der Ausstell-Antwort). Der Geräte-Reiter kann beide unterscheiden; Widerruf geht bei beiden.
+     */
+    val autoIssued: Boolean,
     val createdAt: LocalDateTime,
 )
 

@@ -204,6 +204,10 @@ fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto
     station = station,
     name = name,
     revoked = revoked ?: false,
+    // Die Spalte ist zugleich das Kennzeichen (siehe Migration V202608211420): Klartext
+    // gespeichert <=> automatisch ausgestellt. Der Klartext selbst verlässt diese Konvertierung
+    // nie - er taucht nur in der Share-Link-Antwort auf.
+    autoIssued = shareLinkToken != null,
     createdAt = createdAt,
 )
 

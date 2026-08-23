@@ -170,6 +170,19 @@ fun Route.timing() {
 
             route("/{stationId}") {
 
+                // "Link anklicken = Token ausgestellt": liefert die fertige Posten-Adresse samt
+                // Geräte-Token - beim zweiten Klick DENSELBEN Link (Wiederverwendung statt
+                // Inflation), erst nach einem Widerruf im Geräte-Reiter wieder einen frischen.
+                // POST trotz Wiederholbarkeit: der erste Aufruf stellt ein Credential aus.
+                post("/share-link") {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val stationId = !pathParam("stationId", uuid)
+                        TimingDeviceTokenService.shareLink(eventId, stationId, user.id!!)
+                    }
+                }
+
                 put {
                     call.respondComprehension {
                         val user = !authenticate(Privilege.UpdateEventGlobal)

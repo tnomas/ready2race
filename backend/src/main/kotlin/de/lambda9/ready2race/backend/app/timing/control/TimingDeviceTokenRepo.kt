@@ -24,4 +24,13 @@ object TimingDeviceTokenRepo {
     fun getByHash(tokenHash: String) = TIMING_DEVICE_TOKEN.selectOne { TOKEN_HASH.eq(tokenHash) }
 
     fun update(id: UUID, f: TimingDeviceTokenRecord.() -> Unit) = TIMING_DEVICE_TOKEN.update(f) { ID.eq(id) }
+
+    /**
+     * Das wiederverwendbare Link-Token eines Postens: automatisch ausgestellt (share_link_token
+     * gesetzt) und nicht widerrufen. Höchstens eines je Posten - der Service stellt nie ein
+     * zweites aus, solange dieses lebt (Wiederverwendung statt Inflation).
+     */
+    fun getActiveShareLinkByStation(stationId: UUID) = TIMING_DEVICE_TOKEN.selectOne {
+        STATION.eq(stationId).and(REVOKED.isFalse).and(SHARE_LINK_TOKEN.isNotNull)
+    }
 }
