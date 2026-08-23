@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
@@ -29,6 +30,7 @@ object TimingService {
     ): App<TimingError, ApiResponse.Created> = KIO.comprehension {
         val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name).orDie()
         !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+        !checkLinkedStation(request, eventId)
 
         val record = !request.toRecord(userId, eventId)
         val id = !TimingStationRepo.create(record).orDie()
@@ -54,11 +56,20 @@ object TimingService {
 
         val nameTaken = !TimingStationRepo.existsByEventAndName(eventId, request.name, excludingId = stationId).orDie()
         !KIO.failOn(nameTaken) { TimingError.StationNameTaken }
+        !checkLinkedStation(request, eventId, stationId = stationId)
+
+        // Ein Posten, den Anzeigen spiegeln, darf nicht klammheimlich aufhören, ein START-Posten
+        // zu sein - die Anzeigen zeigten sonst die Sequenzen eines Posten-Typs, den es nicht gibt.
+        if (request.type != TimingStationType.START && station.type == TimingStationType.START.name) {
+            val mirrored = !TimingStationRepo.existsLinkedTo(stationId).orDie()
+            !KIO.failOn(mirrored) { TimingError.LinkedStationInvalid }
+        }
 
         !TimingStationRepo.update(stationId) {
             name = request.name
             type = request.type.name
             sorting = request.sorting
+            linkedStation = request.linkedStation
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -101,6 +112,26 @@ object TimingService {
     ): App<ServiceError, ApiResponse.Created> =
         createMark(request, eventId, source = "HARDWARE", createdBy = null)
 
+    /**
+     * Nur für ANZEIGE relevant: die Verknüpfung darf ausschließlich an einer ANZEIGE hängen und
+     * muss auf einen START-Posten derselben Veranstaltung zeigen (nicht auf sich selbst). Die
+     * Datenbank prüft davon nur den Typ-Teil des eigenen Postens (Check-Constraint); Event- und
+     * Zieltyp-Bindung prüft wie üblich der Service.
+     */
+    private fun checkLinkedStation(
+        request: TimingStationRequest,
+        eventId: UUID,
+        stationId: UUID? = null,
+    ): App<TimingError, Unit> = KIO.comprehension {
+        val linkedId = request.linkedStation ?: return@comprehension KIO.ok(Unit)
+        !KIO.failOn(request.type != TimingStationType.ANZEIGE) { TimingError.LinkedStationInvalid }
+        !KIO.failOn(linkedId == stationId) { TimingError.LinkedStationInvalid }
+        val linked = !TimingStationRepo.get(linkedId).orDie().onNullFail { TimingError.LinkedStationInvalid }
+        !KIO.failOn(linked.event != eventId) { TimingError.LinkedStationInvalid }
+        !KIO.failOn(linked.type != TimingStationType.START.name) { TimingError.LinkedStationInvalid }
+        KIO.ok(Unit)
+    }
+
     private fun createMark(
         request: CreateTimeMarkRequest,
         eventId: UUID,
@@ -114,6 +145,9 @@ object TimingService {
             val station = !TimingStationRepo.get(request.station).orDie()
                 .onNullFail { TimingError.StationNotFound }
             !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+            // Eine Anzeige misst nichts: Marken auf einem ANZEIGE-Posten sind immer ein Fehler,
+            // egal ob per Sitzung oder Geräte-Token erfasst.
+            !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.StationNotCapturing }
 
             val record = TimingTimeMarkRecord(
                 id = request.id,
@@ -158,6 +192,40 @@ object TimingService {
         userId: UUID,
         timeMarkId: UUID,
         eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> =
+        assign(request, timeMarkId, eventId, userId = userId, deviceId = null)
+
+    /**
+     * Klick-Zuordnung vom geteilten Posten-Gerät: Zuordnen und Umhängen ohne Sitzung, mit dem
+     * Geräte-Token als Ausweis. Der Spielraum ist bewusst enger als mit Sitzung: nur Marken des
+     * EIGENEN Postens (ein Zielposten hängt nie Startmarken um), und Tokens von ANZEIGE-Posten
+     * dürfen gar nicht schreiben. Beides antwortet als [TimingError.DeviceTokenInvalid], ohne zu
+     * verraten, woran es lag - wie jede andere Token-Ablehnung. Die Rücknahme von Marken und
+     * Ergebnissen bleibt Sitzungssache.
+     */
+    fun assignTimeMarkByDevice(
+        request: AssignTimeMarkRequest,
+        deviceToken: TimingDeviceTokenRecord,
+        timeMarkId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
+        !KIO.failOn(mark.station != deviceToken.station) { TimingError.DeviceTokenInvalid }
+
+        val station = !TimingStationRepo.get(deviceToken.station).orDie()
+            .onNullFail { TimingError.DeviceTokenInvalid }
+        !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.DeviceTokenInvalid }
+
+        !assign(request, timeMarkId, eventId, userId = null, deviceId = deviceToken.id)
+        noData
+    }
+
+    private fun assign(
+        request: AssignTimeMarkRequest,
+        timeMarkId: UUID,
+        eventId: UUID,
+        userId: UUID?,
+        deviceId: UUID?,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
@@ -182,15 +250,21 @@ object TimingService {
                         competitionMatchTeam = team,
                         createdAt = LocalDateTime.now(),
                         createdBy = userId,
+                        createdByDevice = deviceId,
                         updatedAt = LocalDateTime.now(),
                         updatedBy = userId,
+                        updatedByDevice = deviceId,
                     )
                 ).orDie()
             } else {
                 !TimingAssignmentRepo.update(existing.id) {
                     competitionMatchTeam = team
                     updatedAt = LocalDateTime.now()
+                    // Genau EIN Akteur je Änderung: die jeweils andere Spalte wird geleert, damit
+                    // die Revisionsspur den letzten Handelnden eindeutig benennt (Nutzer ODER
+                    // Gerät), statt Reste des vorletzten stehen zu lassen.
                     updatedBy = userId
+                    updatedByDevice = deviceId
                 }.orDie()
             }
         }

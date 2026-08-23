@@ -71,9 +71,15 @@ fun addTestStation(
     eventId: UUID,
     userId: UUID,
     type: TimingStationType = TimingStationType.FINISH,
+    linkedStation: UUID? = null,
 ): App<Any?, UUID> = KIO.comprehension {
     val response = !TimingService.addStation(
-        TimingStationRequest(name = "Station-${UUID.randomUUID()}", type = type, sorting = 0),
+        TimingStationRequest(
+            name = "Station-${UUID.randomUUID()}",
+            type = type,
+            sorting = 0,
+            linkedStation = linkedStation,
+        ),
         userId,
         eventId,
     )

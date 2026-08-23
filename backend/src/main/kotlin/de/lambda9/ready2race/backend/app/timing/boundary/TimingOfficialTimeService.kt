@@ -259,7 +259,9 @@ object TimingOfficialTimeService {
     fun markTeamsDirty(
         eventId: UUID,
         teamIds: List<UUID>,
-        userId: UUID,
+        // Nullable seit der Klick-Zuordnung per Geräte-Token: hinter der Änderung steht dann kein
+        // app_user; das Gerät selbst hält die Zuordnung fest (timing_assignment.updated_by_device).
+        userId: UUID?,
     ): App<Nothing, Unit> = KIO.comprehension {
         val distinct = teamIds.distinct()
         if (distinct.isEmpty()) return@comprehension KIO.ok(Unit)

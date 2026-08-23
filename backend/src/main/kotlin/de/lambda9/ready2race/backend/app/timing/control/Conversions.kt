@@ -23,6 +23,7 @@ fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
         name = name,
         type = TimingStationType.valueOf(type),
         sorting = sorting,
+        linkedStation = linkedStation,
     )
 )
 
@@ -34,6 +35,7 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
             name = name,
             type = type.name,
             sorting = sorting,
+            linkedStation = linkedStation,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,

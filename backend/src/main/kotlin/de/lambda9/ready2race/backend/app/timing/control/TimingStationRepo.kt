@@ -22,6 +22,10 @@ object TimingStationRepo {
         }
     }
 
+    // Spiegelt irgendeine ANZEIGE diesen Posten? Vorbau für Typwechsel eines START-Postens, auf
+    // den Anzeigen zeigen - der würde die Verknüpfung sonst stillschweigend sinnlos machen.
+    fun existsLinkedTo(stationId: UUID) = TIMING_STATION.exists { LINKED_STATION.eq(stationId) }
+
     fun update(id: UUID, f: TimingStationRecord.() -> Unit) = TIMING_STATION.update(f) { ID.eq(id) }
 
     fun delete(id: UUID) = TIMING_STATION.delete { ID.eq(id) }

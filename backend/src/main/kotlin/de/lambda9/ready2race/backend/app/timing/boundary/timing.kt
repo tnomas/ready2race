@@ -242,11 +242,25 @@ fun Route.timing() {
 
                 put("/assignment") {
                     call.respondComprehension {
-                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
                         val eventId = !pathParam("eventId", uuid)
                         val timeMarkId = !pathParam("timeMarkId", uuid)
-                        val body = !receiveKIO(AssignTimeMarkRequest.example)
-                        TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
+                        val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                        val hasSession = call.sessions.get<UserSession>()?.token != null
+
+                        // Klick-Zuordnung am geteilten Posten-Gerät: der Zielposten ordnet eine
+                        // Marke direkt beim Stempeln einem Boot zu (und hängt sie bei Verklicken
+                        // um), ohne Sitzung. Wie beim Zeitmarken-POST greift der Token-Zweig nur
+                        // ohne Sitzung; der Service engt weiter ein (nur Marken des eigenen
+                        // Postens, keine ANZEIGE-Tokens). Sitzungen behalten exakt den alten Weg.
+                        if (deviceToken != null && !hasSession) {
+                            val body = !receiveKIO(AssignTimeMarkRequest.example)
+                            val token = !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                            TimingService.assignTimeMarkByDevice(body, token, timeMarkId, eventId)
+                        } else {
+                            val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                            val body = !receiveKIO(AssignTimeMarkRequest.example)
+                            TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
+                        }
                     }
                 }
             }

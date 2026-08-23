@@ -119,12 +119,21 @@ object TimingSequenceService {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
         !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
-        val active = !TimingSequenceRepo.getActiveByStation(stationId).orDie()
-        val sequence = if (active != null) {
-            active
-        } else {
-            val since = LocalDateTime.now().minus(RECENT_TERMINAL_WINDOW)
-            !TimingSequenceRepo.getRecentTerminalByStation(stationId, since).orDie()
+        // Eine ANZEIGE hat nie eigene Sequenzen - sie spiegelt: mit linked_station genau diesen
+        // START-Posten, ohne alle Startsequenzen der Veranstaltung (dann gewinnt die zuletzt
+        // angefasste aktive). Der Vertrag des Endpunkts bleibt derselbe eine Sequenz-Slot.
+        val isDisplay = station.type == TimingStationType.ANZEIGE.name
+        val since = LocalDateTime.now().minus(RECENT_TERMINAL_WINDOW)
+        val sequence = when {
+            isDisplay && station.linkedStation == null -> {
+                (!TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie())
+                    ?: !TimingSequenceRepo.getRecentTerminalByEvent(eventId, since).orDie()
+            }
+            else -> {
+                val targetStation = if (isDisplay) station.linkedStation!! else stationId
+                (!TimingSequenceRepo.getActiveByStation(targetStation).orDie())
+                    ?: !TimingSequenceRepo.getRecentTerminalByStation(targetStation, since).orDie()
+            }
         }
         val dto = if (sequence == null) {
             null
