@@ -20,7 +20,7 @@ import QRCode from 'react-qr-code'
 import {useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {createTimingStationShareLink} from '@api/sdk.gen.ts'
-import {TimingStationDto} from '@api/types.gen.ts'
+import {TimingShareLinkDto, TimingStationDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 
 export type TimingStationShareDialogProps = {
@@ -61,7 +61,9 @@ const TimingStationShareDialog = ({
     // StrictMode feuert den Effekt in der Entwicklung zweimal, und zwei GLEICHZEITIGE erste
     // Anfragen konnten serverseitig je ein Token anlegen (der Endpunkt ist nur sequenziell
     // idempotent). Eine Anfrage pro Öffnen genügt — der zweite Lauf hängt sich an dieselbe.
-    const requestRef = useRef<ReturnType<typeof createTimingStationShareLink> | null>(null)
+    // Bewusst auf die {data, error}-Gestalt verengt: der generierte Rückgabetyp trägt auch die
+    // ThrowOnError-Variante der Union, deren Zweig kein error-Feld hat.
+    const requestRef = useRef<Promise<{data?: TimingShareLinkDto; error?: unknown}> | null>(null)
 
     // Auf der false->true-Flanke direkt den Link holen — der Endpunkt ist idempotent, ein
     // erneutes Öffnen liefert denselben Link.
