@@ -15966,6 +15966,10 @@ components:
           format: uuid
           nullable: true
           description: "The one selected race; null means no race is assigned"
+        timingSystem:
+          $ref: '#/components/schemas/TimingSystem'
+          nullable: true
+          description: "The competition's own timing system; null means it inherits the event-wide default. Lets the event settings manage all competitions in one table."
 
     RaceClockerRaceAssignmentsRequest:
       type: object

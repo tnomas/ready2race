@@ -1032,6 +1032,10 @@ export type CompetitionRaceAssignmentDto = {
      * The one selected race; null means no race is assigned
      */
     race?: string | null
+    /**
+     * The competition's own timing system; null means it inherits the event-wide default. Lets the event settings manage all competitions in one table.
+     */
+    timingSystem?: TimingSystem | null
 }
 
 export type CompetitionRegistrationDto = {

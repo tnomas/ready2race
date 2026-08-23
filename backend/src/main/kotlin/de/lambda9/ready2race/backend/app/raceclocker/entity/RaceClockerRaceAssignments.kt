@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.raceclocker.entity
 
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
@@ -19,6 +20,12 @@ data class CompetitionRaceAssignmentDto(
     val name: String,
     /** Das angewählte Rennen; null = kein Rennen zugewiesen. */
     val race: UUID?,
+    /**
+     * Das eigene Zeitnahme-System des Wettkampfs; null = erbt die Voreinstellung der Veranstaltung.
+     * Seit dem 23.08.2026 dabei, damit die Veranstaltungs-Einstellungen alle Wettkämpfe samt System
+     * in EINER Tabelle pflegen können, ohne jeden Wettkampf einzeln zu laden.
+     */
+    val timingSystem: TimingSystem?,
 )
 
 /**

@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.raceclocker.control
 
 import de.lambda9.ready2race.backend.app.raceclocker.entity.CompetitionRaceAssignmentDto
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceDto
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
@@ -50,6 +51,7 @@ object RaceClockerRaceRepo {
             COMPETITION_PROPERTIES.IDENTIFIER,
             COMPETITION_PROPERTIES.NAME,
             COMPETITION.RACECLOCKER_RACE,
+            COMPETITION.TIMING_SYSTEM,
         )
             .from(COMPETITION)
             .join(COMPETITION_PROPERTIES).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
@@ -61,6 +63,8 @@ object RaceClockerRaceRepo {
                     identifier = it[COMPETITION_PROPERTIES.IDENTIFIER]!!,
                     name = it[COMPETITION_PROPERTIES.NAME]!!,
                     race = it[COMPETITION.RACECLOCKER_RACE],
+                    // Wie in TimingConfigRepo: die Spalte trägt den Enum-Namen als Text.
+                    timingSystem = it[COMPETITION.TIMING_SYSTEM]?.let { s -> TimingSystem.valueOf(s) },
                 )
             }
     }
