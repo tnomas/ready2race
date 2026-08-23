@@ -335,14 +335,16 @@ class TimingOfficialTimeServiceTest {
         val team = !CompetitionMatchTeamRepo.getById(teamId)
         assertNotNull(team)
         // Exactly what CompetitionExecutionService.updateMatchResult(-ByFile) writes: the timecode
-        // row carries the match team's own id, the millis of the time, and the base unit /
-        // millisecond precision Parser.timecode derives for that value.
+        // row carries the match team's own id, the millis of the time, and the base unit
+        // Parser.timecode derives for that value. Die Millisekunden-Präzision folgt seit der
+        // Genauigkeits-Einstellung der Veranstaltung (Vorgabe ZEHNTEL -> ONE), siehe
+        // TimingPrecisionApplyTest für die übrigen Stufen.
         assertEquals(teamId, team.timecode)
         val timecode = !Jooq.query { selectFrom(TIMECODE).where(TIMECODE.ID.eq(teamId)).fetchOne() }
         assertNotNull(timecode)
         assertEquals(90_000L, timecode.time)
         assertEquals(Timecode.BaseUnit.MINUTES.name, timecode.baseUnit)
-        assertEquals(Timecode.MillisecondPrecision.THREE.name, timecode.millisecondPrecision)
+        assertEquals(Timecode.MillisecondPrecision.ONE.name, timecode.millisecondPrecision)
         // The push never touches places or the failed state of a finisher.
         assertFalse(team.failed!!)
         assertNull(team.failedReason)
