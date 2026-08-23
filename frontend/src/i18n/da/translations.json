@@ -3024,17 +3024,15 @@
       "share": {
         "action": "Del til enhed",
         "title": "Del posten \"{{station}}\" til en enhed",
-        "description": "Opretter et link med enhedsadgang: enheden (delt telefon, visningsskærm) behøver intet login. Adgangen kan til enhver tid tilbagekaldes i kontrolpulten under \"Enheder\".",
-        "nameHelp": "Enhedens navn, som det vises i kontrolpulten under \"Enheder\"",
-        "createLink": "Opret link",
-        "onceWarning": "Linket vises kun denne ene gang. Fotografér eller kopiér det nu — bagefter hjælper kun et nyt link.",
+        "description": "Linket bærer denne posts enhedsadgang: enheden (delt telefon, visningsskærm) behøver intet login. Samme post giver altid samme link — indtil adgangen tilbagekaldes i kontrolpulten under \"Enheder\".",
         "copied": "Link kopieret",
         "copy": "Kopiér link",
-        "revokeHint": "Tilbagekald til enhver tid i kontrolpulten, fanen \"Enheder\". En tilbagekaldt adgang gør linket ubrugeligt med det samme.",
+        "revokeHint": "Linket kan altid hentes her igen. Tilbagekald i kontrolpulten, fanen \"Enheder\" (posten \"Link\") — en tilbagekaldt adgang gør linket ubrugeligt med det samme, og næste klik på \"Del\" opretter et nyt.",
         "target": {
           "capture": "Registrering",
           "display": "Startskærm"
-        }
+        },
+        "error": "Linket kunne ikke oprettes."
       }
     },
     "assign": {
@@ -3362,7 +3360,8 @@
             "title": "Tilbagekald token?",
             "content": "Enheden “{{name}}” kan derefter ikke længere sende tider."
           }
-        }
+        },
+        "autoIssued": "Link"
       }
     },
     "startDisplay": {

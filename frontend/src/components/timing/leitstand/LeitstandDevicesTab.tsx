@@ -133,7 +133,21 @@ const LeitstandDevicesTab = ({eventId, stations}: LeitstandDevicesTabProps) => {
                     <TableBody>
                         {sortedTokens.map(token => (
                             <TableRow key={token.id} hover>
-                                <TableCell>{token.name}</TableCell>
+                                <TableCell>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <span>{token.name}</span>
+                                        {/* Auto-Token aus dem Teilen-Dialog des Postens: sein
+                                            Klartext bleibt über den Share-Link abrufbar —
+                                            anders als bei Hand-Tokens für Hardware. */}
+                                        {token.autoIssued && (
+                                            <Chip
+                                                size="small"
+                                                variant="outlined"
+                                                label={t('timing.leitstand.devices.autoIssued')}
+                                            />
+                                        )}
+                                    </Stack>
+                                </TableCell>
                                 <TableCell>
                                     {stationById.get(token.station)?.name ?? token.station.slice(0, 8)}
                                 </TableCell>

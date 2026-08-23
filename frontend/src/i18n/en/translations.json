@@ -3051,17 +3051,15 @@
       "share": {
         "action": "Share to device",
         "title": "Share station \"{{station}}\" to a device",
-        "description": "Creates a link with device access: the device (shared phone, display screen) needs no login. Access can be revoked at any time in the control desk under \"Devices\".",
-        "nameHelp": "Name of the device as it appears in the control desk under \"Devices\"",
-        "createLink": "Create link",
-        "onceWarning": "The link is shown only this once. Photograph or copy it now — afterwards only a new link helps.",
+        "description": "The link carries this station’s device access: the device (shared phone, display screen) needs no login. The same station always returns the same link — until the access is revoked in the control desk under \"Devices\".",
         "copied": "Link copied",
         "copy": "Copy link",
-        "revokeHint": "Revoke at any time in the control desk, \"Devices\" tab. A revoked access makes the link unusable immediately.",
+        "revokeHint": "The link stays retrievable here at any time. Revoke in the control desk, \"Devices\" tab (entry \"Link\") — a revoked access makes the link unusable immediately, and the next click on \"Share\" creates a new one.",
         "target": {
           "capture": "Capture",
           "display": "Start display"
-        }
+        },
+        "error": "The link could not be created."
       }
     },
     "assign": {
@@ -3389,7 +3387,8 @@
             "title": "Revoke token?",
             "content": "The device “{{name}}” will no longer be able to send times."
           }
-        }
+        },
+        "autoIssued": "Link"
       }
     },
     "startDisplay": {

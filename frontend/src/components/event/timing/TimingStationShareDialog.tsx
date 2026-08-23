@@ -2,6 +2,7 @@ import {
     Alert,
     Box,
     Button,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -9,7 +10,6 @@ import {
     IconButton,
     Paper,
     Stack,
-    TextField,
     ToggleButton,
     ToggleButtonGroup,
     Tooltip,
@@ -19,7 +19,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import QRCode from 'react-qr-code'
 import {useEffect, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {issueTimingDeviceToken} from '@api/sdk.gen.ts'
+import {createTimingStationShareLink} from '@api/sdk.gen.ts'
 import {TimingStationDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 
@@ -33,17 +33,16 @@ export type TimingStationShareDialogProps = {
 type ShareTarget = 'capture' | 'display'
 
 /**
- * „Auf Gerät teilen": ein teilbarer Link auf die /event-Timing-Route des Postens, der das
- * Geräte-Token direkt trägt (`?token=…`) — als QR-Code zum Abfotografieren und als kopierbare
- * Adresse. Das Gerät (geteiltes Handy am Posten, Anzeige-Bildschirm am Start) braucht damit
- * keine Anmeldung.
+ * „Auf Gerät teilen" ohne Handarbeit: Der Klick ruft den Share-Link-Endpunkt des Postens und
+ * zeigt SOFORT Link und QR-Code — kein Ausstellungs-Formular, keine „nur einmal sichtbar"-
+ * Warnung. Der Endpunkt ist wiederholbar: derselbe Posten liefert denselben Link, bis das
+ * zugehörige Geräte-Token im Geräte-Reiter des Leitstands widerrufen wird (dort sind solche
+ * Auto-Tokens als „Link" gekennzeichnet). Die manuelle Token-Ausstellung für Hardware ist aus
+ * diesem Dialog verschwunden — sie lebt weiterhin im Geräte-Reiter des Leitstands.
  *
- * Wiederverwendet wird der VORHANDENE Geräte-Token-Mechanismus des Leitstands
- * (`issueTimingDeviceToken`, Widerruf über den Geräte-Reiter) — nur die zweite Phase ist anders
- * als im `DeviceTokenIssueDialog`: statt des nackten Tokens (für Hardware-Konfigurationen) zeigt
- * sie die fertige Posten-Adresse. Wie dort gilt: der Klartext existiert nur in dieser Antwort,
- * der Link ist nach dem Schließen nicht wiederherstellbar — nur neu ausstellen und den alten
- * Token widerrufen.
+ * Für START-Posten gibt es zusätzlich das Ziel „Startbildschirm": derselbe (lesefähige) Token,
+ * nur die Adresse zeigt auf die Anzeige-Route des Postens. ANZEIGE-Posten brauchen den Umschalter
+ * nicht — ihr `path` führt schon vom Server direkt auf die Anzeige.
  */
 const TimingStationShareDialog = ({
     open,
@@ -54,47 +53,53 @@ const TimingStationShareDialog = ({
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const [name, setName] = useState('')
     const [target, setTarget] = useState<ShareTarget>('capture')
-    const [submitting, setSubmitting] = useState(false)
-    const [shareUrl, setShareUrl] = useState<string | null>(null)
+    const [sharePath, setSharePath] = useState<string | null>(null)
+    const [error, setError] = useState(false)
 
-    // Nur auf der false->true-Flanke zurücksetzen, damit ein einmal erzeugter Link nicht unter
-    // dem Nutzer weggeräumt wird (gleiche Begründung wie im DeviceTokenIssueDialog).
+    // Auf der false->true-Flanke direkt den Link holen — der Endpunkt ist idempotent, ein
+    // erneutes Öffnen liefert denselben Link.
     useEffect(() => {
         if (!open) return
-        setName(station.name)
         setTarget('capture')
-        setShareUrl(null)
-        setSubmitting(false)
-    }, [open, station])
-
-    const canSubmit = name.trim().length > 0 && !submitting
-
-    const handleIssue = () => {
-        if (!canSubmit) return
-        setSubmitting(true)
+        setSharePath(null)
+        setError(false)
+        let cancelled = false
         void (async () => {
             try {
-                const {data, error} = await issueTimingDeviceToken({
-                    path: {eventId},
-                    body: {name: name.trim(), station: station.id},
+                const {data, error: err} = await createTimingStationShareLink({
+                    path: {eventId, stationId: station.id},
                 })
-                if (error !== undefined || data === undefined) {
-                    feedback.error(t('timing.leitstand.devices.issue.error'))
+                if (cancelled) return
+                if (err !== undefined || data === undefined) {
+                    setError(true)
                     return
                 }
-                // Gleiche Adressbildung wie die Board-Links (BoardsPanel): origin + fester Pfad.
-                const base = `${window.location.origin}/event/${eventId}/timing/${station.id}`
-                const path = target === 'display' ? `${base}/anzeige` : base
-                setShareUrl(`${path}?token=${encodeURIComponent(data.token)}`)
+                setSharePath(data.path)
             } catch {
-                feedback.error(t('common.error.unexpected'))
-            } finally {
-                setSubmitting(false)
+                if (!cancelled) setError(true)
             }
         })()
-    }
+        return () => {
+            cancelled = true
+        }
+    }, [open, eventId, station])
+
+    // Der Server liefert den root-relativen Pfad samt Token; der Client hängt seinen Origin
+    // davor. Für das Startbildschirm-Ziel eines START-Postens wird das statische Suffix
+    // `/anzeige` vor den Query-Teil geschoben — gleicher Token, andere Ansicht.
+    const shareUrl = (() => {
+        if (sharePath === null) return null
+        let path = sharePath
+        if (target === 'display' && station.type === 'START') {
+            const queryStart = path.indexOf('?')
+            path =
+                queryStart === -1
+                    ? `${path}/anzeige`
+                    : `${path.slice(0, queryStart)}/anzeige${path.slice(queryStart)}`
+        }
+        return `${window.location.origin}${path}`
+    })()
 
     const handleCopy = () => {
         if (shareUrl === null) return
@@ -104,74 +109,46 @@ const TimingStationShareDialog = ({
             .catch(() => feedback.error(t('timing.leitstand.devices.issue.copyError')))
     }
 
-    // Solange der Link angezeigt wird, schließt nur der explizite Fertig-Knopf — Escape oder ein
-    // Klick daneben würde den einzigen Weg zu diesem Token verwerfen.
-    const handleDialogClose = (_event: object, reason: 'backdropClick' | 'escapeKeyDown') => {
-        if (shareUrl !== null && (reason === 'backdropClick' || reason === 'escapeKeyDown')) return
-        onClose()
-    }
-
     return (
-        <Dialog
-            open={open}
-            onClose={handleDialogClose}
-            disableEscapeKeyDown={shareUrl !== null}
-            fullWidth
-            maxWidth="sm">
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>{t('timing.station.share.title', {station: station.name})}</DialogTitle>
-            {shareUrl === null ? (
-                <>
-                    <DialogContent>
-                        <Stack spacing={2} sx={{mt: 1}}>
-                            <Typography variant="body2" color="text.secondary">
-                                {t('timing.station.share.description')}
-                            </Typography>
-                            {station.type === 'START' && (
-                                <ToggleButtonGroup
-                                    value={target}
-                                    exclusive
-                                    fullWidth
-                                    onChange={(_, value: ShareTarget | null) => {
-                                        if (value !== null) setTarget(value)
-                                    }}>
-                                    <ToggleButton value="capture">
-                                        {t('timing.station.share.target.capture')}
-                                    </ToggleButton>
-                                    <ToggleButton value="display">
-                                        {t('timing.station.share.target.display')}
-                                    </ToggleButton>
-                                </ToggleButtonGroup>
-                            )}
-                            <TextField
-                                label={t('timing.leitstand.devices.column.name')}
-                                value={name}
-                                autoFocus
-                                disabled={submitting}
-                                helperText={t('timing.station.share.nameHelp')}
-                                onChange={event => setName(event.target.value)}
-                            />
-                        </Stack>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={onClose} disabled={submitting}>
-                            {t('common.cancel')}
-                        </Button>
-                        <Button variant="contained" onClick={handleIssue} disabled={!canSubmit}>
-                            {t('timing.station.share.createLink')}
-                        </Button>
-                    </DialogActions>
-                </>
-            ) : (
-                <>
-                    <DialogContent>
-                        <Stack spacing={2} sx={{mt: 1}} alignItems="center">
-                            <Alert severity="warning" sx={{width: 1}}>
-                                {t('timing.station.share.onceWarning')}
-                            </Alert>
+            <DialogContent>
+                <Stack spacing={2} sx={{mt: 1}} alignItems="center">
+                    <Typography variant="body2" color="text.secondary" sx={{width: 1}}>
+                        {t('timing.station.share.description')}
+                    </Typography>
+                    {station.type === 'START' && (
+                        <ToggleButtonGroup
+                            value={target}
+                            exclusive
+                            fullWidth
+                            onChange={(_, value: ShareTarget | null) => {
+                                if (value !== null) setTarget(value)
+                            }}>
+                            <ToggleButton value="capture">
+                                {t('timing.station.share.target.capture')}
+                            </ToggleButton>
+                            <ToggleButton value="display">
+                                {t('timing.station.share.target.display')}
+                            </ToggleButton>
+                        </ToggleButtonGroup>
+                    )}
+                    {error && (
+                        <Alert severity="error" sx={{width: 1}}>
+                            {t('timing.station.share.error')}
+                        </Alert>
+                    )}
+                    {!error && shareUrl === null && <CircularProgress sx={{my: 4}} />}
+                    {shareUrl !== null && (
+                        <>
                             <Paper elevation={0} sx={{p: 2, bgcolor: 'white'}}>
                                 <QRCode value={shareUrl} size={220} level="M" />
                             </Paper>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{width: 1}}>
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                sx={{width: 1}}>
                                 <Typography
                                     sx={{
                                         fontFamily: 'monospace',
@@ -197,15 +174,15 @@ const TimingStationShareDialog = ({
                                     {t('timing.station.share.revokeHint')}
                                 </Typography>
                             </Box>
-                        </Stack>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button variant="contained" onClick={onClose}>
-                            {t('timing.leitstand.devices.issue.done')}
-                        </Button>
-                    </DialogActions>
-                </>
-            )}
+                        </>
+                    )}
+                </Stack>
+            </DialogContent>
+            <DialogActions>
+                <Button variant="contained" onClick={onClose}>
+                    {t('common.close')}
+                </Button>
+            </DialogActions>
         </Dialog>
     )
 }

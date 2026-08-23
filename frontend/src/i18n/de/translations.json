@@ -3051,17 +3051,15 @@
       "share": {
         "action": "Auf Gerät teilen",
         "title": "Posten „{{station}}\" auf Gerät teilen",
-        "description": "Erzeugt einen Link mit Geräte-Zugang: das Gerät (geteiltes Handy, Anzeige-Bildschirm) braucht keine Anmeldung. Der Zugang lässt sich jederzeit im Leitstand unter „Geräte\" widerrufen.",
-        "nameHelp": "Name des Geräts, wie er im Leitstand unter „Geräte\" erscheint",
-        "createLink": "Link erzeugen",
-        "onceWarning": "Der Link wird nur dieses eine Mal angezeigt. Jetzt abfotografieren oder kopieren — danach hilft nur ein neuer Link.",
+        "description": "Der Link trägt den Geräte-Zugang dieses Postens: das Gerät (geteiltes Handy, Anzeige-Bildschirm) braucht keine Anmeldung. Derselbe Posten liefert immer denselben Link — bis der Zugang im Leitstand unter „Geräte“ widerrufen wird.",
         "copied": "Link kopiert",
         "copy": "Link kopieren",
-        "revokeHint": "Widerruf jederzeit im Leitstand, Reiter „Geräte\". Ein widerrufener Zugang macht den Link sofort unbrauchbar.",
+        "revokeHint": "Der Link bleibt hier jederzeit abrufbar. Widerruf im Leitstand, Reiter „Geräte“ (Eintrag „Link“) — ein widerrufener Zugang macht den Link sofort unbrauchbar, der nächste Klick auf „Teilen“ erzeugt einen neuen.",
         "target": {
           "capture": "Erfassung",
           "display": "Startbildschirm"
-        }
+        },
+        "error": "Der Link konnte nicht erzeugt werden."
       }
     },
     "assign": {
@@ -3389,7 +3387,8 @@
             "title": "Token widerrufen?",
             "content": "Das Gerät „{{name}}“ kann danach keine Zeiten mehr senden."
           }
-        }
+        },
+        "autoIssued": "Link"
       }
     },
     "startDisplay": {
