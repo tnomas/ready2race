@@ -17,7 +17,7 @@ import {
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import QRCode from 'react-qr-code'
-import {useEffect, useState} from 'react'
+import {useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {createTimingStationShareLink} from '@api/sdk.gen.ts'
 import {TimingStationDto} from '@api/types.gen.ts'
@@ -57,6 +57,12 @@ const TimingStationShareDialog = ({
     const [sharePath, setSharePath] = useState<string | null>(null)
     const [error, setError] = useState(false)
 
+    // Die laufende Share-Link-Anfrage, geteilt über doppelte Effekt-Läufe hinweg: Reacts
+    // StrictMode feuert den Effekt in der Entwicklung zweimal, und zwei GLEICHZEITIGE erste
+    // Anfragen konnten serverseitig je ein Token anlegen (der Endpunkt ist nur sequenziell
+    // idempotent). Eine Anfrage pro Öffnen genügt — der zweite Lauf hängt sich an dieselbe.
+    const requestRef = useRef<ReturnType<typeof createTimingStationShareLink> | null>(null)
+
     // Auf der false->true-Flanke direkt den Link holen — der Endpunkt ist idempotent, ein
     // erneutes Öffnen liefert denselben Link.
     useEffect(() => {
@@ -65,21 +71,25 @@ const TimingStationShareDialog = ({
         setSharePath(null)
         setError(false)
         let cancelled = false
-        void (async () => {
-            try {
-                const {data, error: err} = await createTimingStationShareLink({
-                    path: {eventId, stationId: station.id},
-                })
+        const request =
+            requestRef.current ??
+            createTimingStationShareLink({path: {eventId, stationId: station.id}})
+        requestRef.current = request
+        void request
+            .then(({data, error: err}) => {
                 if (cancelled) return
                 if (err !== undefined || data === undefined) {
                     setError(true)
                     return
                 }
                 setSharePath(data.path)
-            } catch {
+            })
+            .catch(() => {
                 if (!cancelled) setError(true)
-            }
-        })()
+            })
+            .finally(() => {
+                if (requestRef.current === request) requestRef.current = null
+            })
         return () => {
             cancelled = true
         }
