@@ -11,6 +11,7 @@ import {cycleFocus, finishKeyTarget} from '@utils/timing/boardFocus.ts'
 import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {formatOfficialTime} from '@components/timing/leitstand/format.ts'
 import {boatReason} from '@components/timing/leitstand/officialTimeReason.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import {useTouchOnly} from '@utils/touch.ts'
 
@@ -337,14 +338,16 @@ const MatchCaptureView = ({
                                         </Typography>
                                     )}
                                     {reason !== null && (
-                                        // warning.dark, nicht warning.main: der helle Ton wäre
-                                        // auf dem hellen Knopf kaum lesbar.
+                                        // warningTextColor: die Palette-Warnfarbe wäre auf dem
+                                        // hellen Knopf kaum lesbar.
                                         <Typography
                                             variant="caption"
-                                            sx={{
-                                                color: done ? 'text.disabled' : 'warning.dark',
+                                            sx={theme => ({
+                                                color: done
+                                                    ? 'text.disabled'
+                                                    : warningTextColor(theme),
                                                 fontWeight: 600,
-                                            }}>
+                                            })}>
                                             {t(`timing.officialTime.reason.${reason}`)}
                                         </Typography>
                                     )}

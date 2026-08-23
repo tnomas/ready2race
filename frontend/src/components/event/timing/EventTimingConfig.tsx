@@ -215,11 +215,13 @@ const EventTimingConfig = () => {
                                 bleiben Millisekunden — die Einstellung wirkt auf Übernahme und
                                 Anzeige; eine Änderung rechnet die Ergebnisse serverseitig um.
                                 Der Hinweis steht dauerhaft dabei; bei feineren Stufen als
-                                Zehntel wechselt er auf einen Warnton (dezent, keine Blockade):
-                                von Hand getippte Zeiten tragen menschliche Reaktionszeit,
-                                feinere Stellen wären dann Scheingenauigkeit. `warning.dark`
-                                statt `warning.main`, weil der helle Orangeton als Fließtext
-                                auf hellem Grund kaum lesbar ist. */}
+                                Zehntel wird er zum Warn-Alert (dezent, keine Blockade): von
+                                Hand getippte Zeiten tragen menschliche Reaktionszeit, feinere
+                                Stellen wären dann Scheingenauigkeit. Alert statt eingefärbter
+                                Typography, weil die Warnfarbe der Palette ein heller
+                                Hintergrundton ist — als Textfarbe war der Hinweis auf weißem
+                                Grund kaum lesbar; der Alert setzt seinen Text selbst in einem
+                                lesbar abgedunkelten Ton. */}
                             <Box>
                                 <FormInputRadioButtonGroup
                                     name={'timingPrecision'}
@@ -232,17 +234,19 @@ const EventTimingConfig = () => {
                                         {id: 'MILLISEKUNDE', label: t('event.timing.precision.options.MILLISEKUNDE')},
                                     ]}
                                 />
-                                <Typography
-                                    variant={'body2'}
-                                    color={
-                                        timingPrecision === 'HUNDERTSTEL' ||
-                                        timingPrecision === 'MILLISEKUNDE'
-                                            ? 'warning.dark'
-                                            : 'text.secondary'
-                                    }
-                                    sx={{mt: 0.5}}>
-                                    <Trans i18nKey={'event.timing.precision.hint'} />
-                                </Typography>
+                                {timingPrecision === 'HUNDERTSTEL' ||
+                                timingPrecision === 'MILLISEKUNDE' ? (
+                                    <Alert severity={'warning'} sx={{mt: 1}}>
+                                        <Trans i18nKey={'event.timing.precision.hint'} />
+                                    </Alert>
+                                ) : (
+                                    <Typography
+                                        variant={'body2'}
+                                        color={'text.secondary'}
+                                        sx={{mt: 0.5}}>
+                                        <Trans i18nKey={'event.timing.precision.hint'} />
+                                    </Typography>
+                                )}
                             </Box>
                             <TimingModePanel eventId={eventId} />
                         </Stack>

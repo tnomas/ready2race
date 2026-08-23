@@ -11,6 +11,7 @@ import {deregisteredChip, matchStatusChip} from '@components/event/match/matchSt
 import StatusChip from '@components/event/match/StatusChip.tsx'
 import {byeExplanation} from '@components/event/match/matchBye.ts'
 import {groupByRatingCategory, hasRatingCategories} from '@utils/ratingCategorySections.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {
     CLUB_CHAIN_NARROW_CHARS,
     CLUB_CHAIN_NARROW_RESULT_CHARS,
@@ -315,8 +316,9 @@ const LiveDashboardMatchCard = ({
                     )}
                 </Box>
                 {match.pairingsRecalculatedAt && (
-                    // warning.dark: der helle Warnton ist als Text auf hellem Grund kaum lesbar.
-                    <Typography variant={'caption'} color={'warning.dark'}>
+                    // warningTextColor: die Palette-Warnfarbe ist ein heller Hintergrundton und
+                    // als Text auf hellem Grund kaum lesbar.
+                    <Typography variant={'caption'} sx={{color: warningTextColor}}>
                         {t('event.competition.execution.pairingsRecalculated')}
                     </Typography>
                 )}
@@ -331,8 +333,8 @@ const LiveDashboardMatchCard = ({
                             alignItems="center"
                             flexWrap="wrap"
                             useFlexGap>
-                            {/* warning.dark statt warning.main: lesbarer Text auf hellem Grund. */}
-                            <Typography variant={'caption'} color={'warning.dark'}>
+                            {/* warningTextColor statt warning.main: lesbarer Text auf hellem Grund. */}
+                            <Typography variant={'caption'} sx={{color: warningTextColor}}>
                                 {pollStatus.kind === 'paused'
                                     ? t(
                                           'event.competition.execution.results.raceclocker.poll.paused',

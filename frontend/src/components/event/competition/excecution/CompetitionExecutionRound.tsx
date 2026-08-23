@@ -56,6 +56,7 @@ import {byeMatches} from '@components/event/competition/excecution/byeMatches.ts
 import {roundSkipErrorText} from '@components/event/schedule/scheduleError.ts'
 import {MatchResultOption, matchResultOptions} from './matchResultOptions.ts'
 import {raceClockerPollStatus} from './raceClockerPollStatus.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {TimingFormSystem} from '@components/event/competition/timing/timingConfigForm.ts'
 import {
     arenaChip,
@@ -944,8 +945,9 @@ const CompetitionExecutionRound = ({
                                         }}
                                     />
                                     {match.pairingsRecalculatedAt && (
-                                        // warning.dark: heller Warnton als Text ist kaum lesbar.
-                                        <Typography variant={'caption'} color={'warning.dark'}>
+                                        // warningTextColor: die Palette-Warnfarbe ist ein heller
+                                        // Hintergrundton, als Text kaum lesbar.
+                                        <Typography variant={'caption'} sx={{color: warningTextColor}}>
                                             {t('event.competition.execution.pairingsRecalculated')}
                                         </Typography>
                                     )}
@@ -958,13 +960,14 @@ const CompetitionExecutionRound = ({
                                                 <Stack spacing={0.5}>
                                                     <Typography
                                                         variant={'caption'}
-                                                        color={
-                                                            // warning.dark: lesbar auf hellem
+                                                        sx={{
+                                                            // warningTextColor: lesbar auf hellem
                                                             // Grund, anders als warning.main.
-                                                            status.kind === 'ok'
-                                                                ? 'text.secondary'
-                                                                : 'warning.dark'
-                                                        }>
+                                                            color:
+                                                                status.kind === 'ok'
+                                                                    ? 'text.secondary'
+                                                                    : warningTextColor,
+                                                        }}>
                                                         {status.kind === 'paused'
                                                             ? t(
                                                                   'event.competition.execution.results.raceclocker.poll.paused',
