@@ -1057,6 +1057,9 @@ import type {
     GetTimingMatchesData,
     GetTimingMatchesError,
     GetTimingMatchesResponse,
+    RetractMatchStartMarksData,
+    RetractMatchStartMarksError,
+    RetractMatchStartMarksResponse,
     GetTimingModesData,
     GetTimingModesError,
     GetTimingModesResponse,
@@ -5851,6 +5854,22 @@ export const getTimingMatches = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE time mark on a START station that is assigned to a team of this match is set to RETRACTED in one call. Assignments are kept (like the single retract), the official times of the affected teams are recomputed and written back immediately, and the match falls back to "open" in the start list. Idempotent - a match without active start marks succeeds without effect. Requires a user session; device tokens cannot retract marks.
+ */
+export const retractMatchStartMarks = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RetractMatchStartMarksData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        RetractMatchStartMarksResponse,
+        RetractMatchStartMarksError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches/{matchId}/retractStartMarks',
+    })
+}
+
 export const getTimingModes = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetTimingModesData, ThrowOnError>,
 ) => {
@@ -6032,6 +6051,9 @@ export const deleteRetractedTimeMarks = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The event's official times. Readable with a session or with the X-Timing-Device-Token header - the finish board shows official times live at each boat, and shared station devices run without a session (the websocket's officialTimeChanged messages already accept the same tokens; this is the initial state for them).
+ */
 export const getOfficialTimes = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetOfficialTimesData, ThrowOnError>,
 ) => {

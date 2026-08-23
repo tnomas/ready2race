@@ -9972,6 +9972,32 @@ paths:
                   $ref: '#/components/schemas/TimingMatchDto'
       tags:
         - Timing
+  /event/{eventId}/timing/matches/{matchId}/retractStartMarks:
+    post:
+      operationId: retractMatchStartMarks
+      description: >-
+        Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE
+        time mark on a START station that is assigned to a team of this match is set to RETRACTED
+        in one call. Assignments are kept (like the single retract), the official times of the
+        affected teams are recomputed and written back immediately, and the match falls back to
+        "open" in the start list. Idempotent - a match without active start marks succeeds without
+        effect. Requires a user session; device tokens cannot retract marks.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
   /event/{eventId}/timing/modes:
     get:
       operationId: getTimingModes
@@ -10347,6 +10373,11 @@ paths:
   /event/{eventId}/timing/officialTimes:
     get:
       operationId: getOfficialTimes
+      description: >-
+        The event's official times. Readable with a session or with the X-Timing-Device-Token
+        header - the finish board shows official times live at each boat, and shared station
+        devices run without a session (the websocket's officialTimeChanged messages already accept
+        the same tokens; this is the initial state for them).
       parameters:
         - name: eventId
           in: path

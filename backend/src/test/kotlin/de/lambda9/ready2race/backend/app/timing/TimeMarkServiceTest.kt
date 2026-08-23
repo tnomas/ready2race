@@ -165,6 +165,53 @@ class TimeMarkServiceTest {
         assertNull(assignment)
     }
 
+    // ------------------------------------------------- Bündel-Rücknahme der Startmarken (Board)
+
+    @Test
+    fun retractMatchStartMarksRetractsOnlyStartMarksOfThatMatch() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val fixture = !createTestMatchFixture(eventId, teamCount = 2)
+        val (teamA, teamB) = fixture.teamIds
+        // Eine zweite Partie derselben Veranstaltung - deren Startmarke muss stehen bleiben.
+        val otherTeam = !createTestMatchTeam(eventId)
+
+        val startA = !addAssignedMark(eventId, userId, startStation, teamA, 1755430000000)
+        val startB = !addAssignedMark(eventId, userId, startStation, teamB, 1755430001000)
+        val finishA = !addAssignedMark(eventId, userId, finishStation, teamA, 1755430090000)
+        val otherStart = !addAssignedMark(eventId, userId, startStation, otherTeam, 1755430002000)
+
+        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+
+        assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(startA))!!.status)
+        assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(startB))!!.status)
+        // Zielmarke und fremde Partie bleiben unangetastet.
+        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(finishA))!!.status)
+        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(otherStart))!!.status)
+        // Die Zuordnung überlebt die Rücknahme (wie bei der Einzel-Rücknahme) - eine Reaktivierung
+        // stellt den Start samt Boot wieder her.
+        assertNotNull(!TimingAssignmentRepo.getByTimeMark(startA))
+        // Die Echtzeit-Übernahme hat die offizielle Zeit mit abgeräumt: ohne Startmarke kein
+        // berechneter Wert mehr.
+        val official = !de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo.getByTeam(teamA)
+        assertNull(official!!.computedMillis)
+    }
+
+    @Test
+    fun retractMatchStartMarksIsIdempotent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val fixture = !createTestMatchFixture(eventId, teamCount = 1)
+        val start = !addAssignedMark(eventId, userId, startStation, fixture.teamIds.single(), 1755430000000)
+
+        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+        // Zweiter Griff (Doppelklick auf den Menüpunkt): nichts mehr zurückzunehmen, kein Fehler.
+        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+
+        assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(start))!!.status)
+    }
+
     @Test
     fun deleteStationFailsWhenStationHasTimeMarks() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

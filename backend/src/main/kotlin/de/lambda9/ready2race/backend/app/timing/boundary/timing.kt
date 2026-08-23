@@ -51,16 +51,31 @@ fun Route.timing() {
         // Die Posten-Startliste: Partien der intern gezeiteten Wettkämpfe in Startreihenfolge.
         // Lesend wie /teams - auch mit Geräte-Token, denn Start- und Zielposten laufen auf
         // geteilten Geräten ohne Sitzung.
-        get("/matches") {
-            call.respondComprehension {
-                val eventId = !pathParam("eventId", uuid)
-                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
-                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
-                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
-                } else {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+        route("/matches") {
+
+            get {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
+                    TimingMatchService.getMatches(eventId)
                 }
-                TimingMatchService.getMatches(eventId)
+            }
+
+            // „Start zurücknehmen und neu starten": nimmt alle aktiven Startmarken der Partie in
+            // einem Griff zurück. Wie die Einzel-Rücknahme nur mit Nutzersitzung — Geräte-Tokens
+            // nehmen keine Ergebnisse zurück.
+            post("/{matchId}/retractStartMarks") {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val matchId = !pathParam("matchId", uuid)
+                    TimingService.retractMatchStartMarks(matchId, eventId, user.id!!)
+                }
             }
         }
 
@@ -378,10 +393,19 @@ fun Route.timing() {
 
         route("/officialTimes") {
 
+            // Lesend auch mit Geräte-Token: der Zielposten zeigt die offiziellen Zeiten live am
+            // Boot, und geteilte Posten-Geräte laufen ohne Sitzung. Der Live-Kanal
+            // (officialTimeChanged) akzeptiert dieselben Tokens bereits — dieser GET ist nur der
+            // initiale Stand dazu.
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
                     TimingOfficialTimeService.getForEvent(eventId)
                 }
             }

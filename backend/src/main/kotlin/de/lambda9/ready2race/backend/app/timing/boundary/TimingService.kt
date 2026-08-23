@@ -218,6 +218,46 @@ object TimingService {
         noData
     }
 
+    /**
+     * Bündel-Rücknahme des Startpostens („Start zurücknehmen und neu starten"): alle ACTIVE
+     * Startmarken, die Teams der Partie zugeordnet sind, werden in einem Griff auf RETRACTED
+     * gestellt. Die Zuordnungen bleiben stehen (wie bei der Einzel-Rücknahme), die
+     * Echtzeit-Übernahme räumt die offiziellen Zeiten der betroffenen Teams sofort mit ab und die
+     * Partie fällt in der Startliste zurück auf „offen" — der Posten kann sie erneut starten.
+     *
+     * Bewusst idempotent und ohne Existenzprüfung der Partie: keine passende Marke heißt schlicht
+     * „nichts zurückzunehmen" (auch der Doppelklick auf den Menüpunkt ist damit harmlos). Ein per
+     * Schiedsrichter-Stempel gesetztes `started_at` der Partie bleibt unberührt — dieser Weg
+     * nimmt ausschließlich Zeitnahme-Marken zurück. Nur mit Nutzersitzung erreichbar, nicht per
+     * Geräte-Token (Rücknahmen sind Ergebnis-Korrekturen).
+     */
+    fun retractMatchStartMarks(
+        setupMatchId: UUID,
+        eventId: UUID,
+        userId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val rows = !TimingTimeMarkRepo.getActiveStartMarksForMatch(eventId, setupMatchId).orDie()
+        if (rows.isEmpty()) return@comprehension noData
+
+        val now = LocalDateTime.now()
+        !rows.traverse { row ->
+            TimingTimeMarkRepo.update(row.timeMarkId) {
+                status = "RETRACTED"
+                updatedAt = now
+                updatedBy = userId
+            }.orDie()
+        }
+        // Wie bei der Einzel-Rücknahme: Neuberechnung und Rückschreibung laufen sofort mit, im
+        // selben Request — die Startzeiten der Teams verschwinden damit auch aus den Läufen.
+        !TimingOfficialTimeService.recomputeApplyAndBroadcast(
+            eventId,
+            rows.map { it.competitionMatchTeam }.distinct(),
+            userId,
+        )
+        rows.forEach { broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(it.timeMarkId)) }
+        noData
+    }
+
     fun assignTimeMark(
         request: AssignTimeMarkRequest,
         userId: UUID,
