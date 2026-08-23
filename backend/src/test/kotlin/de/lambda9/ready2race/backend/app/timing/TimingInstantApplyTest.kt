@@ -101,18 +101,20 @@ class TimingInstantApplyTest {
         assertFalse(officialAfter.dirty!!)
     }
 
-    // Die Rückschreibung endet am Ergebnis: Plätze, finished_at und die Rundenkette bleiben
-    // unberührt - beendet wird ein Lauf weiterhin nur dort, wo er heute beendet wird.
+    // Mit der Zeit kommt der Platz - aber die Rückschreibung endet am Ergebnis: finished_at und
+    // die Rundenkette bleiben unberührt, beendet wird ein Lauf weiterhin nur dort, wo er heute
+    // beendet wird.
     @Test
-    fun instantApplyNeverTouchesPlacesOrMatchEnd() = testComprehension {
+    fun instantApplyWritesThePlaceButNeverEndsTheMatch() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val track = !prepareTrack(eventId, userId)
         !addAssignedMark(eventId, userId, track.startStation, track.teamId, startMillis)
         !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
 
         val team = !CompetitionMatchTeamRepo.getById(track.teamId)
-        assertNull(team!!.place)
-        assertFalse(team.placesCalculated!!)
+        // Der Platz kommt mit der Zeit - abgeleitet wie beim Import (places_calculated).
+        assertEquals(1, team!!.place)
+        assertTrue(team.placesCalculated!!)
         val match = !Jooq.query {
             selectFrom(de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH)
                 .where(
@@ -344,18 +346,24 @@ class TimingInstantApplyTest {
         assertTrue(official.dirty!!)
     }
 
+    // Die Schutzregel ist seit dem Platz-Umbau "FREMDER Platz = einfrieren": Ein Platz, der nicht
+    // aus unserer eigenen Ableitung stammt (hier: von Hand auf einen anderen Wert gesetzt), macht
+    // den Stand fremd - die Rücknahme räumt dann nichts mehr ab.
     @Test
-    fun calculatedPlacesFreezeLaterChanges() = testComprehension {
+    fun foreignPlacesFreezeLaterChanges() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val track = !prepareTrack(eventId, userId)
         !addAssignedMark(eventId, userId, track.startStation, track.teamId, startMillis)
         val finishMark = !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
-        !CompetitionMatchTeamRepo.updateById(track.teamId) { placesCalculated = true }.orDie()
+        // Die Übernahme hat Platz 1 abgeleitet; ein Schiedsrichter setzt den Platz um.
+        !CompetitionMatchTeamRepo.updateById(track.teamId) { place = 2 }.orDie()
 
         !TimingService.retractTimeMark(finishMark, eventId, userId)
 
-        // Das Ergebnis mit berechneten Plätzen bleibt stehen; die Zeile zeigt die Abweichung.
-        assertEquals(track.teamId, (!CompetitionMatchTeamRepo.getById(track.teamId))!!.timecode)
+        // Das Ergebnis mit fremdem Platz bleibt stehen; die Zeile zeigt die Abweichung.
+        val team = !CompetitionMatchTeamRepo.getById(track.teamId)
+        assertEquals(track.teamId, team!!.timecode)
+        assertEquals(2, team.place)
         val official = !TimingOfficialTimeRepo.getByTeam(track.teamId)
         assertNull(official!!.computedMillis)
         assertTrue(official.dirty!!)

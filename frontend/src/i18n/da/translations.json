@@ -3308,6 +3308,7 @@
           "penalty": "Straftid",
           "status": "Status",
           "effective": "Effektiv",
+          "place": "Plads",
           "pushed": "Overført"
         },
         "status": {

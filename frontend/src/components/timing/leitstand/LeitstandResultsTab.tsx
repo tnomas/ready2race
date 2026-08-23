@@ -320,6 +320,7 @@ const LeitstandResultsTab = ({
                             <TableCell>{t('timing.leitstand.results.column.penalty')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.status')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.effective')}</TableCell>
+                            <TableCell>{t('timing.leitstand.results.column.place')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.pushed')}</TableCell>
                             <TableCell align="right">{t('common.actions')}</TableCell>
                         </TableRow>
@@ -426,6 +427,13 @@ const LeitstandResultsTab = ({
                                               formatOfficialTime(official.effectiveMillis, precision)
                                             : '–'}
                                     </TableCell>
+                                    <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
+                                        {/* Der Platz, wie er am Lauf steht - aus den Zeiten
+                                            abgeleitet; Gleichstände teilen sich den Platz. */}
+                                        {official?.place !== undefined && official.place !== null
+                                            ? official.place
+                                            : '–'}
+                                    </TableCell>
                                     <TableCell>
                                         <Stack direction="row" spacing={0.5} alignItems="center">
                                             {official?.pushedAt !== undefined && (
@@ -470,7 +478,7 @@ const LeitstandResultsTab = ({
                         })}
                         {rows.length === 0 && !officialTimesPending && (
                             <TableRow>
-                                <TableCell colSpan={11}>
+                                <TableCell colSpan={12}>
                                     <Typography variant="body2" color="text.secondary">
                                         {t('timing.leitstand.results.empty')}
                                     </Typography>

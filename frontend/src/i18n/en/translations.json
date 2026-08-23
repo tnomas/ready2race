@@ -3335,6 +3335,7 @@
           "penalty": "Penalty",
           "status": "Status",
           "effective": "Effective",
+          "place": "Place",
           "pushed": "Pushed"
         },
         "status": {

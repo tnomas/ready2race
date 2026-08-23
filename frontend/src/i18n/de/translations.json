@@ -3335,6 +3335,7 @@
           "penalty": "Strafzeit",
           "status": "Status",
           "effective": "Effektiv",
+          "place": "Platz",
           "pushed": "Übernommen"
         },
         "status": {

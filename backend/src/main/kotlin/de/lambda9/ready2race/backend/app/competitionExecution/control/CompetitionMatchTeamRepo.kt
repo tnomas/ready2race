@@ -50,6 +50,10 @@ object CompetitionMatchTeamRepo {
 
     fun getById(teamId: UUID): JIO<CompetitionMatchTeamRecord?> = COMPETITION_MATCH_TEAM.selectOne { ID.eq(teamId) }
 
+    // Sammel-Lookup für die Zeitnahme: eine Abfrage für die Plätze vieler Zeilen statt einer je Team.
+    fun getByIds(teamIds: List<UUID>): JIO<List<CompetitionMatchTeamRecord>> =
+        COMPETITION_MATCH_TEAM.select { ID.`in`(teamIds) }
+
     fun updateById(teamId: UUID, f: CompetitionMatchTeamRecord.() -> Unit) =
         COMPETITION_MATCH_TEAM.update(f) { ID.eq(teamId) }
 
