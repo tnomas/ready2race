@@ -10,6 +10,7 @@ import {expectedFinishMatches, pendingAssignmentMark} from '@utils/timing/matchB
 import {cycleFocus, finishKeyTarget} from '@utils/timing/boardFocus.ts'
 import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {formatOfficialTime} from '@components/timing/leitstand/format.ts'
+import {boatReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import {useTouchOnly} from '@utils/touch.ts'
 
@@ -251,6 +252,9 @@ const MatchCaptureView = ({
                                   : official.effectiveMillis !== undefined
                                     ? formatOfficialTime(official.effectiveMillis, precision)
                                     : undefined
+                        // Zeilen-Ebene zum „Start fehlt"-Chip der Partie: WELCHES Boot eine
+                        // Zielzeit ohne Start (oder verdrehte Marken) hat, statt leerer Stelle.
+                        const reason = officialLabel === undefined ? boatReason(official) : null
                         return (
                             <ButtonBase
                                 key={team.competitionMatchTeam}
@@ -330,6 +334,18 @@ const MatchCaptureView = ({
                                                 color: done ? 'text.disabled' : 'success.main',
                                             }}>
                                             {officialLabel}
+                                        </Typography>
+                                    )}
+                                    {reason !== null && (
+                                        // warning.dark, nicht warning.main: der helle Ton wäre
+                                        // auf dem hellen Knopf kaum lesbar.
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                color: done ? 'text.disabled' : 'warning.dark',
+                                                fontWeight: 600,
+                                            }}>
+                                            {t(`timing.officialTime.reason.${reason}`)}
                                         </Typography>
                                     )}
                                 </Stack>

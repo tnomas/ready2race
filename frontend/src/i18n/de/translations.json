@@ -3039,6 +3039,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "kein Start",
+        "NO_FINISH_MARK": "kein Ziel",
+        "NEGATIVE_DURATION": "Start nach Ziel",
+        "NO_MARKS": "keine Zeitmarken"
+      }
+    },
     "title": "Zeitnahme",
     "selectEvent": "Veranstaltung wählen",
     "selectStation": "Posten wählen",

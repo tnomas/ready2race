@@ -33,6 +33,8 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
+import OfficialTimeReasonChip from '@components/timing/leitstand/OfficialTimeReasonChip.tsx'
+import {effectiveReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {
     formatOfficialTime,
     formatSeconds,
@@ -390,6 +392,13 @@ const LeitstandOverviewTab = ({
                                                             official.effectiveMillis,
                                                             settings.precision,
                                                         )
+                                                    ) : effectiveReason(official) !== null ? (
+                                                        // Statt des leeren Werts der Grund
+                                                        // („kein Start", „kein Ziel", …) — der
+                                                        // Bediener sieht, warum nichts dasteht.
+                                                        <OfficialTimeReasonChip
+                                                            reason={effectiveReason(official)!}
+                                                        />
                                                     ) : (
                                                         '–'
                                                     )}

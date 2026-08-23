@@ -3012,6 +3012,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "ingen start",
+        "NO_FINISH_MARK": "intet mål",
+        "NEGATIVE_DURATION": "start efter mål",
+        "NO_MARKS": "ingen tidsmærker"
+      }
+    },
     "title": "Tidtagning",
     "selectEvent": "Vælg arrangement",
     "selectStation": "Vælg post",

@@ -34,6 +34,8 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
+import OfficialTimeReasonChip from '@components/timing/leitstand/OfficialTimeReasonChip.tsx'
+import {computedReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {
     formatDuration,
     formatOfficialTime,
@@ -361,9 +363,17 @@ const LeitstandResultsTab = ({
                                             : '–'}
                                     </TableCell>
                                     <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
-                                        {official?.computedMillis !== undefined
-                                            ? formatDuration(official.computedMillis)
-                                            : '–'}
+                                        {official?.computedMillis !== undefined ? (
+                                            formatDuration(official.computedMillis)
+                                        ) : computedReason(official) !== null ? (
+                                            // Statt des leeren Werts der Grund: warum aus den
+                                            // Marken (noch) keine Zeit berechnet werden kann.
+                                            <OfficialTimeReasonChip
+                                                reason={computedReason(official)!}
+                                            />
+                                        ) : (
+                                            '–'
+                                        )}
                                     </TableCell>
                                     <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
                                         {official?.overrideMillis !== undefined

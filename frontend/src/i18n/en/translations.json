@@ -3039,6 +3039,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "no start",
+        "NO_FINISH_MARK": "no finish",
+        "NEGATIVE_DURATION": "start after finish",
+        "NO_MARKS": "no time marks"
+      }
+    },
     "title": "Timing",
     "selectEvent": "Select event",
     "selectStation": "Select station",
