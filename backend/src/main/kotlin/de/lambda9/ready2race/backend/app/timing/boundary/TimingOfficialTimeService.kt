@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.competitionExecution.boundary.Competiti
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.control.*
@@ -78,18 +79,19 @@ object TimingOfficialTimeService {
      * ändern, weil ein neu eingelaufenes Boot die Plätze der anderen verschiebt - sie sind dann
      * Teil der Rückgabe.
      *
-     * Sendet selbst **keine** Broadcasts: der Startsequenz-Job ruft dies innerhalb der
-     * Scheduler-Transaktion auf, wo kein AfterCommit-Puffer installiert ist (siehe [FireResult]).
-     * Die geänderten Zeilen kommen deshalb als Rückgabe, und HTTP-Aufrufer nehmen
-     * [recomputeApplyAndBroadcast].
+     * Sendet selbst **keine** Broadcasts und bumpt **keinen** [EventChangeMarker]: der
+     * Startsequenz-Job ruft dies innerhalb der Scheduler-Transaktion auf, wo kein
+     * AfterCommit-Puffer installiert ist (siehe [FireResult]). Die geänderten Zeilen und das
+     * Schreib-Flag kommen deshalb als Rückgabe ([OfficialTimeApplyOutcome]), und HTTP-Aufrufer
+     * nehmen [recomputeApplyAndBroadcast].
      */
     fun recomputeAndApply(
         eventId: UUID,
         teamIds: List<UUID>,
         userId: UUID?,
-    ): App<Nothing, List<OfficialTimeDto>> = KIO.comprehension {
+    ): App<Nothing, OfficialTimeApplyOutcome> = KIO.comprehension {
         val distinct = teamIds.distinct()
-        if (distinct.isEmpty()) return@comprehension KIO.ok(emptyList())
+        if (distinct.isEmpty()) return@comprehension KIO.ok(OfficialTimeApplyOutcome.empty)
 
         val markTimes = !resolveMarkTimes(eventId)
         val settings = !eventSettings(eventId)
@@ -105,9 +107,10 @@ object TimingOfficialTimeService {
         //    ein einzelnes Ergebnis die Plätze aller anderen Boote des Laufs verschieben kann.
         val matchIds = !distinct.traverse { teamId -> CompetitionMatchTeamRepo.getById(teamId).orDie() }
             .map { records -> records.mapNotNull { it?.competitionMatch }.distinct() }
-        val applyChanged = !matchIds.traverse { matchId ->
+        val applyOutcomes = !matchIds.traverse { matchId ->
             applyMatch(matchId, settings, userId, now)
-        }.map { it.flatten() }
+        }
+        val applyChanged = applyOutcomes.flatMap { it.changedTeams }
 
         // Gemeldet wird der frische Stand ALLER ausgelösten Teams (auch ohne Schreibvorgang)
         // plus aller Boote, deren Platz durch die Übernahme gewandert ist: Der Aufruf kommt stets
@@ -115,17 +118,25 @@ object TimingOfficialTimeService {
         // Start-/Zielwerte live, um den Grund einer (noch) fehlenden Zeit zu zeigen ("kein
         // Start", "kein Ziel"). Teams ganz ohne Marken und Zeile bleiben stumm (officialTimeDtos).
         officialTimeDtos(eventId, (distinct + recomputeChanged + applyChanged).distinct(), markTimes)
+            .map { dtos -> OfficialTimeApplyOutcome(dtos, applyOutcomes.any { it.resultsWritten }) }
     }
 
-    /** [recomputeAndApply] plus Broadcast nach Commit - der Weg für alle HTTP-Mutationen. */
+    /**
+     * [recomputeAndApply] plus Broadcast nach Commit - der Weg für alle HTTP-Mutationen.
+     *
+     * Gibt zurück, ob an `competition_match_team` geschrieben oder geräumt wurde: der Aufrufer
+     * entscheidet daran über den [EventChangeMarker]-Bump für die öffentlichen Anzeigen - beim
+     * Aufrufer statt hier, damit eine Mutation, die zusätzlich einen Laufzustands-Stempel setzt
+     * (Zuordnung, Reaktivierung), beides zu genau EINEM Bump zusammenlegen kann.
+     */
     fun recomputeApplyAndBroadcast(
         eventId: UUID,
         teamIds: List<UUID>,
         userId: UUID?,
-    ): App<Nothing, Unit> = KIO.comprehension {
-        val changed = !recomputeAndApply(eventId, teamIds, userId)
-        broadcastAsync(eventId, changed)
-        KIO.ok(Unit)
+    ): App<Nothing, Boolean> = KIO.comprehension {
+        val outcome = !recomputeAndApply(eventId, teamIds, userId)
+        broadcastAsync(eventId, outcome.officialTimes)
+        KIO.ok(outcome.resultsWritten)
     }
 
     /**
@@ -170,14 +181,34 @@ object TimingOfficialTimeService {
      * Fremde Stände - auch fremde Plätze - werden nie angefasst; ihre ZEITEN zählen aber bei der
      * Platzableitung mit, denn der Platz eines eigenen Bootes hängt am ganzen Feld.
      *
-     * Gibt die Team-Ids zurück, an deren Zeile oder Ergebnis sich etwas geändert hat.
+     * Gibt die Team-Ids zurück, an deren Zeile oder Ergebnis sich etwas geändert hat - und
+     * getrennt davon, ob dabei wirklich an `competition_match_team` geschrieben wurde: eine bloße
+     * dirty-Fortschreibung der Leitstand-Zeile ändert die öffentlichen Anzeigen nicht und darf
+     * deshalb keinen Bump auslösen.
      */
+    private data class MatchApplyOutcome(
+        val changedTeams: List<UUID>,
+        val resultsWritten: Boolean,
+    )
+
+    /** Was [applyToTeam] an einer Zeile verändert hat - Grundlage der [MatchApplyOutcome]-Trennung. */
+    private enum class TeamApplyChange {
+        /** Nichts zu tun (Idempotenz, nichts zu schreiben, unveränderte dirty-Lage). */
+        NONE,
+
+        /** Nur die Leitstand-Zeile (dirty-Kennzeichen) - kein Schreiben am Lauf. */
+        ROW_ONLY,
+
+        /** Ergebnis an `competition_match_team` geschrieben oder geräumt. */
+        TEAM_WRITTEN,
+    }
+
     private fun applyMatch(
         matchId: UUID,
         settings: EventTimingSettings,
         userId: UUID?,
         now: LocalDateTime,
-    ): App<Nothing, List<UUID>> = KIO.comprehension {
+    ): App<Nothing, MatchApplyOutcome> = KIO.comprehension {
         val teams = !CompetitionMatchTeamRepo.getByMatch(matchId).orDie()
         val ids = teams.mapNotNull { it.id }
         val officials = (!TimingOfficialTimeRepo.getByTeams(ids).orDie())
@@ -199,19 +230,26 @@ object TimingOfficialTimeService {
             }
         }
 
-        val changed = !teams.traverse { team ->
+        val changes = !teams.traverse { team ->
             KIO.comprehension {
                 // Ohne Zeile gibt es nichts zu übernehmen und nichts abzuräumen - insbesondere
                 // bleibt ein fremder Platz eines solchen Teams unangetastet.
-                val official = officials[team.id] ?: return@comprehension KIO.ok(null)
+                val official = officials[team.id]
+                    ?: return@comprehension KIO.ok(team.id!! to TeamApplyChange.NONE)
                 val base = targetState(official, settings.precision)
                 val target = base.copy(place = places[team.id!!], placesCalculated = base.hasResult)
                 applyToTeam(official, team, target, teamStates[team.id!!]!!, settings, userId, now)
-                    .map { changed -> team.id.takeIf { changed } }
+                    .map { change -> team.id!! to change }
             }
-        }.map { it.filterNotNull() }
+        }
 
-        KIO.ok(changed)
+        KIO.ok(
+            MatchApplyOutcome(
+                changedTeams = changes.filter { (_, change) -> change != TeamApplyChange.NONE }
+                    .map { (teamId, _) -> teamId },
+                resultsWritten = changes.any { (_, change) -> change == TeamApplyChange.TEAM_WRITTEN },
+            )
+        )
     }
 
     /**
@@ -246,7 +284,9 @@ object TimingOfficialTimeService {
      * [clearResult], wenn unser eigenes Ergebnis seine Grundlage verloren hat. [target] trägt den
      * abgeleiteten Platz bereits.
      *
-     * Gibt zurück, ob sich an Zeile oder Team etwas geändert hat.
+     * Gibt zurück, WAS sich geändert hat ([TeamApplyChange]) - der Aufrufer braucht die
+     * Unterscheidung "Team geschrieben" vs. "nur Zeile", weil nur ersteres die öffentlichen
+     * Anzeigen betrifft.
      */
     private fun applyToTeam(
         official: TimingOfficialTimeRecord,
@@ -256,7 +296,7 @@ object TimingOfficialTimeService {
         settings: EventTimingSettings,
         userId: UUID?,
         now: LocalDateTime,
-    ): App<Nothing, Boolean> = KIO.comprehension {
+    ): App<Nothing, TeamApplyChange> = KIO.comprehension {
         val decision = TimingApplyLogic.decide(
             autoApply = settings.autoApply,
             target = target,
@@ -276,7 +316,7 @@ object TimingOfficialTimeService {
                 // RaceClocker-Abruf schreibt, pausiert einen konfigurierten Auto-Abruf. No-op ohne
                 // RaceClocker am Lauf.
                 !CompetitionExecutionService.pauseRaceClockerAutoPull(team.competitionMatch!!)
-                KIO.ok(true)
+                KIO.ok(TeamApplyChange.TEAM_WRITTEN)
             }
 
             TimingApplyLogic.Decision.ClearResult -> {
@@ -287,7 +327,7 @@ object TimingOfficialTimeService {
                     appliedFingerprint = null
                 }
                 !CompetitionExecutionService.pauseRaceClockerAutoPull(team.competitionMatch!!)
-                KIO.ok(true)
+                KIO.ok(TeamApplyChange.TEAM_WRITTEN)
             }
 
             else -> {
@@ -300,9 +340,9 @@ object TimingOfficialTimeService {
                 )
                 if ((official.dirty ?: false) != newDirty) {
                     !updateExisting(official.competitionMatchTeam, userId, now) { dirty = newDirty }
-                    KIO.ok(true)
+                    KIO.ok(TeamApplyChange.ROW_ONLY)
                 } else {
-                    KIO.ok(false)
+                    KIO.ok(TeamApplyChange.NONE)
                 }
             }
         }
@@ -361,7 +401,13 @@ object TimingOfficialTimeService {
         val markTimes = !resolveMarkTimes(eventId)
         val rows = !TimingOfficialTimeRepo.getByEvent(eventId).orDie()
         val teams = (markTimes.keys + rows.map { it.competitionMatchTeam }).toList()
-        !recomputeApplyAndBroadcast(eventId, teams, userId)
+        val written = !recomputeApplyAndBroadcast(eventId, teams, userId)
+        // Hat der Nachzug Ergebnisse an die Läufe geschrieben, müssen die öffentlichen Anzeigen
+        // sie sofort sehen - EIN Bump für den ganzen Nachzug, nicht einer je Team. Ohne
+        // Schreibvorgang (nichts aufgelaufen) bleibt es still.
+        if (written) {
+            EventChangeMarker.bump(eventId)
+        }
         KIO.ok(Unit)
     }
 
@@ -428,8 +474,13 @@ object TimingOfficialTimeService {
         } + withoutAnyMarks.map { OfficialTimeSkipDto(it, OfficialTimeSkipReason.NO_MARKS) }
 
         val affected = (candidates.keys + teams.orEmpty()).toList()
-        val changed = !recomputeAndApply(eventId, affected, userId)
-        broadcastAsync(eventId, changed)
+        val outcome = !recomputeAndApply(eventId, affected, userId)
+        broadcastAsync(eventId, outcome.officialTimes)
+        // Wie bei jeder Mutation: nur ein echter Schreibvorgang am Lauf entwertet die Caches der
+        // öffentlichen Anzeigen - ein wiederholter Rechenlauf ohne Änderung bleibt still.
+        if (outcome.resultsWritten) {
+            EventChangeMarker.bump(eventId)
+        }
 
         // Antwort mit dem frischen Stand NACH der Übernahme, in derselben stabilen Reihenfolge.
         val computedTeams = classified.filter { it.third == null }.map { it.first }
@@ -499,7 +550,12 @@ object TimingOfficialTimeService {
             resultStatus = (request.resultStatus ?: OfficialTimeResultStatus.NONE).name
         }
 
-        !recomputeApplyAndBroadcast(eventId, listOf(teamId), userId)
+        val written = !recomputeApplyAndBroadcast(eventId, listOf(teamId), userId)
+        // Nur wenn die Übernahme wirklich an den Lauf geschrieben hat, erfahren die öffentlichen
+        // Anzeigen davon - eine wiederholte identische Eingabe (oder Schalter aus) bleibt still.
+        if (written) {
+            EventChangeMarker.bump(eventId)
+        }
         noData
     }
 
@@ -572,6 +628,14 @@ object TimingOfficialTimeService {
         // next poll tick would overwrite the pushed result. No-op without RaceClocker on the match.
         !pushables.map { (team) -> team.competitionMatch!! }.distinct().traverse { matchId ->
             CompetitionExecutionService.pauseRaceClockerAutoPull(matchId)
+        }
+
+        // Jede Zeile in `changed` steht für ein tatsächlich beschriebenes Team (Push oder
+        // nachgerückter Platz) - die öffentlichen Anzeigen laden auf den einen Bump hin sofort
+        // nach. Der Konflikt-Riegel oben garantiert, dass ein Push nie leer durchläuft; ein
+        // theoretisch leeres `changed` bliebe trotzdem korrekt still.
+        if (changed.isNotEmpty()) {
+            EventChangeMarker.bump(eventId)
         }
 
         val markTimes = !resolveMarkTimes(eventId)

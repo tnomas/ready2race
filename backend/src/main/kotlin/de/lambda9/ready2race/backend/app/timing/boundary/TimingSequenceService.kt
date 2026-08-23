@@ -310,12 +310,13 @@ object TimingSequenceService {
                     TimingWsMessage.OfficialTimeChanged(entries.flatMap { it.changedOfficialTimes }),
                 )
             }
-        // Laufzustands-Stempel des Laufs (started_at/activated_at): erst hier, nach dem Commit,
-        // die Caches der öffentlichen Anzeigen entwerten - ein Bump aus der Scheduler-Transaktion
-        // heraus ginge vor dem Commit raus (AfterCommit hat dort keinen Puffer) und ließe die
-        // Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf festhalten.
+        // Laufzustands-Stempel (started_at/activated_at) UND geschriebene Ergebnisse des Laufs:
+        // erst hier, nach dem Commit, die Caches der öffentlichen Anzeigen entwerten - ein Bump
+        // aus der Scheduler-Transaktion heraus ginge vor dem Commit raus (AfterCommit hat dort
+        // keinen Puffer) und ließe die Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf
+        // festhalten. Beide Änderungsarten derselben Veranstaltung bündeln sich zu EINEM Bump.
         result.fired
-            .filter { it.matchStamped }
+            .filter { it.matchStamped || it.resultsWritten }
             .map { it.mark.event }
             .distinct()
             .forEach { eventId -> EventChangeMarker.bump(eventId) }
@@ -417,7 +418,7 @@ object TimingSequenceService {
         // Scheduler-Transaktion, wo kein AfterCommit-Puffer installiert ist (siehe FireResult) -
         // ein dort registrierter Broadcast ginge VOR dem Commit raus. Die geänderten Zeilen wandern
         // stattdessen im FireResult nach draußen und werden von broadcastFireResult gesendet.
-        val changedOfficialTimes = !TimingOfficialTimeService.recomputeAndApply(
+        val applyOutcome = !TimingOfficialTimeService.recomputeAndApply(
             sequence.event,
             listOf(entry.competitionMatchTeam),
             sequence.createdBy,
@@ -428,8 +429,9 @@ object TimingSequenceService {
                 sequenceId = sequence.id,
                 entryId = entry.id,
                 mark = timeMarkDto(mark, entry.competitionMatchTeam),
-                changedOfficialTimes = changedOfficialTimes,
+                changedOfficialTimes = applyOutcome.officialTimes,
                 matchStamped = matchStamped,
+                resultsWritten = applyOutcome.resultsWritten,
             )
         )
     }

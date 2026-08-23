@@ -41,4 +41,12 @@ data class FiredEntry(
      * `broadcastFireResult`, damit die öffentlichen Anzeigen den neuen Zustand sofort nachladen.
      */
     val matchStamped: Boolean = false,
+    /**
+     * Ob die Echtzeit-Übernahme beim Feuern tatsächlich ein Ergebnis an `competition_match_team`
+     * geschrieben hat (Zielzeit lag schon vor dem Start bereit) - im Gegensatz zu
+     * [changedOfficialTimes], das auch bloße Stand-Meldungen ohne Schreibvorgang enthält. Wandert
+     * wie [matchStamped] als `EventChangeMarker`-Bump erst nach dem Commit nach draußen; beide
+     * Flags derselben Veranstaltung bündelt `broadcastFireResult` zu EINEM Bump.
+     */
+    val resultsWritten: Boolean = false,
 )

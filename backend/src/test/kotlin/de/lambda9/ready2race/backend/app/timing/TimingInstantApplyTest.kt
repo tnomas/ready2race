@@ -409,12 +409,14 @@ class TimingInstantApplyTest {
         !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
         val before = !CompetitionMatchTeamRepo.getById(track.teamId)
 
-        val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
+        val outcome = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
 
         // Der Rückgabewert meldet den aktuellen Stand des Teams (die Boards folgen jeder
         // Mutation live), auch wenn nichts zu schreiben war ...
-        assertEquals(90_000L, changed.single().computedMillis)
-        // ... geschrieben wird dabei aber nichts: Zeile und Team bleiben unangetastet.
+        assertEquals(90_000L, outcome.officialTimes.single().computedMillis)
+        // ... geschrieben wird dabei aber nichts: Zeile und Team bleiben unangetastet - und das
+        // Schreib-Flag sagt es dem Aufrufer, damit kein Bump die Boards wachtrommelt.
+        assertFalse(outcome.resultsWritten)
         val after = !CompetitionMatchTeamRepo.getById(track.teamId)
         assertEquals(before!!.updatedAt, after!!.updatedAt)
     }
@@ -429,9 +431,9 @@ class TimingInstantApplyTest {
         val track = !prepareTrack(eventId, userId)
         !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
 
-        val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
+        val outcome = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
 
-        val dto = changed.single()
+        val dto = outcome.officialTimes.single()
         assertEquals(track.teamId, dto.competitionMatchTeam)
         assertEquals(finishMillis, dto.finishMillis)
         assertNull(dto.startMillis)
@@ -448,8 +450,9 @@ class TimingInstantApplyTest {
         val (eventId, userId) = !createTestEventWithAdmin()
         val track = !prepareTrack(eventId, userId)
 
-        val changed = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
+        val outcome = !TimingOfficialTimeService.recomputeAndApply(eventId, listOf(track.teamId), userId)
 
-        assertEquals(emptyList(), changed)
+        assertEquals(emptyList(), outcome.officialTimes)
+        assertFalse(outcome.resultsWritten)
     }
 }
