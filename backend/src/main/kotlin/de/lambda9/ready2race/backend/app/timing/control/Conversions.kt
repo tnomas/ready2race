@@ -4,6 +4,8 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeAssignmentRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
@@ -157,6 +159,42 @@ fun officialTimecode(effectiveMillis: Long): Timecode {
     val rendered = Timecode(effectiveMillis, baseUnit, Timecode.MillisecondPrecision.THREE).toString()
     return Parser.timecode.parse(rendered)
 }
+
+fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
+    id = id,
+    event = event,
+    name = name,
+    withLaps = withLaps ?: false,
+    startGrouping = TimingStartGrouping.valueOf(startGrouping),
+    intervalSeconds = intervalSeconds,
+    // Not-null-Spalte mit Default; jOOQ typisiert sie dennoch nullable (bekanntes Muster, siehe
+    // EventTimingConfigDto) - der Datenbank-Default ist die einzig richtige Rückfalllinie.
+    leadInSeconds = leadInSeconds ?: 10,
+)
+
+fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
+    LocalDateTime.now().let { now ->
+        TimingModeRecord(
+            id = UUID.randomUUID(),
+            event = eventId,
+            name = name,
+            withLaps = withLaps,
+            startGrouping = startGrouping.name,
+            intervalSeconds = intervalSeconds,
+            leadInSeconds = leadInSeconds,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+    }
+
+fun TimingModeAssignmentRecord.toDto(): TimingModeAssignmentDto = TimingModeAssignmentDto(
+    id = id,
+    competition = competition,
+    competitionSetupRound = competitionSetupRound,
+    timingMode = timingMode,
+)
 
 fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
     id = id,

@@ -20,6 +20,12 @@ sealed interface TimingError : ServiceError {
     data class PushConflict(val conflicts: List<OfficialTimePushConflictDto>) : TimingError
     data object DeviceTokenNotFound : TimingError
     data object DeviceTokenInvalid : TimingError
+    data object ModeNotFound : TimingError
+    data object ModeNameTaken : TimingError
+    data object ModeInUse : TimingError
+    data object RoundNotOfCompetition : TimingError
+    data object LinkedStationInvalid : TimingError
+    data object StationNotCapturing : TimingError
 
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
@@ -58,7 +64,31 @@ sealed interface TimingError : ServiceError {
         )
         DeviceTokenNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing device token not found")
         // Never echoes anything about the presented token - an invalid token is invalid, whether it
-        // is unknown, revoked, or scoped to another event or station.
+        // is unknown, revoked, or scoped to another event or station. Deliberately also the answer
+        // when a token is presented on an operation it is not scoped for (a display station's token
+        // on a write, an assignment for a mark of another station): the caller learns "this token
+        // does not do that", nothing more.
         DeviceTokenInvalid -> ApiError(HttpStatusCode.Unauthorized, message = "Invalid timing device token")
+        ModeNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing mode not found")
+        ModeNameTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A timing mode with this name already exists for this event"
+        )
+        ModeInUse -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "This timing mode is still assigned to competitions or rounds"
+        )
+        RoundNotOfCompetition -> ApiError(
+            HttpStatusCode.BadRequest,
+            message = "The round does not belong to this competition"
+        )
+        LinkedStationInvalid -> ApiError(
+            HttpStatusCode.BadRequest,
+            message = "A display station can only mirror a START station of the same event"
+        )
+        StationNotCapturing -> ApiError(
+            HttpStatusCode.BadRequest,
+            message = "Time marks cannot be captured on a display station"
+        )
     }
 }

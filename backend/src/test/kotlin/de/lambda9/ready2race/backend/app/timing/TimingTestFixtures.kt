@@ -90,7 +90,26 @@ fun addTestStation(
 fun createTestMatchTeam(eventId: UUID): App<Any?, UUID> =
     createTestMatchTeams(eventId, 1).map { it.first() }
 
-fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> = KIO.comprehension {
+fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> =
+    createTestMatchFixture(eventId, teamCount).map { it.teamIds }
+
+/**
+ * Alle Kettenglieder, die [createTestMatchTeams] anlegt - für Tests, die außer den Teams auch den
+ * Wettkampf, die Runde oder den Lauf selbst brauchen (Zeitnahmetyp-Zuordnung, Startliste).
+ */
+data class MatchFixture(
+    val competitionId: UUID,
+    val competitionPropertiesId: UUID,
+    val roundId: UUID,
+    val setupMatchId: UUID,
+    val teamIds: List<UUID>,
+)
+
+fun createTestMatchFixture(
+    eventId: UUID,
+    teamCount: Int = 1,
+    identifier: String = "TST-${UUID.randomUUID()}",
+): App<Any?, MatchFixture> = KIO.comprehension {
     val now = LocalDateTime.now()
 
     val clubId = UUID.randomUUID()
@@ -129,7 +148,7 @@ fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> =
         CompetitionPropertiesRecord(
             id = competitionPropertiesId,
             competition = competitionId,
-            identifier = "TST-${UUID.randomUUID()}",
+            identifier = identifier,
             name = "Timing Test Competition",
         )
     ).orDie()
@@ -204,7 +223,15 @@ fun createTestMatchTeams(eventId: UUID, teamCount: Int): App<Any?, List<UUID>> =
         }
     ).orDie()
 
-    KIO.ok(matchTeamIds)
+    KIO.ok(
+        MatchFixture(
+            competitionId = competitionId,
+            competitionPropertiesId = competitionPropertiesId,
+            roundId = roundId,
+            setupMatchId = setupMatchId,
+            teamIds = matchTeamIds,
+        )
+    )
 }
 
 /**

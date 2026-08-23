@@ -8,6 +8,8 @@ import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -55,6 +57,74 @@ fun Route.timing() {
                     !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 }
                 TimingService.getTeams(eventId)
+            }
+        }
+
+        // Zeitnahmetypen sind Konfiguration (wie die Posten): gepflegt mit UPDATE EVENT, gelesen
+        // mit denselben Sitzungsrechten wie die übrigen Leitstand-Daten. Kein Geräte-Token-Zweig -
+        // die Posten-Boards bekommen den aufgelösten Typ über die Startliste (/matches), nicht
+        // über die Rohkonfiguration.
+        route("/modes") {
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingModeRequest.example)
+                    TimingModeService.addMode(body, user.id!!, eventId)
+                }
+            }
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingModeService.getModes(eventId)
+                }
+            }
+
+            route("/{modeId}") {
+
+                put {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val modeId = !pathParam("modeId", uuid)
+                        val body = !receiveKIO(TimingModeRequest.example)
+                        TimingModeService.updateMode(body, user.id!!, modeId, eventId)
+                    }
+                }
+
+                delete {
+                    call.respondComprehension {
+                        !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val modeId = !pathParam("modeId", uuid)
+                        TimingModeService.deleteMode(modeId, eventId)
+                    }
+                }
+            }
+        }
+
+        route("/modeAssignments") {
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingModeService.getModeAssignments(eventId)
+                }
+            }
+
+            // Upsert über den natürlichen Schlüssel (Wettkampf, Runde) - timingMode null räumt den
+            // Eintrag ab. Ein PUT statt POST/DELETE-Paar, siehe TimingModeAssignmentRequest.
+            put {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingModeAssignmentRequest.example)
+                    TimingModeService.upsertModeAssignment(body, user.id!!, eventId)
+                }
             }
         }
 
