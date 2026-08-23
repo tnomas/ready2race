@@ -14,7 +14,7 @@ export type CaptureButtonProps = {
      */
     onCapture: () => void
     /**
-     * Renders a smaller button — used when this is the manual fallback shown below a `SequencePanel`
+     * Renders a smaller button — used when this is the manual fallback shown below the start board panel
      * on a START station, rather than the sole capture surface.
      */
     compact?: boolean

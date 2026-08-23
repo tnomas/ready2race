@@ -3091,10 +3091,12 @@
     "finish": {
       "assignPrompt": "Zeit {{time}} wartet — Boot antippen, um sie zuzuordnen.",
       "assignLater": "Später zuordnen",
-      "hint": "Boot antippen: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Antippen zuordnen.",
+      "hint": "Boot antippen oder Taste 1–6 / A–F: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Druck aufs Boot zuordnen.",
       "finishedCount": "{{finished}}/{{total}} im Ziel",
       "upcomingTitle": "Als Nächstes erwartet",
-      "noneExpected": "Gerade ist keine Partie auf dem Wasser."
+      "noneExpected": "Gerade ist keine Partie auf dem Wasser.",
+      "focused": "Fokussiert",
+      "focusHint": "Tasten wirken nur auf die fokussierte Partie — Fokus mit Tab oder Klick wechseln."
     },
     "matches": {
       "title": "Startliste",
@@ -3108,10 +3110,9 @@
       "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
       "start": "Startsequenz starten",
       "startSelected": "Starten: {{match}}",
-      "manualSetup": "Sequenz von Hand einrichten",
-      "backToMatches": "Zurück zur Startliste",
       "error": {
-        "start": "Die Startsequenz konnte nicht gestartet werden."
+        "start": "Die Startsequenz konnte nicht gestartet werden.",
+        "restart": "Der Start konnte nicht zurückgenommen werden."
       },
       "mode": {
         "interval": "alle {{seconds}} s",
@@ -3123,21 +3124,25 @@
         "STARTING": "Startsequenz läuft",
         "STARTED": "gestartet",
         "FINISHED": "im Ziel"
-      }
+      },
+      "menu": {
+        "open": "Aktionen der Partie"
+      },
+      "abortSequence": "Sequenz abbrechen",
+      "restart": "Start zurücknehmen und neu starten",
+      "restartConfirm": {
+        "title": "Start zurücknehmen?",
+        "content": "Alle Startmarken von {{match}} werden zurückgenommen; die Partie steht danach wieder als offen in der Startliste. Eine laufende Sequenz wird zuerst abgebrochen.",
+        "ok": "Start zurücknehmen",
+        "keep": "Nichts ändern"
+      },
+      "restartDone": "Startmarken zurückgenommen — die Partie kann neu gestartet werden",
+      "startFocused": "Start: {{match}}"
     },
     "sequence": {
       "mode": {
         "MASS": "Massenstart",
         "INTERVAL": "Einzelstart"
-      },
-      "setup": {
-        "title": "Sequenz einrichten",
-        "intervalSeconds": "Abstand (Sekunden)",
-        "leadInSeconds": "Vorlauf (Sekunden)",
-        "leadInHelp": "Zeit vom Start der Sequenz bis zum ersten Start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} von {{total}} ausgewählt",
-        "orderHint": "Startreihenfolge folgt der Startnummer",
-        "armButton": "Sequenz scharf stellen"
       },
       "armed": {
         "title": "Sequenz scharf",
@@ -3150,8 +3155,7 @@
       },
       "summary": {
         "titleDone": "Sequenz abgeschlossen",
-        "titleAborted": "Sequenz abgebrochen",
-        "reset": "Neue Sequenz"
+        "titleAborted": "Sequenz abgebrochen"
       },
       "entry": {
         "skip": "Überspringen",
@@ -3161,10 +3165,11 @@
           "content": "{{team}} wird nicht gestartet. Das kann nicht rückgängig gemacht werden."
         }
       },
-      "abort": "Abbrechen",
+      "abort": "Sequenz abbrechen",
       "abortConfirm": {
         "title": "Sequenz wirklich abbrechen?",
-        "content": "Ausstehende Starts werden nicht mehr ausgelöst."
+        "content": "Ausstehende Starts werden nicht mehr ausgelöst.",
+        "keep": "Weiterlaufen lassen"
       },
       "loadError": "Sequenz konnte nicht geladen werden",
       "retry": "Erneut versuchen",
@@ -3172,10 +3177,10 @@
         "create": "Sequenz konnte nicht angelegt werden",
         "start": "Sequenz konnte nicht gestartet werden",
         "abort": "Abbrechen fehlgeschlagen",
-        "skip": "Überspringen fehlgeschlagen",
-        "invalidInterval": "Abstand muss mindestens 1 Sekunde betragen",
-        "invalidLeadIn": "Vorlauf muss zwischen {{min}} und {{max}} Sekunden liegen",
-        "noTeams": "Mindestens ein Team auswählen"
+        "skip": "Überspringen fehlgeschlagen"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} gestartet"
       }
     },
     "board": {
@@ -3223,15 +3228,6 @@
         "undo": "Rückgängig machen"
       },
       "teams": {
-        "viewMatches": "Partien",
-        "viewTwoStep": "Zwei-Schritt",
-        "viewTeams": "Teams",
-        "arm": "Scharfstellen",
-        "armHint": "Teams antippen, um sie auf eine Taste zu legen",
-        "armedFull": "Es können höchstens {{count}} Teams gleichzeitig scharfgestellt werden",
-        "unarm": "Scharfstellung aufheben",
-        "hint": "Tasten 1–9: Startnummer · Leertaste: Zeit ohne Zuordnung",
-        "empty": "Keine Teams für dieses Event vorhanden",
         "phase": {
           "ACTIVE": "Jetzt erwartet",
           "OPEN": "Noch offen",
@@ -3435,6 +3431,21 @@
       "next": "Am Start",
       "following": "Danach",
       "notStart": "Dieser Posten ist kein Start-Posten — der Startbildschirm zeigt hier nichts an."
+    },
+    "schedule": {
+      "title": "Tagesablauf",
+      "expand": "Tagesablauf einblenden",
+      "collapse": "Tagesablauf ausblenden",
+      "status": {
+        "OPEN": "offen",
+        "STARTING": "Sequenz läuft",
+        "STARTED": "gestartet",
+        "FINISHED": "fertig",
+        "finishProgress": "{{finished}}/{{total}} im Ziel"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "Ohne Partie"
     }
   },
   "caterer": {

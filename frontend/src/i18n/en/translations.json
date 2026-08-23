@@ -3091,10 +3091,12 @@
     "finish": {
       "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
       "assignLater": "Assign later",
-      "hint": "Tap a boat: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next tap.",
+      "hint": "Tap a boat or press 1–6 / A–F: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
       "finishedCount": "{{finished}}/{{total}} finished",
       "upcomingTitle": "Expected next",
-      "noneExpected": "No race is on the water right now."
+      "noneExpected": "No race is on the water right now.",
+      "focused": "Focused",
+      "focusHint": "Keys only act on the focused match — switch focus with Tab or a click."
     },
     "matches": {
       "title": "Start list",
@@ -3108,10 +3110,9 @@
       "allStarted": "All races have been started — nothing left open.",
       "start": "Start sequence",
       "startSelected": "Start: {{match}}",
-      "manualSetup": "Set up sequence manually",
-      "backToMatches": "Back to the start list",
       "error": {
-        "start": "The start sequence could not be started."
+        "start": "The start sequence could not be started.",
+        "restart": "The start could not be retracted."
       },
       "mode": {
         "interval": "every {{seconds}} s",
@@ -3123,21 +3124,25 @@
         "STARTING": "start sequence running",
         "STARTED": "started",
         "FINISHED": "finished"
-      }
+      },
+      "menu": {
+        "open": "Match actions"
+      },
+      "abortSequence": "Abort sequence",
+      "restart": "Retract start and restart",
+      "restartConfirm": {
+        "title": "Retract start?",
+        "content": "All start marks of {{match}} will be retracted; the match returns to open in the start list. A running sequence is aborted first.",
+        "ok": "Retract start",
+        "keep": "Keep as is"
+      },
+      "restartDone": "Start marks retracted — the match can be started again",
+      "startFocused": "Start: {{match}}"
     },
     "sequence": {
       "mode": {
         "MASS": "Mass start",
         "INTERVAL": "Interval start"
-      },
-      "setup": {
-        "title": "Set up sequence",
-        "intervalSeconds": "Interval (seconds)",
-        "leadInSeconds": "Lead-in (seconds)",
-        "leadInHelp": "Time from starting the sequence to the first start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} of {{total}} selected",
-        "orderHint": "Start order follows the start number",
-        "armButton": "Arm sequence"
       },
       "armed": {
         "title": "Sequence armed",
@@ -3150,8 +3155,7 @@
       },
       "summary": {
         "titleDone": "Sequence completed",
-        "titleAborted": "Sequence aborted",
-        "reset": "New sequence"
+        "titleAborted": "Sequence aborted"
       },
       "entry": {
         "skip": "Skip",
@@ -3161,10 +3165,11 @@
           "content": "{{team}} will not be started. This cannot be undone."
         }
       },
-      "abort": "Abort",
+      "abort": "Abort sequence",
       "abortConfirm": {
         "title": "Abort sequence?",
-        "content": "Pending starts will no longer fire."
+        "content": "Pending starts will no longer fire.",
+        "keep": "Keep running"
       },
       "loadError": "Could not load sequence",
       "retry": "Try again",
@@ -3172,10 +3177,10 @@
         "create": "Could not create sequence",
         "start": "Could not start sequence",
         "abort": "Abort failed",
-        "skip": "Skip failed",
-        "invalidInterval": "Interval must be at least 1 second",
-        "invalidLeadIn": "Lead-in must be between {{min}} and {{max}} seconds",
-        "noTeams": "Select at least one team"
+        "skip": "Skip failed"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} started"
       }
     },
     "board": {
@@ -3223,15 +3228,6 @@
         "undo": "Undo"
       },
       "teams": {
-        "viewMatches": "Races",
-        "viewTwoStep": "Two-step",
-        "viewTeams": "Teams",
-        "arm": "Arm",
-        "armHint": "Tap teams to put them on a key",
-        "armedFull": "At most {{count}} teams can be armed at the same time",
-        "unarm": "Disarm",
-        "hint": "Keys 1–9: start number · Space: time without assignment",
-        "empty": "No teams for this event",
         "phase": {
           "ACTIVE": "Expected now",
           "OPEN": "Still ahead",
@@ -3435,6 +3431,21 @@
       "next": "On the start",
       "following": "Up next",
       "notStart": "This station is not a start station — the start display shows nothing here."
+    },
+    "schedule": {
+      "title": "Day schedule",
+      "expand": "Show day schedule",
+      "collapse": "Hide day schedule",
+      "status": {
+        "OPEN": "open",
+        "STARTING": "sequence running",
+        "STARTED": "started",
+        "FINISHED": "finished",
+        "finishProgress": "{{finished}}/{{total}} finished"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "No match"
     }
   },
   "caterer": {

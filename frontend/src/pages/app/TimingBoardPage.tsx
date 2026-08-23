@@ -7,9 +7,9 @@ import {
     DialogContent,
     DialogContentText,
     DialogTitle,
+    Menu,
+    MenuItem,
     Stack,
-    ToggleButton,
-    ToggleButtonGroup,
     Typography,
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
@@ -23,17 +23,25 @@ import {deviceSessionForStation} from '@utils/timing/deviceSession.ts'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
-import TeamCaptureGrid from '@components/timing/TeamCaptureGrid.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
 import MatchCaptureView from '@components/timing/MatchCaptureView.tsx'
-import SequencePanel from '@components/timing/SequencePanel.tsx'
+import DayScheduleColumn, {
+    initialScheduleCollapsed,
+    persistScheduleCollapsed,
+} from '@components/timing/DayScheduleColumn.tsx'
+import StartBoardPanel from '@components/timing/StartBoardPanel.tsx'
+import {matchTitle} from '@components/timing/matchDisplay.tsx'
+import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
 import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
-import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
+import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
+import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
+import {TimingMatchDto} from '@api/types.gen.ts'
+import {createTimeMark, getTimingTeams, retractMatchStartMarks} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
@@ -90,6 +98,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const clock = useServerClock()
     const sequenceState = useSequence(eventId, stationId)
     const {refetch: refetchSequence} = sequenceState
+    // Offizielle Zeiten für die Live-Anzeige am Boot (Zielposten): initialer Stand per GET, danach
+    // aus den officialTimeChanged-Nachrichten des Boards — beides läuft auch mit Geräte-Token.
+    const {officialTimes, applyChanged: applyOfficialTimes, reload: reloadOfficialTimes} =
+        useOfficialTimes(eventId)
+    const officialTimesByTeam = useMemo(
+        () => new Map(officialTimes.map(entry => [entry.competitionMatchTeam, entry])),
+        [officialTimes],
+    )
     const {
         marks,
         stations,
@@ -100,7 +116,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         markSaved,
         markFailed,
         applyLocalAssignment,
-    } = useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
+    } = useTimingBoardState(
+        eventId,
+        stationId,
+        sequenceState.applySequenceChanged,
+        applyOfficialTimes,
+    )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
@@ -148,34 +169,30 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
 
-    // --- Capture view -----------------------------------------------------------------------------
+    // --- Fokus und Tagesablauf -------------------------------------------------------------------
     //
-    // Three ways to record a time, switched by the operator: the partie-oriented view (expected
-    // matches with their boats — bank a time and assign it with one tap, or tap the boat directly),
-    // the classic two-step button (bank a time, assign it afterwards from the mark list) and the
-    // direct-tap team grid over the whole event roster. Which one is right depends on the post, not
-    // on the software, so this is a toggle rather than a decision baked into the station type — but
-    // the partie view is the default whenever internally timed matches exist, because "Zeit nehmen
-    // und sofort zuordnen" is the main path at a finish line.
-    //
-    // Except on START stations: those own the whole screen with their sequence panel, and their job is
-    // to start heats, not to attribute times to individual teams. The toggle is not rendered there.
-    const [captureView, setCaptureView] = useState<'MATCHES' | 'TWO_STEP' | 'TEAMS'>('TWO_STEP')
-    /** True once the operator picked a view by hand — the auto-default must not override that. */
-    const captureViewTouchedRef = useRef(false)
-    const teamsViewAvailable = station !== undefined && station.type !== 'START'
-    const matchesViewAvailable = teamsViewAvailable && matches.length > 0
-    useEffect(() => {
-        if (captureViewTouchedRef.current) return
-        if (matchesViewAvailable) setCaptureView('MATCHES')
-    }, [matchesViewAvailable])
-    // Fällt die Partie-Ansicht weg (kein INTERN-Wettkampf mehr, Postenwechsel), nicht auf einer
-    // leeren Ansicht sitzen bleiben.
-    useEffect(() => {
-        if (!matchesViewAvailable && captureView === 'MATCHES') setCaptureView('TWO_STEP')
-    }, [matchesViewAvailable, captureView])
-    const showTeamsView = teamsViewAvailable && captureView === 'TEAMS'
-    const showMatchesView = matchesViewAvailable && captureView === 'MATCHES'
+    // EINE Ansicht je Posten-Typ (die früheren Reiter „Zwei-Schritt" und „Teams" sind ersatzlos
+    // weg): der Startposten startet die fokussierte Partie mit einem Griff, der Zielposten nimmt
+    // Zeiten per Boots-Knopf oder Taste auf die fokussierte Partie. Der Fokus gehört der Seite,
+    // weil Tagesablauf-Spalte und Arbeitsfläche denselben Zustand teilen — die Auflösung
+    // (Vorrücken nach Start bzw. Zieleinlauf) übernimmt je Posten-Typ die passende reine Logik.
+    const isStart = station?.type === 'START'
+    const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(undefined)
+    const focusedMatchId = isStart
+        ? resolveStartSelection(matches, selectedMatchId)
+        : resolveFinishFocus(matches, selectedMatchId)
+    const focusedMatch = matches.find(match => match.competitionSetupMatch === focusedMatchId)
+
+    // Eingeklappt merken (geräteweit): auf schmalen Bildschirmen startet die Spalte eingeklappt.
+    const [scheduleCollapsed, setScheduleCollapsed] = useState(initialScheduleCollapsed)
+    const toggleScheduleCollapsed = useCallback(() => {
+        setScheduleCollapsed(prev => {
+            persistScheduleCollapsed(!prev)
+            return !prev
+        })
+    }, [])
+
+    const matchesAvailable = matches.length > 0
 
     /**
      * Teams that are done **at this station**: they have an ACTIVE mark here that is assigned to them.
@@ -387,9 +404,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             refetchSequence()
             // Die Partie-Startliste hat dieselbe Lücke (verpasste Trigger-Nachrichten).
             refetchMatches()
+            // Und die offiziellen Zeiten ebenso — verpasste officialTimeChanged-Nachrichten.
+            reloadOfficialTimes()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, runDrain, refetchSequence, refetchMatches])
+    }, [wsStatus, runDrain, refetchSequence, refetchMatches, reloadOfficialTimes])
 
     // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
     // can never permanently silence the tick. Checked against the latest values via refs, so the
@@ -415,11 +434,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 runDrain()
                 refetch()
                 refetchMatches()
+                reloadOfficialTimes()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [runDrain, refetch, refetchMatches])
+    }, [runDrain, refetch, refetchMatches, reloadOfficialTimes])
 
     // --- Staleness safety net -------------------------------------------------------------------
     //
@@ -473,6 +493,125 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     })
     const captureRef = useRef<CaptureFn>(capture)
     captureRef.current = capture
+
+    // --- Startposten: Sequenz-Aktionen und Partie-Menü ------------------------------------------
+    //
+    // Abbruch und Neustart hängen am Menü JEDER Partie (Tagesablauf-Spalte und Arbeitsfläche),
+    // nicht nur an der laufenden Sequenz — „auch nach Start" ist die Anforderung. Beide Wege
+    // bestätigen mit eindeutigen Knopftexten: nie zweimal „Abbrechen" in einem Dialog.
+    const {sequence} = sequenceState
+    const sequenceLive =
+        sequence !== undefined && (sequence.state === 'ARMED' || sequence.state === 'RUNNING')
+
+    /** Läuft/steht die Sequenz dieses Postens für Teams genau dieser Partie? */
+    const sequenceCoversMatch = useCallback(
+        (match: TimingMatchDto) =>
+            sequenceLive &&
+            sequence !== undefined &&
+            sequence.entries.some(entry =>
+                match.teams.some(
+                    team => team.competitionMatchTeam === entry.competitionMatchTeam,
+                ),
+            ),
+        [sequence, sequenceLive],
+    )
+
+    const handleAbortSequence = useCallback(() => {
+        confirmAction(
+            () => {
+                void sequenceState.abort().then(ok => {
+                    if (!ok) feedback.error(t('timing.sequence.error.abort'))
+                })
+            },
+            {
+                title: t('timing.sequence.abortConfirm.title'),
+                content: t('timing.sequence.abortConfirm.content'),
+                // Eindeutig statt zweimal „Abbrechen": weiterlaufen lassen vs. Sequenz abbrechen.
+                okText: t('timing.sequence.abort'),
+                cancelText: t('timing.sequence.abortConfirm.keep'),
+            },
+        )
+    }, [confirmAction, sequenceState, feedback, t])
+
+    // Überspringen ist unumkehrbar und sitzt neben dem Countdown auf einem Touchscreen — deshalb
+    // immer mit Bestätigung, die das Team nennt (unverändert vom bisherigen Panel übernommen).
+    const handleSkipEntry = useCallback(
+        (entryId: string, teamName: string) => {
+            confirmAction(
+                () => {
+                    void sequenceState.skip(entryId).then(ok => {
+                        if (!ok) feedback.error(t('timing.sequence.error.skip'))
+                    })
+                },
+                {
+                    title: t('timing.sequence.entry.skipConfirm.title'),
+                    content: t('timing.sequence.entry.skipConfirm.content', {team: teamName}),
+                    okText: t('timing.sequence.entry.skip'),
+                },
+            )
+        },
+        [confirmAction, sequenceState, feedback, t],
+    )
+
+    const handleRestartMatch = useCallback(
+        (match: TimingMatchDto) => {
+            confirmAction(
+                () => {
+                    void (async () => {
+                        // Läuft die eigene Sequenz noch für diese Partie, zuerst abbrechen —
+                        // sonst feuerte sie weitere Startmarken, während die alten zurückgehen.
+                        if (sequenceCoversMatch(match)) {
+                            const aborted = await sequenceState.abort()
+                            if (!aborted) {
+                                feedback.error(t('timing.sequence.error.abort'))
+                                return
+                            }
+                        }
+                        try {
+                            const {error} = await retractMatchStartMarks({
+                                path: {eventId, matchId: match.competitionSetupMatch},
+                            })
+                            if (error !== undefined) {
+                                feedback.error(t('timing.matches.error.restart'))
+                                return
+                            }
+                            // Die Rückschreibung räumt die Läufe serverseitig selbst; die
+                            // WebSocket-Echos ziehen Markenliste und Startliste nach.
+                            feedback.success(t('timing.matches.restartDone'))
+                        } catch {
+                            feedback.error(t('timing.matches.error.restart'))
+                        }
+                    })()
+                },
+                {
+                    title: t('timing.matches.restartConfirm.title'),
+                    content: t('timing.matches.restartConfirm.content', {
+                        match: matchTitle(match),
+                    }),
+                    okText: t('timing.matches.restartConfirm.ok'),
+                    cancelText: t('timing.matches.restartConfirm.keep'),
+                },
+            )
+        },
+        [confirmAction, sequenceCoversMatch, sequenceState, eventId, feedback, t],
+    )
+
+    const [matchMenu, setMatchMenu] = useState<{
+        match: TimingMatchDto
+        anchor: HTMLElement
+    } | null>(null)
+    const openMatchMenu = useCallback(
+        (match: TimingMatchDto, anchor: HTMLElement) => setMatchMenu({match, anchor}),
+        [],
+    )
+    const closeMatchMenu = useCallback(() => setMatchMenu(null), [])
+
+    /** Ob das Partie-Menü etwas anzubieten hat (sonst erscheint gar kein Menü-Knopf). */
+    const matchMenuAvailable = useCallback(
+        (match: TimingMatchDto) =>
+            sequenceCoversMatch(match) || match.teams.some(team => team.started),
+        [sequenceCoversMatch],
+    )
 
     // --- Dead-letter recovery ------------------------------------------------------------------
     //
@@ -639,119 +778,112 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 </Alert>
             )}
 
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    minHeight: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    p: 2,
-                }}>
-                {station?.type === 'START' && (
-                    <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex'}}>
-                        <SequencePanel
-                            stationId={stationId}
-                            teams={teams}
-                            teamsLoading={teamsPending}
-                            now={clock.now}
-                            sequenceState={sequenceState}
-                            matches={matches}
-                            matchesLoading={matchesLoading}
-                            matchesError={matchesError}
-                        />
-                    </Box>
+            {/* Mittelteil: links die einklappbare Tagesablauf-Spalte (gemeinsames Gerüst beider
+                Posten), rechts die Arbeitsfläche des Posten-Typs. Die Spalte erscheint nur, wenn
+                es überhaupt intern gezeitete Partien gibt — ohne sie wäre sie eine leere Leiste. */}
+            <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'stretch'}}>
+                {matchesAvailable && (
+                    <DayScheduleColumn
+                        matches={matches}
+                        focusedId={focusedMatchId}
+                        onFocus={setSelectedMatchId}
+                        collapsed={scheduleCollapsed}
+                        onToggleCollapsed={toggleScheduleCollapsed}
+                        onOpenMenu={isStart ? openMatchMenu : undefined}
+                        menuAvailable={matchMenuAvailable}
+                    />
                 )}
-                {teamsViewAvailable && (
-                    <ToggleButtonGroup
-                        data-capture-view-toggle=""
-                        exclusive
-                        size="small"
-                        value={captureView}
-                        // `null` arrives when the already-selected button is pressed again; keeping the
-                        // current view then is what makes this a switch rather than a way to end up
-                        // with no capture surface at all.
-                        onChange={(_, value: 'MATCHES' | 'TWO_STEP' | 'TEAMS' | null) => {
-                            if (value !== null) {
-                                captureViewTouchedRef.current = true
-                                setCaptureView(value)
-                            }
-                        }}
-                        sx={{flexShrink: 0, alignSelf: 'flex-start'}}>
-                        {matchesViewAvailable && (
-                            <ToggleButton value="MATCHES">
-                                {t('timing.board.teams.viewMatches')}
-                            </ToggleButton>
-                        )}
-                        <ToggleButton value="TWO_STEP">
-                            {t('timing.board.teams.viewTwoStep')}
-                        </ToggleButton>
-                        <ToggleButton value="TEAMS">
-                            {t('timing.board.teams.viewTeams')}
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                )}
-                {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
-                    `unlockAudio`): a board whose operator only ever taps the capture button would
-                    otherwise stay mute for the sequence countdown beeps. */}
                 <Box
-                    onPointerDown={unlockAudio}
                     sx={{
-                        flexShrink: showTeamsView || showMatchesView ? 1 : 0,
+                        flexGrow: 1,
+                        minWidth: 0,
                         minHeight: 0,
                         display: 'flex',
-                        flexGrow: station?.type === 'START' ? 0 : 1,
+                        flexDirection: 'column',
+                        gap: 1.5,
+                        p: 2,
                     }}>
-                    {showMatchesView ? (
-                        // Partie-Ansicht: oben die große Erfassungsfläche (Zeit ohne Boot banken —
-                        // sie erscheint sofort als „zuordnen"-Banner), darunter die erwarteten
-                        // Partien mit ihren Boots-Knöpfen.
-                        <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
-                            <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
-                                <CaptureButton
-                                    station={station}
+                    {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
+                        `unlockAudio`): a board whose operator only ever taps the capture button
+                        would otherwise stay mute for the sequence countdown beeps. */}
+                    <Box
+                        onPointerDown={unlockAudio}
+                        sx={{
+                            flexGrow: 1,
+                            minHeight: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.5,
+                        }}>
+                        {isStart ? (
+                            <>
+                                <StartBoardPanel
+                                    stationId={stationId}
+                                    matches={matches}
+                                    matchesLoading={matchesLoading}
+                                    matchesError={matchesError}
+                                    teams={teams}
                                     now={clock.now}
-                                    onCapture={capture}
-                                    compact
+                                    sequenceState={sequenceState}
+                                    focusedMatch={focusedMatch}
+                                    onOpenMenu={openMatchMenu}
+                                    menuAvailable={matchMenuAvailable}
+                                    onAbort={handleAbortSequence}
+                                    onSkip={handleSkipEntry}
                                 />
-                            </Box>
-                            <MatchCaptureView
-                                eventId={eventId}
-                                matches={matches}
-                                matchesLoading={matchesLoading}
-                                marks={marks}
-                                finishedTeams={finishedTeams}
-                                capture={capture}
-                                disabled={clock.now() === null || station === undefined}
-                                disabledReason={
-                                    clock.now() === null
-                                        ? t('timing.board.capture.clockNotSynced')
-                                        : t('timing.board.capture.stationLoading')
-                                }
-                                applyLocalAssignment={applyLocalAssignment}
+                                {/* Der manuelle Stempel bleibt als kompakter Zweitweg: eine Zeit
+                                    ohne Boot banken (Fehlstart-Protokoll, Sonderfälle). */}
+                                <Box sx={{flex: '0 0 12vh', minHeight: 72, display: 'flex'}}>
+                                    <CaptureButton
+                                        station={station}
+                                        now={clock.now}
+                                        onCapture={capture}
+                                        compact
+                                    />
+                                </Box>
+                            </>
+                        ) : matchesAvailable || matchesLoading ? (
+                            // Die eine Zielposten-Ansicht: oben die große Erfassungsfläche (Zeit
+                            // ohne Boot banken — sie erscheint sofort als „zuordnen"-Banner),
+                            // darunter die erwarteten Partien mit ihren Boots-Knöpfen und Tasten.
+                            <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
+                                <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
+                                    <CaptureButton
+                                        station={station}
+                                        now={clock.now}
+                                        onCapture={capture}
+                                        compact
+                                    />
+                                </Box>
+                                <MatchCaptureView
+                                    eventId={eventId}
+                                    matches={matches}
+                                    matchesLoading={matchesLoading}
+                                    marks={marks}
+                                    finishedTeams={finishedTeams}
+                                    capture={capture}
+                                    disabled={clock.now() === null || station === undefined}
+                                    disabledReason={
+                                        clock.now() === null
+                                            ? t('timing.board.capture.clockNotSynced')
+                                            : t('timing.board.capture.stationLoading')
+                                    }
+                                    applyLocalAssignment={applyLocalAssignment}
+                                    focusedId={focusedMatchId}
+                                    onFocus={setSelectedMatchId}
+                                    officialTimes={officialTimesByTeam}
+                                />
+                            </Stack>
+                        ) : (
+                            // Ohne intern gezeitete Partien bleibt der Zwei-Schritt-Weg: Zeit
+                            // banken, Team danach in der Zeitenliste zuordnen.
+                            <CaptureButton
+                                station={station}
+                                now={clock.now}
+                                onCapture={capture}
                             />
-                        </Stack>
-                    ) : showTeamsView ? (
-                        <TeamCaptureGrid
-                            teams={teams}
-                            teamsLoading={teamsPending}
-                            finishedTeams={finishedTeams}
-                            capture={capture}
-                            disabled={clock.now() === null || station === undefined}
-                            disabledReason={
-                                clock.now() === null
-                                    ? t('timing.board.capture.clockNotSynced')
-                                    : t('timing.board.capture.stationLoading')
-                            }
-                        />
-                    ) : (
-                        <CaptureButton
-                            station={station}
-                            now={clock.now}
-                            onCapture={capture}
-                            compact={station?.type === 'START'}
-                        />
-                    )}
+                        )}
+                    </Box>
                 </Box>
             </Box>
 
@@ -771,8 +903,35 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                     marks={marks}
                     teams={teams}
                     teamsLoading={teamsPending}
+                    matches={matches}
                 />
             </Box>
+
+            {/* Aktionsmenü einer Partie (nur Startposten): Sequenz abbrechen, Start zurücknehmen
+                und neu starten. Die Einträge erscheinen nur, wenn sie gerade anwendbar sind. */}
+            <Menu
+                open={matchMenu !== null}
+                anchorEl={matchMenu?.anchor}
+                onClose={closeMatchMenu}>
+                {matchMenu !== null && sequenceCoversMatch(matchMenu.match) && (
+                    <MenuItem
+                        onClick={() => {
+                            closeMatchMenu()
+                            handleAbortSequence()
+                        }}>
+                        {t('timing.matches.abortSequence')}
+                    </MenuItem>
+                )}
+                {matchMenu !== null && matchMenu.match.teams.some(team => team.started) && (
+                    <MenuItem
+                        onClick={() => {
+                            closeMatchMenu()
+                            handleRestartMatch(matchMenu.match)
+                        }}>
+                        {t('timing.matches.restart')}
+                    </MenuItem>
+                )}
+            </Menu>
 
             <Dialog
                 open={deadDialogOpen}

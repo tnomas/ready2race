@@ -3064,10 +3064,12 @@
     "finish": {
       "assignPrompt": "Tiden {{time}} venter — tryk på en båd for at tildele den.",
       "assignLater": "Tildel senere",
-      "hint": "Tryk på en båd: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
+      "hint": "Tryk på en båd eller tast 1–6 / A–F: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
       "finishedCount": "{{finished}}/{{total}} i mål",
       "upcomingTitle": "Forventes som næste",
-      "noneExpected": "Der er ikke noget løb på vandet lige nu."
+      "noneExpected": "Der er ikke noget løb på vandet lige nu.",
+      "focused": "Fokuseret",
+      "focusHint": "Tasterne virker kun på det fokuserede løb — skift fokus med Tab eller klik."
     },
     "matches": {
       "title": "Startliste",
@@ -3081,10 +3083,9 @@
       "allStarted": "Alle løb er startet — intet står åbent.",
       "start": "Start startsekvens",
       "startSelected": "Start: {{match}}",
-      "manualSetup": "Opsæt sekvens manuelt",
-      "backToMatches": "Tilbage til startlisten",
       "error": {
-        "start": "Startsekvensen kunne ikke startes."
+        "start": "Startsekvensen kunne ikke startes.",
+        "restart": "Starten kunne ikke trækkes tilbage."
       },
       "mode": {
         "interval": "hvert {{seconds}} s",
@@ -3096,21 +3097,25 @@
         "STARTING": "startsekvens kører",
         "STARTED": "startet",
         "FINISHED": "i mål"
-      }
+      },
+      "menu": {
+        "open": "Handlinger for løbet"
+      },
+      "abortSequence": "Afbryd sekvens",
+      "restart": "Fortryd start og start igen",
+      "restartConfirm": {
+        "title": "Fortryd start?",
+        "content": "Alle startmærker for {{match}} trækkes tilbage; løbet står derefter som åbent i startlisten igen. En kørende sekvens afbrydes først.",
+        "ok": "Fortryd start",
+        "keep": "Ændr intet"
+      },
+      "restartDone": "Startmærker trukket tilbage — løbet kan startes igen",
+      "startFocused": "Start: {{match}}"
     },
     "sequence": {
       "mode": {
         "MASS": "Massestart",
         "INTERVAL": "Intervalstart"
-      },
-      "setup": {
-        "title": "Opsæt sekvens",
-        "intervalSeconds": "Interval (sekunder)",
-        "leadInSeconds": "Optakt (sekunder)",
-        "leadInHelp": "Tid fra sekvensen startes til første start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} af {{total}} valgt",
-        "orderHint": "Startrækkefølgen følger startnummeret",
-        "armButton": "Klargør sekvens"
       },
       "armed": {
         "title": "Sekvens klargjort",
@@ -3123,8 +3128,7 @@
       },
       "summary": {
         "titleDone": "Sekvens afsluttet",
-        "titleAborted": "Sekvens afbrudt",
-        "reset": "Ny sekvens"
+        "titleAborted": "Sekvens afbrudt"
       },
       "entry": {
         "skip": "Spring over",
@@ -3134,10 +3138,11 @@
           "content": "{{team}} bliver ikke startet. Det kan ikke fortrydes."
         }
       },
-      "abort": "Afbryd",
+      "abort": "Afbryd sekvens",
       "abortConfirm": {
         "title": "Afbryd sekvens?",
-        "content": "Afventende starter udløses ikke længere."
+        "content": "Afventende starter udløses ikke længere.",
+        "keep": "Lad den fortsætte"
       },
       "loadError": "Sekvens kunne ikke indlæses",
       "retry": "Prøv igen",
@@ -3145,10 +3150,10 @@
         "create": "Sekvens kunne ikke oprettes",
         "start": "Sekvens kunne ikke startes",
         "abort": "Afbrydelse mislykkedes",
-        "skip": "Spring over mislykkedes",
-        "invalidInterval": "Interval skal være mindst 1 sekund",
-        "invalidLeadIn": "Optakt skal være mellem {{min}} og {{max}} sekunder",
-        "noTeams": "Vælg mindst ét hold"
+        "skip": "Spring over mislykkedes"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} startet"
       }
     },
     "board": {
@@ -3196,15 +3201,6 @@
         "undo": "Fortryd"
       },
       "teams": {
-        "viewMatches": "Løb",
-        "viewTwoStep": "To trin",
-        "viewTeams": "Hold",
-        "arm": "Klargør",
-        "armHint": "Tryk på hold for at lægge dem på en tast",
-        "armedFull": "Højst {{count}} hold kan klargøres samtidig",
-        "unarm": "Fjern klargøring",
-        "hint": "Tasterne 1–9: startnummer · Mellemrum: tid uden tildeling",
-        "empty": "Ingen hold til dette event",
         "phase": {
           "ACTIVE": "Forventes nu",
           "OPEN": "Stadig forude",
@@ -3408,6 +3404,21 @@
       "next": "Ved starten",
       "following": "Derefter",
       "notStart": "Denne post er ikke en startpost — startskærmen viser intet her."
+    },
+    "schedule": {
+      "title": "Dagsprogram",
+      "expand": "Vis dagsprogram",
+      "collapse": "Skjul dagsprogram",
+      "status": {
+        "OPEN": "åben",
+        "STARTING": "sekvens i gang",
+        "STARTED": "startet",
+        "FINISHED": "færdig",
+        "finishProgress": "{{finished}}/{{total}} i mål"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "Uden løb"
     }
   },
   "caterer": {

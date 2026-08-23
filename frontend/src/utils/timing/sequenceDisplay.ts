@@ -1,7 +1,7 @@
 import {SequenceState, TimingSequenceDto, TimingSequenceEntryDto} from '@api/types.gen.ts'
 
 /**
- * Gemeinsame Ableitung der Startsequenz-Anzeige, herausgezogen aus dem `SequencePanel`, damit der
+ * Gemeinsame Ableitung der Startsequenz-Anzeige, herausgezogen aus dem Board, damit der
  * Startbildschirm (Zeitnahme) — die reine Anzeige-Route je START-Posten — dieselbe Logik nutzt
  * statt sie zu duplizieren. Alles hier ist pur und damit direkt testbar.
  */

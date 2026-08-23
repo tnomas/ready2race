@@ -31,7 +31,7 @@ export type SequenceCountdownProps = {
  * Der Schutz wird zurückgesetzt, sobald sich `targetMillis` ändert (im INTERVAL-Modus wandert das
  * Ziel zum nächsten Eintrag, sobald der aktuelle gefeuert hat).
  *
- * Aus dem `SequencePanel` herausgezogen, damit der Startbildschirm (Zeitnahme) denselben Countdown
+ * Herausgezogen, damit Startbildschirm (Zeitnahme) und Sequenz-Leiste denselben Countdown
  * zeigt — inklusive Beeps, die die Athleten am Start hören sollen.
  */
 const SequenceCountdown = ({targetMillis, now, overdueLabel, sx}: SequenceCountdownProps) => {
