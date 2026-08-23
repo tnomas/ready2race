@@ -69,10 +69,22 @@ export type ExpectedFinishMatches = {
     upcoming: TimingMatchDto | undefined
 }
 
-/** Welche Partien der Zielposten anzeigen soll — siehe {@link ExpectedFinishMatches}. */
-export function expectedFinishMatches(matches: TimingMatchDto[]): ExpectedFinishMatches {
+/**
+ * Welche Partien der Zielposten anzeigen soll — siehe {@link ExpectedFinishMatches}. Die per
+ * Klick fokussierte Partie [focusedId] kommt zusätzlich in die Arbeitsfläche, auch wenn sie noch
+ * nicht auf dem Wasser ist (Zielzeiten ohne Start): ihre Boots-Knöpfe und Tasten müssen bedienbar
+ * sein, bevor eine Startmarke existiert. Ist sie dabei, entfällt die Vorschau — die fokussierte
+ * Partie IST dann die Fläche.
+ */
+export function expectedFinishMatches(
+    matches: TimingMatchDto[],
+    focusedId?: string,
+): ExpectedFinishMatches {
     const current = matches.filter(
-        match => match.progress === 'STARTED' || match.progress === 'STARTING',
+        match =>
+            match.progress === 'STARTED' ||
+            match.progress === 'STARTING' ||
+            match.competitionSetupMatch === focusedId,
     )
     return {
         current,

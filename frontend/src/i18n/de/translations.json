@@ -3096,6 +3096,7 @@
       "upcomingTitle": "Als Nächstes erwartet",
       "noneExpected": "Gerade ist keine Partie auf dem Wasser.",
       "focused": "Fokussiert",
+      "startMissing": "Start fehlt — Ergebnis folgt, sobald der Start gesetzt ist",
       "focusHint": "Tasten wirken nur auf die fokussierte Partie — Fokus mit Tab oder Klick wechseln."
     },
     "matches": {

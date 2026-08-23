@@ -3096,6 +3096,7 @@
       "upcomingTitle": "Expected next",
       "noneExpected": "No race is on the water right now.",
       "focused": "Focused",
+      "startMissing": "Start missing — the result follows once the start is set",
       "focusHint": "Keys only act on the focused match — switch focus with Tab or a click."
     },
     "matches": {

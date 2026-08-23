@@ -68,6 +68,39 @@ class TimingInstantApplyTest {
         assertNotNull(official.appliedFingerprint)
     }
 
+    // Zielzeit VOR dem Start (Zielposten erfasst eine Partie ohne Startmarke): der
+    // NO_START_MARK-Pfad bleibt sauber - nichts am Lauf, kein Fehler, kein dirty-Müll. Wird der
+    // Start nachgetragen, rechnet die Übernahme von selbst und das Ergebnis erscheint ohne
+    // weiteren Eingriff - genau der Sinn des "Zielzeiten ohne Start"-Wegs am Board.
+    @Test
+    fun finishBeforeStartStaysCleanAndAppliesOnceStartArrives() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val track = !prepareTrack(eventId, userId)
+
+        !addAssignedMark(eventId, userId, track.finishStation, track.teamId, finishMillis)
+
+        // Ohne Start kein Rechenergebnis: nichts am Team, keine dirty-Zeile.
+        val teamBefore = !CompetitionMatchTeamRepo.getById(track.teamId)
+        assertNull(teamBefore!!.timecode)
+        assertFalse(teamBefore.failed == true)
+        val officialBefore = !TimingOfficialTimeRepo.getByTeam(track.teamId)
+        if (officialBefore != null) {
+            assertNull(officialBefore.computedMillis)
+            assertFalse(officialBefore.dirty!!)
+        }
+
+        // Start nachstempeln: die offizielle Zeit erscheint ohne weiteren Eingriff.
+        !addAssignedMark(eventId, userId, track.startStation, track.teamId, startMillis)
+
+        val teamAfter = !CompetitionMatchTeamRepo.getById(track.teamId)
+        assertEquals(track.teamId, teamAfter!!.timecode)
+        val timecode = !Jooq.query { selectFrom(TIMECODE).where(TIMECODE.ID.eq(track.teamId)).fetchOne() }
+        assertEquals(90_000L, timecode!!.time)
+        val officialAfter = !TimingOfficialTimeRepo.getByTeam(track.teamId)
+        assertEquals(90_000L, officialAfter!!.computedMillis)
+        assertFalse(officialAfter.dirty!!)
+    }
+
     // Die Rückschreibung endet am Ergebnis: Plätze, finished_at und die Rundenkette bleiben
     // unberührt - beendet wird ein Lauf weiterhin nur dort, wo er heute beendet wird.
     @Test

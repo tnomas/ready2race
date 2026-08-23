@@ -3069,6 +3069,7 @@
       "upcomingTitle": "Forventes som næste",
       "noneExpected": "Der er ikke noget løb på vandet lige nu.",
       "focused": "Fokuseret",
+      "startMissing": "Start mangler — resultatet følger, så snart starten er sat",
       "focusHint": "Tasterne virker kun på det fokuserede løb — skift fokus med Tab eller klik."
     },
     "matches": {

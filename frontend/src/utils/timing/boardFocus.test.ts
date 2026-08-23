@@ -80,6 +80,14 @@ describe('resolveFinishFocus', () => {
         expect(resolveFinishFocus(matches, 'm2')).toBe('m2')
     })
 
+    it('behält eine von Hand fokussierte OFFENE Partie (Zielzeiten ohne Start)', () => {
+        // Jede Partie ist per Klick fokussierbar — auch ohne Start: der Zielposten kann so Zeiten
+        // erfassen, bevor die Startmarke existiert. In die automatische Rotation kommen offene
+        // Partien bewusst NICHT (siehe unten) — nur der explizite Klick hält sie im Fokus.
+        const matches = [match('m1', 'STARTED'), match('m2', 'OPEN')]
+        expect(resolveFinishFocus(matches, 'm2')).toBe('m2')
+    })
+
     it('rückt vor, sobald die fokussierte Partie fertig ist', () => {
         // Das Vorrücken: alle Boote von m1 sind im Ziel, der Fokus springt auf die nächste
         // laufende Partie, damit die Tasten sofort wieder das Richtige treffen.
@@ -87,8 +95,17 @@ describe('resolveFinishFocus', () => {
         expect(resolveFinishFocus(matches, 'm1')).toBe('m2')
     })
 
-    it('liefert undefined, wenn nichts auf dem Wasser ist', () => {
+    it('nimmt offene Partien nie von selbst in den Fokus', () => {
+        // Die automatische Vorauswahl bleibt auf Partien auf dem Wasser beschränkt — eine offene
+        // Partie fokussiert nur der explizite Klick.
         const matches = [match('m1', 'FINISHED'), match('m2', 'OPEN')]
+        expect(resolveFinishFocus(matches, undefined)).toBeUndefined()
+        // Auch nach dem Zieleinlauf der fokussierten Partie springt der Fokus nicht auf offene.
+        expect(resolveFinishFocus(matches, 'm1')).toBeUndefined()
+    })
+
+    it('liefert undefined, wenn nichts auf dem Wasser ist', () => {
+        const matches = [match('m1', 'FINISHED'), match('m2', 'FINISHED')]
         expect(resolveFinishFocus(matches, undefined)).toBeUndefined()
     })
 })

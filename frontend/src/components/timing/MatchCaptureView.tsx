@@ -1,4 +1,4 @@
-import {Alert, Box, Button, ButtonBase, CircularProgress, Stack, Typography} from '@mui/material'
+import {Alert, Box, Button, ButtonBase, Chip, CircularProgress, Stack, Typography} from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -89,7 +89,8 @@ const MatchCaptureView = ({
     const [skippedMarks, setSkippedMarks] = useState<Set<string>>(new Set())
     const pending = pendingAssignmentMark(marks, skippedMarks)
 
-    const {current, upcoming} = expectedFinishMatches(matches)
+    // Die fokussierte Partie erscheint auch ohne Start in der Fläche (Zielzeiten ohne Start).
+    const {current, upcoming} = expectedFinishMatches(matches, focusedId)
 
     const handleBoat = useCallback(
         (team: BoatTarget) => {
@@ -167,7 +168,11 @@ const MatchCaptureView = ({
             team => team.finished || finishedTeams.has(team.competitionMatchTeam),
         ).length
         const isFocused = match.competitionSetupMatch === focusedId
-        const focusable = match.progress === 'STARTED' || match.progress === 'STARTING'
+        // Jede Partie ist per Klick fokussierbar — auch ohne Start: die Tasten und Boots-Knöpfe
+        // funktionieren dann normal, die offizielle Zeit rechnet die Übernahme nach, sobald die
+        // Startmarke nachgetragen ist (der Chip unten sagt das dem Bediener).
+        const focusable = match.progress !== 'FINISHED'
+        const startMissing = isFocused && match.progress === 'OPEN'
         return (
             <Stack
                 key={match.competitionSetupMatch}
@@ -203,6 +208,15 @@ const MatchCaptureView = ({
                         )}
                         <ModeChip mode={match.timingMode} />
                         <ProgressChip progress={match.progress} />
+                        {startMissing && (
+                            // Zielzeiten ohne Start: Erfassen geht, das Ergebnis rechnet die
+                            // Übernahme erst, wenn die Startmarke nachgetragen ist.
+                            <Chip
+                                size="small"
+                                color="warning"
+                                label={t('timing.finish.startMissing')}
+                            />
+                        )}
                         <Typography variant="caption" color="text.secondary">
                             {t('timing.finish.finishedCount', {
                                 finished: finishedCount,

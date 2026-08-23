@@ -43,11 +43,14 @@ export function finishKeyTarget(
 
 /**
  * Fokus-Vorauswahl des Zielpostens — das Gegenstück zu `resolveStartSelection` am Start: die von
- * Hand fokussierte Partie bleibt fokussiert, solange sie auf dem Wasser ist (STARTED/STARTING);
- * sonst die erste Partie auf dem Wasser in gelieferter Reihenfolge. Das ist zugleich das
- * „Vorrücken“: läuft die fokussierte Partie ins Ziel (FINISHED), fällt sie aus der Auswahl und der
- * Fokus springt auf die nächste laufende. Ohne laufende Partie treffen die Tasten nichts
- * (undefined).
+ * Hand fokussierte Partie bleibt fokussiert, solange sie nicht fertig ist — auch eine OFFENE
+ * Partie (Zielzeiten ohne Start: der Posten erfasst dann Zeiten, bevor die Startmarke existiert;
+ * die offizielle Zeit rechnet die Übernahme nach, sobald der Start nachgetragen ist). Ohne
+ * haltbare Handwahl fällt der Fokus auf die erste Partie auf dem Wasser (STARTED/STARTING) in
+ * gelieferter Reihenfolge — offene Partien kommen bewusst NIE von selbst in den Fokus, nur per
+ * Klick. Das „Vorrücken“ bleibt erhalten: läuft die fokussierte Partie ins Ziel (FINISHED), fällt
+ * sie aus der Auswahl und der Fokus springt auf die nächste laufende. Ohne laufende Partie
+ * treffen die Tasten nichts (undefined).
  */
 export function resolveFinishFocus(
     matches: TimingMatchDto[],
@@ -56,7 +59,7 @@ export function resolveFinishFocus(
     const onWater = (match: TimingMatchDto) =>
         match.progress === 'STARTED' || match.progress === 'STARTING'
     const selected = matches.find(
-        match => match.competitionSetupMatch === selectedId && onWater(match),
+        match => match.competitionSetupMatch === selectedId && match.progress !== 'FINISHED',
     )
     if (selected !== undefined) return selected.competitionSetupMatch
     return matches.find(onWater)?.competitionSetupMatch

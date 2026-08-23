@@ -163,6 +163,33 @@ describe('expectedFinishMatches', () => {
 
         expect(result.upcoming).toBeUndefined()
     })
+
+    it('nimmt die fokussierte Partie zusätzlich auf, auch wenn sie nicht auf dem Wasser ist', () => {
+        // Zielzeiten ohne Start: eine per Klick fokussierte offene Partie muss in der
+        // Arbeitsfläche erscheinen, damit ihre Boots-Knöpfe und Tasten bedienbar sind.
+        const result = expectedFinishMatches(
+            [match('m1', 'STARTED'), match('m2', 'OPEN'), match('m3', 'OPEN')],
+            'm2',
+        )
+
+        expect(result.current.map(m => m.competitionSetupMatch)).toEqual(['m1', 'm2'])
+        expect(result.upcoming).toBeUndefined()
+    })
+
+    it('dupliziert die fokussierte Partie nicht, wenn sie ohnehin auf dem Wasser ist', () => {
+        const result = expectedFinishMatches([match('m1', 'STARTED'), match('m2', 'OPEN')], 'm1')
+
+        expect(result.current.map(m => m.competitionSetupMatch)).toEqual(['m1'])
+    })
+
+    it('zeigt eine fokussierte offene Partie statt der Vorschau', () => {
+        // Die fokussierte Partie IST die Arbeitsfläche — eine zusätzliche Vorschau daneben
+        // würde nur um Aufmerksamkeit konkurrieren.
+        const result = expectedFinishMatches([match('m1', 'FINISHED'), match('m2', 'OPEN')], 'm2')
+
+        expect(result.current.map(m => m.competitionSetupMatch)).toEqual(['m2'])
+        expect(result.upcoming).toBeUndefined()
+    })
 })
 
 describe('pendingAssignmentMark', () => {
