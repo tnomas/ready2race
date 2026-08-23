@@ -345,11 +345,12 @@ class TimingOfficialTimeServiceTest {
         assertEquals(90_000L, timecode.time)
         assertEquals(Timecode.BaseUnit.MINUTES.name, timecode.baseUnit)
         assertEquals(Timecode.MillisecondPrecision.ONE.name, timecode.millisecondPrecision)
-        // The push never touches places or the failed state of a finisher.
+        // The push never touches the failed state of a finisher - aber den Platz leitet er wie
+        // die Echtzeit-Übernahme aus den Zeiten ab (places_calculated wie beim Import).
         assertFalse(team.failed!!)
         assertNull(team.failedReason)
-        assertNull(team.place)
-        assertFalse(team.placesCalculated!!)
+        assertEquals(1, team.place)
+        assertTrue(team.placesCalculated!!)
 
         val official = !TimingOfficialTimeRepo.getByTeam(teamId)
         assertNotNull(official!!.pushedAt)
@@ -446,17 +447,33 @@ class TimingOfficialTimeServiceTest {
         assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
     }
 
+    // Seit dem Platz-Umbau friert nicht mehr jeder Platz ein, sondern nur ein FREMDER: Die
+    // Echtzeit-Übernahme hat hier selbst Platz 1 abgeleitet; erst der von Hand umgesetzte Platz
+    // macht den Stand fremd.
     @Test
-    fun pushFailsWhenTeamAlreadyHasAPlace() = testComprehension {
+    fun pushFailsWhenTeamHasAForeignPlace() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val teamId = !pushablePreparedTeam(eventId, userId)
-        !CompetitionMatchTeamRepo.updateById(teamId) { place = 1 }
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 2 }
 
         assertKIOFails(
             TimingError.PushConflict(listOf(OfficialTimePushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
         ) {
             TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
         }
+    }
+
+    // Das Gegenstück: Der eigene, aus den Zeiten abgeleitete Platz friert den Push NICHT ein - er
+    // ist Teil des eigenen Fingerabdrucks.
+    @Test
+    fun pushSucceedsOverItsOwnDerivedPlace() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        assertEquals(1, (!CompetitionMatchTeamRepo.getById(teamId))!!.place)
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        assertEquals(1, (!CompetitionMatchTeamRepo.getById(teamId))!!.place)
     }
 
     // A referee can record a DNF/DNS/DSQ without ever calculating places (place stays null,
@@ -481,7 +498,9 @@ class TimingOfficialTimeServiceTest {
     fun forcePushOverridesTheFreeze() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val teamId = !pushablePreparedTeam(eventId, userId)
-        !CompetitionMatchTeamRepo.updateById(teamId) { placesCalculated = true }
+        // Ein fremder Platz friert ein (siehe oben) - genau diese Grenze überschreibt force,
+        // und der Platz wird dabei wieder aus den Zeiten abgeleitet.
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 2 }
 
         !TimingOfficialTimeService.pushOfficialTimes(
             eventId,
@@ -489,7 +508,9 @@ class TimingOfficialTimeServiceTest {
             userId,
         )
 
-        assertEquals(teamId, (!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertEquals(teamId, team!!.timecode)
+        assertEquals(1, team.place)
         assertNotNull((!TimingOfficialTimeRepo.getByTeam(teamId))!!.pushedAt)
     }
 

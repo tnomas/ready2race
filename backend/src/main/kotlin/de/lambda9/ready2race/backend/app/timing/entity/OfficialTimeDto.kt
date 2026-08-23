@@ -28,4 +28,10 @@ data class OfficialTimeDto(
     val effectiveMillis: Long?,
     val dirty: Boolean,
     val pushedAt: LocalDateTime?,
+    /**
+     * Der Platz, wie er aktuell am Lauf steht (`competition_match_team.place`) - von der Übernahme
+     * aus den Zeiten abgeleitet (Gleichstände teilen sich den Platz: 1, 1, 3) oder von Hand
+     * gesetzt. Vorläufig, solange der Lauf läuft: er wandert mit jedem weiteren Zieleinlauf.
+     */
+    val place: Int?,
 )

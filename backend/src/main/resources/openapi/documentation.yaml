@@ -20674,6 +20674,13 @@ components:
         pushedAt:
           type: string
           format: date-time
+        place:
+          type: integer
+          format: int32
+          description: >-
+            Der Platz, wie er aktuell am Lauf steht - von der Übernahme aus den Zeiten abgeleitet
+            (Gleichstände teilen sich den Platz) oder von Hand gesetzt. Vorläufig, solange der Lauf
+            läuft.
 
     OfficialTimeOverrideRequest:
       type: object

@@ -107,6 +107,7 @@ fun officialTimeDto(
     record: TimingOfficialTimeRecord,
     startMillis: Long?,
     finishMillis: Long?,
+    place: Int?,
 ): OfficialTimeDto = OfficialTimeDto(
     competitionMatchTeam = record.competitionMatchTeam,
     event = record.event,
@@ -120,6 +121,7 @@ fun officialTimeDto(
     effectiveMillis = effectiveMillis(record),
     dirty = record.dirty ?: false,
     pushedAt = record.pushedAt,
+    place = place,
 )
 
 /**
@@ -131,6 +133,7 @@ fun unpersistedOfficialTimeDto(
     eventId: UUID,
     startMillis: Long?,
     finishMillis: Long?,
+    place: Int?,
 ): OfficialTimeDto = OfficialTimeDto(
     competitionMatchTeam = teamId,
     event = eventId,
@@ -144,6 +147,7 @@ fun unpersistedOfficialTimeDto(
     effectiveMillis = null,
     dirty = false,
     pushedAt = null,
+    place = place,
 )
 
 /**

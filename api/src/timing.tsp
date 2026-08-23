@@ -202,6 +202,9 @@ model OfficialTimeDto {
   effectiveMillis?: int64;
   dirty: boolean;
   pushedAt?: dateTime;
+  // Der Platz, wie er aktuell am Lauf steht - von der Übernahme aus den Zeiten abgeleitet
+  // (Gleichstände teilen sich den Platz) oder von Hand gesetzt; vorläufig, solange der Lauf läuft.
+  place?: int32;
 }
 
 enum OfficialTimeSkipReason {

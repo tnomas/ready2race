@@ -2,7 +2,9 @@ package de.lambda9.ready2race.backend.app.timing
 
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingApplyLogic
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingApplyLogic.Decision
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingApplyLogic.PlaceCandidate
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingApplyLogic.ResultState
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,7 +18,8 @@ import kotlin.test.assertTrue
  *
  * Der Fingerabdruck des zuletzt geschriebenen Stands ist das Gedächtnis dieser Entscheidung: er
  * unterscheidet "unverändert" (kein doppeltes Schreiben) von "fremd" (jemand anderes hat das
- * Ergebnis angefasst - nie stillschweigend überschreiben).
+ * Ergebnis angefasst - nie stillschweigend überschreiben). Seit dem Platz-Umbau gehört der Platz
+ * zum Abdruck: eigene Platz-Fortschreibungen sind nie fremd, ein fremder Platz friert ein.
  */
 class TimingApplyLogicTest {
 
@@ -38,6 +41,9 @@ class TimingApplyLogicTest {
             ResultState(90_000L, null, 5, null),
             ResultState(90_000L, null, 5, "Frühstart"),
             ResultState(90_000L, null, 5, "Bahnverlassen"),
+            ResultState(90_000L, null, null, null, place = 1),
+            ResultState(90_000L, null, null, null, place = 2),
+            ResultState(90_000L, null, null, null, place = 1, placesCalculated = true),
         )
         val prints = states.map { fp(it) }
         assertEquals(prints.size, prints.toSet().size, "jede Abweichung muss einen eigenen Abdruck ergeben")
@@ -58,6 +64,40 @@ class TimingApplyLogicTest {
         )
     }
 
+    // Der Übergang für Bestandsdaten: Die Migration V202608211460 hängt an alte Abdrücke (vier
+    // Felder) exakt `|_|5:false` an. Das MUSS denselben Abdruck ergeben wie ein neuer Stand ohne
+    // eigenen Platz - sonst gälten alle vor dem Umbau geschriebenen Ergebnisse plötzlich als fremd.
+    @Test
+    fun migrationSuffixMatchesTheNewFingerprintWithoutAPlace() {
+        val oldFourFieldFingerprint = listOf(
+            "90000".let { "${it.length}:$it" },
+            "_",
+            "_",
+            "_",
+        ).joinToString("|")
+        assertEquals(
+            oldFourFieldFingerprint + "|_|5:false",
+            fp(ResultState(90_000L, null, null, null, place = null, placesCalculated = false)),
+        )
+    }
+
+    // Der Abdruck muss rücklesbar sein: die Freeze-Grenze des Push braucht den Platz, den unser
+    // eigener Abdruck festhält. Ein Grund mit Trennzeichen darf das Parsen nicht verwirren.
+    @Test
+    fun fingerprintRoundTripsThroughParse() {
+        val states = listOf(
+            empty,
+            time90,
+            ResultState(95_000L, null, 5, "Früh|start"),
+            ResultState(null, "DNF", null, null, place = null, placesCalculated = true),
+            ResultState(90_000L, null, null, null, place = 2, placesCalculated = true),
+        )
+        states.forEach { state ->
+            assertEquals(state, TimingApplyLogic.parseFingerprint(fp(state)), "Rückweg für $state")
+        }
+        assertNull(TimingApplyLogic.parseFingerprint("kein Abdruck"))
+    }
+
     // ------------------------------------------------------------- Strafsekunden
 
     @Test
@@ -73,6 +113,52 @@ class TimingApplyLogicTest {
         assertNull(TimingApplyLogic.penaltySecondsFor(null))
     }
 
+    // ------------------------------------------------------------- Platzableitung
+
+    private val boatA = UUID.randomUUID()
+    private val boatB = UUID.randomUUID()
+    private val boatC = UUID.randomUUID()
+
+    @Test
+    fun derivePlacesRanksByTime() {
+        val places = TimingApplyLogic.derivePlaces(
+            listOf(
+                PlaceCandidate(boatA, 92_000L),
+                PlaceCandidate(boatB, 90_000L),
+                PlaceCandidate(boatC, 91_000L),
+            )
+        )
+        assertEquals(mapOf(boatB to 1, boatC to 2, boatA to 3), places)
+    }
+
+    // Gleichstände auf der veröffentlichten Genauigkeitsstufe teilen sich den Platz, dahinter
+    // reißt die Lücke - 1, 1, 3, wie es RatingCategoryRanking und der Siegerehrungsbogen lesen.
+    @Test
+    fun derivePlacesSharesThePlaceOnTiesAndSkipsBehind() {
+        val places = TimingApplyLogic.derivePlaces(
+            listOf(
+                PlaceCandidate(boatA, 90_000L),
+                PlaceCandidate(boatB, 90_000L),
+                PlaceCandidate(boatC, 91_000L),
+            )
+        )
+        assertEquals(1, places[boatA])
+        assertEquals(1, places[boatB])
+        assertEquals(3, places[boatC])
+    }
+
+    @Test
+    fun derivePlacesIsEmptyForNoCandidates() {
+        assertEquals(emptyMap(), TimingApplyLogic.derivePlaces(emptyList()))
+    }
+
+    // Solange nur ein Teil des Feldes im Ziel ist, sind die Plätze vorläufig - ein einzelnes Boot
+    // ist schlicht Erster. Das Nachrücken selbst prüft die Testcontainers-Kette.
+    @Test
+    fun derivePlacesRanksAPartialField() {
+        assertEquals(mapOf(boatA to 1), TimingApplyLogic.derivePlaces(listOf(PlaceCandidate(boatA, 90_000L))))
+    }
+
     // ------------------------------------------------------------- Entscheidung
 
     @Test
@@ -82,7 +168,6 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = null,
             teamState = empty,
-            teamHasPlace = false,
         )
         assertEquals(Decision.WriteResult, decision)
     }
@@ -94,7 +179,6 @@ class TimingApplyLogicTest {
             target = dnf,
             appliedFingerprint = null,
             teamState = empty,
-            teamHasPlace = false,
         )
         assertEquals(Decision.WriteResult, decision)
     }
@@ -107,23 +191,22 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = applied,
             teamState = time90,
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipUnchanged, decision)
     }
 
-    // Der Normalfall nach dem Rennen: unser Ergebnis steht, die Plätze wurden daraus berechnet.
-    // Solange sich nichts geändert hat, ist das kein Konflikt - und darf nicht als "eingefroren"
-    // oder "schmutzig" aufscheinen.
+    // Der Normalfall nach dem Rennen: unser Ergebnis samt Platz steht am Team, der Abdruck trägt
+    // beides. Solange sich nichts ändert, ist das kein Konflikt - und darf nicht als fremd oder
+    // "schmutzig" aufscheinen.
     @Test
-    fun unchangedBeatsFrozenWhenPlacesWereCalculatedFromOurResult() {
-        val applied = fp(time90)
+    fun unchangedBeatsForeignWhenThePlaceCameFromOurOwnWrite() {
+        val ourState = time90.copy(place = 1, placesCalculated = true)
+        val applied = fp(ourState)
         val decision = TimingApplyLogic.decide(
             autoApply = true,
-            target = time90,
+            target = ourState,
             appliedFingerprint = applied,
-            teamState = time90,
-            teamHasPlace = true,
+            teamState = ourState,
         )
         assertEquals(Decision.SkipUnchanged, decision)
         assertFalse(TimingApplyLogic.dirtyAfter(decision, hasTarget = true, targetFingerprint = applied, appliedFingerprint = applied))
@@ -137,7 +220,22 @@ class TimingApplyLogicTest {
             target = time95Penalty,
             appliedFingerprint = applied,
             teamState = time90,
-            teamHasPlace = false,
+        )
+        assertEquals(Decision.WriteResult, decision)
+    }
+
+    // Das Herz des Platz-Umbaus: Ein weiteres Boot ist eingelaufen, unser Boot rückt vom
+    // abgeleiteten Platz 1 auf 2. Der alte Stand (samt Platz 1) ist exakt unser Abdruck - also
+    // ist die Fortschreibung ein gewöhnliches Schreiben, kein Konflikt.
+    @Test
+    fun movesItsOwnDerivedPlaceWhenAnotherBoatArrives() {
+        val ourState = time90.copy(place = 1, placesCalculated = true)
+        val applied = fp(ourState)
+        val decision = TimingApplyLogic.decide(
+            autoApply = true,
+            target = time90.copy(place = 2, placesCalculated = true),
+            appliedFingerprint = applied,
+            teamState = ourState,
         )
         assertEquals(Decision.WriteResult, decision)
     }
@@ -152,23 +250,39 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = applied,
             teamState = dnf,
-            teamHasPlace = false,
         )
         assertEquals(Decision.WriteResult, decision)
     }
 
+    // Die alte Regel "Platz gesetzt = eingefroren" ist zu "FREMDER Platz = eingefroren" geworden:
+    // Ein Platz, der nicht in unserem Abdruck steht, macht den ganzen Stand fremd.
     @Test
-    fun neverTouchesATeamWithACalculatedPlaceWhenSomethingWouldChange() {
+    fun neverTouchesATeamWithAForeignPlaceWhenSomethingWouldChange() {
         val applied = fp(time90)
         val decision = TimingApplyLogic.decide(
             autoApply = true,
             target = time95Penalty,
             appliedFingerprint = applied,
-            teamState = time90,
-            teamHasPlace = true,
+            teamState = time90.copy(place = 1),
         )
-        assertEquals(Decision.SkipFrozen, decision)
+        assertEquals(Decision.SkipForeignResult, decision)
         assertTrue(TimingApplyLogic.dirtyAfter(decision, hasTarget = true, targetFingerprint = fp(time95Penalty), appliedFingerprint = applied))
+    }
+
+    // Auch die Schiedsrichter-Maske "Plätze ausdrücklich bestätigen" (gleiche Werte, aber
+    // places_calculated = false) ist ein fremder Eingriff: Ab da gehören die Plätze dem
+    // Schiedsrichter, und die Automatik verschiebt sie nicht mehr.
+    @Test
+    fun refereeConfirmedPlacesFreezeEvenWithIdenticalValues() {
+        val ourState = time90.copy(place = 1, placesCalculated = true)
+        val applied = fp(ourState)
+        val decision = TimingApplyLogic.decide(
+            autoApply = true,
+            target = time90.copy(place = 2, placesCalculated = true),
+            appliedFingerprint = applied,
+            teamState = time90.copy(place = 1, placesCalculated = false),
+        )
+        assertEquals(Decision.SkipForeignResult, decision)
     }
 
     // Ein Ergebnis, das nicht von uns stammt (Import, Schiedsrichter-Maske), wird nie überschrieben
@@ -180,7 +294,6 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = null,
             teamState = ResultState(88_000L, null, null, null),
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipForeignResult, decision)
     }
@@ -195,7 +308,6 @@ class TimingApplyLogicTest {
             target = time95Penalty,
             appliedFingerprint = applied,
             teamState = ResultState(null, "DNF", null, null),
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipForeignResult, decision)
     }
@@ -210,7 +322,6 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = applied,
             teamState = empty,
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipForeignResult, decision)
     }
@@ -225,22 +336,34 @@ class TimingApplyLogicTest {
             target = empty,
             appliedFingerprint = applied,
             teamState = time90,
-            teamHasPlace = false,
+        )
+        assertEquals(Decision.ClearResult, decision)
+    }
+
+    // Das gilt auch mit eigenem Platz am Team: die Rücknahme nimmt Zeit UND Platz wieder mit.
+    @Test
+    fun clearsItsOwnResultIncludingItsOwnDerivedPlace() {
+        val ourState = time90.copy(place = 1, placesCalculated = true)
+        val applied = fp(ourState)
+        val decision = TimingApplyLogic.decide(
+            autoApply = true,
+            target = empty,
+            appliedFingerprint = applied,
+            teamState = ourState,
         )
         assertEquals(Decision.ClearResult, decision)
     }
 
     @Test
-    fun doesNotClearWhenThePlaceIsAlreadyCalculated() {
+    fun doesNotClearWhenAForeignPlaceWasSet() {
         val applied = fp(time90)
         val decision = TimingApplyLogic.decide(
             autoApply = true,
             target = empty,
             appliedFingerprint = applied,
-            teamState = time90,
-            teamHasPlace = true,
+            teamState = time90.copy(place = 1, placesCalculated = true),
         )
-        assertEquals(Decision.SkipFrozen, decision)
+        assertEquals(Decision.SkipForeignResult, decision)
     }
 
     @Test
@@ -250,7 +373,6 @@ class TimingApplyLogicTest {
             target = empty,
             appliedFingerprint = null,
             teamState = empty,
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipNothingToWrite, decision)
         assertFalse(TimingApplyLogic.dirtyAfter(decision, hasTarget = false, targetFingerprint = null, appliedFingerprint = null))
@@ -265,7 +387,6 @@ class TimingApplyLogicTest {
             target = time90,
             appliedFingerprint = null,
             teamState = empty,
-            teamHasPlace = false,
         )
         assertEquals(Decision.SkipDisabled, decision)
     }
@@ -296,6 +417,6 @@ class TimingApplyLogicTest {
     @Test
     fun foreignResultShowsUpDirty() {
         assertTrue(TimingApplyLogic.dirtyAfter(Decision.SkipForeignResult, hasTarget = true, targetFingerprint = fp(time90), appliedFingerprint = null))
-        assertTrue(TimingApplyLogic.dirtyAfter(Decision.SkipFrozen, hasTarget = true, targetFingerprint = fp(time95Penalty), appliedFingerprint = fp(time90)))
+        assertTrue(TimingApplyLogic.dirtyAfter(Decision.SkipForeignResult, hasTarget = true, targetFingerprint = fp(time95Penalty), appliedFingerprint = fp(time90)))
     }
 }
