@@ -217,7 +217,9 @@ const EventTimingConfig = () => {
                                 Der Hinweis steht dauerhaft dabei; bei feineren Stufen als
                                 Zehntel wechselt er auf einen Warnton (dezent, keine Blockade):
                                 von Hand getippte Zeiten tragen menschliche Reaktionszeit,
-                                feinere Stellen wären dann Scheingenauigkeit. */}
+                                feinere Stellen wären dann Scheingenauigkeit. `warning.dark`
+                                statt `warning.main`, weil der helle Orangeton als Fließtext
+                                auf hellem Grund kaum lesbar ist. */}
                             <Box>
                                 <FormInputRadioButtonGroup
                                     name={'timingPrecision'}
@@ -235,7 +237,7 @@ const EventTimingConfig = () => {
                                     color={
                                         timingPrecision === 'HUNDERTSTEL' ||
                                         timingPrecision === 'MILLISEKUNDE'
-                                            ? 'warning.main'
+                                            ? 'warning.dark'
                                             : 'text.secondary'
                                     }
                                     sx={{mt: 0.5}}>

@@ -315,7 +315,8 @@ const LiveDashboardMatchCard = ({
                     )}
                 </Box>
                 {match.pairingsRecalculatedAt && (
-                    <Typography variant={'caption'} color={'warning.main'}>
+                    // warning.dark: der helle Warnton ist als Text auf hellem Grund kaum lesbar.
+                    <Typography variant={'caption'} color={'warning.dark'}>
                         {t('event.competition.execution.pairingsRecalculated')}
                     </Typography>
                 )}
@@ -330,7 +331,8 @@ const LiveDashboardMatchCard = ({
                             alignItems="center"
                             flexWrap="wrap"
                             useFlexGap>
-                            <Typography variant={'caption'} color={'warning.main'}>
+                            {/* warning.dark statt warning.main: lesbarer Text auf hellem Grund. */}
+                            <Typography variant={'caption'} color={'warning.dark'}>
                                 {pollStatus.kind === 'paused'
                                     ? t(
                                           'event.competition.execution.results.raceclocker.poll.paused',

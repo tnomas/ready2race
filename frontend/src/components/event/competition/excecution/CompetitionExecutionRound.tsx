@@ -944,7 +944,8 @@ const CompetitionExecutionRound = ({
                                         }}
                                     />
                                     {match.pairingsRecalculatedAt && (
-                                        <Typography variant={'caption'} color={'warning.main'}>
+                                        // warning.dark: heller Warnton als Text ist kaum lesbar.
+                                        <Typography variant={'caption'} color={'warning.dark'}>
                                             {t('event.competition.execution.pairingsRecalculated')}
                                         </Typography>
                                     )}
@@ -958,9 +959,11 @@ const CompetitionExecutionRound = ({
                                                     <Typography
                                                         variant={'caption'}
                                                         color={
+                                                            // warning.dark: lesbar auf hellem
+                                                            // Grund, anders als warning.main.
                                                             status.kind === 'ok'
                                                                 ? 'text.secondary'
-                                                                : 'warning.main'
+                                                                : 'warning.dark'
                                                         }>
                                                         {status.kind === 'paused'
                                                             ? t(
