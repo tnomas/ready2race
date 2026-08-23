@@ -95,6 +95,8 @@ import {liveDashboardErrorKey} from '@components/event/liveDashboard/liveDashboa
 import {readCachedRead, writeCachedRead} from '@pwa/readCache.ts'
 import {describeStale} from '@components/event/liveDashboard/staleState.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
+import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 
 /** The dashboard payload carries no server clock of its own (unlike the athlete board), so the
  * now-marker ticks off the local clock every 30s - plenty for a position on a day-long axis. */
@@ -274,6 +276,18 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
         }
     }, [wide])
 
+    // Push-Kanal der Veranstaltung: gemeldete Änderungen laden das Dashboard sofort (der Hook
+    // entprellt Schübe). Der Reload hängt an einer Ref, weil dashboardData erst unterhalb
+    // entsteht — der Hook ruft ohnehin stets die neueste Fassung.
+    const reloadDashboardRef = useRef<() => void>(() => {})
+    const {connected: pushConnected} = useEventChangeSocket(eventId, () =>
+        reloadDashboardRef.current(),
+    )
+    // Solange der Kanal steht, wird der eingestellte Takt zum trägen Sicherheitsnetz gestreckt;
+    // reißt er ab, gilt unverändert der eingestellte Takt. Der Wert steht auch in den deps: ein
+    // Verbindungswechsel lädt einmal neu und stellt dabei den Wecker um.
+    const effectivePollMs = stretchedPollMs(pollIntervalMs, pushConnected)
+
     const dashboardData = useFetch(
         signal =>
             getLiveDashboard({
@@ -286,8 +300,8 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                 cache: 'no-store',
             }),
         {
-            autoReloadInterval: pollIntervalMs,
-            deps: [eventId, pollIntervalMs, scope, crew],
+            autoReloadInterval: effectivePollMs,
+            deps: [eventId, effectivePollMs, scope, crew],
             onResponse: ({data, response}) => {
                 if (response.status === 304) {
                     setLastUpdated(new Date())
@@ -325,6 +339,7 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             },
         },
     )
+    reloadDashboardRef.current = dashboardData.reload
 
     /**
      * Ob RaceClocker den Start dieser Veranstaltung ohnehin selbst meldet — daran hängt allein der
@@ -693,8 +708,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                                 {format(lastUpdated, t('format.timeWithSeconds'))}
                             </Typography>
                         )}
-                        {/* Nur noch Anzeige — den Takt wählt das Einstellungs-Popover daneben. */}
-                        <RefreshCountdown intervalMs={pollIntervalMs} lastUpdated={lastUpdated} />
+                        {/* Nur noch Anzeige — den Takt wählt das Einstellungs-Popover daneben.
+                            Der Ring zeigt den WIRKSAMEN Takt: mit stehendem Push-Kanal den
+                            gestreckten Sicherheitstakt (Aktualisierungen kommen dann gepusht,
+                            meist lange bevor der Ring leerläuft). */}
+                        <RefreshCountdown intervalMs={effectivePollMs} lastUpdated={lastUpdated} />
                         <DashboardSettingsPopover
                             eventId={eventId}
                             competitionOptions={competitionOptions}

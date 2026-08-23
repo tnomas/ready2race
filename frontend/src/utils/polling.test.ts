@@ -172,4 +172,53 @@ describe('createPoller', () => {
 
         expect(pending).toHaveLength(1)
     })
+
+    it('setIntervalMs streckt einen bereits gestellten Wecker, ohne sofort zu laden', async () => {
+        const {poller, pending} = harness()
+        poller.start()
+        pending[0].resolve('a')
+        await flush()
+
+        // Der Wecker steht auf INTERVAL — die Streckung stellt ihn um, löst aber nichts aus.
+        poller.setIntervalMs(INTERVAL * 8)
+        expect(pending).toHaveLength(1)
+
+        // Zum alten Takt passiert nichts mehr ...
+        await vi.advanceTimersByTimeAsync(INTERVAL)
+        expect(pending).toHaveLength(1)
+
+        // ... erst der gestreckte Takt lädt wieder.
+        await vi.advanceTimersByTimeAsync(INTERVAL * 7)
+        expect(pending).toHaveLength(2)
+        poller.stop()
+    })
+
+    it('setIntervalMs zurück auf den Grundtakt wirkt ab dem nächsten Wecker', async () => {
+        const {poller, pending} = harness()
+        poller.start()
+        pending[0].resolve('a')
+        await flush()
+
+        poller.setIntervalMs(INTERVAL * 8)
+        poller.setIntervalMs(INTERVAL)
+        await vi.advanceTimersByTimeAsync(INTERVAL)
+        expect(pending).toHaveLength(2)
+        poller.stop()
+    })
+
+    it('setIntervalMs während eines laufenden Abrufs stellt keinen konkurrierenden Wecker', async () => {
+        const {poller, pending} = harness()
+        poller.start()
+        // Der erste Abruf hängt noch — kein Timer gestellt.
+        poller.setIntervalMs(INTERVAL * 8)
+        pending[0].resolve('a')
+        await flush()
+
+        // Der Abschluss des Abrufs stellt den Wecker, bereits im gestreckten Takt.
+        await vi.advanceTimersByTimeAsync(INTERVAL * 7)
+        expect(pending).toHaveLength(1)
+        await vi.advanceTimersByTimeAsync(INTERVAL)
+        expect(pending).toHaveLength(2)
+        poller.stop()
+    })
 })

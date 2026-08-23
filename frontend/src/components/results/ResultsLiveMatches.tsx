@@ -53,6 +53,10 @@ const ResultsLiveMatches = ({eventId}: Props) => {
         },
         REFRESH_MS,
         [eventId],
+        // Push statt Takt (siehe eventChangePush.ts): Zustandswechsel erscheinen sofort, der
+        // Takt wird zum Sicherheitsnetz gestreckt — das publicInfo-Rate-Limit sieht dadurch
+        // weniger Abrufe, nie mehr.
+        eventId,
     )
 
     const [dialogOpen, setDialogOpen] = useState(false)
