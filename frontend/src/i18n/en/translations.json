@@ -3071,6 +3071,14 @@
     "mark": {
       "retractError": "Undo failed"
     },
+    "finish": {
+      "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
+      "assignLater": "Assign later",
+      "hint": "Tap a boat: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next tap.",
+      "finishedCount": "{{finished}}/{{total}} finished",
+      "upcomingTitle": "Expected next",
+      "noneExpected": "No race is on the water right now."
+    },
     "matches": {
       "title": "Start list",
       "loadError": "The races could not be loaded.",
@@ -3198,6 +3206,7 @@
         "undo": "Undo"
       },
       "teams": {
+        "viewMatches": "Races",
         "viewTwoStep": "Two-step",
         "viewTeams": "Teams",
         "arm": "Arm",

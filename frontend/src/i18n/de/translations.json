@@ -3071,6 +3071,14 @@
     "mark": {
       "retractError": "Rückgängig machen fehlgeschlagen"
     },
+    "finish": {
+      "assignPrompt": "Zeit {{time}} wartet — Boot antippen, um sie zuzuordnen.",
+      "assignLater": "Später zuordnen",
+      "hint": "Boot antippen: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Antippen zuordnen.",
+      "finishedCount": "{{finished}}/{{total}} im Ziel",
+      "upcomingTitle": "Als Nächstes erwartet",
+      "noneExpected": "Gerade ist keine Partie auf dem Wasser."
+    },
     "matches": {
       "title": "Startliste",
       "loadError": "Die Partien konnten nicht geladen werden.",
@@ -3198,6 +3206,7 @@
         "undo": "Rückgängig machen"
       },
       "teams": {
+        "viewMatches": "Partien",
         "viewTwoStep": "Zwei-Schritt",
         "viewTeams": "Teams",
         "arm": "Scharfstellen",

@@ -3044,6 +3044,14 @@
     "mark": {
       "retractError": "Fortryd mislykkedes"
     },
+    "finish": {
+      "assignPrompt": "Tiden {{time}} venter — tryk på en båd for at tildele den.",
+      "assignLater": "Tildel senere",
+      "hint": "Tryk på en båd: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
+      "finishedCount": "{{finished}}/{{total}} i mål",
+      "upcomingTitle": "Forventes som næste",
+      "noneExpected": "Der er ikke noget løb på vandet lige nu."
+    },
     "matches": {
       "title": "Startliste",
       "loadError": "Løbene kunne ikke indlæses.",
@@ -3171,6 +3179,7 @@
         "undo": "Fortryd"
       },
       "teams": {
+        "viewMatches": "Løb",
         "viewTwoStep": "To trin",
         "viewTeams": "Hold",
         "arm": "Klargør",

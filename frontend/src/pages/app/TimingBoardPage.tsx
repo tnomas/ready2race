@@ -25,6 +25,7 @@ import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
 import TeamCaptureGrid from '@components/timing/TeamCaptureGrid.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
+import MatchCaptureView from '@components/timing/MatchCaptureView.tsx'
 import SequencePanel from '@components/timing/SequencePanel.tsx'
 import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
@@ -137,17 +138,32 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
 
     // --- Capture view -----------------------------------------------------------------------------
     //
-    // Two ways to record a time, switched by the operator: the classic two-step button (bank a time,
-    // assign it afterwards from the mark list) and the direct-tap team grid (one gesture does both).
-    // Which one is right depends on the post, not on the software — a finish line with 60 teams
-    // streaming in wants the button, a split where the operator knows who is coming wants the grid —
-    // so this is a toggle rather than a decision baked into the station type.
+    // Three ways to record a time, switched by the operator: the partie-oriented view (expected
+    // matches with their boats — bank a time and assign it with one tap, or tap the boat directly),
+    // the classic two-step button (bank a time, assign it afterwards from the mark list) and the
+    // direct-tap team grid over the whole event roster. Which one is right depends on the post, not
+    // on the software, so this is a toggle rather than a decision baked into the station type — but
+    // the partie view is the default whenever internally timed matches exist, because "Zeit nehmen
+    // und sofort zuordnen" is the main path at a finish line.
     //
     // Except on START stations: those own the whole screen with their sequence panel, and their job is
     // to start heats, not to attribute times to individual teams. The toggle is not rendered there.
-    const [captureView, setCaptureView] = useState<'TWO_STEP' | 'TEAMS'>('TWO_STEP')
+    const [captureView, setCaptureView] = useState<'MATCHES' | 'TWO_STEP' | 'TEAMS'>('TWO_STEP')
+    /** True once the operator picked a view by hand — the auto-default must not override that. */
+    const captureViewTouchedRef = useRef(false)
     const teamsViewAvailable = station !== undefined && station.type !== 'START'
+    const matchesViewAvailable = teamsViewAvailable && matches.length > 0
+    useEffect(() => {
+        if (captureViewTouchedRef.current) return
+        if (matchesViewAvailable) setCaptureView('MATCHES')
+    }, [matchesViewAvailable])
+    // Fällt die Partie-Ansicht weg (kein INTERN-Wettkampf mehr, Postenwechsel), nicht auf einer
+    // leeren Ansicht sitzen bleiben.
+    useEffect(() => {
+        if (!matchesViewAvailable && captureView === 'MATCHES') setCaptureView('TWO_STEP')
+    }, [matchesViewAvailable, captureView])
     const showTeamsView = teamsViewAvailable && captureView === 'TEAMS'
+    const showMatchesView = matchesViewAvailable && captureView === 'MATCHES'
 
     /**
      * Teams that are done **at this station**: they have an ACTIVE mark here that is assigned to them.
@@ -643,10 +659,18 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                         // `null` arrives when the already-selected button is pressed again; keeping the
                         // current view then is what makes this a switch rather than a way to end up
                         // with no capture surface at all.
-                        onChange={(_, value: 'TWO_STEP' | 'TEAMS' | null) => {
-                            if (value !== null) setCaptureView(value)
+                        onChange={(_, value: 'MATCHES' | 'TWO_STEP' | 'TEAMS' | null) => {
+                            if (value !== null) {
+                                captureViewTouchedRef.current = true
+                                setCaptureView(value)
+                            }
                         }}
                         sx={{flexShrink: 0, alignSelf: 'flex-start'}}>
+                        {matchesViewAvailable && (
+                            <ToggleButton value="MATCHES">
+                                {t('timing.board.teams.viewMatches')}
+                            </ToggleButton>
+                        )}
                         <ToggleButton value="TWO_STEP">
                             {t('timing.board.teams.viewTwoStep')}
                         </ToggleButton>
@@ -661,12 +685,41 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 <Box
                     onPointerDown={unlockAudio}
                     sx={{
-                        flexShrink: showTeamsView ? 1 : 0,
+                        flexShrink: showTeamsView || showMatchesView ? 1 : 0,
                         minHeight: 0,
                         display: 'flex',
                         flexGrow: station?.type === 'START' ? 0 : 1,
                     }}>
-                    {showTeamsView ? (
+                    {showMatchesView ? (
+                        // Partie-Ansicht: oben die große Erfassungsfläche (Zeit ohne Boot banken —
+                        // sie erscheint sofort als „zuordnen"-Banner), darunter die erwarteten
+                        // Partien mit ihren Boots-Knöpfen.
+                        <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
+                            <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
+                                <CaptureButton
+                                    station={station}
+                                    now={clock.now}
+                                    onCapture={capture}
+                                    compact
+                                />
+                            </Box>
+                            <MatchCaptureView
+                                eventId={eventId}
+                                matches={matches}
+                                matchesLoading={matchesLoading}
+                                marks={marks}
+                                finishedTeams={finishedTeams}
+                                capture={capture}
+                                disabled={clock.now() === null || station === undefined}
+                                disabledReason={
+                                    clock.now() === null
+                                        ? t('timing.board.capture.clockNotSynced')
+                                        : t('timing.board.capture.stationLoading')
+                                }
+                                applyLocalAssignment={applyLocalAssignment}
+                            />
+                        </Stack>
+                    ) : showTeamsView ? (
                         <TeamCaptureGrid
                             teams={teams}
                             teamsLoading={teamsPending}
