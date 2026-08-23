@@ -1355,7 +1355,8 @@
         "systems": {
           "none": "not set",
           "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
+          "webscorer": "Webscorer",
+          "intern": "Internal timing"
         },
         "eventDefaults": {
           "title": "Event default",
@@ -1646,7 +1647,8 @@
       "systems": {
         "none": "not set",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Internal timing"
       },
       "raceclockerHint": "RaceClocker races belong to the event, not to a single competition. Create each race once here — for example “Long course” and “Short course” — and tick below, per race, which competitions use it. Each competition runs all of its rounds in one race.",
       "autoPull": {
@@ -2984,7 +2986,8 @@
       "types": {
         "START": "Start",
         "SPLIT": "Split",
-        "FINISH": "Finish"
+        "FINISH": "Finish",
+        "ANZEIGE": "Display"
       },
       "error": {
         "hasTimeMarks": "The station already has recorded times and cannot be deleted"

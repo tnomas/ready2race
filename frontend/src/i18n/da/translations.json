@@ -1355,7 +1355,8 @@
         "systems": {
           "none": "ikke angivet",
           "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
+          "webscorer": "Webscorer",
+          "intern": "Intern tidtagning"
         },
         "eventDefaults": {
           "title": "Arrangementets standard",
@@ -1646,7 +1647,8 @@
       "systems": {
         "none": "ikke angivet",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Intern tidtagning"
       },
       "raceclockerHint": "RaceClocker-løb hører til stævnet, ikke til den enkelte konkurrence. Opret hvert løb én gang her — for eksempel „Langdistance“ og „Kortdistance“ — og markér nedenfor pr. løb, hvilke konkurrencer der bruger det. Hver konkurrence kører alle sine runder i ét løb.",
       "autoPull": {
@@ -2957,7 +2959,8 @@
       "types": {
         "START": "Start",
         "SPLIT": "Mellemtid",
-        "FINISH": "Mål"
+        "FINISH": "Mål",
+        "ANZEIGE": "Skærm"
       },
       "error": {
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"

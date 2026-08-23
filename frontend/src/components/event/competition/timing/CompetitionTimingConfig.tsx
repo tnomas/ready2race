@@ -43,6 +43,7 @@ const systemLabelKeys = {
     NONE: 'event.competition.timing.systems.none',
     RACECLOCKER: 'event.competition.timing.systems.raceclocker',
     WEBSCORER: 'event.competition.timing.systems.webscorer',
+    INTERN: 'event.competition.timing.systems.intern',
 } as const
 
 /**

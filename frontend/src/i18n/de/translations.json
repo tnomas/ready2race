@@ -1355,7 +1355,8 @@
         "systems": {
           "none": "nicht gesetzt",
           "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
+          "webscorer": "Webscorer",
+          "intern": "Interne Zeitnahme"
         },
         "eventDefaults": {
           "title": "Vorgabe der Veranstaltung",
@@ -1646,7 +1647,8 @@
       "systems": {
         "none": "nicht gesetzt",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Interne Zeitnahme"
       },
       "raceclockerHint": "RaceClocker-Rennen gehören zur Veranstaltung, nicht zum Wettkampf. Legen Sie hier jedes Rennen einmal an — etwa „Langstrecke“ und „Kurzstrecke“ — und haken Sie darunter je Rennen an, welche Wettkämpfe es nutzen. Jeder Wettkampf fährt alle seine Runden in einem Rennen.",
       "autoPull": {
@@ -2984,7 +2986,8 @@
       "types": {
         "START": "Start",
         "SPLIT": "Zwischenzeit",
-        "FINISH": "Ziel"
+        "FINISH": "Ziel",
+        "ANZEIGE": "Anzeige"
       },
       "error": {
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"

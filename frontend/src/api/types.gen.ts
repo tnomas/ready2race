@@ -4078,6 +4078,10 @@ export type TimingDeviceTokenDto = {
     station: uuid
     name: string
     revoked: boolean
+    /**
+     * True for tokens issued automatically via the station share-link endpoint (the same link is returned on every click until revoked); false for manually issued hardware tokens whose plaintext only ever exists in the issue response.
+     */
+    autoIssued: boolean
     createdAt: string
 }
 
@@ -4092,12 +4096,119 @@ export type TimingDeviceTokenRequest = {
 }
 
 /**
+ * One match of the internally timed competitions, delivered in start order (planned start time first; matches without a time follow in setup order - race number, round chain, execution order). The start station works this list top to bottom; the finish station reads from it which race is expected and which boats are still missing. Participant names are deliberately not embedded - `GET /event/{eventId}/timing/teams` carries them.
+ */
+export type TimingMatchDto = {
+    /**
+     * Key of the match (competition_match carries the setup match id as its primary key).
+     */
+    competitionSetupMatch: uuid
+    matchName?: string | null
+    competition: uuid
+    competitionName?: string | null
+    /**
+     * The race number.
+     */
+    competitionIdentifier?: string | null
+    round: uuid
+    roundName?: string | null
+    /**
+     * Planned start time from the schedule.
+     */
+    startTime?: string | null
+    /**
+     * Real start (referee action or timing).
+     */
+    startedAt?: string | null
+    finishedAt?: string | null
+    phase: TimingMatchPhase
+    progress: TimingMatchProgress
+    /**
+     * The resolved timing mode (round entry beats competition entry); null = not configured.
+     */
+    timingMode?: TimingModeDto | null
+    teams: Array<TimingMatchTeamDto>
+}
+
+/**
  * The team's match as the boards need it: ACTIVE = called up or on the water (these teams are
  * expected right now), OPEN = still ahead, DONE = finished. Deliberately coarser than the
  * match state of the execution views; the branch order mirrors its derivation. Teams of a bye
  * match are not returned at all unless the bye is set to "must race".
  */
 export type TimingMatchPhase = 'ACTIVE' | 'OPEN' | 'DONE'
+
+/**
+ * Where a match stands on its way from call-up to the finish line, derived (not stored): OPEN = nothing happened yet, STARTING = an armed or running start sequence contains teams of this match, STARTED = at least one team has an assigned start mark and no sequence is live, FINISHED = finished_at is set or every started team has its finish mark.
+ */
+export type TimingMatchProgress = 'OPEN' | 'STARTING' | 'STARTED' | 'FINISHED'
+
+export type TimingMatchTeamDto = {
+    competitionMatchTeam: uuid
+    /**
+     * The team's position in the match (its "lane").
+     */
+    startNumber: number
+    teamName?: string | null
+    clubName?: string | null
+    /**
+     * The team has an assigned ACTIVE mark on a START station.
+     */
+    started: boolean
+    /**
+     * The team has an assigned ACTIVE mark on a FINISH station.
+     */
+    finished: boolean
+}
+
+/**
+ * One mode assignment. Without a round the mode applies to the whole competition; an entry with a round overrides it for exactly that round.
+ */
+export type TimingModeAssignmentDto = {
+    id: uuid
+    competition: uuid
+    competitionSetupRound?: uuid | null
+    timingMode: uuid
+}
+
+/**
+ * Upsert over the natural key (competition, round): creates or replaces the entry for the combination; a null timingMode removes it (idempotent).
+ */
+export type TimingModeAssignmentRequest = {
+    competition: uuid
+    competitionSetupRound?: uuid | null
+    timingMode?: uuid | null
+}
+
+/**
+ * A timing mode of the event - the template for how a match is started and measured (e.g. "Timetrial 30s", "Wellenstart", "Massenstart").
+ */
+export type TimingModeDto = {
+    id: uuid
+    event: uuid
+    name: string
+    /**
+     * Whether lap times (SPLIT stations) are expected for matches of this mode.
+     */
+    withLaps: boolean
+    startGrouping: TimingStartGrouping
+    /**
+     * Set: starts follow automatically at this fixed interval (time trial). Null: every start is triggered by hand.
+     */
+    intervalSeconds?: number | null
+    /**
+     * Countdown before the (first) start; feeds the start sequences' lead-in.
+     */
+    leadInSeconds: number
+}
+
+export type TimingModeRequest = {
+    name: string
+    withLaps: boolean
+    startGrouping: TimingStartGrouping
+    intervalSeconds?: number | null
+    leadInSeconds: number
+}
 
 export type TimingSequenceDto = {
     id: uuid
@@ -4120,6 +4231,23 @@ export type TimingSequenceEntryDto = {
     timeMark?: uuid
 }
 
+/**
+ * The shareable station link. Unlike the manual token issue response this is repeatable: the same station returns the same link until its token is revoked in the devices tab.
+ */
+export type TimingShareLinkDto = {
+    deviceToken: TimingDeviceTokenDto
+    token: string
+    /**
+     * Root-relative frontend path including the token query parameter (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige` display route). The client prepends its own origin.
+     */
+    path: string
+}
+
+/**
+ * How many boats start per start action: EINZEL = one boat at a time (time trial), WELLE = several together. A mass start is a WELLE containing every boat of the match, not a third value.
+ */
+export type TimingStartGrouping = 'EINZEL' | 'WELLE'
+
 export type TimingStateDto = {
     stations: Array<TimingStationDto>
     timeMarks: Array<TimeMarkDto>
@@ -4131,17 +4259,28 @@ export type TimingStationDto = {
     name: string
     type: TimingStationType
     sorting: number
+    /**
+     * Only set on ANZEIGE stations: the START station this display mirrors; null = every start sequence of the event.
+     */
+    linkedStation?: uuid | null
 }
 
 export type TimingStationRequest = {
     name: string
     type: TimingStationType
     sorting: number
+    /**
+     * Only allowed for type ANZEIGE, and must reference a START station of the same event.
+     */
+    linkedStation?: uuid | null
 }
 
 /**
  * Live timing: stations capture time marks (start/split/finish), which are then assigned to a
- * competition match team to produce a result.
+ * competition match team to produce a result. ANZEIGE is a read-only display station (start
+ * referee / athlete screen): it never captures marks, its device tokens are limited to read
+ * endpoints, and via `linkedStation` it mirrors one START station (or, unlinked, every start
+ * sequence of the event).
  *
  * In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
  *
@@ -4164,9 +4303,12 @@ export type TimingStationRequest = {
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
  * only then start applying incoming messages, to cover updates missed while disconnected.
  */
-export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+export type TimingStationType = 'START' | 'SPLIT' | 'FINISH' | 'ANZEIGE'
 
-export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER'
+/**
+ * INTERN selects the built-in timing module (stations, time marks, start sequences, official times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`) and are never polled from an external provider.
+ */
+export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER' | 'INTERN'
 
 export type TimingTeamDto = {
     competitionMatchTeam: uuid
@@ -9375,6 +9517,92 @@ export type GetTimingTeamsData = {
 export type GetTimingTeamsResponse = Array<TimingTeamDto>
 
 export type GetTimingTeamsError = unknown
+
+export type GetTimingMatchesData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingMatchesResponse = Array<TimingMatchDto>
+
+export type GetTimingMatchesError = unknown
+
+export type GetTimingModesData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingModesResponse = Array<TimingModeDto>
+
+export type GetTimingModesError = unknown
+
+export type AddTimingModeData = {
+    body: TimingModeRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type AddTimingModeResponse = uuid
+
+export type AddTimingModeError = unknown
+
+export type UpdateTimingModeData = {
+    body: TimingModeRequest
+    path: {
+        eventId: uuid
+        modeId: uuid
+    }
+}
+
+export type UpdateTimingModeResponse = void
+
+export type UpdateTimingModeError = unknown
+
+export type DeleteTimingModeData = {
+    path: {
+        eventId: uuid
+        modeId: uuid
+    }
+}
+
+export type DeleteTimingModeResponse = void
+
+export type DeleteTimingModeError = unknown
+
+export type GetTimingModeAssignmentsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingModeAssignmentsResponse = Array<TimingModeAssignmentDto>
+
+export type GetTimingModeAssignmentsError = unknown
+
+export type UpsertTimingModeAssignmentData = {
+    body: TimingModeAssignmentRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type UpsertTimingModeAssignmentResponse = void
+
+export type UpsertTimingModeAssignmentError = unknown
+
+export type CreateTimingStationShareLinkData = {
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type CreateTimingStationShareLinkResponse = TimingShareLinkDto
+
+export type CreateTimingStationShareLinkError = unknown
 
 export type CreateTimingSequenceData = {
     body: CreateSequenceRequest

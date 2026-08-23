@@ -1045,6 +1045,30 @@ import type {
     GetTimingTeamsData,
     GetTimingTeamsError,
     GetTimingTeamsResponse,
+    GetTimingMatchesData,
+    GetTimingMatchesError,
+    GetTimingMatchesResponse,
+    GetTimingModesData,
+    GetTimingModesError,
+    GetTimingModesResponse,
+    AddTimingModeData,
+    AddTimingModeError,
+    AddTimingModeResponse,
+    UpdateTimingModeData,
+    UpdateTimingModeError,
+    UpdateTimingModeResponse,
+    DeleteTimingModeData,
+    DeleteTimingModeError,
+    DeleteTimingModeResponse,
+    GetTimingModeAssignmentsData,
+    GetTimingModeAssignmentsError,
+    GetTimingModeAssignmentsResponse,
+    UpsertTimingModeAssignmentData,
+    UpsertTimingModeAssignmentError,
+    UpsertTimingModeAssignmentResponse,
+    CreateTimingStationShareLinkData,
+    CreateTimingStationShareLinkError,
+    CreateTimingStationShareLinkResponse,
     CreateTimingSequenceData,
     CreateTimingSequenceError,
     CreateTimingSequenceResponse,
@@ -5689,6 +5713,9 @@ export const createTimeMark = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Assigns the mark to a team, moves it to another team (mis-clicks are the normal case at a busy finish line), or detaches it (null body value). Besides a session this also accepts the X-Timing-Device-Token header (shared station devices): a device token may only assign and re-assign marks of its OWN station, and tokens of ANZEIGE stations are read-only - both rejections answer 401 without detail. Retraction stays session-only.
+ */
 export const assignTimeMark = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<AssignTimeMarkData, ThrowOnError>,
 ) => {
@@ -5741,6 +5768,122 @@ export const getTimingTeams = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The station start list: every materialized match of the event's internally timed competitions (coalesce of competition/event timing system = INTERN), in start order, each with its resolved timing mode, teams and derived progress. Readable with a session or with the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded unless the bye must race.
+ */
+export const getTimingMatches = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingMatchesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingMatchesResponse,
+        GetTimingMatchesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches',
+    })
+}
+
+export const getTimingModes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingModesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingModesResponse,
+        GetTimingModesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes',
+    })
+}
+
+export const addTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddTimingModeResponse,
+        AddTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes',
+    })
+}
+
+export const updateTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingModeResponse,
+        UpdateTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes/{modeId}',
+    })
+}
+
+/**
+ * Deletes the mode. Refused with 409 while the mode is still assigned to competitions or rounds - clear the assignments first, nothing is unconfigured silently.
+ */
+export const deleteTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingModeResponse,
+        DeleteTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes/{modeId}',
+    })
+}
+
+export const getTimingModeAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingModeAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingModeAssignmentsResponse,
+        GetTimingModeAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modeAssignments',
+    })
+}
+
+/**
+ * Upsert over the natural key (competition, round): creates or replaces the assignment for the combination; a null timingMode removes it (idempotent). A round entry overrides the competition entry for exactly that round.
+ */
+export const upsertTimingModeAssignment = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpsertTimingModeAssignmentData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpsertTimingModeAssignmentResponse,
+        UpsertTimingModeAssignmentError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modeAssignments',
+    })
+}
+
+/**
+ * Issues a device token for the station automatically and returns the finished link (root-relative path plus token). Reuse instead of inflation: as long as an automatically issued, unrevoked token exists for the station, every call returns the SAME link. Revoking the token in the devices tab makes the next call issue a fresh one. Requires a session with UPDATE EVENT.
+ */
+export const createTimingStationShareLink = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingStationShareLinkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingStationShareLinkResponse,
+        CreateTimingStationShareLinkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}/share-link',
+    })
+}
+
 export const createTimingSequence = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimingSequenceData, ThrowOnError>,
 ) => {
@@ -5754,6 +5897,9 @@ export const createTimingSequence = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The sequence the station's board should show right now. For an ANZEIGE station the query mirrors: with a linkedStation it answers for exactly that START station, without one it returns the most recently touched active sequence of the whole event (falling back to the most recent finished one within the usual window).
+ */
 export const getActiveTimingSequence = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetActiveTimingSequenceData, ThrowOnError>,
 ) => {

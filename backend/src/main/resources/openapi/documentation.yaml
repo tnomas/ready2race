@@ -9794,6 +9794,12 @@ paths:
   /event/{eventId}/timing/timeMarks/{timeMarkId}/assignment:
     put:
       operationId: assignTimeMark
+      description: >-
+        Assigns the mark to a team, moves it to another team (mis-clicks are the normal case at a
+        busy finish line), or detaches it (null body value). Besides a session this also accepts
+        the X-Timing-Device-Token header (shared station devices): a device token may only assign
+        and re-assign marks of its OWN station, and tokens of ANZEIGE stations are read-only -
+        both rejections answer 401 without detail. Retraction stays session-only.
       parameters:
         - name: eventId
           in: path
@@ -9866,6 +9872,199 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TimingTeamDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/matches:
+    get:
+      operationId: getTimingMatches
+      description: >-
+        The station start list: every materialized match of the event's internally timed
+        competitions (coalesce of competition/event timing system = INTERN), in start order, each
+        with its resolved timing mode, teams and derived progress. Readable with a session or with
+        the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded
+        unless the bye must race.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingMatchDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/modes:
+    get:
+      operationId: getTimingModes
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingModeDto'
+      tags:
+        - Timing
+    post:
+      operationId: addTimingMode
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '409':
+          description: A timing mode with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingModeRequest'
+  /event/{eventId}/timing/modes/{modeId}:
+    put:
+      operationId: updateTimingMode
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: modeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: A timing mode with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingModeRequest'
+    delete:
+      operationId: deleteTimingMode
+      description: >-
+        Deletes the mode. Refused with 409 while the mode is still assigned to competitions or
+        rounds - clear the assignments first, nothing is unconfigured silently.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: modeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: This timing mode is still assigned to competitions or rounds.
+      tags:
+        - Timing
+  /event/{eventId}/timing/modeAssignments:
+    get:
+      operationId: getTimingModeAssignments
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingModeAssignmentDto'
+      tags:
+        - Timing
+    put:
+      operationId: upsertTimingModeAssignment
+      description: >-
+        Upsert over the natural key (competition, round): creates or replaces the assignment for
+        the combination; a null timingMode removes it (idempotent). A round entry overrides the
+        competition entry for exactly that round.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingModeAssignmentRequest'
+  /event/{eventId}/timing/stations/{stationId}/share-link:
+    post:
+      operationId: createTimingStationShareLink
+      description: >-
+        Issues a device token for the station automatically and returns the finished link
+        (root-relative path plus token). Reuse instead of inflation: as long as an automatically
+        issued, unrevoked token exists for the station, every call returns the SAME link. Revoking
+        the token in the devices tab makes the next call issue a fresh one. Requires a session
+        with UPDATE EVENT.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingShareLinkDto'
       tags:
         - Timing
   /event/{eventId}/timing/sequences:
@@ -9961,6 +10160,11 @@ paths:
   /event/{eventId}/timing/sequences/active:
     get:
       operationId: getActiveTimingSequence
+      description: >-
+        The sequence the station's board should show right now. For an ANZEIGE station the query
+        mirrors: with a linkedStation it answers for exactly that START station, without one it
+        returns the most recently touched active sequence of the whole event (falling back to the
+        most recent finished one within the usual window).
       parameters:
         - name: eventId
           in: path
@@ -15820,6 +16024,11 @@ components:
       enum:
         - RACECLOCKER
         - WEBSCORER
+        - INTERN
+      description: >-
+        INTERN selects the built-in timing module (stations, time marks, start sequences, official
+        times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`)
+        and are never polled from an external provider.
 
     TimingConfigRequest:
       type: object
@@ -19970,9 +20179,13 @@ components:
         - START
         - SPLIT
         - FINISH
+        - ANZEIGE
       description: |-
         Live timing: stations capture time marks (start/split/finish), which are then assigned to a
-        competition match team to produce a result.
+        competition match team to produce a result. ANZEIGE is a read-only display station (start
+        referee / athlete screen): it never captures marks, its device tokens are limited to read
+        endpoints, and via `linkedStation` it mirrors one START station (or, unlinked, every start
+        sequence of the event).
 
         In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
 
@@ -20015,6 +20228,12 @@ components:
         sorting:
           type: integer
           format: int32
+        linkedStation:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            Only set on ANZEIGE stations: the START station this display mirrors; null = every
+            start sequence of the event.
 
     TimingStationRequest:
       type: object
@@ -20030,6 +20249,11 @@ components:
         sorting:
           type: integer
           format: int32
+        linkedStation:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            Only allowed for type ANZEIGE, and must reference a START station of the same event.
 
     TimeMarkDto:
       type: object
@@ -20402,6 +20626,7 @@ components:
         - station
         - name
         - revoked
+        - autoIssued
         - createdAt
       properties:
         id:
@@ -20414,6 +20639,12 @@ components:
           type: string
         revoked:
           type: boolean
+        autoIssued:
+          type: boolean
+          description: >-
+            True for tokens issued automatically via the station share-link endpoint (the same
+            link is returned on every click until revoked); false for manually issued hardware
+            tokens whose plaintext only ever exists in the issue response.
         createdAt:
           type: string
           format: date-time
@@ -20439,6 +20670,237 @@ components:
           type: string
         station:
           $ref: '#/components/schemas/uuid'
+
+    TimingShareLinkDto:
+      type: object
+      description: >-
+        The shareable station link. Unlike the manual token issue response this is repeatable:
+        the same station returns the same link until its token is revoked in the devices tab.
+      required:
+        - deviceToken
+        - token
+        - path
+      properties:
+        deviceToken:
+          $ref: '#/components/schemas/TimingDeviceTokenDto'
+        token:
+          type: string
+        path:
+          type: string
+          description: >-
+            Root-relative frontend path including the token query parameter
+            (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige`
+            display route). The client prepends its own origin.
+
+    TimingStartGrouping:
+      type: string
+      enum:
+        - EINZEL
+        - WELLE
+      description: >-
+        How many boats start per start action: EINZEL = one boat at a time (time trial), WELLE =
+        several together. A mass start is a WELLE containing every boat of the match, not a third
+        value.
+
+    TimingModeDto:
+      type: object
+      description: >-
+        A timing mode of the event - the template for how a match is started and measured
+        (e.g. "Timetrial 30s", "Wellenstart", "Massenstart").
+      required:
+        - id
+        - event
+        - name
+        - withLaps
+        - startGrouping
+        - leadInSeconds
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        withLaps:
+          type: boolean
+          description: Whether lap times (SPLIT stations) are expected for matches of this mode.
+        startGrouping:
+          $ref: '#/components/schemas/TimingStartGrouping'
+        intervalSeconds:
+          type: integer
+          format: int32
+          nullable: true
+          description: >-
+            Set: starts follow automatically at this fixed interval (time trial). Null: every
+            start is triggered by hand.
+        leadInSeconds:
+          type: integer
+          format: int32
+          description: Countdown before the (first) start; feeds the start sequences' lead-in.
+
+    TimingModeRequest:
+      type: object
+      required:
+        - name
+        - withLaps
+        - startGrouping
+        - leadInSeconds
+      properties:
+        name:
+          type: string
+        withLaps:
+          type: boolean
+        startGrouping:
+          $ref: '#/components/schemas/TimingStartGrouping'
+        intervalSeconds:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+        leadInSeconds:
+          type: integer
+          format: int32
+          minimum: 0
+
+    TimingModeAssignmentDto:
+      type: object
+      description: >-
+        One mode assignment. Without a round the mode applies to the whole competition; an entry
+        with a round overrides it for exactly that round.
+      required:
+        - id
+        - competition
+        - timingMode
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        competition:
+          $ref: '#/components/schemas/uuid'
+        competitionSetupRound:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        timingMode:
+          $ref: '#/components/schemas/uuid'
+
+    TimingModeAssignmentRequest:
+      type: object
+      description: >-
+        Upsert over the natural key (competition, round): creates or replaces the entry for the
+        combination; a null timingMode removes it (idempotent).
+      required:
+        - competition
+      properties:
+        competition:
+          $ref: '#/components/schemas/uuid'
+        competitionSetupRound:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        timingMode:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+
+    TimingMatchProgress:
+      type: string
+      enum:
+        - OPEN
+        - STARTING
+        - STARTED
+        - FINISHED
+      description: >-
+        Where a match stands on its way from call-up to the finish line, derived (not stored):
+        OPEN = nothing happened yet, STARTING = an armed or running start sequence contains teams
+        of this match, STARTED = at least one team has an assigned start mark and no sequence is
+        live, FINISHED = finished_at is set or every started team has its finish mark.
+
+    TimingMatchTeamDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - startNumber
+        - started
+        - finished
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        startNumber:
+          type: integer
+          format: int32
+          description: The team's position in the match (its "lane").
+        teamName:
+          type: string
+          nullable: true
+        clubName:
+          type: string
+          nullable: true
+        started:
+          type: boolean
+          description: The team has an assigned ACTIVE mark on a START station.
+        finished:
+          type: boolean
+          description: The team has an assigned ACTIVE mark on a FINISH station.
+
+    TimingMatchDto:
+      type: object
+      description: >-
+        One match of the internally timed competitions, delivered in start order (planned start
+        time first; matches without a time follow in setup order - race number, round chain,
+        execution order). The start station works this list top to bottom; the finish station
+        reads from it which race is expected and which boats are still missing. Participant names
+        are deliberately not embedded - `GET /event/{eventId}/timing/teams` carries them.
+      required:
+        - competitionSetupMatch
+        - competition
+        - round
+        - phase
+        - progress
+        - teams
+      properties:
+        competitionSetupMatch:
+          $ref: '#/components/schemas/uuid'
+          description: Key of the match (competition_match carries the setup match id as its primary key).
+        matchName:
+          type: string
+          nullable: true
+        competition:
+          $ref: '#/components/schemas/uuid'
+        competitionName:
+          type: string
+          nullable: true
+        competitionIdentifier:
+          type: string
+          nullable: true
+          description: The race number.
+        round:
+          $ref: '#/components/schemas/uuid'
+        roundName:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Planned start time from the schedule.
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Real start (referee action or timing).
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        phase:
+          $ref: '#/components/schemas/TimingMatchPhase'
+        progress:
+          $ref: '#/components/schemas/TimingMatchProgress'
+        timingMode:
+          $ref: '#/components/schemas/TimingModeDto'
+          nullable: true
+          description: The resolved timing mode (round entry beats competition entry); null = not configured.
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingMatchTeamDto'
     AwardCeremonyChoiceDto:
       description: Eine Ehrung zur Auswahl - die Einheit ist (Wettkampf, Wertung).
       type: object

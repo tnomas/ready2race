@@ -4,8 +4,11 @@ import {AutocompleteOption} from '@utils/types.ts'
 /**
  * 'NONE' ist der Formular-Stellvertreter für „kein Zeitnahme-System gesetzt“ (Spalte null). Ein
  * Radio-Button braucht einen Wert; null lässt sich nicht auswählen.
+ *
+ * 'INTERN' (die hauseigene Zeitnahme) ist seit dem Zeitnahme-Umbau ein gültiger Backend-Wert und
+ * muss hier durchreichbar sein; die Formular-Oberfläche dafür baut die Folge-Session (Phase 2).
  */
-export type TimingFormSystem = 'NONE' | 'RACECLOCKER' | 'WEBSCORER'
+export type TimingFormSystem = 'NONE' | 'RACECLOCKER' | 'WEBSCORER' | 'INTERN'
 
 export type TimingForm = {
     timingSystem: TimingFormSystem
