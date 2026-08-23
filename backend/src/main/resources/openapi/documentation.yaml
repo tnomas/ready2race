@@ -21007,6 +21007,10 @@ components:
           type: string
           nullable: true
           description: The race number.
+        competitionShortName:
+          type: string
+          nullable: true
+          description: Short name of the competition (e.g. "CM 4x+") - the compact label of the day schedule.
         round:
           $ref: '#/components/schemas/uuid'
         roundName:

@@ -115,6 +115,7 @@ fun createTestMatchFixture(
     eventId: UUID,
     teamCount: Int = 1,
     identifier: String = "TST-${UUID.randomUUID()}",
+    shortName: String? = null,
 ): App<Any?, MatchFixture> = KIO.comprehension {
     val now = LocalDateTime.now()
 
@@ -156,6 +157,7 @@ fun createTestMatchFixture(
             competition = competitionId,
             identifier = identifier,
             name = "Timing Test Competition",
+            shortName = shortName,
         )
     ).orDie()
 

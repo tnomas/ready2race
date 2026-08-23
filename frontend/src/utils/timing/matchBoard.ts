@@ -140,6 +140,31 @@ export function dayScheduleStatus(match: TimingMatchDto): DayScheduleStatus {
     }
 }
 
+/**
+ * Die kompakte Zeile der Tagesablauf-Spalte: Kennung (Rennnummer) plus Kürzel des Wettkampfs, wie
+ * der Zeitplan sie in seiner Kurzform zeigt (`competitionTag`-Muster: "17 CM 4x+"), gefolgt von
+ * Runde/Partie. Ohne gepflegtes Kürzel bleibt der volle Wettkampfname der Fallback — eine Zeile
+ * ganz ohne Wettkampfangabe wäre in der Spalte unbrauchbar.
+ */
+export function compactScheduleTitle(match: {
+    competitionIdentifier?: string | null
+    competitionShortName?: string | null
+    competitionName?: string | null
+    roundName?: string | null
+    matchName?: string | null
+}): string {
+    const competition = [
+        match.competitionIdentifier,
+        match.competitionShortName ?? match.competitionName,
+    ]
+        .filter(part => part != null && part !== '')
+        .join(' ')
+    const round = [match.roundName, match.matchName]
+        .filter(part => part != null && part !== '')
+        .join(' ')
+    return [competition, round].filter(part => part !== '').join(' · ')
+}
+
 export type ModeChipParts = {
     name: string
     /** null = Start von Hand (kein automatisches Intervall). */

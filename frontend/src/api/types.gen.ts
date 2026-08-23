@@ -4130,6 +4130,10 @@ export type TimingMatchDto = {
      * The race number.
      */
     competitionIdentifier?: string | null
+    /**
+     * Short name of the competition (e.g. "CM 4x+") - the compact label of the day schedule.
+     */
+    competitionShortName?: string | null
     round: uuid
     roundName?: string | null
     /**

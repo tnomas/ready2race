@@ -89,6 +89,7 @@ object TimingMatchService {
                 competition = match.competitionId,
                 competitionName = match.competitionName,
                 competitionIdentifier = match.competitionIdentifier,
+                competitionShortName = match.competitionShortName,
                 round = match.roundId,
                 roundName = match.roundName,
                 startTime = match.startTime,

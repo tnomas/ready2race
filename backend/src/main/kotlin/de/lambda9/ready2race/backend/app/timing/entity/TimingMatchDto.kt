@@ -32,6 +32,8 @@ data class TimingMatchDto(
     val competitionName: String?,
     /** Rennnummer - das, worüber die Regatta über Läufe spricht. */
     val competitionIdentifier: String?,
+    /** Kürzel des Wettkampfs (short_name, z. B. "CM 4x+") - die Kurzform der Tagesablauf-Spalte. */
+    val competitionShortName: String?,
     val round: UUID,
     val roundName: String?,
     /** Geplante Startzeit (aus dem Zeitplan); ohne sie sortiert die Setup-Reihenfolge. */

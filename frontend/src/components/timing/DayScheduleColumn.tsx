@@ -5,7 +5,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import {MouseEvent, ReactNode} from 'react'
 import {useTranslation} from 'react-i18next'
 import {TimingMatchDto} from '@api/types.gen.ts'
-import {dayScheduleStatus} from '@utils/timing/matchBoard.ts'
+import {compactScheduleTitle, dayScheduleStatus} from '@utils/timing/matchBoard.ts'
 import {ModeChip} from '@components/timing/matchDisplay.tsx'
 
 /** Chip-Farbe je Status — dieselbe Sprache wie der ProgressChip der Arbeitsfläche. */
@@ -36,17 +36,6 @@ export type DayScheduleColumnProps = {
 function startTimeLabel(match: TimingMatchDto): string | null {
     if (match.startTime == null) return null
     return new Date(match.startTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
-}
-
-/** Rennnummer/Kurzname plus Lauf — die kompakte Zeile der Spalte. */
-function compactTitle(match: TimingMatchDto): string {
-    const competition = [match.competitionIdentifier, match.competitionName]
-        .filter(part => part != null && part !== '')
-        .join(' ')
-    const round = [match.roundName, match.matchName]
-        .filter(part => part != null && part !== '')
-        .join(' ')
-    return [competition, round].filter(part => part !== '').join(' · ')
 }
 
 /**
@@ -168,7 +157,7 @@ const DayScheduleColumn = ({
                                             variant="body2"
                                             noWrap
                                             sx={{fontWeight: isFocused ? 700 : 500, minWidth: 0}}>
-                                            {compactTitle(match)}
+                                            {compactScheduleTitle(match)}
                                         </Typography>
                                     </Stack>
                                     <Stack

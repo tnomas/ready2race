@@ -67,6 +67,24 @@ class TimingMatchServiceTest {
         assertEquals(listOf(internFixture.setupMatchId), list.map { it.competitionSetupMatch })
     }
 
+    // Der Kurzname des Wettkampfs (Kürzel, z. B. "CM 4x+") wandert mit in die Startliste - die
+    // Tagesablauf-Spalte der Boards zeigt Kennung + Kürzel wie der Zeitplan in seiner Kurzform;
+    // ohne gepflegtes Kürzel bleibt der volle Name der Fallback (null bleibt null).
+    @Test
+    fun competitionShortNameIsCarried() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val withShort = !createTestMatchFixture(eventId, shortName = "CM 4x+")
+        val withoutShort = !createTestMatchFixture(eventId)
+        !setCompetitionTimingSystem(withShort.competitionId, TimingSystem.INTERN)
+        !setCompetitionTimingSystem(withoutShort.competitionId, TimingSystem.INTERN)
+
+        val list = (!TimingMatchService.getMatches(eventId)).data
+        val byId = list.associateBy { it.competitionSetupMatch }
+
+        assertEquals("CM 4x+", byId[withShort.setupMatchId]!!.competitionShortName)
+        assertEquals(null, byId[withoutShort.setupMatchId]!!.competitionShortName)
+    }
+
     @Test
     fun eventDefaultAppliesAndCompetitionValueWins() = testComprehension {
         val (eventId, _) = !createTestEventWithAdmin()

@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {TimingMatchDto, TimingMatchTeamDto, TimingModeDto} from '@api/types.gen.ts'
 import {
+    compactScheduleTitle,
     expectedFinishMatches,
     modeChipParts,
     pendingAssignmentMark,
@@ -189,6 +190,41 @@ describe('expectedFinishMatches', () => {
 
         expect(result.current.map(m => m.competitionSetupMatch)).toEqual(['m2'])
         expect(result.upcoming).toBeUndefined()
+    })
+})
+
+describe('compactScheduleTitle', () => {
+    it('nutzt Kennung und Kürzel, wenn das Kürzel gepflegt ist', () => {
+        expect(
+            compactScheduleTitle({
+                competitionIdentifier: '17',
+                competitionShortName: 'CM 4x+',
+                competitionName: 'Coastal Mixed Doppelvierer mit Steuermann',
+                roundName: 'Finale',
+                matchName: 'A',
+            }),
+        ).toBe('17 CM 4x+ · Finale A')
+    })
+
+    it('fällt ohne Kürzel auf den vollen Wettkampfnamen zurück', () => {
+        expect(
+            compactScheduleTitle({
+                competitionIdentifier: '17',
+                competitionShortName: null,
+                competitionName: 'Coastal Mixed Doppelvierer',
+                roundName: 'Finale',
+            }),
+        ).toBe('17 Coastal Mixed Doppelvierer · Finale')
+    })
+
+    it('lässt fehlende Teile weg, statt leere Trenner zu zeigen', () => {
+        expect(
+            compactScheduleTitle({
+                competitionShortName: 'JM 2x',
+                matchName: 'Lauf 3',
+            }),
+        ).toBe('JM 2x · Lauf 3')
+        expect(compactScheduleTitle({competitionIdentifier: '4'})).toBe('4')
     })
 })
 
