@@ -4,6 +4,7 @@ import {
     Chip,
     FormControlLabel,
     IconButton,
+    Link,
     Paper,
     Stack,
     Switch,
@@ -16,6 +17,7 @@ import {
     Typography,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import LinkIcon from '@mui/icons-material/Link'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -153,6 +155,21 @@ const LeitstandOverviewTab = ({
         [deviceTokens],
     )
 
+    // Der Postenname im Streifen führt auf sein Board (neues Fenster), daneben die Adresse zum
+    // Kopieren — die normale Board-URL ohne Token; der Token-Teilen-Fluss bleibt unverändert.
+    const boardUrl = useCallback(
+        (station: TimingStationDto) =>
+            `${window.location.origin}/event/${eventId}/timing/${station.id}`,
+        [eventId],
+    )
+    const copyBoardUrl = useCallback(
+        (station: TimingStationDto) => {
+            void navigator.clipboard.writeText(boardUrl(station))
+            feedback.success(t('timing.station.urlCopied'))
+        },
+        [boardUrl, feedback, t],
+    )
+
     const latestMarkByStation = useMemo(() => lastMarkByStation(marks), [marks])
     const teamById = useMemo(
         () => new Map(teams.map(team => [team.competitionMatchTeam, team])),
@@ -249,8 +266,23 @@ const LeitstandOverviewTab = ({
                                 <Stack spacing={0.5}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <Typography variant="subtitle2" sx={{flexGrow: 1}}>
-                                            {station.name}
+                                            <Link
+                                                href={boardUrl(station)}
+                                                target="_blank"
+                                                rel="noopener"
+                                                underline="hover"
+                                                color="inherit">
+                                                {station.name}
+                                            </Link>
                                         </Typography>
+                                        <Tooltip title={t('timing.station.copyUrl')}>
+                                            <IconButton
+                                                size="small"
+                                                aria-label={t('timing.station.copyUrl')}
+                                                onClick={() => copyBoardUrl(station)}>
+                                                <ContentCopyIcon fontSize="inherit" />
+                                            </IconButton>
+                                        </Tooltip>
                                         {stationsWithToken.has(station.id) && (
                                             <Tooltip
                                                 title={t(

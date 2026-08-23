@@ -3061,6 +3061,9 @@
         "hasTimeMarks": "The station already has recorded times and cannot be deleted"
       },
       "openCapture": "Open capture",
+      "openBoard": "Open the station's board (new window)",
+      "copyUrl": "Copy board address",
+      "urlCopied": "Board address copied",
       "openStartDisplay": "Open start display",
       "share": {
         "action": "Share to device",

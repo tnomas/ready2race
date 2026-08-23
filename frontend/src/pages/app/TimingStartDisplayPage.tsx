@@ -19,6 +19,7 @@ import {useServerClock} from '@utils/timing/useServerClock.ts'
 import {deriveStartDisplay} from '@utils/timing/sequenceDisplay.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {deviceSessionForEvent} from '@utils/timing/deviceSession.ts'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 
 /**
@@ -118,6 +119,11 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     }, [refetch, refetchSequence])
 
     const station = stations.find(s => s.id === stationId)
+
+    // Tab-Titel „<Postenname> · Startbildschirm · Ready2Race" — bei mehreren offenen
+    // Posten-Fenstern sind die Tabs sonst nicht auseinanderzuhalten; der Hook stellt beim
+    // Verlassen den vorherigen Titel wieder her.
+    useDocumentTitle(station?.name, t('timing.startDisplay.title'))
 
     // Sobald der eigene Posten bekannt ist, die aktive Sequenz erneut laden: Der allererste GET
     // lief evtl. gegen das noch postenlose Prädikat; für einen ANZEIGE-Posten kommt die richtige

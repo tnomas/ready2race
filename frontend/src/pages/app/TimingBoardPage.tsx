@@ -40,6 +40,7 @@ import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
 import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
 import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
@@ -152,6 +153,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     }, [marks, sequenceState.sequence, bumpMatches])
 
     const station = stations.find(s => s.id === stationId)
+
+    // Tab-Titel „<Postenname> · Ready2Race" — am Renntag sind mehrere Posten-Boards offen, ohne
+    // Postennamen im Tab sind sie nicht auseinanderzuhalten. Der Hook stellt beim Verlassen den
+    // vorherigen Titel wieder her.
+    useDocumentTitle(station?.name)
 
     // Ein ANZEIGE-Posten hat kein Erfassungsboard — wer seine Board-Adresse öffnet (alter Link,
     // Tippfehler), landet auf der Anzeige, die dieser Posten IST.

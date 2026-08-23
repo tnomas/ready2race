@@ -7,6 +7,8 @@ import {
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import SmartDisplayOutlinedIcon from '@mui/icons-material/SmartDisplayOutlined'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import {IconButton, Link, Stack, Tooltip} from '@mui/material'
 import {useState} from 'react'
 import {BaseEntityTableProps, PageResponse} from '@utils/types.ts'
 import {ApiError, TimingStationDto} from '@api/types.gen.ts'
@@ -122,6 +124,33 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
             headerName: t('timing.station.name'),
             minWidth: 200,
             flex: 1,
+            // Der Postenname führt direkt auf sein Board (neues Fenster; ANZEIGE-Posten leitet
+            // die Board-Route selbst auf die Anzeige weiter), daneben die Adresse zum Kopieren —
+            // die normale Board-URL ohne Token. Der Token-Teilen-Fluss („Auf Gerät teilen")
+            // bleibt unverändert daneben bestehen.
+            renderCell: ({row}) => (
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{height: 1}}>
+                    <Link
+                        href={stationUrl(row)}
+                        target="_blank"
+                        rel="noopener"
+                        onClick={event => event.stopPropagation()}>
+                        {row.name}
+                    </Link>
+                    <Tooltip title={t('timing.station.copyUrl')}>
+                        <IconButton
+                            size="small"
+                            aria-label={t('timing.station.copyUrl')}
+                            onClick={event => {
+                                event.stopPropagation()
+                                void navigator.clipboard.writeText(stationUrl(row))
+                                feedback.success(t('timing.station.urlCopied'))
+                            }}>
+                            <ContentCopyIcon fontSize="inherit" />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
+            ),
         },
         {
             field: 'type',

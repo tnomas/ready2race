@@ -3034,6 +3034,9 @@
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
       },
       "openCapture": "Åbn registrering",
+      "openBoard": "Åbn postens board (nyt vindue)",
+      "copyUrl": "Kopiér board-adresse",
+      "urlCopied": "Board-adresse kopieret",
       "openStartDisplay": "Åbn startskærm",
       "share": {
         "action": "Del til enhed",

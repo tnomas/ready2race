@@ -17,6 +17,7 @@ import LeitstandDevicesTab from '@components/timing/leitstand/LeitstandDevicesTa
 import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
 import {useStationSequences} from '@components/timing/leitstand/useStationSequences.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
 type LeitstandTab = 'overview' | 'times' | 'results' | 'devices'
 
@@ -59,6 +60,10 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
             void navigate({to: '/app/forbidden'})
         }
     }, [user, navigate])
+
+    // Tab-Titel „Leitstand · Ready2Race" — neben offenen Posten-Boards muss der Leitstand-Tab
+    // benennbar sein; der Hook stellt beim Verlassen den vorherigen Titel wieder her.
+    useDocumentTitle(t('timing.leitstand.title'))
 
     // Die Übersicht ist die Standardansicht: Posten-Streifen plus die zuletzt aktiven Läufe -
     // die Detail-Reiter (Zeiten, Ergebnisse, Geräte) bleiben dahinter bestehen.

@@ -3061,6 +3061,9 @@
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
       },
       "openCapture": "Erfassung öffnen",
+      "openBoard": "Board des Postens öffnen (neues Fenster)",
+      "copyUrl": "Board-Adresse kopieren",
+      "urlCopied": "Board-Adresse kopiert",
       "openStartDisplay": "Startbildschirm öffnen",
       "share": {
         "action": "Auf Gerät teilen",
