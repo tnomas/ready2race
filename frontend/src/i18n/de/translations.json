@@ -3071,6 +3071,35 @@
     "mark": {
       "retractError": "Rückgängig machen fehlgeschlagen"
     },
+    "matches": {
+      "title": "Startliste",
+      "loadError": "Die Partien konnten nicht geladen werden.",
+      "empty": "Keine Partien mit interner Zeitnahme.",
+      "boats_one": "{{count}} Boot",
+      "boats_other": "{{count}} Boote",
+      "noMode": "kein Zeitnahmetyp",
+      "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
+      "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
+      "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
+      "start": "Startsequenz starten",
+      "startSelected": "Starten: {{match}}",
+      "manualSetup": "Sequenz von Hand einrichten",
+      "backToMatches": "Zurück zur Startliste",
+      "error": {
+        "start": "Die Startsequenz konnte nicht gestartet werden."
+      },
+      "mode": {
+        "interval": "alle {{seconds}} s",
+        "EINZEL": "Einzelstart",
+        "WELLE": "Welle"
+      },
+      "progress": {
+        "OPEN": "offen",
+        "STARTING": "Startsequenz läuft",
+        "STARTED": "gestartet",
+        "FINISHED": "im Ziel"
+      }
+    },
     "sequence": {
       "mode": {
         "MASS": "Massenstart",

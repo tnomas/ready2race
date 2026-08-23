@@ -3071,6 +3071,35 @@
     "mark": {
       "retractError": "Undo failed"
     },
+    "matches": {
+      "title": "Start list",
+      "loadError": "The races could not be loaded.",
+      "empty": "No races with internal timing.",
+      "boats_one": "{{count}} boat",
+      "boats_other": "{{count}} boats",
+      "noMode": "no timing mode",
+      "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
+      "noTeamsLeft": "Every boat of this race has already started.",
+      "allStarted": "All races have been started — nothing left open.",
+      "start": "Start sequence",
+      "startSelected": "Start: {{match}}",
+      "manualSetup": "Set up sequence manually",
+      "backToMatches": "Back to the start list",
+      "error": {
+        "start": "The start sequence could not be started."
+      },
+      "mode": {
+        "interval": "every {{seconds}} s",
+        "EINZEL": "individual start",
+        "WELLE": "wave"
+      },
+      "progress": {
+        "OPEN": "open",
+        "STARTING": "start sequence running",
+        "STARTED": "started",
+        "FINISHED": "finished"
+      }
+    },
     "sequence": {
       "mode": {
         "MASS": "Mass start",

@@ -31,6 +31,7 @@ import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
+import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
@@ -108,6 +109,25 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         getTimingTeams({signal, path: {eventId}}),
     )
     const teams = useMemo(() => orderTeamsForBoard(teamsData ?? []), [teamsData])
+
+    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Es
+    // gibt keine eigene WebSocket-Nachricht dafür — Marken-, Zuordnungs- und Sequenz-Nachrichten
+    // dienen als entprellte Auffrischungs-Trigger (siehe Effekt unten).
+    const {
+        matches,
+        loading: matchesLoading,
+        error: matchesError,
+        refetch: refetchMatches,
+        bump: bumpMatches,
+    } = useTimingMatches(eventId)
+
+    // `marks` ändert seine Identität bei jeder timeMarkCreated/assignmentChanged-Nachricht, die
+    // Sequenz bei jeder sequenceChanged — genau die Ereignisse, die `progress` und die
+    // Team-Häkchen der Partien verschieben. Der bump ist entprellt, ein Nachrichtenschub am
+    // Wellenstart löst also eine einzige Anfrage aus.
+    useEffect(() => {
+        bumpMatches()
+    }, [marks, sequenceState.sequence, bumpMatches])
 
     const station = stations.find(s => s.id === stationId)
 
@@ -337,9 +357,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             // marks/stations, so refetch it on the same reconnect transition. See `useSequence`'s docs
             // for why this can't restore a DONE/ABORTED sequence (GET active never returns those).
             refetchSequence()
+            // Die Partie-Startliste hat dieselbe Lücke (verpasste Trigger-Nachrichten).
+            refetchMatches()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, runDrain, refetchSequence])
+    }, [wsStatus, runDrain, refetchSequence, refetchMatches])
 
     // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
     // can never permanently silence the tick. Checked against the latest values via refs, so the
@@ -364,11 +386,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             if (document.visibilityState === 'visible') {
                 runDrain()
                 refetch()
+                refetchMatches()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [runDrain, refetch])
+    }, [runDrain, refetch, refetchMatches])
 
     // --- Staleness safety net -------------------------------------------------------------------
     //
@@ -605,6 +628,9 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             teamsLoading={teamsPending}
                             now={clock.now}
                             sequenceState={sequenceState}
+                            matches={matches}
+                            matchesLoading={matchesLoading}
+                            matchesError={matchesError}
                         />
                     </Box>
                 )}

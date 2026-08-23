@@ -22,12 +22,20 @@ import {useTranslation} from 'react-i18next'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
-import {SequenceMode, TimingSequenceDto, TimingSequenceEntryDto, TimingTeamDto} from '@api/types.gen.ts'
+import {
+    SequenceMode,
+    TimingMatchDto,
+    TimingSequenceDto,
+    TimingSequenceEntryDto,
+    TimingTeamDto,
+} from '@api/types.gen.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {sortedEntries, splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
+import {resolveStartSelection, sequenceRequestFromMode} from '@utils/timing/matchBoard.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
+import MatchStartList from '@components/timing/MatchStartList.tsx'
 
 export type SequencePanelProps = {
     stationId: string
@@ -35,6 +43,10 @@ export type SequencePanelProps = {
     teamsLoading: boolean
     now: () => number | null
     sequenceState: UseSequenceResult
+    /** Die Partien der intern gezeiteten Wettkämpfe — leer, wenn kein Wettkampf INTERN zeitet. */
+    matches: TimingMatchDto[]
+    matchesLoading: boolean
+    matchesError: boolean
 }
 
 const DEFAULT_INTERVAL_SECONDS = 60
@@ -66,6 +78,8 @@ type SetupFormProps = {
     teamsLoading: boolean
     busy: boolean
     onCreate: (params: CreateSequenceParams) => void
+    /** Gesetzt, wenn es eine Partie-Startliste gibt, zu der man zurück kann. */
+    onBackToMatches?: () => void
 }
 
 /**
@@ -77,7 +91,7 @@ type SetupFormProps = {
  * an empty field to a minimum makes it impossible to replace "60" with "5"); they are validated when
  * the operator submits.
  */
-const SetupForm = ({teams, teamsLoading, busy, onCreate}: SetupFormProps) => {
+const SetupForm = ({teams, teamsLoading, busy, onCreate, onBackToMatches}: SetupFormProps) => {
     const {t} = useTranslation()
 
     const [mode, setMode] = useState<SequenceMode>('MASS')
@@ -269,6 +283,11 @@ const SetupForm = ({teams, teamsLoading, busy, onCreate}: SetupFormProps) => {
                 onClick={handleSubmit}>
                 {t('timing.sequence.setup.armButton')}
             </Button>
+            {onBackToMatches !== undefined && (
+                <Button onClick={onBackToMatches} disabled={busy}>
+                    {t('timing.matches.backToMatches')}
+                </Button>
+            )}
         </Stack>
     )
 }
@@ -512,11 +531,55 @@ const SummaryView = ({sequence, label, onReset}: SummaryViewProps) => {
  * button inside this panel has focus and stand down) and unlocks the WebAudio context on any pointer
  * gesture, so a device that only *watches* a sequence still beeps along with the countdown.
  */
-const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: SequencePanelProps) => {
+const SequencePanel = ({
+    stationId,
+    teams,
+    teamsLoading,
+    now,
+    sequenceState,
+    matches,
+    matchesLoading,
+    matchesError,
+}: SequencePanelProps) => {
     const {t} = useTranslation()
     const {confirmAction} = useConfirmation()
     const feedback = useFeedback()
-    const {sequence, loading, error, busy, refetch, create, start, abort, skip, reset} = sequenceState
+    const {
+        sequence,
+        loading,
+        error,
+        busy,
+        refetch,
+        create,
+        createAndStart,
+        start,
+        abort,
+        skip,
+        reset,
+    } = sequenceState
+
+    // --- Partie-Startliste ----------------------------------------------------------------------
+    //
+    // Gibt es intern gezeitete Partien, ist die Startliste die Hauptansicht des Startpostens: die
+    // nächste offene Partie ist vorausgewählt (resolveStartSelection rückt nach jedem Start selbst
+    // vor), ein Griff erzeugt aus dem aufgelösten Zeitnahmetyp die Sequenz und startet den
+    // Countdown. Das freie Formular bleibt als Nebenweg erreichbar (Partien ohne Typ, Sonderfälle).
+    const [manualSetup, setManualSetup] = useState(false)
+    const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(undefined)
+    const effectiveSelection = resolveStartSelection(matches, selectedMatchId)
+
+    const handleStartMatch = useCallback(
+        (match: TimingMatchDto) => {
+            const mode = match.timingMode
+            if (mode == null) return
+            void createAndStart(sequenceRequestFromMode(stationId, mode, match.teams)).then(
+                ok => {
+                    if (!ok) feedback.error(t('timing.matches.error.start'))
+                },
+            )
+        },
+        [createAndStart, stationId, feedback, t],
+    )
 
     const teamsById = useMemo(() => {
         const map = new Map<string, TimingTeamDto>()
@@ -607,6 +670,19 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
                     </Alert>
                 </Stack>
             )
+        } else if ((matches.length > 0 || matchesLoading) && !manualSetup) {
+            content = (
+                <MatchStartList
+                    matches={matches}
+                    matchesLoading={matchesLoading}
+                    matchesError={matchesError}
+                    selectedId={effectiveSelection}
+                    onSelect={setSelectedMatchId}
+                    onStart={handleStartMatch}
+                    onManualSetup={() => setManualSetup(true)}
+                    busy={busy}
+                />
+            )
         } else {
             content = (
                 <SetupForm
@@ -614,6 +690,9 @@ const SequencePanel = ({stationId, teams, teamsLoading, now, sequenceState}: Seq
                     teamsLoading={teamsLoading}
                     busy={busy}
                     onCreate={handleCreate}
+                    onBackToMatches={
+                        matches.length > 0 ? () => setManualSetup(false) : undefined
+                    }
                 />
             )
         }

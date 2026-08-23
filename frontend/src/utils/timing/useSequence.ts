@@ -21,6 +21,13 @@ export type UseSequenceResult = {
     /** Feed a `sequenceChanged` websocket message in — pass this to `useTimingBoardState`. */
     applySequenceChanged: (sequence: TimingSequenceDto) => void
     create: (request: CreateSequenceRequest) => Promise<boolean>
+    /**
+     * Der Ein-Griff-Start der Partie-Startliste: Sequenz anlegen und mit der id aus der
+     * Create-Antwort sofort starten, ohne auf den Refetch der ARMED-Sequenz zu warten. Schlägt
+     * nur der Start fehl, bleibt die Sequenz scharfgestellt liegen — der Refetch zeigt dann die
+     * ARMED-Ansicht mit ihrem Start-Knopf, der Bediener verliert nichts.
+     */
+    createAndStart: (request: CreateSequenceRequest) => Promise<boolean>
     start: () => Promise<boolean>
     abort: () => Promise<boolean>
     skip: (entryId: string) => Promise<boolean>
@@ -144,6 +151,34 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
         [eventId, refetch],
     )
 
+    const createAndStart = useCallback(
+        async (request: CreateSequenceRequest) => {
+            setBusy(true)
+            try {
+                const {data, error: err} = await createTimingSequence({
+                    path: {eventId},
+                    body: request,
+                })
+                if (err !== undefined || data === undefined) return false
+                // Eine brandneue Sequenz hat eine neue id — eine frühere Verwerfung greift nie.
+                dismissedSequenceIdRef.current = undefined
+                const {error: startError} = await startTimingSequence({
+                    path: {eventId, sequenceId: data},
+                })
+                // In beiden Fällen nachladen: bei Erfolg liefert der Refetch die RUNNING-Sequenz
+                // (falls die sequenceChanged-Nachricht noch unterwegs ist), bei Fehlschlag die
+                // liegengebliebene ARMED-Sequenz samt Start-Knopf.
+                refetch()
+                return startError === undefined
+            } catch {
+                return false
+            } finally {
+                setBusy(false)
+            }
+        },
+        [eventId, refetch],
+    )
+
     const start = useCallback(async () => {
         if (sequence === undefined) return false
         setBusy(true)
@@ -209,6 +244,7 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
         refetch,
         applySequenceChanged,
         create,
+        createAndStart,
         start,
         abort,
         skip,

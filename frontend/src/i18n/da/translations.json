@@ -3044,6 +3044,35 @@
     "mark": {
       "retractError": "Fortryd mislykkedes"
     },
+    "matches": {
+      "title": "Startliste",
+      "loadError": "Løbene kunne ikke indlæses.",
+      "empty": "Ingen løb med intern tidtagning.",
+      "boats_one": "{{count}} båd",
+      "boats_other": "{{count}} både",
+      "noMode": "ingen tidtagningstype",
+      "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
+      "noTeamsLeft": "Alle både i dette løb er allerede startet.",
+      "allStarted": "Alle løb er startet — intet står åbent.",
+      "start": "Start startsekvens",
+      "startSelected": "Start: {{match}}",
+      "manualSetup": "Opsæt sekvens manuelt",
+      "backToMatches": "Tilbage til startlisten",
+      "error": {
+        "start": "Startsekvensen kunne ikke startes."
+      },
+      "mode": {
+        "interval": "hvert {{seconds}} s",
+        "EINZEL": "enkeltstart",
+        "WELLE": "bølge"
+      },
+      "progress": {
+        "OPEN": "åben",
+        "STARTING": "startsekvens kører",
+        "STARTED": "startet",
+        "FINISHED": "i mål"
+      }
+    },
     "sequence": {
       "mode": {
         "MASS": "Massestart",
