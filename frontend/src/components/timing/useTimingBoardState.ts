@@ -71,6 +71,9 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
         }
         case 'timeMarkRetracted':
             return marks.map(m => (m.id === message.id ? {...m, status: 'RETRACTED'} : m))
+        case 'timeMarkReactivated':
+            // The counterpart to a retraction: the mark is ACTIVE again, its assignment untouched.
+            return marks.map(m => (m.id === message.id ? {...m, status: 'ACTIVE'} : m))
         case 'assignmentChanged':
             return marks.map(m =>
                 m.id === message.timeMark

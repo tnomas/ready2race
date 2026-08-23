@@ -18,10 +18,11 @@ import {
 } from '@mui/material'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import EditIcon from '@mui/icons-material/Edit'
+import RestoreIcon from '@mui/icons-material/Restore'
 import UndoIcon from '@mui/icons-material/Undo'
 import {useCallback, useEffect, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {deleteRetractedTimeMarks, retractTimeMark} from '@api/sdk.gen.ts'
+import {deleteRetractedTimeMarks, reactivateTimeMark, retractTimeMark} from '@api/sdk.gen.ts'
 import {TimingStationDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
@@ -74,6 +75,8 @@ const LeitstandMarksTab = ({
     const [stationFilter, setStationFilter] = useState<string>(ALL_STATIONS)
     const [unassignedOnly, setUnassignedOnly] = useState(false)
     const [retracting, setRetracting] = useState<Set<string>>(new Set())
+    /** Optimistic overlay for a reactivation whose websocket echo has not arrived yet. */
+    const [reactivating, setReactivating] = useState<Set<string>>(new Set())
     const [deleting, setDeleting] = useState(false)
     const [assignDialogMarkId, setAssignDialogMarkId] = useState<string | null>(null)
     /** Optimistic overlay for an assign/detach that has not been echoed by the websocket yet. */
@@ -112,6 +115,19 @@ const LeitstandMarksTab = ({
             for (const id of prev) {
                 const mark = marks.find(m => m.id === id)
                 if (mark === undefined || mark.status === 'RETRACTED') {
+                    next.delete(id)
+                    changed = true
+                }
+            }
+            return changed ? next : prev
+        })
+        setReactivating(prev => {
+            if (prev.size === 0) return prev
+            const next = new Set(prev)
+            let changed = false
+            for (const id of prev) {
+                const mark = marks.find(m => m.id === id)
+                if (mark === undefined || mark.status === 'ACTIVE') {
                     next.delete(id)
                     changed = true
                 }
@@ -176,6 +192,29 @@ const LeitstandMarksTab = ({
             void (async () => {
                 try {
                     const {error} = await retractTimeMark({path: {eventId, timeMarkId: mark.id}})
+                    if (error !== undefined) rollback()
+                } catch {
+                    rollback()
+                }
+            })()
+        },
+        [eventId, feedback, t],
+    )
+
+    const handleReactivate = useCallback(
+        (mark: BoardMark) => {
+            setReactivating(prev => new Set(prev).add(mark.id))
+            const rollback = () => {
+                setReactivating(prev => {
+                    const next = new Set(prev)
+                    next.delete(mark.id)
+                    return next
+                })
+                feedback.error(t('timing.leitstand.marks.reactivate.error'))
+            }
+            void (async () => {
+                try {
+                    const {error} = await reactivateTimeMark({path: {eventId, timeMarkId: mark.id}})
                     if (error !== undefined) rollback()
                 } catch {
                     rollback()
@@ -287,7 +326,9 @@ const LeitstandMarksTab = ({
                     </TableHead>
                     <TableBody>
                         {visibleMarks.map(mark => {
-                            const isRetracted = mark.status === 'RETRACTED' || retracting.has(mark.id)
+                            const isRetracted =
+                                (mark.status === 'RETRACTED' && !reactivating.has(mark.id)) ||
+                                retracting.has(mark.id)
                             // `pending`/`failed` marks exist only in this tab's memory (a capture from
                             // another board would never appear here), but the guard is kept so a
                             // never-saved mark can't be retracted or assigned into a 404.
@@ -372,6 +413,21 @@ const LeitstandMarksTab = ({
                                                         aria-label={t('timing.board.mark.undo')}
                                                         onClick={() => handleRetract(mark)}>
                                                         <UndoIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {/* Reaktivieren steht neben dem endgültigen Entfernen:
+                                                die Rücknahme ist umkehrbar, das Löschen nicht. */}
+                                            {isOnServer && isRetracted && (
+                                                <Tooltip
+                                                    title={t('timing.leitstand.marks.reactivate.action')}>
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={t(
+                                                            'timing.leitstand.marks.reactivate.action',
+                                                        )}
+                                                        onClick={() => handleReactivate(mark)}>
+                                                        <RestoreIcon fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
                                             )}

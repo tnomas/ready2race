@@ -13,6 +13,7 @@ import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto } from '../../api'
 export type TimingWsMessage =
 	| { type: 'timeMarkCreated'; mark: TimeMarkDto }
 	| { type: 'timeMarkRetracted'; id: string }
+	| { type: 'timeMarkReactivated'; id: string }
 	| { type: 'assignmentChanged'; timeMark: string; competitionMatchTeam: string | null }
 	| { type: 'stationsChanged' }
 	| { type: 'sequenceChanged'; sequence: TimingSequenceDto }
@@ -22,6 +23,7 @@ export type TimingWsMessage =
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
 	'timeMarkRetracted',
+	'timeMarkReactivated',
 	'assignmentChanged',
 	'stationsChanged',
 	'sequenceChanged',

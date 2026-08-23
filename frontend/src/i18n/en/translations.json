@@ -3245,7 +3245,8 @@
       "tab": {
         "times": "Times",
         "results": "Results",
-        "devices": "Devices"
+        "devices": "Devices",
+        "overview": "Overview"
       },
       "marks": {
         "stationFilter": "Station",
@@ -3285,6 +3286,10 @@
           "success_one": "{{count}} time removed",
           "success_other": "{{count}} times removed",
           "error": "Times could not be removed"
+        },
+        "reactivate": {
+          "action": "Reactivate",
+          "error": "The time could not be reactivated"
         }
       },
       "results": {
@@ -3296,7 +3301,7 @@
         "pushableCount_other": "{{count}} rows ready to push",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Outdated",
-        "dirtyHint": "A time changed since this was computed or pushed – recompute and push again",
+        "dirtyHint": "The result on the match does not reflect the current timing state – frozen, changed elsewhere, or write-back disabled",
         "notPushed": "not pushed",
         "column": {
           "team": "Start no. / team",
@@ -3314,22 +3319,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Recompute",
-          "error": "Computation failed",
-          "resultTitle": "Computation finished",
-          "computedCount_one": "{{count}} time computed",
-          "computedCount_other": "{{count}} times computed",
-          "skippedCount_one": "{{count}} team skipped",
-          "skippedCount_other": "{{count}} teams skipped",
-          "noSkips": "No team was skipped",
-          "skipReason": {
-            "NO_START_MARK": "No start time",
-            "NO_FINISH_MARK": "No finish time",
-            "NEGATIVE_DURATION": "Finish time is before the start time",
-            "NO_MARKS": "No time marks"
-          }
         },
         "push": {
           "action": "Push to results",
@@ -3365,7 +3354,9 @@
           "statusHelp": "DNS/DNF/DSQ replace the time in the result",
           "invalidSeconds": "Please enter a number of seconds",
           "error": "Saving failed",
-          "success": "Time saved"
+          "success": "Time saved",
+          "penaltyNote": "Penalty reason",
+          "penaltyNoteHelp": "Free text; shown with the penalty on the match"
         }
       },
       "devices": {
@@ -3403,6 +3394,35 @@
           }
         },
         "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatic write-back",
+          "hintOn": "Assigned times appear on the match immediately",
+          "hintOff": "Times keep accumulating but are not written to the matches",
+          "enabled": "Automatic write-back enabled – pending results were applied",
+          "disabled": "Automatic write-back disabled",
+          "error": "The switch could not be saved",
+          "loadError": "The automatic write-back state could not be loaded"
+        },
+        "stations": {
+          "empty": "No stations yet",
+          "lastMark": "Last capture {{time}}",
+          "noMarks": "No captures yet",
+          "shareLink": "Device link issued",
+          "sequence": "Sequence {{match}}: {{started}}/{{total}} started",
+          "sequenceUnknown": "running"
+        },
+        "matches": {
+          "title": "Recently active races",
+          "empty": "No active races yet – they appear here as soon as times are assigned",
+          "progress": {
+            "OPEN": "Open",
+            "STARTING": "Start sequence running",
+            "STARTED": "Started",
+            "FINISHED": "Finished"
+          }
+        }
       }
     },
     "startDisplay": {

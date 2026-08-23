@@ -6,18 +6,21 @@ import {useNavigate} from '@tanstack/react-router'
 import {getTimingTeams} from '@api/sdk.gen.ts'
 import {updateEventGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {TimingSequenceDto} from '@api/types.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
+import LeitstandOverviewTab from '@components/timing/leitstand/LeitstandOverviewTab.tsx'
 import LeitstandMarksTab from '@components/timing/leitstand/LeitstandMarksTab.tsx'
 import LeitstandResultsTab from '@components/timing/leitstand/LeitstandResultsTab.tsx'
 import LeitstandDevicesTab from '@components/timing/leitstand/LeitstandDevicesTab.tsx'
 import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
+import {useStationSequences} from '@components/timing/leitstand/useStationSequences.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 
-type LeitstandTab = 'times' | 'results' | 'devices'
+type LeitstandTab = 'overview' | 'times' | 'results' | 'devices'
 
-const TABS: LeitstandTab[] = ['times', 'results', 'devices']
+const TABS: LeitstandTab[] = ['overview', 'times', 'results', 'devices']
 
 /**
  * The Leitstand (control desk): one fullscreen board with the event's whole timing state, for the
@@ -57,17 +60,28 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
         }
     }, [user, navigate])
 
-    const [tab, setTab] = useState<LeitstandTab>('times')
+    // Die Übersicht ist die Standardansicht: Posten-Streifen plus die zuletzt aktiven Läufe -
+    // die Detail-Reiter (Zeiten, Ergebnisse, Geräte) bleiben dahinter bestehen.
+    const [tab, setTab] = useState<LeitstandTab>('overview')
 
     const clock = useServerClock()
     const officialTimesState = useOfficialTimes(eventId)
     const {applyChanged, reload: reloadOfficialTimes} = officialTimesState
+    // Henne-Ei zwischen den beiden Hooks: useStationSequences braucht die Stationen aus
+    // useTimingBoardState, das seinerseits den Sequenz-Callback entgegennimmt. Der Ref-Umweg
+    // löst das auf; useTimingBoardState spiegelt den Callback intern ohnehin in einen Ref, die
+    // Inline-Funktion löst also kein Neu-Abonnieren aus.
+    const sequenceChangedRef = useRef<(sequence: TimingSequenceDto) => void>(() => {})
     const {marks, stations, refetch, wsStatus, stateError} = useTimingBoardState(
         eventId,
         null,
-        undefined,
+        sequence => sequenceChangedRef.current(sequence),
         applyChanged,
     )
+    const {sequences, applyChanged: applySequenceChanged} = useStationSequences(eventId, stations)
+    useEffect(() => {
+        sequenceChangedRef.current = applySequenceChanged
+    }, [applySequenceChanged])
 
     // Teams are loaded once per board mount (the roster does not change during a running event) and
     // sorted by start number, so every table and picker lists them in the order operators expect.
@@ -180,6 +194,17 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
             </Stack>
 
             <Box sx={{flexGrow: 1, minHeight: 0, overflowY: 'auto', p: 2}}>
+                {tab === 'overview' && (
+                    <LeitstandOverviewTab
+                        eventId={eventId}
+                        stations={stations}
+                        marks={marks}
+                        teams={teams}
+                        officialTimes={officialTimesState.officialTimes}
+                        sequences={sequences}
+                        reloadOfficialTimes={reloadOfficialTimes}
+                    />
+                )}
                 {tab === 'times' && (
                     <LeitstandMarksTab
                         eventId={eventId}

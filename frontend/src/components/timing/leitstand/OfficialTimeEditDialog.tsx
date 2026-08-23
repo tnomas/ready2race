@@ -58,6 +58,7 @@ const OfficialTimeEditDialog = ({
 
     const [overrideInput, setOverrideInput] = useState('')
     const [penaltyInput, setPenaltyInput] = useState('')
+    const [penaltyNoteInput, setPenaltyNoteInput] = useState('')
     const [status, setStatus] = useState<OfficialTimeResultStatus>('NONE')
     const [submitting, setSubmitting] = useState(false)
 
@@ -73,6 +74,7 @@ const OfficialTimeEditDialog = ({
                 ? formatSeconds(official.penaltyMillis)
                 : '',
         )
+        setPenaltyNoteInput(official?.penaltyNote ?? '')
         setStatus(official?.resultStatus ?? 'NONE')
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, competitionMatchTeam])
@@ -92,6 +94,11 @@ const OfficialTimeEditDialog = ({
                     body: {
                         ...(overrideMillis !== null ? {overrideMillis} : {}),
                         penaltyMillis: penaltyMillis ?? 0,
+                        // PUT-Semantik: ein leerer Grund wird gar nicht gesendet und räumt damit
+                        // einen früheren Grund ab.
+                        ...(penaltyNoteInput.trim().length > 0
+                            ? {penaltyNote: penaltyNoteInput.trim()}
+                            : {}),
                         resultStatus: status,
                     },
                 })
@@ -143,6 +150,13 @@ const OfficialTimeEditDialog = ({
                         disabled={submitting}
                         onChange={event => setPenaltyInput(event.target.value)}
                         inputProps={{inputMode: 'decimal'}}
+                    />
+                    <TextField
+                        label={t('timing.leitstand.results.edit.penaltyNote')}
+                        helperText={t('timing.leitstand.results.edit.penaltyNoteHelp')}
+                        value={penaltyNoteInput}
+                        disabled={submitting}
+                        onChange={event => setPenaltyNoteInput(event.target.value)}
                     />
                     <TextField
                         select

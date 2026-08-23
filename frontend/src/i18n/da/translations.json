@@ -3218,7 +3218,8 @@
       "tab": {
         "times": "Tider",
         "results": "Resultater",
-        "devices": "Enheder"
+        "devices": "Enheder",
+        "overview": "Oversigt"
       },
       "marks": {
         "stationFilter": "Post",
@@ -3258,6 +3259,10 @@
           "success_one": "{{count}} tid fjernet",
           "success_other": "{{count}} tider fjernet",
           "error": "Tiderne kunne ikke fjernes"
+        },
+        "reactivate": {
+          "action": "Genaktivér",
+          "error": "Tiden kunne ikke genaktiveres"
         }
       },
       "results": {
@@ -3269,7 +3274,7 @@
         "pushableCount_other": "{{count}} rækker klar til overførsel",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Forældet",
-        "dirtyHint": "En tid er ændret siden beregningen eller overførslen – beregn igen og overfør på ny",
+        "dirtyHint": "Resultatet på løbet svarer ikke til tidtagningens aktuelle stand – fastfrosset, ændret andetsteds eller automatisk overførsel slået fra",
         "notPushed": "ikke overført",
         "column": {
           "team": "Startnr. / hold",
@@ -3287,22 +3292,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Beregn igen",
-          "error": "Beregningen mislykkedes",
-          "resultTitle": "Beregning afsluttet",
-          "computedCount_one": "{{count}} tid beregnet",
-          "computedCount_other": "{{count}} tider beregnet",
-          "skippedCount_one": "{{count}} hold sprunget over",
-          "skippedCount_other": "{{count}} hold sprunget over",
-          "noSkips": "Ingen hold blev sprunget over",
-          "skipReason": {
-            "NO_START_MARK": "Ingen starttid",
-            "NO_FINISH_MARK": "Ingen sluttid",
-            "NEGATIVE_DURATION": "Sluttiden ligger før starttiden",
-            "NO_MARKS": "Ingen tidsmarkeringer"
-          }
         },
         "push": {
           "action": "Overfør til resultater",
@@ -3338,7 +3327,9 @@
           "statusHelp": "DNS/DNF/DSQ erstatter tiden i resultatet",
           "invalidSeconds": "Indtast et antal sekunder",
           "error": "Kunne ikke gemmes",
-          "success": "Tid gemt"
+          "success": "Tid gemt",
+          "penaltyNote": "Årsag til straftid",
+          "penaltyNoteHelp": "Fritekst; vises sammen med straffen på løbet"
         }
       },
       "devices": {
@@ -3376,6 +3367,35 @@
           }
         },
         "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatisk overførsel",
+          "hintOn": "Tildelte tider står straks på løbet",
+          "hintOff": "Tider registreres fortsat, men skrives ikke til løbene",
+          "enabled": "Automatisk overførsel slået til – status blev opdateret",
+          "disabled": "Automatisk overførsel slået fra",
+          "error": "Kontakten kunne ikke gemmes",
+          "loadError": "Status for automatisk overførsel kunne ikke indlæses"
+        },
+        "stations": {
+          "empty": "Der er endnu ingen poster",
+          "lastMark": "Seneste registrering {{time}}",
+          "noMarks": "Endnu ingen registreringer",
+          "shareLink": "Enhedslink udstedt",
+          "sequence": "Sekvens {{match}}: {{started}}/{{total}} startet",
+          "sequenceUnknown": "kører"
+        },
+        "matches": {
+          "title": "Senest aktive løb",
+          "empty": "Endnu ingen aktive løb – de vises her, så snart tider er tildelt",
+          "progress": {
+            "OPEN": "Åben",
+            "STARTING": "Startsekvens kører",
+            "STARTED": "Startet",
+            "FINISHED": "I mål"
+          }
+        }
       }
     },
     "startDisplay": {

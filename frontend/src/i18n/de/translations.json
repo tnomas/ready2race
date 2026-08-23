@@ -3245,7 +3245,8 @@
       "tab": {
         "times": "Zeiten",
         "results": "Ergebnisse",
-        "devices": "Geräte"
+        "devices": "Geräte",
+        "overview": "Übersicht"
       },
       "marks": {
         "stationFilter": "Posten",
@@ -3285,6 +3286,10 @@
           "success_one": "{{count}} Zeit entfernt",
           "success_other": "{{count}} Zeiten entfernt",
           "error": "Zeiten konnten nicht entfernt werden"
+        },
+        "reactivate": {
+          "action": "Wieder aktivieren",
+          "error": "Die Zeit konnte nicht wieder aktiviert werden"
         }
       },
       "results": {
@@ -3296,7 +3301,7 @@
         "pushableCount_other": "{{count}} Zeilen übertragbar",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Veraltet",
-        "dirtyHint": "Seit der Berechnung bzw. Übernahme wurde eine Zeit geändert – neu berechnen und erneut übernehmen",
+        "dirtyHint": "Das Ergebnis am Lauf entspricht nicht dem aktuellen Stand der Zeitnahme – eingefroren, fremd geändert oder Übernahme ausgeschaltet",
         "notPushed": "nicht übernommen",
         "column": {
           "team": "Startnr. / Team",
@@ -3314,22 +3319,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Neu berechnen",
-          "error": "Berechnung fehlgeschlagen",
-          "resultTitle": "Berechnung abgeschlossen",
-          "computedCount_one": "{{count}} Zeit berechnet",
-          "computedCount_other": "{{count}} Zeiten berechnet",
-          "skippedCount_one": "{{count}} Team übersprungen",
-          "skippedCount_other": "{{count}} Teams übersprungen",
-          "noSkips": "Kein Team wurde übersprungen",
-          "skipReason": {
-            "NO_START_MARK": "Keine Startzeit",
-            "NO_FINISH_MARK": "Keine Zielzeit",
-            "NEGATIVE_DURATION": "Zielzeit liegt vor der Startzeit",
-            "NO_MARKS": "Keine Zeitmarken"
-          }
         },
         "push": {
           "action": "In Ergebnisse übernehmen",
@@ -3365,7 +3354,9 @@
           "statusHelp": "DNS/DNF/DSQ ersetzen die Zeit im Ergebnis",
           "invalidSeconds": "Bitte eine Zahl in Sekunden eingeben",
           "error": "Speichern fehlgeschlagen",
-          "success": "Zeit gespeichert"
+          "success": "Zeit gespeichert",
+          "penaltyNote": "Grund der Strafzeit",
+          "penaltyNoteHelp": "Freitext; wird mit der Strafe am Lauf angezeigt"
         }
       },
       "devices": {
@@ -3403,6 +3394,35 @@
           }
         },
         "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatische Übernahme",
+          "hintOn": "Zugeordnete Zeiten stehen sofort am Lauf",
+          "hintOff": "Zeiten laufen auf, werden aber nicht an die Läufe geschrieben",
+          "enabled": "Automatische Übernahme eingeschaltet – Stand wurde nachgezogen",
+          "disabled": "Automatische Übernahme ausgeschaltet",
+          "error": "Der Schalter konnte nicht gespeichert werden",
+          "loadError": "Der Stand der automatischen Übernahme konnte nicht geladen werden"
+        },
+        "stations": {
+          "empty": "Es gibt noch keine Posten",
+          "lastMark": "Letzter Eingang {{time}}",
+          "noMarks": "Noch kein Eingang",
+          "shareLink": "Geräte-Link ausgestellt",
+          "sequence": "Sequenz {{match}}: {{started}}/{{total}} gestartet",
+          "sequenceUnknown": "läuft"
+        },
+        "matches": {
+          "title": "Zuletzt aktive Läufe",
+          "empty": "Noch keine aktiven Läufe – sobald Zeiten zugeordnet sind, erscheinen sie hier",
+          "progress": {
+            "OPEN": "Offen",
+            "STARTING": "Startsequenz läuft",
+            "STARTED": "Gestartet",
+            "FINISHED": "Im Ziel"
+          }
+        }
       }
     },
     "startDisplay": {
