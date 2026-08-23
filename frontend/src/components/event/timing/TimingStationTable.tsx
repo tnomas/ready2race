@@ -44,13 +44,17 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
         `${window.location.origin}/event/${eventId}/timing/${station.id}`
 
     const customEntityActions = (station: TimingStationDto) => [
-        <GridActionsCellItem
-            icon={<OpenInNewIcon />}
-            label={t('timing.station.openCapture')}
-            onClick={() => window.open(stationUrl(station), '_blank', 'noopener')}
-            showInMenu
-        />,
-        station.type === 'START' && (
+        // Ein ANZEIGE-Posten erfasst nichts — er hat nur die Anzeige, alle anderen nur bzw.
+        // zusätzlich die Erfassung.
+        station.type !== 'ANZEIGE' && (
+            <GridActionsCellItem
+                icon={<OpenInNewIcon />}
+                label={t('timing.station.openCapture')}
+                onClick={() => window.open(stationUrl(station), '_blank', 'noopener')}
+                showInMenu
+            />
+        ),
+        (station.type === 'START' || station.type === 'ANZEIGE') && (
             <GridActionsCellItem
                 icon={<SmartDisplayOutlinedIcon />}
                 label={t('timing.station.openStartDisplay')}

@@ -3011,6 +3011,11 @@
         "FINISH": "Mål",
         "ANZEIGE": "Skærm"
       },
+      "linkedStation": {
+        "label": "Tilknyttet startpost",
+        "all": "Alle stævnets startsekvenser",
+        "hint": "Skærmen spejler denne startposts startsekvenser (nedtælling, hvem der er på, hvem der følger). Uden tilknytning viser den stævnets senest aktive startsekvens."
+      },
       "error": {
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
       },

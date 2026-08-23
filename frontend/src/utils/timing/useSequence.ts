@@ -70,11 +70,31 @@ export type UseSequenceResult = {
  * Dismissal is deliberately per-mount: a *fresh* mount still shows a recent terminal sequence, which
  * is how an operator who reloaded the board gets the summary back.
  */
-export function useSequence(eventId: string, stationId: string): UseSequenceResult {
+export type UseSequenceOptions = {
+    /**
+     * Von welchen Posten dieses Board Sequenzen annimmt. Ohne Angabe: nur vom eigenen Posten —
+     * das ist der Erfassungs-Fall. Ein ANZEIGE-Posten spiegelt dagegen Sequenzen FREMDER
+     * START-Posten (`linkedStation`, oder unverknüpft jede Startsequenz der Veranstaltung); der
+     * Server löst `GET active?stationId=<anzeige>` bereits entsprechend auf, und dieses Prädikat
+     * lässt die zugehörigen WebSocket-Nachrichten und Snapshots durch. Wird bei jedem Aufruf
+     * frisch gelesen (Ref), darf also von async geladenen Postendaten abhängen.
+     */
+    acceptsStation?: (stationId: string) => boolean
+}
+
+export function useSequence(
+    eventId: string,
+    stationId: string,
+    options?: UseSequenceOptions,
+): UseSequenceResult {
     const [sequence, setSequence] = useState<TimingSequenceDto | undefined>(undefined)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(false)
     const [busy, setBusy] = useState(false)
+
+    /** Immer der aktuellste Filter — siehe {@link UseSequenceOptions.acceptsStation}. */
+    const acceptsStationRef = useRef<(id: string) => boolean>(() => true)
+    acceptsStationRef.current = options?.acceptsStation ?? (id => id === stationId)
 
     /** Monotonic GET counter — only the newest in-flight refetch may apply its response. */
     const epochRef = useRef(0)
@@ -101,7 +121,7 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
                 if (wsVersion !== wsVersionRef.current) return
                 const next = data?.sequence
                 if (next !== undefined) {
-                    if (next.station !== stationId) return
+                    if (!acceptsStationRef.current(next.station)) return
                     if (next.id === dismissedSequenceIdRef.current) return
                 }
                 setSequence(next)
@@ -122,15 +142,12 @@ export function useSequence(eventId: string, stationId: string): UseSequenceResu
         refetch()
     }, [refetch])
 
-    const applySequenceChanged = useCallback(
-        (next: TimingSequenceDto) => {
-            if (next.station !== stationId) return
-            if (next.id === dismissedSequenceIdRef.current) return
-            wsVersionRef.current++
-            setSequence(next)
-        },
-        [stationId],
-    )
+    const applySequenceChanged = useCallback((next: TimingSequenceDto) => {
+        if (!acceptsStationRef.current(next.station)) return
+        if (next.id === dismissedSequenceIdRef.current) return
+        wsVersionRef.current++
+        setSequence(next)
+    }, [])
 
     const create = useCallback(
         async (request: CreateSequenceRequest) => {

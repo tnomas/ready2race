@@ -3038,6 +3038,11 @@
         "FINISH": "Finish",
         "ANZEIGE": "Display"
       },
+      "linkedStation": {
+        "label": "Linked start station",
+        "all": "Every start sequence of the event",
+        "hint": "The display mirrors this start station's start sequences (countdown, who is up, who follows). Without a link it shows whichever start sequence of the event was active last."
+      },
       "error": {
         "hasTimeMarks": "The station already has recorded times and cannot be deleted"
       },

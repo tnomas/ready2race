@@ -3,7 +3,7 @@ import {useEffect, useMemo, useRef} from 'react'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {getTimingTeams} from '@api/sdk.gen.ts'
-import {TimingSequenceEntryDto, TimingTeamDto} from '@api/types.gen.ts'
+import {TimingSequenceEntryDto, TimingStationDto, TimingTeamDto} from '@api/types.gen.ts'
 import {
     readEventGlobal,
     updateAppTimingGlobal,
@@ -57,13 +57,33 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     }, [user, navigate, eventId])
 
     const clock = useServerClock()
-    const sequenceState = useSequence(eventId, stationId)
+    // Die Route akzeptiert START-Posten (Startbildschirm direkt am Posten) UND ANZEIGE-Posten:
+    // Letztere spiegeln über `linkedStation` einen fremden START-Posten — oder, unverknüpft,
+    // jede Startsequenz der Veranstaltung. `GET /sequences/active?stationId=<anzeige>` löst das
+    // serverseitig auf; das Prädikat hier lässt die passenden WebSocket-Sequenzen durch. Es
+    // liest die async geladenen Posten über eine Ref, weil useSequence VOR useTimingBoardState
+    // aufgerufen werden muss (der Board-State braucht applySequenceChanged als Argument).
+    const stationsRef = useRef<TimingStationDto[]>([])
+    const sequenceState = useSequence(eventId, stationId, {
+        acceptsStation: sequenceStation => {
+            const own = stationsRef.current.find(s => s.id === stationId)
+            // Posten noch nicht geladen: der Server hat die Anfrage bereits nach stationId
+            // aufgelöst, also nichts verwerfen — der Refetch unten korrigiert notfalls nach.
+            if (own === undefined) return true
+            if (own.type !== 'ANZEIGE') return sequenceStation === stationId
+            if (own.linkedStation != null) return sequenceStation === own.linkedStation
+            return true
+        },
+    })
     const {refetch: refetchSequence} = sequenceState
     const {stations, refetch, wsStatus, stateError} = useTimingBoardState(
         eventId,
         stationId,
         sequenceState.applySequenceChanged,
     )
+    useEffect(() => {
+        stationsRef.current = stations
+    }, [stations])
 
     const {data: teamsData} = useFetch(signal => getTimingTeams({signal, path: {eventId}}), {
         deps: [eventId],
@@ -98,6 +118,18 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     }, [refetch, refetchSequence])
 
     const station = stations.find(s => s.id === stationId)
+
+    // Sobald der eigene Posten bekannt ist, die aktive Sequenz erneut laden: Der allererste GET
+    // lief evtl. gegen das noch postenlose Prädikat; für einen ANZEIGE-Posten kommt die richtige
+    // (gespiegelte) Sequenz sicher erst jetzt konsistent an.
+    const stationKnownRef = useRef(false)
+    useEffect(() => {
+        if (station !== undefined && !stationKnownRef.current) {
+            stationKnownRef.current = true
+            refetchSequence()
+        }
+    }, [station, refetchSequence])
+
     const view = deriveStartDisplay(sequenceState.sequence)
 
     /** Zentrale Botschaft ohne Countdown (kein Lauf, vorbereitet, fertig, abgebrochen). */
@@ -157,11 +189,13 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                     {t('timing.board.stateError')}
                 </Alert>
             )}
-            {station !== undefined && station.type !== 'START' && (
-                <Alert severity="warning" sx={{flexShrink: 0}}>
-                    {t('timing.startDisplay.notStart')}
-                </Alert>
-            )}
+            {station !== undefined &&
+                station.type !== 'START' &&
+                station.type !== 'ANZEIGE' && (
+                    <Alert severity="warning" sx={{flexShrink: 0}}>
+                        {t('timing.startDisplay.notStart')}
+                    </Alert>
+                )}
 
             <Box
                 sx={{

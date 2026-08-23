@@ -3038,6 +3038,11 @@
         "FINISH": "Ziel",
         "ANZEIGE": "Anzeige"
       },
+      "linkedStation": {
+        "label": "Verknüpfter Start-Posten",
+        "all": "Alle Startsequenzen der Veranstaltung",
+        "hint": "Die Anzeige zeigt die Startsequenzen dieses Start-Postens (Countdown, wer ist dran, wer folgt). Ohne Verknüpfung zeigt sie die jeweils zuletzt aktive Startsequenz der Veranstaltung."
+      },
       "error": {
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
       },

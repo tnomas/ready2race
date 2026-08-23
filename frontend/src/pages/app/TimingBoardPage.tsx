@@ -132,6 +132,18 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
 
     const station = stations.find(s => s.id === stationId)
 
+    // Ein ANZEIGE-Posten hat kein Erfassungsboard — wer seine Board-Adresse öffnet (alter Link,
+    // Tippfehler), landet auf der Anzeige, die dieser Posten IST.
+    useEffect(() => {
+        if (station?.type === 'ANZEIGE') {
+            void navigate({
+                to: '/event/$eventId/timing/$stationId/anzeige',
+                params: {eventId, stationId},
+                replace: true,
+            })
+        }
+    }, [station?.type, navigate, eventId, stationId])
+
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
