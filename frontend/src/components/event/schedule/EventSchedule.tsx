@@ -51,6 +51,8 @@ import {
 } from '@api/sdk.gen.ts'
 import {EventDto, EventScheduleSlotDto, UnplannedSetupMatchDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
+import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {updateEventGlobal} from '@authorization/privileges.ts'
@@ -179,16 +181,22 @@ const EventSchedule = ({event}: Props) => {
 
     // Der Zeitplan zieht sich selbst nach: Am Regattatag arbeiten Schiedsrichter-Dashboard und
     // Kette an denselben Läufen, und ein Zeitplan, der nur bei eigenen Aktionen neu lädt, zeigte
-    // deren Stand erst nach einem Reload (beobachtet am 10.08.2026). 30 Sekunden reichen - für
-    // die Sekunden-Frische ist das Dashboard da - und ein verdeckter Tab fragt gar nicht erst.
+    // deren Stand erst nach einem Reload (beobachtet am 10.08.2026). Seit dem Push-Kanal meldet
+    // der Server Änderungen sofort (entprellt); der Takt darunter bleibt als Sicherheitsnetz —
+    // gestreckt, solange der Kanal steht, sonst wie bisher 30 Sekunden. Ein verdeckter Tab lädt
+    // weiterhin nicht (der Kanal merkt sich Pushes und feuert beim Zurückkehren einmal).
+    const {connected: pushConnected} = useEventChangeSocket(eventId, () =>
+        setLastRequested(Date.now()),
+    )
+    const safetyPollMs = stretchedPollMs(30_000, pushConnected)
     useEffect(() => {
         const id = window.setInterval(() => {
             if (document.visibilityState === 'visible') {
                 setLastRequested(Date.now())
             }
-        }, 30_000)
+        }, safetyPollMs)
         return () => window.clearInterval(id)
-    }, [])
+    }, [safetyPollMs])
 
     // Tages-Auswahl: null heißt "noch keine Wahl getroffen" - dann gewinnt der heutige Tag, wenn
     // die Veranstaltung heute läuft, sonst alle Tage. Erst ein Klick legt die Wahl fest.

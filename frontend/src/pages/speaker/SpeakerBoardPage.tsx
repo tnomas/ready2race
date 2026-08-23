@@ -25,9 +25,11 @@ import {
 } from '@components/speaker/speakerSettings.ts'
 import Throbber from '@components/Throbber.tsx'
 import {useFetch} from '@utils/hooks.ts'
+import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
+import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 import {Link, useParams} from '@tanstack/react-router'
 import {format} from 'date-fns'
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 
 const FETCH_LIMIT = 500
@@ -78,7 +80,13 @@ const SpeakerBoardPage = () => {
         {deps: [eventId]},
     )
 
-    const reloadInterval = settings.refreshSeconds * 1000
+    // Push-Kanal der Veranstaltung: Änderungen laden alle drei Listen sofort (entprellt) nach.
+    // Der Rückruf hängt an einer Ref, weil reloadAll erst unterhalb der drei Abrufe entsteht.
+    const reloadAllRef = useRef<() => void>(() => {})
+    const {connected: pushConnected} = useEventChangeSocket(eventId, () => reloadAllRef.current())
+    // Solange der Kanal steht, wird der eingestellte Takt zum trägen Sicherheitsnetz gestreckt —
+    // reißt er ab, gilt unverändert der eingestellte Takt.
+    const reloadInterval = stretchedPollMs(settings.refreshSeconds * 1000, pushConnected)
 
     const {data: upcomingData, reload: reloadUpcoming} = useFetch(
         signal => getUpcomingMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
@@ -118,6 +126,7 @@ const SpeakerBoardPage = () => {
         reloadRunning()
         reloadResults()
     }
+    reloadAllRef.current = reloadAll
 
     const runningCount = matches.filter(match => match.status === 'RUNNING').length
 

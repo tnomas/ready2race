@@ -1,5 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {createStaleWatch} from '@utils/staleWatch.ts'
+import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
+import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 
 const FALLBACK_INTERVAL_SECONDS = 15
 // Erst nach mehreren verpassten Takten wird aus einem alternden Stand eine Warnung — ein
@@ -29,6 +31,21 @@ export interface PolledState<T> {
     stale: boolean
 }
 
+export type PolledEndpointOptions = {
+    /**
+     * Nach wie vielen verpassten (wirksamen) Takten ein alternder Stand zur Warnung wird —
+     * siehe DEFAULT_STALE_AFTER_MISSED_INTERVALS.
+     */
+    staleAfterMissedIntervals?: number
+    /**
+     * Veranstaltung, deren Push-Kanal (`useEventChangeSocket`) den Takt ablöst: gemeldete
+     * Änderungen laden sofort (entprellt) nach, und solange der Kanal steht, streckt sich der
+     * Poll-Takt auf den Sicherheitstakt (`stretchedPollMs`). Ohne Angabe bleibt alles beim
+     * reinen Takt.
+     */
+    pushEventId?: string
+}
+
 /**
  * Lädt einen Endpunkt im Takt, den der Server vorgibt.
  *
@@ -51,8 +68,10 @@ export const usePolledEndpoint = <T>(
     load: (signal: AbortSignal) => Promise<{data?: T; response: Response}>,
     intervalOf: (data: T) => number,
     deps: unknown[],
-    staleAfterMissedIntervals: number = DEFAULT_STALE_AFTER_MISSED_INTERVALS,
+    options: PolledEndpointOptions = {},
 ): PolledState<T> => {
+    const staleAfterMissedIntervals =
+        options.staleAfterMissedIntervals ?? DEFAULT_STALE_AFTER_MISSED_INTERVALS
     const [data, setData] = useState<T | null>(null)
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
     const [notFound, setNotFound] = useState(false)
@@ -64,6 +83,12 @@ export const usePolledEndpoint = <T>(
     const intervalRef = useRef(FALLBACK_INTERVAL_SECONDS)
     const abortRef = useRef<AbortController | null>(null)
     const mountedRef = useRef(true)
+    // Steht der Push-Kanal? Als Ref, nicht als Abhängigkeit: ein Verbindungswechsel darf den
+    // Takt umstellen (Effekt unten), aber niemals den ganzen Poller neu aufziehen.
+    const pushConnectedRef = useRef(false)
+    // Nach einem 404 hält der Takt dauerhaft an — auch die Umstell-Effekte unten dürfen dann
+    // keinen neuen Wecker stellen.
+    const stopPollingRef = useRef(false)
 
     // Die Wache wird unten im selben Effekt angelegt wie der Takt und dort auch wieder
     // angehalten: Ihr Zeitgeber läuft zwischen den Abrufen weiter und ist gerade dann das
@@ -95,6 +120,10 @@ export const usePolledEndpoint = <T>(
         }
     }
 
+    /** Der wirksame Takt in Millisekunden: gestreckt, solange der Push-Kanal steht. */
+    const effectiveIntervalMs = () =>
+        stretchedPollMs(intervalRef.current * 1000, pushConnectedRef.current)
+
     const runLoad = useCallback(async () => {
         abortRef.current?.abort()
         const controller = new AbortController()
@@ -111,14 +140,17 @@ export const usePolledEndpoint = <T>(
                 setNotFound(true)
                 setLoadFailed(false)
                 stopPolling = true
+                stopPollingRef.current = true
             } else if (result.data) {
                 setNotFound(false)
                 setLoadFailed(false)
                 setData(result.data)
                 setLastUpdated(new Date())
                 intervalRef.current = intervalOfRef.current(result.data)
+                // Die Stand-von-Wache misst am WIRKSAMEN Takt: im gestreckten Betrieb wäre der
+                // Grundtakt längst „verpasst", obwohl Kanal und Sicherheitstakt gesund sind.
                 staleWatchRef.current?.markFresh(
-                    intervalRef.current * staleAfterMissedIntervalsRef.current * 1000,
+                    effectiveIntervalMs() * staleAfterMissedIntervalsRef.current,
                 )
             } else {
                 // Antwort ohne Nutzdaten (z. B. HTTP 500): als fehlgeschlagenen Versuch werten,
@@ -144,17 +176,41 @@ export const usePolledEndpoint = <T>(
                 if (!stopPolling && !document.hidden) {
                     timerRef.current = window.setTimeout(() => {
                         void runLoad()
-                    }, intervalRef.current * 1000)
+                    }, effectiveIntervalMs())
                 }
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, deps)
 
+    // Für Rückrufe, die den Poller nicht neu aufziehen dürfen (Push-Kanal, Takt-Umstellung).
+    const runLoadRef = useRef(runLoad)
+    runLoadRef.current = runLoad
+
+    // Der Push-Kanal der Veranstaltung: gemeldete Änderungen laden sofort nach (der Hook
+    // entprellt Schübe und hält Hintergrund-Pushes zurück), Reconnects holen Verpasstes ab.
+    const {connected: pushConnected} = useEventChangeSocket(options.pushEventId ?? null, () => {
+        void runLoadRef.current()
+    })
+
+    useEffect(() => {
+        pushConnectedRef.current = pushConnected
+        // Ein bereits gestellter Wecker läuft noch im alten Takt — umstellen, ohne einen Abruf
+        // auszulösen. Läuft gerade ein Abruf (kein Wecker), stellt dessen Abschluss den nächsten
+        // Wecker ohnehin mit dem neuen Takt.
+        if (timerRef.current !== null && !stopPollingRef.current && !document.hidden) {
+            clearTimer()
+            timerRef.current = window.setTimeout(() => {
+                void runLoadRef.current()
+            }, effectiveIntervalMs())
+        }
+    }, [pushConnected])
+
     useEffect(() => {
         // Andere Abhängigkeiten heißen: andere Daten. Eine Warnung, die zum vorigen Stand
         // gehörte, darf nicht über den Wechsel hinweg stehen bleiben.
         setStale(false)
+        stopPollingRef.current = false
         staleWatchRef.current = createStaleWatch({
             onStale: value => {
                 if (mountedRef.current) setStale(value)

@@ -35,6 +35,8 @@ const ResultsProgram = ({eventId}: Props) => {
         },
         REFRESH_MS,
         [eventId],
+        // Push statt Takt (siehe eventChangePush.ts) — wie beim Live-Tab.
+        eventId,
     )
 
     if (initialLoad) {

@@ -10,7 +10,9 @@ const STALE_AFTER_MISSED_INTERVALS = 2
 export type BoardViewState = PolledState<BoardViewDto>
 
 /**
- * Lädt ein Board im Takt, den der Server vorgibt.
+ * Lädt ein Board im Takt, den der Server vorgibt — und sofort, wenn der Push-Kanal der
+ * Veranstaltung eine Änderung meldet (`pushEventId`; solange er steht, wird der Takt zum
+ * trägen Sicherheitsnetz gestreckt).
  *
  * Der Takt selbst steckt in [usePolledEndpoint] — dieselbe Mechanik trug die alte
  * Athleten-Anzeige und trägt „Mein Event". Die drei Eigenschaften, auf die es hier
@@ -27,5 +29,5 @@ export const useBoardViewData = (eventId: string, boardId: string): BoardViewSta
                 ? data.refreshIntervalSeconds
                 : FALLBACK_INTERVAL_SECONDS,
         [eventId, boardId],
-        STALE_AFTER_MISSED_INTERVALS,
+        {staleAfterMissedIntervals: STALE_AFTER_MISSED_INTERVALS, pushEventId: eventId},
     )

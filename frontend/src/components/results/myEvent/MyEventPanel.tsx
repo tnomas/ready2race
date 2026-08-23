@@ -52,6 +52,9 @@ const MyEventContent = ({eventId, qrCode, onDisplayName, onForget}: MyEventConte
             d =>
                 d.refreshIntervalSeconds > 0 ? d.refreshIntervalSeconds : FALLBACK_INTERVAL_SECONDS,
             [eventId, qrCode],
+            // Push statt Takt, wo der Kanal steht: neue Ergebnisse erscheinen sofort, das
+            // Polling wird zum Sicherheitsnetz gestreckt.
+            {pushEventId: eventId},
         )
 
     const displayName = data?.displayName

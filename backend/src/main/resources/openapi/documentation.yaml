@@ -17296,6 +17296,26 @@ components:
 
     BoardViewDto:
       type: object
+      description: |-
+        Everything one board renders in a single response.
+
+        In addition to polling the HTTP routes under `/event/{eventId}/info`, displays can listen
+        on a websocket channel that announces changes to the event:
+
+        - Path: `/api/ws/event/{eventId}/info` (note the `/api/ws` prefix - this channel lives
+        outside the regular `/api` REST routes documented in this spec).
+        - Auth: none. The channel mirrors the public display endpoints under
+        `/event/{eventId}/info` - connect with a plain `new WebSocket(url)`, no subprotocol and
+        no session required.
+        - Messages are JSON objects discriminated by a `type` field. The only type is
+        `{ type: "changed", marker: int64 }`: the event's change marker was bumped (results,
+        activation, schedule actions, notice banner, ...). The message deliberately carries no
+        payload - on receiving it, refetch the display's regular endpoint. `marker` is monotonic
+        per event; the current value is also sent once immediately after connecting.
+        - The channel is receive-only: clients should ignore any data they send on it and rely on
+        the server's ping/pong keepalive.
+        - On every (re)connect clients should refetch once, to cover changes missed while
+        disconnected, and keep a slow safety poll as fallback for connections that die silently.
       required:
         - boardId
         - eventName
