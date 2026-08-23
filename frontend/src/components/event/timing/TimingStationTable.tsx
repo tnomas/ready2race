@@ -20,6 +20,7 @@ import {deleteTimingStation, getTimingStations} from '@api/sdk.gen.ts'
 import {RequestResult} from '@hey-api/client-fetch'
 import {useFeedback} from '@utils/hooks.ts'
 import TimingStationShareDialog from '@components/event/timing/TimingStationShareDialog.tsx'
+import {stationBoardUrl} from '@utils/timing/stationLink.ts'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -42,8 +43,7 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
     // Direkte Wege vom Posten zur Arbeit am Renntag: Erfassung und (für START-Posten) der
     // Startbildschirm öffnen in neuem Fenster - am Renntag laufen sie auf eigenen Bildschirmen.
     // „Auf Gerät teilen" erzeugt einen Link mit Geräte-Token für Geräte ohne Anmeldung.
-    const stationUrl = (station: TimingStationDto) =>
-        `${window.location.origin}/event/${eventId}/timing/${station.id}`
+    const stationUrl = (station: TimingStationDto) => stationBoardUrl(eventId, station.id)
 
     const customEntityActions = (station: TimingStationDto) => [
         // Ein ANZEIGE-Posten erfasst nichts — er hat nur die Anzeige, alle anderen nur bzw.

@@ -5,6 +5,7 @@ import {
     Chip,
     FormControlLabel,
     IconButton,
+    Link,
     MenuItem,
     Stack,
     Table,
@@ -29,6 +30,7 @@ import {useFeedback} from '@utils/hooks.ts'
 import AssignTeamDialog from '@components/timing/AssignTeamDialog.tsx'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import {formatTimeOfDay, teamLabel} from '@components/timing/leitstand/format.ts'
+import {stationBoardPath} from '@utils/timing/stationLink.ts'
 
 /** Sentinel for the station filter's "all stations" option (a Select cannot hold `null` cleanly). */
 const ALL_STATIONS = 'ALL'
@@ -337,7 +339,18 @@ const LeitstandMarksTab = ({
                             return (
                                 <TableRow key={mark.id} hover>
                                     <TableCell>
-                                        {stationById.get(mark.station)?.name ?? mark.station.slice(0, 8)}
+                                        {/* Der Postenname führt auf sein Board (neues Fenster) —
+                                            wie im Posten-Streifen der Übersicht. */}
+                                        {stationById.has(mark.station) ? (
+                                            <Link
+                                                href={stationBoardPath(eventId, mark.station)}
+                                                target="_blank"
+                                                rel="noopener">
+                                                {stationById.get(mark.station)!.name}
+                                            </Link>
+                                        ) : (
+                                            mark.station.slice(0, 8)
+                                        )}
                                     </TableCell>
                                     <TableCell
                                         sx={{
