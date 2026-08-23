@@ -47,6 +47,22 @@ fun Route.timing() {
             }
         }
 
+        // Die Posten-Startliste: Partien der intern gezeiteten Wettkämpfe in Startreihenfolge.
+        // Lesend wie /teams - auch mit Geräte-Token, denn Start- und Zielposten laufen auf
+        // geteilten Geräten ohne Sitzung.
+        get("/matches") {
+            call.respondComprehension {
+                val eventId = !pathParam("eventId", uuid)
+                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                } else {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                }
+                TimingMatchService.getMatches(eventId)
+            }
+        }
+
         get("/teams") {
             call.respondComprehension {
                 val eventId = !pathParam("eventId", uuid)
