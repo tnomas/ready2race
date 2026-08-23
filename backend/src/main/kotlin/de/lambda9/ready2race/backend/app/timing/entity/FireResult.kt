@@ -35,4 +35,10 @@ data class FiredEntry(
      * aus demselben Grund hier statt als Broadcast: die Nachricht darf erst nach dem Commit raus.
      */
     val changedOfficialTimes: List<OfficialTimeDto> = emptyList(),
+    /**
+     * Ob dieses Feuern den Laufzustand der Partie gestempelt hat (started_at, ggf. activated_at).
+     * Auch das darf erst nach dem Commit nach draußen - als `EventChangeMarker`-Bump in
+     * `broadcastFireResult`, damit die öffentlichen Anzeigen den neuen Zustand sofort nachladen.
+     */
+    val matchStamped: Boolean = false,
 )

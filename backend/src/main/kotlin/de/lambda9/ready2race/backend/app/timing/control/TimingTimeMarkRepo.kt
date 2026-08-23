@@ -1,9 +1,11 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_ASSIGNMENT
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_STATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_TIME_MARK
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
@@ -61,6 +63,35 @@ object TimingTimeMarkRepo {
      * Hand gestempelte und zugeordnete Marke gehört zur Partie und muss mit zurück, sonst stünde
      * nach dem Neustart ein Boot mit zwei aktiven Marken desselben Postens da.
      */
+    /**
+     * Die Zeitstempel der STARTMARKEN einer Partie (zugeordnet über die Teams, wie
+     * [getActiveMarksForMatch]) - das Rohmaterial der Laufzustands-Stempel:
+     *
+     * - [onlyActive] = true liefert die aktiven Marken, aus deren frühester der Ist-Start der
+     *   Partie entsteht (`TimingMatchStampLogic.startStampFor`).
+     * - [onlyActive] = false liefert ALLE, auch zurückgenommene: die Provenienz-Menge, an der die
+     *   Versuchs-Rücknahme den eigenen Stempel wiedererkennt
+     *   (`TimingMatchStampLogic.startRetracted`) - auch eine längst einzeln zurückgenommene Marke
+     *   kann den stehenden Stempel geliefert haben.
+     */
+    fun getStartMarkMillisForMatch(
+        eventId: UUID,
+        setupMatchId: UUID,
+        onlyActive: Boolean,
+    ): JIO<List<Long>> = Jooq.query {
+        select(TIMING_TIME_MARK.TIMESTAMP_MILLIS)
+            .from(TIMING_TIME_MARK)
+            .join(TIMING_ASSIGNMENT).on(TIMING_ASSIGNMENT.TIME_MARK.eq(TIMING_TIME_MARK.ID))
+            .join(COMPETITION_MATCH_TEAM)
+            .on(COMPETITION_MATCH_TEAM.ID.eq(TIMING_ASSIGNMENT.COMPETITION_MATCH_TEAM))
+            .join(TIMING_STATION).on(TIMING_STATION.ID.eq(TIMING_TIME_MARK.STATION))
+            .where(TIMING_TIME_MARK.EVENT.eq(eventId))
+            .and(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(setupMatchId))
+            .and(TIMING_STATION.TYPE.eq(TimingStationType.START.name))
+            .let { if (onlyActive) it.and(TIMING_TIME_MARK.STATUS.eq("ACTIVE")) else it }
+            .fetch { record -> record[TIMING_TIME_MARK.TIMESTAMP_MILLIS]!! }
+    }
+
     fun getActiveMarksForMatch(
         eventId: UUID,
         setupMatchId: UUID,

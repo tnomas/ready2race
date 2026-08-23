@@ -79,6 +79,14 @@ object TimingMatchService {
 
             // "Gestartet" auf Partie-Ebene zählt auch den per Hand gestempelten Start des
             // Schiedsrichters (started_at) - nicht nur Marken; das Team-Flag bleibt markenbasiert.
+            //
+            // Die MARKEN führen: started_at wird von der Zeitnahme in derselben Transaktion aus
+            // ihnen gestempelt (TimingMatchStampService), die beiden Quellen können hier also
+            // nicht widersprechen. Das Oder ist trotzdem nötig - für den Schiedsrichter-Stempel
+            // ganz ohne Marken und für die gewollte Asymmetrie der Einzelkorrektur: Wird die
+            // letzte Startmarke umgehängt oder einzeln zurückgenommen, bleibt started_at stehen
+            // und die Partie gilt weiter als gestartet; zurück auf "offen" geht sie nur über die
+            // Versuchs-Rücknahme.
             val anyTeamStarted = match.startedAt != null || teams.any { it.started }
             val allTeamsFinished = teams.isNotEmpty() && teams.all { it.finished }
             val hasActiveSequence = teams.any { it.competitionMatchTeam in teamsInActiveSequences }

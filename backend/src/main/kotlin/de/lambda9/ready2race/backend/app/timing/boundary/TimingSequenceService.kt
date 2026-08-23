@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
@@ -101,6 +102,15 @@ object TimingSequenceService {
         }
         !TimingSequenceEntryRepo.create(entries).orDie()
 
+        // Die eingerichtete Sequenz ruft ihre Partien an den Start (activated_at, nur wenn noch
+        // nicht gesetzt) - Dashboard und Boards zeigen "In Vorbereitung", sobald der Posten die
+        // Sequenz anlegt, nicht erst mit dem ersten Start. Der Bump entwertet die Caches der
+        // öffentlichen Anzeigen im selben Request (Broadcast nach Commit).
+        val activated = !TimingMatchStampService.activateMatchesOfTeams(request.teams, userId)
+        if (activated) {
+            EventChangeMarker.bump(eventId)
+        }
+
         broadcastAsync(eventId, sequenceDto(record, entries))
         KIO.ok(ApiResponse.Created(sequenceId))
     }
@@ -161,6 +171,16 @@ object TimingSequenceService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        // Auch das Starten stempelt die Aktivierung (nur wenn noch nicht gesetzt): Wurde die
+        // Partie zwischen Einrichten und Start vom Schiedsrichter zurückgestellt, ist sie mit dem
+        // laufenden Countdown unstrittig wieder am Start.
+        val entryTeams = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .mapNotNull { it.competitionMatchTeam }
+        val activated = !TimingMatchStampService.activateMatchesOfTeams(entryTeams, userId)
+        if (activated) {
+            EventChangeMarker.bump(eventId)
+        }
 
         !broadcastSequence(updated)
         noData
@@ -290,6 +310,15 @@ object TimingSequenceService {
                     TimingWsMessage.OfficialTimeChanged(entries.flatMap { it.changedOfficialTimes }),
                 )
             }
+        // Laufzustands-Stempel des Laufs (started_at/activated_at): erst hier, nach dem Commit,
+        // die Caches der öffentlichen Anzeigen entwerten - ein Bump aus der Scheduler-Transaktion
+        // heraus ginge vor dem Commit raus (AfterCommit hat dort keinen Puffer) und ließe die
+        // Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf festhalten.
+        result.fired
+            .filter { it.matchStamped }
+            .map { it.mark.event }
+            .distinct()
+            .forEach { eventId -> EventChangeMarker.bump(eventId) }
     }
 
     private data class SequenceOutcome(
@@ -367,6 +396,18 @@ object TimingSequenceService {
             timeMark = markId
         }.orDie()
 
+        // Die soeben gefeuerte Startmarke ist ggf. die erste ihrer Partie: dann trägt sie den
+        // Ist-Start (started_at = Markenzeit) - in derselben Transaktion wie die Marke, damit
+        // Stempel und Marke nie auseinanderlaufen. Ein bestehender Ist-Start (Schiedsrichter!)
+        // wird nie verschoben (TimingMatchStampLogic.startStampFor). Der EventChangeMarker-Bump
+        // dazu darf hier NICHT laufen (Scheduler-Transaktion ohne AfterCommit-Puffer - der Push
+        // ginge vor dem Commit raus); das Flag wandert stattdessen im FireResult nach draußen.
+        val matchStamped = !TimingMatchStampService.stampStartFromMarks(
+            sequence.event,
+            listOfNotNull(entry.competitionMatchTeam),
+            sequence.createdBy,
+        )
+
         // A fired mark is assigned to its team from the moment it is created, so - exactly like
         // TimingService.assignTimeMark's freshly created marks are documented not to need - it can
         // change what the team's official time would compute to. Die Echtzeit-Übernahme rechnet
@@ -388,6 +429,7 @@ object TimingSequenceService {
                 entryId = entry.id,
                 mark = timeMarkDto(mark, entry.competitionMatchTeam),
                 changedOfficialTimes = changedOfficialTimes,
+                matchStamped = matchStamped,
             )
         )
     }

@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
@@ -214,6 +215,17 @@ object TimingService {
         }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
         !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(assignedTeam), userId)
+
+        // Die Reaktivierung ist das Gegenstück zur Versuchs-Rücknahme - lebt mit ihr auch eine
+        // zugeordnete Startmarke wieder auf, bekommt die Partie ihren Ist-Start zurück (nur wenn
+        // started_at leer ist; ein inzwischen von Hand gestempelter Start bleibt stehen).
+        if (assignedTeam != null) {
+            val stamped = !TimingMatchStampService.stampStartFromMarks(eventId, listOf(assignedTeam), userId)
+            if (stamped) {
+                EventChangeMarker.bump(eventId)
+            }
+        }
+
         broadcastAsync(eventId, TimingWsMessage.TimeMarkReactivated(timeMarkId))
         noData
     }
@@ -233,10 +245,14 @@ object TimingService {
      * die Zielmarken bleiben aktiv) — [retractTimeMark] bleibt dafür exakt wie es ist.
      *
      * Bewusst idempotent und ohne Existenzprüfung der Partie: keine passende Marke heißt schlicht
-     * „nichts zurückzunehmen" (auch der Doppelklick auf den Menüpunkt ist damit harmlos). Ein per
-     * Schiedsrichter-Stempel gesetztes `started_at` der Partie bleibt unberührt — dieser Weg
-     * nimmt ausschließlich Zeitnahme-Marken zurück. Nur mit Nutzersitzung erreichbar, nicht per
-     * Geräte-Token (Rücknahmen sind Ergebnis-Korrekturen).
+     * „nichts zurückzunehmen" (auch der Doppelklick auf den Menüpunkt ist damit harmlos).
+     *
+     * Mit dem Versuch geht auch der Laufzustand zurück: Ein von der Zeitnahme gestempelter
+     * Ist-Start (`started_at`) fällt — die Partie zeigt wieder „In Vorbereitung", `activated_at`
+     * bleibt stehen (sie ist weiter an den Start gerufen). Ein per Schiedsrichter-Stempel
+     * gesetztes `started_at` bleibt dagegen unberührt; woran der eigene Stempel erkannt wird,
+     * steht in [TimingMatchStampLogic.startRetracted]. Nur mit Nutzersitzung erreichbar, nicht
+     * per Geräte-Token (Rücknahmen sind Ergebnis-Korrekturen).
      */
     fun retractMatchAttempt(
         setupMatchId: UUID,
@@ -244,24 +260,33 @@ object TimingService {
         userId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val rows = !TimingTimeMarkRepo.getActiveMarksForMatch(eventId, setupMatchId).orDie()
-        if (rows.isEmpty()) return@comprehension noData
 
-        val now = LocalDateTime.now()
-        !rows.traverse { row ->
-            TimingTimeMarkRepo.update(row.timeMarkId) {
-                status = "RETRACTED"
-                updatedAt = now
-                updatedBy = userId
-            }.orDie()
+        if (rows.isNotEmpty()) {
+            val now = LocalDateTime.now()
+            !rows.traverse { row ->
+                TimingTimeMarkRepo.update(row.timeMarkId) {
+                    status = "RETRACTED"
+                    updatedAt = now
+                    updatedBy = userId
+                }.orDie()
+            }
+            // Wie bei der Einzel-Rücknahme: Neuberechnung und Rückschreibung laufen sofort mit, im
+            // selben Request — die offiziellen Zeiten des Versuchs verschwinden damit aus den Läufen.
+            !TimingOfficialTimeService.recomputeApplyAndBroadcast(
+                eventId,
+                rows.map { it.competitionMatchTeam }.distinct(),
+                userId,
+            )
+            rows.forEach { broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(it.timeMarkId)) }
         }
-        // Wie bei der Einzel-Rücknahme: Neuberechnung und Rückschreibung laufen sofort mit, im
-        // selben Request — die offiziellen Zeiten des Versuchs verschwinden damit aus den Läufen.
-        !TimingOfficialTimeService.recomputeApplyAndBroadcast(
-            eventId,
-            rows.map { it.competitionMatchTeam }.distinct(),
-            userId,
-        )
-        rows.forEach { broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(it.timeMarkId)) }
+
+        // Auch ohne aktive Marken prüfen (alle Marken können schon einzeln zurückgenommen sein):
+        // Der eigene Ist-Start-Stempel gehört bei der Versuchs-Rücknahme in jedem Fall zurück.
+        val retractedStart = !TimingMatchStampService.retractStartOfAttempt(eventId, setupMatchId, userId)
+        if (retractedStart) {
+            EventChangeMarker.bump(eventId)
+        }
+
         noData
     }
 
@@ -351,6 +376,20 @@ object TimingService {
         // assignment that follows is what can change a team's official time. Neuberechnung und
         // Rückschreibung laufen sofort mit (Echtzeit-Übernahme), im selben Request.
         !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(previousTeam, team), userId)
+
+        // Verschafft die Zuordnung der Partie ihre erste aktive Startmarke, ist das ihr Ist-Start
+        // (started_at = früheste Markenzeit, TimingMatchStampService) - der Zielposten-Weg "Zeit
+        // nehmen und zuordnen in einer Geste" läuft über genau diesen Pfad. Die Gegenrichtung
+        // gibt es bewusst nicht: Das Umhängen der letzten Startmarke lässt started_at stehen
+        // (Einzelkorrektur, kein Neustart der Partie). Ohne Startmarke am Lauf ist der Aufruf
+        // ein No-op, der Bump entwertet die Caches der öffentlichen Anzeigen nur bei Stempel.
+        if (team != null) {
+            val stamped = !TimingMatchStampService.stampStartFromMarks(eventId, listOf(team), userId)
+            if (stamped) {
+                EventChangeMarker.bump(eventId)
+            }
+        }
+
         broadcastAsync(eventId, TimingWsMessage.AssignmentChanged(timeMarkId, request.competitionMatchTeam))
         noData
     }
