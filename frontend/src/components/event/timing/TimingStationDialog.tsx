@@ -41,9 +41,10 @@ const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => 
     ]
 
     // Die Verknüpfungs-Ziele eines ANZEIGE-Postens: nur START-Posten derselben Veranstaltung
-    // (das erzwingt auch der Server). Geladen bei jedem Mount des Dialogs — die Liste ist klein.
+    // (das erzwingt auch der Server). Bei jedem Öffnen neu geladen — der Dialog ist dauerhaft
+    // gemountet, und ein gerade eben angelegter START-Posten muss sofort verknüpfbar sein.
     const {data: stations} = useFetch(signal => getTimingStations({signal, path: {eventId}}), {
-        deps: [eventId],
+        deps: [eventId, props.dialogIsOpen],
     })
     const startStationOptions = [
         {id: '', label: t('timing.station.linkedStation.all')},
