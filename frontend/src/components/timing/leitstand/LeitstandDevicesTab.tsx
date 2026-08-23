@@ -4,7 +4,6 @@ import {
     Button,
     Chip,
     IconButton,
-    Link,
     Stack,
     Table,
     TableBody,
@@ -25,7 +24,7 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import DeviceTokenIssueDialog from '@components/timing/leitstand/DeviceTokenIssueDialog.tsx'
-import {stationBoardPath} from '@utils/timing/stationLink.ts'
+import StationBoardLink from '@components/timing/StationBoardLink.tsx'
 
 export type LeitstandDevicesTabProps = {
     eventId: string
@@ -154,12 +153,11 @@ const LeitstandDevicesTab = ({eventId, stations}: LeitstandDevicesTabProps) => {
                                     {/* Der Postenname führt auf sein Board (neues Fenster) —
                                         wie im Posten-Streifen der Übersicht. */}
                                     {stationById.has(token.station) ? (
-                                        <Link
-                                            href={stationBoardPath(eventId, token.station)}
-                                            target="_blank"
-                                            rel="noopener">
+                                        <StationBoardLink
+                                            eventId={eventId}
+                                            stationId={token.station}>
                                             {stationById.get(token.station)!.name}
-                                        </Link>
+                                        </StationBoardLink>
                                     ) : (
                                         token.station.slice(0, 8)
                                     )}

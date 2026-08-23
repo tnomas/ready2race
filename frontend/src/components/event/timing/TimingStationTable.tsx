@@ -8,7 +8,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import SmartDisplayOutlinedIcon from '@mui/icons-material/SmartDisplayOutlined'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import {IconButton, Link, Stack, Tooltip} from '@mui/material'
+import {IconButton, Stack, Tooltip} from '@mui/material'
 import {useState} from 'react'
 import {BaseEntityTableProps, PageResponse} from '@utils/types.ts'
 import {ApiError, TimingStationDto} from '@api/types.gen.ts'
@@ -21,6 +21,7 @@ import {RequestResult} from '@hey-api/client-fetch'
 import {useFeedback} from '@utils/hooks.ts'
 import TimingStationShareDialog from '@components/event/timing/TimingStationShareDialog.tsx'
 import {stationBoardUrl} from '@utils/timing/stationLink.ts'
+import StationBoardLink from '@components/timing/StationBoardLink.tsx'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -130,13 +131,9 @@ const TimingStationTable = (props: BaseEntityTableProps<TimingStationDto>) => {
             // bleibt unverändert daneben bestehen.
             renderCell: ({row}) => (
                 <Stack direction="row" spacing={0.5} alignItems="center" sx={{height: 1}}>
-                    <Link
-                        href={stationUrl(row)}
-                        target="_blank"
-                        rel="noopener"
-                        onClick={event => event.stopPropagation()}>
+                    <StationBoardLink eventId={eventId} stationId={row.id} stopPropagation>
                         {row.name}
-                    </Link>
+                    </StationBoardLink>
                     <Tooltip title={t('timing.station.copyUrl')}>
                         <IconButton
                             size="small"

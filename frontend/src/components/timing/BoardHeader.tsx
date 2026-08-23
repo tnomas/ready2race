@@ -95,7 +95,9 @@ const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProp
                     sx={{
                         fontFamily: 'monospace',
                         fontVariantNumeric: 'tabular-nums',
-                        fontSize: {xs: '1.6rem', sm: '3rem'},
+                        // Auf Telefon-Breite etwas kleiner als das Theme-h3 (1.5rem), damit
+                        // Name, Uhr und Status-Chips höchstens zweizeilig bleiben.
+                        fontSize: {xs: '1.25rem', sm: '1.5rem'},
                     }}
                     variant="h3">
                     {CLOCK_PLACEHOLDER}

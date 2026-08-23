@@ -4,7 +4,6 @@ import {
     Chip,
     FormControlLabel,
     IconButton,
-    Link,
     Paper,
     Stack,
     Switch,
@@ -44,7 +43,8 @@ import {
     recentlyActiveMatches,
     sequenceProgress,
 } from '@components/timing/leitstand/overviewData.ts'
-import {stationBoardPath, stationBoardUrl} from '@utils/timing/stationLink.ts'
+import {stationBoardUrl} from '@utils/timing/stationLink.ts'
+import StationBoardLink from '@components/timing/StationBoardLink.tsx'
 
 /** Mehr als eine Handvoll Läufe hilft niemandem - ältere stehen im Ergebnisse-Reiter. */
 const RECENT_MATCH_LIMIT = 8
@@ -262,15 +262,11 @@ const LeitstandOverviewTab = ({
                                 <Stack spacing={0.5}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         <Typography variant="subtitle2" sx={{flexGrow: 1}}>
-                                            {/* Normales Link-Styling (Farbe + Unterstreichung wie
-                                                überall im Projekt) — als „geerbte" Textfarbe war
-                                                der Link nicht als anklickbar zu erkennen. */}
-                                            <Link
-                                                href={stationBoardPath(eventId, station.id)}
-                                                target="_blank"
-                                                rel="noopener">
+                                            <StationBoardLink
+                                                eventId={eventId}
+                                                stationId={station.id}>
                                                 {station.name}
-                                            </Link>
+                                            </StationBoardLink>
                                         </Typography>
                                         <Tooltip title={t('timing.station.copyUrl')}>
                                             <IconButton
