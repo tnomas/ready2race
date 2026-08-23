@@ -351,6 +351,9 @@ const LeitstandOverviewTab = ({
                                             {t('timing.leitstand.results.column.effective')}
                                         </TableCell>
                                         <TableCell>
+                                            {t('timing.leitstand.results.column.place')}
+                                        </TableCell>
+                                        <TableCell>
                                             {t('timing.leitstand.results.column.penalty')}
                                         </TableCell>
                                         <TableCell align="right">{t('common.actions')}</TableCell>
@@ -408,6 +411,15 @@ const LeitstandOverviewTab = ({
                                                             />
                                                         </Tooltip>
                                                     )}
+                                                </TableCell>
+                                                <TableCell
+                                                    sx={{fontVariantNumeric: 'tabular-nums'}}>
+                                                    {/* Der Platz, wie er am Lauf steht - vorläufig,
+                                                        solange noch Boote unterwegs sind. */}
+                                                    {official?.place !== undefined &&
+                                                    official.place !== null
+                                                        ? official.place
+                                                        : '–'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {official !== undefined &&

@@ -2934,6 +2934,10 @@ export type OfficialTimeDto = {
     effectiveMillis?: number
     dirty: boolean
     pushedAt?: string
+    /**
+     * Der Platz, wie er aktuell am Lauf steht - von der Übernahme aus den Zeiten abgeleitet (Gleichstände teilen sich den Platz) oder von Hand gesetzt. Vorläufig, solange der Lauf läuft.
+     */
+    place?: number
 }
 
 export type OfficialTimeOverrideRequest = {
