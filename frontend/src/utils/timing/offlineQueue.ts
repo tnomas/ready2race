@@ -400,6 +400,18 @@ function normalizeResult(result: PostResult): {outcome: PostOutcome; status?: nu
 }
 
 /**
+ * Die Reihenfolge, in der ein Drain nachsendet: Erfassungsreihenfolge (Zeitstempel aufsteigend).
+ * `getAll` liefert die Einträge in Schlüsselordnung — und der Schlüssel ist eine zufällige UUID,
+ * also wäre die Nachsende-Reihenfolge ohne diese Sortierung beliebig. Für die offiziellen Zeiten
+ * ist das egal (jede Marke trägt ihren Zeitstempel selbst), aber der Bediener sieht die Marken
+ * beim Nachsenden in der Liste auftauchen, und dort müssen sie in der Reihenfolge erscheinen, in
+ * der er gestempelt hat. Stabil bei gleichem Zeitstempel, pur und damit direkt testbar.
+ */
+export function orderForDrain(items: PendingTimeMark[]): PendingTimeMark[] {
+    return [...items].sort((a, b) => a.timestampMillis - b.timestampMillis)
+}
+
+/**
  * Attempt to (re-)submit every queued mark via `post`, regardless of which event/station is
  * currently shown on the board — the caller decides, per item, whether it applies to the current
  * board (e.g. to call `markSaved`).
@@ -424,8 +436,8 @@ export async function drain(
     drainingSince = startedAt
     const generation = ++drainGeneration
     try {
-        const items = await withStore<PendingTimeMark[]>(STORE_NAME, 'readonly', store =>
-            store.getAll(),
+        const items = orderForDrain(
+            await withStore<PendingTimeMark[]>(STORE_NAME, 'readonly', store => store.getAll()),
         )
         for (const item of items) {
             let outcome: PostOutcome

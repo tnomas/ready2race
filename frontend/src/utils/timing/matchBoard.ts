@@ -108,6 +108,26 @@ export function pendingAssignmentMark(
         .sort((a, b) => a.timestampMillis - b.timestampMillis)[0]
 }
 
+export type DayScheduleStatus = {
+    kind: TimingMatchDto['progress']
+    /** Boote mit Zielmarke — nur bei `STARTED` als „n/m im Ziel" angezeigt. */
+    finished: number
+    total: number
+}
+
+/**
+ * Der Status einer Partie in der Tagesablauf-Spalte: offen / Sequenz läuft / gestartet (mit
+ * „n/m im Ziel") / fertig. Nur eine dünne Ableitung über `progress` plus Ziel-Zählung — als Daten
+ * statt Text, damit die Übersetzung in der Komponente bleibt.
+ */
+export function dayScheduleStatus(match: TimingMatchDto): DayScheduleStatus {
+    return {
+        kind: match.progress,
+        finished: match.teams.filter(team => team.finished).length,
+        total: match.teams.length,
+    }
+}
+
 export type ModeChipParts = {
     name: string
     /** null = Start von Hand (kein automatisches Intervall). */
