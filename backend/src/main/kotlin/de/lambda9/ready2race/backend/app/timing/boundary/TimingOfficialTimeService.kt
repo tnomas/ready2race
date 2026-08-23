@@ -4,6 +4,8 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
+import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.control.*
@@ -24,12 +26,19 @@ import java.util.UUID
  * The official-time layer of the Leitstand.
  *
  * Time marks are raw material: this service turns them into one official time per
- * `competition_match_team` (computed, or manually overridden, plus penalties and DNS/DNF/DSQ) and -
- * only on an explicit push - copies that time into the existing `timecode` results flow.
+ * `competition_match_team` (computed, or manually overridden, plus penalties and DNS/DNF/DSQ) and
+ * writes that result to the match team.
  *
- * The copy is deliberately a snapshot, not a live link. Once a result is recorded in the results
- * flow, later timing edits never propagate on their own; they only flag the official time
- * [TimingOfficialTimeRecord.dirty] so the Leitstand can show that a re-push may be needed.
+ * **Echtzeit ist der Normalfall:** [recomputeAndApply] läuft nach jeder Mutation an Marken,
+ * Zuordnungen und Strafen - im selben Request, nicht über einen Poller. Ob dabei wirklich
+ * geschrieben wird, entscheidet [TimingApplyLogic] anhand des Schalters „Automatische Übernahme"
+ * (`event.timing_auto_apply`) und des Fingerabdrucks des zuletzt geschriebenen Stands: unverändert
+ * heißt kein Doppelschreiben, fremd (Schiedsrichter, Import) heißt niemals stillschweigend
+ * überschreiben - solche Zeilen zeigen die Abweichung als [TimingOfficialTimeRecord.dirty].
+ *
+ * Der manuelle [pushOfficialTimes]-Weg bleibt daneben bestehen: er ist der einzige, der eine
+ * eingefrorene Zeile (`force`) überschreiben kann, und der Weg für Ereignisse mit ausgeschaltetem
+ * Schalter.
  */
 object TimingOfficialTimeService {
 
@@ -39,14 +48,208 @@ object TimingOfficialTimeService {
         val finishMillis: Long?,
     )
 
+    // ------------------------------------------------------------------ Echtzeit-Rückschreibung
+
     /**
-     * Recomputes `finish - start` for [teams] (all teams of the event when null) and upserts the
-     * result.
+     * Herzstück der Echtzeit-Übernahme: berechnet die offiziellen Zeiten von [teamIds] neu und
+     * schreibt sie - Schalter und [TimingApplyLogic] erlaubend - sofort an die Läufe zurück.
      *
-     * Only assigned, ACTIVE marks count. Everything the computation cannot form a time from is
-     * reported back with a reason instead of being silently ignored, and existing rows keep their
-     * override, penalty and status - a recompute refreshes the machine-derived part only, and clears
-     * the dirty flag for the teams it recomputed.
+     * Sendet selbst **keine** Broadcasts: der Startsequenz-Job ruft dies innerhalb der
+     * Scheduler-Transaktion auf, wo kein AfterCommit-Puffer installiert ist (siehe [FireResult]).
+     * Die geänderten Zeilen kommen deshalb als Rückgabe, und HTTP-Aufrufer nehmen
+     * [recomputeApplyAndBroadcast].
+     */
+    fun recomputeAndApply(
+        eventId: UUID,
+        teamIds: List<UUID>,
+        userId: UUID?,
+    ): App<Nothing, List<OfficialTimeDto>> = KIO.comprehension {
+        val distinct = teamIds.distinct()
+        if (distinct.isEmpty()) return@comprehension KIO.ok(emptyList())
+
+        val markTimes = !resolveMarkTimes(eventId)
+        val autoApply = !autoApplyEnabled(eventId)
+        val now = LocalDateTime.now()
+
+        val changed = !distinct.traverse { teamId ->
+            recomputeAndApplyTeam(eventId, teamId, markTimes[teamId], autoApply, userId, now)
+        }
+        KIO.ok(changed.filterNotNull())
+    }
+
+    /** [recomputeAndApply] plus Broadcast nach Commit - der Weg für alle HTTP-Mutationen. */
+    fun recomputeApplyAndBroadcast(
+        eventId: UUID,
+        teamIds: List<UUID>,
+        userId: UUID?,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val changed = !recomputeAndApply(eventId, teamIds, userId)
+        broadcastAsync(eventId, changed)
+        KIO.ok(Unit)
+    }
+
+    /**
+     * Neuberechnung + Übernahme für ein Team. Anders als der frühere Rechenknopf räumt die
+     * Neuberechnung einen Maschinenwert auch wieder AB, wenn seine Grundlage weg ist (Marke
+     * zurückgenommen/umgehängt) - sonst stünde am Lauf eine Zeit, die es nicht mehr gibt.
+     *
+     * Gibt die frische Zeile zurück, wenn sich irgendetwas geändert hat (Berechnung, Team-Ergebnis
+     * oder dirty-Kennzeichen), sonst null - der Broadcast bleibt so auf das Nötige beschränkt.
+     */
+    private fun recomputeAndApplyTeam(
+        eventId: UUID,
+        teamId: UUID,
+        times: TeamMarkTimes?,
+        autoApply: Boolean,
+        userId: UUID?,
+        now: LocalDateTime,
+    ): App<Nothing, OfficialTimeDto?> = KIO.comprehension {
+        val computable = times != null && skipReason(times) == null
+        var record = !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
+        var recomputeChanged = false
+
+        if (computable) {
+            val millis = times!!.finishMillis!! - times.startMillis!!
+            if (record == null || record.computedMillis != millis) {
+                record = !upsert(eventId, teamId, userId, now) { computedMillis = millis }
+                recomputeChanged = true
+            }
+        } else if (record?.computedMillis != null) {
+            record = (!updateExisting(teamId, userId, now) { computedMillis = null }) ?: record
+            recomputeChanged = true
+        }
+
+        // Kein Rechenergebnis, keine Zeile: es gibt nichts zu übernehmen und nichts abzuräumen.
+        val official = record ?: return@comprehension KIO.ok(null)
+
+        val team = !CompetitionMatchTeamRepo.getById(teamId).orDie()
+            ?: return@comprehension KIO.ok(null)
+        val applyChanged = !applyToTeam(official, team, autoApply, userId, now)
+
+        if (recomputeChanged || applyChanged) {
+            val fresh = !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
+            KIO.ok(fresh?.let { officialTimeDto(it, times?.startMillis, times?.finishMillis) })
+        } else {
+            KIO.ok(null)
+        }
+    }
+
+    /**
+     * Der Übernahme-Schritt für eine Zeile: Entscheidung über [TimingApplyLogic], dann derselbe
+     * Schreibweg, den auch die manuelle Übernahme nutzt ([writeResult]) - bzw. sein Gegenstück
+     * [clearResult], wenn unser eigenes Ergebnis seine Grundlage verloren hat.
+     *
+     * Gibt zurück, ob sich an Zeile oder Team etwas geändert hat.
+     */
+    private fun applyToTeam(
+        official: TimingOfficialTimeRecord,
+        team: CompetitionMatchTeamRecord,
+        autoApply: Boolean,
+        userId: UUID?,
+        now: LocalDateTime,
+    ): App<Nothing, Boolean> = KIO.comprehension {
+        val target = targetState(official)
+        val teamState = !resolveTeamState(team)
+        val decision = TimingApplyLogic.decide(
+            autoApply = autoApply,
+            target = target,
+            appliedFingerprint = official.appliedFingerprint,
+            teamState = teamState,
+            teamHasPlace = team.place != null || team.placesCalculated == true,
+        )
+
+        when (decision) {
+            TimingApplyLogic.Decision.WriteResult -> {
+                !writeResult(team, official, userId, now)
+                !updateExisting(official.competitionMatchTeam, userId, now) {
+                    pushedAt = now
+                    dirty = false
+                    appliedFingerprint = TimingApplyLogic.fingerprint(target)
+                }
+                // Dieselbe Regel wie beim manuellen Weg: ein Schreiben auf die Felder, die auch der
+                // RaceClocker-Abruf schreibt, pausiert einen konfigurierten Auto-Abruf. No-op ohne
+                // RaceClocker am Lauf.
+                !CompetitionExecutionService.pauseRaceClockerAutoPull(team.competitionMatch!!)
+                KIO.ok(true)
+            }
+
+            TimingApplyLogic.Decision.ClearResult -> {
+                !clearResult(team, userId, now)
+                !updateExisting(official.competitionMatchTeam, userId, now) {
+                    pushedAt = null
+                    dirty = false
+                    appliedFingerprint = null
+                }
+                !CompetitionExecutionService.pauseRaceClockerAutoPull(team.competitionMatch!!)
+                KIO.ok(true)
+            }
+
+            else -> {
+                val targetFingerprint = if (target.hasResult) TimingApplyLogic.fingerprint(target) else null
+                val newDirty = TimingApplyLogic.dirtyAfter(
+                    decision,
+                    hasTarget = target.hasResult,
+                    targetFingerprint = targetFingerprint,
+                    appliedFingerprint = official.appliedFingerprint,
+                )
+                if ((official.dirty ?: false) != newDirty) {
+                    !updateExisting(official.competitionMatchTeam, userId, now) { dirty = newDirty }
+                    KIO.ok(true)
+                } else {
+                    KIO.ok(false)
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ Schalter
+
+    fun getAutoApply(
+        eventId: UUID,
+    ): App<ServiceError, ApiResponse.Dto<TimingAutoApplyDto>> = KIO.comprehension {
+        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        KIO.ok(ApiResponse.Dto(TimingAutoApplyDto(enabled = event.timingAutoApply ?: true)))
+    }
+
+    /**
+     * Persistiert den Schalter. Einschalten zieht den aufgelaufenen Stand einmalig nach (alle
+     * Teams, die Marken oder eine Zeile haben); Ausschalten hält nur künftige Schreibvorgänge an -
+     * bereits geschriebene Ergebnisse bleiben stehen.
+     */
+    fun setAutoApply(
+        eventId: UUID,
+        request: TimingAutoApplyRequest,
+        userId: UUID,
+    ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        !EventRepo.update(event) {
+            timingAutoApply = request.enabled
+            updatedBy = userId
+            updatedAt = LocalDateTime.now()
+        }.orDie()
+
+        if (request.enabled) {
+            val markTimes = !resolveMarkTimes(eventId)
+            val rows = !TimingOfficialTimeRepo.getByEvent(eventId).orDie()
+            val teams = (markTimes.keys + rows.map { it.competitionMatchTeam }).toList()
+            !recomputeApplyAndBroadcast(eventId, teams, userId)
+        }
+        noData
+    }
+
+    private fun autoApplyEnabled(eventId: UUID): App<Nothing, Boolean> =
+        EventRepo.get(eventId).orDie().map { it?.timingAutoApply ?: true }
+
+    // ------------------------------------------------------------------ Berechnung (Endpunkt)
+
+    /**
+     * Recomputes `finish - start` for [teams] (all teams of the event when null).
+     *
+     * Läuft über dieselbe Maschine wie jede Mutation ([recomputeAndApply]), inklusive der
+     * sofortigen Übernahme - der Endpunkt existiert für API-Nutzer weiter, der frühere
+     * Leitstand-Knopf dazu ist entfallen. Everything the computation cannot form a time from is
+     * reported back with a reason instead of being silently ignored; existing rows keep their
+     * override, penalty and status.
      */
     fun computeOfficialTimes(
         eventId: UUID,
@@ -70,18 +273,19 @@ object TimingOfficialTimeService {
             reason?.let { OfficialTimeSkipDto(teamId, it) }
         } + withoutAnyMarks.map { OfficialTimeSkipDto(it, OfficialTimeSkipReason.NO_MARKS) }
 
-        val now = LocalDateTime.now()
-        val computed = !classified.filter { it.third == null }.traverse { (teamId, times, _) ->
-            KIO.comprehension {
-                val record = !upsert(eventId, teamId, userId, now) {
-                    computedMillis = times.finishMillis!! - times.startMillis!!
-                    dirty = false
-                }
-                KIO.ok(officialTimeDto(record, times.startMillis, times.finishMillis))
+        val affected = (candidates.keys + teams.orEmpty()).toList()
+        val changed = !recomputeAndApply(eventId, affected, userId)
+        broadcastAsync(eventId, changed)
+
+        // Antwort mit dem frischen Stand NACH der Übernahme, in derselben stabilen Reihenfolge.
+        val computedTeams = classified.filter { it.third == null }.map { it.first }
+        val records = (!TimingOfficialTimeRepo.getByTeams(computedTeams).orDie())
+            .associateBy { it.competitionMatchTeam }
+        val computed = computedTeams.mapNotNull { teamId ->
+            records[teamId]?.let { record ->
+                val times = markTimes[teamId]
+                officialTimeDto(record, times?.startMillis, times?.finishMillis)
             }
-        }
-        if (computed.isNotEmpty()) {
-            broadcastAsync(eventId, computed)
         }
         KIO.ok(ApiResponse.Dto(OfficialTimeComputeResultDto(computed = computed, skipped = skipped)))
     }
@@ -126,8 +330,9 @@ object TimingOfficialTimeService {
      * PUT semantics) and creates the row when the team does not have one yet - an official time set
      * purely by hand, for a team whose marks are missing entirely, is a legitimate result.
      *
-     * A row that was already pushed becomes dirty: the results flow still holds the previously
-     * pushed value, and the Leitstand has to show that the two now disagree.
+     * Die Änderung wird im selben Aufruf zurückgeschrieben (Strafe samt Grund landet als
+     * `penalty_seconds`/`penalty_note` am Team); ob wirklich geschrieben wird, entscheidet wie
+     * überall [TimingApplyLogic].
      */
     fun setOverride(
         eventId: UUID,
@@ -137,20 +342,21 @@ object TimingOfficialTimeService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !checkTeamOfEvent(teamId, eventId)
 
-        val record = !upsert(eventId, teamId, userId, LocalDateTime.now()) {
+        !upsert(eventId, teamId, userId, LocalDateTime.now()) {
             overrideMillis = request.overrideMillis
             penaltyMillis = request.penaltyMillis ?: 0L
+            penaltyNote = request.penaltyNote?.trim()?.takeIf { it.isNotEmpty() }
             resultStatus = (request.resultStatus ?: OfficialTimeResultStatus.NONE).name
-            if (pushedAt != null) dirty = true
         }
 
-        val times = (!resolveMarkTimes(eventId))[teamId]
-        broadcastAsync(eventId, listOf(officialTimeDto(record, times?.startMillis, times?.finishMillis)))
+        !recomputeApplyAndBroadcast(eventId, listOf(teamId), userId)
         noData
     }
 
     /**
-     * Copies the effective official times of [PushOfficialTimesRequest.teams] into the results flow.
+     * Copies the effective official times of [PushOfficialTimesRequest.teams] into the results flow
+     * - der manuelle Weg neben der Echtzeit-Übernahme: nötig bei ausgeschaltetem Schalter und der
+     * einzige, der eine eingefrorene Zeile (`force`) überschreiben darf.
      *
      * The write mirrors `CompetitionExecutionService.updateMatchResult(-ByFile)` exactly - same
      * `timecode` id (the match team's own id), same fields (see [officialTimecode]), and the same
@@ -178,18 +384,23 @@ object TimingOfficialTimeService {
             }
         }
 
-        val conflicts = pushables.mapNotNull { (team, official) ->
-            val status = OfficialTimeResultStatus.valueOf(official.resultStatus!!)
-            when {
-                isFrozen(team) && !request.force ->
-                    OfficialTimePushConflictDto(team.id, PushConflictReason.RESULT_FROZEN)
+        val conflicts = !pushables.traverse { (team, official) ->
+            KIO.comprehension {
+                val status = OfficialTimeResultStatus.valueOf(official.resultStatus!!)
+                val frozen = !isFrozen(team, official)
+                KIO.ok(
+                    when {
+                        frozen && !request.force ->
+                            OfficialTimePushConflictDto(team.id, PushConflictReason.RESULT_FROZEN)
 
-                status == OfficialTimeResultStatus.NONE && effectiveMillis(official) == null ->
-                    OfficialTimePushConflictDto(team.id, PushConflictReason.NO_EFFECTIVE_TIME)
+                        status == OfficialTimeResultStatus.NONE && effectiveMillis(official) == null ->
+                            OfficialTimePushConflictDto(team.id, PushConflictReason.NO_EFFECTIVE_TIME)
 
-                else -> null
+                        else -> null
+                    }
+                )
             }
-        }
+        }.map { it.filterNotNull() }
         !KIO.failOn(conflicts.isNotEmpty()) { TimingError.PushConflict(conflicts) }
 
         val now = LocalDateTime.now()
@@ -199,6 +410,9 @@ object TimingOfficialTimeService {
                 val updated = !TimingOfficialTimeRepo.update(team.id) {
                     pushedAt = now
                     dirty = false
+                    // Auch der manuelle Weg hinterlässt den Fingerabdruck: ab jetzt ist der Stand
+                    // am Team "unserer", und die Echtzeit-Übernahme darf ihn weiterpflegen.
+                    appliedFingerprint = TimingApplyLogic.fingerprint(targetState(official))
                     updatedAt = now
                     updatedBy = userId
                 }.orDie().onNullFail { TimingError.OfficialTimeNotFound }
@@ -249,36 +463,32 @@ object TimingOfficialTimeService {
         KIO.ok(ApiResponse.Dto(DeletedTimeMarksDto(ids)))
     }
 
-    /**
-     * Flags the official times of [teamIds] as out of date and tells the Leitstand about it.
-     *
-     * Called from every timing mutation that can change what a team's time would compute to
-     * (retract, (re)assign). Teams without an official time are a no-op, which is why this is safe
-     * to call unconditionally from the hot path.
-     */
-    fun markTeamsDirty(
-        eventId: UUID,
-        teamIds: List<UUID>,
-        // Nullable seit der Klick-Zuordnung per Geräte-Token: hinter der Änderung steht dann kein
-        // app_user; das Gerät selbst hält die Zuordnung fest (timing_assignment.updated_by_device).
-        userId: UUID?,
-    ): App<Nothing, Unit> = KIO.comprehension {
-        val distinct = teamIds.distinct()
-        if (distinct.isEmpty()) return@comprehension KIO.ok(Unit)
+    // ------------------------------------------------------------------ Schreib-/Lesehelfer
 
-        val flagged = !TimingOfficialTimeRepo.markDirty(distinct, userId).orDie()
-        if (flagged > 0) {
-            val records = !TimingOfficialTimeRepo.getByTeams(distinct).orDie()
-            val markTimes = !resolveMarkTimes(eventId)
-            broadcastAsync(
-                eventId,
-                records.map { record ->
-                    val times = markTimes[record.competitionMatchTeam]
-                    officialTimeDto(record, times?.startMillis, times?.finishMillis)
-                },
+    /** Der Ergebnisstand, den eine Übernahme dieser Zeile an das Team schreiben würde. */
+    private fun targetState(official: TimingOfficialTimeRecord): TimingApplyLogic.ResultState {
+        val status = OfficialTimeResultStatus.valueOf(official.resultStatus!!)
+        return TimingApplyLogic.ResultState(
+            timeMillis = effectiveMillis(official),
+            statusText = status.takeIf { it != OfficialTimeResultStatus.NONE }?.name,
+            penaltySeconds = TimingApplyLogic.penaltySecondsFor(official.penaltyMillis),
+            penaltyNote = official.penaltyNote?.trim()?.takeIf { it.isNotEmpty() },
+        )
+    }
+
+    /** Der Ergebnisstand, der aktuell am Team steht (Timecode, failed, Strafspalten). */
+    private fun resolveTeamState(
+        team: CompetitionMatchTeamRecord,
+    ): App<Nothing, TimingApplyLogic.ResultState> = KIO.comprehension {
+        val timecodeMillis = team.timecode?.let { id -> (!TimecodeRepo.get(id).orDie())?.time }
+        KIO.ok(
+            TimingApplyLogic.ResultState(
+                timeMillis = timecodeMillis,
+                statusText = if (team.failed == true) (team.failedReason ?: "") else null,
+                penaltySeconds = team.penaltySeconds,
+                penaltyNote = team.penaltyNote,
             )
-        }
-        KIO.ok(Unit)
+        )
     }
 
     /**
@@ -289,40 +499,62 @@ object TimingOfficialTimeService {
      * re-push idempotent. A team with a DNS/DNF/DSQ status gets no timecode at all and is flagged
      * `failed` with the status as reason - the same shape the import produces for a time cell that
      * holds a no-result status instead of a time.
+     *
+     * Es wird exakt der Stand aus [targetState] geschrieben - derselbe, aus dem der Fingerabdruck
+     * entsteht; Schreiben und Wiedererkennen können so nicht auseinanderlaufen. Die geschriebene
+     * Zeit enthält die Strafe bereits (Konvention seit V202608061202); `penalty_seconds` und
+     * `penalty_note` sind die Anzeige-Spalten, über die Schiedsrichter und Ergebnislisten sehen,
+     * warum eine Zeit abweicht.
      */
     private fun writeResult(
         team: CompetitionMatchTeamRecord,
         official: TimingOfficialTimeRecord,
-        userId: UUID,
+        userId: UUID?,
         now: LocalDateTime,
     ): App<Nothing, Unit> = KIO.comprehension {
-        val status = OfficialTimeResultStatus.valueOf(official.resultStatus!!)
+        val target = targetState(official)
 
         !TimecodeRepo.delete(team.id).orDie()
-        val timecodeId = if (status == OfficialTimeResultStatus.NONE) {
-            !TimecodeRepo.create(officialTimecode(effectiveMillis(official)!!).toRecord(team.id)).orDie()
+        val timecodeId = if (target.statusText == null) {
+            !TimecodeRepo.create(officialTimecode(target.timeMillis!!).toRecord(team.id)).orDie()
         } else {
             null
         }
 
         !CompetitionMatchTeamRepo.updateById(team.id) {
             timecode = timecodeId
-            failed = status != OfficialTimeResultStatus.NONE
-            failedReason = status.name.takeIf { status != OfficialTimeResultStatus.NONE }
-            // Same convention as the RaceClocker feed (V202608061202): the written time already
-            // includes the penalty; the columns exist so referees and result lists can see why a
-            // time deviates. Rounded because the column is whole seconds while the Leitstand
-            // stores millis - the exact value stays in the timecode. The push is the source of
-            // truth for this moment, so a previous manual penalty (and its note) is replaced, not
-            // kept alongside a time it no longer describes.
-            penaltySeconds = (official.penaltyMillis ?: 0L)
-                .takeIf { it > 0 }
-                ?.let { ((it + 500) / 1000).toInt() }
-            penaltyNote = null
+            failed = target.statusText != null
+            failedReason = target.statusText
+            penaltySeconds = target.penaltySeconds
+            penaltyNote = target.penaltyNote
             updatedBy = userId
             updatedAt = now
         }.orDie()
 
+        KIO.ok(Unit)
+    }
+
+    /**
+     * Das Gegenstück zu [writeResult]: entfernt unser eigenes Ergebnis wieder vom Team, wenn seine
+     * Grundlage weg ist (Rücknahme, Umhängen). Fasst ausschließlich die Felder an, die
+     * [writeResult] schreibt - Plätze, `finished_at` und alles Weitere der Rennlogik bleiben
+     * unberührt, ein Lauf wird hierdurch weder beendet noch wieder geöffnet.
+     */
+    private fun clearResult(
+        team: CompetitionMatchTeamRecord,
+        userId: UUID?,
+        now: LocalDateTime,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        !TimecodeRepo.delete(team.id).orDie()
+        !CompetitionMatchTeamRepo.updateById(team.id) {
+            timecode = null
+            failed = false
+            failedReason = null
+            penaltySeconds = null
+            penaltyNote = null
+            updatedBy = userId
+            updatedAt = now
+        }.orDie()
         KIO.ok(Unit)
     }
 
@@ -332,14 +564,20 @@ object TimingOfficialTimeService {
      * The results flow has no dedicated approval flag: recording a result IS
      * `updateMatchResult(-ByFile)` writing `place` / `places_calculated` on the match team (and the
      * round moving on afterwards, which `checkUpdateMatchResult` then locks). `failed` is the same
-     * kind of marker for a non-finisher: a referee sets it (with `failedReason`) exactly where a
-     * place would otherwise go, so a DNF/DNS/DSQ a referee already recorded is just as much a
-     * worked-on result as a calculated place. Any of the three means a referee has already worked
-     * with this result, so overwriting its `timecode` snapshot silently would change an approved
-     * result - the push refuses unless it is forced.
+     * kind of marker for a non-finisher - MIT einer Ausnahme: ein `failed`, das die Zeitnahme
+     * selbst geschrieben hat (Team-Stand == [TimingOfficialTimeRecord.appliedFingerprint]), friert
+     * nicht ein, sonst könnte nach einem eigenen DNS/DNF/DSQ nie wieder übernommen werden. Ein
+     * `failed`, das davon abweicht, hat ein Schiedsrichter gesetzt - das bleibt eingefroren.
      */
-    private fun isFrozen(team: CompetitionMatchTeamRecord): Boolean =
-        team.placesCalculated == true || team.place != null || team.failed == true
+    private fun isFrozen(
+        team: CompetitionMatchTeamRecord,
+        official: TimingOfficialTimeRecord,
+    ): App<Nothing, Boolean> = KIO.comprehension {
+        if (team.placesCalculated == true || team.place != null) return@comprehension KIO.ok(true)
+        if (team.failed != true) return@comprehension KIO.ok(false)
+        val teamState = !resolveTeamState(team)
+        KIO.ok(TimingApplyLogic.fingerprint(teamState) != official.appliedFingerprint)
+    }
 
     private fun checkTeamOfEvent(
         teamId: UUID,
@@ -367,7 +605,7 @@ object TimingOfficialTimeService {
     private fun upsert(
         eventId: UUID,
         teamId: UUID,
-        userId: UUID,
+        userId: UUID?,
         now: LocalDateTime,
         f: TimingOfficialTimeRecord.() -> Unit,
     ): App<Nothing, TimingOfficialTimeRecord> = KIO.comprehension {
@@ -383,9 +621,11 @@ object TimingOfficialTimeService {
                 computedMillis = null,
                 overrideMillis = null,
                 penaltyMillis = 0L,
+                penaltyNote = null,
                 resultStatus = OfficialTimeResultStatus.NONE.name,
                 dirty = false,
                 pushedAt = null,
+                appliedFingerprint = null,
                 createdAt = now,
                 createdBy = userId,
                 updatedAt = now,
@@ -405,7 +645,7 @@ object TimingOfficialTimeService {
 
     private fun updateExisting(
         teamId: UUID,
-        userId: UUID,
+        userId: UUID?,
         now: LocalDateTime,
         f: TimingOfficialTimeRecord.() -> Unit,
     ): App<Nothing, TimingOfficialTimeRecord?> = TimingOfficialTimeRepo.update(teamId) {

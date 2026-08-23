@@ -22,6 +22,8 @@ data class OfficialTimeDto(
     val computedMillis: Long?,
     val overrideMillis: Long?,
     val penaltyMillis: Long,
+    /** Freitext-Grund zur Strafe; wird mit der Rückschreibung als `penalty_note` ans Team übertragen. */
+    val penaltyNote: String?,
     val resultStatus: OfficialTimeResultStatus,
     val effectiveMillis: Long?,
     val dirty: Boolean,

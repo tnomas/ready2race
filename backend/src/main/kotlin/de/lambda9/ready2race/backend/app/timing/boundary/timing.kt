@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.ComputeOfficialTimesReque
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingAutoApplyRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentRequest
@@ -253,6 +254,19 @@ fun Route.timing() {
                     }
                 }
 
+                // Das Gegenstück zur Rücknahme: RETRACTED -> ACTIVE, die frühere Zuordnung lebt
+                // wieder auf und die Echtzeit-Übernahme rechnet sofort nach. Wie die Rücknahme
+                // selbst nur mit Nutzersitzung - Geräte-Tokens nehmen keine Ergebnisse zurück und
+                // stellen folglich auch keine wieder her.
+                put("/reactivate") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val timeMarkId = !pathParam("timeMarkId", uuid)
+                        TimingService.reactivateTimeMark(timeMarkId, eventId, user.id!!)
+                    }
+                }
+
                 put("/assignment") {
                     call.respondComprehension {
                         val eventId = !pathParam("eventId", uuid)
@@ -335,6 +349,29 @@ fun Route.timing() {
                         val entryId = !pathParam("entryId", uuid)
                         TimingSequenceService.skipEntry(entryId, user.id!!, eventId)
                     }
+                }
+            }
+        }
+
+        // Der Schalter „Automatische Übernahme": gelesen mit denselben Sitzungsrechten wie die
+        // übrigen Leitstand-Daten, geschaltet nur mit UPDATE EVENT - der PUT schreibt bei
+        // enabled=true den aufgelaufenen Stand an die Läufe nach.
+        route("/autoApply") {
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingOfficialTimeService.getAutoApply(eventId)
+                }
+            }
+
+            put {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingAutoApplyRequest.example)
+                    TimingOfficialTimeService.setAutoApply(eventId, body, user.id!!)
                 }
             }
         }

@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap
 @JsonSubTypes(
     JsonSubTypes.Type(TimingWsMessage.TimeMarkCreated::class, name = "timeMarkCreated"),
     JsonSubTypes.Type(TimingWsMessage.TimeMarkRetracted::class, name = "timeMarkRetracted"),
+    JsonSubTypes.Type(TimingWsMessage.TimeMarkReactivated::class, name = "timeMarkReactivated"),
     JsonSubTypes.Type(TimingWsMessage.AssignmentChanged::class, name = "assignmentChanged"),
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
@@ -36,6 +37,9 @@ import java.util.concurrent.ConcurrentHashMap
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
     data class TimeMarkRetracted(val id: UUID) : TimingWsMessage()
+
+    /** Eine zurückgenommene Marke ist wieder ACTIVE - das Gegenstück zu [TimeMarkRetracted]. */
+    data class TimeMarkReactivated(val id: UUID) : TimingWsMessage()
     data class AssignmentChanged(
         val timeMark: UUID,
         // Always emitted, even when null (a detach): the mapper below uses NON_ABSENT, which would

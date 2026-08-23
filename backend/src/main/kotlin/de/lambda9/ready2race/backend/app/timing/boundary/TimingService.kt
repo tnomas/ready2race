@@ -181,9 +181,40 @@ object TimingService {
             updatedBy = userId
         }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
-        // Retracting a mark changes what the team's official time would compute to.
-        !TimingOfficialTimeService.markTeamsDirty(eventId, listOfNotNull(assignedTeam), userId)
+        // Die Rücknahme ändert, was die offizielle Zeit des Teams ergibt - Neuberechnung und
+        // Rückschreibung laufen sofort mit (Echtzeit-Übernahme), im selben Request.
+        !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(assignedTeam), userId)
         broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
+        noData
+    }
+
+    /**
+     * Das Gegenstück zur Rücknahme: eine RETRACTED-Marke wird wieder ACTIVE. Die frühere Zuordnung
+     * ist nie gelöst worden und lebt damit einfach wieder auf; die Echtzeit-Übernahme rechnet
+     * sofort nach, sodass eine wiederhergestellte Zielzeit auch wieder am Lauf steht.
+     *
+     * Idempotent: eine bereits aktive Marke ist kein Fehler - der Klick hat sein Ziel erreicht.
+     * Audit-Spur wie bei der Rücknahme selbst (updated_at/updated_by, V202608171800); nur mit
+     * Nutzersitzung erreichbar, nicht per Geräte-Token.
+     */
+    fun reactivateTimeMark(
+        timeMarkId: UUID,
+        eventId: UUID,
+        userId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
+        !KIO.failOn(mark.event != eventId) { TimingError.EventMismatch }
+        if (mark.status == "ACTIVE") return@comprehension noData
+
+        val assignedTeam = (!TimingAssignmentRepo.getByTimeMark(timeMarkId).orDie())?.competitionMatchTeam
+        !TimingTimeMarkRepo.update(timeMarkId) {
+            status = "ACTIVE"
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie()
+            .onNullFail { TimingError.TimeMarkNotFound }
+        !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(assignedTeam), userId)
+        broadcastAsync(eventId, TimingWsMessage.TimeMarkReactivated(timeMarkId))
         noData
     }
 
@@ -270,8 +301,9 @@ object TimingService {
         }
         // Both ends of a move are affected: the team that loses the mark and the one that gains it.
         // A freshly created mark needs no hook of its own - it carries no assignment yet, so the
-        // assignment that follows is what can change a team's official time.
-        !TimingOfficialTimeService.markTeamsDirty(eventId, listOfNotNull(previousTeam, team), userId)
+        // assignment that follows is what can change a team's official time. Neuberechnung und
+        // Rückschreibung laufen sofort mit (Echtzeit-Übernahme), im selben Request.
+        !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(previousTeam, team), userId)
         broadcastAsync(eventId, TimingWsMessage.AssignmentChanged(timeMarkId, request.competitionMatchTeam))
         noData
     }

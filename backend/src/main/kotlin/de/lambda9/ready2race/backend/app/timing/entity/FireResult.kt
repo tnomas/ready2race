@@ -30,4 +30,9 @@ data class FiredEntry(
     val entryId: UUID,
     /** The start mark that was created, already carrying its team assignment. */
     val mark: TimeMarkDto,
+    /**
+     * Offizielle Zeiten, die die Echtzeit-Übernahme beim Feuern dieses Eintrags geändert hat -
+     * aus demselben Grund hier statt als Broadcast: die Nachricht darf erst nach dem Commit raus.
+     */
+    val changedOfficialTimes: List<OfficialTimeDto> = emptyList(),
 )

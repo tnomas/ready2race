@@ -188,11 +188,11 @@ class TimingSequenceServiceTest {
     }
 
     // fireEntry inserts the mark/assignment/entry-status update via repos directly (it runs from the
-    // scheduler, not through TimingService), so it is easy to forget the dirty hook every other
-    // timing mutation goes through - a stale official time would otherwise not be flagged even
-    // though the fired mark can change what it computes to.
+    // scheduler, not through TimingService), so it is easy to forget the Echtzeit-Übernahme every
+    // other timing mutation goes through - the fired mark can change what a team's official time
+    // computes to, and the row has to stay in sync instead of silently drifting.
     @Test
-    fun firingEntryMarksTeamWithExistingOfficialTimeDirty() = testComprehension {
+    fun firingEntryKeepsTheOfficialTimeInSync() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val stationId = !addTestStation(eventId, userId, TimingStationType.START)
         val team = !createTestMatchTeam(eventId)
@@ -215,7 +215,12 @@ class TimingSequenceServiceTest {
 
         assertEquals(1, (!TimingSequenceService.fireDueEntries()).fired.size)
 
-        assertTrue((!TimingOfficialTimeRepo.getByTeam(team))!!.dirty!!)
+        // Die Startmarke allein ergibt keine berechnete Zeit; der Override von 60 s gilt weiter und
+        // ist bereits geschrieben - nichts driftet, nichts wird "dirty".
+        val official = !TimingOfficialTimeRepo.getByTeam(team)
+        assertFalse(official!!.dirty!!)
+        assertNull(official.computedMillis)
+        assertEquals(60_000L, official.overrideMillis)
     }
 
     @Test

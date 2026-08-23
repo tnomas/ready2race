@@ -279,6 +279,17 @@ object TimingSequenceService {
         result.changedSequences.forEach { sequence ->
             TimingBroadcaster.broadcast(sequence.event, TimingWsMessage.SequenceChanged(sequence))
         }
+        // Offizielle Zeiten, die die Echtzeit-Übernahme beim Feuern geändert hat, gebündelt je
+        // Veranstaltung - dieselbe Nachricht, die auch die HTTP-Mutationen senden.
+        result.fired
+            .filter { it.changedOfficialTimes.isNotEmpty() }
+            .groupBy { it.mark.event }
+            .forEach { (eventId, entries) ->
+                TimingBroadcaster.broadcast(
+                    eventId,
+                    TimingWsMessage.OfficialTimeChanged(entries.flatMap { it.changedOfficialTimes }),
+                )
+            }
     }
 
     private data class SequenceOutcome(
@@ -358,20 +369,25 @@ object TimingSequenceService {
 
         // A fired mark is assigned to its team from the moment it is created, so - exactly like
         // TimingService.assignTimeMark's freshly created marks are documented not to need - it can
-        // change what the team's official time would compute to. Flagged in the same transaction as
-        // the mark itself, so the two can never drift apart.
+        // change what the team's official time would compute to. Die Echtzeit-Übernahme rechnet
+        // deshalb in derselben Transaktion nach und schreibt ggf. zurück.
         //
-        // This calls the repo directly rather than TimingOfficialTimeService.markTeamsDirty: that
-        // method also broadcasts, and this runs inside the scheduler's transaction where no
-        // AfterCommit buffer is installed (see FireResult's doc comment) - registering there would
-        // send the websocket message before the commit instead of after it.
-        !TimingOfficialTimeRepo.markDirty(listOf(entry.competitionMatchTeam), sequence.createdBy).orDie()
+        // Bewusst recomputeAndApply statt recomputeApplyAndBroadcast: dies läuft in der
+        // Scheduler-Transaktion, wo kein AfterCommit-Puffer installiert ist (siehe FireResult) -
+        // ein dort registrierter Broadcast ginge VOR dem Commit raus. Die geänderten Zeilen wandern
+        // stattdessen im FireResult nach draußen und werden von broadcastFireResult gesendet.
+        val changedOfficialTimes = !TimingOfficialTimeService.recomputeAndApply(
+            sequence.event,
+            listOf(entry.competitionMatchTeam),
+            sequence.createdBy,
+        )
 
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,
                 entryId = entry.id,
                 mark = timeMarkDto(mark, entry.competitionMatchTeam),
+                changedOfficialTimes = changedOfficialTimes,
             )
         )
     }
