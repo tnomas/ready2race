@@ -3131,12 +3131,12 @@
       "abortSequence": "Sequenz abbrechen",
       "restart": "Start zurücknehmen und neu starten",
       "restartConfirm": {
-        "title": "Start zurücknehmen?",
-        "content": "Alle Startmarken von {{match}} werden zurückgenommen; die Partie steht danach wieder als offen in der Startliste. Eine laufende Sequenz wird zuerst abgebrochen.",
-        "ok": "Start zurücknehmen",
+        "title": "Versuch verwerfen?",
+        "content": "Der ganze Versuch von {{match}} wird zurückgenommen — Startmarken UND bereits erfasste Zielzeiten; die Partie steht danach wieder als offen in der Startliste. Eine laufende Sequenz wird zuerst abgebrochen. Soll nur eine einzelne Startzeit korrigiert werden, nimm stattdessen die Marke in der Zeitenliste zurück — die Zielzeiten bleiben dabei erhalten.",
+        "ok": "Versuch verwerfen",
         "keep": "Nichts ändern"
       },
-      "restartDone": "Startmarken zurückgenommen — die Partie kann neu gestartet werden",
+      "restartDone": "Versuch zurückgenommen — die Partie kann neu gestartet werden",
       "startFocused": "Start: {{match}}"
     },
     "sequence": {

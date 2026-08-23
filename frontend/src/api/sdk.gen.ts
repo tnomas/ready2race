@@ -1057,9 +1057,9 @@ import type {
     GetTimingMatchesData,
     GetTimingMatchesError,
     GetTimingMatchesResponse,
-    RetractMatchStartMarksData,
-    RetractMatchStartMarksError,
-    RetractMatchStartMarksResponse,
+    RetractMatchAttemptData,
+    RetractMatchAttemptError,
+    RetractMatchAttemptResponse,
     GetTimingModesData,
     GetTimingModesError,
     GetTimingModesResponse,
@@ -5855,18 +5855,18 @@ export const getTimingMatches = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE time mark on a START station that is assigned to a team of this match is set to RETRACTED in one call. Assignments are kept (like the single retract), the official times of the affected teams are recomputed and written back immediately, and the match falls back to "open" in the start list. Idempotent - a match without active start marks succeeds without effect. Requires a user session; device tokens cannot retract marks.
+ * Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE time mark that is assigned to a team of this match - start, finish and lap marks alike - is set to RETRACTED in one call. Finish marks must go with the start marks, because stale finish times of a discarded attempt would otherwise instantly recombine with the new start marks into wrong official times through the realtime write-back. Assignments are kept (like the single retract, so the existing reactivate endpoint restores the attempt), the official times of the affected teams are recomputed and cleared from the matches immediately, and the match falls back to "open" in the start list. Correcting a single start time is NOT this endpoint - retract and re-capture the one mark via the time mark list instead, which leaves the finish marks active. Idempotent - a match without active marks succeeds without effect. Requires a user session; device tokens cannot retract marks.
  */
-export const retractMatchStartMarks = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<RetractMatchStartMarksData, ThrowOnError>,
+export const retractMatchAttempt = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RetractMatchAttemptData, ThrowOnError>,
 ) => {
     return (options?.client ?? client).post<
-        RetractMatchStartMarksResponse,
-        RetractMatchStartMarksError,
+        RetractMatchAttemptResponse,
+        RetractMatchAttemptError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/timing/matches/{matchId}/retractStartMarks',
+        url: '/event/{eventId}/timing/matches/{matchId}/retractAttempt',
     })
 }
 

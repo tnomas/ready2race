@@ -66,15 +66,16 @@ fun Route.timing() {
                 }
             }
 
-            // „Start zurücknehmen und neu starten": nimmt alle aktiven Startmarken der Partie in
-            // einem Griff zurück. Wie die Einzel-Rücknahme nur mit Nutzersitzung — Geräte-Tokens
-            // nehmen keine Ergebnisse zurück.
-            post("/{matchId}/retractStartMarks") {
+            // „Start zurücknehmen und neu starten": nimmt den ganzen Versuch der Partie in einem
+            // Griff zurück — Start-, Ziel- und Rundenmarken (siehe TimingService.retractMatchAttempt,
+            // warum die Zielzeiten mitgehen müssen). Wie die Einzel-Rücknahme nur mit
+            // Nutzersitzung — Geräte-Tokens nehmen keine Ergebnisse zurück.
+            post("/{matchId}/retractAttempt") {
                 call.respondComprehension {
                     val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
                     val matchId = !pathParam("matchId", uuid)
-                    TimingService.retractMatchStartMarks(matchId, eventId, user.id!!)
+                    TimingService.retractMatchAttempt(matchId, eventId, user.id!!)
                 }
             }
         }

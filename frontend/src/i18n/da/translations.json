@@ -3104,12 +3104,12 @@
       "abortSequence": "Afbryd sekvens",
       "restart": "Fortryd start og start igen",
       "restartConfirm": {
-        "title": "Fortryd start?",
-        "content": "Alle startmærker for {{match}} trækkes tilbage; løbet står derefter som åbent i startlisten igen. En kørende sekvens afbrydes først.",
-        "ok": "Fortryd start",
+        "title": "Kassér forsøget?",
+        "content": "Hele forsøget for {{match}} trækkes tilbage — startmærker OG allerede registrerede måltider; løbet står derefter som åbent i startlisten igen. En kørende sekvens afbrydes først. Skal kun en enkelt starttid rettes, så træk i stedet mærket tilbage i tidslisten — måltiderne bevares dér.",
+        "ok": "Kassér forsøget",
         "keep": "Ændr intet"
       },
-      "restartDone": "Startmærker trukket tilbage — løbet kan startes igen",
+      "restartDone": "Forsøget trukket tilbage — løbet kan startes igen",
       "startFocused": "Start: {{match}}"
     },
     "sequence": {

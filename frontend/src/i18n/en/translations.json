@@ -3131,12 +3131,12 @@
       "abortSequence": "Abort sequence",
       "restart": "Retract start and restart",
       "restartConfirm": {
-        "title": "Retract start?",
-        "content": "All start marks of {{match}} will be retracted; the match returns to open in the start list. A running sequence is aborted first.",
-        "ok": "Retract start",
+        "title": "Discard attempt?",
+        "content": "The whole attempt of {{match}} will be retracted — start marks AND any finish times already captured; the match returns to open in the start list. A running sequence is aborted first. To correct a single start time instead, retract that mark in the time list — the finish times are kept there.",
+        "ok": "Discard attempt",
         "keep": "Keep as is"
       },
-      "restartDone": "Start marks retracted — the match can be started again",
+      "restartDone": "Attempt retracted — the match can be started again",
       "startFocused": "Start: {{match}}"
     },
     "sequence": {

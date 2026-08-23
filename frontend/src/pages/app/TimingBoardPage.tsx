@@ -41,7 +41,7 @@ import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
 import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
-import {createTimeMark, getTimingTeams, retractMatchStartMarks} from '@api/sdk.gen.ts'
+import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
@@ -568,7 +568,13 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             }
                         }
                         try {
-                            const {error} = await retractMatchStartMarks({
+                            // Der Bündel-Weg verwirft den GANZEN Versuch (auch Ziel- und
+                            // Rundenmarken): alte Zielzeiten würden sich sonst durch die
+                            // Echtzeit-Übernahme sofort mit den neuen Startmarken zu falschen
+                            // offiziellen Zeiten verrechnen. Einzelne Startzeiten korrigiert
+                            // die Einzelmarken-Rücknahme in der Zeitenliste — dort bleibt das
+                            // Ziel unberührt.
+                            const {error} = await retractMatchAttempt({
                                 path: {eventId, matchId: match.competitionSetupMatch},
                             })
                             if (error !== undefined) {

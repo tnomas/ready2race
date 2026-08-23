@@ -9582,16 +9582,16 @@ export type GetTimingMatchesResponse = Array<TimingMatchDto>
 
 export type GetTimingMatchesError = unknown
 
-export type RetractMatchStartMarksData = {
+export type RetractMatchAttemptData = {
     path: {
         eventId: uuid
         matchId: uuid
     }
 }
 
-export type RetractMatchStartMarksResponse = void
+export type RetractMatchAttemptResponse = void
 
-export type RetractMatchStartMarksError = unknown
+export type RetractMatchAttemptError = unknown
 
 export type GetTimingModesData = {
     path: {

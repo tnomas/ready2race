@@ -1,8 +1,10 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingTimeMarkRepo
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
@@ -165,16 +167,16 @@ class TimeMarkServiceTest {
         assertNull(assignment)
     }
 
-    // ------------------------------------------------- Bündel-Rücknahme der Startmarken (Board)
+    // ------------------------------------------------- Bündel-Rücknahme des ganzen Versuchs (Board)
 
     @Test
-    fun retractMatchStartMarksRetractsOnlyStartMarksOfThatMatch() = testComprehension {
+    fun retractMatchAttemptRetractsAllMarksOfThatMatchOnly() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
         val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
         val fixture = !createTestMatchFixture(eventId, teamCount = 2)
         val (teamA, teamB) = fixture.teamIds
-        // Eine zweite Partie derselben Veranstaltung - deren Startmarke muss stehen bleiben.
+        // Eine zweite Partie derselben Veranstaltung - deren Marken müssen stehen bleiben.
         val otherTeam = !createTestMatchTeam(eventId)
 
         val startA = !addAssignedMark(eventId, userId, startStation, teamA, 1755430000000)
@@ -182,32 +184,85 @@ class TimeMarkServiceTest {
         val finishA = !addAssignedMark(eventId, userId, finishStation, teamA, 1755430090000)
         val otherStart = !addAssignedMark(eventId, userId, startStation, otherTeam, 1755430002000)
 
-        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+        // Die Echtzeit-Übernahme hat Team A ein offizielles Ergebnis an den Lauf geschrieben -
+        // genau das muss die Versuch-Rücknahme wieder abräumen.
+        val teamABefore = !CompetitionMatchTeamRepo.getById(teamA)
+        assertNotNull(teamABefore!!.timecode)
 
+        !TimingService.retractMatchAttempt(fixture.setupMatchId, eventId, userId)
+
+        // Der ganze Versuch geht zurück: Start- UND Zielmarken der Partie.
         assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(startA))!!.status)
         assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(startB))!!.status)
-        // Zielmarke und fremde Partie bleiben unangetastet.
-        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(finishA))!!.status)
+        assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(finishA))!!.status)
+        // Die fremde Partie bleibt unangetastet.
         assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(otherStart))!!.status)
-        // Die Zuordnung überlebt die Rücknahme (wie bei der Einzel-Rücknahme) - eine Reaktivierung
-        // stellt den Start samt Boot wieder her.
+        // Die Zuordnungen überleben die Rücknahme (wie bei der Einzel-Rücknahme) - eine
+        // Reaktivierung stellt den Versuch samt Boot wieder her.
         assertNotNull(!TimingAssignmentRepo.getByTimeMark(startA))
-        // Die Echtzeit-Übernahme hat die offizielle Zeit mit abgeräumt: ohne Startmarke kein
-        // berechneter Wert mehr.
-        val official = !de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo.getByTeam(teamA)
+        assertNotNull(!TimingAssignmentRepo.getByTimeMark(finishA))
+        // Die Echtzeit-Übernahme hat die offizielle Zeit mit abgeräumt: ohne Marken kein
+        // berechneter Wert mehr - und das Ergebnis ist vom Lauf verschwunden (Phase-A-Mechanik).
+        val official = !TimingOfficialTimeRepo.getByTeam(teamA)
         assertNull(official!!.computedMillis)
+        val teamAAfter = !CompetitionMatchTeamRepo.getById(teamA)
+        assertNull(teamAAfter!!.timecode)
     }
 
     @Test
-    fun retractMatchStartMarksIsIdempotent() = testComprehension {
+    fun retractMatchAttemptIsUndoneByReactivation() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val fixture = !createTestMatchFixture(eventId, teamCount = 1)
+        val team = fixture.teamIds.single()
+
+        val start = !addAssignedMark(eventId, userId, startStation, team, 1755430000000)
+        val finish = !addAssignedMark(eventId, userId, finishStation, team, 1755430090000)
+        !TimingService.retractMatchAttempt(fixture.setupMatchId, eventId, userId)
+
+        // Die vorhandene Reaktivierung stellt beide Marken wieder her - samt Ergebnis am Lauf,
+        // weil die Zuordnungen nie gelöst wurden.
+        !TimingService.reactivateTimeMark(start, eventId, userId)
+        !TimingService.reactivateTimeMark(finish, eventId, userId)
+
+        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(start))!!.status)
+        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(finish))!!.status)
+        val official = !TimingOfficialTimeRepo.getByTeam(team)
+        assertEquals(90000L, official!!.computedMillis)
+        assertNotNull((!CompetitionMatchTeamRepo.getById(team))!!.timecode)
+    }
+
+    // Die Abgrenzung zum Bündel-Weg: die Einzelmarken-Korrektur (eine Startmarke in der
+    // Zeitenliste zurücknehmen und neu stempeln) lässt die Zielmarken der Partie aktiv - sie ist
+    // der Weg für "Start nachträglich korrigieren", nicht für "Versuch verwerfen".
+    @Test
+    fun singleStartRetractKeepsFinishMarksActive() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val fixture = !createTestMatchFixture(eventId, teamCount = 1)
+        val team = fixture.teamIds.single()
+
+        val start = !addAssignedMark(eventId, userId, startStation, team, 1755430000000)
+        val finish = !addAssignedMark(eventId, userId, finishStation, team, 1755430090000)
+
+        !TimingService.retractTimeMark(start, eventId, userId)
+
+        assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(start))!!.status)
+        assertEquals("ACTIVE", (!TimingTimeMarkRepo.get(finish))!!.status)
+    }
+
+    @Test
+    fun retractMatchAttemptIsIdempotent() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
         val fixture = !createTestMatchFixture(eventId, teamCount = 1)
         val start = !addAssignedMark(eventId, userId, startStation, fixture.teamIds.single(), 1755430000000)
 
-        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+        !TimingService.retractMatchAttempt(fixture.setupMatchId, eventId, userId)
         // Zweiter Griff (Doppelklick auf den Menüpunkt): nichts mehr zurückzunehmen, kein Fehler.
-        !TimingService.retractMatchStartMarks(fixture.setupMatchId, eventId, userId)
+        !TimingService.retractMatchAttempt(fixture.setupMatchId, eventId, userId)
 
         assertEquals("RETRACTED", (!TimingTimeMarkRepo.get(start))!!.status)
     }

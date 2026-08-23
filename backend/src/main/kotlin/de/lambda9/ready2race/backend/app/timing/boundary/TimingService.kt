@@ -219,11 +219,18 @@ object TimingService {
     }
 
     /**
-     * Bündel-Rücknahme des Startpostens („Start zurücknehmen und neu starten"): alle ACTIVE
-     * Startmarken, die Teams der Partie zugeordnet sind, werden in einem Griff auf RETRACTED
-     * gestellt. Die Zuordnungen bleiben stehen (wie bei der Einzel-Rücknahme), die
-     * Echtzeit-Übernahme räumt die offiziellen Zeiten der betroffenen Teams sofort mit ab und die
-     * Partie fällt in der Startliste zurück auf „offen" — der Posten kann sie erneut starten.
+     * Bündel-Rücknahme des ganzen Versuchs („Start zurücknehmen und neu starten"): ALLE ACTIVE
+     * Marken, die Teams der Partie zugeordnet sind — Start-, Ziel- und Rundenmarken —, werden in
+     * einem Griff auf RETRACTED gestellt. Nicht nur die Startmarken: Alte Zielzeiten eines
+     * verworfenen Versuchs würden sich sonst durch die Echtzeit-Übernahme sofort mit den neuen
+     * Startmarken zu falschen offiziellen Zeiten verrechnen. Die Zuordnungen bleiben stehen (wie
+     * bei der Einzel-Rücknahme, über die Reaktivierung wiederherstellbar), die Echtzeit-Übernahme
+     * räumt die offiziellen Zeiten der betroffenen Teams sofort mit ab und die Partie fällt in
+     * der Startliste zurück auf „offen" — der Posten kann sie erneut starten.
+     *
+     * Abgrenzung: „Start nachträglich korrigieren" ist NICHT dieser Weg, sondern die
+     * Einzelmarken-Korrektur in der Zeitenliste (eine Startmarke zurücknehmen und neu stempeln,
+     * die Zielmarken bleiben aktiv) — [retractTimeMark] bleibt dafür exakt wie es ist.
      *
      * Bewusst idempotent und ohne Existenzprüfung der Partie: keine passende Marke heißt schlicht
      * „nichts zurückzunehmen" (auch der Doppelklick auf den Menüpunkt ist damit harmlos). Ein per
@@ -231,12 +238,12 @@ object TimingService {
      * nimmt ausschließlich Zeitnahme-Marken zurück. Nur mit Nutzersitzung erreichbar, nicht per
      * Geräte-Token (Rücknahmen sind Ergebnis-Korrekturen).
      */
-    fun retractMatchStartMarks(
+    fun retractMatchAttempt(
         setupMatchId: UUID,
         eventId: UUID,
         userId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val rows = !TimingTimeMarkRepo.getActiveStartMarksForMatch(eventId, setupMatchId).orDie()
+        val rows = !TimingTimeMarkRepo.getActiveMarksForMatch(eventId, setupMatchId).orDie()
         if (rows.isEmpty()) return@comprehension noData
 
         val now = LocalDateTime.now()
@@ -248,7 +255,7 @@ object TimingService {
             }.orDie()
         }
         // Wie bei der Einzel-Rücknahme: Neuberechnung und Rückschreibung laufen sofort mit, im
-        // selben Request — die Startzeiten der Teams verschwinden damit auch aus den Läufen.
+        // selben Request — die offiziellen Zeiten des Versuchs verschwinden damit aus den Läufen.
         !TimingOfficialTimeService.recomputeApplyAndBroadcast(
             eventId,
             rows.map { it.competitionMatchTeam }.distinct(),
