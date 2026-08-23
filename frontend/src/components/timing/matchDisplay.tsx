@@ -31,14 +31,10 @@ export function matchTitle(match: TimingMatchDto): string {
 export const ModeChip = ({mode}: {mode: TimingModeDto | null | undefined}) => {
     const {t} = useTranslation()
     if (mode == null) {
-        return (
-            <Chip
-                size="small"
-                color="warning"
-                variant="outlined"
-                label={t('timing.matches.noMode')}
-            />
-        )
+        // Gefüllt, nicht outlined: der outlined-Warn-Chip setzt Beschriftung und Rand in die
+        // helle Palette-Warnfarbe und war auf hellem Grund kaum lesbar — gefüllt trägt er
+        // dunkle Schrift auf dem Warnton.
+        return <Chip size="small" color="warning" label={t('timing.matches.noMode')} />
     }
     const parts = modeChipParts(mode)
     const detail =
