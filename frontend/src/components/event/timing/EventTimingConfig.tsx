@@ -158,6 +158,7 @@ const EventTimingConfig = () => {
 
     const timingSystem = useWatch({control: formContext.control, name: 'timingSystem'})
     const autoPull = useWatch({control: formContext.control, name: 'autoPull'})
+    const timingPrecision = useWatch({control: formContext.control, name: 'timingPrecision'})
 
     return (
         // Kein Card-Rahmen: die Nachbarn im Einstellungen-Tab (Dokumente, Teilnahmebedingungen)
@@ -210,6 +211,37 @@ const EventTimingConfig = () => {
                             <Alert variant={'outlined'} severity={'info'}>
                                 <Trans i18nKey={'event.timing.internHint'} />
                             </Alert>
+                            {/* Genauigkeit der veröffentlichten offiziellen Zeiten. Rohdaten
+                                bleiben Millisekunden — die Einstellung wirkt auf Übernahme und
+                                Anzeige; eine Änderung rechnet die Ergebnisse serverseitig um.
+                                Der Hinweis steht dauerhaft dabei; bei feineren Stufen als
+                                Zehntel wechselt er auf einen Warnton (dezent, keine Blockade):
+                                von Hand getippte Zeiten tragen menschliche Reaktionszeit,
+                                feinere Stellen wären dann Scheingenauigkeit. */}
+                            <Box>
+                                <FormInputRadioButtonGroup
+                                    name={'timingPrecision'}
+                                    label={t('event.timing.precision.label')}
+                                    row
+                                    options={[
+                                        {id: 'SEKUNDE', label: t('event.timing.precision.options.SEKUNDE')},
+                                        {id: 'ZEHNTEL', label: t('event.timing.precision.options.ZEHNTEL')},
+                                        {id: 'HUNDERTSTEL', label: t('event.timing.precision.options.HUNDERTSTEL')},
+                                        {id: 'MILLISEKUNDE', label: t('event.timing.precision.options.MILLISEKUNDE')},
+                                    ]}
+                                />
+                                <Typography
+                                    variant={'body2'}
+                                    color={
+                                        timingPrecision === 'HUNDERTSTEL' ||
+                                        timingPrecision === 'MILLISEKUNDE'
+                                            ? 'warning.main'
+                                            : 'text.secondary'
+                                    }
+                                    sx={{mt: 0.5}}>
+                                    <Trans i18nKey={'event.timing.precision.hint'} />
+                                </Typography>
+                            </Box>
                             <TimingModePanel eventId={eventId} />
                         </Stack>
                     )}

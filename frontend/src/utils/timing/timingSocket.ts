@@ -1,5 +1,5 @@
 import Config from '../../Config'
-import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto } from '../../api'
+import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto, TimingSettingsDto } from '../../api'
 
 /**
  * Discriminated union of messages pushed by the timing websocket channel.
@@ -19,6 +19,7 @@ export type TimingWsMessage =
 	| { type: 'sequenceChanged'; sequence: TimingSequenceDto }
 	| { type: 'officialTimeChanged'; officialTimes: OfficialTimeDto[] }
 	| { type: 'timesDeleted'; timeMarks: string[] }
+	| { type: 'settingsChanged'; settings: TimingSettingsDto }
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
@@ -29,6 +30,7 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'sequenceChanged',
 	'officialTimeChanged',
 	'timesDeleted',
+	'settingsChanged',
 ])
 
 /**

@@ -14,6 +14,7 @@ describe('mapDtoToEventTimingForm', () => {
                 intervalUpcomingSeconds: 60,
                 watchBeforeMinutes: 15,
                 watchAfterMinutes: 120,
+                timingPrecision: 'ZEHNTEL',
             }).timingSystem,
         ).toBe('NONE')
     })
@@ -26,9 +27,24 @@ describe('mapDtoToEventTimingForm', () => {
             intervalUpcomingSeconds: 60,
             watchBeforeMinutes: 15,
             watchAfterMinutes: 120,
+            timingPrecision: 'ZEHNTEL',
         })
 
         expect(Object.keys(form).sort()).toEqual(Object.keys(emptyEventTimingForm).sort())
+    })
+
+    it('übernimmt die Genauigkeit aus dem Dto', () => {
+        const form = mapDtoToEventTimingForm({
+            timingSystem: 'INTERN',
+            autoPull: false,
+            intervalActiveSeconds: 5,
+            intervalUpcomingSeconds: 60,
+            watchBeforeMinutes: 15,
+            watchAfterMinutes: 120,
+            timingPrecision: 'MILLISEKUNDE',
+        })
+
+        expect(form.timingPrecision).toBe('MILLISEKUNDE')
     })
 })
 
@@ -89,6 +105,7 @@ describe('automatischer Abruf', () => {
             intervalUpcomingSeconds: 90,
             watchBeforeMinutes: 20,
             watchAfterMinutes: 60,
+            timingPrecision: 'ZEHNTEL',
             deviatingCompetitions: [],
         })
 
@@ -126,5 +143,25 @@ describe('automatischer Abruf', () => {
         })
 
         expect(request.autoPull).toBe(false)
+    })
+})
+
+describe('Genauigkeit', () => {
+    // Anders als die Presets wird die Genauigkeit NICHT verworfen, wenn das System wechselt: sie
+    // hat in der Datenbank eine Vorgabe, und ein Ausflug zu RaceClocker und zurück soll den
+    // eingestellten Wert nicht zurücksetzen (dasselbe Muster wie die Abruf-Takte).
+    it('schickt die Genauigkeit bei jedem System mit', () => {
+        for (const timingSystem of ['NONE', 'RACECLOCKER', 'WEBSCORER', 'INTERN'] as const) {
+            const request = mapEventTimingFormToRequest({
+                ...emptyEventTimingForm,
+                timingSystem,
+                timingPrecision: 'SEKUNDE',
+            })
+            expect(request.timingPrecision).toBe('SEKUNDE')
+        }
+    })
+
+    it('startet mit der Server-Vorgabe ZEHNTEL', () => {
+        expect(emptyEventTimingForm.timingPrecision).toBe('ZEHNTEL')
     })
 })

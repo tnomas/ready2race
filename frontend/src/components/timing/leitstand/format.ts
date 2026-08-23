@@ -1,4 +1,17 @@
-import {TimingTeamDto} from '@api/types.gen.ts'
+import {TimingPrecision, TimingTeamDto} from '@api/types.gen.ts'
+
+/*
+ * Genauigkeits-Grenze der Anzeige (Zeitnahme-Einstellung `precision` der Veranstaltung):
+ *
+ * - OFFIZIELLE Zeiten — alles, was als Ergebnis an den Lauf geht oder ihm entspricht
+ *   (`effectiveMillis` im Leitstand, an den Boards und im Stream) — werden mit
+ *   `formatOfficialTime` auf genau die eingestellten Stellen ABGESCHNITTEN angezeigt, damit die
+ *   Anzeige mit dem übereinstimmt, was die Übernahme an den Lauf schreibt.
+ * - ROHWERTE der Zeitnahme — Zeitmarken (`formatTimeOfDay`), die berechneten/überschriebenen
+ *   Arbeitswerte der Leitstand-Tabelle (`formatDuration`) und die Sekunden-Eingaben des
+ *   Bearbeiten-Dialogs (`formatSeconds`) — bleiben millisekundenfein: Marken sind Messwerte,
+ *   keine offiziellen Zeiten, und der Bediener muss sehen, was wirklich gemessen wurde.
+ */
 
 /** Wall-clock time of day at 0.1s precision — the same format the boards use for a captured mark. */
 export function formatTimeOfDay(millis: number): string {
@@ -13,10 +26,43 @@ export function formatTimeOfDay(millis: number): string {
 /**
  * A *duration* (not a time of day) at millisecond precision: `m:ss.mmm`, widening to `h:mm:ss.mmm`
  * once an hour is reached. Millisecond precision because that is what the official-time layer stores
- * and pushes — rounding it for display would make the table disagree with the pushed result.
- * Negative values keep their sign rather than wrapping, so a broken computation stays visible.
+ * — this is the RAW-value formatter (computed/override working values); the published result is
+ * rendered by `formatOfficialTime` instead. Negative values keep their sign rather than wrapping,
+ * so a broken computation stays visible.
  */
 export function formatDuration(millis: number): string {
+    return formatWithDigits(millis, 3)
+}
+
+/** Nachkommastellen je Stufe — SEKUNDE zeigt gar keine, MILLISEKUNDE alle drei. */
+const PRECISION_DIGITS: Record<TimingPrecision, number> = {
+    SEKUNDE: 0,
+    ZEHNTEL: 1,
+    HUNDERTSTEL: 2,
+    MILLISEKUNDE: 3,
+}
+
+/**
+ * Schneidet [millis] auf die Stufe ab — dieselbe Semantik wie das Backend beim Schreiben an den
+ * Lauf (nie kaufmännisch: die veröffentlichte Zeit ist nie schneller als die gemessene).
+ */
+export function truncateToPrecision(millis: number, precision: TimingPrecision): number {
+    const step = 10 ** (3 - PRECISION_DIGITS[precision])
+    return Math.floor(millis / step) * step
+}
+
+/**
+ * Eine OFFIZIELLE Zeit in der eingestellten Genauigkeit: abgeschnitten und mit genau so vielen
+ * Nachkommastellen, wie die Stufe hat (`1:31.5` bei ZEHNTEL, `1:31` bei SEKUNDE). Der Server
+ * liefert `effectiveMillis` roh — der Schnitt hier entspricht exakt dem Wert, den die Übernahme
+ * an den Lauf schreibt, damit Leitstand/Board und Lauf nie verschiedene Zeiten zeigen.
+ */
+export function formatOfficialTime(millis: number, precision: TimingPrecision): string {
+    return formatWithDigits(truncateToPrecision(millis, precision), PRECISION_DIGITS[precision])
+}
+
+/** Gemeinsames Rendering: `m:ss[.d…]`, ab einer Stunde `h:mm:ss[.d…]`. */
+function formatWithDigits(millis: number, digits: number): string {
     const sign = millis < 0 ? '-' : ''
     const abs = Math.abs(millis)
     const ms = abs % 1000
@@ -25,11 +71,12 @@ export function formatDuration(millis: number): string {
     const totalMinutes = Math.floor(totalSeconds / 60)
     const minutes = totalMinutes % 60
     const hours = Math.floor(totalMinutes / 60)
-    const msPart = String(ms).padStart(3, '0')
+    const msPart =
+        digits > 0 ? `.${String(ms).padStart(3, '0').slice(0, digits)}` : ''
     if (hours > 0) {
-        return `${sign}${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${msPart}`
+        return `${sign}${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}${msPart}`
     }
-    return `${sign}${minutes}:${String(seconds).padStart(2, '0')}.${msPart}`
+    return `${sign}${minutes}:${String(seconds).padStart(2, '0')}${msPart}`
 }
 
 /**

@@ -1708,6 +1708,16 @@
         "roundDeviations_other": "+ {{count}} Runden-Abweichungen"
       },
       "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahme-Tab der Wettkämpfe zu.",
+      "precision": {
+        "label": "Genauigkeit der offiziellen Zeiten",
+        "hint": "Rohzeiten werden weiterhin millisekundengenau gespeichert; die Einstellung bestimmt, was als offizielle Zeit am Lauf steht und angezeigt wird (abgeschnitten, nie aufgerundet). Zehntel entspricht der Genauigkeit von Handzeitnahme. Feinere Stufen sind erst mit Zeitnahme-Hardware aussagekräftig — von Hand getippte Zeiten enthalten menschliche Reaktionszeit.",
+        "options": {
+          "SEKUNDE": "Sekunde",
+          "ZEHNTEL": "Zehntelsekunde",
+          "HUNDERTSTEL": "Hundertstelsekunde",
+          "MILLISEKUNDE": "Millisekunde"
+        }
+      },
       "modes": {
         "title": "Zeitnahmetypen",
         "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie je Wettkampf oder Runde im Zeitnahme-Tab des Wettkampfs.",

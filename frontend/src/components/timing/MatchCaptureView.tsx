@@ -2,14 +2,14 @@ import {Alert, Box, Button, ButtonBase, Chip, CircularProgress, Stack, Typograph
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {OfficialTimeDto, TimingMatchDto} from '@api/types.gen.ts'
+import {OfficialTimeDto, TimingMatchDto, TimingPrecision} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import {assignCapturedMark, CaptureFn} from '@components/timing/useCaptureFlow.ts'
 import {expectedFinishMatches, pendingAssignmentMark} from '@utils/timing/matchBoard.ts'
 import {cycleFocus, finishKeyTarget} from '@utils/timing/boardFocus.ts'
 import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
-import {formatDuration} from '@components/timing/leitstand/format.ts'
+import {formatOfficialTime} from '@components/timing/leitstand/format.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import {useTouchOnly} from '@utils/touch.ts'
 
@@ -41,6 +41,8 @@ export type MatchCaptureViewProps = {
     onFocus: (matchId: string) => void
     /** Offizielle Zeiten je Team — live aus `officialTimeChanged`, am Boot angezeigt. */
     officialTimes: Map<string, OfficialTimeDto>
+    /** Genauigkeit der Veranstaltung — die Zeit am Boot zeigt genau die Stellen, die am Lauf stehen. */
+    precision: TimingPrecision
 }
 
 /** Das Ziel eines Boots-Tipps: id plus „an diesem Posten schon fertig". */
@@ -82,6 +84,7 @@ const MatchCaptureView = ({
     focusedId,
     onFocus,
     officialTimes,
+    precision,
 }: MatchCaptureViewProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
@@ -246,7 +249,7 @@ const MatchCaptureView = ({
                                 : official.resultStatus !== 'NONE'
                                   ? official.resultStatus
                                   : official.effectiveMillis !== undefined
-                                    ? formatDuration(official.effectiveMillis)
+                                    ? formatOfficialTime(official.effectiveMillis, precision)
                                     : undefined
                         return (
                             <ButtonBase

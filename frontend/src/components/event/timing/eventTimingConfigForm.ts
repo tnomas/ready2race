@@ -1,4 +1,9 @@
-import {EventTimingConfigDto, EventTimingConfigRequest, TimingSystem} from '@api/types.gen.ts'
+import {
+    EventTimingConfigDto,
+    EventTimingConfigRequest,
+    TimingPrecision,
+    TimingSystem,
+} from '@api/types.gen.ts'
 import {AutocompleteOption} from '@utils/types.ts'
 
 /** Wie im Wettkampf-Formular: „nicht gesetzt" ist im Radio ein Wert, im Request null. */
@@ -25,6 +30,12 @@ export type EventTimingForm = {
     intervalUpcomingSeconds: number
     watchBeforeMinutes: number
     watchAfterMinutes: number
+    /**
+     * Genauigkeit der veröffentlichten offiziellen Zeiten (interne Zeitnahme). Nur bei INTERN
+     * sichtbar, aber wie die Takte immer im Request: die Spalte hat eine Vorgabe, und ein
+     * Systemwechsel soll den eingestellten Wert nicht verlieren.
+     */
+    timingPrecision: TimingPrecision
 }
 
 export const emptyEventTimingForm: EventTimingForm = {
@@ -36,6 +47,7 @@ export const emptyEventTimingForm: EventTimingForm = {
     intervalUpcomingSeconds: 60,
     watchBeforeMinutes: 15,
     watchAfterMinutes: 120,
+    timingPrecision: 'ZEHNTEL',
 }
 
 export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingForm => ({
@@ -48,6 +60,7 @@ export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingF
     intervalUpcomingSeconds: dto.intervalUpcomingSeconds,
     watchBeforeMinutes: dto.watchBeforeMinutes,
     watchAfterMinutes: dto.watchAfterMinutes,
+    timingPrecision: dto.timingPrecision,
 })
 
 /**
@@ -72,5 +85,8 @@ export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingC
         intervalUpcomingSeconds: form.intervalUpcomingSeconds,
         watchBeforeMinutes: form.watchBeforeMinutes,
         watchAfterMinutes: form.watchAfterMinutes,
+        // Wie die Takte immer mitgeschickt (nicht verworfen wie die Presets): der Wert hat in der
+        // Datenbank eine Vorgabe, und ein Systemwechsel soll ihn nicht zurücksetzen.
+        timingPrecision: form.timingPrecision,
     }
 }

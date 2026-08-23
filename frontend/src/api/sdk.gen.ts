@@ -1043,9 +1043,9 @@ import type {
     ReactivateTimeMarkData,
     ReactivateTimeMarkError,
     ReactivateTimeMarkResponse,
-    GetTimingAutoApplyData,
-    GetTimingAutoApplyError,
-    GetTimingAutoApplyResponse,
+    GetTimingSettingsData,
+    GetTimingSettingsError,
+    GetTimingSettingsResponse,
     SetTimingAutoApplyData,
     SetTimingAutoApplyError,
     SetTimingAutoApplyResponse,
@@ -5775,22 +5775,22 @@ export const reactivateTimeMark = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * The event's "automatic result write-back" switch. When enabled (the default), every timing
- * mutation (mark created/retracted/reactivated, assignment changed, penalty/override edited)
- * immediately recomputes the affected official times and writes them to the match teams -
- * the same write the manual push performs. When disabled, computation continues but nothing
- * is written to the matches.
+ * The event's timing settings in one fetch: the "automatic result write-back" switch (when
+ * enabled - the default - every timing mutation immediately recomputes the affected official
+ * times and writes them to the match teams) and the precision of published official times.
+ * Readable with a device token like GET /timing/officialTimes, since the station boards need
+ * the precision to render official times.
  */
-export const getTimingAutoApply = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetTimingAutoApplyData, ThrowOnError>,
+export const getTimingSettings = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingSettingsData, ThrowOnError>,
 ) => {
     return (options?.client ?? client).get<
-        GetTimingAutoApplyResponse,
-        GetTimingAutoApplyError,
+        GetTimingSettingsResponse,
+        GetTimingSettingsError,
         ThrowOnError
     >({
         ...options,
-        url: '/event/{eventId}/timing/autoApply',
+        url: '/event/{eventId}/timing/settings',
     })
 }
 

@@ -24,13 +24,19 @@ import {useCallback, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
 import {pushOfficialTimes} from '@api/sdk.gen.ts'
-import {OfficialTimeDto, OfficialTimePushConflictDto, TimingTeamDto} from '@api/types.gen.ts'
+import {
+    OfficialTimeDto,
+    OfficialTimePushConflictDto,
+    TimingPrecision,
+    TimingTeamDto,
+} from '@api/types.gen.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
 import {
     formatDuration,
+    formatOfficialTime,
     formatSeconds,
     formatTimeOfDay,
     teamContextLabel,
@@ -43,6 +49,12 @@ export type LeitstandResultsTabProps = {
     officialTimes: OfficialTimeDto[]
     officialTimesPending: boolean
     reloadOfficialTimes: () => void
+    /**
+     * Genauigkeit der Veranstaltung: die Spalte „Offiziell" zeigt genau die Stellen, die am Lauf
+     * stehen. Die Arbeitsspalten (Berechnet, Überschrieben) bleiben millisekundenfein — der
+     * Bediener muss sehen, was wirklich gemessen bzw. eingetragen wurde.
+     */
+    precision: TimingPrecision
 }
 
 type ResultRow = {
@@ -98,6 +110,7 @@ const LeitstandResultsTab = ({
     officialTimes,
     officialTimesPending,
     reloadOfficialTimes,
+    precision,
 }: LeitstandResultsTabProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
@@ -398,7 +411,9 @@ const LeitstandResultsTab = ({
                                             fontVariantNumeric: 'tabular-nums',
                                         }}>
                                         {official?.effectiveMillis !== undefined
-                                            ? formatDuration(official.effectiveMillis)
+                                            ? // Offizielle Zeit in der eingestellten Genauigkeit -
+                                              // exakt der Wert, den die Übernahme an den Lauf schreibt.
+                                              formatOfficialTime(official.effectiveMillis, precision)
                                             : '–'}
                                     </TableCell>
                                     <TableCell>

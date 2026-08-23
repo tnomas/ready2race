@@ -16,6 +16,7 @@ import LeitstandResultsTab from '@components/timing/leitstand/LeitstandResultsTa
 import LeitstandDevicesTab from '@components/timing/leitstand/LeitstandDevicesTab.tsx'
 import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
 import {useStationSequences} from '@components/timing/leitstand/useStationSequences.ts'
+import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
@@ -72,6 +73,9 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
     const clock = useServerClock()
     const officialTimesState = useOfficialTimes(eventId)
     const {applyChanged, reload: reloadOfficialTimes} = officialTimesState
+    // Schalter „Automatische Übernahme" + Genauigkeit: einmal geladen, live über settingsChanged.
+    const settingsState = useTimingSettings(eventId)
+    const {applyChanged: applySettingsChanged, reload: reloadSettings} = settingsState
     // Henne-Ei zwischen den beiden Hooks: useStationSequences braucht die Stationen aus
     // useTimingBoardState, das seinerseits den Sequenz-Callback entgegennimmt. Der Ref-Umweg
     // löst das auf; useTimingBoardState spiegelt den Callback intern ohnehin in einen Ref, die
@@ -82,6 +86,7 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
         null,
         sequence => sequenceChangedRef.current(sequence),
         applyChanged,
+        applySettingsChanged,
     )
     const {sequences, applyChanged: applySequenceChanged} = useStationSequences(eventId, stations)
     useEffect(() => {
@@ -111,20 +116,24 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
     useEffect(() => {
         if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
             reloadOfficialTimes()
+            // Auch die Einstellungen können sich in der Lücke geändert haben (settingsChanged
+            // verpasst) - gleicher Trigger wie bei den offiziellen Zeiten.
+            reloadSettings()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, reloadOfficialTimes])
+    }, [wsStatus, reloadOfficialTimes, reloadSettings])
 
     useEffect(() => {
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
                 refetch()
                 reloadOfficialTimes()
+                reloadSettings()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [refetch, reloadOfficialTimes])
+    }, [refetch, reloadOfficialTimes, reloadSettings])
 
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
@@ -214,6 +223,10 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
                         officialTimes={officialTimesState.officialTimes}
                         sequences={sequences}
                         reloadOfficialTimes={reloadOfficialTimes}
+                        settings={settingsState.settings}
+                        settingsLoading={settingsState.loading}
+                        settingsError={settingsState.error}
+                        applySettingsChanged={applySettingsChanged}
                     />
                 )}
                 {tab === 'times' && (
@@ -233,6 +246,7 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
                         officialTimes={officialTimesState.officialTimes}
                         officialTimesPending={officialTimesState.pending}
                         reloadOfficialTimes={reloadOfficialTimes}
+                        precision={settingsState.settings.precision}
                     />
                 )}
                 {tab === 'devices' && <LeitstandDevicesTab eventId={eventId} stations={stations} />}

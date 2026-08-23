@@ -1708,6 +1708,16 @@
         "roundDeviations_other": "+ {{count}} rundeafvigelser"
       },
       "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i konkurrencernes tidtagningsfane.",
+      "precision": {
+        "label": "Nøjagtighed for officielle tider",
+        "hint": "Råtider gemmes fortsat med millisekunder; indstillingen bestemmer, hvad der offentliggøres som officiel tid på et løb og vises i appen (afkortet, aldrig rundet op). Tiendedele svarer til nøjagtigheden af håndtidtagning. Finere trin giver først mening med tidtagningshardware — håndtastede tider indeholder menneskelig reaktionstid.",
+        "options": {
+          "SEKUNDE": "Sekund",
+          "ZEHNTEL": "Tiendedel sekund",
+          "HUNDERTSTEL": "Hundrededel sekund",
+          "MILLISEKUNDE": "Millisekund"
+        }
+      },
       "modes": {
         "title": "Tidtagningstyper",
         "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles pr. konkurrence eller runde i konkurrencens tidtagningsfane.",

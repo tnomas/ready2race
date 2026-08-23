@@ -39,6 +39,7 @@ import DayScheduleColumn, {
 import StartBoardPanel from '@components/timing/StartBoardPanel.tsx'
 import {matchTitle} from '@components/timing/matchDisplay.tsx'
 import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
+import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
@@ -114,6 +115,10 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         () => new Map(officialTimes.map(entry => [entry.competitionMatchTeam, entry])),
         [officialTimes],
     )
+    // Genauigkeit der Veranstaltung für die Zeit-Anzeige am Boot: initial per GET (läuft auch mit
+    // Geräte-Token), live über settingsChanged.
+    const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
+        useTimingSettings(eventId)
     const {
         marks,
         stations,
@@ -129,6 +134,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         stationId,
         sequenceState.applySequenceChanged,
         applyOfficialTimes,
+        applySettingsChanged,
     )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
@@ -427,9 +433,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             refetchMatches()
             // Und die offiziellen Zeiten ebenso — verpasste officialTimeChanged-Nachrichten.
             reloadOfficialTimes()
+            // Genauigkeit/Schalter: verpasste settingsChanged-Nachrichten.
+            reloadSettings()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, runDrain, refetchSequence, refetchMatches, reloadOfficialTimes])
+    }, [wsStatus, runDrain, refetchSequence, refetchMatches, reloadOfficialTimes, reloadSettings])
 
     // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
     // can never permanently silence the tick. Checked against the latest values via refs, so the
@@ -456,11 +464,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 refetch()
                 refetchMatches()
                 reloadOfficialTimes()
+                reloadSettings()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [runDrain, refetch, refetchMatches, reloadOfficialTimes])
+    }, [runDrain, refetch, refetchMatches, reloadOfficialTimes, reloadSettings])
 
     // --- Staleness safety net -------------------------------------------------------------------
     //
@@ -946,6 +955,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     focusedId={focusedMatchId}
                                     onFocus={setSelectedMatchId}
                                     officialTimes={officialTimesByTeam}
+                                    precision={settings.precision}
                                 />
                                 {isPhone && (
                                     <Box sx={{flex: '0 0 18%', minHeight: 96, display: 'flex'}}>

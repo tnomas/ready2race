@@ -2013,6 +2013,7 @@ export type EventTimingConfigDto = {
      * How long after its planned start a match that is not active yet is still watched.
      */
     watchAfterMinutes: number
+    timingPrecision: TimingPrecision
     /**
      * The competitions that do not follow these defaults but set at least one of the three fields themselves.
      */
@@ -2047,6 +2048,7 @@ export type EventTimingConfigRequest = {
      * How long after its planned start a match that is not active yet is still watched.
      */
     watchAfterMinutes: number
+    timingPrecision: TimingPrecision
 }
 
 export type FeeDto = {
@@ -4048,10 +4050,6 @@ export type TimeMarkDto = {
     assignedTeam?: uuid
 }
 
-export type TimingAutoApplyDto = {
-    enabled: boolean
-}
-
 export type TimingAutoApplyRequest = {
     enabled: boolean
 }
@@ -4234,6 +4232,11 @@ export type TimingModeRequest = {
     leadInSeconds: number
 }
 
+/**
+ * Precision of published official times. Raw data stays millisecond-exact; the setting only affects what the write-back copies to the match teams and what is displayed. Values are truncated (never rounded up), penalties are added before truncating.
+ */
+export type TimingPrecision = 'SEKUNDE' | 'ZEHNTEL' | 'HUNDERTSTEL' | 'MILLISEKUNDE'
+
 export type TimingSequenceDto = {
     id: uuid
     event: uuid
@@ -4253,6 +4256,15 @@ export type TimingSequenceEntryDto = {
     status: SequenceEntryStatus
     plannedStartMillis?: number
     timeMark?: uuid
+}
+
+/**
+ * The event's timing settings as one read: the "automatic result write-back" switch and the precision of published official times. Writes stay separate - the switch via PUT /timing/autoApply, the precision via the event timing config (updateEventTimingConfig).
+ *
+ */
+export type TimingSettingsDto = {
+    autoApply: boolean
+    precision: TimingPrecision
 }
 
 /**
@@ -9541,15 +9553,15 @@ export type ReactivateTimeMarkResponse = void
 
 export type ReactivateTimeMarkError = unknown
 
-export type GetTimingAutoApplyData = {
+export type GetTimingSettingsData = {
     path: {
         eventId: uuid
     }
 }
 
-export type GetTimingAutoApplyResponse = TimingAutoApplyDto
+export type GetTimingSettingsResponse = TimingSettingsDto
 
-export type GetTimingAutoApplyError = unknown
+export type GetTimingSettingsError = unknown
 
 export type SetTimingAutoApplyData = {
     body: TimingAutoApplyRequest

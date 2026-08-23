@@ -18,13 +18,14 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import LinkIcon from '@mui/icons-material/Link'
-import {useCallback, useEffect, useMemo, useState} from 'react'
+import {useCallback, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {getTimingAutoApply, getTimingMatches, listTimingDeviceTokens, setTimingAutoApply} from '@api/sdk.gen.ts'
+import {getTimingMatches, listTimingDeviceTokens, setTimingAutoApply} from '@api/sdk.gen.ts'
 import {
     OfficialTimeDto,
     TimingMatchDto,
     TimingSequenceDto,
+    TimingSettingsDto,
     TimingStationDto,
     TimingTeamDto,
 } from '@api/types.gen.ts'
@@ -33,7 +34,7 @@ import Throbber from '@components/Throbber.tsx'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
 import {
-    formatDuration,
+    formatOfficialTime,
     formatSeconds,
     formatTimeOfDay,
     teamLabel,
@@ -59,6 +60,12 @@ export type LeitstandOverviewTabProps = {
     /** Jüngste Sequenz je START-Posten (siehe `useStationSequences`). */
     sequences: ReadonlyMap<string, TimingSequenceDto>
     reloadOfficialTimes: () => void
+    /** Schalter + Genauigkeit, von der Seite geladen und live gehalten (`useTimingSettings`). */
+    settings: TimingSettingsDto
+    settingsLoading: boolean
+    settingsError: boolean
+    /** Optimistische lokale Änderung des Schalters — das settingsChanged-Echo bestätigt sie. */
+    applySettingsChanged: (settings: TimingSettingsDto) => void
 }
 
 /**
@@ -79,45 +86,32 @@ const LeitstandOverviewTab = ({
     officialTimes,
     sequences,
     reloadOfficialTimes,
+    settings,
+    settingsLoading,
+    settingsError,
+    applySettingsChanged,
 }: LeitstandOverviewTabProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
     // ---------------------------------------------------------------- Schalter
+    //
+    // Der Stand kommt von der Seite (useTimingSettings, live über settingsChanged) - hier lebt nur
+    // der PUT samt optimistischer Änderung. Das Websocket-Echo des PUT bestätigt sie; schlägt der
+    // PUT fehl, stellt der Rollback den vorherigen Stand wieder her.
 
-    const [autoApply, setAutoApply] = useState<boolean | null>(null)
     const [autoApplySaving, setAutoApplySaving] = useState(false)
-    const [autoApplyError, setAutoApplyError] = useState(false)
-
-    useEffect(() => {
-        let disposed = false
-        void (async () => {
-            try {
-                const {data, error} = await getTimingAutoApply({path: {eventId}})
-                if (disposed) return
-                if (error !== undefined || data === undefined) {
-                    setAutoApplyError(true)
-                    return
-                }
-                setAutoApply(data.enabled)
-            } catch {
-                if (!disposed) setAutoApplyError(true)
-            }
-        })()
-        return () => {
-            disposed = true
-        }
-    }, [eventId])
 
     const handleToggleAutoApply = useCallback(
         (enabled: boolean) => {
             setAutoApplySaving(true)
-            setAutoApply(enabled)
+            const previous = settings
+            applySettingsChanged({...settings, autoApply: enabled})
             void (async () => {
                 try {
                     const {error} = await setTimingAutoApply({path: {eventId}, body: {enabled}})
                     if (error !== undefined) {
-                        setAutoApply(!enabled)
+                        applySettingsChanged(previous)
                         feedback.error(t('timing.leitstand.overview.autoApply.error'))
                         return
                     }
@@ -132,14 +126,14 @@ const LeitstandOverviewTab = ({
                     // auch falls einzelne Websocket-Nachrichten verpasst wurden.
                     reloadOfficialTimes()
                 } catch {
-                    setAutoApply(!enabled)
+                    applySettingsChanged(previous)
                     feedback.error(t('common.error.unexpected'))
                 } finally {
                     setAutoApplySaving(false)
                 }
             })()
         },
-        [eventId, feedback, reloadOfficialTimes, t],
+        [eventId, feedback, reloadOfficialTimes, settings, applySettingsChanged, t],
     )
 
     // ---------------------------------------------------------------- Posten-Streifen
@@ -228,20 +222,20 @@ const LeitstandOverviewTab = ({
                 <FormControlLabel
                     control={
                         <Switch
-                            checked={autoApply === true}
-                            disabled={autoApply === null || autoApplySaving}
+                            checked={settings.autoApply}
+                            disabled={settingsLoading || autoApplySaving}
                             onChange={event => handleToggleAutoApply(event.target.checked)}
                         />
                     }
                     label={t('timing.leitstand.overview.autoApply.label')}
                 />
                 <Typography variant="body2" color="text.secondary">
-                    {autoApply === false
-                        ? t('timing.leitstand.overview.autoApply.hintOff')
-                        : t('timing.leitstand.overview.autoApply.hintOn')}
+                    {settings.autoApply
+                        ? t('timing.leitstand.overview.autoApply.hintOn')
+                        : t('timing.leitstand.overview.autoApply.hintOff')}
                 </Typography>
             </Stack>
-            {autoApplyError && (
+            {settingsError && (
                 <Alert severity="warning">
                     {t('timing.leitstand.overview.autoApply.loadError')}
                 </Alert>
@@ -390,7 +384,12 @@ const LeitstandOverviewTab = ({
                                                             )}
                                                         />
                                                     ) : official?.effectiveMillis !== undefined ? (
-                                                        formatDuration(official.effectiveMillis)
+                                                        // Offizielle Zeit: in der eingestellten
+                                                        // Genauigkeit, wie am Lauf.
+                                                        formatOfficialTime(
+                                                            official.effectiveMillis,
+                                                            settings.precision,
+                                                        )
                                                     ) : (
                                                         '–'
                                                     )}

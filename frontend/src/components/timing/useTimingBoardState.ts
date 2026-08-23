@@ -1,6 +1,12 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {getTimingState, getTimingStations} from '@api/sdk.gen.ts'
-import {OfficialTimeDto, TimeMarkDto, TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
+import {
+    OfficialTimeDto,
+    TimeMarkDto,
+    TimingSequenceDto,
+    TimingSettingsDto,
+    TimingStationDto,
+} from '@api/types.gen.ts'
 import {TimingWsMessage} from '@utils/timing/timingSocket.ts'
 import {TimingWsStatus, useTimingWebSocket} from '@utils/timing/useTimingWebSocket.ts'
 
@@ -99,6 +105,10 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             const deleted = new Set(message.timeMarks)
             return marks.filter(m => !deleted.has(m.id))
         }
+        case 'settingsChanged':
+            // Einstellungs-Stand, keine Markendaten — geht an den optionalen `onSettingsChanged`-
+            // Callback (gleiche Form wie `sequenceChanged`/`officialTimeChanged`).
+            return marks
     }
 }
 
@@ -157,6 +167,7 @@ export function useTimingBoardState(
     stationId: string | null,
     onSequenceChanged?: (sequence: TimingSequenceDto) => void,
     onOfficialTimeChanged?: (officialTimes: OfficialTimeDto[]) => void,
+    onSettingsChanged?: (settings: TimingSettingsDto) => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -191,9 +202,12 @@ export function useTimingBoardState(
     const onSequenceChangedRef = useRef(onSequenceChanged)
     /** Same for `onOfficialTimeChanged` (the Leitstand's result-table feed). */
     const onOfficialTimeChangedRef = useRef(onOfficialTimeChanged)
+    /** Same for `onSettingsChanged` (Schalter + Genauigkeit — siehe `useTimingSettings`). */
+    const onSettingsChangedRef = useRef(onSettingsChanged)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
         onOfficialTimeChangedRef.current = onOfficialTimeChanged
+        onSettingsChangedRef.current = onSettingsChanged
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -389,6 +403,10 @@ export function useTimingBoardState(
             }
             if (message.type === 'officialTimeChanged') {
                 onOfficialTimeChangedRef.current?.(message.officialTimes)
+                return
+            }
+            if (message.type === 'settingsChanged') {
+                onSettingsChangedRef.current?.(message.settings)
                 return
             }
             setAllMarks(prev => applyWsMessage(prev, message))

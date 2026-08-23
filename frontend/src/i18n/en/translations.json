@@ -1708,6 +1708,16 @@
         "roundDeviations_other": "+ {{count}} round deviations"
       },
       "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing tab of each competition.",
+      "precision": {
+        "label": "Precision of official times",
+        "hint": "Raw times are still stored to the millisecond; this setting controls what is published as the official time on a race and shown in the app (truncated, never rounded up). Tenths match the accuracy of hand timing. Finer levels are only meaningful with timing hardware — hand-tapped times include human reaction time.",
+        "options": {
+          "SEKUNDE": "Second",
+          "ZEHNTEL": "Tenth of a second",
+          "HUNDERTSTEL": "Hundredth of a second",
+          "MILLISEKUNDE": "Millisecond"
+        }
+      },
       "modes": {
         "title": "Timing modes",
         "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned per competition or round in the competition's timing tab.",
