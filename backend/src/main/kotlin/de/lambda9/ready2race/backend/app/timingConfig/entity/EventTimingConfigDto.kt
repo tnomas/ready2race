@@ -21,6 +21,11 @@ data class EventTimingConfigDto(
     val watchBeforeMinutes: Int,
     val watchAfterMinutes: Int,
     /**
+     * Genauigkeit der veroeffentlichten offiziellen Zeiten der internen Zeitnahme (sichtbar bei
+     * System INTERN). Nie null: die Spalte hat eine Vorgabe (ZEHNTEL, Migration V202608211450).
+     */
+    val timingPrecision: TimingPrecision,
+    /**
      * Die Wettkaempfe, die dieser Voreinstellung nicht folgen. Ohne sie waere die Voreinstellung eine
      * Einstellung, deren Reichweite man nicht sieht: wer hier eine Adresse aendert, muss wissen,
      * welche Wettkaempfe davon unberuehrt bleiben.

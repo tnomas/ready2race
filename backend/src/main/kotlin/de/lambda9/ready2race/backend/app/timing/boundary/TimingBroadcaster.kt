@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimeMarkDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingSequenceDto
+import de.lambda9.ready2race.backend.app.timing.entity.TimingSettingsDto
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
     JsonSubTypes.Type(TimingWsMessage.OfficialTimeChanged::class, name = "officialTimeChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
+    JsonSubTypes.Type(TimingWsMessage.SettingsChanged::class, name = "settingsChanged"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -60,6 +62,13 @@ sealed class TimingWsMessage {
 
     /** Ids of time marks that were physically deleted by the explicit "delete times" action. */
     data class TimesDeleted(val timeMarks: List<UUID>) : TimingWsMessage()
+
+    /**
+     * Die Zeitnahme-Einstellungen der Veranstaltung haben sich geändert (Schalter „Automatische
+     * Übernahme" oder Genauigkeit). Trägt den kompletten neuen Stand, damit Leitstand und Boards
+     * ihre Anzeige sofort umstellen können, ohne den Settings-GET erneut zu rufen.
+     */
+    data class SettingsChanged(val settings: TimingSettingsDto) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

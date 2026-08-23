@@ -9866,15 +9866,15 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
-  /event/{eventId}/timing/autoApply:
+  /event/{eventId}/timing/settings:
     get:
-      operationId: getTimingAutoApply
+      operationId: getTimingSettings
       description: |-
-        The event's "automatic result write-back" switch. When enabled (the default), every timing
-        mutation (mark created/retracted/reactivated, assignment changed, penalty/override edited)
-        immediately recomputes the affected official times and writes them to the match teams -
-        the same write the manual push performs. When disabled, computation continues but nothing
-        is written to the matches.
+        The event's timing settings in one fetch: the "automatic result write-back" switch (when
+        enabled - the default - every timing mutation immediately recomputes the affected official
+        times and writes them to the match teams) and the precision of published official times.
+        Readable with a device token like GET /timing/officialTimes, since the station boards need
+        the precision to render official times.
       parameters:
         - name: eventId
           in: path
@@ -9887,9 +9887,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TimingAutoApplyDto'
+                $ref: '#/components/schemas/TimingSettingsDto'
       tags:
         - Timing
+  /event/{eventId}/timing/autoApply:
     put:
       operationId: setTimingAutoApply
       description: |-
@@ -15991,6 +15992,8 @@ components:
         watchAfterMinutes:
           type: integer
           description: How long after its planned start a match that is not active yet is still watched.
+        timingPrecision:
+          $ref: '#/components/schemas/TimingPrecision'
         deviatingCompetitions:
           type: array
           description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
@@ -16002,6 +16005,7 @@ components:
         - intervalUpcomingSeconds
         - watchBeforeMinutes
         - watchAfterMinutes
+        - timingPrecision
 
     CompetitionTimingDeviationDto:
       type: object
@@ -16125,12 +16129,15 @@ components:
         watchAfterMinutes:
           type: integer
           description: How long after its planned start a match that is not active yet is still watched.
+        timingPrecision:
+          $ref: '#/components/schemas/TimingPrecision'
       required:
         - autoPull
         - intervalActiveSeconds
         - intervalUpcomingSeconds
         - watchBeforeMinutes
         - watchAfterMinutes
+        - timingPrecision
 
     TimingSystem:
       type: string
@@ -20683,13 +20690,32 @@ components:
         resultStatus:
           $ref: '#/components/schemas/OfficialTimeResultStatus'
 
-    TimingAutoApplyDto:
+    TimingSettingsDto:
       type: object
+      description: >
+        The event's timing settings as one read: the "automatic result write-back" switch and the
+        precision of published official times. Writes stay separate - the switch via
+        PUT /timing/autoApply, the precision via the event timing config (updateEventTimingConfig).
       required:
-        - enabled
+        - autoApply
+        - precision
       properties:
-        enabled:
+        autoApply:
           type: boolean
+        precision:
+          $ref: '#/components/schemas/TimingPrecision'
+
+    TimingPrecision:
+      type: string
+      enum:
+        - SEKUNDE
+        - ZEHNTEL
+        - HUNDERTSTEL
+        - MILLISEKUNDE
+      description: >-
+        Precision of published official times. Raw data stays millisecond-exact; the setting only
+        affects what the write-back copies to the match teams and what is displayed. Values are
+        truncated (never rounded up), penalties are added before truncating.
 
     TimingAutoApplyRequest:
       type: object

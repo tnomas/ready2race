@@ -24,6 +24,13 @@ data class EventTimingConfigRequest(
     val intervalUpcomingSeconds: Int,
     val watchBeforeMinutes: Int,
     val watchAfterMinutes: Int,
+    /**
+     * Genauigkeit der veroeffentlichten offiziellen Zeiten. Wie die Takte nicht optional: die
+     * Spalte hat eine Vorgabe, und `null` hiesse "unveraendert lassen" - eine Bedeutung, die das
+     * Formular nicht braucht. Eine Aenderung rechnet serverseitig alle eigenen Ergebnisse auf die
+     * neue Stufe um (TimingConfigService.updateEventTimingConfig).
+     */
+    val timingPrecision: TimingPrecision,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -65,6 +72,7 @@ data class EventTimingConfigRequest(
                 intervalUpcomingSeconds = 60,
                 watchBeforeMinutes = 15,
                 watchAfterMinutes = 120,
+                timingPrecision = TimingPrecision.ZEHNTEL,
             )
     }
 }

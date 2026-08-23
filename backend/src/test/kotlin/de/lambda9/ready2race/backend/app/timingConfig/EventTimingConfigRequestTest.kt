@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.timingConfig
 
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import kotlin.test.Test
@@ -28,6 +29,7 @@ class EventTimingConfigRequestTest {
         intervalUpcomingSeconds = intervalUpcomingSeconds,
         watchBeforeMinutes = watchBeforeMinutes,
         watchAfterMinutes = watchAfterMinutes,
+        timingPrecision = TimingPrecision.ZEHNTEL,
     )
 
     @Test

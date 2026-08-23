@@ -8,11 +8,13 @@ import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceError
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timingConfig.control.TimingConfigRepo
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingConfigRequest
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
@@ -72,6 +74,8 @@ object TimingConfigService {
                     intervalUpcomingSeconds = event.raceclockerIntervalUpcomingSeconds!!,
                     watchBeforeMinutes = event.raceclockerWatchBeforeMinutes!!,
                     watchAfterMinutes = event.raceclockerWatchAfterMinutes!!,
+                    timingPrecision = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
+                        ?: TimingPrecision.ZEHNTEL,
                     deviatingCompetitions = deviations,
                 )
             )
@@ -87,6 +91,11 @@ object TimingConfigService {
         val event = !EventRepo.get(eventId).orDie()
             .onNullFail { EventError.NotFound }
 
+        // VOR dem Schreiben festhalten, ob sich die Genauigkeit ändert - danach ist der alte
+        // Stand weg. Fehlender Wert = Datenbank-Vorgabe, dieselbe Rückfalllinie wie beim Lesen.
+        val precisionBefore = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
+            ?: TimingPrecision.ZEHNTEL
+
         !EventRepo.update(event) {
             timingSystem = request.timingSystem?.name
             startlistConfig = request.startlistConfig
@@ -96,9 +105,20 @@ object TimingConfigService {
             raceclockerIntervalUpcomingSeconds = request.intervalUpcomingSeconds
             raceclockerWatchBeforeMinutes = request.watchBeforeMinutes
             raceclockerWatchAfterMinutes = request.watchAfterMinutes
+            timingPrecision = request.timingPrecision.name
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
+
+        // Eine geänderte Genauigkeit rechnet alle eigenen Ergebnisse sofort auf die neue Stufe um
+        // - der Fingerabdruck trägt den abgeschnittenen Wert, deshalb erkennt die Übernahme ihre
+        // Zeilen wieder und missdeutet sie nicht als fremd. Zusätzlich erfahren alle verbundenen
+        // Leitstände und Boards den neuen Stand live (settingsChanged), damit die Anzeige ohne
+        // Neuladen folgt.
+        if (request.timingPrecision != precisionBefore) {
+            !TimingOfficialTimeService.recomputeApplyEvent(eventId, userId)
+            !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
+        }
 
         noData
     }

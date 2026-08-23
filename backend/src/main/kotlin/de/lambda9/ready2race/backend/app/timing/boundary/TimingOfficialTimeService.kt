@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
@@ -48,6 +49,15 @@ object TimingOfficialTimeService {
         val finishMillis: Long?,
     )
 
+    /**
+     * Die beiden Veranstaltungs-Einstellungen, die jede Übernahme braucht - einmal pro Aufruf
+     * gelesen und durchgereicht, statt je Team erneut an die Datenbank zu gehen.
+     */
+    private data class EventTimingSettings(
+        val autoApply: Boolean,
+        val precision: TimingPrecision,
+    )
+
     // ------------------------------------------------------------------ Echtzeit-Rückschreibung
 
     /**
@@ -68,11 +78,11 @@ object TimingOfficialTimeService {
         if (distinct.isEmpty()) return@comprehension KIO.ok(emptyList())
 
         val markTimes = !resolveMarkTimes(eventId)
-        val autoApply = !autoApplyEnabled(eventId)
+        val settings = !eventSettings(eventId)
         val now = LocalDateTime.now()
 
         val changed = !distinct.traverse { teamId ->
-            recomputeAndApplyTeam(eventId, teamId, markTimes[teamId], autoApply, userId, now)
+            recomputeAndApplyTeam(eventId, teamId, markTimes[teamId], settings, userId, now)
         }
         KIO.ok(changed.filterNotNull())
     }
@@ -100,7 +110,7 @@ object TimingOfficialTimeService {
         eventId: UUID,
         teamId: UUID,
         times: TeamMarkTimes?,
-        autoApply: Boolean,
+        settings: EventTimingSettings,
         userId: UUID?,
         now: LocalDateTime,
     ): App<Nothing, OfficialTimeDto?> = KIO.comprehension {
@@ -124,7 +134,7 @@ object TimingOfficialTimeService {
 
         val team = !CompetitionMatchTeamRepo.getById(teamId).orDie()
             ?: return@comprehension KIO.ok(null)
-        val applyChanged = !applyToTeam(official, team, autoApply, userId, now)
+        val applyChanged = !applyToTeam(official, team, settings, userId, now)
 
         if (recomputeChanged || applyChanged) {
             val fresh = !TimingOfficialTimeRepo.getByTeam(teamId).orDie()
@@ -144,14 +154,14 @@ object TimingOfficialTimeService {
     private fun applyToTeam(
         official: TimingOfficialTimeRecord,
         team: CompetitionMatchTeamRecord,
-        autoApply: Boolean,
+        settings: EventTimingSettings,
         userId: UUID?,
         now: LocalDateTime,
     ): App<Nothing, Boolean> = KIO.comprehension {
-        val target = targetState(official)
+        val target = targetState(official, settings.precision)
         val teamState = !resolveTeamState(team)
         val decision = TimingApplyLogic.decide(
-            autoApply = autoApply,
+            autoApply = settings.autoApply,
             target = target,
             appliedFingerprint = official.appliedFingerprint,
             teamState = teamState,
@@ -160,7 +170,7 @@ object TimingOfficialTimeService {
 
         when (decision) {
             TimingApplyLogic.Decision.WriteResult -> {
-                !writeResult(team, official, userId, now)
+                !writeResult(team, official, settings.precision, userId, now)
                 !updateExisting(official.competitionMatchTeam, userId, now) {
                     pushedAt = now
                     dirty = false
@@ -202,13 +212,18 @@ object TimingOfficialTimeService {
         }
     }
 
-    // ------------------------------------------------------------------ Schalter
+    // ------------------------------------------------------------------ Einstellungen
 
-    fun getAutoApply(
+    /**
+     * Schalter und Genauigkeit in einem Fetch - siehe [TimingSettingsDto] für die Begründung des
+     * gemeinsamen Endpunkts. Lesbar auch mit Geräte-Token (Route), weil die Boards die Genauigkeit
+     * für die Anzeige der offiziellen Zeiten brauchen.
+     */
+    fun getSettings(
         eventId: UUID,
-    ): App<ServiceError, ApiResponse.Dto<TimingAutoApplyDto>> = KIO.comprehension {
-        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
-        KIO.ok(ApiResponse.Dto(TimingAutoApplyDto(enabled = event.timingAutoApply ?: true)))
+    ): App<ServiceError, ApiResponse.Dto<TimingSettingsDto>> = KIO.comprehension {
+        val settings = !eventSettings(eventId)
+        KIO.ok(ApiResponse.Dto(TimingSettingsDto(autoApply = settings.autoApply, precision = settings.precision)))
     }
 
     /**
@@ -229,16 +244,58 @@ object TimingOfficialTimeService {
         }.orDie()
 
         if (request.enabled) {
-            val markTimes = !resolveMarkTimes(eventId)
-            val rows = !TimingOfficialTimeRepo.getByEvent(eventId).orDie()
-            val teams = (markTimes.keys + rows.map { it.competitionMatchTeam }).toList()
-            !recomputeApplyAndBroadcast(eventId, teams, userId)
+            !recomputeApplyEvent(eventId, userId)
         }
+        !broadcastSettingsAsync(eventId)
         noData
     }
 
-    private fun autoApplyEnabled(eventId: UUID): App<Nothing, Boolean> =
-        EventRepo.get(eventId).orDie().map { it?.timingAutoApply ?: true }
+    /**
+     * Zieht die Übernahme für ALLE Teams der Veranstaltung nach, die Marken oder eine Zeile haben.
+     * Zwei Auslöser brauchen genau das: das Einschalten des Schalters ([setAutoApply]) und eine
+     * geänderte Genauigkeit (TimingConfigService.updateEventTimingConfig) - im zweiten Fall rechnet
+     * die Übernahme alle eigenen Zeilen auf die neue Stufe um, ohne sie als dirty/fremd zu
+     * missdeuten, weil der Fingerabdruck stets den abgeschnittenen Stand trägt.
+     */
+    fun recomputeApplyEvent(
+        eventId: UUID,
+        userId: UUID,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val markTimes = !resolveMarkTimes(eventId)
+        val rows = !TimingOfficialTimeRepo.getByEvent(eventId).orDie()
+        val teams = (markTimes.keys + rows.map { it.competitionMatchTeam }).toList()
+        !recomputeApplyAndBroadcast(eventId, teams, userId)
+        KIO.ok(Unit)
+    }
+
+    /**
+     * Meldet den aktuellen Einstellungs-Stand an alle verbundenen Leitstände und Boards - nach
+     * Commit, wie jeder Broadcast dieser Schicht. So folgt die Anzeige einer Genauigkeits- oder
+     * Schalter-Änderung live, ohne dass ein Board neu geladen werden muss.
+     */
+    fun broadcastSettingsAsync(eventId: UUID): App<Nothing, Unit> = KIO.comprehension {
+        val settings = !eventSettings(eventId)
+        AfterCommit.register {
+            TimingBroadcaster.broadcast(
+                eventId,
+                TimingWsMessage.SettingsChanged(
+                    TimingSettingsDto(autoApply = settings.autoApply, precision = settings.precision)
+                ),
+            )
+        }
+        KIO.ok(Unit)
+    }
+
+    private fun eventSettings(eventId: UUID): App<Nothing, EventTimingSettings> =
+        EventRepo.get(eventId).orDie().map { event ->
+            EventTimingSettings(
+                autoApply = event?.timingAutoApply ?: true,
+                // Spalte ist NOT NULL mit Default; jOOQ typisiert sie dennoch nullable (bekanntes
+                // Muster, siehe EventTimingConfigDto) - der Datenbank-Default ist die Rückfalllinie.
+                precision = event?.timingPrecision?.let { TimingPrecision.valueOf(it) }
+                    ?: TimingPrecision.ZEHNTEL,
+            )
+        }
 
     // ------------------------------------------------------------------ Berechnung (Endpunkt)
 
@@ -404,15 +461,16 @@ object TimingOfficialTimeService {
         !KIO.failOn(conflicts.isNotEmpty()) { TimingError.PushConflict(conflicts) }
 
         val now = LocalDateTime.now()
+        val precision = (!eventSettings(eventId)).precision
         val pushed = !pushables.traverse { (team, official) ->
             KIO.comprehension {
-                !writeResult(team, official, userId, now)
+                !writeResult(team, official, precision, userId, now)
                 val updated = !TimingOfficialTimeRepo.update(team.id) {
                     pushedAt = now
                     dirty = false
                     // Auch der manuelle Weg hinterlässt den Fingerabdruck: ab jetzt ist der Stand
                     // am Team "unserer", und die Echtzeit-Übernahme darf ihn weiterpflegen.
-                    appliedFingerprint = TimingApplyLogic.fingerprint(targetState(official))
+                    appliedFingerprint = TimingApplyLogic.fingerprint(targetState(official, precision))
                     updatedAt = now
                     updatedBy = userId
                 }.orDie().onNullFail { TimingError.OfficialTimeNotFound }
@@ -465,11 +523,23 @@ object TimingOfficialTimeService {
 
     // ------------------------------------------------------------------ Schreib-/Lesehelfer
 
-    /** Der Ergebnisstand, den eine Übernahme dieser Zeile an das Team schreiben würde. */
-    private fun targetState(official: TimingOfficialTimeRecord): TimingApplyLogic.ResultState {
+    /**
+     * Der Ergebnisstand, den eine Übernahme dieser Zeile an das Team schreiben würde.
+     *
+     * Die Zeit ist hier bereits auf die eingestellte Genauigkeit ABGESCHNITTEN (Strafe vorher in
+     * der Summe, siehe [effectiveMillis] -> [TimingPrecisionLogic]) - damit trägt auch der
+     * Fingerabdruck den abgeschnittenen Wert. Nur so erkennt die Übernahme nach einer
+     * Genauigkeits-Änderung ihre eigenen Zeilen wieder: der alte Abdruck stimmt mit dem alten
+     * Team-Stand überein, und die Umrechnung auf die neue Stufe ist ein gewöhnliches WriteResult
+     * statt eines vermeintlich fremden Eingriffs.
+     */
+    private fun targetState(
+        official: TimingOfficialTimeRecord,
+        precision: TimingPrecision,
+    ): TimingApplyLogic.ResultState {
         val status = OfficialTimeResultStatus.valueOf(official.resultStatus!!)
         return TimingApplyLogic.ResultState(
-            timeMillis = effectiveMillis(official),
+            timeMillis = effectiveMillis(official)?.let { TimingPrecisionLogic.truncate(it, precision) },
             statusText = status.takeIf { it != OfficialTimeResultStatus.NONE }?.name,
             penaltySeconds = TimingApplyLogic.penaltySecondsFor(official.penaltyMillis),
             penaltyNote = official.penaltyNote?.trim()?.takeIf { it.isNotEmpty() },
@@ -509,14 +579,17 @@ object TimingOfficialTimeService {
     private fun writeResult(
         team: CompetitionMatchTeamRecord,
         official: TimingOfficialTimeRecord,
+        precision: TimingPrecision,
         userId: UUID?,
         now: LocalDateTime,
     ): App<Nothing, Unit> = KIO.comprehension {
-        val target = targetState(official)
+        val target = targetState(official, precision)
 
         !TimecodeRepo.delete(team.id).orDie()
         val timecodeId = if (target.statusText == null) {
-            !TimecodeRepo.create(officialTimecode(target.timeMillis!!).toRecord(team.id)).orDie()
+            // `target.timeMillis` ist bereits abgeschnitten; die Timecode-Präzision folgt der
+            // Stufe, damit am Lauf "1:31.5" gerendert wird und nicht "1:31.500".
+            !TimecodeRepo.create(officialTimecode(target.timeMillis!!, precision).toRecord(team.id)).orDie()
         } else {
             null
         }

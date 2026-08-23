@@ -369,18 +369,31 @@ fun Route.timing() {
             }
         }
 
-        // Der Schalter „Automatische Übernahme": gelesen mit denselben Sitzungsrechten wie die
-        // übrigen Leitstand-Daten, geschaltet nur mit UPDATE EVENT - der PUT schreibt bei
-        // enabled=true den aufgelaufenen Stand an die Läufe nach.
-        route("/autoApply") {
+        // Die Zeitnahme-Einstellungen als EIN Lese-Endpunkt (Schalter „Automatische Übernahme" +
+        // Genauigkeit): lesbar auch mit Geräte-Token, weil die Boards die Genauigkeit für die
+        // Anzeige der offiziellen Zeiten brauchen - derselbe Auth-Zweig wie GET /officialTimes.
+        // Geschrieben wird getrennt: der Schalter hier per PUT /autoApply, die Genauigkeit über
+        // die Zeitnahme-Einstellungen der Veranstaltung (updateEventTimingConfig).
+        route("/settings") {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
-                    TimingOfficialTimeService.getAutoApply(eventId)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
+                    TimingOfficialTimeService.getSettings(eventId)
                 }
             }
+        }
+
+        // Der Schalter „Automatische Übernahme": geschaltet nur mit UPDATE EVENT - der PUT
+        // schreibt bei enabled=true den aufgelaufenen Stand an die Läufe nach. Gelesen wird er
+        // über GET /settings (gemeinsamer Fetch mit der Genauigkeit).
+        route("/autoApply") {
 
             put {
                 call.respondComprehension {

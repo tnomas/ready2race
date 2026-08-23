@@ -1,7 +1,9 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingPrecisionLogic
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeAssignmentRecord
@@ -151,16 +153,20 @@ fun unpersistedOfficialTimeDto(
  * the very same [Parser.timecode] that `CompetitionExecutionService.updateMatchResult(-ByFile)` runs
  * on a time cell, so the stored `base_unit` / `millisecond_precision` cannot drift from what an
  * imported time of the same length would have produced. The base unit follows the magnitude (as a
- * hand-typed or exported time would), the precision is always THREE because timing marks are
- * millisecond-exact.
+ * hand-typed or exported time would).
+ *
+ * Die Millisekunden-Präzision folgt der eingestellten Genauigkeit der Veranstaltung
+ * ([TimingPrecision] -> [TimingPrecisionLogic.timecodePrecision]): der Aufrufer übergibt
+ * [effectiveMillis] bereits ABGESCHNITTEN, und die Stellenzahl des gerenderten Timecodes zeigt
+ * genau diese Stufe - bei ZEHNTEL steht am Lauf "1:31.5", nicht "1:31.500".
  */
-fun officialTimecode(effectiveMillis: Long): Timecode {
+fun officialTimecode(effectiveMillis: Long, precision: TimingPrecision): Timecode {
     val baseUnit = when {
         effectiveMillis >= 3_600_000 -> Timecode.BaseUnit.HOURS
         effectiveMillis >= 60_000 -> Timecode.BaseUnit.MINUTES
         else -> Timecode.BaseUnit.SECONDS
     }
-    val rendered = Timecode(effectiveMillis, baseUnit, Timecode.MillisecondPrecision.THREE).toString()
+    val rendered = Timecode(effectiveMillis, baseUnit, TimingPrecisionLogic.timecodePrecision(precision)).toString()
     return Parser.timecode.parse(rendered)
 }
 

@@ -4,17 +4,9 @@ import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 
 /**
- * Der Schalter „Automatische Übernahme" der Veranstaltung: an heißt, jede Zeitnahme-Mutation
- * schreibt die betroffenen offiziellen Zeiten sofort an die Läufe zurück; aus heißt, die
- * Berechnung läuft weiter, aber an die Läufe wird nichts geschrieben.
- */
-data class TimingAutoApplyDto(
-    val enabled: Boolean,
-)
-
-/**
- * PUT-Körper des Schalters. Das Einschalten zieht den aufgelaufenen Stand einmalig nach - deshalb
- * ist der PUT nicht rein deklarativ, sondern löst bei `enabled = true` die Nachführung aus.
+ * PUT-Körper des Schalters „Automatische Übernahme". Das Einschalten zieht den aufgelaufenen Stand
+ * einmalig nach - deshalb ist der PUT nicht rein deklarativ, sondern löst bei `enabled = true` die
+ * Nachführung aus. Gelesen wird der Schalter über [TimingSettingsDto] (GET /timing/settings).
  */
 data class TimingAutoApplyRequest(
     val enabled: Boolean,
