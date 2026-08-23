@@ -1040,6 +1040,15 @@ import type {
     RetractTimeMarkData,
     RetractTimeMarkError,
     RetractTimeMarkResponse,
+    ReactivateTimeMarkData,
+    ReactivateTimeMarkError,
+    ReactivateTimeMarkResponse,
+    GetTimingAutoApplyData,
+    GetTimingAutoApplyError,
+    GetTimingAutoApplyResponse,
+    SetTimingAutoApplyData,
+    SetTimingAutoApplyError,
+    SetTimingAutoApplyResponse,
     GetServerTimeError,
     GetServerTimeResponse,
     GetTimingTeamsData,
@@ -5739,6 +5748,64 @@ export const retractTimeMark = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/retract',
+    })
+}
+
+/**
+ * The counterpart to retracting: sets a RETRACTED time mark back to ACTIVE. The mark's former
+ * team assignment was never detached, so it simply applies again, and the official time of the
+ * affected team is recomputed and written back immediately. Idempotent - reactivating an
+ * already ACTIVE mark succeeds without effect. Requires a user session (same privileges as
+ * retracting); device tokens cannot reactivate marks.
+ */
+export const reactivateTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ReactivateTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ReactivateTimeMarkResponse,
+        ReactivateTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/reactivate',
+    })
+}
+
+/**
+ * The event's "automatic result write-back" switch. When enabled (the default), every timing
+ * mutation (mark created/retracted/reactivated, assignment changed, penalty/override edited)
+ * immediately recomputes the affected official times and writes them to the match teams -
+ * the same write the manual push performs. When disabled, computation continues but nothing
+ * is written to the matches.
+ */
+export const getTimingAutoApply = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingAutoApplyData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingAutoApplyResponse,
+        GetTimingAutoApplyError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/autoApply',
+    })
+}
+
+/**
+ * Persists the switch. Enabling it catches up once: every team with marks or an official-time
+ * row is recomputed and written back (frozen or foreign results are skipped and stay flagged
+ * dirty). Disabling only stops future writes - results already written remain untouched.
+ */
+export const setTimingAutoApply = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetTimingAutoApplyData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetTimingAutoApplyResponse,
+        SetTimingAutoApplyError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/autoApply',
     })
 }
 

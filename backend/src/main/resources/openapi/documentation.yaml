@@ -9841,6 +9841,78 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/reactivate:
+    put:
+      operationId: reactivateTimeMark
+      description: |-
+        The counterpart to retracting: sets a RETRACTED time mark back to ACTIVE. The mark's former
+        team assignment was never detached, so it simply applies again, and the official time of the
+        affected team is recomputed and written back immediately. Idempotent - reactivating an
+        already ACTIVE mark succeeds without effect. Requires a user session (same privileges as
+        retracting); device tokens cannot reactivate marks.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timeMarkId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/autoApply:
+    get:
+      operationId: getTimingAutoApply
+      description: |-
+        The event's "automatic result write-back" switch. When enabled (the default), every timing
+        mutation (mark created/retracted/reactivated, assignment changed, penalty/override edited)
+        immediately recomputes the affected official times and writes them to the match teams -
+        the same write the manual push performs. When disabled, computation continues but nothing
+        is written to the matches.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingAutoApplyDto'
+      tags:
+        - Timing
+    put:
+      operationId: setTimingAutoApply
+      description: |-
+        Persists the switch. Enabling it catches up once: every team with marks or an official-time
+        row is recomputed and written back (frozen or foreign results are skipped and stay flagged
+        dirty). Disabling only stops future writes - results already written remain untouched.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingAutoApplyRequest'
   /timing/serverTime:
     post:
       operationId: getServerTime
@@ -20202,6 +20274,8 @@ components:
         - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
         - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
         - `{ type: "timeMarkRetracted", id: uuid }`
+        - `{ type: "timeMarkReactivated", id: uuid }` - a retracted mark is ACTIVE again (its former
+        assignment applies again).
         - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
         `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
         distinguish "no assignment" from a field that was never sent.
@@ -20543,6 +20617,9 @@ components:
         penaltyMillis:
           type: integer
           format: int64
+        penaltyNote:
+          type: string
+          description: Free-text reason for the penalty; written to the team's penalty_note on write-back.
         resultStatus:
           $ref: '#/components/schemas/OfficialTimeResultStatus'
         effectiveMillis:
@@ -20563,8 +20640,27 @@ components:
         penaltyMillis:
           type: integer
           format: int64
+        penaltyNote:
+          type: string
+          description: Free-text reason for the penalty. PUT semantics - an absent field clears a previous reason.
         resultStatus:
           $ref: '#/components/schemas/OfficialTimeResultStatus'
+
+    TimingAutoApplyDto:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+
+    TimingAutoApplyRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
 
     OfficialTimePushConflictDto:
       type: object

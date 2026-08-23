@@ -2924,6 +2924,10 @@ export type OfficialTimeDto = {
     computedMillis?: number
     overrideMillis?: number
     penaltyMillis: number
+    /**
+     * Free-text reason for the penalty; written to the team's penalty_note on write-back.
+     */
+    penaltyNote?: string
     resultStatus: OfficialTimeResultStatus
     effectiveMillis?: number
     dirty: boolean
@@ -2933,6 +2937,10 @@ export type OfficialTimeDto = {
 export type OfficialTimeOverrideRequest = {
     overrideMillis?: number
     penaltyMillis?: number
+    /**
+     * Free-text reason for the penalty. PUT semantics - an absent field clears a previous reason.
+     */
+    penaltyNote?: string
     resultStatus?: OfficialTimeResultStatus
 }
 
@@ -4040,6 +4048,14 @@ export type TimeMarkDto = {
     assignedTeam?: uuid
 }
 
+export type TimingAutoApplyDto = {
+    enabled: boolean
+}
+
+export type TimingAutoApplyRequest = {
+    enabled: boolean
+}
+
 export type TimingConfigDto = {
     timingSystem?: TimingSystem | null
     /**
@@ -4297,6 +4313,8 @@ export type TimingStationRequest = {
  * - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
  * - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
  * - `{ type: "timeMarkRetracted", id: uuid }`
+ * - `{ type: "timeMarkReactivated", id: uuid }` - a retracted mark is ACTIVE again (its former
+ * assignment applies again).
  * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
  * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
  * distinguish "no assignment" from a field that was never sent.
@@ -9507,6 +9525,38 @@ export type RetractTimeMarkData = {
 export type RetractTimeMarkResponse = void
 
 export type RetractTimeMarkError = unknown
+
+export type ReactivateTimeMarkData = {
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type ReactivateTimeMarkResponse = void
+
+export type ReactivateTimeMarkError = unknown
+
+export type GetTimingAutoApplyData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingAutoApplyResponse = TimingAutoApplyDto
+
+export type GetTimingAutoApplyError = unknown
+
+export type SetTimingAutoApplyData = {
+    body: TimingAutoApplyRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type SetTimingAutoApplyResponse = void
+
+export type SetTimingAutoApplyError = unknown
 
 export type GetServerTimeResponse = ServerTimeResponse
 
