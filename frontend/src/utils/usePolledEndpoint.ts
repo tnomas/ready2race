@@ -204,7 +204,6 @@ export const usePolledEndpoint = <T>(
                 void runLoadRef.current()
             }, effectiveIntervalMs())
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pushConnected])
 
     useEffect(() => {
