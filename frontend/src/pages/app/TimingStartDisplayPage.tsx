@@ -21,6 +21,8 @@ import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {deviceSessionForEvent} from '@utils/timing/deviceSession.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
+import {useAudioUnlocked} from '@utils/timing/useAudioUnlocked.ts'
+import {useTouchOnly} from '@utils/touch.ts'
 
 /**
  * Startbildschirm (Zeitnahme): die reine ANZEIGE-Route je START-Posten
@@ -138,10 +140,20 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
 
     const view = deriveStartDisplay(sequenceState.sequence)
 
+    // WebAudio wartet auf die erste Geste (iOS) — eine reine Anzeige wird womöglich nie
+    // angetippt, deshalb sagt ihr ein sichtbarer Hinweis, dass genau ein Tipp fehlt.
+    const touchOnly = useTouchOnly()
+    const audioUnlocked = useAudioUnlocked()
+
     /** Zentrale Botschaft ohne Countdown (kein Lauf, vorbereitet, fertig, abgebrochen). */
     const bigMessage = (text: string, entries?: TimingSequenceEntryDto[]) => (
         <Stack spacing={4} alignItems="center" sx={{width: 1}}>
-            <Typography variant="h2" textAlign="center">
+            {/* Auf Telefon-Breite kleiner, sonst bricht schon „Keine laufende Startsequenz"
+                unschön mehrzeilig um. */}
+            <Typography
+                variant="h2"
+                textAlign="center"
+                sx={{fontSize: {xs: '2rem', sm: '3rem', md: '3.75rem'}}}>
                 {text}
             </Typography>
             {entries !== undefined && entries.length > 0 && (
@@ -178,6 +190,12 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                // Sichere Zonen (Notch/Home-Indicator): die Anzeige läuft auch auf iPhones am
+                // Start — quer säße der Countdown sonst teilweise hinter der Aussparung.
+                pt: 'env(safe-area-inset-top)',
+                pb: 'env(safe-area-inset-bottom)',
+                pl: 'env(safe-area-inset-left)',
+                pr: 'env(safe-area-inset-right)',
             }}>
             <BoardHeader
                 stationName={
@@ -193,6 +211,13 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
             {stateError && (
                 <Alert severity="error" sx={{flexShrink: 0}}>
                     {t('timing.board.stateError')}
+                </Alert>
+            )}
+            {/* Nur auf reinen Touch-Geräten, solange noch keine Geste den Ton entsperrt hat —
+                der Tipp irgendwo auf die Anzeige genügt (onPointerDown oben). */}
+            {touchOnly && !audioUnlocked && (
+                <Alert severity="info" sx={{flexShrink: 0}}>
+                    {t('timing.board.audioHint')}
                 </Alert>
             )}
             {station !== undefined &&

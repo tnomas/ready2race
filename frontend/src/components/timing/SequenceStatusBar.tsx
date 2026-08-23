@@ -7,6 +7,7 @@ import {useTranslation} from 'react-i18next'
 import {TimingSequenceDto} from '@api/types.gen.ts'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
+import {touchTargetSx} from '@utils/touch.ts'
 
 export type SequenceStatusBarProps = {
     sequence: TimingSequenceDto
@@ -80,6 +81,7 @@ const SequenceStatusBar = ({
                             variant="contained"
                             startIcon={<PlayArrowIcon />}
                             disabled={busy}
+                            sx={touchTargetSx}
                             onClick={onStart}>
                             {t('timing.sequence.armed.start')}
                         </Button>
@@ -116,6 +118,7 @@ const SequenceStatusBar = ({
                                 size="small"
                                 startIcon={<SkipNextIcon />}
                                 disabled={busy}
+                                sx={touchTargetSx}
                                 onClick={() =>
                                     onSkip(
                                         split.next!.id,
@@ -133,6 +136,7 @@ const SequenceStatusBar = ({
                     color="error"
                     startIcon={<CancelIcon />}
                     disabled={busy}
+                    sx={touchTargetSx}
                     onClick={onAbort}>
                     {t('timing.sequence.abort')}
                 </Button>

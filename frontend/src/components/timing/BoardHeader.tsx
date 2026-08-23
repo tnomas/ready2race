@@ -80,13 +80,23 @@ const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProp
                 justifyContent="space-between"
                 flexWrap="wrap"
                 spacing={2}>
-                <Typography variant="h5" component="span" noWrap>
+                {/* Auf Telefon-Breite schrumpfen Name und Uhr, damit die Kopfzeile nicht auf
+                    drei Zeilen umbricht und der Erfassung die Höhe stiehlt. */}
+                <Typography
+                    variant="h5"
+                    component="span"
+                    noWrap
+                    sx={{fontSize: {xs: '1.1rem', sm: '1.5rem'}, minWidth: 0}}>
                     {stationName ?? ''}
                 </Typography>
                 <Typography
                     ref={clockRef}
                     component="span"
-                    sx={{fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums'}}
+                    sx={{
+                        fontFamily: 'monospace',
+                        fontVariantNumeric: 'tabular-nums',
+                        fontSize: {xs: '1.6rem', sm: '3rem'},
+                    }}
                     variant="h3">
                     {CLOCK_PLACEHOLDER}
                 </Typography>

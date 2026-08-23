@@ -11,6 +11,7 @@ import {TimingMatchDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import {groupMarksByMatch} from '@utils/timing/markGrouping.ts'
+import {touchTargetSx} from '@utils/touch.ts'
 import {matchTitle} from '@components/timing/matchDisplay.tsx'
 import AssignTeamDialog from '@components/timing/AssignTeamDialog.tsx'
 
@@ -279,6 +280,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false, match
                                         <Button
                                             size="small"
                                             variant="outlined"
+                                            sx={touchTargetSx}
                                             onClick={() => setAssignDialogMarkId(mark.id)}>
                                             {t('timing.assign.assign')}
                                         </Button>
@@ -297,6 +299,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false, match
                                             <IconButton
                                                 size="small"
                                                 aria-label={t('timing.assign.edit')}
+                                                sx={touchTargetSx}
                                                 onClick={() => setAssignDialogMarkId(mark.id)}>
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
@@ -309,6 +312,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false, match
                                 <IconButton
                                     size="small"
                                     aria-label={t('timing.board.mark.undo')}
+                                    sx={touchTargetSx}
                                     onClick={() => handleUndo(mark)}>
                                     <UndoIcon fontSize="small" />
                                 </IconButton>

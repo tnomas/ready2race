@@ -11,6 +11,7 @@ import {cycleFocus, finishKeyTarget} from '@utils/timing/boardFocus.ts'
 import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {formatDuration} from '@components/timing/leitstand/format.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
+import {useTouchOnly} from '@utils/touch.ts'
 
 /** Uhrzeit einer Marke mit Zehntel — dieselbe Präzision wie in der Markenliste darunter. */
 function formatMarkTime(ms: number): string {
@@ -84,6 +85,9 @@ const MatchCaptureView = ({
 }: MatchCaptureViewProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
+    // Reine Touch-Geräte haben keine 1–6/A–F-Tasten: die Tasten-Hinweise an den Booten und die
+    // Tastatur-Sätze im Hilfetext entfallen dort — die Tasten-Listener bleiben (schaden nie).
+    const touchOnly = useTouchOnly()
 
     /** Bewusst vertagte Zeiten (unbekanntes Boot) — sie drängen sich nicht mehr als Banner auf. */
     const [skippedMarks, setSkippedMarks] = useState<Set<string>>(new Set())
@@ -234,7 +238,7 @@ const MatchCaptureView = ({
                     {teams.map((team, position) => {
                         const done =
                             team.finished || finishedTeams.has(team.competitionMatchTeam)
-                        const hint = isFocused ? keyHint(position) : undefined
+                        const hint = isFocused && !touchOnly ? keyHint(position) : undefined
                         const official = officialTimes.get(team.competitionMatchTeam)
                         const officialLabel =
                             official === undefined
@@ -356,9 +360,11 @@ const MatchCaptureView = ({
                 </Alert>
             ) : (
                 <Typography variant="caption" color="text.secondary" sx={{flexShrink: 0}}>
-                    {current.length > 1
-                        ? `${t('timing.finish.hint')} ${t('timing.finish.focusHint')}`
-                        : t('timing.finish.hint')}
+                    {touchOnly
+                        ? t('timing.finish.hintTouch')
+                        : current.length > 1
+                          ? `${t('timing.finish.hint')} ${t('timing.finish.focusHint')}`
+                          : t('timing.finish.hint')}
                 </Typography>
             )}
 

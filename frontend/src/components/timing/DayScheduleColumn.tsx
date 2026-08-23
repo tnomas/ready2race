@@ -7,6 +7,7 @@ import {useTranslation} from 'react-i18next'
 import {TimingMatchDto} from '@api/types.gen.ts'
 import {compactScheduleTitle, dayScheduleStatus} from '@utils/timing/matchBoard.ts'
 import {ModeChip} from '@components/timing/matchDisplay.tsx'
+import {touchTargetSx} from '@utils/touch.ts'
 
 /** Chip-Farbe je Status — dieselbe Sprache wie der ProgressChip der Arbeitsfläche. */
 const STATUS_COLOR = {
@@ -30,6 +31,12 @@ export type DayScheduleColumnProps = {
     onOpenMenu?: (match: TimingMatchDto, anchor: HTMLElement) => void
     /** Ob das Menü für diese Partie überhaupt etwas anzubieten hat. */
     menuAvailable?: (match: TimingMatchDto) => boolean
+    /**
+     * Telefon-Layout: die Spalte lebt in einer überlagernden Schublade der Seite. Sie füllt dann
+     * fast die Bildschirmbreite, und der Einklapp-Knopf schließt die Schublade (die Seite reicht
+     * ihr Schließen als `onToggleCollapsed` herein).
+     */
+    inDrawer?: boolean
 }
 
 /** „09:20" aus dem geplanten Start — ohne Zeit bleibt der Platz leer statt „Invalid Date". */
@@ -53,6 +60,7 @@ const DayScheduleColumn = ({
     onToggleCollapsed,
     onOpenMenu,
     menuAvailable,
+    inDrawer = false,
 }: DayScheduleColumnProps) => {
     const {t} = useTranslation()
 
@@ -70,7 +78,8 @@ const DayScheduleColumn = ({
                     <IconButton
                         size="small"
                         aria-label={t('timing.schedule.expand')}
-                        onClick={onToggleCollapsed}>
+                        onClick={onToggleCollapsed}
+                        sx={touchTargetSx}>
                         <ChevronRightIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -93,10 +102,13 @@ const DayScheduleColumn = ({
     return (
         <Stack
             sx={{
-                width: 280,
+                // In der Schublade darf die Spalte fast die ganze Telefon-Breite nutzen — als
+                // Seitenspalte bleibt sie bewusst schmal, damit die Arbeitsfläche dominiert.
+                width: inDrawer ? 'min(85vw, 320px)' : 280,
                 flexShrink: 0,
                 minHeight: 0,
-                borderRight: 1,
+                height: inDrawer ? 1 : undefined,
+                borderRight: inDrawer ? 0 : 1,
                 borderColor: 'divider',
             }}>
             <Stack
@@ -110,7 +122,8 @@ const DayScheduleColumn = ({
                     <IconButton
                         size="small"
                         aria-label={t('timing.schedule.collapse')}
-                        onClick={onToggleCollapsed}>
+                        onClick={onToggleCollapsed}
+                        sx={touchTargetSx}>
                         <ChevronLeftIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -136,6 +149,7 @@ const DayScheduleColumn = ({
                                     textAlign: 'left',
                                     px: 1,
                                     py: 0.75,
+                                    minHeight: 44,
                                     bgcolor: isFocused ? 'action.selected' : undefined,
                                     borderLeft: 3,
                                     borderLeftColor: isFocused ? 'primary.main' : 'transparent',
@@ -174,7 +188,7 @@ const DayScheduleColumn = ({
                                 <IconButton
                                     size="small"
                                     aria-label={t('timing.matches.menu.open')}
-                                    sx={{alignSelf: 'center', mx: 0.25}}
+                                    sx={[{alignSelf: 'center', mx: 0.25}, touchTargetSx]}
                                     onClick={(event: MouseEvent<HTMLButtonElement>) =>
                                         onOpenMenu(match, event.currentTarget)
                                     }>

@@ -2,16 +2,23 @@ import {
     Alert,
     Box,
     Button,
+    ButtonBase,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    Drawer,
     Menu,
     MenuItem,
     Stack,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ListAltIcon from '@mui/icons-material/ListAlt'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
@@ -197,6 +204,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             return !prev
         })
     }, [])
+
+    // Telefon-Layout (< sm): die Tagesablauf-Spalte würde die Erfassungsfläche erdrücken — sie
+    // wird zur überlagernden Schublade mit eigenem Öffner, und die Zeitenliste zu einem
+    // aufklappbaren Bodenpaneel, damit die Erfassung im Daumenbereich bleibt.
+    const theme = useTheme()
+    const isPhone = useMediaQuery(theme.breakpoints.down('sm'))
+    const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false)
+    const [markListOpen, setMarkListOpen] = useState(false)
 
     const matchesAvailable = matches.length > 0
 
@@ -733,6 +748,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                // Notch und Home-Indicator (iPhone): das Board füllt den ganzen Bildschirm,
+                // seine Ränder müssen deshalb selbst aus den sicheren Zonen herausbleiben.
+                pt: 'env(safe-area-inset-top)',
+                pb: 'env(safe-area-inset-bottom)',
+                pl: 'env(safe-area-inset-left)',
+                pr: 'env(safe-area-inset-right)',
             }}>
             <BoardHeader
                 stationName={station?.name}
@@ -792,9 +813,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
 
             {/* Mittelteil: links die einklappbare Tagesablauf-Spalte (gemeinsames Gerüst beider
                 Posten), rechts die Arbeitsfläche des Posten-Typs. Die Spalte erscheint nur, wenn
-                es überhaupt intern gezeitete Partien gibt — ohne sie wäre sie eine leere Leiste. */}
+                es überhaupt intern gezeitete Partien gibt — ohne sie wäre sie eine leere Leiste.
+                Auf dem Telefon wird die Spalte zur überlagernden Schublade (Öffner in der
+                Arbeitsfläche), damit sie keine Erfassungsfläche frisst. */}
             <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'stretch'}}>
-                {matchesAvailable && (
+                {matchesAvailable && !isPhone && (
                     <DayScheduleColumn
                         matches={matches}
                         focusedId={focusedMatchId}
@@ -804,6 +827,30 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                         onOpenMenu={isStart ? openMatchMenu : undefined}
                         menuAvailable={matchMenuAvailable}
                     />
+                )}
+                {matchesAvailable && isPhone && (
+                    <Drawer
+                        open={scheduleDrawerOpen}
+                        onClose={() => setScheduleDrawerOpen(false)}
+                        // Das Board selbst liegt über dem Layout (drawer + 1) — die Schublade
+                        // muss also noch eine Ebene höher, sonst bliebe sie unsichtbar dahinter.
+                        sx={{zIndex: theme.zIndex.drawer + 2}}>
+                        <DayScheduleColumn
+                            matches={matches}
+                            focusedId={focusedMatchId}
+                            onFocus={matchId => {
+                                setSelectedMatchId(matchId)
+                                // Fokussieren ist auf dem Telefon der Abschluss der Auswahl —
+                                // die Schublade schließt, die Erfassung liegt wieder frei.
+                                setScheduleDrawerOpen(false)
+                            }}
+                            collapsed={false}
+                            onToggleCollapsed={() => setScheduleDrawerOpen(false)}
+                            onOpenMenu={isStart ? openMatchMenu : undefined}
+                            menuAvailable={matchMenuAvailable}
+                            inDrawer
+                        />
+                    </Drawer>
                 )}
                 <Box
                     sx={{
@@ -815,6 +862,17 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                         gap: 1.5,
                         p: 2,
                     }}>
+                    {/* Öffner der Tagesablauf-Schublade (nur Telefon): oben, wo er die
+                        Erfassungsflächen im Daumenbereich nicht verdeckt. */}
+                    {isPhone && matchesAvailable && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<ListAltIcon />}
+                            onClick={() => setScheduleDrawerOpen(true)}
+                            sx={{alignSelf: 'flex-start', minHeight: 44, flexShrink: 0}}>
+                            {t('timing.schedule.title')}
+                        </Button>
+                    )}
                     {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
                         `unlockAudio`): a board whose operator only ever taps the capture button
                         would otherwise stay mute for the sequence countdown beeps. */}
@@ -855,18 +913,22 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                 </Box>
                             </>
                         ) : matchesAvailable || matchesLoading ? (
-                            // Die eine Zielposten-Ansicht: oben die große Erfassungsfläche (Zeit
-                            // ohne Boot banken — sie erscheint sofort als „zuordnen"-Banner),
-                            // darunter die erwarteten Partien mit ihren Boots-Knöpfen und Tasten.
+                            // Die eine Zielposten-Ansicht: die große Erfassungsfläche (Zeit ohne
+                            // Boot banken — sie erscheint sofort als „zuordnen"-Banner) und die
+                            // erwarteten Partien mit ihren Boots-Knöpfen und Tasten. Am Laptop
+                            // steht die Fläche oben; auf dem Telefon unten, wo der Daumen sie im
+                            // Moment der Ziellinie ohne Umgreifen trifft.
                             <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
-                                <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
-                                    <CaptureButton
-                                        station={station}
-                                        now={clock.now}
-                                        onCapture={capture}
-                                        compact
-                                    />
-                                </Box>
+                                {!isPhone && (
+                                    <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
+                                        <CaptureButton
+                                            station={station}
+                                            now={clock.now}
+                                            onCapture={capture}
+                                            compact
+                                        />
+                                    </Box>
+                                )}
                                 <MatchCaptureView
                                     eventId={eventId}
                                     matches={matches}
@@ -885,6 +947,16 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     onFocus={setSelectedMatchId}
                                     officialTimes={officialTimesByTeam}
                                 />
+                                {isPhone && (
+                                    <Box sx={{flex: '0 0 18%', minHeight: 96, display: 'flex'}}>
+                                        <CaptureButton
+                                            station={station}
+                                            now={clock.now}
+                                            onCapture={capture}
+                                            compact
+                                        />
+                                    </Box>
+                                )}
                             </Stack>
                         ) : (
                             // Ohne intern gezeitete Partien bleibt der Zwei-Schritt-Weg: Zeit
@@ -899,25 +971,70 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 </Box>
             </Box>
 
-            <Box
-                sx={{
-                    flex: '0 0 33%',
-                    minHeight: 0,
-                    overflowY: 'auto',
-                    borderTop: 1,
-                    borderColor: 'divider',
-                    px: 2,
-                    py: 1,
-                }}>
-                <MarkList
-                    eventId={eventId}
-                    stationId={stationId}
-                    marks={marks}
-                    teams={teams}
-                    teamsLoading={teamsPending}
-                    matches={matches}
-                />
-            </Box>
+            {isPhone ? (
+                // Telefon: die Zeitenliste als aufklappbares Bodenpaneel — zugeklappt bleibt nur
+                // die schmale Kopfzeile stehen, die Erfassung behält den Platz im Daumenbereich.
+                <Stack
+                    sx={{
+                        flexShrink: 0,
+                        maxHeight: '45%',
+                        minHeight: 0,
+                        borderTop: 1,
+                        borderColor: 'divider',
+                    }}>
+                    <ButtonBase
+                        onClick={() => setMarkListOpen(prev => !prev)}
+                        sx={{
+                            width: 1,
+                            justifyContent: 'space-between',
+                            px: 2,
+                            py: 1,
+                            minHeight: 44,
+                            flexShrink: 0,
+                        }}>
+                        <Typography variant="subtitle2">
+                            {t('timing.board.markList.toggle', {count: marks.length})}
+                        </Typography>
+                        {markListOpen ? (
+                            <ExpandMoreIcon fontSize="small" />
+                        ) : (
+                            <ExpandLessIcon fontSize="small" />
+                        )}
+                    </ButtonBase>
+                    {markListOpen && (
+                        <Box sx={{minHeight: 0, overflowY: 'auto', px: 2, pb: 1}}>
+                            <MarkList
+                                eventId={eventId}
+                                stationId={stationId}
+                                marks={marks}
+                                teams={teams}
+                                teamsLoading={teamsPending}
+                                matches={matches}
+                            />
+                        </Box>
+                    )}
+                </Stack>
+            ) : (
+                <Box
+                    sx={{
+                        flex: '0 0 33%',
+                        minHeight: 0,
+                        overflowY: 'auto',
+                        borderTop: 1,
+                        borderColor: 'divider',
+                        px: 2,
+                        py: 1,
+                    }}>
+                    <MarkList
+                        eventId={eventId}
+                        stationId={stationId}
+                        marks={marks}
+                        teams={teams}
+                        teamsLoading={teamsPending}
+                        matches={matches}
+                    />
+                </Box>
+            )}
 
             {/* Aktionsmenü einer Partie (nur Startposten): Sequenz abbrechen, Start zurücknehmen
                 und neu starten. Die Einträge erscheinen nur, wenn sie gerade anwendbar sind. */}

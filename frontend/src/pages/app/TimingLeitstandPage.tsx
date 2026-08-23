@@ -143,6 +143,12 @@ const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                // Sichere Zonen (Notch/Home-Indicator) — der Leitstand ist Laptop-Werkzeug,
+                // aber auf einem Tablet quer darf nichts unter der Aussparung verschwinden.
+                pt: 'env(safe-area-inset-top)',
+                pb: 'env(safe-area-inset-bottom)',
+                pl: 'env(safe-area-inset-left)',
+                pr: 'env(safe-area-inset-right)',
             }}>
             <BoardHeader
                 stationName={t('timing.leitstand.title')}

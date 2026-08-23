@@ -3095,6 +3095,7 @@
       "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
       "assignLater": "Assign later",
       "hint": "Tap a boat or press 1–6 / A–F: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
+      "hintTouch": "Tap a boat: capture and assign in one gesture. Big surface: bank a time without a boat and assign it by tapping a boat afterwards.",
       "finishedCount": "{{finished}}/{{total}} finished",
       "upcomingTitle": "Expected next",
       "noneExpected": "No race is on the water right now.",
@@ -3226,6 +3227,10 @@
         "clockNotSynced": "Clock not synced – capture unavailable",
         "stationLoading": "Loading station…"
       },
+      "markList": {
+        "toggle": "Time list ({{count}})"
+      },
+      "audioHint": "Tap the screen once so the countdown sounds can play.",
       "mark": {
         "pending": "sending",
         "failed": "failed",

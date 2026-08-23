@@ -17,6 +17,7 @@ import {sequenceRequestFromMode} from '@utils/timing/matchBoard.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import SequenceStatusBar from '@components/timing/SequenceStatusBar.tsx'
+import {touchTargetSx} from '@utils/touch.ts'
 
 export type StartBoardPanelProps = {
     stationId: string
@@ -120,6 +121,7 @@ const StartBoardPanel = ({
                             <IconButton
                                 size="small"
                                 aria-label={t('timing.matches.menu.open')}
+                                sx={touchTargetSx}
                                 onClick={(event: MouseEvent<HTMLButtonElement>) =>
                                     onOpenMenu(focusedMatch, event.currentTarget)
                                 }>

@@ -3095,6 +3095,7 @@
       "assignPrompt": "Zeit {{time}} wartet — Boot antippen, um sie zuzuordnen.",
       "assignLater": "Später zuordnen",
       "hint": "Boot antippen oder Taste 1–6 / A–F: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Druck aufs Boot zuordnen.",
+      "hintTouch": "Boot antippen: Zeit nehmen und sofort zuordnen. Große Fläche: Zeit ohne Boot speichern und danach durch Antippen eines Boots zuordnen.",
       "finishedCount": "{{finished}}/{{total}} im Ziel",
       "upcomingTitle": "Als Nächstes erwartet",
       "noneExpected": "Gerade ist keine Partie auf dem Wasser.",
@@ -3226,6 +3227,10 @@
         "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
         "stationLoading": "Posten wird geladen…"
       },
+      "markList": {
+        "toggle": "Zeitenliste ({{count}})"
+      },
+      "audioHint": "Einmal auf den Bildschirm tippen, damit die Countdown-Töne abgespielt werden können.",
       "mark": {
         "pending": "wird übertragen",
         "failed": "fehlgeschlagen",

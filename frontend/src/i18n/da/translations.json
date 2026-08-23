@@ -3068,6 +3068,7 @@
       "assignPrompt": "Tiden {{time}} venter — tryk på en båd for at tildele den.",
       "assignLater": "Tildel senere",
       "hint": "Tryk på en båd eller tast 1–6 / A–F: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
+      "hintTouch": "Tryk på en båd: tag tid og tildel i én bevægelse. Stor flade: gem en tid uden båd og tildel den ved bagefter at trykke på en båd.",
       "finishedCount": "{{finished}}/{{total}} i mål",
       "upcomingTitle": "Forventes som næste",
       "noneExpected": "Der er ikke noget løb på vandet lige nu.",
@@ -3199,6 +3200,10 @@
         "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
         "stationLoading": "Indlæser post…"
       },
+      "markList": {
+        "toggle": "Tidsliste ({{count}})"
+      },
+      "audioHint": "Tryk én gang på skærmen, så nedtællingslydene kan afspilles.",
       "mark": {
         "pending": "sender",
         "failed": "mislykkedes",

@@ -1,5 +1,31 @@
 let ctx: AudioContext | null = null
 
+// --- Entsperr-Zustand für sichtbare Hinweise -----------------------------------------------------
+//
+// Gerade auf iOS bleibt WebAudio bis zur ersten Nutzergeste stumm. Eine reine Anzeige (der
+// Startbildschirm) wird aber womöglich nie angetippt — dafür gibt es einen sichtbaren Hinweis,
+// der wissen muss, OB schon entsperrt wurde. Der Zustand lebt hier beim Kontext-Singleton;
+// benachrichtigt wird genau einmal, beim Übergang gesperrt → laufend.
+let unlockNotified = false
+const unlockListeners = new Set<() => void>()
+
+/** Ob der geteilte `AudioContext` läuft — also Beeps tatsächlich hörbar wären. */
+export function isAudioUnlocked(): boolean {
+    return ctx !== null && ctx.state === 'running'
+}
+
+/** Über das erste erfolgreiche Entsperren informieren lassen; Rückgabe bestellt wieder ab. */
+export function subscribeAudioUnlocked(listener: () => void): () => void {
+    unlockListeners.add(listener)
+    return () => void unlockListeners.delete(listener)
+}
+
+function notifyUnlocked() {
+    if (unlockNotified) return
+    unlockNotified = true
+    unlockListeners.forEach(listener => listener())
+}
+
 /**
  * Create (and resume) the shared `AudioContext` from inside a user gesture.
  *
@@ -16,7 +42,14 @@ export function unlockAudio() {
     try {
         ctx = ctx ?? new AudioContext()
         if (ctx.state === 'suspended') {
-            void ctx.resume()
+            void ctx
+                .resume()
+                .then(notifyUnlocked)
+                .catch(() => {
+                    // Entsperren verweigert (keine echte Geste) — der Hinweis bleibt stehen.
+                })
+        } else if (ctx.state === 'running') {
+            notifyUnlocked()
         }
     } catch {
         // audio unavailable — ignore
