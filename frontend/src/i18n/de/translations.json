@@ -1749,9 +1749,13 @@
         "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "Fehlstart-Ton",
-        "hint": "Ein deutlich langer, tiefer Ton, den Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt.",
-        "label": "Fehlstart"
+        "title": "Fehlstart-Rückruf",
+        "hint": "Die Tonfolge, die Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt. Eine Folge statt eines einzelnen Tons, weil ein Muster mit abweichendem Schluss („kurz, kurz, lang\") am Wasser als Rückruf erkennbar ist, wo ein einzelner Ton als irgendein Signal durchgeht.",
+        "label": "Fehlstart",
+        "presetSingle": "Einzelton",
+        "presetTriple": "Dreifach kurz",
+        "presetShortShortLong": "Kurz-kurz-lang (Standard)",
+        "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–60000 ms nach Auslösung, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, mindestens ein und höchstens 30 Töne."
       },
       "modes": {
         "title": "Zeitnahmetypen",
@@ -1784,19 +1788,10 @@
         "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einem Wettkampf oder einer Runde zugeordnet. Entfernen Sie zuerst die Zuordnungen im Zeitnahme-Tab der Wettkämpfe.",
         "tones": {
           "title": "Töne",
-          "hint": "Sinus-Pieps der Startsequenz, relativ zum Start des jeweiligen Boots bzw. der Welle (0 = Start). Sie erklingen auf dem Start-Board und dem Startbildschirm; verpasste Töne werden nie nachgeholt.",
+          "hint": "Die Pieps der Startsequenz, relativ zum Start des jeweiligen Boots bzw. der Welle (0 = Start). Sie erklingen auf dem Start-Board und dem Startbildschirm; verpasste Töne werden nie nachgeholt.",
           "presetOnlyStart": "Nur Start",
           "presetTenCountdown": "10−5−4−3−2−1−Start",
           "presetDefault": "Standard (5…1−Start)",
-          "secondsBeforeStart": "Sekunden vor Start",
-          "atStart": "Start",
-          "frequencyHz": "Tonhöhe (Hz)",
-          "durationMillis": "Dauer (ms)",
-          "releaseMillis": "Ausklingen (ms)",
-          "play": "Ton anhören",
-          "remove": "Ton entfernen",
-          "addTone": "Ton hinzufügen",
-          "playAll": "Sequenz anhören",
           "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
           "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
         }
@@ -1823,6 +1818,23 @@
         "hint": "Umgekehrt zur Anwahl im Wettkampf: Hake hier je Rennen an, welche Wettkämpfe es nutzen. Ein Wettkampf hängt mit allen seinen Runden an genau einem Rennen — hakst du ihn hier an, wandert er von einem anderen hierher. Nicht angehakte Wettkämpfe haben kein Rennen.",
         "competitions": "Gilt für",
         "saved": "Zuordnung gespeichert."
+      },
+      "tones": {
+        "play": "Ton anhören",
+        "edit": "Ton bearbeiten",
+        "remove": "Ton entfernen",
+        "addTone": "Ton hinzufügen",
+        "playAll": "Folge anhören",
+        "secondsBeforeStart": "Sekunden vor Start",
+        "millisAfterTrigger": "Millisekunden nach Auslösung",
+        "atStart": "Start",
+        "atTrigger": "sofort",
+        "frequencyHz": "Tonhöhe (Hz)",
+        "durationMillis": "Dauer (ms)",
+        "releaseMillis": "Ausklingen (ms)",
+        "timeline": "Zeitleiste der Töne",
+        "timelineSpan": "Gesamtlänge {{millis}} ms",
+        "offsetAfterTriggerHelp": "Der Zeitpunkt zählt vorwärts ab der Auslösung: 0 heißt sofort, 400 heißt 400 Millisekunden später."
       }
     },
     "info": {

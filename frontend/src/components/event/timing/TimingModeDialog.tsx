@@ -1,5 +1,4 @@
 import {
-    Alert,
     Button,
     Dialog,
     DialogActions,
@@ -7,52 +6,27 @@ import {
     DialogTitle,
     Divider,
     FormControlLabel,
-    IconButton,
-    MenuItem,
     Stack,
     Switch,
     TextField,
     ToggleButton,
     ToggleButtonGroup,
-    Tooltip,
     Typography,
 } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/Delete'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {addTimingMode, updateTimingMode} from '@api/sdk.gen.ts'
 import {TimingModeDto, TimingModeRequest, TimingStartGrouping} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
-import {playToneStep} from '@utils/timing/feedback.ts'
 import {
     DEFAULT_START_TONE_PLAN,
-    NEW_TONE_DURATION_MILLIS,
     PRESET_ONLY_START,
     PRESET_TEN_COUNTDOWN,
-    TONE_DURATION_MAX_MILLIS,
-    TONE_DURATION_MIN_MILLIS,
-    TONE_FREQUENCY_MAX_HZ,
-    TONE_FREQUENCY_MIN_HZ,
     TONE_PLAN_MAX_STEPS,
-    TONE_RELEASE_MAX_MILLIS,
-    TONE_RELEASE_MIN_MILLIS,
-    TONE_WAVEFORMS,
-    ToneStep,
-    ToneWaveform,
     equalsDefaultStartPlan,
-    previewSchedule,
-    toneTotalMillis,
 } from '@utils/timing/tonePlan.ts'
-import {
-    ToneEnvelopeChoice,
-    ToneRow,
-    planFromRows,
-    rowFromStep,
-    rowsFromPlan,
-    stepFromRow,
-} from './tonePlanEditor.ts'
+import {ToneRow, planFromRows, rowsFromPlan} from './tonePlanEditor.ts'
+import ToneSequenceEditor from './ToneSequenceEditor.tsx'
 
 export type TimingModeDialogProps = {
     open: boolean
@@ -69,14 +43,13 @@ export type TimingModeDialogProps = {
  * Sequenz-Setup-Formular); validiert wird beim Speichern. Ein leeres Intervall ist dabei kein
  * Fehler, sondern die bewusste Bedeutung „jeder Start wird von Hand ausgelöst".
  *
- * Der Abschnitt „Töne" pflegt den Tonplan der Startsequenz: je Eintrag Zeitpunkt (Sekunden vor
- * Start, 0 = Start), Tonhöhe, Dauer und die Hüllkurven-Wahl (Abfallend/Gehalten — nur Gehalten
- * hat ein Ausklingen-Feld), mit Abspielknopf je Eintrag und einer „Sequenz anhören"-Vorschau
- * (zeitlich gerafft, Pausen über 2 s gekürzt — siehe `previewSchedule`).
- * Der Klick auf einen Abspielknopf IST die Nutzergeste, die WebAudio entsperrt (iOS-Regel).
- * Gespeichert wird `null`, wenn der Plan inhaltlich dem eingebauten Standard entspricht — so
- * bleibt „unkonfiguriert" unkonfiguriert und eine künftige Standard-Änderung erreicht auch
- * Typen, deren Töne nie bewusst verstellt wurden.
+ * Der Abschnitt „Töne" pflegt den Tonplan der Startsequenz im gemeinsamen Tonfolge-Editor
+ * ([ToneSequenceEditor], denselben nutzen Fehlstart-Folge und Erfassungstöne): Zeitleiste,
+ * kompakte Zeilen zum Aufklappen, Vorlagen, Abspielknopf je Ton und eine „Sequenz
+ * anhören"-Vorschau. Der Klick auf einen Abspielknopf IST die Nutzergeste, die WebAudio
+ * entsperrt (iOS-Regel). Gespeichert wird `null`, wenn der Plan inhaltlich dem eingebauten
+ * Standard entspricht — so bleibt „unkonfiguriert" unkonfiguriert und eine künftige
+ * Standard-Änderung erreicht auch Typen, deren Töne nie bewusst verstellt wurden.
  */
 const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingModeDialogProps) => {
     const {t} = useTranslation()
@@ -92,17 +65,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
     const [invalidField, setInvalidField] = useState<
         'name' | 'interval' | 'leadIn' | 'tones' | undefined
     >(undefined)
-
-    // Laufende „Sequenz anhören"-Vorschau: Timeout-Ids, damit Schließen/Neustart sie abräumt —
-    // ein geschlossener Dialog darf nicht weiterpiepen.
-    const previewTimeoutsRef = useRef<number[]>([])
-    const [previewPlaying, setPreviewPlaying] = useState(false)
-    const stopPreview = useCallback(() => {
-        previewTimeoutsRef.current.forEach(id => window.clearTimeout(id))
-        previewTimeoutsRef.current = []
-        setPreviewPlaying(false)
-    }, [])
-    useEffect(() => stopPreview, [stopPreview])
 
     useEffect(() => {
         if (!open) return
@@ -122,39 +84,7 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         )
         setSubmitting(false)
         setInvalidField(undefined)
-        stopPreview()
-    }, [open, entity, stopPreview])
-
-    const updateRow = (key: number, patch: Partial<ToneRow>) => {
-        setToneRows(rows => rows.map(row => (row.key === key ? {...row, ...patch} : row)))
-    }
-
-    const playRow = (row: ToneRow) => {
-        const step = stepFromRow(row)
-        if (step !== null) playToneStep(step)
-    }
-
-    const playWholePlan = () => {
-        const plan = planFromRows(toneRows)
-        if (plan === null || plan.length === 0) return
-        stopPreview()
-        setPreviewPlaying(true)
-        const schedule = previewSchedule(plan)
-        schedule.forEach(({atMillis, step}) => {
-            previewTimeoutsRef.current.push(window.setTimeout(() => playToneStep(step), atMillis))
-        })
-        const last = schedule[schedule.length - 1]
-        previewTimeoutsRef.current.push(
-            // Gesamtklanglänge statt Nenndauer: ein letzter Ton mit Ausklingzeit klingt länger.
-            window.setTimeout(() => setPreviewPlaying(false), last.atMillis + toneTotalMillis(last.step)),
-        )
-    }
-
-    const applyPreset = (preset: readonly ToneStep[]) => {
-        stopPreview()
-        setToneRows(rowsFromPlan(preset))
-        if (invalidField === 'tones') setInvalidField(undefined)
-    }
+    }, [open, entity])
 
     const handleSubmit = () => {
         const trimmedName = name.trim()
@@ -175,7 +105,7 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             setInvalidField('leadIn')
             return
         }
-        const plan = planFromRows(toneRows)
+        const plan = planFromRows(toneRows, 'BEFORE_START')
         if (plan === null || plan.length === 0 || plan.length > TONE_PLAN_MAX_STEPS) {
             setInvalidField('tones')
             return
@@ -289,7 +219,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
 
                     <Divider />
 
-                    {/* --- Töne der Startsequenz ------------------------------------------- */}
+                    {/* --- Töne der Startsequenz -------------------------------------------
+                        Derselbe Baustein wie bei Fehlstart-Folge und Erfassungstönen; hier
+                        zählen die Zeitpunkte rückwärts zum Start (0 = Start). */}
                     <Stack spacing={1.5}>
                         <Typography variant="subtitle2">
                             {t('event.timing.modes.tones.title')}
@@ -297,236 +229,39 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         <Typography variant="body2" color="text.secondary">
                             {t('event.timing.modes.tones.hint')}
                         </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            <Button size="small" onClick={() => applyPreset(PRESET_ONLY_START)}>
-                                {t('event.timing.modes.tones.presetOnlyStart')}
-                            </Button>
-                            <Button size="small" onClick={() => applyPreset(PRESET_TEN_COUNTDOWN)}>
-                                {t('event.timing.modes.tones.presetTenCountdown')}
-                            </Button>
-                            <Button
-                                size="small"
-                                onClick={() => applyPreset(DEFAULT_START_TONE_PLAN)}>
-                                {t('event.timing.modes.tones.presetDefault')}
-                            </Button>
-                        </Stack>
-
-                        {invalidField === 'tones' && (
-                            <Alert severity="error">
-                                {t('event.timing.modes.tones.invalid')}
-                            </Alert>
-                        )}
-
-                        <Stack spacing={1}>
-                            {toneRows.map(row => {
-                                const step = stepFromRow(row)
-                                const rowInvalid = step === null
-                                const atStart = step !== null && step.offsetMillis === 0
-                                return (
-                                    <Stack key={row.key} spacing={0.25}>
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        flexWrap="wrap"
-                                        useFlexGap
-                                        alignItems="flex-start">
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            label={t('event.timing.modes.tones.secondsBeforeStart')}
-                                            value={row.secondsBeforeStart}
-                                            error={rowInvalid && invalidField === 'tones'}
-                                            helperText={
-                                                atStart
-                                                    ? t('event.timing.modes.tones.atStart')
-                                                    : undefined
-                                            }
-                                            slotProps={{htmlInput: {min: 0, max: 600, step: 'any'}}}
-                                            sx={{width: 150}}
-                                            onChange={event =>
-                                                updateRow(row.key, {
-                                                    secondsBeforeStart: event.target.value,
-                                                })
-                                            }
-                                        />
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            label={t('event.timing.modes.tones.frequencyHz')}
-                                            value={row.frequencyHz}
-                                            error={rowInvalid && invalidField === 'tones'}
-                                            slotProps={{htmlInput: {min: TONE_FREQUENCY_MIN_HZ, max: TONE_FREQUENCY_MAX_HZ}}}
-                                            sx={{width: 120}}
-                                            onChange={event =>
-                                                updateRow(row.key, {frequencyHz: event.target.value})
-                                            }
-                                        />
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            label={t('event.timing.modes.tones.durationMillis')}
-                                            value={row.durationMillis}
-                                            error={rowInvalid && invalidField === 'tones'}
-                                            slotProps={{htmlInput: {min: TONE_DURATION_MIN_MILLIS, max: TONE_DURATION_MAX_MILLIS}}}
-                                            sx={{width: 120}}
-                                            onChange={event =>
-                                                updateRow(row.key, {
-                                                    durationMillis: event.target.value,
-                                                })
-                                            }
-                                        />
-                                        {/* Wellenform vor der Hüllkurve: die beiden sind unabhängig
-                                            (ein gehaltener Sägezahn trägt beides). Die Vorschau je
-                                            Zeile spielt die echte Form samt Formfaktor. */}
-                                        <TextField
-                                            select
-                                            size="small"
-                                            label={t('event.timing.toneWaveform.label')}
-                                            value={row.waveform}
-                                            sx={{width: 130}}
-                                            onChange={event =>
-                                                updateRow(row.key, {
-                                                    waveform: event.target
-                                                        .value as ToneWaveform,
-                                                })
-                                            }>
-                                            {TONE_WAVEFORMS.map(waveform => (
-                                                <MenuItem key={waveform} value={waveform}>
-                                                    {t(`event.timing.toneWaveform.${waveform}`)}
-                                                </MenuItem>
-                                            ))}
-                                        </TextField>
-                                        {/* Die Hüllkurve ist eine SICHTBARE Wahl je Ton: Abfallend
-                                            (Abfall über die gesamte Dauer, kein Ausklingen-Feld)
-                                            oder Gehalten (volle Lautstärke, dann Ausklingen — 0 ist
-                                            dort ein legitimer Wert mit eingebauter Entknackung).
-                                            Früher schaltete die nackte Zahl zwischen den zwei
-                                            Klangformen um: 0 klang völlig anders als 1 ms. */}
-                                        <TextField
-                                            select
-                                            size="small"
-                                            label={t('event.timing.toneEnvelope.label')}
-                                            value={row.envelope}
-                                            sx={{width: 130}}
-                                            onChange={event => {
-                                                const envelope = event.target
-                                                    .value as ToneEnvelopeChoice
-                                                updateRow(row.key, {
-                                                    envelope,
-                                                    // Beim Umschalten auf Gehalten ist das Feld
-                                                    // Pflicht — leer mit 0 vorbelegen.
-                                                    releaseMillis:
-                                                        envelope === 'HELD' &&
-                                                        row.releaseMillis.trim() === ''
-                                                            ? '0'
-                                                            : row.releaseMillis,
-                                                })
-                                            }}>
-                                            <MenuItem value="DECAY">
-                                                {t('event.timing.toneEnvelope.decay')}
-                                            </MenuItem>
-                                            <MenuItem value="HELD">
-                                                {t('event.timing.toneEnvelope.held')}
-                                            </MenuItem>
-                                        </TextField>
-                                        {row.envelope === 'HELD' && (
-                                            <TextField
-                                                type="number"
-                                                size="small"
-                                                label={t('event.timing.modes.tones.releaseMillis')}
-                                                value={row.releaseMillis}
-                                                error={rowInvalid && invalidField === 'tones'}
-                                                slotProps={{htmlInput: {min: TONE_RELEASE_MIN_MILLIS, max: TONE_RELEASE_MAX_MILLIS}}}
-                                                sx={{width: 130}}
-                                                onChange={event =>
-                                                    updateRow(row.key, {
-                                                        releaseMillis: event.target.value,
-                                                    })
-                                                }
-                                            />
-                                        )}
-                                        <Tooltip title={t('event.timing.modes.tones.play')}>
-                                            <span>
-                                                <IconButton
-                                                    size="small"
-                                                    aria-label={t('event.timing.modes.tones.play')}
-                                                    disabled={rowInvalid}
-                                                    onClick={() => playRow(row)}>
-                                                    <PlayArrowIcon fontSize="small" />
-                                                </IconButton>
-                                            </span>
-                                        </Tooltip>
-                                        <Tooltip title={t('event.timing.modes.tones.remove')}>
-                                            <IconButton
-                                                size="small"
-                                                aria-label={t('event.timing.modes.tones.remove')}
-                                                onClick={() =>
-                                                    setToneRows(rows =>
-                                                        rows.filter(r => r.key !== row.key),
-                                                    )
-                                                }>
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Stack>
-                                    {/* Zeilen-Zusammenfassung: Wellenform und Hüllkurve in Worten
-                                        („Sägezahn · gehalten · 800 ms Ausklingen"), damit die
-                                        Klanggestalt auch beim Überfliegen ablesbar ist. */}
-                                    <Typography variant="caption" color="text.secondary">
-                                        {t(`event.timing.toneWaveform.${row.waveform}`)}
-                                        {' · '}
-                                        {row.envelope === 'HELD'
-                                            ? t('event.timing.toneEnvelope.summaryHeld', {
-                                                  millis:
-                                                      step?.releaseMillis ?? row.releaseMillis,
-                                              })
-                                            : t('event.timing.toneEnvelope.summaryDecay')}
-                                    </Typography>
-                                    </Stack>
-                                )
-                            })}
-                        </Stack>
-
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            <Button
-                                size="small"
-                                startIcon={<AddIcon />}
-                                disabled={toneRows.length >= TONE_PLAN_MAX_STEPS}
-                                onClick={() =>
-                                    setToneRows(rows => [
-                                        ...rows,
-                                        // Vorbelegung neuer Töne: 500 ms (Wunsch vom 24.08.2026)
-                                        // — die eingebauten Standardpläne bleiben davon unberührt.
-                                        rowFromStep({
-                                            offsetMillis: 0,
-                                            frequencyHz: 900,
-                                            durationMillis: NEW_TONE_DURATION_MILLIS,
-                                        }),
-                                    ])
-                                }>
-                                {t('event.timing.modes.tones.addTone')}
-                            </Button>
-                            <Button
-                                size="small"
-                                startIcon={<PlayArrowIcon />}
-                                disabled={
-                                    previewPlaying ||
-                                    toneRows.length === 0 ||
-                                    planFromRows(toneRows) === null
-                                }
-                                onClick={playWholePlan}>
-                                {t('event.timing.modes.tones.playAll')}
-                            </Button>
-                        </Stack>
-                        <Typography variant="caption" color="text.secondary">
-                            {t('event.timing.modes.tones.previewHint')}
-                        </Typography>
-                        {/* Hüllkurven und Wellenformen in je einem Satz — die Wahl steht je Ton. */}
-                        <Typography variant="caption" color="text.secondary">
-                            {t('event.timing.toneEnvelope.decayHelp')}{' '}
-                            {t('event.timing.toneEnvelope.heldHelp')}{' '}
-                            {t('event.timing.toneWaveform.help')}
-                        </Typography>
+                        <ToneSequenceEditor
+                            direction={'BEFORE_START'}
+                            rows={toneRows}
+                            onChange={rows => {
+                                setToneRows(rows)
+                                if (invalidField === 'tones') setInvalidField(undefined)
+                            }}
+                            invalid={invalidField === 'tones'}
+                            invalidText={t('event.timing.modes.tones.invalid')}
+                            maxSteps={TONE_PLAN_MAX_STEPS}
+                            presets={[
+                                {
+                                    label: t('event.timing.modes.tones.presetOnlyStart'),
+                                    steps: PRESET_ONLY_START,
+                                },
+                                {
+                                    label: t('event.timing.modes.tones.presetTenCountdown'),
+                                    steps: PRESET_TEN_COUNTDOWN,
+                                },
+                                {
+                                    label: t('event.timing.modes.tones.presetDefault'),
+                                    steps: DEFAULT_START_TONE_PLAN,
+                                },
+                            ]}
+                            help={
+                                <>
+                                    {t('event.timing.modes.tones.previewHint')}{' '}
+                                    {t('event.timing.toneEnvelope.decayHelp')}{' '}
+                                    {t('event.timing.toneEnvelope.heldHelp')}{' '}
+                                    {t('event.timing.toneWaveform.help')}
+                                </>
+                            }
+                        />
                     </Stack>
                 </Stack>
             </DialogContent>

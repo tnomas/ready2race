@@ -1,5 +1,5 @@
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
-import {toneTotalMillis} from './tonePlan.ts'
+import {ToneStep, toneSequenceTotalMillis} from './tonePlan.ts'
 
 /**
  * Fehlstart-Erkennung der Zeitnahme: WANN der konfigurierte Fehlstart-Ton fällig ist — als reine
@@ -84,16 +84,15 @@ export function isAttemptRetractionFalseStart(
 
 /**
  * Entprellung: „Sequenz abbrechen" gefolgt von „Start zurücknehmen" (der Neustart-Griff macht
- * genau das in einem Zug) sind ZWEI Auslöser für EINEN Fehlstart — solange der Ton noch klingt,
- * spielt kein zweiter an. Das Sperrfenster ist die Gesamtklanglänge des konfigurierten Tons
- * (Haltezeit + Ausklingen): kürzer ließe Doppeltöne ineinanderlaufen, länger verschluckte einen
- * echten zweiten Fehlstart kurz darauf.
+ * genau das in einem Zug) sind ZWEI Auslöser für EINEN Fehlstart — solange die Folge noch klingt,
+ * spielt keine zweite an. Das Sperrfenster ist die Gesamtlänge der GANZEN Folge (letzter Ton
+ * einschließlich Ausklingen, siehe [toneSequenceTotalMillis]) — nicht die Länge eines einzelnen
+ * Tons: seit „kurz-kurz-lang" wäre das nur der erste Schlag, und der zweite Auslöser fiele mitten
+ * in den laufenden Rückruf. Kürzer ließe Folgen ineinanderlaufen, länger verschluckte einen echten
+ * zweiten Fehlstart kurz darauf.
  */
-export function falseStartSuppressMillis(tone: {
-    durationMillis: number
-    releaseMillis?: number | null
-}): number {
-    return toneTotalMillis(tone)
+export function falseStartSuppressMillis(sequence: readonly ToneStep[]): number {
+    return toneSequenceTotalMillis(sequence)
 }
 
 /** Ob jetzt gespielt werden darf: noch nie gespielt, oder das Sperrfenster ist verstrichen. */

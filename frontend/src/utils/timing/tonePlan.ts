@@ -64,7 +64,15 @@ export function toneGain(waveform?: ToneWaveform | null): number {
  * bewusst eigenständig deklariert, damit die reine Logik nicht am Generat hängt.
  */
 export type ToneStep = {
-    /** Relativ zum Start: negativ = davor, 0 = der Start selbst. Positive Werte gibt es nicht. */
+    /**
+     * Der Zeitpunkt des Tons in ms. Die RICHTUNG hängt daran, WELCHE Folge ihn trägt (siehe
+     * [ToneOffsetDirection]) — die Struktur ist für beide dieselbe:
+     *
+     * - Startplan (`BEFORE_START`): relativ zum Start, negativ = davor, 0 = der Start selbst;
+     *   positive Werte gibt es dort nicht.
+     * - Fehlstart-Folge (`AFTER_TRIGGER`): relativ zur Auslösung, 0 = sofort, positiv = so viele
+     *   ms später; negative Werte gibt es dort nicht.
+     */
     offsetMillis: number
     frequencyHz: number
     durationMillis: number
@@ -118,6 +126,33 @@ export const TONE_OFFSET_MIN_MILLIS = -600_000
 export const TONE_OFFSET_MAX_MILLIS = 0
 
 /**
+ * Das zweite Offset-Fenster: die Fehlstart-Folge zählt VORWÄRTS ab der Auslösung (0 = sofort).
+ * Obergrenze eine Minute — ein Rückruf, der über eine Minute nach der Geste noch hupt, ist am
+ * Wasser kein Rückruf mehr, sondern eine Störung; wer den Rahmen braucht, hat ihn. Dieselben
+ * Grenzen prüft das Backend (TimingToneLimits.SEQUENCE_OFFSET_*).
+ */
+export const TONE_SEQUENCE_OFFSET_MIN_MILLIS = 0
+export const TONE_SEQUENCE_OFFSET_MAX_MILLIS = 60_000
+
+/**
+ * Wohin die Zeitpunkte einer Folge zählen. Es gibt genau zwei Bezugspunkte im System, und sie
+ * entscheiden über das erlaubte Offset-Fenster, die Beschriftung im Editor („−5 s" gegen
+ * „+400 ms") und die Leserichtung der Zeitleiste:
+ *
+ * - `BEFORE_START`: der Startplan eines Zeitnahmetyps, rückwärts zum Start des Boots/der Welle.
+ * - `AFTER_TRIGGER`: die Fehlstart-Folge, vorwärts ab der Auslösung (Versuchs-Rücknahme oder
+ *   Sequenz-Abbruch).
+ */
+export type ToneOffsetDirection = 'BEFORE_START' | 'AFTER_TRIGGER'
+
+/** Das erlaubte Offset-Fenster je Bezugspunkt — die eine Stelle, die beide Fälle kennt. */
+export function toneOffsetLimits(direction: ToneOffsetDirection): {min: number; max: number} {
+    return direction === 'AFTER_TRIGGER'
+        ? {min: TONE_SEQUENCE_OFFSET_MIN_MILLIS, max: TONE_SEQUENCE_OFFSET_MAX_MILLIS}
+        : {min: TONE_OFFSET_MIN_MILLIS, max: TONE_OFFSET_MAX_MILLIS}
+}
+
+/**
  * Mini-Entknackung der Gehalten-Hüllkurve: ein bei voller Lautstärke gestoppter Oszillator
  * knackt hörbar (die Wellenform reißt mitten im Schwung ab). Deshalb fällt auch „Ausklingen 0"
  * über diese wenigen Millisekunden ab — unhörbar als Ausklingen, aber knackfrei. Zugleich die
@@ -139,12 +174,20 @@ export function isValidToneRelease(releaseMillis: number | null | undefined): bo
     )
 }
 
-/** Ob ein einzelner Eintrag innerhalb aller Grenzen liegt (Formular-Validierung). */
-export function isValidToneStep(step: ToneStep): boolean {
+/**
+ * Ob ein einzelner Eintrag innerhalb aller Grenzen liegt (Formular-Validierung). Der Bezugspunkt
+ * entscheidet nur über das Offset-Fenster; ohne Angabe gilt der Startplan (rückwärts), weil das
+ * der ältere und häufigere Fall ist.
+ */
+export function isValidToneStep(
+    step: ToneStep,
+    direction: ToneOffsetDirection = 'BEFORE_START',
+): boolean {
+    const offset = toneOffsetLimits(direction)
     return (
         Number.isInteger(step.offsetMillis) &&
-        step.offsetMillis >= TONE_OFFSET_MIN_MILLIS &&
-        step.offsetMillis <= TONE_OFFSET_MAX_MILLIS &&
+        step.offsetMillis >= offset.min &&
+        step.offsetMillis <= offset.max &&
         Number.isInteger(step.frequencyHz) &&
         step.frequencyHz >= TONE_FREQUENCY_MIN_HZ &&
         step.frequencyHz <= TONE_FREQUENCY_MAX_HZ &&
@@ -193,24 +236,61 @@ export const PRESET_TEN_COUNTDOWN: readonly ToneStep[] = [
 export const DEFAULT_CAPTURE_TONE = {frequencyHz: 880, durationMillis: 150}
 
 /**
- * Der eingebaute Fehlstart-Ton: deutlich länger und tiefer als alles andere im System, damit er
- * am Wasser sofort als „zurück!" erkennbar ist und nicht mit den kurzen Countdown-Ticks (600 Hz)
- * oder dem Startton (900 Hz) verwechselt werden kann. 440 Hz liegt tief genug für den Kontrast,
- * trägt aber auf kleinen Tablet-Lautsprechern noch; 3000 ms ohne eigene Ausklingzeit heißt: die
- * Lautstärke fällt über die vollen 3 Sekunden exponentiell ab — ein langes, ausklingendes Horn.
+ * Die eingebaute Fehlstart-FOLGE: kurz — kurz — lang, alles Sägezahn, alles gehalten.
  *
- * SAWTOOTH mit Absicht — die EINE gewollte Ausnahme von „Standard bleibt Sinus": der
- * Fehlstart-Ton ist brandneu (niemand hat sich an einen Sinus-Fehlstart gewöhnt, es gibt keinen
- * Bestandsklang zu schützen) und soll aggressiv-schnarrend klingen, nicht brav — ein Sinus geht
- * im Regattalärm als „irgendein Piep" unter, der Sägezahn schneidet durch. Dieselbe Entscheidung
- * hält das Backend in `TimingToneLimits.DEFAULT_FALSE_START_TONE`, das den Ton über
- * GET /timing/settings aufgelöst ausliefert.
+ * Warum eine Folge und kein Einzelton: ein einzelner langer Ton kann am Wasser als „irgendein
+ * Signal" durchgehen; eine WIEDERHOLUNG mit abweichendem Schluss ist auch über Wind und
+ * Motorenlärm als Muster erkennbar — „död, död, dööööd" liest sich als Rückruf, nicht als Piep.
+ * Der abweichende letzte Ton ist zugleich der Grund, warum das hier eine Liste ist und kein
+ * Wiederholungs-Zähler: ein Zähler könnte „zweimal kurz, einmal lang und tiefer" nicht sagen.
+ *
+ * Die Werte im Einzelnen:
+ * - SAWTOOTH bleibt aus dem früheren Einzelton-Standard erhalten — die EINE gewollte Ausnahme von
+ *   „Standard bleibt Sinus": ein Sinus geht im Regattalärm als „irgendein Piep" unter, der
+ *   Sägezahn schneidet durch.
+ * - 200 Hz statt der früheren 440 Hz: tiefer trägt weiter über Wasser und hebt sich deutlicher
+ *   von Countdown-Ticks (600 Hz) und Startton (900 Hz) ab. Viel tiefer geht nicht — unter 200 Hz
+ *   geben kleine Tablet-Lautsprecher kaum noch Grundton her.
+ * - Der Schlusston liegt mit 180 Hz eine Kleinigkeit TIEFER als die beiden kurzen: eine fallende
+ *   Tonhöhe hört sich als Abschluss, eine steigende als Frage — der Rückruf soll nicht klingen,
+ *   als käme noch etwas.
+ * - Raster 400 ms bei 300 ms Dauer, also 100 ms Stille dazwischen: knapp genug, dass die drei als
+ *   EIN Signal zusammengehören, weit genug, dass sie als drei Schläge hörbar bleiben.
+ * - Gehalten statt abfallend: ein abfallender Ton verliert schon in der ersten Hälfte an Kraft
+ *   und klingt zaghaft. Die kurzen enden mit Ausklingen 0, also staccato (die eingebaute
+ *   Mini-Entknackung verhindert das Knacken); der lange fällt über 400 ms weich ab.
+ * - Gesamtlänge 800 + 1500 + 400 = 2700 ms — fast genau die 3000 ms des alten Einzeltons: das
+ *   Signal beansprucht den Startbereich nicht länger als bisher, und das Entprell-Fenster gegen
+ *   Doppelauslöser bleibt in derselben Größenordnung.
+ *
+ * Dieselbe Folge hält das Backend in `TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE` und liefert
+ * sie über GET /timing/settings aufgelöst aus.
  */
-export const DEFAULT_FALSE_START_TONE: {
-    frequencyHz: number
-    durationMillis: number
-    waveform: ToneWaveform
-} = {frequencyHz: 440, durationMillis: 3000, waveform: 'SAWTOOTH'}
+export const DEFAULT_FALSE_START_SEQUENCE: readonly ToneStep[] = [
+    {offsetMillis: 0, frequencyHz: 200, durationMillis: 300, releaseMillis: 0, waveform: 'SAWTOOTH'},
+    {offsetMillis: 400, frequencyHz: 200, durationMillis: 300, releaseMillis: 0, waveform: 'SAWTOOTH'},
+    {offsetMillis: 800, frequencyHz: 180, durationMillis: 1500, releaseMillis: 400, waveform: 'SAWTOOTH'},
+]
+
+/**
+ * Vorlage „Einzelton": der Fehlstart als EIN langes Horn — das Verhalten vor der Tonfolge, für
+ * alle, die es so gewohnt sind. Bewusst mit den Werten des alten eingebauten Standards
+ * (440 Hz / 3000 ms, abfallend), damit „zurück auf früher" ohne Nachrechnen möglich bleibt.
+ */
+export const PRESET_FALSE_START_SINGLE: readonly ToneStep[] = [
+    {offsetMillis: 0, frequencyHz: 440, durationMillis: 3000, waveform: 'SAWTOOTH'},
+]
+
+/**
+ * Vorlage „Dreifach kurz": drei gleiche kurze Schläge im 400-ms-Raster — das nüchterne Muster
+ * ohne den abweichenden Schluss, für Reviere, in denen der lange Ton mit anderen Signalen
+ * kollidiert.
+ */
+export const PRESET_FALSE_START_TRIPLE: readonly ToneStep[] = [
+    {offsetMillis: 0, frequencyHz: 200, durationMillis: 300, releaseMillis: 0, waveform: 'SAWTOOTH'},
+    {offsetMillis: 400, frequencyHz: 200, durationMillis: 300, releaseMillis: 0, waveform: 'SAWTOOTH'},
+    {offsetMillis: 800, frequencyHz: 200, durationMillis: 300, releaseMillis: 0, waveform: 'SAWTOOTH'},
+]
 
 /**
  * Vorbelegte Dauer NEU angelegter Töne in den Editoren („Ton hinzufügen", frisch geleerte
@@ -258,30 +338,72 @@ export function sortedTonePlan(plan: readonly ToneStep[]): ToneStep[] {
 }
 
 /**
+ * Klanggenauer Vergleich ZWEIER Folgen, jeweils nach Zeitpunkt sortiert. Bei der Hüllkurve zählt
+ * exakt mit: „Gehalten mit 0 ms" (`releaseMillis` 0) ist eine andere Klangform als das abfallende
+ * `null` — nur `undefined`/`null` sind gleich. Bei der Wellenform ist explizites SINE dagegen
+ * KLANGGLEICH mit „nicht gesetzt" (gleicher Oszillatortyp, gleicher Formfaktor — siehe
+ * [oscillatorType] und [toneGain]), deshalb darf dort auf Sinus vereinheitlicht werden.
+ */
+export function equalsToneSequence(a: readonly ToneStep[], b: readonly ToneStep[]): boolean {
+    const left = sortedTonePlan(a)
+    const right = sortedTonePlan(b)
+    return (
+        left.length === right.length &&
+        left.every((step, index) => {
+            const reference = right[index]
+            return (
+                step.offsetMillis === reference.offsetMillis &&
+                step.frequencyHz === reference.frequencyHz &&
+                step.durationMillis === reference.durationMillis &&
+                (step.releaseMillis ?? null) === (reference.releaseMillis ?? null) &&
+                (step.waveform ?? 'SINE') === (reference.waveform ?? 'SINE')
+            )
+        })
+    )
+}
+
+/**
  * Ob ein Plan inhaltlich dem eingebauten Standard entspricht. Der Editor schickt dann `null`
  * statt des Plans: so bleibt „unkonfiguriert" in der Datenbank unkonfiguriert, und eine künftige
  * Änderung des Standards erreicht auch Typen, deren Plan nie bewusst verstellt wurde.
  */
 export function equalsDefaultStartPlan(plan: readonly ToneStep[]): boolean {
-    const sorted = sortedTonePlan(plan)
-    return (
-        sorted.length === DEFAULT_START_TONE_PLAN.length &&
-        sorted.every((step, index) => {
-            const reference = DEFAULT_START_TONE_PLAN[index]
-            return (
-                step.offsetMillis === reference.offsetMillis &&
-                step.frequencyHz === reference.frequencyHz &&
-                step.durationMillis === reference.durationMillis &&
-                // Die Hüllkurve zählt EXAKT mit: „Gehalten mit 0 ms" (releaseMillis 0) ist eine
-                // andere Klangform als das abfallende `null` — nur `undefined`/`null` sind gleich.
-                (step.releaseMillis ?? null) === (reference.releaseMillis ?? null) &&
-                // Bei der Wellenform ist explizites SINE dagegen KLANGGLEICH mit „nicht gesetzt"
-                // (gleicher Oszillatortyp, gleicher Formfaktor — siehe [oscillatorType] und
-                // [toneGain]), deshalb darf hier auf Sinus vereinheitlicht verglichen werden.
-                (step.waveform ?? 'SINE') === (reference.waveform ?? 'SINE')
-            )
-        })
+    return equalsToneSequence(plan, DEFAULT_START_TONE_PLAN)
+}
+
+/** Dasselbe für die Fehlstart-Folge — „Standard wiederherstellen" vergleicht hiergegen. */
+export function equalsDefaultFalseStartSequence(sequence: readonly ToneStep[]): boolean {
+    return equalsToneSequence(sequence, DEFAULT_FALSE_START_SEQUENCE)
+}
+
+/**
+ * Wie lange eine ganze Folge klingt, gerechnet ab ihrem ERSTEN Ton: der späteste Zeitpunkt, an
+ * dem noch etwas zu hören ist. Nicht einfach „letzter Zeitpunkt + Dauer": bei überlappenden Tönen
+ * kann ein FRÜHERER, sehr langer Ton den letzten überdauern, und das Sperrfenster gegen
+ * Doppelauslöser soll den ganzen Klang abdecken, nicht nur seinen Schluss.
+ *
+ * Eine leere Folge dauert 0 ms — das darf nicht knallen, auch wenn sie im Betrieb nie vorkommt
+ * (der Server löst unkonfiguriert auf den Standard auf).
+ */
+export function toneSequenceTotalMillis(sequence: readonly ToneStep[]): number {
+    if (sequence.length === 0) return 0
+    const first = Math.min(...sequence.map(step => step.offsetMillis))
+    return Math.max(
+        ...sequence.map(step => step.offsetMillis - first + toneTotalMillis(step)),
     )
+}
+
+/**
+ * Der Abspielplan einer Folge in ECHTZEIT: die Zeitpunkte werden nur auf den ersten Ton
+ * nullgesetzt, sonst nichts gerafft. Für die Fehlstart-Folge ist das der Betriebsfall (der erste
+ * Ton liegt ohnehin bei 0), und im Editor ist es die ehrliche Vorschau — anders als beim
+ * Startplan, wo ein Ton bei −60 s die Vorschau unbrauchbar machen würde ([previewSchedule]).
+ */
+export function sequenceSchedule(sequence: readonly ToneStep[]): PreviewTone[] {
+    const sorted = sortedTonePlan(sequence)
+    if (sorted.length === 0) return []
+    const first = sorted[0].offsetMillis
+    return sorted.map(step => ({atMillis: step.offsetMillis - first, step}))
 }
 
 // --- Ableitung „welcher Ton wann" ----------------------------------------------------------------

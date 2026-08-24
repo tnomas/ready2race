@@ -1749,9 +1749,13 @@
         "invalid": "Pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "False-start tone",
-        "hint": "A distinctly long, low tone the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing.",
-        "label": "False start"
+        "title": "False-start recall",
+        "hint": "The tone sequence the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing. A sequence rather than a single tone, because a pattern with a differing final tone (\"short, short, long\") reads as a recall out on the water, where a single tone passes as just another signal.",
+        "label": "False start",
+        "presetSingle": "Single tone",
+        "presetTriple": "Three short",
+        "presetShortShortLong": "Short-short-long (default)",
+        "invalid": "Please check the highlighted tones: time 0–60000 ms after the trigger, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at least one and at most 30 tones."
       },
       "modes": {
         "title": "Timing modes",
@@ -1784,19 +1788,10 @@
         "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one competition or round. Remove the assignments in the competitions' timing tabs first.",
         "tones": {
           "title": "Tones",
-          "hint": "Sine beeps of the start sequence, relative to the start of the respective boat or wave (0 = start). They play on the start board and the start display; missed tones are never played late.",
+          "hint": "The beeps of the start sequence, relative to the start of the respective boat or wave (0 = start). They play on the start board and the start display; missed tones are never played late.",
           "presetOnlyStart": "Start only",
           "presetTenCountdown": "10−5−4−3−2−1−start",
           "presetDefault": "Default (5…1−start)",
-          "secondsBeforeStart": "Seconds before start",
-          "atStart": "Start",
-          "frequencyHz": "Pitch (Hz)",
-          "durationMillis": "Duration (ms)",
-          "releaseMillis": "Release (ms)",
-          "play": "Play tone",
-          "remove": "Remove tone",
-          "addTone": "Add tone",
-          "playAll": "Play sequence",
           "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real.",
           "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
         }
@@ -1823,6 +1818,23 @@
         "hint": "The reverse of choosing in the competition: tick here which competitions use each race. A competition belongs to exactly one race with all of its rounds — ticking it here moves it away from another. Unticked competitions have no race.",
         "competitions": "Used by",
         "saved": "Assignment saved."
+      },
+      "tones": {
+        "play": "Play tone",
+        "edit": "Edit tone",
+        "remove": "Remove tone",
+        "addTone": "Add tone",
+        "playAll": "Play sequence",
+        "secondsBeforeStart": "Seconds before start",
+        "millisAfterTrigger": "Milliseconds after trigger",
+        "atStart": "Start",
+        "atTrigger": "immediately",
+        "frequencyHz": "Pitch (Hz)",
+        "durationMillis": "Duration (ms)",
+        "releaseMillis": "Release (ms)",
+        "timeline": "Timeline of the tones",
+        "timelineSpan": "Total length {{millis}} ms",
+        "offsetAfterTriggerHelp": "The time counts forward from the trigger: 0 means immediately, 400 means 400 milliseconds later."
       }
     },
     "info": {

@@ -14,9 +14,14 @@ import {
     getStartListConfigs,
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
-import {CaptureToneDto, CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
-import {DEFAULT_FALSE_START_TONE} from '@utils/timing/tonePlan.ts'
+import {
+    CaptureToneDto,
+    CompetitionTimingDeviationDto,
+    RaceClockerRaceDto,
+    ToneStepDto,
+} from '@api/types.gen.ts'
 import CaptureToneEditor from './CaptureToneEditor.tsx'
+import FalseStartToneEditor from './FalseStartToneEditor.tsx'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
@@ -152,7 +157,7 @@ const EventTimingConfig = () => {
     // werden sie mit demselben Submit.
     const [finishTone, setFinishTone] = useState<CaptureToneDto | null>(null)
     const [splitTone, setSplitTone] = useState<CaptureToneDto | null>(null)
-    const [falseStartTone, setFalseStartTone] = useState<CaptureToneDto | null>(null)
+    const [falseStartTone, setFalseStartTone] = useState<ToneStepDto[] | null>(null)
 
     useFetch(signal => getEventTimingConfig({signal, path: {eventId}}), {
         onResponse: ({data, error}) => {
@@ -287,11 +292,12 @@ const EventTimingConfig = () => {
                                     />
                                 </Stack>
                             </Box>
-                            {/* Der Fehlstart-Ton: eigenständig neben den Erfassungstönen. Start-
-                                Board und Startbildschirm spielen ihn bei Versuchs-Rücknahme oder
-                                Abbruch einer laufenden Sequenz der gerade geführten Partie —
-                                ausgeliefert wie die Erfassungstöne über GET /timing/settings und
-                                live via settingsChanged. */}
+                            {/* Der Fehlstart-Rückruf: eigenständig neben den Erfassungstönen und
+                                anders als sie eine FOLGE von Tönen (Zeitpunkte vorwärts ab der
+                                Auslösung). Start-Board und Startbildschirm spielen sie ganz, bei
+                                Versuchs-Rücknahme oder Abbruch einer laufenden Sequenz der gerade
+                                geführten Partie — ausgeliefert wie die Erfassungstöne über
+                                GET /timing/settings und live via settingsChanged. */}
                             <Box>
                                 <Typography variant={'subtitle2'} gutterBottom>
                                     <Trans i18nKey={'event.timing.falseStartTone.title'} />
@@ -299,11 +305,9 @@ const EventTimingConfig = () => {
                                 <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
                                     <Trans i18nKey={'event.timing.falseStartTone.hint'} />
                                 </Typography>
-                                <CaptureToneEditor
-                                    label={t('event.timing.falseStartTone.label')}
+                                <FalseStartToneEditor
                                     value={falseStartTone}
                                     onChange={setFalseStartTone}
-                                    defaultTone={DEFAULT_FALSE_START_TONE}
                                 />
                             </Box>
                             <TimingModePanel eventId={eventId} />

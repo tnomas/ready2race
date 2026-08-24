@@ -97,6 +97,12 @@ function playTone(
     durationSeconds: number,
     releaseMillis?: number | null,
     waveform?: ToneWaveform | null,
+    /**
+     * Vorlauf in Sekunden: 0 = sofort, größer = die WebAudio-Uhr startet den Ton so viel später.
+     * Das ist der ganze Trick der Tonfolgen — jeder Ton bekommt seinen Zeitpunkt direkt an den
+     * Oszillator statt an ein `setTimeout`, siehe [playToneSequence].
+     */
+    delaySeconds = 0,
 ) {
     try {
         unlockAudio()
@@ -106,23 +112,26 @@ function playTone(
         osc.frequency.value = frequency
         osc.type = oscillatorType(waveform)
         const peak = toneGain(waveform)
-        gain.gain.setValueAtTime(peak, ctx.currentTime)
+        // Alle Hüllkurven-Anker hängen an DIESEM Startzeitpunkt, nicht an `currentTime` — sonst
+        // liefe die Rampe eines späteren Tons schon ab, bevor er überhaupt klingt.
+        const startAt = ctx.currentTime + Math.max(delaySeconds, 0)
+        gain.gain.setValueAtTime(peak, startAt)
         const release = effectiveReleaseMillis(releaseMillis)
         if (release !== null) {
             const releaseSeconds = release / 1000
-            gain.gain.setValueAtTime(peak, ctx.currentTime + durationSeconds)
+            gain.gain.setValueAtTime(peak, startAt + durationSeconds)
             gain.gain.exponentialRampToValueAtTime(
                 0.0001,
-                ctx.currentTime + durationSeconds + releaseSeconds,
+                startAt + durationSeconds + releaseSeconds,
             )
             osc.connect(gain).connect(ctx.destination)
-            osc.start()
-            osc.stop(ctx.currentTime + durationSeconds + releaseSeconds)
+            osc.start(startAt)
+            osc.stop(startAt + durationSeconds + releaseSeconds)
         } else {
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSeconds)
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + durationSeconds)
             osc.connect(gain).connect(ctx.destination)
-            osc.start()
-            osc.stop(ctx.currentTime + durationSeconds)
+            osc.start(startAt)
+            osc.stop(startAt + durationSeconds)
         }
     } catch {
         // audio unavailable — ignore
@@ -168,4 +177,42 @@ export function playToneStep(step: {
     waveform?: ToneWaveform | null
 }) {
     playTone(step.frequencyHz, step.durationMillis / 1000, step.releaseMillis, step.waveform)
+}
+
+/**
+ * Eine ganze TONFOLGE auf einen Schlag anmelden — der Fehlstart-Rückruf („död, död, dööööd") und
+ * jede Editor-Vorschau laufen hierüber.
+ *
+ * Die Zeitpunkte gehen an die WebAudio-Uhr, nicht an eine `setTimeout`-Kaskade: die Audio-Uhr
+ * läuft in der Audio-Hardware und hält ihr Raster auch dann, wenn der Haupt-Thread gerade rendert
+ * oder der Browser Timer drosselt — ein „kurz-kurz-lang" mit 100 ms Stille dazwischen wäre mit
+ * Timern hörbar ungleichmäßig. Nebenbei fällt das Aufräumen weg: die Töne sind bereits an den
+ * Oszillatoren angemeldet, es gibt keine Timer-Ids, die jemand vergessen könnte abzuräumen.
+ *
+ * Der Preis ist bewusst in Kauf genommen: eine einmal angemeldete Folge lässt sich nicht mehr
+ * abbrechen. Für den Rückruf ist das richtig (er soll durchlaufen), und die Editor-Vorschau ist
+ * kurz genug, dass Abbrechen nichts hilft.
+ *
+ * Fire-and-forget wie alle Board-Töne: ohne WebAudio bleibt es still, geworfen wird nie.
+ */
+export function playToneSequence(
+    entries: readonly {
+        atMillis: number
+        step: {
+            frequencyHz: number
+            durationMillis: number
+            releaseMillis?: number | null
+            waveform?: ToneWaveform | null
+        }
+    }[],
+) {
+    entries.forEach(({atMillis, step}) => {
+        playTone(
+            step.frequencyHz,
+            step.durationMillis / 1000,
+            step.releaseMillis,
+            step.waveform,
+            atMillis / 1000,
+        )
+    })
 }

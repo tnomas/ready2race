@@ -6,6 +6,7 @@ import {
     falseStartSuppressMillis,
     shouldPlayFalseStart,
 } from './falseStart.ts'
+import {DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
 
 const sequence = (id: string, state: string, teamIds: string[]): TimingSequenceDto =>
     ({
@@ -100,9 +101,16 @@ describe('isAttemptRetractionFalseStart', () => {
 })
 
 describe('Entprellung', () => {
-    test('Sperrfenster = Gesamtklanglaenge des Fehlstart-Tons', () => {
-        expect(falseStartSuppressMillis({durationMillis: 3000})).toBe(3000)
-        expect(falseStartSuppressMillis({durationMillis: 3000, releaseMillis: 1500})).toBe(4500)
+    test('Sperrfenster = Gesamtlaenge der ganzen FOLGE, nicht des ersten Tons', () => {
+        expect(falseStartSuppressMillis([{offsetMillis: 0, frequencyHz: 440, durationMillis: 3000}])).toBe(3000)
+        expect(
+            falseStartSuppressMillis([
+                {offsetMillis: 0, frequencyHz: 440, durationMillis: 3000, releaseMillis: 1500},
+            ]),
+        ).toBe(4500)
+        // Der eigentliche Punkt seit kurz-kurz-lang: haenge das Fenster an den ERSTEN Ton (300 ms),
+        // fiele der zweite Ausloeser mitten in den laufenden Rueckruf.
+        expect(falseStartSuppressMillis(DEFAULT_FALSE_START_SEQUENCE)).toBe(2700)
     })
 
     test('erster Ausloeser spielt immer, ein zweiter erst nach dem Sperrfenster', () => {

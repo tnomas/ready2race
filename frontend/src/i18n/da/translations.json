@@ -1749,9 +1749,13 @@
         "invalid": "Tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "Tyvstart-tone",
-        "hint": "En tydeligt lang, dyb tone, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu.",
-        "label": "Tyvstart"
+        "title": "Tyvstart-tilbagekaldelse",
+        "hint": "Den tonefølge, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. En følge frem for én enkelt tone, fordi et mønster med en afvigende sidste tone (\"kort, kort, lang\") kan genkendes som en tilbagekaldelse på vandet, hvor en enkelt tone bare lyder som et signal.",
+        "label": "Tyvstart",
+        "presetSingle": "Enkelt tone",
+        "presetTriple": "Tre korte",
+        "presetShortShortLong": "Kort-kort-lang (standard)",
+        "invalid": "Kontrollér de markerede toner: tidspunkt 0–60000 ms efter udløsning, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, mindst én og højst 30 toner."
       },
       "modes": {
         "title": "Tidtagningstyper",
@@ -1784,19 +1788,10 @@
         "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst én konkurrence eller runde. Fjern først tildelingerne i konkurrencernes tidtagningsfane.",
         "tones": {
           "title": "Toner",
-          "hint": "Sinus-bip i startsekvensen, relativt til starten af den enkelte båd eller bølge (0 = start). De afspilles på start-boardet og startskærmen; missede toner afspilles aldrig senere.",
+          "hint": "Bippene i startsekvensen, relativt til starten af den enkelte båd eller bølge (0 = start). De afspilles på start-boardet og startskærmen; missede toner afspilles aldrig senere.",
           "presetOnlyStart": "Kun start",
           "presetTenCountdown": "10−5−4−3−2−1−start",
           "presetDefault": "Standard (5…1−start)",
-          "secondsBeforeStart": "Sekunder før start",
-          "atStart": "Start",
-          "frequencyHz": "Tonehøjde (Hz)",
-          "durationMillis": "Varighed (ms)",
-          "releaseMillis": "Efterklang (ms)",
-          "play": "Afspil tone",
-          "remove": "Fjern tone",
-          "addTone": "Tilføj tone",
-          "playAll": "Afspil sekvens",
           "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
           "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
         }
@@ -1823,6 +1818,23 @@
         "hint": "Omvendt af valget i konkurrencen: markér her, hvilke konkurrencer der bruger hvert løb. En konkurrence hører med alle sine runder til præcis ét løb — markerer du den her, flytter den fra et andet. Umarkerede konkurrencer har intet løb.",
         "competitions": "Gælder for",
         "saved": "Tildeling gemt."
+      },
+      "tones": {
+        "play": "Afspil tone",
+        "edit": "Rediger tone",
+        "remove": "Fjern tone",
+        "addTone": "Tilføj tone",
+        "playAll": "Afspil sekvens",
+        "secondsBeforeStart": "Sekunder før start",
+        "millisAfterTrigger": "Millisekunder efter udløsning",
+        "atStart": "Start",
+        "atTrigger": "med det samme",
+        "frequencyHz": "Tonehøjde (Hz)",
+        "durationMillis": "Varighed (ms)",
+        "releaseMillis": "Efterklang (ms)",
+        "timeline": "Tidslinje over tonerne",
+        "timelineSpan": "Samlet længde {{millis}} ms",
+        "offsetAfterTriggerHelp": "Tidspunktet tælles fremad fra udløsningen: 0 betyder med det samme, 400 betyder 400 millisekunder senere."
       }
     },
     "info": {

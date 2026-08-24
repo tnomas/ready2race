@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getTimingSettings} from '@api/sdk.gen.ts'
 import {TimingSettingsDto} from '@api/types.gen.ts'
-import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_TONE} from '@utils/timing/tonePlan.ts'
+import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from '@utils/timing/tonePlan.ts'
 
 export type UseTimingSettingsResult = {
     /**
@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS: TimingSettingsDto = {
     precision: 'ZEHNTEL',
     finishTone: DEFAULT_CAPTURE_TONE,
     splitTone: DEFAULT_CAPTURE_TONE,
-    falseStartTone: DEFAULT_FALSE_START_TONE,
+    falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
 }
 
 /**

@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef} from 'react'
-import {CaptureToneDto, TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
-import {playToneStep} from '@utils/timing/feedback.ts'
+import {ToneStepDto, TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
+import {playToneSequence} from '@utils/timing/feedback.ts'
+import {sequenceSchedule} from '@utils/timing/tonePlan.ts'
 import {
     AttemptRetractedInfo,
     falseStartSuppressMillis,
@@ -10,7 +11,7 @@ import {
 } from '@utils/timing/falseStart.ts'
 
 /**
- * Spielt den konfigurierten Fehlstart-Ton auf einem Board (Start-Board oder Startbildschirm),
+ * Spielt die konfigurierte Fehlstart-FOLGE auf einem Board (Start-Board oder Startbildschirm),
  * wenn eine der beiden Fehlstart-Gesten die GERADE geführte Sequenz trifft — die Bedingungen
  * selbst sind reine Funktionen in `falseStart.ts`, hier hängen nur die zwei Auslöser dran:
  *
@@ -19,17 +20,22 @@ import {
  * - die `attemptRetracted`-Nachricht (der zurückgegebene Callback gehört in
  *   `useTimingBoardState`s gleichnamigen Parameter).
  *
+ * Gespielt wird die GANZE Folge: die Zeitpunkte gehen als Vorlauf an die WebAudio-Uhr
+ * ([playToneSequence]), nicht an eine `setTimeout`-Kaskade — das Raster eines „kurz-kurz-lang"
+ * hält damit auch, wenn der Haupt-Thread gerade beschäftigt ist. Eine einmal angemeldete Folge
+ * läuft durch; das ist beim Rückruf gewollt.
+ *
  * Nie-nachholen-Regel: ein verdeckter Tab bleibt still (`document.visibilityState`-Prüfung im
  * Moment des Auslösers — WebSocket-Nachrichten kommen auch im Hintergrund an, und ein Fehlstart
  * von vor Minuten darf beim Zurückkehren nicht plötzlich hupen). Doppelte Auslöser in kurzer
- * Folge (Abbrechen + Zurücknehmen im Neustart-Griff) entprellt das Sperrfenster der
- * Gesamtklanglänge. iOS-Entsperrung wie bei allen Board-Tönen: `playToneStep` ist best-effort
- * und bleibt stumm, solange keine Geste den AudioContext entsperrt hat.
+ * Folge (Abbrechen + Zurücknehmen im Neustart-Griff) entprellt das Sperrfenster der Gesamtlänge
+ * der FOLGE. iOS-Entsperrung wie bei allen Board-Tönen: das Abspielen ist best-effort und bleibt
+ * stumm, solange keine Geste den AudioContext entsperrt hat.
  */
 export function useFalseStartTone(
     sequence: TimingSequenceDto | undefined,
     matches: readonly TimingMatchDto[],
-    tone: CaptureToneDto,
+    tone: ReadonlyArray<ToneStepDto>,
 ): {onAttemptRetracted: (info: AttemptRetractedInfo) => void} {
     /** Der jeweils aktuelle Stand für die Callbacks — Nachrichten dürfen nie Altes sehen. */
     const sequenceRef = useRef(sequence)
@@ -51,7 +57,7 @@ export function useFalseStartTone(
             return
         }
         lastPlayedAtRef.current = now
-        playToneStep(toneRef.current)
+        playToneSequence(sequenceSchedule(toneRef.current))
     }, [])
 
     // Geste 1: Abbruch der laufenden Sequenz. Der Vergleich läuft gegen den Stand VOR diesem

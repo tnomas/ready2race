@@ -1,7 +1,9 @@
 import {describe, expect, test} from 'vitest'
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
 import {
-    DEFAULT_FALSE_START_TONE,
+    DEFAULT_FALSE_START_SEQUENCE,
+    PRESET_FALSE_START_SINGLE,
+    PRESET_FALSE_START_TRIPLE,
     DEFAULT_START_TONE_PLAN,
     PRESET_ONLY_START,
     PRESET_TEN_COUNTDOWN,
@@ -14,15 +16,18 @@ import {
     ToneStep,
     advanceTonePlan,
     effectiveReleaseMillis,
+    equalsDefaultFalseStartSequence,
     equalsDefaultStartPlan,
     isValidToneRelease,
     isValidToneStep,
     isValidToneWaveform,
     oscillatorType,
     previewSchedule,
+    sequenceSchedule,
     sortedTonePlan,
     toneEnvelope,
     toneGain,
+    toneSequenceTotalMillis,
     toneTotalMillis,
     tonePlanForSequence,
 } from './tonePlan.ts'
@@ -234,11 +239,17 @@ describe('Grenzen und Voreinstellungen', () => {
 
     test('alle Voreinstellungen sind innerhalb der Grenzen', () => {
         for (const plan of [DEFAULT_START_TONE_PLAN, PRESET_ONLY_START, PRESET_TEN_COUNTDOWN]) {
-            expect(plan.every(isValidToneStep)).toBe(true)
+            // Kein direktes .every(isValidToneStep): der zweite Parameter ist die RICHTUNG,
+            // und .every reichte dort den Index hinein.
+            expect(plan.every(step => isValidToneStep(step))).toBe(true)
         }
-        expect(
-            isValidToneStep({offsetMillis: 0, ...DEFAULT_FALSE_START_TONE}),
-        ).toBe(true)
+        for (const sequence of [
+            DEFAULT_FALSE_START_SEQUENCE,
+            PRESET_FALSE_START_SINGLE,
+            PRESET_FALSE_START_TRIPLE,
+        ]) {
+            expect(sequence.every(step => isValidToneStep(step, 'AFTER_TRIGGER'))).toBe(true)
+        }
     })
 
     test('Wellenform: die vier Formen sind gueltig, alles andere nicht', () => {
@@ -278,12 +289,79 @@ describe('Grenzen und Voreinstellungen', () => {
         expect(toneGain('SAWTOOTH')).toBe(0.14)
     })
 
-    test('der eingebaute Fehlstart-Ton ist ein Saegezahn (440 Hz / 3000 ms bleiben)', () => {
-        expect(DEFAULT_FALSE_START_TONE).toEqual({
-            frequencyHz: 440,
-            durationMillis: 3000,
-            waveform: 'SAWTOOTH',
-        })
+    test('die eingebaute Fehlstart-Folge ist kurz-kurz-lang auf Saegezahn', () => {
+        // Das Muster ist die Aussage: zwei gleiche kurze Schlaege, dann ein langer TIEFERER mit
+        // Ausklingen. Ein Wiederholungs-Zaehler koennte den abweichenden Schluss nicht sagen —
+        // deshalb ist das hier eine Liste.
+        expect(DEFAULT_FALSE_START_SEQUENCE.map(step => step.offsetMillis)).toEqual([0, 400, 800])
+        expect(DEFAULT_FALSE_START_SEQUENCE.map(step => step.durationMillis)).toEqual([300, 300, 1500])
+        expect(DEFAULT_FALSE_START_SEQUENCE.every(step => step.waveform === 'SAWTOOTH')).toBe(true)
+        // Alle gehalten: ein abfallender Ton verliert schon in der ersten Haelfte an Kraft.
+        expect(DEFAULT_FALSE_START_SEQUENCE.every(step => step.releaseMillis != null)).toBe(true)
+        // Der Schluss liegt tiefer als die beiden kurzen — fallende Tonhoehe hoert sich als Ende.
+        expect(DEFAULT_FALSE_START_SEQUENCE[2].frequencyHz).toBeLessThan(
+            DEFAULT_FALSE_START_SEQUENCE[0].frequencyHz,
+        )
+    })
+
+    test('die Folge bleibt so lang wie der alte Einzelton (Sperrfenster-Groessenordnung)', () => {
+        // Frueher: EIN Ton ueber 3000 ms. Jetzt 800 + 1500 + 400 = 2700 ms.
+        expect(toneSequenceTotalMillis(DEFAULT_FALSE_START_SEQUENCE)).toBe(2700)
+    })
+
+    test('toneSequenceTotalMillis misst bis zum letzten KLANG, nicht bis zum letzten Zeitpunkt', () => {
+        // Ein frueher, sehr langer Ton ueberdauert einen spaeten kurzen — das Sperrfenster muss
+        // den ganzen Klang abdecken, nicht nur seinen Schluss.
+        expect(
+            toneSequenceTotalMillis([
+                {offsetMillis: 0, frequencyHz: 200, durationMillis: 5000},
+                {offsetMillis: 100, frequencyHz: 200, durationMillis: 50},
+            ]),
+        ).toBe(5000)
+        // Der Nullpunkt ist der ERSTE Ton, nicht die Zeitachse: ein Countdown-Plan misst seine
+        // eigene Laenge, nicht den Abstand zum Start.
+        expect(toneSequenceTotalMillis(DEFAULT_START_TONE_PLAN)).toBe(5400)
+        expect(toneSequenceTotalMillis([])).toBe(0)
+    })
+
+    test('equalsDefaultFalseStartSequence: Standard ja, jede Abweichung nein', () => {
+        expect(equalsDefaultFalseStartSequence(DEFAULT_FALSE_START_SEQUENCE)).toBe(true)
+        expect(equalsDefaultFalseStartSequence([...DEFAULT_FALSE_START_SEQUENCE].reverse())).toBe(true)
+        expect(equalsDefaultFalseStartSequence(PRESET_FALSE_START_TRIPLE)).toBe(false)
+        expect(equalsDefaultFalseStartSequence(PRESET_FALSE_START_SINGLE)).toBe(false)
+        expect(
+            equalsDefaultFalseStartSequence(DEFAULT_FALSE_START_SEQUENCE.slice(0, 2)),
+        ).toBe(false)
+    })
+
+    test('sequenceSchedule spielt in ECHTER Zeit, nur auf den ersten Ton nullgesetzt', () => {
+        // Anders als previewSchedule wird hier nichts gerafft: der Rhythmus IST die Aussage.
+        expect(sequenceSchedule(DEFAULT_FALSE_START_SEQUENCE).map(entry => entry.atMillis)).toEqual([
+            0, 400, 800,
+        ])
+        // Auch ein Startplan mit negativen Zeitpunkten faengt bei 0 an.
+        expect(
+            sequenceSchedule([
+                {offsetMillis: -1000, frequencyHz: 600, durationMillis: 100},
+                {offsetMillis: 0, frequencyHz: 900, durationMillis: 400},
+            ]).map(entry => entry.atMillis),
+        ).toEqual([0, 1000])
+        expect(sequenceSchedule([])).toEqual([])
+    })
+
+    test('das Offset-Fenster haengt an der Richtung', () => {
+        const step = (offsetMillis: number) => ({offsetMillis, frequencyHz: 600, durationMillis: 100})
+        // Rueckwaerts zum Start: -600000..0
+        expect(isValidToneStep(step(0), 'BEFORE_START')).toBe(true)
+        expect(isValidToneStep(step(1), 'BEFORE_START')).toBe(false)
+        expect(isValidToneStep(step(-600_000), 'BEFORE_START')).toBe(true)
+        // Vorwaerts ab der Ausloesung: 0..60000
+        expect(isValidToneStep(step(0), 'AFTER_TRIGGER')).toBe(true)
+        expect(isValidToneStep(step(-1), 'AFTER_TRIGGER')).toBe(false)
+        expect(isValidToneStep(step(60_000), 'AFTER_TRIGGER')).toBe(true)
+        expect(isValidToneStep(step(60_001), 'AFTER_TRIGGER')).toBe(false)
+        // Ohne Angabe gilt der Startplan — der aeltere und haeufigere Fall.
+        expect(isValidToneStep(step(-5000))).toBe(true)
     })
 
     test('equalsDefaultStartPlan erkennt den Standard auch unsortiert, aber keine Abweichung', () => {
