@@ -1718,6 +1718,15 @@
           "MILLISEKUNDE": "Millisekund"
         }
       },
+      "toneEnvelope": {
+        "label": "Kurveform",
+        "decay": "Aftagende",
+        "held": "Fastholdt",
+        "decayHelp": "Aftagende: lydstyrken falder jævnt over hele varigheden — et udklingende bip.",
+        "heldHelp": "Fastholdt: tonen holder fuld lydstyrke i hele varigheden og falder derefter i efterklangen — ved 0 ms forhindrer en indbygget udtoning på få millisekunder et hørbart klik.",
+        "summaryDecay": "aftagende",
+        "summaryHeld": "fastholdt · {{millis}} ms efterklang"
+      },
       "captureTones": {
         "title": "Registreringstoner",
         "hint": "Bekræftelsestonen, som mål- og mellemtidsposter afspiller, når en tid registreres — kan indstilles pr. posttype. Den lyder kun ved selve tastetrykket; genafsendelse fra offline-køen forbliver stum.",
@@ -1733,7 +1742,7 @@
       },
       "falseStartTone": {
         "title": "Tyvstart-tone",
-        "hint": "En tydeligt lang, dyb tone, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. Efterklangen bestemmer, hvor blidt lydstyrken falder efter varigheden (tom = faldet sker inden for selve varigheden).",
+        "hint": "En tydeligt lang, dyb tone, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu.",
         "label": "Tyvstart"
       },
       "modes": {
@@ -1780,7 +1789,7 @@
           "remove": "Fjern tone",
           "addTone": "Tilføj tone",
           "playAll": "Afspil sekvens",
-          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte. Efterklangen pr. tone er tiden, hvor lydstyrken falder efter varigheden — tom betyder: faldet sker inden for selve varigheden, som hidtil.",
+          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
           "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
         }
       },

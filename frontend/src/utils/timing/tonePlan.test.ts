@@ -211,16 +211,10 @@ describe('Grenzen und Voreinstellungen', () => {
     })
 
     test('toneEnvelope: null = Abfallend, jede Zahl ab 0 = Gehalten mit genau diesem Ausklingen', () => {
-        expect(toneEnvelope({durationMillis: 400})).toEqual({kind: 'DECAY'})
-        expect(toneEnvelope({durationMillis: 400, releaseMillis: null})).toEqual({kind: 'DECAY'})
-        expect(toneEnvelope({durationMillis: 400, releaseMillis: 0})).toEqual({
-            kind: 'HELD',
-            releaseMillis: 0,
-        })
-        expect(toneEnvelope({durationMillis: 400, releaseMillis: 800})).toEqual({
-            kind: 'HELD',
-            releaseMillis: 800,
-        })
+        expect(toneEnvelope({})).toEqual({kind: 'DECAY'})
+        expect(toneEnvelope({releaseMillis: null})).toEqual({kind: 'DECAY'})
+        expect(toneEnvelope({releaseMillis: 0})).toEqual({kind: 'HELD', releaseMillis: 0})
+        expect(toneEnvelope({releaseMillis: 800})).toEqual({kind: 'HELD', releaseMillis: 800})
     })
 
     test('effectiveReleaseMillis: Abfallend ohne Wert, Gehalten nie unter der Entknackung', () => {

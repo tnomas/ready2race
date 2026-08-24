@@ -1718,6 +1718,15 @@
           "MILLISEKUNDE": "Millisekunde"
         }
       },
+      "toneEnvelope": {
+        "label": "Hüllkurve",
+        "decay": "Abfallend",
+        "held": "Gehalten",
+        "decayHelp": "Abfallend: die Lautstärke fällt über die gesamte Dauer gleichmäßig ab — ein ausklingender Piepton.",
+        "heldHelp": "Gehalten: der Ton hält die volle Lautstärke über die gesamte Dauer und fällt danach im Ausklingen ab — bei 0 ms verhindert eine eingebaute Entknackung von wenigen Millisekunden ein hörbares Knacken.",
+        "summaryDecay": "abfallend",
+        "summaryHeld": "gehalten · {{millis}} ms Ausklingen"
+      },
       "captureTones": {
         "title": "Erfassungstöne",
         "hint": "Der Bestätigungston, den Ziel- und Zwischenzeitposten beim Erfassen einer Zeit spielen — je Postentyp getrennt einstellbar. Er erklingt nur beim Tastendruck selbst; das Nachsenden aus der Offline-Warteschlange bleibt stumm.",
@@ -1733,7 +1742,7 @@
       },
       "falseStartTone": {
         "title": "Fehlstart-Ton",
-        "hint": "Ein deutlich langer, tiefer Ton, den Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt. Das Ausklingen bestimmt, wie flach die Lautstärke nach der Dauer abfällt (leer = Abfall über die Dauer selbst).",
+        "hint": "Ein deutlich langer, tiefer Ton, den Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt.",
         "label": "Fehlstart"
       },
       "modes": {
@@ -1780,7 +1789,7 @@
           "remove": "Ton entfernen",
           "addTone": "Ton hinzufügen",
           "playAll": "Sequenz anhören",
-          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt. Das Ausklingen je Ton ist die Zeit, in der die Lautstärke nach der Dauer abfällt — leer heißt: der Abfall liegt in der Dauer selbst, wie bisher.",
+          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
           "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
         }
       },

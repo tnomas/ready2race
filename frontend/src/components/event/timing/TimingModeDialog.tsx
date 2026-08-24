@@ -8,6 +8,7 @@ import {
     Divider,
     FormControlLabel,
     IconButton,
+    MenuItem,
     Stack,
     Switch,
     TextField,
@@ -43,6 +44,7 @@ import {
     toneTotalMillis,
 } from '@utils/timing/tonePlan.ts'
 import {
+    ToneEnvelopeChoice,
     ToneRow,
     planFromRows,
     rowFromStep,
@@ -66,8 +68,9 @@ export type TimingModeDialogProps = {
  * Fehler, sondern die bewusste Bedeutung „jeder Start wird von Hand ausgelöst".
  *
  * Der Abschnitt „Töne" pflegt den Tonplan der Startsequenz: je Eintrag Zeitpunkt (Sekunden vor
- * Start, 0 = Start), Tonhöhe und Dauer, mit Abspielknopf je Eintrag und einer „Sequenz
- * anhören"-Vorschau (zeitlich gerafft, Pausen über 2 s gekürzt — siehe `previewSchedule`).
+ * Start, 0 = Start), Tonhöhe, Dauer und die Hüllkurven-Wahl (Abfallend/Gehalten — nur Gehalten
+ * hat ein Ausklingen-Feld), mit Abspielknopf je Eintrag und einer „Sequenz anhören"-Vorschau
+ * (zeitlich gerafft, Pausen über 2 s gekürzt — siehe `previewSchedule`).
  * Der Klick auf einen Abspielknopf IST die Nutzergeste, die WebAudio entsperrt (iOS-Regel).
  * Gespeichert wird `null`, wenn der Plan inhaltlich dem eingebauten Standard entspricht — so
  * bleibt „unkonfiguriert" unkonfiguriert und eine künftige Standard-Änderung erreicht auch
@@ -318,10 +321,12 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                 const rowInvalid = step === null
                                 const atStart = step !== null && step.offsetMillis === 0
                                 return (
+                                    <Stack key={row.key} spacing={0.25}>
                                     <Stack
-                                        key={row.key}
                                         direction="row"
                                         spacing={1}
+                                        flexWrap="wrap"
+                                        useFlexGap
                                         alignItems="flex-start">
                                         <TextField
                                             type="number"
@@ -368,23 +373,55 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                                 })
                                             }
                                         />
-                                        {/* Ausklingzeit: leer = Standardhüllkurve (Abfall über die
-                                            Nenndauer); gesetzt = Haltezeit + Abfall obendrauf. Die
-                                            Abspielknöpfe daneben spielen die echte Hüllkurve. */}
+                                        {/* Die Hüllkurve ist eine SICHTBARE Wahl je Ton: Abfallend
+                                            (Abfall über die gesamte Dauer, kein Ausklingen-Feld)
+                                            oder Gehalten (volle Lautstärke, dann Ausklingen — 0 ist
+                                            dort ein legitimer Wert mit eingebauter Entknackung).
+                                            Früher schaltete die nackte Zahl zwischen den zwei
+                                            Klangformen um: 0 klang völlig anders als 1 ms. */}
                                         <TextField
-                                            type="number"
+                                            select
                                             size="small"
-                                            label={t('event.timing.modes.tones.releaseMillis')}
-                                            value={row.releaseMillis}
-                                            error={rowInvalid && invalidField === 'tones'}
-                                            slotProps={{htmlInput: {min: TONE_RELEASE_MIN_MILLIS, max: TONE_RELEASE_MAX_MILLIS}}}
+                                            label={t('event.timing.toneEnvelope.label')}
+                                            value={row.envelope}
                                             sx={{width: 130}}
-                                            onChange={event =>
+                                            onChange={event => {
+                                                const envelope = event.target
+                                                    .value as ToneEnvelopeChoice
                                                 updateRow(row.key, {
-                                                    releaseMillis: event.target.value,
+                                                    envelope,
+                                                    // Beim Umschalten auf Gehalten ist das Feld
+                                                    // Pflicht — leer mit 0 vorbelegen.
+                                                    releaseMillis:
+                                                        envelope === 'HELD' &&
+                                                        row.releaseMillis.trim() === ''
+                                                            ? '0'
+                                                            : row.releaseMillis,
                                                 })
-                                            }
-                                        />
+                                            }}>
+                                            <MenuItem value="DECAY">
+                                                {t('event.timing.toneEnvelope.decay')}
+                                            </MenuItem>
+                                            <MenuItem value="HELD">
+                                                {t('event.timing.toneEnvelope.held')}
+                                            </MenuItem>
+                                        </TextField>
+                                        {row.envelope === 'HELD' && (
+                                            <TextField
+                                                type="number"
+                                                size="small"
+                                                label={t('event.timing.modes.tones.releaseMillis')}
+                                                value={row.releaseMillis}
+                                                error={rowInvalid && invalidField === 'tones'}
+                                                slotProps={{htmlInput: {min: TONE_RELEASE_MIN_MILLIS, max: TONE_RELEASE_MAX_MILLIS}}}
+                                                sx={{width: 130}}
+                                                onChange={event =>
+                                                    updateRow(row.key, {
+                                                        releaseMillis: event.target.value,
+                                                    })
+                                                }
+                                            />
+                                        )}
                                         <Tooltip title={t('event.timing.modes.tones.play')}>
                                             <span>
                                                 <IconButton
@@ -408,6 +445,17 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                                 <DeleteIcon fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
+                                    </Stack>
+                                    {/* Zeilen-Zusammenfassung: die gewählte Klangform in Worten,
+                                        damit sie auch beim Überfliegen ablesbar ist. */}
+                                    <Typography variant="caption" color="text.secondary">
+                                        {row.envelope === 'HELD'
+                                            ? t('event.timing.toneEnvelope.summaryHeld', {
+                                                  millis:
+                                                      step?.releaseMillis ?? row.releaseMillis,
+                                              })
+                                            : t('event.timing.toneEnvelope.summaryDecay')}
+                                    </Typography>
                                     </Stack>
                                 )
                             })}
@@ -446,6 +494,11 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         </Stack>
                         <Typography variant="caption" color="text.secondary">
                             {t('event.timing.modes.tones.previewHint')}
+                        </Typography>
+                        {/* Die zwei Klangformen in je einem Satz — die Wahl selbst steht je Ton. */}
+                        <Typography variant="caption" color="text.secondary">
+                            {t('event.timing.toneEnvelope.decayHelp')}{' '}
+                            {t('event.timing.toneEnvelope.heldHelp')}
                         </Typography>
                     </Stack>
                 </Stack>

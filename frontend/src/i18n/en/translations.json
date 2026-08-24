@@ -1718,6 +1718,15 @@
           "MILLISEKUNDE": "Millisecond"
         }
       },
+      "toneEnvelope": {
+        "label": "Envelope",
+        "decay": "Decaying",
+        "held": "Held",
+        "decayHelp": "Decaying: the volume falls off evenly across the whole duration — a fading beep.",
+        "heldHelp": "Held: the tone keeps full volume for the whole duration and then falls off during the release — at 0 ms a built-in fade of a few milliseconds prevents an audible click.",
+        "summaryDecay": "decaying",
+        "summaryHeld": "held · {{millis}} ms release"
+      },
       "captureTones": {
         "title": "Capture tones",
         "hint": "The confirmation tone finish and split stations play when a time is captured — configurable per station type. It only sounds on the key press itself; resending from the offline queue stays silent.",
@@ -1733,7 +1742,7 @@
       },
       "falseStartTone": {
         "title": "False-start tone",
-        "hint": "A distinctly long, low tone the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing. The release controls how gently the volume falls off after the duration (empty = the fall-off happens within the duration itself).",
+        "hint": "A distinctly long, low tone the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing.",
         "label": "False start"
       },
       "modes": {
@@ -1780,7 +1789,7 @@
           "remove": "Remove tone",
           "addTone": "Add tone",
           "playAll": "Play sequence",
-          "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real. The release of a tone is the time the volume falls off after the duration — empty means the fall-off happens within the duration itself, as before.",
+          "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real.",
           "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
         }
       },
