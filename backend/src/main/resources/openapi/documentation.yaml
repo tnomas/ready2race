@@ -15994,6 +15994,17 @@ components:
           description: How long after its planned start a match that is not active yet is still watched.
         timingPrecision:
           $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: >-
+            Capture confirmation tone of FINISH stations. Unlike TimingSettingsDto this is NOT
+            resolved - null means "built-in default", so the form knows whether a custom value is
+            set and can offer a reset.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Capture confirmation tone of SPLIT stations; null means "built-in default".
         deviatingCompetitions:
           type: array
           description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
@@ -16131,6 +16142,16 @@ components:
           description: How long after its planned start a match that is not active yet is still watched.
         timingPrecision:
           $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: >-
+            PUT semantics like the other optional fields - null (or absent) restores the built-in
+            default capture tone for FINISH stations.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
       required:
         - autoPull
         - intervalActiveSeconds
@@ -20726,11 +20747,64 @@ components:
       required:
         - autoApply
         - precision
+        - finishTone
+        - splitTone
       properties:
         autoApply:
           type: boolean
         precision:
           $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: >-
+            Capture confirmation tone of FINISH stations, already resolved: unconfigured events
+            get the built-in default (880 Hz / 150 ms), so boards simply play what is sent here.
+            Edited via the event timing config (updateEventTimingConfig), pushed live via
+            settingsChanged.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: Capture confirmation tone of SPLIT stations, resolved like finishTone.
+
+    CaptureToneDto:
+      type: object
+      description: >-
+        A single confirmation beep (sine tone) played when a FINISH/SPLIT station captures a time.
+        Limits: frequencyHz 100..4000, durationMillis 20..2000.
+      required:
+        - frequencyHz
+        - durationMillis
+      properties:
+        frequencyHz:
+          type: integer
+          format: int32
+        durationMillis:
+          type: integer
+          format: int32
+
+    ToneStepDto:
+      type: object
+      description: >-
+        One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave
+        the countdown is currently running for. offsetMillis is negative before the start and 0 at
+        the start itself; positive values are not allowed (after the start the countdown target
+        immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the
+        maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..2000, at most 30
+        steps per plan. Missed tones are never played late - a board that reconnects mid-countdown
+        stays silent for everything older than about a second.
+      required:
+        - offsetMillis
+        - frequencyHz
+        - durationMillis
+      properties:
+        offsetMillis:
+          type: integer
+          format: int32
+        frequencyHz:
+          type: integer
+          format: int32
+        durationMillis:
+          type: integer
+          format: int32
 
     TimingPrecision:
       type: string
@@ -20927,6 +21001,15 @@ components:
           type: integer
           format: int32
           description: Countdown before the (first) start; feeds the start sequences' lead-in.
+        tonePlan:
+          type: array
+          nullable: true
+          description: >-
+            Tone plan of the start sequence, ascending by offset. Null means the built-in default
+            plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound
+            unconfigured modes always had.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
 
     TimingModeRequest:
       type: object
@@ -20951,6 +21034,13 @@ components:
           type: integer
           format: int32
           minimum: 0
+        tonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default plan; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
 
     TimingModeAssignmentDto:
       type: object

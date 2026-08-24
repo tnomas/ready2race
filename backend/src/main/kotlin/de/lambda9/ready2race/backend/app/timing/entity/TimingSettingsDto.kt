@@ -16,4 +16,12 @@ import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 data class TimingSettingsDto(
     val autoApply: Boolean,
     val precision: TimingPrecision,
+    /**
+     * Erfassungstöne der Posten (FINISH/SPLIT), bereits aufgelöst: unkonfiguriert liefert der
+     * Server den eingebauten Standard ([TimingToneLimits.DEFAULT_CAPTURE_TONE]) - die Boards
+     * spielen einfach, was hier steht. Gepflegt über die Zeitnahme-Einstellungen der
+     * Veranstaltung (EventTimingConfigRequest), live gepusht via settingsChanged.
+     */
+    val finishTone: CaptureTone,
+    val splitTone: CaptureTone,
 )

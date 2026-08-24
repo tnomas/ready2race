@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.competitionSetup.control.CompetitionSet
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeAssignmentRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
+import de.lambda9.ready2race.backend.app.timing.control.toJsonb
 import de.lambda9.ready2race.backend.app.timing.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentDto
@@ -73,6 +74,7 @@ object TimingModeService {
             startGrouping = request.startGrouping.name
             intervalSeconds = request.intervalSeconds
             leadInSeconds = request.leadInSeconds
+            tonePlan = request.tonePlan?.toJsonb()
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.ModeNotFound }

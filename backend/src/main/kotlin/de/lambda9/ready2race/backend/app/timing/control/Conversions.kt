@@ -15,8 +15,29 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingSta
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.backend.parsing.Parser
 import de.lambda9.tailwind.core.KIO
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.jooq.JSONB
 import java.time.LocalDateTime
 import java.util.UUID
+
+/**
+ * Eigener Mapper mit Kotlin-Modul für die Ton-JSONB-Spalten ([TonePlanStep], [CaptureTone]) -
+ * dasselbe Muster wie beim Board-Config-Mapper (eventInfo/control/Conversions.kt): der nackte
+ * ObjectMapper kann Kotlin-Datenklassen nicht konstruieren.
+ */
+private val toneMapper = ObjectMapper().registerKotlinModule()
+
+fun List<TonePlanStep>.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+
+fun JSONB?.toTonePlan(): List<TonePlanStep>? =
+    this?.let { toneMapper.readValue<List<TonePlanStep>>(it.data()) }
+
+fun CaptureTone.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+
+fun JSONB?.toCaptureTone(): CaptureTone? =
+    this?.let { toneMapper.readValue<CaptureTone>(it.data()) }
 
 fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
     TimingStationDto(
@@ -184,6 +205,7 @@ fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
     // Not-null-Spalte mit Default; jOOQ typisiert sie dennoch nullable (bekanntes Muster, siehe
     // EventTimingConfigDto) - der Datenbank-Default ist die einzig richtige Rückfalllinie.
     leadInSeconds = leadInSeconds ?: 10,
+    tonePlan = tonePlan.toTonePlan(),
 )
 
 fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
@@ -196,6 +218,7 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
             startGrouping = startGrouping.name,
             intervalSeconds = intervalSeconds,
             leadInSeconds = leadInSeconds,
+            tonePlan = tonePlan?.toJsonb(),
             createdAt = now,
             createdBy = userId,
             updatedAt = now,

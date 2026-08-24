@@ -9,6 +9,8 @@ import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceError
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
+import de.lambda9.ready2race.backend.app.timing.control.toCaptureTone
+import de.lambda9.ready2race.backend.app.timing.control.toJsonb
 import de.lambda9.ready2race.backend.app.timingConfig.control.TimingConfigRepo
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
@@ -76,6 +78,10 @@ object TimingConfigService {
                     watchAfterMinutes = event.raceclockerWatchAfterMinutes!!,
                     timingPrecision = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
                         ?: TimingPrecision.ZEHNTEL,
+                    // Unaufgelöst (null = Standard): das Formular braucht den Unterschied für
+                    // "Standard wiederherstellen" - aufgelöst liefert erst GET /timing/settings.
+                    finishTone = event.timingFinishTone.toCaptureTone(),
+                    splitTone = event.timingSplitTone.toCaptureTone(),
                     deviatingCompetitions = deviations,
                 )
             )
@@ -91,10 +97,13 @@ object TimingConfigService {
         val event = !EventRepo.get(eventId).orDie()
             .onNullFail { EventError.NotFound }
 
-        // VOR dem Schreiben festhalten, ob sich die Genauigkeit ändert - danach ist der alte
-        // Stand weg. Fehlender Wert = Datenbank-Vorgabe, dieselbe Rückfalllinie wie beim Lesen.
+        // VOR dem Schreiben festhalten, ob sich Genauigkeit oder Erfassungstöne ändern - danach
+        // ist der alte Stand weg. Fehlender Wert = Datenbank-Vorgabe, dieselbe Rückfalllinie wie
+        // beim Lesen.
         val precisionBefore = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
             ?: TimingPrecision.ZEHNTEL
+        val tonesChanged = event.timingFinishTone.toCaptureTone() != request.finishTone ||
+            event.timingSplitTone.toCaptureTone() != request.splitTone
 
         !EventRepo.update(event) {
             timingSystem = request.timingSystem?.name
@@ -106,6 +115,8 @@ object TimingConfigService {
             raceclockerWatchBeforeMinutes = request.watchBeforeMinutes
             raceclockerWatchAfterMinutes = request.watchAfterMinutes
             timingPrecision = request.timingPrecision.name
+            timingFinishTone = request.finishTone?.toJsonb()
+            timingSplitTone = request.splitTone?.toJsonb()
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -114,9 +125,12 @@ object TimingConfigService {
         // - der Fingerabdruck trägt den abgeschnittenen Wert, deshalb erkennt die Übernahme ihre
         // Zeilen wieder und missdeutet sie nicht als fremd. Zusätzlich erfahren alle verbundenen
         // Leitstände und Boards den neuen Stand live (settingsChanged), damit die Anzeige ohne
-        // Neuladen folgt.
+        // Neuladen folgt. Geänderte Erfassungstöne brauchen nur den Broadcast - die Boards
+        // spielen ab der nächsten Erfassung den neuen Ton, gerechnet wird dafür nichts.
         if (request.timingPrecision != precisionBefore) {
             !TimingOfficialTimeService.recomputeApplyEvent(eventId, userId)
+            !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
+        } else if (tonesChanged) {
             !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         }
 

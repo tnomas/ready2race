@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentReque
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
+import de.lambda9.ready2race.backend.app.timing.entity.TonePlanStep
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.testing.testComprehension
 import java.util.UUID
@@ -34,6 +35,7 @@ class TimingModeServiceTest {
         startGrouping = grouping,
         intervalSeconds = intervalSeconds,
         leadInSeconds = 10,
+        tonePlan = null,
     )
 
     @Test
@@ -52,6 +54,31 @@ class TimingModeServiceTest {
         assertEquals(30, mode.intervalSeconds)
         assertEquals(10, mode.leadInSeconds)
         assertEquals(false, mode.withLaps)
+        // Kein Plan gespeichert = eingebauter Standard: die Spalte bleibt null und kommt als
+        // null zurück, damit künftige Standard-Änderungen unkonfigurierte Typen erreichen.
+        assertNull(mode.tonePlan)
+    }
+
+    @Test
+    fun tonePlanSurvivesTheJsonbRoundtrip() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val plan = listOf(
+            TonePlanStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
+            TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400),
+        )
+
+        val created = !TimingModeService.addMode(request().copy(tonePlan = plan), userId, eventId)
+        val modeId = (created as ApiResponse.Created).id
+        assertEquals(plan, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
+
+        // Update auf einen anderen Plan und zurück auf null (= Standard) - beides muss die
+        // jsonb-Spalte exakt nachziehen, nicht nur beim Anlegen.
+        val updated = listOf(TonePlanStep(offsetMillis = 0, frequencyHz = 1200, durationMillis = 200))
+        !TimingModeService.updateMode(request().copy(tonePlan = updated), userId, modeId, eventId)
+        assertEquals(updated, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
+
+        !TimingModeService.updateMode(request(), userId, modeId, eventId)
+        assertNull((!TimingModeService.getModes(eventId)).data.single().tonePlan)
     }
 
     @Test

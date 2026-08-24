@@ -12,6 +12,8 @@ data class TimingModeRequest(
     val startGrouping: TimingStartGrouping,
     val intervalSeconds: Int?,
     val leadInSeconds: Int,
+    /** null = eingebauter Standardplan; Grenzen siehe [TimingToneLimits]. */
+    val tonePlan: List<TonePlanStep>?,
 ) : Validatable {
 
     override fun validate(): ValidationResult = ValidationResult.allOf(
@@ -20,6 +22,7 @@ data class TimingModeRequest(
         // Intervall), kein Intervallstart. Deshalb mindestens 1 Sekunde.
         this::intervalSeconds validate IntValidators.min(1),
         this::leadInSeconds validate IntValidators.notNegative,
+        TimingToneLimits.validateTonePlan(tonePlan, "tonePlan"),
     )
 
     companion object {
@@ -30,6 +33,7 @@ data class TimingModeRequest(
                 startGrouping = TimingStartGrouping.EINZEL,
                 intervalSeconds = 30,
                 leadInSeconds = 10,
+                tonePlan = null,
             )
     }
 }

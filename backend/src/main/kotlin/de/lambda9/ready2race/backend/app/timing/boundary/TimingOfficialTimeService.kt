@@ -66,7 +66,18 @@ object TimingOfficialTimeService {
     private data class EventTimingSettings(
         val autoApply: Boolean,
         val precision: TimingPrecision,
-    )
+        /** Erfassungstöne (FINISH/SPLIT), bereits auf den Standard aufgelöst - siehe [toDto]. */
+        val finishTone: CaptureTone,
+        val splitTone: CaptureTone,
+    ) {
+        /** Die eine Stelle, die aus dem internen Stand die Board-Sicht baut (GET + Broadcast). */
+        fun toDto() = TimingSettingsDto(
+            autoApply = autoApply,
+            precision = precision,
+            finishTone = finishTone,
+            splitTone = splitTone,
+        )
+    }
 
     // ------------------------------------------------------------------ Echtzeit-Rückschreibung
 
@@ -359,7 +370,7 @@ object TimingOfficialTimeService {
         eventId: UUID,
     ): App<ServiceError, ApiResponse.Dto<TimingSettingsDto>> = KIO.comprehension {
         val settings = !eventSettings(eventId)
-        KIO.ok(ApiResponse.Dto(TimingSettingsDto(autoApply = settings.autoApply, precision = settings.precision)))
+        KIO.ok(ApiResponse.Dto(settings.toDto()))
     }
 
     /**
@@ -421,9 +432,7 @@ object TimingOfficialTimeService {
         AfterCommit.register {
             TimingBroadcaster.broadcast(
                 eventId,
-                TimingWsMessage.SettingsChanged(
-                    TimingSettingsDto(autoApply = settings.autoApply, precision = settings.precision)
-                ),
+                TimingWsMessage.SettingsChanged(settings.toDto()),
             )
         }
         KIO.ok(Unit)
@@ -437,6 +446,12 @@ object TimingOfficialTimeService {
                 // Muster, siehe EventTimingConfigDto) - der Datenbank-Default ist die Rückfalllinie.
                 precision = event?.timingPrecision?.let { TimingPrecision.valueOf(it) }
                     ?: TimingPrecision.ZEHNTEL,
+                // null = unkonfiguriert: die Boards bekommen immer einen spielbaren Ton, deshalb
+                // wird der eingebaute Standard bereits hier aufgelöst statt in jedem Client.
+                finishTone = event?.timingFinishTone.toCaptureTone()
+                    ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
+                splitTone = event?.timingSplitTone.toCaptureTone()
+                    ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
             )
         }
 

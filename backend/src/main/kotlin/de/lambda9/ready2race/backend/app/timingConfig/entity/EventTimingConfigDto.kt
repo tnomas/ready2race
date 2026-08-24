@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
+import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import java.util.UUID
 
 /**
@@ -25,6 +26,14 @@ data class EventTimingConfigDto(
      * System INTERN). Nie null: die Spalte hat eine Vorgabe (ZEHNTEL, Migration V202608211450).
      */
     val timingPrecision: TimingPrecision,
+    /**
+     * Erfassungstöne der Posten (interne Zeitnahme): der Bestätigungston beim Erfassen am
+     * FINISH- bzw. SPLIT-Posten. Anders als in [TimingSettingsDto] NICHT aufgelöst: null heisst
+     * hier "eingebauter Standard" - das Formular muss wissen, ob ein eigener Wert gesetzt ist,
+     * um "Standard wiederherstellen" anbieten zu können.
+     */
+    val finishTone: CaptureTone?,
+    val splitTone: CaptureTone?,
     /**
      * Die Wettkaempfe, die dieser Voreinstellung nicht folgen. Ohne sie waere die Voreinstellung eine
      * Einstellung, deren Reichweite man nicht sieht: wer hier eine Adresse aendert, muss wissen,

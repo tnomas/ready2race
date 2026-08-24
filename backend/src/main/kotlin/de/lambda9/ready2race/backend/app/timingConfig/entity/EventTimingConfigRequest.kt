@@ -1,6 +1,8 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
+import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
@@ -31,6 +33,13 @@ data class EventTimingConfigRequest(
      * neue Stufe um (TimingConfigService.updateEventTimingConfig).
      */
     val timingPrecision: TimingPrecision,
+    /**
+     * Erfassungstöne der Posten (FINISH/SPLIT). Anders als Takte und Genauigkeit optional MIT
+     * Bedeutung: `null` heisst "eingebauter Standard" und räumt einen eigenen Wert wieder ab
+     * ("Standard wiederherstellen") - PUT-Semantik wie beim OfficialTimeOverrideRequest.
+     */
+    val finishTone: CaptureTone?,
+    val splitTone: CaptureTone?,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -39,6 +48,8 @@ data class EventTimingConfigRequest(
             validateInterval(intervalUpcomingSeconds, "intervalUpcomingSeconds"),
             validateMinutes(watchBeforeMinutes, "watchBeforeMinutes"),
             validateMinutes(watchAfterMinutes, "watchAfterMinutes"),
+            TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
+            TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
         )
 
     companion object {
@@ -73,6 +84,8 @@ data class EventTimingConfigRequest(
                 watchBeforeMinutes = 15,
                 watchAfterMinutes = 120,
                 timingPrecision = TimingPrecision.ZEHNTEL,
+                finishTone = null,
+                splitTone = null,
             )
     }
 }
