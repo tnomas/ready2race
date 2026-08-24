@@ -1211,6 +1211,21 @@ und je Kandidat das Rennen einsetzen; Kandidaten ohne Treffer werden verworfen
   `fetchCount(COMPETITION, COMPETITION.RACECLOCKER_RACE.eq(raceId))` jetzt
   `fetchCount(TIMING_PROFILE_ASSIGNMENT, TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE.eq(raceId))`.
   Die Sperre `RACECLOCKER_RACE_STILL_ASSIGNED` gilt damit für alle vier Ebenen.
+- `CompetitionMatchRepo.getForRaceClockerPull`: der `leftJoin RACECLOCKER_RACE on
+  COMPETITION.RACECLOCKER_RACE` entfällt; die Abfrage liefert stattdessen die Pfad-Ids
+  (Wettkampf, Runde, Partie) mit, und `CompetitionExecutionService` löst das Rennen über
+  `TimingProfileRepo.getAssignments(eventId, TimingProfileKind.RACE)` und
+  `TimingProfileResolveLogic.resolve` auf — genau wie der Abruf-Job.
+- `CompetitionMatchRepo.getForBulkStartlistExport`: derselbe Umbau je Wettkampf; der Service löst
+  auf **Wettkampf-Ebene** auf (`resolve(assignments, competitionId, null, null)`).
+
+**Nachtrag 25.08.2026:** Die letzten beiden Punkte kamen erst bei der Umsetzung ans Licht — der
+ursprüngliche Plan hatte sie übersehen. Sie gehören hierher: `getForRaceClockerPull` bedient den
+Knopf „von Hand abrufen" und den Datei-Weg (drei Aufrufstellen), `getForBulkStartlistExport` den
+Startlisten-Sammelexport. Bleiben sie an der Wettkampf-Spalte, treffen Knopf und Automatik
+verschiedene Rennen, sobald jemand eine Runden- oder Partie-Zuordnung setzt — und Task 6 bricht
+den Build. Dass der Sammelexport nur auf Wettkampf-Ebene auflöst, ist Absicht: Er gruppiert je
+Wettkampf, eine Partie-Abweichung hätte dort keinen Platz. Das gehört als Kommentar an die Stelle.
 
 - [ ] **Schritt 5: Tests laufen lassen**
 
