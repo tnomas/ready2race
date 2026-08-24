@@ -23,8 +23,9 @@ export type ToneStep = {
      * OBENDRAUF (Gesamtklang = duration + release); ein kurzes Ausklingen klingt abgehackt-steil,
      * ein langes weich-flach. Nicht gesetzt (oder 0) = exakt die bisherige Hüllkurve: die
      * Lautstärke fällt über die GESAMTE Nenndauer exponentiell ab (siehe `feedback.ts`).
+     * `null` ist zugelassen, damit der generierte API-Typ (`ToneStepDto`) direkt hineinpasst.
      */
-    releaseMillis?: number
+    releaseMillis?: number | null
 }
 
 // --- Grenzen -------------------------------------------------------------------------------------
@@ -56,9 +57,9 @@ export const TONE_OFFSET_MAX_MILLIS = 0
  * immer gültig; ein gesetzter Wert muss eine ganze Zahl in 0–5000 ms sein. Die Editoren
  * normalisieren 0 zu „nicht gesetzt", beides klingt identisch (siehe [ToneStep.releaseMillis]).
  */
-export function isValidToneRelease(releaseMillis: number | undefined): boolean {
+export function isValidToneRelease(releaseMillis: number | null | undefined): boolean {
     return (
-        releaseMillis === undefined ||
+        releaseMillis == null ||
         (Number.isInteger(releaseMillis) &&
             releaseMillis >= TONE_RELEASE_MIN_MILLIS &&
             releaseMillis <= TONE_RELEASE_MAX_MILLIS)
