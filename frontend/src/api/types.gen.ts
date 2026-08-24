@@ -630,6 +630,27 @@ export type BoardTile = {
     elements: Array<BoardElement>
 }
 
+/**
+ * Everything one board renders in a single response.
+ *
+ * In addition to polling the HTTP routes under `/event/{eventId}/info`, displays can listen
+ * on a websocket channel that announces changes to the event:
+ *
+ * - Path: `/api/ws/event/{eventId}/info` (note the `/api/ws` prefix - this channel lives
+ * outside the regular `/api` REST routes documented in this spec).
+ * - Auth: none. The channel mirrors the public display endpoints under
+ * `/event/{eventId}/info` - connect with a plain `new WebSocket(url)`, no subprotocol and
+ * no session required.
+ * - Messages are JSON objects discriminated by a `type` field. The only type is
+ * `{ type: "changed", marker: int64 }`: the event's change marker was bumped (results,
+ * activation, schedule actions, notice banner, ...). The message deliberately carries no
+ * payload - on receiving it, refetch the display's regular endpoint. `marker` is monotonic
+ * per event; the current value is also sent once immediately after connecting.
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on
+ * the server's ping/pong keepalive.
+ * - On every (re)connect clients should refetch once, to cover changes missed while
+ * disconnected, and keep a slow safety poll as fallback for connections that die silently.
+ */
 export type BoardViewDto = {
     boardId: string
     eventName: string
@@ -653,6 +674,14 @@ export type CaptchaDto = {
     solutionMax: number
     handleToHeightRatio: number
     start: number
+}
+
+/**
+ * A single confirmation beep (sine tone) played when a FINISH/SPLIT station captures a time. Limits: frequencyHz 100..4000, durationMillis 20..2000.
+ */
+export type CaptureToneDto = {
+    frequencyHz: number
+    durationMillis: number
 }
 
 export type CatererTransactionRequest = {
@@ -2015,6 +2044,14 @@ export type EventTimingConfigDto = {
     watchAfterMinutes: number
     timingPrecision: TimingPrecision
     /**
+     * Capture confirmation tone of FINISH stations. Unlike TimingSettingsDto this is NOT resolved - null means "built-in default", so the form knows whether a custom value is set and can offer a reset.
+     */
+    finishTone?: CaptureToneDto | null
+    /**
+     * Capture confirmation tone of SPLIT stations; null means "built-in default".
+     */
+    splitTone?: CaptureToneDto | null
+    /**
      * The competitions that do not follow these defaults but set at least one of the three fields themselves.
      */
     deviatingCompetitions?: Array<CompetitionTimingDeviationDto>
@@ -2049,6 +2086,14 @@ export type EventTimingConfigRequest = {
      */
     watchAfterMinutes: number
     timingPrecision: TimingPrecision
+    /**
+     * PUT semantics like the other optional fields - null (or absent) restores the built-in default capture tone for FINISH stations.
+     */
+    finishTone?: CaptureToneDto | null
+    /**
+     * PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
+     */
+    splitTone?: CaptureToneDto | null
 }
 
 export type FeeDto = {
@@ -4226,6 +4271,10 @@ export type TimingModeDto = {
      * Countdown before the (first) start; feeds the start sequences' lead-in.
      */
     leadInSeconds: number
+    /**
+     * Tone plan of the start sequence, ascending by offset. Null means the built-in default plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound unconfigured modes always had.
+     */
+    tonePlan?: Array<ToneStepDto> | null
 }
 
 export type TimingModeRequest = {
@@ -4234,6 +4283,10 @@ export type TimingModeRequest = {
     startGrouping: TimingStartGrouping
     intervalSeconds?: number | null
     leadInSeconds: number
+    /**
+     * Null restores the built-in default plan; limits see ToneStepDto.
+     */
+    tonePlan?: Array<ToneStepDto> | null
 }
 
 /**
@@ -4269,6 +4322,14 @@ export type TimingSequenceEntryDto = {
 export type TimingSettingsDto = {
     autoApply: boolean
     precision: TimingPrecision
+    /**
+     * Capture confirmation tone of FINISH stations, already resolved: unconfigured events get the built-in default (880 Hz / 150 ms), so boards simply play what is sent here. Edited via the event timing config (updateEventTimingConfig), pushed live via settingsChanged.
+     */
+    finishTone: CaptureToneDto
+    /**
+     * Capture confirmation tone of SPLIT stations, resolved like finishTone.
+     */
+    splitTone: CaptureToneDto
 }
 
 /**
@@ -4361,6 +4422,15 @@ export type TimingTeamDto = {
     competitionName?: string
     matchName?: string
     matchPhase: TimingMatchPhase
+}
+
+/**
+ * One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave the countdown is currently running for. offsetMillis is negative before the start and 0 at the start itself; positive values are not allowed (after the start the countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..2000, at most 30 steps per plan. Missed tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
+ */
+export type ToneStepDto = {
+    offsetMillis: number
+    frequencyHz: number
+    durationMillis: number
 }
 
 export type TooManyRequestsError = ApiError & {
