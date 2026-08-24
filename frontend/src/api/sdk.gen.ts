@@ -228,6 +228,15 @@ import type {
     UpdateEventTimingConfigData,
     UpdateEventTimingConfigError,
     UpdateEventTimingConfigResponse,
+    GetTimingProfileTreeData,
+    GetTimingProfileTreeError,
+    GetTimingProfileTreeResponse,
+    UpsertTimingProfileAssignmentData,
+    UpsertTimingProfileAssignmentError,
+    UpsertTimingProfileAssignmentResponse,
+    ResetTimingProfileAssignmentsData,
+    ResetTimingProfileAssignmentsError,
+    ResetTimingProfileAssignmentsResponse,
     UpdateEventNoticeData,
     UpdateEventNoticeError,
     UpdateEventNoticeResponse,
@@ -2061,6 +2070,54 @@ export const updateEventTimingConfig = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing-config',
+    })
+}
+
+/**
+ * The timing-profile tree of the event: root, competitions, rounds and matches, each level with its own profile (null means inherit) and the profile actually in effect there. The inheritance rule lives on the server only, so the UI stays a pure display.
+ */
+export const getTimingProfileTree = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingProfileTreeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingProfileTreeResponse,
+        GetTimingProfileTreeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/tree',
+    })
+}
+
+/**
+ * Upsert over the natural key (competition, round, match): creates or replaces the entry for that path; a null profile removes it and puts the level back on "inherit". All three path fields null address the root (the event itself).
+ */
+export const upsertTimingProfileAssignment = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpsertTimingProfileAssignmentData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpsertTimingProfileAssignmentResponse,
+        UpsertTimingProfileAssignmentError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignment',
+    })
+}
+
+/**
+ * Clears every level BELOW the given one, so all of them inherit again. Without the competition parameter that is the whole event except its root; with it, the rounds and matches of that competition (its own entry stays).
+ */
+export const resetTimingProfileAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResetTimingProfileAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        ResetTimingProfileAssignmentsResponse,
+        ResetTimingProfileAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignments',
     })
 }
 

@@ -2027,6 +2027,96 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/timing-profile/tree:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingProfileTree
+      description: >-
+        The timing-profile tree of the event: root, competitions, rounds and matches, each level
+        with its own profile (null means inherit) and the profile actually in effect there. The
+        inheritance rule lives on the server only, so the UI stays a pure display.
+      responses:
+        200:
+          description: Timing profile tree successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingProfileTreeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing-profile/assignment:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    put:
+      operationId: upsertTimingProfileAssignment
+      description: >-
+        Upsert over the natural key (competition, round, match): creates or replaces the entry for
+        that path; a null profile removes it and puts the level back on "inherit". All three path
+        fields null address the root (the event itself).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingProfileAssignmentRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing-profile/assignments:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    delete:
+      operationId: resetTimingProfileAssignments
+      description: >-
+        Clears every level BELOW the given one, so all of them inherit again. Without the
+        competition parameter that is the whole event except its root; with it, the rounds and
+        matches of that competition (its own entry stays).
+      parameters:
+        - name: competition
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Limits the reset to the rounds and matches of this competition
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/notice:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -11135,6 +11225,8 @@ components:
         - RACECLOCKER_RACE_NAME_TAKEN
         - RACECLOCKER_RACE_URL_TAKEN
         - RACECLOCKER_RACE_STILL_ASSIGNED
+        - TIMING_PROFILE_KIND_MISMATCH
+        - TIMING_PROFILE_SCOPE_INVALID
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED
@@ -21141,6 +21233,143 @@ components:
           description: Null restores the built-in default plan; limits see ToneStepDto.
           items:
             $ref: '#/components/schemas/ToneStepDto'
+
+    TimingProfileKind:
+      type: string
+      enum:
+        - RACE
+        - MODE
+      description: >-
+        Which kind of timing profile the event uses. Not freely chosen: RACE goes with
+        timing_system RACECLOCKER, MODE with INTERN. With any other system there are no profiles.
+
+    TimingProfileOptionDto:
+      type: object
+      description: A selectable profile - a race for RACE, a timing mode for MODE.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        detail:
+          type: string
+          nullable: true
+          description: Second line of the select - results URL of the race, start grouping or interval of the mode.
+
+    TimingProfileMatchDto:
+      type: object
+      required:
+        - matchId
+        - name
+      properties:
+        matchId:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+
+    TimingProfileRoundDto:
+      type: object
+      required:
+        - roundId
+        - name
+        - matches
+      properties:
+        roundId:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileMatchDto'
+
+    TimingProfileCompetitionDto:
+      type: object
+      required:
+        - competitionId
+        - identifier
+        - name
+        - rounds
+      properties:
+        competitionId:
+          $ref: '#/components/schemas/uuid'
+        identifier:
+          type: string
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileRoundDto'
+
+    TimingProfileTreeDto:
+      type: object
+      description: >-
+        The timing-profile tree of one event. Every level carries both its own profile
+        (ownProfile, null means inherit) and the one in effect there (effectiveProfile).
+      required:
+        - options
+        - competitions
+      properties:
+        timingSystem:
+          $ref: '#/components/schemas/TimingSystem'
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/TimingProfileKind'
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileOptionDto'
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: The profile of the root; null means not set (the root inherits from nobody).
+        competitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileCompetitionDto'
+
+    TimingProfileAssignmentRequest:
+      type: object
+      description: >-
+        Upsert of one level of the tree: the entry for the given path is created or replaced; a
+        null profile removes it and puts the level back on "inherit". All three path fields null
+        address the root (the event itself).
+      properties:
+        competition:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        competitionSetupRound:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        competitionSetupMatch:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        profile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
 
     TimingModeAssignmentDto:
       type: object

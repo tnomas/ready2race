@@ -1563,6 +1563,8 @@ export type ErrorCode =
     | 'RACECLOCKER_RACE_NAME_TAKEN'
     | 'RACECLOCKER_RACE_URL_TAKEN'
     | 'RACECLOCKER_RACE_STILL_ASSIGNED'
+    | 'TIMING_PROFILE_KIND_MISMATCH'
+    | 'TIMING_PROFILE_SCOPE_INVALID'
     | 'STARTLIST_CONFIG_NOT_CONFIGURED'
     | 'STARTLIST_MATCHES_WITHOUT_START_TIME'
     | 'RESULT_IMPORT_CONFIG_NOT_CONFIGURED'
@@ -4310,6 +4312,71 @@ export type TimingModeRequest = {
  */
 export type TimingPrecision = 'SEKUNDE' | 'ZEHNTEL' | 'HUNDERTSTEL' | 'MILLISEKUNDE'
 
+/**
+ * Upsert of one level of the tree: the entry for the given path is created or replaced; a null profile removes it and puts the level back on "inherit". All three path fields null address the root (the event itself).
+ */
+export type TimingProfileAssignmentRequest = {
+    competition?: uuid | null
+    competitionSetupRound?: uuid | null
+    competitionSetupMatch?: uuid | null
+    profile?: uuid | null
+}
+
+export type TimingProfileCompetitionDto = {
+    competitionId: uuid
+    identifier: string
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+    rounds: Array<TimingProfileRoundDto>
+}
+
+/**
+ * Which kind of timing profile the event uses. Not freely chosen: RACE goes with timing_system RACECLOCKER, MODE with INTERN. With any other system there are no profiles.
+ */
+export type TimingProfileKind = 'RACE' | 'MODE'
+
+export type TimingProfileMatchDto = {
+    matchId: uuid
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+}
+
+/**
+ * A selectable profile - a race for RACE, a timing mode for MODE.
+ */
+export type TimingProfileOptionDto = {
+    id: uuid
+    name: string
+    /**
+     * Second line of the select - results URL of the race, start grouping or interval of the mode.
+     */
+    detail?: string | null
+}
+
+export type TimingProfileRoundDto = {
+    roundId: uuid
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+    matches: Array<TimingProfileMatchDto>
+}
+
+/**
+ * The timing-profile tree of one event. Every level carries both its own profile (ownProfile, null means inherit) and the one in effect there (effectiveProfile).
+ */
+export type TimingProfileTreeDto = {
+    timingSystem?: TimingSystem | null
+    kind?: TimingProfileKind | null
+    options: Array<TimingProfileOptionDto>
+    /**
+     * The profile of the root; null means not set (the root inherits from nobody).
+     */
+    ownProfile?: uuid | null
+    competitions: Array<TimingProfileCompetitionDto>
+}
+
 export type TimingSequenceDto = {
     id: uuid
     event: uuid
@@ -5973,6 +6040,46 @@ export type UpdateEventTimingConfigData = {
 export type UpdateEventTimingConfigResponse = void
 
 export type UpdateEventTimingConfigError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetTimingProfileTreeData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingProfileTreeResponse = TimingProfileTreeDto
+
+export type GetTimingProfileTreeError = BadRequestError | ApiError
+
+export type UpsertTimingProfileAssignmentData = {
+    body: TimingProfileAssignmentRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type UpsertTimingProfileAssignmentResponse = void
+
+export type UpsertTimingProfileAssignmentError =
+    | BadRequestError
+    | ApiError
+    | UnprocessableEntityError
+
+export type ResetTimingProfileAssignmentsData = {
+    path: {
+        eventId: string
+    }
+    query?: {
+        /**
+         * Limits the reset to the rounds and matches of this competition
+         */
+        competition?: string
+    }
+}
+
+export type ResetTimingProfileAssignmentsResponse = void
+
+export type ResetTimingProfileAssignmentsError = BadRequestError | ApiError
 
 export type UpdateEventNoticeData = {
     body: UpdateEventNoticeRequest
