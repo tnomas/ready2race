@@ -39,7 +39,10 @@ Testcontainers; React/TypeScript, MUI, react-i18next, Vitest.
   Interfaces statt der generierten Typen benutzen.
 - **Kein `any`, kein `as any`** im Frontend. Fehlende i18n-Schlüssel werden angelegt, nicht
   weggecastet.
-- **Deutsche Umlaute** in allen deutschen Texten (ä, ö, ü, ß), niemals ae/oe/ue/ss.
+- **Deutsche Umlaute** in allen deutschen Texten (ä, ö, ü, ß), niemals ae/oe/ue/ss — in Code,
+  Kommentaren, Testnamen, i18n-Texten und Commit-Nachrichten gleichermaßen. Findet sich in
+  einem Codeblock deines Briefs doch eine Ersatzschreibung, schreib sie richtig; die Regel
+  steht über dem wörtlichen Brief-Text.
 - **Kommentare erklären das Warum**, im Ton der umliegenden Dateien (deutsche Fließtext-KDoc).
 - **Commits erwähnen weder Claude noch Anthropic.**
 - **Rechte:** Lesen `Privilege.ReadEventGlobal`, Schreiben `Privilege.UpdateEventGlobal`. Kein
@@ -221,7 +224,7 @@ class TimingProfileMigrationTest {
     private val competitionPropertiesId = UUID.randomUUID()
 
     @Test
-    fun `uebernimmt Typ-Zuordnungen und das angewaehlte Rennen`() {
+    fun `übernimmt Typ-Zuordnungen und das angewählte Rennen`() {
         val postgres = PostgreSQLContainer("postgres:17")
         postgres.start()
         try {
@@ -425,7 +428,7 @@ class TimingProfileResolveLogicTest {
     )
 
     @Test
-    fun `die Partie schlaegt alles darueber`() {
+    fun `die Partie schlägt alles darüber`() {
         assertEquals(matchProfile, TimingProfileResolveLogic.resolve(all, competition, round, match))
     }
 
@@ -452,7 +455,7 @@ class TimingProfileResolveLogicTest {
         assertNull(TimingProfileResolveLogic.resolve(emptyList(), competition, round, match))
     }
 
-    // Eine Runden-Zeile deckt ausschliesslich ihre Runde ab.
+    // Eine Runden-Zeile deckt ausschließlich ihre Runde ab.
     @Test
     fun `die Nachbarrunde erbt nicht vom Runden-Eintrag`() {
         assertEquals(
@@ -462,15 +465,15 @@ class TimingProfileResolveLogicTest {
     }
 
     @Test
-    fun `fremde Wettkaempfe stoeren nicht`() {
+    fun `fremde Wettkämpfe stören nicht`() {
         val assignments = all + Assignment(otherCompetition, null, null, UUID.randomUUID())
         assertEquals(matchProfile, TimingProfileResolveLogic.resolve(assignments, competition, round, match))
     }
 
-    // Dieselbe Funktion beantwortet "was gilt auf DIESER Ebene, wenn sie erbt?" - die Oberflaeche
-    // braucht das fuer die Beschriftung "Erbt (...)".
+    // Dieselbe Funktion beantwortet "was gilt auf DIESER Ebene, wenn sie erbt?" - die Oberfläche
+    // braucht das für die Beschriftung "Erbt (...)".
     @Test
-    fun `fragt man eine hoehere Ebene ab, bleiben die tieferen Eintraege aussen vor`() {
+    fun `fragt man eine höhere Ebene ab, bleiben die tieferen Einträge außen vor`() {
         assertEquals(competitionProfile, TimingProfileResolveLogic.resolve(all, competition, null, null))
         assertEquals(eventProfile, TimingProfileResolveLogic.resolve(all, null, null, null))
     }
@@ -573,7 +576,7 @@ Erwartet: `Tests run: 8, Failures: 0`.
 
 ```bash
 git add backend/src/main/kotlin/de/lambda9/ready2race/backend/app/timingProfile backend/src/test/kotlin/de/lambda9/ready2race/backend/app/timingProfile/TimingProfileResolveLogicTest.kt
-git commit -m "Zeitnahmeprofil: Aufloesung ueber vier Ebenen"
+git commit -m "Zeitnahmeprofil: Auflösung über vier Ebenen"
 ```
 
 ---
@@ -1070,9 +1073,9 @@ Fälle:
 1. `setzt und raeumt eine Wettkampf-Zuordnung ab` — Event auf `INTERN`, Typ anlegen
    (`TimingModeService.addMode`), Zuordnung setzen, `getTree` zeigt sie als `ownProfile` und
    `effectiveProfile`; danach mit `profile = null` abräumen, `ownProfile` ist null.
-2. `die Partie schlaegt den Wettkampf im Baum` — zwei Typen, einer am Wettkampf, einer an der
+2. `die Partie schlägt den Wettkampf im Baum` — zwei Typen, einer am Wettkampf, einer an der
    Partie; `effectiveProfile` der Partie ist der zweite, der der Runde der erste.
-3. `die Wurzel vererbt an Wettkaempfe ohne eigenen Wert` — Zuordnung mit allen Pfad-Feldern null,
+3. `die Wurzel vererbt an Wettkämpfe ohne eigenen Wert` — Zuordnung mit allen Pfad-Feldern null,
    `competitions.first().ownProfile` ist null, `effectiveProfile` das Wurzel-Profil.
 4. `ein Rennen an einer intern gezeiteten Veranstaltung wird abgelehnt` — erwartet
    `TimingProfileError.KindMismatch`.
@@ -1167,11 +1170,11 @@ Zuerst laufen lassen — die neuen Erwartungen müssen scheitern.
 Kommentar an der Stelle, an der der innere Join stand:
 
 ```kotlin
-// Das Rennen wird nicht mehr im SQL gejoint: Seit dem Zeitnahmeprofil-Baum haengt es an einer
-// von vier Ebenen (Veranstaltung, Wettkampf, Runde, Partie). Eine Ebenen-Aufloesung gehoert
+// Das Rennen wird nicht mehr im SQL gejoint: Seit dem Zeitnahmeprofil-Baum hängt es an einer
+// von vier Ebenen (Veranstaltung, Wettkampf, Runde, Partie). Eine Ebenen-Auflösung gehört
 // nicht in eine where-Klausel -- sie steht in TimingProfileResolveLogic und wird im Service
-// angewandt, genau wie TimingMatchService es fuer den Zeitnahmetyp tut. Die Wirkung des frueheren
-// INNEREN Joins bleibt erhalten: Laeufe ohne aufgeloestes Rennen faellt der Service still heraus.
+// angewandt, genau wie TimingMatchService es für den Zeitnahmetyp tut. Die Wirkung des frueheren
+// INNEREN Joins bleibt erhalten: Laeufe ohne aufgeloestes Rennen fällt der Service still heraus.
 ```
 
 - [ ] **Schritt 3: Die Auflösung im Poll-Service ergänzen**
@@ -1225,7 +1228,7 @@ Verhaltensänderung, nicht ein Fehler. `setCompetitionTimingSystem` fällt dabei
 
 ```bash
 git add backend/src
-git commit -m "Zeitnahme-System nur noch an der Veranstaltung, Rennen ueber den Profil-Baum"
+git commit -m "Zeitnahme-System nur noch an der Veranstaltung, Rennen über den Profil-Baum"
 ```
 
 ---
@@ -1281,11 +1284,11 @@ const wettkampf = (
 })
 
 describe('optionLabel', () => {
-    it('haengt das Detail in Klammern an', () => {
+    it('hängt das Detail in Klammern an', () => {
         expect(optionLabel(optionen[0])).toBe('Timetrial 30s (Intervall 30 s)')
     })
 
-    it('laesst die Klammer weg, wenn es kein Detail gibt', () => {
+    it('lässt die Klammer weg, wenn es kein Detail gibt', () => {
         expect(optionLabel({id: 'c', name: 'Kurzstrecke', detail: null})).toBe('Kurzstrecke')
     })
 })
@@ -1299,7 +1302,7 @@ describe('profileLabel', () => {
         expect(profileLabel(optionen, null)).toBeNull()
     })
 
-    // Ein geloeschtes Profil darf die Zeile nicht zum Absturz bringen.
+    // Ein gelöschtes Profil darf die Zeile nicht zum Absturz bringen.
     it('unbekannte id ergibt null', () => {
         expect(profileLabel(optionen, 'weg')).toBeNull()
     })
