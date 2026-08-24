@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.timingConfig
 
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
@@ -71,7 +72,8 @@ class EventTimingConfigRequestTest {
                 finishTone = CaptureTone(frequencyHz = 100, durationMillis = 20),
                 // Obergrenze seit dem Fehlstart-Ton: 10 s statt frueher 2 s.
                 splitTone = CaptureTone(frequencyHz = 4000, durationMillis = 10_000),
-                falseStartTone = CaptureTone(frequencyHz = 440, durationMillis = 3000, releaseMillis = 5000),
+                // Wellenform samt Ausklingzeit: die Dimensionen sind unabhaengig und beide optional.
+                falseStartTone = CaptureTone(frequencyHz = 440, durationMillis = 3000, releaseMillis = 5000, waveform = ToneWaveform.TRIANGLE),
             ).validate(),
         )
     }

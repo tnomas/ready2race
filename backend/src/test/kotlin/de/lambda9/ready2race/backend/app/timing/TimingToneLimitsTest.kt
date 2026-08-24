@@ -1,12 +1,20 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.timing.control.toCaptureTone
+import de.lambda9.ready2race.backend.app.timing.control.toJsonb
+import de.lambda9.ready2race.backend.app.timing.control.toTonePlan
+import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
 import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
 import de.lambda9.ready2race.backend.app.timing.entity.TonePlanStep
+import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.validation.ValidationResult
+import org.jooq.JSONB
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -91,6 +99,74 @@ class TimingToneLimitsTest {
     fun theBuiltInDefaultTonesAreInsideTheLimits() {
         assertEquals(ValidationResult.Valid, TimingToneLimits.validateCaptureTone(TimingToneLimits.DEFAULT_CAPTURE_TONE, "finishTone"))
         assertEquals(ValidationResult.Valid, TimingToneLimits.validateCaptureTone(TimingToneLimits.DEFAULT_FALSE_START_TONE, "falseStartTone"))
+    }
+
+    @Test
+    fun theBuiltInFalseStartToneIsASawtooth() {
+        // Die eine gewollte Ausnahme von "Standard bleibt Sinus": der Fehlstart-Ton ist brandneu
+        // (kein Bestandsklang) und soll aggressiv klingen. 440 Hz / 3000 ms bleiben unveraendert.
+        assertEquals(
+            CaptureTone(frequencyHz = 440, durationMillis = 3000, waveform = ToneWaveform.SAWTOOTH),
+            TimingToneLimits.DEFAULT_FALSE_START_TONE,
+        )
+        // Die Erfassungstoene bleiben dagegen unkonfiguriert-Sinus (waveform null).
+        assertNull(TimingToneLimits.DEFAULT_CAPTURE_TONE.waveform)
+    }
+
+    @Test
+    fun waveformIsOptionalAndAcceptsAllFourShapes() {
+        // Das Feld validiert sich ueber den Enum-Typ selbst: fremde Werte scheitern schon beim
+        // Einlesen (Jackson), die Grenzen-Pruefung muss die vier Formen nur durchlassen.
+        assertEquals(ValidationResult.Valid, request(listOf(step())).validate())
+        for (waveform in ToneWaveform.entries) {
+            assertEquals(
+                ValidationResult.Valid,
+                request(listOf(step().copy(waveform = waveform))).validate(),
+            )
+            assertEquals(
+                ValidationResult.Valid,
+                TimingToneLimits.validateCaptureTone(
+                    CaptureTone(frequencyHz = 440, durationMillis = 3000, waveform = waveform),
+                    "falseStartTone",
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun waveformSurvivesTheJsonSerialization() {
+        // Der jsonb-Mapper (Conversions.kt) muss die Form als Klartext-Namen tragen.
+        val plan = listOf(
+            step(),
+            step(offsetMillis = 0, frequencyHz = 900, durationMillis = 400, releaseMillis = 800)
+                .copy(waveform = ToneWaveform.SAWTOOTH),
+        )
+        assertEquals(plan, plan.toJsonb().toTonePlan())
+        val tone = CaptureTone(frequencyHz = 440, durationMillis = 300, waveform = ToneWaveform.SQUARE)
+        assertEquals(tone, tone.toJsonb().toCaptureTone())
+    }
+
+    @Test
+    fun legacyJsonWithoutWaveformReadsAsNull() {
+        // Alt-Bestand aus der Zeit vor dem Feld: kein waveform-Schluessel = Sinus (null) -
+        // gespeicherte Toene duerfen ihre Klanggestalt nicht aendern.
+        val plan = JSONB.jsonb("""[{"offsetMillis":-1000,"frequencyHz":600,"durationMillis":100}]""")
+            .toTonePlan()
+        assertEquals(listOf(step(releaseMillis = null)), plan)
+        assertNull(plan!!.single().waveform)
+        val tone = JSONB.jsonb("""{"frequencyHz":880,"durationMillis":150,"releaseMillis":null}""")
+            .toCaptureTone()
+        assertEquals(CaptureTone(frequencyHz = 880, durationMillis = 150), tone)
+    }
+
+    @Test
+    fun unknownWaveformValuesFailAtParseTime() {
+        // Nur die vier Grundformen des OscillatorNode sind zulaessig - ein fremder Wert in der
+        // jsonb-Spalte (oder im Request, dort ueber denselben Jackson-Weg) fliegt beim Einlesen.
+        assertFailsWith<Exception> {
+            JSONB.jsonb("""{"frequencyHz":880,"durationMillis":150,"waveform":"NOISE"}""")
+                .toCaptureTone()
+        }
     }
 
     @Test

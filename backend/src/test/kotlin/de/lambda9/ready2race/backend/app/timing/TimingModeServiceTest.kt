@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
 import de.lambda9.ready2race.backend.app.timing.entity.TonePlanStep
+import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.testing.testComprehension
 import java.util.UUID
@@ -69,6 +70,10 @@ class TimingModeServiceTest {
             TonePlanStep(offsetMillis = -5_000, frequencyHz = 600, durationMillis = 100, releaseMillis = 0),
             // Mit Ausklingzeit: auch releaseMillis muss den jsonb-Roundtrip unverändert überleben.
             TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
+            // Wellenform: gesetzt bleibt gesetzt, nicht gesetzt bleibt null (= Sinus) - auch
+            // kombiniert mit einer Ausklingzeit (die Dimensionen sind unabhaengig).
+            TonePlanStep(offsetMillis = -2_000, frequencyHz = 440, durationMillis = 300, waveform = ToneWaveform.SQUARE),
+            TonePlanStep(offsetMillis = -1_000, frequencyHz = 440, durationMillis = 300, releaseMillis = 500, waveform = ToneWaveform.SAWTOOTH),
         )
 
         val created = !TimingModeService.addMode(request().copy(tonePlan = plan), userId, eventId)

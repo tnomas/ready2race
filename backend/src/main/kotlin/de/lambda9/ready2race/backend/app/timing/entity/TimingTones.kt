@@ -3,7 +3,26 @@ package de.lambda9.ready2race.backend.app.timing.entity
 import de.lambda9.ready2race.backend.validation.ValidationResult
 
 /**
- * Ein Eintrag des Tonplans eines Zeitnahmetyps: WELCHER Sinus-Piep WANN relativ zum Start des
+ * Die Wellenform eines Zeitnahme-Tons: die vier Grundformen des WebAudio-`OscillatorNode`, mit
+ * denen die Boards synthetisieren. Die Werte sind englisch und großgeschrieben, weil sie 1:1 den
+ * `OscillatorType`-Strings des Browsers entsprechen (`'sine'`, `'triangle'`, `'square'`,
+ * `'sawtooth'`) und die technischen Enums der Zeitnahme-API ohnehin englisch sind
+ * ([SequenceMode.MASS]/[SequenceMode.INTERVAL], [TimingStationType]); deutsch sind nur
+ * Fachbegriffe der Regattaleitung ([TimingStartGrouping.EINZEL]/[TimingStartGrouping.WELLE]).
+ *
+ * `null`/nicht gesetzt = [SINE] - kein bestehender, ohne dieses Feld gespeicherter Klang ändert
+ * sich. Eine eigene Validierung braucht das Feld nicht: der Enum-Typ selbst lässt nur die vier
+ * Werte zu, fremde Strings scheitern bereits beim Einlesen (Jackson - Request wie jsonb-Spalte).
+ */
+enum class ToneWaveform {
+    SINE,
+    TRIANGLE,
+    SQUARE,
+    SAWTOOTH,
+}
+
+/**
+ * Ein Eintrag des Tonplans eines Zeitnahmetyps: WELCHER Piep WANN relativ zum Start des
  * jeweiligen Boots/der Welle gespielt wird. [offsetMillis] negativ = vor dem Start, 0 = der Start
  * selbst; positive Werte sind nicht erlaubt - nach dem Start wandert das Countdown-Ziel sofort
  * zum nächsten Boot, ein Ton "nach dem Start" wäre je Boot mehrdeutig.
@@ -22,6 +41,12 @@ data class TonePlanStep(
      * sind VERSCHIEDENE Klangformen.
      */
     val releaseMillis: Int? = null,
+    /**
+     * Wellenform des Oszillators, unabhängig von der Hüllkurve (ein gehaltener Sägezahn trägt
+     * beides); null = Sinus. Anders als bei [releaseMillis] ist explizit [ToneWaveform.SINE]
+     * klanggleich mit null - die Editoren normalisieren es deshalb auf "nicht gesetzt".
+     */
+    val waveform: ToneWaveform? = null,
 )
 
 /**
@@ -36,6 +61,8 @@ data class CaptureTone(
     val durationMillis: Int,
     /** Hüllkurven-Wahl wie bei [TonePlanStep.releaseMillis]; null = Abfallend, 0-5000 = Gehalten. */
     val releaseMillis: Int? = null,
+    /** Wellenform wie bei [TonePlanStep.waveform]; null = Sinus. */
+    val waveform: ToneWaveform? = null,
 )
 
 /**
@@ -70,8 +97,16 @@ object TimingToneLimits {
      * Der eingebaute Fehlstart-Ton: deutlich länger und tiefer als Countdown-Ticks (600 Hz) und
      * Startton (900 Hz), damit er am Wasser sofort als "zurück!" erkennbar ist. 440 Hz / 3000 ms
      * ohne eigene Ausklingzeit = die Lautstärke fällt über die vollen 3 Sekunden exponentiell ab.
+     *
+     * SAWTOOTH mit Absicht - die EINE gewollte Ausnahme von "Standard bleibt Sinus": der Ton ist
+     * brandneu (kein Bestandsklang, an den sich jemand gewöhnt hätte) und soll aggressiv
+     * schnarren statt brav zu klingen - ein Sinus geht im Regattalärm als "irgendein Piep"
+     * unter. Da GET /timing/settings die Töne AUFGELÖST ausliefert (unkonfiguriert = dieser
+     * Wert), erreicht die Entscheidung alle Boards; das Formular ("Standard wiederherstellen")
+     * vergleicht gegen denselben Standard im Frontend (DEFAULT_FALSE_START_TONE, tonePlan.ts).
      */
-    val DEFAULT_FALSE_START_TONE = CaptureTone(frequencyHz = 440, durationMillis = 3000)
+    val DEFAULT_FALSE_START_TONE =
+        CaptureTone(frequencyHz = 440, durationMillis = 3000, waveform = ToneWaveform.SAWTOOTH)
 
     private fun validateFrequency(value: Int, field: String): ValidationResult =
         if (value < FREQUENCY_MIN_HZ || value > FREQUENCY_MAX_HZ) {
