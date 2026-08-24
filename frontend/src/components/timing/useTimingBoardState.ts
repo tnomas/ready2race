@@ -109,6 +109,10 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             // Einstellungs-Stand, keine Markendaten — geht an den optionalen `onSettingsChanged`-
             // Callback (gleiche Form wie `sequenceChanged`/`officialTimeChanged`).
             return marks
+        case 'attemptRetracted':
+            // Fehlstart-Signal, keine Markendaten (die einzelnen timeMarkRetracted-Echos derselben
+            // Rücknahme pflegen die Liste) — geht an den optionalen `onAttemptRetracted`-Callback.
+            return marks
     }
 }
 
@@ -168,6 +172,8 @@ export function useTimingBoardState(
     onSequenceChanged?: (sequence: TimingSequenceDto) => void,
     onOfficialTimeChanged?: (officialTimes: OfficialTimeDto[]) => void,
     onSettingsChanged?: (settings: TimingSettingsDto) => void,
+    /** Fehlstart-Signal (Versuchs-Rücknahme) — siehe `falseStart.ts` für die Abspiel-Bedingung. */
+    onAttemptRetracted?: (info: {competitionSetupMatch: string; competitionMatchTeams: string[]}) => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -204,10 +210,13 @@ export function useTimingBoardState(
     const onOfficialTimeChangedRef = useRef(onOfficialTimeChanged)
     /** Same for `onSettingsChanged` (Schalter + Genauigkeit — siehe `useTimingSettings`). */
     const onSettingsChangedRef = useRef(onSettingsChanged)
+    /** Same for `onAttemptRetracted` (Fehlstart-Signal der Boards). */
+    const onAttemptRetractedRef = useRef(onAttemptRetracted)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
         onOfficialTimeChangedRef.current = onOfficialTimeChanged
         onSettingsChangedRef.current = onSettingsChanged
+        onAttemptRetractedRef.current = onAttemptRetracted
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -407,6 +416,13 @@ export function useTimingBoardState(
             }
             if (message.type === 'settingsChanged') {
                 onSettingsChangedRef.current?.(message.settings)
+                return
+            }
+            if (message.type === 'attemptRetracted') {
+                onAttemptRetractedRef.current?.({
+                    competitionSetupMatch: message.competitionSetupMatch,
+                    competitionMatchTeams: message.competitionMatchTeams,
+                })
                 return
             }
             setAllMarks(prev => applyWsMessage(prev, message))

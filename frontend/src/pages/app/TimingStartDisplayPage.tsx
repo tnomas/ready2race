@@ -22,6 +22,8 @@ import {deviceSessionForEvent} from '@utils/timing/deviceSession.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
 import {tonePlanForSequence} from '@utils/timing/tonePlan.ts'
+import {useFalseStartTone} from '@utils/timing/useFalseStartTone.ts'
+import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {useAudioUnlocked} from '@utils/timing/useAudioUnlocked.ts'
 import {useTouchOnly} from '@utils/touch.ts'
 
@@ -80,21 +82,41 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
         },
     })
     const {refetch: refetchSequence} = sequenceState
+
+    // Die Startliste liefert den aufgelösten Zeitnahmetyp samt Tonplan (wie das Erfassungsboard);
+    // läuft wie /teams auch mit Geräte-Token. Ohne Treffer spielt der eingebaute Standardplan.
+    // VOR dem Board-State geladen, weil der Fehlstart-Hook sie braucht und sein Callback in den
+    // Board-State hineingereicht wird.
+    const {data: matchesData} = useFetch(signal => getTimingMatches({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
+
+    // Zeitnahme-Einstellungen (Fehlstart-Ton): initial per GET (läuft auch mit Geräte-Token),
+    // live über settingsChanged — dieselbe Versorgung wie auf dem Erfassungsboard.
+    const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
+        useTimingSettings(eventId)
+
+    // Fehlstart-Ton: RUNNING→ABORTED der gespiegelten Sequenz und attemptRetracted der gerade
+    // gezeigten Partie — Bedingungen in `falseStart.ts`, verdeckter Tab bleibt still.
+    const {onAttemptRetracted} = useFalseStartTone(
+        sequenceState.sequence,
+        matchesData ?? [],
+        settings.falseStartTone,
+    )
+
     const {stations, refetch, wsStatus, stateError} = useTimingBoardState(
         eventId,
         stationId,
         sequenceState.applySequenceChanged,
+        undefined,
+        applySettingsChanged,
+        onAttemptRetracted,
     )
     useEffect(() => {
         stationsRef.current = stations
     }, [stations])
 
     const {data: teamsData} = useFetch(signal => getTimingTeams({signal, path: {eventId}}), {
-        deps: [eventId],
-    })
-    // Die Startliste liefert den aufgelösten Zeitnahmetyp samt Tonplan (wie das Erfassungsboard);
-    // läuft wie /teams auch mit Geräte-Token. Ohne Treffer spielt der eingebaute Standardplan.
-    const {data: matchesData} = useFetch(signal => getTimingMatches({signal, path: {eventId}}), {
         deps: [eventId],
     })
     const tonePlan = useMemo(
@@ -115,20 +137,23 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     useEffect(() => {
         if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
             refetchSequence()
+            // Verpasste settingsChanged-Nachrichten (z.B. geänderter Fehlstart-Ton) nachholen.
+            reloadSettings()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, refetchSequence])
+    }, [wsStatus, refetchSequence, reloadSettings])
 
     useEffect(() => {
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
                 refetch()
                 refetchSequence()
+                reloadSettings()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [refetch, refetchSequence])
+    }, [refetch, refetchSequence, reloadSettings])
 
     const station = stations.find(s => s.id === stationId)
 

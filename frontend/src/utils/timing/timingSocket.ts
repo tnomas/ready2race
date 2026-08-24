@@ -20,6 +20,10 @@ export type TimingWsMessage =
 	| { type: 'officialTimeChanged'; officialTimes: OfficialTimeDto[] }
 	| { type: 'timesDeleted'; timeMarks: string[] }
 	| { type: 'settingsChanged'; settings: TimingSettingsDto }
+	// Ein GANZER Versuch wurde zurückgenommen („Start zurücknehmen") — das Fehlstart-Signal der
+	// Boards, zusätzlich zu den einzelnen timeMarkRetracted-Echos (die feuern auch bei der
+	// harmlosen Einzelmarken-Korrektur und taugen deshalb nicht als Auslöser).
+	| { type: 'attemptRetracted'; competitionSetupMatch: string; competitionMatchTeams: string[] }
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
@@ -31,6 +35,7 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'officialTimeChanged',
 	'timesDeleted',
 	'settingsChanged',
+	'attemptRetracted',
 ])
 
 /**

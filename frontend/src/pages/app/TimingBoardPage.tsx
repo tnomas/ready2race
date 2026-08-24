@@ -43,6 +43,7 @@ import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
+import {useFalseStartTone} from '@utils/timing/useFalseStartTone.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
@@ -119,6 +120,29 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     // Geräte-Token), live über settingsChanged.
     const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
         useTimingSettings(eventId)
+
+    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Es
+    // gibt keine eigene WebSocket-Nachricht dafür — Marken-, Zuordnungs- und Sequenz-Nachrichten
+    // dienen als entprellte Auffrischungs-Trigger (siehe Effekt unten). VOR dem Board-State
+    // aufgerufen, weil der Fehlstart-Hook darunter die Startliste braucht und sein Callback in
+    // den Board-State hineingereicht wird.
+    const {
+        matches,
+        loading: matchesLoading,
+        error: matchesError,
+        refetch: refetchMatches,
+        bump: bumpMatches,
+    } = useTimingMatches(eventId)
+
+    // Fehlstart-Ton (Startposten): RUNNING→ABORTED der eigenen Sequenz und attemptRetracted der
+    // gerade geführten Partie — Bedingungen in `falseStart.ts`. Auf Zielposten läuft der Hook
+    // faktisch leer, weil `useSequence` dort nie eine Sequenz führt.
+    const {onAttemptRetracted} = useFalseStartTone(
+        sequenceState.sequence,
+        matches,
+        settings.falseStartTone,
+    )
+
     const {
         marks,
         stations,
@@ -135,6 +159,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         sequenceState.applySequenceChanged,
         applyOfficialTimes,
         applySettingsChanged,
+        onAttemptRetracted,
     )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
@@ -145,17 +170,6 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         getTimingTeams({signal, path: {eventId}}),
     )
     const teams = useMemo(() => orderTeamsForBoard(teamsData ?? []), [teamsData])
-
-    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Es
-    // gibt keine eigene WebSocket-Nachricht dafür — Marken-, Zuordnungs- und Sequenz-Nachrichten
-    // dienen als entprellte Auffrischungs-Trigger (siehe Effekt unten).
-    const {
-        matches,
-        loading: matchesLoading,
-        error: matchesError,
-        refetch: refetchMatches,
-        bump: bumpMatches,
-    } = useTimingMatches(eventId)
 
     // `marks` ändert seine Identität bei jeder timeMarkCreated/assignmentChanged-Nachricht, die
     // Sequenz bei jeder sequenceChanged — genau die Ereignisse, die `progress` und die
