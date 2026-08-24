@@ -2,11 +2,10 @@ package de.lambda9.ready2race.backend.app.competitionExecution.control
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.BulkStartlistCompetitionRow
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchForRunningStatusDto
+import de.lambda9.ready2race.backend.app.competitionExecution.entity.RaceClockerPullMatch
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.StartListConfigTarget
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.WaveName
 import de.lambda9.ready2race.backend.app.event.entity.PublicResultsVisibility
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.*
@@ -81,29 +80,31 @@ object CompetitionMatchRepo {
     fun getForStartList(id: UUID) = STARTLIST_VIEW.selectOne { ID.eq(id) }
 
     /**
-     * Everything needed to pull this match's results from RaceClocker: the wave name (planned start
-     * time, competition and match name, see [WaveName] - MUST be formatted exactly like
-     * [de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService.buildCsv]
-     * builds it for the export, or the wave-name fallback filter in `assignFeedRows` never matches)
-     * and the ONE RaceClocker race the competition selected - since 2026-08-11 it serves the
-     * qualification and every other round alike.
+     * Was der Abruf von Hand über diesen Lauf braucht: den Wellennamen (geplante Startzeit,
+     * Wettkampf und Laufname, siehe [WaveName] - MUSS genauso gebaut sein wie im Export durch
+     * [de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService.buildCsv],
+     * sonst greift der Wellennamen-Abgleich in `assignFeedRows` nie) und den Pfad Wettkampf → Runde
+     * → Partie.
+     *
+     * Das Rennen steht bewusst NICHT dabei: Seit dem Zeitnahmeprofil-Baum hängt es an einer von
+     * vier Ebenen, und eine Ebenen-Auflösung gehört nicht in eine Abfrage - sie steht in
+     * `TimingProfileResolveLogic` und wird im Dienst angewandt
+     * ([de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService.raceClockerTarget]),
+     * genau wie beim automatischen Abruf. Beide Wege müssen dasselbe Rennen treffen.
      */
     fun getForRaceClockerPull(id: UUID) = Jooq.query {
-        // Die Zuordnung Wettkampf→Rennen steht ausschließlich am Wettkampf (seit dem 11.08.2026).
-        // Der frühere Veranstaltungs-Default ist entfallen: er duplizierte die Pro-Rennen-Zuordnung
-        // und ein nicht zugeordneter Wettkampf soll ehrlich „kein Rennen" sein, statt still zu erben.
         select(
             // Freilose tragen ihren materialisierten Namen (V202608121300) - dieselbe Koaleszenz
             // wie startlist_view, sonst fände der Wellennamen-Abgleich die exportierte Welle nicht.
             DSL.coalesce(COMPETITION_MATCH.BYE_NAME, COMPETITION_SETUP_MATCH.NAME).`as`("match_name"),
             COMPETITION_MATCH.START_TIME,
-            // Kennung und Kürzel tragen den Wettkampf in den Wellennamen (crf-2026); die drei
-            // Rennen-Spalten die Anwahl.
+            // Kennung und Kürzel tragen den Wettkampf in den Wellennamen (crf-2026).
             COMPETITION_PROPERTIES.IDENTIFIER,
             COMPETITION_PROPERTIES.SHORT_NAME,
-            RACECLOCKER_RACE.ID,
-            RACECLOCKER_RACE.NAME,
-            RACECLOCKER_RACE.RESULTS_URL,
+            // Der Pfad der Auflösung. Der Wettkampf kommt aus den Eigenschaften, ein eigener Join
+            // auf `competition` wäre dafür ein Umweg.
+            COMPETITION_PROPERTIES.COMPETITION,
+            COMPETITION_SETUP_ROUND.ID,
         )
             .from(COMPETITION_MATCH)
             .join(COMPETITION_SETUP_MATCH)
@@ -112,51 +113,45 @@ object CompetitionMatchRepo {
             .on(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND.eq(COMPETITION_SETUP_ROUND.ID))
             .join(COMPETITION_PROPERTIES)
             .on(COMPETITION_SETUP_ROUND.COMPETITION_SETUP.eq(COMPETITION_PROPERTIES.ID))
-            .join(COMPETITION).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
-            .leftJoin(RACECLOCKER_RACE).on(RACECLOCKER_RACE.ID.eq(COMPETITION.RACECLOCKER_RACE))
             .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(id))
             .fetchOne { record ->
-                RaceClockerMatchTarget(
+                RaceClockerPullMatch(
+                    matchId = id,
+                    // Im Schema not null; die Projektion verliert nur die Garantie.
+                    competitionId = record[COMPETITION_PROPERTIES.COMPETITION]!!,
+                    roundId = record[COMPETITION_SETUP_ROUND.ID]!!,
                     waveName = WaveName.format(
                         matchName = record["match_name", String::class.java],
                         startTime = record[COMPETITION_MATCH.START_TIME],
                         competitionIdentifier = record[COMPETITION_PROPERTIES.IDENTIFIER],
                         competitionShortName = record[COMPETITION_PROPERTIES.SHORT_NAME],
                     ),
-                    race = record[RACECLOCKER_RACE.ID]?.let {
-                        RaceClockerRaceRef(it, record[RACECLOCKER_RACE.NAME]!!, record[RACECLOCKER_RACE.RESULTS_URL]!!)
-                    },
                 )
             }
     }
 
     /**
      * Die Wettkämpfe einer Veranstaltung für den Startlisten-Sammelexport: Kennung (Dateiname und
-     * Reihenfolge der ZIP-Einträge) und das angewählte RaceClocker-Rennen (Delta-Abgleich und
-     * Rennen-Filter, null = keines angewählt). Sortiert nach Kennung, damit die ZIP-Einträge in
-     * Programmreihenfolge liegen. Bewusst ungefiltert - ob auf ein Rennen eingeschränkt wird,
-     * entscheidet der Service (eventStartlistPlan).
+     * Reihenfolge der ZIP-Einträge), Kürzel und Name. Sortiert nach Kennung, damit die ZIP-Einträge
+     * in Programmreihenfolge liegen. Bewusst ungefiltert - ob auf ein Rennen eingeschränkt wird,
+     * entscheidet der Service (eventStartlistPlan), und dort wird das Rennen auch aufgelöst: Es
+     * hängt seit dem Zeitnahmeprofil-Baum an einer von vier Ebenen und nicht mehr am Wettkampf.
      */
     fun getForBulkStartlistExport(eventId: UUID) = Jooq.query {
         select(
             COMPETITION.ID,
             COMPETITION_PROPERTIES.IDENTIFIER,
-            RACECLOCKER_RACE.RESULTS_URL,
-            RACECLOCKER_RACE.ID,
             COMPETITION_PROPERTIES.SHORT_NAME,
             COMPETITION_PROPERTIES.NAME,
         )
             .from(COMPETITION)
             .join(COMPETITION_PROPERTIES).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
-            .leftJoin(RACECLOCKER_RACE).on(RACECLOCKER_RACE.ID.eq(COMPETITION.RACECLOCKER_RACE))
             .where(COMPETITION.EVENT.eq(eventId))
             .orderBy(COMPETITION_PROPERTIES.IDENTIFIER)
             .fetch { record ->
                 BulkStartlistCompetitionRow(
                     competitionId = record[COMPETITION.ID]!!,
                     identifier = record[COMPETITION_PROPERTIES.IDENTIFIER]!!,
-                    raceUrl = record[RACECLOCKER_RACE.RESULTS_URL],
-                    raceId = record[RACECLOCKER_RACE.ID],
                     shortName = record[COMPETITION_PROPERTIES.SHORT_NAME],
                     name = record[COMPETITION_PROPERTIES.NAME],
                 )

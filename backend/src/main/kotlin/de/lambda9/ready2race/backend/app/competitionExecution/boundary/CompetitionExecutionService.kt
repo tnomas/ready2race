@@ -39,10 +39,15 @@ import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLog
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerFeed
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerPollRepo
+import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerResultsXls
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerError
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
+import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.calls.comprehension.CallComprehensionScope
 import de.lambda9.ready2race.backend.app.startListConfig.control.StartListConfigRepo
 import de.lambda9.ready2race.backend.app.startListConfig.entity.StartListConfigError
@@ -892,6 +897,39 @@ object CompetitionExecutionService {
     }
 
     /**
+     * Wo dieser Lauf in RaceClocker zu finden ist: Wellenname und aufgelöstes Rennen.
+     *
+     * Die Auflösung ist dieselbe wie im automatischen Abruf ([RaceClockerPollLogic.candidatesFor]):
+     * Das Rennen hängt am Zeitnahmeprofil-Baum und gilt in der speziellsten gesetzten Ebene
+     * (Veranstaltung, Wettkampf, Runde, Partie). Beide Wege müssen dasselbe Rennen treffen - sonst
+     * schriebe der Abruf von Hand die Ergebnisse aus einem anderen Rennen als der Takt, und
+     * auffallen würde das am Renntag.
+     *
+     * Lässt sich keines auflösen, bleibt [RaceClockerMatchTarget.race] null: Der Knopf meldet
+     * daraufhin [RaceClockerError.UrlMissing], der Datei-Weg braucht ohnehin nur den Wellennamen.
+     */
+    fun raceClockerTarget(eventId: UUID, matchId: UUID): App<ServiceError, RaceClockerMatchTarget> =
+        KIO.comprehension {
+            val row = !CompetitionMatchRepo.getForRaceClockerPull(matchId).orDie()
+                .onNullFail { CompetitionExecutionError.MatchNotFound }
+
+            // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
+            // TimingProfileRepo.getAssignments.
+            val assignments = (!TimingProfileRepo.getAssignments(eventId, TimingProfileKind.RACE).orDie())
+                .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
+            val profile = TimingProfileResolveLogic
+                .resolve(assignments, row.competitionId, row.roundId, row.matchId)
+
+            val race = if (profile == null) null else {
+                (!RaceClockerRaceRepo.getForEvent(eventId).orDie())
+                    .firstOrNull { it.id == profile }
+                    ?.let { RaceClockerRaceRef(it.id, it.name, it.resultsUrl) }
+            }
+
+            KIO.ok(RaceClockerMatchTarget(waveName = row.waveName, race = race))
+        }
+
+    /**
      * Der Notfallweg zum Live-Abruf: eine von RaceClocker heruntergeladene Ergebnis-xlsx auf einen
      * Lauf schreiben, wenn am Steg das Netz fehlt. Liest das „Results"-Blatt
      * ([RaceClockerResultsXls]) und reicht die Zeilen durch dieselbe Schreiblogik wie der Live-Abruf
@@ -918,8 +956,7 @@ object CompetitionExecutionService {
         val match = !checkUpdateMatchResult(competitionId, matchId, byeError = RaceClockerError.MatchIsBye)
         !pauseRaceClockerAutoPull(matchId)
 
-        val target = !CompetitionMatchRepo.getForRaceClockerPull(matchId).orDie()
-            .onNullFail { CompetitionExecutionError.MatchNotFound }
+        val target = !raceClockerTarget(eventId, matchId)
 
         val rows = when (val result = RaceClockerResultsXls.parse(file.bytes)) {
             is RaceClockerResultsXls.ParseResult.Ok -> result.rows
@@ -1222,10 +1259,9 @@ object CompetitionExecutionService {
 
         val match = !checkUpdateMatchResult(competitionId, matchId, byeError = RaceClockerError.MatchIsBye)
 
-        val target = !CompetitionMatchRepo.getForRaceClockerPull(matchId).orDie()
-            .onNullFail { CompetitionExecutionError.MatchNotFound }
+        val target = !raceClockerTarget(eventId, matchId)
 
-        // Genau ein Rennen je Wettkampf (11.08.2026) - gibt es keines, gibt es nichts zu holen.
+        // Genau ein Rennen je Lauf - lässt sich keines auflösen, gibt es nichts zu holen.
         val rawUrl = target.resultsUrl ?: return KIO.fail(RaceClockerError.UrlMissing)
 
         val url = !RaceClockerFeed.normalizeUrl(rawUrl)
@@ -2582,9 +2618,9 @@ object CompetitionExecutionService {
      * [skipByes] lässt Freilose weg - außer denen mit "muss gefahren werden" (bye_must_race), die
      * IMMER exportiert werden: Sie werden gefahren und brauchen ihre Welle im Zeitnahme-System.
      *
-     * [raceclockerRaceId] schränkt auf die Wettkämpfe ein, deren angewähltes RaceClocker-Rennen
-     * (competition.raceclocker_race, seit dem Ein-Rennen-Modell eindeutig) das übergebene ist -
-     * für den Import Rennen für Rennen statt immer über die ganze Veranstaltung. null = alle.
+     * [raceclockerRaceId] schränkt auf die Wettkämpfe ein, deren aufgelöstes RaceClocker-Rennen das
+     * übergebene ist - für den Import Rennen für Rennen statt immer über die ganze Veranstaltung.
+     * null = alle.
      */
     fun eventStartlistPlan(
         eventId: UUID,
@@ -2595,9 +2631,24 @@ object CompetitionExecutionService {
         val competitions = !CompetitionMatchRepo.getForBulkStartlistExport(eventId).orDie()
         val byeByMatch = !MatchByeService.byeByMatch(eventId)
 
+        // Das Rennen kommt aus dem Zeitnahmeprofil-Baum. Aufgelöst wird hier bewusst nur bis zur
+        // WETTKAMPF-Ebene (`resolve(..., competitionId, null, null)`): Der Sammelexport gruppiert je
+        // Wettkampf - eine Runden- oder Partie-Zuordnung hätte in einer Wettkampf-Zeile keinen Platz
+        // und bliebe in Dateiname, Delta-Abgleich und Rennen-Filter unsichtbar. Wer eine Partie auf
+        // ein anderes Rennen legt, exportiert ihre Startliste einzeln. Das ist eine Entscheidung,
+        // kein Versehen.
+        val assignments = (!TimingProfileRepo.getAssignments(eventId, TimingProfileKind.RACE).orDie())
+            .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
+        val racesById = (!RaceClockerRaceRepo.getForEvent(eventId).orDie()).associateBy { it.id }
+
         competitions
-            .filter { raceclockerRaceId == null || it.raceId == raceclockerRaceId }
-            .traverse { row ->
+            .map { row ->
+                row to TimingProfileResolveLogic
+                    .resolve(assignments, row.competitionId, null, null)
+                    ?.let { racesById[it] }
+            }
+            .filter { (_, race) -> raceclockerRaceId == null || race?.id == raceclockerRaceId }
+            .traverse { (row, race) ->
             KIO.comprehension {
                 val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(row.competitionId)
                 val sorted = sortRounds(setupRounds).filter { it.matches.isNotEmpty() }
@@ -2633,7 +2684,7 @@ object CompetitionExecutionService {
                         identifier = row.identifier,
                         shortName = row.shortName,
                         name = row.name,
-                        raceUrl = row.raceUrl,
+                        raceUrl = race?.resultsUrl,
                         matches = matches,
                     )
                 )

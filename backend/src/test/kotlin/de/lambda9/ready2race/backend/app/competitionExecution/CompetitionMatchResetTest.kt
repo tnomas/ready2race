@@ -23,13 +23,14 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.Competiti
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupMatchRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupRoundRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RaceclockerRaceRecord
-import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingProfileAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_ROUND
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMECODE
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.database.selectOne
@@ -141,9 +142,9 @@ class CompetitionMatchResetTest {
         val seeded = seedClubChain()
         seedRacedState(seeded)
 
-        // Den Lauf pollbar machen: Zeitnahmesystem an der Veranstaltung, angewähltes Rennen am
-        // Wettkampf - und Beenden/Pause aus dem Seed zurücknehmen, damit die Gegenprobe VOR dem
-        // Reset überhaupt greifen kann.
+        // Den Lauf pollbar machen: Zeitnahmesystem an der Veranstaltung, ein Rennen im
+        // Zeitnahmeprofil-Baum - und Beenden/Pause aus dem Seed zurücknehmen, damit die Gegenprobe
+        // VOR dem Reset überhaupt greifen kann.
         val raceId = UUID.randomUUID()
         !RACECLOCKER_RACE.insert(
             RaceclockerRaceRecord(
@@ -158,7 +159,16 @@ class CompetitionMatchResetTest {
             )
         )
         !EVENT.update({ timingSystem = TimingSystem.RACECLOCKER.name }) { ID.eq(seeded.eventId) }
-        !COMPETITION.update({ raceclockerRace = raceId }) { ID.eq(seeded.competitionId) }
+        !TIMING_PROFILE_ASSIGNMENT.insert(
+            TimingProfileAssignmentRecord(
+                id = UUID.randomUUID(),
+                event = seeded.eventId,
+                competition = seeded.competitionId,
+                raceclockerRace = raceId,
+                createdAt = CHAIN_SEED_TIME,
+                updatedAt = CHAIN_SEED_TIME,
+            )
+        )
         !CompetitionMatchRepo.update(seeded.matchId) {
             finishedAt = null
             raceclockerAutoPausedAt = null

@@ -23,6 +23,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.EventReco
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventRegistrationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RaceclockerRaceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.StartlistExportConfigRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingProfileAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.CLUB
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
@@ -36,6 +37,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_REGISTRATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
 import de.lambda9.ready2race.backend.database.generated.tables.references.STARTLIST_EXPORT_CONFIG
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.app.eventExportBundle.boundary.EventExportBundleService
 import de.lambda9.ready2race.backend.app.eventExportBundle.control.EventExportBundleItemRepo
@@ -149,6 +151,28 @@ class EventStartlistBulkExportTest {
         return raceId
     }
 
+    /** Eine Zeile des Zeitnahmeprofil-Baums; der Pfad ist so tief, wie die Argumente reichen. */
+    private fun TestComprehensionScope<JEnv>.assignRace(
+        eventId: UUID,
+        raceId: UUID,
+        competitionId: UUID? = null,
+        roundId: UUID? = null,
+        matchId: UUID? = null,
+    ) {
+        !TIMING_PROFILE_ASSIGNMENT.insert(
+            TimingProfileAssignmentRecord(
+                id = UUID.randomUUID(),
+                event = eventId,
+                competition = competitionId,
+                competitionSetupRound = roundId,
+                competitionSetupMatch = matchId,
+                raceclockerRace = raceId,
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+    }
+
     private fun TestComprehensionScope<JEnv>.insertTeam(
         eventId: UUID,
         competitionId: UUID,
@@ -228,9 +252,13 @@ class EventStartlistBulkExportTest {
                 event = eventId,
                 createdAt = now,
                 updatedAt = now,
-                raceclockerRace = raceId,
             )
         )
+        // Das Rennen hängt am Zeitnahmeprofil-Baum, nicht mehr am Wettkampf. Der Sammelexport löst
+        // auf Wettkampf-Ebene auf, deshalb steht die Zuordnung genau dort.
+        if (raceId != null) {
+            assignRace(eventId, raceId, competitionId = competitionId)
+        }
         !COMPETITION_PROPERTIES.insert(
             CompetitionPropertiesRecord(
                 id = propertiesId,
@@ -484,6 +512,49 @@ class EventStartlistBulkExportTest {
         val csvPlanned = !CompetitionExecutionService.buildEventStartlists(plan, EventStartlistFileType.CSV, feeds)
         val csv = String((csvPlanned as ApiResponse.File).bytes)
         assertEquals(listOf("10:10:00", "10:10:00"), csvColumn(csv, "Start"))
+    }
+
+    /**
+     * Der Sammelexport löst das Rennen NUR bis zur Wettkampf-Ebene auf - eine Partie-Zuordnung
+     * ändert an seinem Plan nichts. Das ist eine Entscheidung, kein Versehen: Er gruppiert je
+     * Wettkampf, und eine Partie mit eigenem Rennen hätte in einer Wettkampf-Zeile keinen Platz.
+     * Wer sie braucht, exportiert die Startliste dieser Partie einzeln.
+     */
+    @Test
+    fun theBulkExportIgnoresAMatchLevelRace() = testComprehension {
+        val configId = insertStartlistConfig()
+        val eventId = insertEvent(configId)
+        val competitionRace = insertRace(eventId, "https://raceclocker.com/ccc333", name = "Kurzstrecke", position = 1)
+        val matchRace = insertRace(eventId, "https://raceclocker.com/ddd444", name = "Langstrecke", position = 2)
+
+        val competition = insertCompetition(
+            eventId, "1",
+            matchTeamCounts = listOf(2, 2),
+            startOffsetsMinutes = listOf(0, 10),
+            raceId = competitionRace,
+        )
+        assignRace(
+            eventId,
+            matchRace,
+            competitionId = competition.competitionId,
+            roundId = competition.firstRoundId,
+            matchId = competition.matches[0].setupMatchId,
+        )
+
+        // Gefiltert auf das Wettkampf-Rennen: der Wettkampf kommt mit ALLEN seinen Läufen.
+        val onCompetitionRace = !CompetitionExecutionService.eventStartlistPlan(
+            eventId, allRounds = false, skipByes = true, raceclockerRaceId = competitionRace,
+        )
+        assertEquals(
+            competition.matches.map { it.setupMatchId },
+            onCompetitionRace.single().matches.map { it.setupMatchId },
+        )
+
+        // Gefiltert auf das Partie-Rennen: nichts - der Plan kennt diese Ebene nicht.
+        val onMatchRace = !CompetitionExecutionService.eventStartlistPlan(
+            eventId, allRounds = false, skipByes = true, raceclockerRaceId = matchRace,
+        )
+        assertEquals(emptyList(), onMatchRace)
     }
 
     /**

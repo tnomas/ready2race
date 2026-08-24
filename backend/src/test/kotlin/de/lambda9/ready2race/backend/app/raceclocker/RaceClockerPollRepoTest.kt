@@ -2,9 +2,16 @@ package de.lambda9.ready2race.backend.app.raceclocker
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetupPlacesOption
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerPollRepo
+import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
+import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionRecord
@@ -15,6 +22,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.EventReco
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventScheduleSlotRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RaceclockerRaceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.StartlistExportConfigRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingProfileAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
@@ -25,6 +33,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_SCHEDULE_SLOT
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
 import de.lambda9.ready2race.backend.database.generated.tables.references.STARTLIST_EXPORT_CONFIG
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
@@ -36,6 +45,9 @@ import kotlin.test.assertNotNull
 
 /**
  * [RaceClockerPollRepo.getCandidates] gegen eine echte Datenbank.
+ *
+ * Dazu die beiden Wege, auf denen ein Lauf zu seinem Rennen kommt (Job und Knopf) - sie müssen
+ * dasselbe treffen.
  *
  * Diese Abfrage ist die einzige Stelle des automatischen Abrufs, die sich nicht als reine Funktion
  * prüfen lässt - und genau dort ist der eine Fehler entstanden, der es in den Branch geschafft hat:
@@ -71,6 +83,28 @@ class RaceClockerPollRepoTest {
         return raceId
     }
 
+    /** Eine Zeile des Zeitnahmeprofil-Baums; der Pfad ist so tief, wie die Argumente reichen. */
+    private fun TestComprehensionScope<JEnv>.assignRace(
+        eventId: UUID,
+        raceId: UUID,
+        competitionId: UUID? = null,
+        roundId: UUID? = null,
+        matchId: UUID? = null,
+    ) {
+        !TIMING_PROFILE_ASSIGNMENT.insert(
+            TimingProfileAssignmentRecord(
+                id = UUID.randomUUID(),
+                event = eventId,
+                competition = competitionId,
+                competitionSetupRound = roundId,
+                competitionSetupMatch = matchId,
+                raceclockerRace = raceId,
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+    }
+
     private fun TestComprehensionScope<JEnv>.insertStartlistConfig(name: String): UUID {
         val configId = UUID.randomUUID()
         !STARTLIST_EXPORT_CONFIG.insert(
@@ -101,9 +135,10 @@ class RaceClockerPollRepoTest {
      * `getCandidates` es zulassen: Veranstaltung, Wettkampf, Eigenschaften, Ablauf, Runde,
      * Setup-Lauf, Lauf. Mannschaften braucht die Abfrage nicht - sie zählt keine Boote.
      *
-     * Der Wettkampf trägt weiterhin seine Anwahl (`raceclocker_race`) - der Knopf-Weg liest sie
-     * noch; die Abfrage des Jobs nicht mehr. Mit [withQualificationRound] kommt eine
-     * Qualifikationsrunde samt eigenem Lauf dazu: zwei Läufe in zwei Runden desselben Wettkampfs.
+     * Das Rennen wird angelegt, aber keiner Ebene zugeordnet: Welcher Lauf welches Rennen bekommt,
+     * ist Sache des Zeitnahmeprofil-Baums, und die Fälle, die ihn brauchen, setzen ihre Zuordnung
+     * selbst. Mit [withQualificationRound] kommt eine Qualifikationsrunde samt eigenem Lauf dazu:
+     * zwei Läufe in zwei Runden desselben Wettkampfs.
      */
     private fun TestComprehensionScope<JEnv>.seed(
         eventTimingSystem: String? = TimingSystem.RACECLOCKER.name,
@@ -147,7 +182,6 @@ class RaceClockerPollRepoTest {
                 createdAt = now,
                 updatedAt = now,
                 timingSystem = competitionTimingSystem,
-                raceclockerRace = raceId,
                 startlistConfig = competitionStartlistConfig,
             )
         )
@@ -421,28 +455,57 @@ class RaceClockerPollRepoTest {
     }
 
     /**
-     * Der Knopf-Weg holt sein Rennen über eine eigene Abfrage mit eigener Join-Kette
-     * (`CompetitionMatchRepo.getForRaceClockerPull`) und liest dafür weiterhin die Anwahl am
-     * Wettkampf - anders als der Job, der sein Rennen inzwischen aus dem Zeitnahmeprofil-Baum
-     * auflöst. Auch diese Abfrage steht einmal gegen echtes Postgres, und auch hier gilt:
-     * Qualifikations- und Folgerunden-Lauf desselben Wettkampfs zeigen auf dasselbe Rennen.
+     * Knopf und Automatik müssen dasselbe Rennen treffen - auch dann, wenn eine Partie ihr eigenes
+     * trägt. Liefe der Knopf noch über die Wettkampf-Anwahl, schriebe der Abruf von Hand die
+     * Ergebnisse aus einem anderen Rennen als der Takt, und auffallen würde das am Renntag.
+     *
+     * Der Wellenname wird mitgeprüft: Beide Wege bauen ihn aus derselben Koaleszenz, sonst fände
+     * der eine die exportierte Welle und der andere nicht.
      */
     @Test
-    fun theButtonPathReadsTheSelectionAtTheCompetition() = testComprehension {
+    fun theButtonPathResolvesTheSameRaceAsTheJob() = testComprehension {
         val seeded = seed(withQualificationRound = true)
+        val competitionRace = seeded.raceId!!
+        val matchRace = insertRace(seeded.eventId, "Langstrecke", "https://www.raceclocker.com/lang", 2)
+        assignRace(seeded.eventId, competitionRace, competitionId = seeded.competitionId)
+        assignRace(
+            seeded.eventId,
+            matchRace,
+            competitionId = seeded.competitionId,
+            roundId = seeded.roundId,
+            matchId = seeded.matchId,
+        )
 
-        val following = !CompetitionMatchRepo.getForRaceClockerPull(seeded.matchId)
-        val qualification = !CompetitionMatchRepo.getForRaceClockerPull(seeded.qualificationMatchId!!)
+        // Der Weg des Jobs: Abfrage, Zuordnungen, Rennen - genau die Verdrahtung aus
+        // RaceClockerPollService.pollEvent.
+        val assignments = (!TimingProfileRepo.getAssignments(seeded.eventId, TimingProfileKind.RACE))
+            .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
+        val racesById = (!RaceClockerRaceRepo.getForEvent(seeded.eventId))
+            .associate { it.id to RaceClockerRaceRef(it.id, it.name, it.resultsUrl) }
+        val fromJob = RaceClockerPollLogic
+            .candidatesFor(!RaceClockerPollRepo.getCandidates(seeded.eventId), assignments, racesById)
+            .associateBy { it.matchId }
 
-        assertNotNull(following)
-        assertNotNull(qualification)
-        // Derselbe Wellenname wie beim Job - beide Abfragen muessen ihn gleich bauen, sonst findet
-        // der eine Weg die Welle und der andere nicht.
-        assertEquals("10:00 | 1 JM4x | Lauf 1", following.waveName)
-        assertEquals(seeded.raceId, following.race?.id)
-        assertEquals(seeded.raceId, qualification.race?.id)
-        assertEquals("Kurzstrecke", following.race?.name)
-        assertEquals(listOf(raceUrl), following.candidateUrls)
+        // Der Weg des Knopfes - dieselbe Funktion, die der Endpunkt aufruft.
+        val fromButton = !CompetitionExecutionService.raceClockerTarget(seeded.eventId, seeded.matchId)
+
+        // Die Partie-Zuordnung gewinnt, auf beiden Wegen.
+        assertEquals(matchRace, fromButton.race?.id)
+        assertEquals(matchRace, fromJob.getValue(seeded.matchId).target.race?.id)
+        // Und der Wellenname ist auf beiden Wegen derselbe - sonst fände der eine die exportierte
+        // Welle und der andere nicht.
+        assertEquals("10:00 | 1 JM4x | Lauf 1", fromButton.waveName)
+        assertEquals(fromJob.getValue(seeded.matchId).target.waveName, fromButton.waveName)
+
+        // Der Lauf der Qualifikationsrunde trägt keine eigene Zuordnung und erbt die des Wettkampfs.
+        val qualification = !CompetitionExecutionService.raceClockerTarget(
+            seeded.eventId,
+            seeded.qualificationMatchId!!,
+        )
+        assertEquals(competitionRace, qualification.race?.id)
+        assertEquals(competitionRace, fromJob.getValue(seeded.qualificationMatchId).target.race?.id)
+        assertEquals("Kurzstrecke", qualification.race?.name)
+        assertEquals(listOf(raceUrl), qualification.candidateUrls)
     }
 
     /**
