@@ -10,13 +10,21 @@ import {
     TONE_DURATION_MIN_MILLIS,
     TONE_FREQUENCY_MAX_HZ,
     TONE_FREQUENCY_MIN_HZ,
+    TONE_RELEASE_MAX_MILLIS,
+    TONE_RELEASE_MIN_MILLIS,
+    isValidToneRelease,
 } from '@utils/timing/tonePlan.ts'
 
 export type CaptureToneEditorProps = {
     label: string
-    /** null = eingebauter Standard (880 Hz / 150 ms). */
+    /** null = eingebauter Standard ([defaultTone], ohne Angabe der Erfassungs-Standard 880/150). */
     value: CaptureToneDto | null
     onChange: (value: CaptureToneDto | null) => void
+    /**
+     * Der eingebaute Standard dieses Tons — die Erfassungstöne teilen sich 880 Hz / 150 ms, der
+     * Fehlstart-Ton bringt seinen eigenen (440 Hz / 3000 ms) mit.
+     */
+    defaultTone?: CaptureToneDto
 }
 
 const isValidTone = (tone: CaptureToneDto): boolean =>
@@ -25,27 +33,46 @@ const isValidTone = (tone: CaptureToneDto): boolean =>
     tone.frequencyHz <= TONE_FREQUENCY_MAX_HZ &&
     Number.isInteger(tone.durationMillis) &&
     tone.durationMillis >= TONE_DURATION_MIN_MILLIS &&
-    tone.durationMillis <= TONE_DURATION_MAX_MILLIS
-
-const parseTone = (frequency: string, duration: string): CaptureToneDto | null => {
-    const tone = {frequencyHz: Number(frequency), durationMillis: Number(duration)}
-    return frequency.trim() !== '' && duration.trim() !== '' && isValidTone(tone) ? tone : null
-}
+    tone.durationMillis <= TONE_DURATION_MAX_MILLIS &&
+    isValidToneRelease(tone.releaseMillis ?? undefined)
 
 /**
- * Editor für EINEN Erfassungston (Ziel- oder Zwischenzeitposten): Tonhöhe, Dauer, Abspiel-Vorschau
- * (der Klick IST die WebAudio-Nutzergeste) und „Standard wiederherstellen".
+ * Leeres Ausklingen-Feld = keine eigene Ausklingzeit; 0 wird gleichbedeutend zu „nicht gesetzt"
+ * normalisiert (dieselbe Hüllkurve), damit die API nie ein bedeutungsloses 0 trägt.
+ */
+const parseTone = (frequency: string, duration: string, release: string): CaptureToneDto | null => {
+    if (frequency.trim() === '' || duration.trim() === '') return null
+    const releaseText = release.trim()
+    const releaseMillis = releaseText === '' ? undefined : Number(releaseText)
+    if (releaseMillis !== undefined && !Number.isInteger(releaseMillis)) return null
+    const tone: CaptureToneDto = {
+        frequencyHz: Number(frequency),
+        durationMillis: Number(duration),
+        ...(releaseMillis ? {releaseMillis} : {}),
+    }
+    if (releaseMillis !== undefined && !isValidToneRelease(releaseMillis)) return null
+    return isValidTone(tone) ? tone : null
+}
+
+const releaseOf = (tone: CaptureToneDto): number => tone.releaseMillis ?? 0
+
+/**
+ * Editor für EINEN konfigurierbaren Ton der Veranstaltung (Erfassungston eines Ziel- oder
+ * Zwischenzeitpostens, Fehlstart-Ton): Tonhöhe, Dauer, Ausklingen, Abspiel-Vorschau (der Klick
+ * IST die WebAudio-Nutzergeste und spielt die echte Hüllkurve) und „Standard wiederherstellen".
  *
  * Die Felder werden als Strings geführt (dürfen beim Tippen leer sein); an den Parent geht nur ein
  * gültiger Stand — und werte-gleich mit dem Standard wird zu `null` normalisiert, damit
  * „unkonfiguriert" in der Datenbank unkonfiguriert bleibt. Ungültige Eingaben zeigen einen Fehler
  * und lassen den letzten gültigen Stand im Parent unangetastet.
  */
-const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => {
+const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEditorProps) => {
     const {t} = useTranslation()
-    const effective = value ?? DEFAULT_CAPTURE_TONE
+    const builtIn = defaultTone ?? DEFAULT_CAPTURE_TONE
+    const effective = value ?? builtIn
     const [frequency, setFrequency] = useState(String(effective.frequencyHz))
     const [duration, setDuration] = useState(String(effective.durationMillis))
+    const [release, setRelease] = useState(releaseOf(effective) !== 0 ? String(releaseOf(effective)) : '')
 
     // Von außen hereinkommende Stände (frischer GET, „Standard wiederherstellen") übernehmen —
     // aber nur, wenn sie sich wirklich vom Getippten unterscheiden, sonst kämpfte der Effekt
@@ -54,25 +81,28 @@ const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => 
     useEffect(() => {
         if (
             lastPropRef.current.frequencyHz !== effective.frequencyHz ||
-            lastPropRef.current.durationMillis !== effective.durationMillis
+            lastPropRef.current.durationMillis !== effective.durationMillis ||
+            releaseOf(lastPropRef.current) !== releaseOf(effective)
         ) {
             lastPropRef.current = effective
             setFrequency(String(effective.frequencyHz))
             setDuration(String(effective.durationMillis))
+            setRelease(releaseOf(effective) !== 0 ? String(releaseOf(effective)) : '')
         }
     }, [effective])
 
-    const publish = (nextFrequency: string, nextDuration: string) => {
-        const tone = parseTone(nextFrequency, nextDuration)
+    const publish = (nextFrequency: string, nextDuration: string, nextRelease: string) => {
+        const tone = parseTone(nextFrequency, nextDuration, nextRelease)
         if (tone === null) return
         lastPropRef.current = tone
         const isDefault =
-            tone.frequencyHz === DEFAULT_CAPTURE_TONE.frequencyHz &&
-            tone.durationMillis === DEFAULT_CAPTURE_TONE.durationMillis
+            tone.frequencyHz === builtIn.frequencyHz &&
+            tone.durationMillis === builtIn.durationMillis &&
+            releaseOf(tone) === releaseOf(builtIn)
         onChange(isDefault ? null : tone)
     }
 
-    const parsed = parseTone(frequency, duration)
+    const parsed = parseTone(frequency, duration, release)
     const invalid = parsed === null
 
     return (
@@ -81,7 +111,7 @@ const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => 
                 {label}
                 {value === null ? ` — ${t('event.timing.captureTones.isDefault')}` : ''}
             </Typography>
-            <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap" useFlexGap>
                 <TextField
                     type="number"
                     size="small"
@@ -92,7 +122,7 @@ const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => 
                     sx={{width: 140}}
                     onChange={event => {
                         setFrequency(event.target.value)
-                        publish(event.target.value, duration)
+                        publish(event.target.value, duration, release)
                     }}
                 />
                 <TextField
@@ -105,7 +135,22 @@ const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => 
                     sx={{width: 140}}
                     onChange={event => {
                         setDuration(event.target.value)
-                        publish(frequency, event.target.value)
+                        publish(frequency, event.target.value, release)
+                    }}
+                />
+                {/* Leer = Standardhüllkurve (Abfall über die Nenndauer); gesetzt = Haltezeit,
+                    danach Abfall über diese Zeit — der Gesamtklang ist Dauer + Ausklingen. */}
+                <TextField
+                    type="number"
+                    size="small"
+                    label={t('event.timing.captureTones.releaseMillis')}
+                    value={release}
+                    error={invalid}
+                    slotProps={{htmlInput: {min: TONE_RELEASE_MIN_MILLIS, max: TONE_RELEASE_MAX_MILLIS}}}
+                    sx={{width: 140}}
+                    onChange={event => {
+                        setRelease(event.target.value)
+                        publish(frequency, duration, event.target.value)
                     }}
                 />
                 <Tooltip title={t('event.timing.captureTones.play')}>
@@ -123,9 +168,10 @@ const CaptureToneEditor = ({label, value, onChange}: CaptureToneEditorProps) => 
                     <Button
                         size="small"
                         onClick={() => {
-                            lastPropRef.current = DEFAULT_CAPTURE_TONE
-                            setFrequency(String(DEFAULT_CAPTURE_TONE.frequencyHz))
-                            setDuration(String(DEFAULT_CAPTURE_TONE.durationMillis))
+                            lastPropRef.current = builtIn
+                            setFrequency(String(builtIn.frequencyHz))
+                            setDuration(String(builtIn.durationMillis))
+                            setRelease(releaseOf(builtIn) !== 0 ? String(releaseOf(builtIn)) : '')
                             onChange(null)
                         }}>
                         {t('event.timing.captureTones.reset')}

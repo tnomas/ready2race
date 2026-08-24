@@ -15,6 +15,7 @@ import {
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
 import {CaptureToneDto, CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
+import {DEFAULT_FALSE_START_TONE} from '@utils/timing/tonePlan.ts'
 import CaptureToneEditor from './CaptureToneEditor.tsx'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
@@ -145,11 +146,13 @@ const EventTimingConfig = () => {
     const [deviations, setDeviations] = useState<CompetitionTimingDeviationDto[]>([])
     const [lastSaved, setLastSaved] = useState(0)
 
-    // Erfassungstöne der Posten (FINISH/SPLIT): außerhalb des react-hook-form-Formulars, weil ihr
-    // Editor (Strings beim Tippen, Vorschau, Standard-Normalisierung auf null) ein eigener
-    // kontrollierter Baustein ist; gespeichert werden sie mit demselben Submit.
+    // Erfassungstöne der Posten (FINISH/SPLIT) und der Fehlstart-Ton: außerhalb des
+    // react-hook-form-Formulars, weil ihr Editor (Strings beim Tippen, Vorschau,
+    // Standard-Normalisierung auf null) ein eigener kontrollierter Baustein ist; gespeichert
+    // werden sie mit demselben Submit.
     const [finishTone, setFinishTone] = useState<CaptureToneDto | null>(null)
     const [splitTone, setSplitTone] = useState<CaptureToneDto | null>(null)
+    const [falseStartTone, setFalseStartTone] = useState<CaptureToneDto | null>(null)
 
     useFetch(signal => getEventTimingConfig({signal, path: {eventId}}), {
         onResponse: ({data, error}) => {
@@ -160,6 +163,7 @@ const EventTimingConfig = () => {
                 setDeviations(data.deviatingCompetitions ?? [])
                 setFinishTone(data.finishTone ?? null)
                 setSplitTone(data.splitTone ?? null)
+                setFalseStartTone(data.falseStartTone ?? null)
             }
         },
         deps: [eventId, lastSaved],
@@ -184,9 +188,9 @@ const EventTimingConfig = () => {
                     setSubmitting(true)
                     const {error} = await updateEventTimingConfig({
                         path: {eventId},
-                        // Die Erfassungstöne reisen immer mit (wie die Genauigkeit): ein
-                        // Systemwechsel soll die eingestellten Töne nicht verlieren.
-                        body: {...mapEventTimingFormToRequest(data), finishTone, splitTone},
+                        // Die Töne reisen immer mit (wie die Genauigkeit): ein Systemwechsel
+                        // soll die eingestellten Töne nicht verlieren.
+                        body: {...mapEventTimingFormToRequest(data), finishTone, splitTone, falseStartTone},
                     })
                     setSubmitting(false)
 
@@ -282,6 +286,25 @@ const EventTimingConfig = () => {
                                         onChange={setSplitTone}
                                     />
                                 </Stack>
+                            </Box>
+                            {/* Der Fehlstart-Ton: eigenständig neben den Erfassungstönen. Start-
+                                Board und Startbildschirm spielen ihn bei Versuchs-Rücknahme oder
+                                Abbruch einer laufenden Sequenz der gerade geführten Partie —
+                                ausgeliefert wie die Erfassungstöne über GET /timing/settings und
+                                live via settingsChanged. */}
+                            <Box>
+                                <Typography variant={'subtitle2'} gutterBottom>
+                                    <Trans i18nKey={'event.timing.falseStartTone.title'} />
+                                </Typography>
+                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
+                                    <Trans i18nKey={'event.timing.falseStartTone.hint'} />
+                                </Typography>
+                                <CaptureToneEditor
+                                    label={t('event.timing.falseStartTone.label')}
+                                    value={falseStartTone}
+                                    onChange={setFalseStartTone}
+                                    defaultTone={DEFAULT_FALSE_START_TONE}
+                                />
                             </Box>
                             <TimingModePanel eventId={eventId} />
                         </Stack>

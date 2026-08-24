@@ -27,12 +27,20 @@ import {useFeedback} from '@utils/hooks.ts'
 import {playToneStep} from '@utils/timing/feedback.ts'
 import {
     DEFAULT_START_TONE_PLAN,
+    NEW_TONE_DURATION_MILLIS,
     PRESET_ONLY_START,
     PRESET_TEN_COUNTDOWN,
+    TONE_DURATION_MAX_MILLIS,
+    TONE_DURATION_MIN_MILLIS,
+    TONE_FREQUENCY_MAX_HZ,
+    TONE_FREQUENCY_MIN_HZ,
     TONE_PLAN_MAX_STEPS,
+    TONE_RELEASE_MAX_MILLIS,
+    TONE_RELEASE_MIN_MILLIS,
     ToneStep,
     equalsDefaultStartPlan,
     previewSchedule,
+    toneTotalMillis,
 } from '@utils/timing/tonePlan.ts'
 import {
     ToneRow,
@@ -132,7 +140,8 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         })
         const last = schedule[schedule.length - 1]
         previewTimeoutsRef.current.push(
-            window.setTimeout(() => setPreviewPlaying(false), last.atMillis + last.step.durationMillis),
+            // Gesamtklanglänge statt Nenndauer: ein letzter Ton mit Ausklingzeit klingt länger.
+            window.setTimeout(() => setPreviewPlaying(false), last.atMillis + toneTotalMillis(last.step)),
         )
     }
 
@@ -339,8 +348,8 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                             label={t('event.timing.modes.tones.frequencyHz')}
                                             value={row.frequencyHz}
                                             error={rowInvalid && invalidField === 'tones'}
-                                            slotProps={{htmlInput: {min: 100, max: 4000}}}
-                                            sx={{width: 130}}
+                                            slotProps={{htmlInput: {min: TONE_FREQUENCY_MIN_HZ, max: TONE_FREQUENCY_MAX_HZ}}}
+                                            sx={{width: 120}}
                                             onChange={event =>
                                                 updateRow(row.key, {frequencyHz: event.target.value})
                                             }
@@ -351,11 +360,28 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                             label={t('event.timing.modes.tones.durationMillis')}
                                             value={row.durationMillis}
                                             error={rowInvalid && invalidField === 'tones'}
-                                            slotProps={{htmlInput: {min: 20, max: 2000}}}
-                                            sx={{width: 130}}
+                                            slotProps={{htmlInput: {min: TONE_DURATION_MIN_MILLIS, max: TONE_DURATION_MAX_MILLIS}}}
+                                            sx={{width: 120}}
                                             onChange={event =>
                                                 updateRow(row.key, {
                                                     durationMillis: event.target.value,
+                                                })
+                                            }
+                                        />
+                                        {/* Ausklingzeit: leer = Standardhüllkurve (Abfall über die
+                                            Nenndauer); gesetzt = Haltezeit + Abfall obendrauf. Die
+                                            Abspielknöpfe daneben spielen die echte Hüllkurve. */}
+                                        <TextField
+                                            type="number"
+                                            size="small"
+                                            label={t('event.timing.modes.tones.releaseMillis')}
+                                            value={row.releaseMillis}
+                                            error={rowInvalid && invalidField === 'tones'}
+                                            slotProps={{htmlInput: {min: TONE_RELEASE_MIN_MILLIS, max: TONE_RELEASE_MAX_MILLIS}}}
+                                            sx={{width: 130}}
+                                            onChange={event =>
+                                                updateRow(row.key, {
+                                                    releaseMillis: event.target.value,
                                                 })
                                             }
                                         />
@@ -395,10 +421,12 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                 onClick={() =>
                                     setToneRows(rows => [
                                         ...rows,
+                                        // Vorbelegung neuer Töne: 500 ms (Wunsch vom 24.08.2026)
+                                        // — die eingebauten Standardpläne bleiben davon unberührt.
                                         rowFromStep({
                                             offsetMillis: 0,
                                             frequencyHz: 900,
-                                            durationMillis: 400,
+                                            durationMillis: NEW_TONE_DURATION_MILLIS,
                                         }),
                                     ])
                                 }>

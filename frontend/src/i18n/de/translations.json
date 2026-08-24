@@ -1725,10 +1725,16 @@
         "split": "Zwischenzeitposten",
         "frequencyHz": "Tonhöhe (Hz)",
         "durationMillis": "Dauer (ms)",
+        "releaseMillis": "Ausklingen (ms)",
         "play": "Ton anhören",
         "reset": "Standard wiederherstellen",
         "isDefault": "Standard",
-        "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–2000 ms."
+        "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms."
+      },
+      "falseStartTone": {
+        "title": "Fehlstart-Ton",
+        "hint": "Ein deutlich langer, tiefer Ton, den Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt. Das Ausklingen bestimmt, wie flach die Lautstärke nach der Dauer abfällt (leer = Abfall über die Dauer selbst).",
+        "label": "Fehlstart"
       },
       "modes": {
         "title": "Zeitnahmetypen",
@@ -1769,12 +1775,13 @@
           "atStart": "Start",
           "frequencyHz": "Tonhöhe (Hz)",
           "durationMillis": "Dauer (ms)",
+          "releaseMillis": "Ausklingen (ms)",
           "play": "Ton anhören",
           "remove": "Ton entfernen",
           "addTone": "Ton hinzufügen",
           "playAll": "Sequenz anhören",
-          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
-          "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–2000 ms, höchstens 30 Töne."
+          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt. Das Ausklingen je Ton ist die Zeit, in der die Lautstärke nach der Dauer abfällt — leer heißt: der Abfall liegt in der Dauer selbst, wie bisher.",
+          "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
         }
       },
       "races": {

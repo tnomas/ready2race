@@ -1725,10 +1725,16 @@
         "split": "Mellemtidspost",
         "frequencyHz": "Tonehøjde (Hz)",
         "durationMillis": "Varighed (ms)",
+        "releaseMillis": "Efterklang (ms)",
         "play": "Afspil tone",
         "reset": "Gendan standard",
         "isDefault": "standard",
-        "invalid": "Tonehøjde 100–4000 Hz, varighed 20–2000 ms."
+        "invalid": "Tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms."
+      },
+      "falseStartTone": {
+        "title": "Tyvstart-tone",
+        "hint": "En tydeligt lang, dyb tone, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. Efterklangen bestemmer, hvor blidt lydstyrken falder efter varigheden (tom = faldet sker inden for selve varigheden).",
+        "label": "Tyvstart"
       },
       "modes": {
         "title": "Tidtagningstyper",
@@ -1769,12 +1775,13 @@
           "atStart": "Start",
           "frequencyHz": "Tonehøjde (Hz)",
           "durationMillis": "Varighed (ms)",
+          "releaseMillis": "Efterklang (ms)",
           "play": "Afspil tone",
           "remove": "Fjern tone",
           "addTone": "Tilføj tone",
           "playAll": "Afspil sekvens",
-          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
-          "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–2000 ms, højst 30 toner."
+          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte. Efterklangen pr. tone er tiden, hvor lydstyrken falder efter varigheden — tom betyder: faldet sker inden for selve varigheden, som hidtil.",
+          "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
         }
       },
       "races": {
