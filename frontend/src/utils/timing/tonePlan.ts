@@ -17,14 +17,25 @@ export type ToneStep = {
     offsetMillis: number
     frequencyHz: number
     durationMillis: number
+    /**
+     * Ausklingzeit in ms — wie flach die Lautstärke nach der Nenndauer abfällt. Die Nenndauer
+     * ([durationMillis]) ist dann die HALTEZEIT bei voller Lautstärke, das Ausklingen kommt
+     * OBENDRAUF (Gesamtklang = duration + release); ein kurzes Ausklingen klingt abgehackt-steil,
+     * ein langes weich-flach. Nicht gesetzt (oder 0) = exakt die bisherige Hüllkurve: die
+     * Lautstärke fällt über die GESAMTE Nenndauer exponentiell ab (siehe `feedback.ts`).
+     */
+    releaseMillis?: number
 }
 
 // --- Grenzen -------------------------------------------------------------------------------------
 //
 // Dieselben Grenzen prüft das Backend (TimingModeRequest/EventTimingConfigRequest) — hier stehen
 // sie für die Formulare und die Vorschau. Frequenz 100–4000 Hz: darunter tragen kleine Lautsprecher
-// nicht, darüber wird es unangenehm und viele Erwachsene hören es kaum noch. Dauer 20–2000 ms:
-// kürzer ist kein hörbarer Piep mehr, länger überlappte den Sekundentakt des Countdowns.
+// nicht, darüber wird es unangenehm und viele Erwachsene hören es kaum noch. Dauer 20–10000 ms:
+// kürzer ist kein hörbarer Piep mehr; die Obergrenze war früher 2000 ms (nicht in den Sekundentakt
+// des Countdowns hineinragen), aber der lange Fehlstart-Ton braucht mehr — wer im Tonplan selbst
+// einen 10-Sekünder konfiguriert, tut das jetzt bewusst. Ausklingen 0–5000 ms: 0 = die bisherige
+// Hüllkurve (Abfall über die Nenndauer), mehr ist Hall-Spielerei ohne Nutzen.
 // Offset −600000..0: negativ = vor dem Start, 0 = der Start selbst; die Untergrenze entspricht dem
 // größten erlaubten Sequenz-Vorlauf (leadInMillis ≤ 600000). Positive Offsets sind bewusst NICHT
 // erlaubt: nach dem Start wandert das Countdown-Ziel sofort zum nächsten Boot (INTERVAL), ein Ton
@@ -34,9 +45,25 @@ export const TONE_PLAN_MAX_STEPS = 30
 export const TONE_FREQUENCY_MIN_HZ = 100
 export const TONE_FREQUENCY_MAX_HZ = 4000
 export const TONE_DURATION_MIN_MILLIS = 20
-export const TONE_DURATION_MAX_MILLIS = 2000
+export const TONE_DURATION_MAX_MILLIS = 10_000
+export const TONE_RELEASE_MIN_MILLIS = 0
+export const TONE_RELEASE_MAX_MILLIS = 5000
 export const TONE_OFFSET_MIN_MILLIS = -600_000
 export const TONE_OFFSET_MAX_MILLIS = 0
+
+/**
+ * Ob eine Ausklingzeit gültig ist. `undefined` heißt „keine eigene — Standardhüllkurve" und ist
+ * immer gültig; ein gesetzter Wert muss eine ganze Zahl in 0–5000 ms sein. Die Editoren
+ * normalisieren 0 zu „nicht gesetzt", beides klingt identisch (siehe [ToneStep.releaseMillis]).
+ */
+export function isValidToneRelease(releaseMillis: number | undefined): boolean {
+    return (
+        releaseMillis === undefined ||
+        (Number.isInteger(releaseMillis) &&
+            releaseMillis >= TONE_RELEASE_MIN_MILLIS &&
+            releaseMillis <= TONE_RELEASE_MAX_MILLIS)
+    )
+}
 
 /** Ob ein einzelner Eintrag innerhalb aller Grenzen liegt (Formular-Validierung). */
 export function isValidToneStep(step: ToneStep): boolean {
@@ -49,7 +76,8 @@ export function isValidToneStep(step: ToneStep): boolean {
         step.frequencyHz <= TONE_FREQUENCY_MAX_HZ &&
         Number.isInteger(step.durationMillis) &&
         step.durationMillis >= TONE_DURATION_MIN_MILLIS &&
-        step.durationMillis <= TONE_DURATION_MAX_MILLIS
+        step.durationMillis <= TONE_DURATION_MAX_MILLIS &&
+        isValidToneRelease(step.releaseMillis)
     )
 }
 
@@ -89,6 +117,32 @@ export const PRESET_TEN_COUNTDOWN: readonly ToneStep[] = [
  */
 export const DEFAULT_CAPTURE_TONE = {frequencyHz: 880, durationMillis: 150}
 
+/**
+ * Der eingebaute Fehlstart-Ton: deutlich länger und tiefer als alles andere im System, damit er
+ * am Wasser sofort als „zurück!" erkennbar ist und nicht mit den kurzen Countdown-Ticks (600 Hz)
+ * oder dem Startton (900 Hz) verwechselt werden kann. 440 Hz liegt tief genug für den Kontrast,
+ * trägt aber auf kleinen Tablet-Lautsprechern noch; 3000 ms ohne eigene Ausklingzeit heißt: die
+ * Lautstärke fällt über die vollen 3 Sekunden exponentiell ab — ein langes, ausklingendes Horn.
+ */
+export const DEFAULT_FALSE_START_TONE = {frequencyHz: 440, durationMillis: 3000}
+
+/**
+ * Vorbelegte Dauer NEU angelegter Töne in den Editoren („Ton hinzufügen", frisch geleerte
+ * Felder). Bewusst NICHT die Dauer irgendeines eingebauten Standards — die Standardpläne und
+ * -töne behalten ihre destillierten Werte (100/400/150/3000 ms), nur der Startpunkt fürs
+ * eigene Basteln ist 500 ms.
+ */
+export const NEW_TONE_DURATION_MILLIS = 500
+
+/**
+ * Gesamtklanglänge eines Tons: Nenndauer (Haltezeit) plus Ausklingen. Ohne eigene Ausklingzeit
+ * klingt der Ton genau seine Nenndauer (der Abfall liegt dann IN der Nenndauer, siehe
+ * [ToneStep.releaseMillis]).
+ */
+export function toneTotalMillis(tone: {durationMillis: number; releaseMillis?: number | null}): number {
+    return tone.durationMillis + (tone.releaseMillis ?? 0)
+}
+
 // --- Normalisierung und Vergleich ----------------------------------------------------------------
 
 /** Aufsteigend nach Offset sortiert, ohne die Eingabe zu verändern — die Ableitung setzt das voraus. */
@@ -110,7 +164,10 @@ export function equalsDefaultStartPlan(plan: readonly ToneStep[]): boolean {
             return (
                 step.offsetMillis === reference.offsetMillis &&
                 step.frequencyHz === reference.frequencyHz &&
-                step.durationMillis === reference.durationMillis
+                step.durationMillis === reference.durationMillis &&
+                // 0 und „nicht gesetzt" sind dieselbe (Standard-)Hüllkurve — ein Plan, dessen
+                // Ausklingen explizit auf 0 steht, ist also weiterhin der Standard.
+                (step.releaseMillis ?? 0) === (reference.releaseMillis ?? 0)
             )
         })
     )

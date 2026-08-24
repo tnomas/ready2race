@@ -1,17 +1,22 @@
 import {describe, expect, test} from 'vitest'
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
 import {
+    DEFAULT_FALSE_START_TONE,
     DEFAULT_START_TONE_PLAN,
     PRESET_ONLY_START,
     PRESET_TEN_COUNTDOWN,
     PREVIEW_MAX_GAP_MILLIS,
     TONE_FRESHNESS_MILLIS,
+    TONE_RELEASE_MAX_MILLIS,
+    TONE_RELEASE_MIN_MILLIS,
     ToneStep,
     advanceTonePlan,
     equalsDefaultStartPlan,
+    isValidToneRelease,
     isValidToneStep,
     previewSchedule,
     sortedTonePlan,
+    toneTotalMillis,
     tonePlanForSequence,
 } from './tonePlan.ts'
 
@@ -156,20 +161,51 @@ describe('advanceTonePlan', () => {
 describe('Grenzen und Voreinstellungen', () => {
     test('isValidToneStep akzeptiert die Raender und verwirft Ausreisser', () => {
         expect(isValidToneStep({offsetMillis: 0, frequencyHz: 100, durationMillis: 20})).toBe(true)
-        expect(isValidToneStep({offsetMillis: -600_000, frequencyHz: 4000, durationMillis: 2000})).toBe(true)
+        // Die Dauer-Obergrenze liegt seit dem Fehlstart-Ton bei 10 s (frueher 2 s).
+        expect(isValidToneStep({offsetMillis: -600_000, frequencyHz: 4000, durationMillis: 10_000})).toBe(true)
+        expect(isValidToneStep({offsetMillis: 0, frequencyHz: 600, durationMillis: 2001})).toBe(true)
         expect(isValidToneStep({offsetMillis: 1, frequencyHz: 600, durationMillis: 100})).toBe(false)
         expect(isValidToneStep({offsetMillis: -600_001, frequencyHz: 600, durationMillis: 100})).toBe(false)
         expect(isValidToneStep({offsetMillis: 0, frequencyHz: 99, durationMillis: 100})).toBe(false)
         expect(isValidToneStep({offsetMillis: 0, frequencyHz: 4001, durationMillis: 100})).toBe(false)
         expect(isValidToneStep({offsetMillis: 0, frequencyHz: 600, durationMillis: 19})).toBe(false)
-        expect(isValidToneStep({offsetMillis: 0, frequencyHz: 600, durationMillis: 2001})).toBe(false)
+        expect(isValidToneStep({offsetMillis: 0, frequencyHz: 600, durationMillis: 10_001})).toBe(false)
         expect(isValidToneStep({offsetMillis: -0.5, frequencyHz: 600, durationMillis: 100})).toBe(false)
+    })
+
+    test('Ausklingzeit: nicht gesetzt gueltig, 0–5000 ganze ms gueltig, alles andere nicht', () => {
+        const step = (releaseMillis?: number) => ({
+            offsetMillis: 0,
+            frequencyHz: 600,
+            durationMillis: 100,
+            releaseMillis,
+        })
+        expect(isValidToneStep(step(undefined))).toBe(true)
+        expect(isValidToneStep(step(TONE_RELEASE_MIN_MILLIS))).toBe(true)
+        expect(isValidToneStep(step(TONE_RELEASE_MAX_MILLIS))).toBe(true)
+        // Das Ausklingen darf ueber die Nenndauer hinausreichen: Haltezeit 100 ms + 5 s Abfall.
+        expect(isValidToneStep(step(800))).toBe(true)
+        expect(isValidToneStep(step(-1))).toBe(false)
+        expect(isValidToneStep(step(TONE_RELEASE_MAX_MILLIS + 1))).toBe(false)
+        expect(isValidToneStep(step(2.5))).toBe(false)
+        expect(isValidToneRelease(undefined)).toBe(true)
+        expect(isValidToneRelease(5000)).toBe(true)
+        expect(isValidToneRelease(5001)).toBe(false)
+    })
+
+    test('toneTotalMillis: Nenndauer plus Ausklingen, ohne Ausklingen nur die Nenndauer', () => {
+        expect(toneTotalMillis({durationMillis: 400})).toBe(400)
+        expect(toneTotalMillis({durationMillis: 400, releaseMillis: 800})).toBe(1200)
+        expect(toneTotalMillis({durationMillis: 400, releaseMillis: null})).toBe(400)
     })
 
     test('alle Voreinstellungen sind innerhalb der Grenzen', () => {
         for (const plan of [DEFAULT_START_TONE_PLAN, PRESET_ONLY_START, PRESET_TEN_COUNTDOWN]) {
             expect(plan.every(isValidToneStep)).toBe(true)
         }
+        expect(
+            isValidToneStep({offsetMillis: 0, ...DEFAULT_FALSE_START_TONE}),
+        ).toBe(true)
     })
 
     test('equalsDefaultStartPlan erkennt den Standard auch unsortiert, aber keine Abweichung', () => {
@@ -180,6 +216,18 @@ describe('Grenzen und Voreinstellungen', () => {
             equalsDefaultStartPlan(
                 DEFAULT_START_TONE_PLAN.map((step, index) =>
                     index === 0 ? {...step, frequencyHz: 880} : step,
+                ),
+            ),
+        ).toBe(false)
+        // Explizites Ausklingen 0 ist dieselbe Huellkurve wie „nicht gesetzt" — weiterhin Standard.
+        expect(
+            equalsDefaultStartPlan(DEFAULT_START_TONE_PLAN.map(step => ({...step, releaseMillis: 0}))),
+        ).toBe(true)
+        // Ein echtes Ausklingen macht den Plan dagegen zum eigenen.
+        expect(
+            equalsDefaultStartPlan(
+                DEFAULT_START_TONE_PLAN.map((step, index) =>
+                    index === 0 ? {...step, releaseMillis: 500} : step,
                 ),
             ),
         ).toBe(false)
