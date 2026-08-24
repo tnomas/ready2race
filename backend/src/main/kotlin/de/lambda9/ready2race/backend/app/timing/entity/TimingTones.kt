@@ -13,10 +13,13 @@ data class TonePlanStep(
     val frequencyHz: Int,
     val durationMillis: Int,
     /**
-     * Ausklingzeit in ms (0-5000): wie flach die Lautstärke nach der Nenndauer abfällt. Mit
-     * Ausklingzeit ist [durationMillis] die HALTEZEIT bei voller Lautstärke, der Abfall kommt
-     * obendrauf (Gesamtklang = duration + release) und darf die Nenndauer überragen. null (oder
-     * 0) = die bisherige Hüllkurve: exponentieller Abfall über die gesamte Nenndauer.
+     * Wählt die HÜLLKURVE des Tons - zwei ausdrücklich verschiedene Klangformen, kein stufenloser
+     * Regler: null = "Abfallend" (exponentieller Abfall über die GESAMTE Nenndauer, die klassische
+     * Form); 0-5000 = "Gehalten" ([durationMillis] ist die HALTEZEIT bei voller Lautstärke, der
+     * Abfall kommt obendrauf - Gesamtklang = duration + release, und darf die Nenndauer überragen).
+     * 0 ist ein LEGITIMER Gehalten-Wert (die Boards spielen dann eine eingebaute Mini-Entknackung
+     * von wenigen ms, damit nichts knackt) und wird nirgends zu null normalisiert - null und 0
+     * sind VERSCHIEDENE Klangformen.
      */
     val releaseMillis: Int? = null,
 )
@@ -31,7 +34,7 @@ data class TonePlanStep(
 data class CaptureTone(
     val frequencyHz: Int,
     val durationMillis: Int,
-    /** Ausklingzeit wie bei [TonePlanStep.releaseMillis]; null = bisherige Hüllkurve. */
+    /** Hüllkurven-Wahl wie bei [TonePlanStep.releaseMillis]; null = Abfallend, 0-5000 = Gehalten. */
     val releaseMillis: Int? = null,
 )
 
@@ -43,7 +46,8 @@ data class CaptureTone(
  * Dauer 20..10000 ms: kürzer ist kein hörbarer Piep mehr; die Obergrenze war früher 2000 ms
  * (nicht in den Sekundentakt hineinragen), aber der lange Fehlstart-Ton braucht mehr - wer im
  * Tonplan selbst einen 10-Sekünder konfiguriert, tut das jetzt bewusst.
- * Ausklingen 0..5000 ms: 0/null = die bisherige Hüllkurve (Abfall über die Nenndauer).
+ * Ausklingen 0..5000 ms gilt nur für die Gehalten-Hüllkurve; null = Abfallend (Abfall über die
+ * Nenndauer) - null und 0 sind verschiedene Klangformen, siehe [TonePlanStep.releaseMillis].
  * Offset -600000..0 ms: die Untergrenze entspricht dem größten erlaubten Sequenz-Vorlauf
  * (leadInMillis <= 600000, siehe CreateSequenceRequest). Höchstens 30 Einträge je Plan.
  */
@@ -83,7 +87,7 @@ object TimingToneLimits {
             ValidationResult.Valid
         }
 
-    /** null ist gültig ("bisherige Hüllkurve"); ein gesetzter Wert muss in 0..5000 ms liegen. */
+    /** null ist gültig (Abfallend); ein gesetzter Wert (Gehalten, 0 eingeschlossen) muss in 0..5000 ms liegen. */
     private fun validateRelease(value: Int?, field: String): ValidationResult =
         if (value != null && (value < RELEASE_MIN_MILLIS || value > RELEASE_MAX_MILLIS)) {
             ValidationResult.Invalid.Message { "$field.releaseMillis must be between $RELEASE_MIN_MILLIS and $RELEASE_MAX_MILLIS" }

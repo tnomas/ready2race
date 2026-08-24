@@ -64,6 +64,9 @@ class TimingModeServiceTest {
         val (eventId, userId) = !createTestEventWithAdmin()
         val plan = listOf(
             TonePlanStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
+            // Gehalten mit 0 ms Ausklingen: die 0 waehlt eine ANDERE Huellkurve als null
+            // (Abfallend) und muss den Roundtrip als echte 0 ueberleben, nicht als null.
+            TonePlanStep(offsetMillis = -5_000, frequencyHz = 600, durationMillis = 100, releaseMillis = 0),
             // Mit Ausklingzeit: auch releaseMillis muss den jsonb-Roundtrip unverändert überleben.
             TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
         )

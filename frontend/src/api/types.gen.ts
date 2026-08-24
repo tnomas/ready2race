@@ -683,7 +683,7 @@ export type CaptureToneDto = {
     frequencyHz: number
     durationMillis: number
     /**
-     * Release time in ms - how gently the volume falls off AFTER the nominal duration. With a release, durationMillis is the hold time at full volume and the total sound is duration + release (the release may exceed the nominal duration). Null (or 0) keeps the classic envelope: an exponential decay across the whole nominal duration.
+     * Selects the tone's ENVELOPE - two explicitly different sound shapes, not a continuous knob. Null = "decaying": an exponential decay across the whole nominal duration (the classic envelope). 0..5000 = "held": durationMillis is the hold time at full volume and the total sound is duration + release (the release may exceed the nominal duration). 0 is a legitimate held value - boards play a built-in de-click fade of a few ms so the ending never pops - and is never normalized to null: null and 0 are different envelopes.
      */
     releaseMillis?: number | null
 }
@@ -4454,7 +4454,7 @@ export type ToneStepDto = {
     frequencyHz: number
     durationMillis: number
     /**
-     * Release time in ms after the nominal duration (hold at full volume, then fall off; total sound = duration + release). Null (or 0) keeps the classic envelope - an exponential decay across the whole nominal duration.
+     * Selects the tone's ENVELOPE, same semantics as CaptureToneDto.releaseMillis: null = "decaying" (exponential decay across the whole nominal duration); 0..5000 = "held" (full volume for the nominal duration, then a fall-off over the release; total sound = duration + release). 0 is a legitimate held value (a built-in de-click fade of a few ms keeps the ending pop-free) and is never normalized to null - null and 0 are different envelopes.
      */
     releaseMillis?: number | null
 }
