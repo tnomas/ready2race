@@ -14,7 +14,8 @@ import {
     getStartListConfigs,
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
-import {CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
+import {CaptureToneDto, CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
+import CaptureToneEditor from './CaptureToneEditor.tsx'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
@@ -144,6 +145,12 @@ const EventTimingConfig = () => {
     const [deviations, setDeviations] = useState<CompetitionTimingDeviationDto[]>([])
     const [lastSaved, setLastSaved] = useState(0)
 
+    // Erfassungstöne der Posten (FINISH/SPLIT): außerhalb des react-hook-form-Formulars, weil ihr
+    // Editor (Strings beim Tippen, Vorschau, Standard-Normalisierung auf null) ein eigener
+    // kontrollierter Baustein ist; gespeichert werden sie mit demselben Submit.
+    const [finishTone, setFinishTone] = useState<CaptureToneDto | null>(null)
+    const [splitTone, setSplitTone] = useState<CaptureToneDto | null>(null)
+
     useFetch(signal => getEventTimingConfig({signal, path: {eventId}}), {
         onResponse: ({data, error}) => {
             if (error) {
@@ -151,6 +158,8 @@ const EventTimingConfig = () => {
             } else if (data) {
                 formContext.reset(mapDtoToEventTimingForm(data))
                 setDeviations(data.deviatingCompetitions ?? [])
+                setFinishTone(data.finishTone ?? null)
+                setSplitTone(data.splitTone ?? null)
             }
         },
         deps: [eventId, lastSaved],
@@ -175,7 +184,9 @@ const EventTimingConfig = () => {
                     setSubmitting(true)
                     const {error} = await updateEventTimingConfig({
                         path: {eventId},
-                        body: mapEventTimingFormToRequest(data),
+                        // Die Erfassungstöne reisen immer mit (wie die Genauigkeit): ein
+                        // Systemwechsel soll die eingestellten Töne nicht verlieren.
+                        body: {...mapEventTimingFormToRequest(data), finishTone, splitTone},
                     })
                     setSubmitting(false)
 
@@ -247,6 +258,30 @@ const EventTimingConfig = () => {
                                         <Trans i18nKey={'event.timing.precision.hint'} />
                                     </Typography>
                                 )}
+                            </Box>
+                            {/* Bestätigungstöne beim Erfassen, je Postentyp getrennt — die
+                                Boards bekommen den Stand über GET /timing/settings und live
+                                via settingsChanged; die Countdown-Töne der STARTPOSTEN hängen
+                                dagegen am Zeitnahmetyp (Dialog unten). */}
+                            <Box>
+                                <Typography variant={'subtitle2'} gutterBottom>
+                                    <Trans i18nKey={'event.timing.captureTones.title'} />
+                                </Typography>
+                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
+                                    <Trans i18nKey={'event.timing.captureTones.hint'} />
+                                </Typography>
+                                <Stack spacing={2}>
+                                    <CaptureToneEditor
+                                        label={t('event.timing.captureTones.finish')}
+                                        value={finishTone}
+                                        onChange={setFinishTone}
+                                    />
+                                    <CaptureToneEditor
+                                        label={t('event.timing.captureTones.split')}
+                                        value={splitTone}
+                                        onChange={setSplitTone}
+                                    />
+                                </Stack>
                             </Box>
                             <TimingModePanel eventId={eventId} />
                         </Stack>

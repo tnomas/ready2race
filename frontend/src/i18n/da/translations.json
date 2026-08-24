@@ -1718,6 +1718,18 @@
           "MILLISEKUNDE": "Millisekund"
         }
       },
+      "captureTones": {
+        "title": "Registreringstoner",
+        "hint": "Bekræftelsestonen, som mål- og mellemtidsposter afspiller, når en tid registreres — kan indstilles pr. posttype. Den lyder kun ved selve tastetrykket; genafsendelse fra offline-køen forbliver stum.",
+        "finish": "Målpost",
+        "split": "Mellemtidspost",
+        "frequencyHz": "Tonehøjde (Hz)",
+        "durationMillis": "Varighed (ms)",
+        "play": "Afspil tone",
+        "reset": "Gendan standard",
+        "isDefault": "standard",
+        "invalid": "Tonehøjde 100–4000 Hz, varighed 20–2000 ms."
+      },
       "modes": {
         "title": "Tidtagningstyper",
         "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles pr. konkurrence eller runde i konkurrencens tidtagningsfane.",
@@ -1746,7 +1758,24 @@
         "saved": "Tidtagningstype gemt",
         "deleted": "Tidtagningstype slettet",
         "deleteConfirm": "Skal tidtagningstypen \"{{name}}\" virkelig slettes?",
-        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst én konkurrence eller runde. Fjern først tildelingerne i konkurrencernes tidtagningsfane."
+        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst én konkurrence eller runde. Fjern først tildelingerne i konkurrencernes tidtagningsfane.",
+        "tones": {
+          "title": "Toner",
+          "hint": "Sinus-bip i startsekvensen, relativt til starten af den enkelte båd eller bølge (0 = start). De afspilles på start-boardet og startskærmen; missede toner afspilles aldrig senere.",
+          "presetOnlyStart": "Kun start",
+          "presetTenCountdown": "10−5−4−3−2−1−start",
+          "presetDefault": "Standard (5…1−start)",
+          "secondsBeforeStart": "Sekunder før start",
+          "atStart": "Start",
+          "frequencyHz": "Tonehøjde (Hz)",
+          "durationMillis": "Varighed (ms)",
+          "play": "Afspil tone",
+          "remove": "Fjern tone",
+          "addTone": "Tilføj tone",
+          "playAll": "Afspil sekvens",
+          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
+          "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–2000 ms, højst 30 toner."
+        }
       },
       "races": {
         "title": "RaceClocker-løb",

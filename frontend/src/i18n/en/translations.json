@@ -1718,6 +1718,18 @@
           "MILLISEKUNDE": "Millisecond"
         }
       },
+      "captureTones": {
+        "title": "Capture tones",
+        "hint": "The confirmation tone finish and split stations play when a time is captured — configurable per station type. It only sounds on the key press itself; resending from the offline queue stays silent.",
+        "finish": "Finish station",
+        "split": "Split station",
+        "frequencyHz": "Pitch (Hz)",
+        "durationMillis": "Duration (ms)",
+        "play": "Play tone",
+        "reset": "Restore default",
+        "isDefault": "default",
+        "invalid": "Pitch 100–4000 Hz, duration 20–2000 ms."
+      },
       "modes": {
         "title": "Timing modes",
         "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned per competition or round in the competition's timing tab.",
@@ -1746,7 +1758,24 @@
         "saved": "Timing mode saved",
         "deleted": "Timing mode deleted",
         "deleteConfirm": "Really delete the timing mode \"{{name}}\"?",
-        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one competition or round. Remove the assignments in the competitions' timing tabs first."
+        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one competition or round. Remove the assignments in the competitions' timing tabs first.",
+        "tones": {
+          "title": "Tones",
+          "hint": "Sine beeps of the start sequence, relative to the start of the respective boat or wave (0 = start). They play on the start board and the start display; missed tones are never played late.",
+          "presetOnlyStart": "Start only",
+          "presetTenCountdown": "10−5−4−3−2−1−start",
+          "presetDefault": "Default (5…1−start)",
+          "secondsBeforeStart": "Seconds before start",
+          "atStart": "Start",
+          "frequencyHz": "Pitch (Hz)",
+          "durationMillis": "Duration (ms)",
+          "play": "Play tone",
+          "remove": "Remove tone",
+          "addTone": "Add tone",
+          "playAll": "Play sequence",
+          "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real.",
+          "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–2000 ms, at most 30 tones."
+        }
       },
       "races": {
         "title": "RaceClocker races",

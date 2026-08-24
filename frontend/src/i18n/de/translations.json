@@ -1718,6 +1718,18 @@
           "MILLISEKUNDE": "Millisekunde"
         }
       },
+      "captureTones": {
+        "title": "Erfassungstöne",
+        "hint": "Der Bestätigungston, den Ziel- und Zwischenzeitposten beim Erfassen einer Zeit spielen — je Postentyp getrennt einstellbar. Er erklingt nur beim Tastendruck selbst; das Nachsenden aus der Offline-Warteschlange bleibt stumm.",
+        "finish": "Zielposten",
+        "split": "Zwischenzeitposten",
+        "frequencyHz": "Tonhöhe (Hz)",
+        "durationMillis": "Dauer (ms)",
+        "play": "Ton anhören",
+        "reset": "Standard wiederherstellen",
+        "isDefault": "Standard",
+        "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–2000 ms."
+      },
       "modes": {
         "title": "Zeitnahmetypen",
         "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie je Wettkampf oder Runde im Zeitnahme-Tab des Wettkampfs.",
@@ -1746,7 +1758,24 @@
         "saved": "Zeitnahmetyp gespeichert",
         "deleted": "Zeitnahmetyp gelöscht",
         "deleteConfirm": "Soll der Zeitnahmetyp „{{name}}“ wirklich gelöscht werden?",
-        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einem Wettkampf oder einer Runde zugeordnet. Entfernen Sie zuerst die Zuordnungen im Zeitnahme-Tab der Wettkämpfe."
+        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einem Wettkampf oder einer Runde zugeordnet. Entfernen Sie zuerst die Zuordnungen im Zeitnahme-Tab der Wettkämpfe.",
+        "tones": {
+          "title": "Töne",
+          "hint": "Sinus-Pieps der Startsequenz, relativ zum Start des jeweiligen Boots bzw. der Welle (0 = Start). Sie erklingen auf dem Start-Board und dem Startbildschirm; verpasste Töne werden nie nachgeholt.",
+          "presetOnlyStart": "Nur Start",
+          "presetTenCountdown": "10−5−4−3−2−1−Start",
+          "presetDefault": "Standard (5…1−Start)",
+          "secondsBeforeStart": "Sekunden vor Start",
+          "atStart": "Start",
+          "frequencyHz": "Tonhöhe (Hz)",
+          "durationMillis": "Dauer (ms)",
+          "play": "Ton anhören",
+          "remove": "Ton entfernen",
+          "addTone": "Ton hinzufügen",
+          "playAll": "Sequenz anhören",
+          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
+          "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–2000 ms, höchstens 30 Töne."
+        }
       },
       "races": {
         "title": "RaceClocker-Rennen",
