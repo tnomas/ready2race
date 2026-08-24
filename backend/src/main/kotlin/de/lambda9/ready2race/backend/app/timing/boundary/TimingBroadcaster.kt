@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.OfficialTimeChanged::class, name = "officialTimeChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
     JsonSubTypes.Type(TimingWsMessage.SettingsChanged::class, name = "settingsChanged"),
+    JsonSubTypes.Type(TimingWsMessage.AttemptRetracted::class, name = "attemptRetracted"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -69,6 +70,20 @@ sealed class TimingWsMessage {
      * ihre Anzeige sofort umstellen können, ohne den Settings-GET erneut zu rufen.
      */
     data class SettingsChanged(val settings: TimingSettingsDto) : TimingWsMessage()
+
+    /**
+     * Ein GANZER Versuch wurde zurückgenommen („Start zurücknehmen", TimingService.retractMatchAttempt)
+     * — eine der beiden Fehlstart-Gesten. Eigene Nachricht zusätzlich zu den einzelnen
+     * [TimeMarkRetracted]-Echos, weil die auch bei der Einzelmarken-Korrektur in der Zeitenliste
+     * feuern und die Boards den Fehlstart-Ton sonst nicht vom Aufräumen unterscheiden könnten.
+     * Trägt die Partie und die Teams der tatsächlich zurückgenommenen Marken (kann leer sein,
+     * wenn nur noch der Ist-Start-Stempel fiel) — die Boards prüfen damit, ob ihre gerade
+     * geführte Sequenz betroffen ist.
+     */
+    data class AttemptRetracted(
+        val competitionSetupMatch: UUID,
+        val competitionMatchTeams: List<UUID>,
+    ) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

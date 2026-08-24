@@ -35,6 +35,12 @@ data class EventTimingConfigDto(
     val finishTone: CaptureTone?,
     val splitTone: CaptureTone?,
     /**
+     * Fehlstart-Ton der Startposten. Wie die Erfassungstöne unaufgelöst: null heisst "eingebauter
+     * Standard" (440 Hz / 3000 ms) - das Formular braucht den Unterschied für "Standard
+     * wiederherstellen"; aufgelöst liefert erst GET /timing/settings.
+     */
+    val falseStartTone: CaptureTone?,
+    /**
      * Die Wettkaempfe, die dieser Voreinstellung nicht folgen. Ohne sie waere die Voreinstellung eine
      * Einstellung, deren Reichweite man nicht sieht: wer hier eine Adresse aendert, muss wissen,
      * welche Wettkaempfe davon unberuehrt bleiben.

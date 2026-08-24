@@ -300,6 +300,15 @@ object TimingService {
         // (Doppelklick auf den Menüpunkt) bleibt es still.
         if (written || retractedStart) {
             EventChangeMarker.bump(eventId)
+            // Fehlstart-Signal an die Boards: EINE Nachricht je Rücknahme (nicht je Marke), nur
+            // wenn wirklich etwas zurückging - der harmlose Doppelklick bleibt auch hier still.
+            broadcastAsync(
+                eventId,
+                TimingWsMessage.AttemptRetracted(
+                    competitionSetupMatch = setupMatchId,
+                    competitionMatchTeams = rows.map { it.competitionMatchTeam }.distinct(),
+                ),
+            )
         }
 
         noData

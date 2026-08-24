@@ -69,6 +69,7 @@ object TimingOfficialTimeService {
         /** Erfassungstöne (FINISH/SPLIT), bereits auf den Standard aufgelöst - siehe [toDto]. */
         val finishTone: CaptureTone,
         val splitTone: CaptureTone,
+        val falseStartTone: CaptureTone,
     ) {
         /** Die eine Stelle, die aus dem internen Stand die Board-Sicht baut (GET + Broadcast). */
         fun toDto() = TimingSettingsDto(
@@ -76,6 +77,7 @@ object TimingOfficialTimeService {
             precision = precision,
             finishTone = finishTone,
             splitTone = splitTone,
+            falseStartTone = falseStartTone,
         )
     }
 
@@ -452,6 +454,8 @@ object TimingOfficialTimeService {
                     ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
                 splitTone = event?.timingSplitTone.toCaptureTone()
                     ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
+                falseStartTone = event?.timingFalseStartTone.toCaptureTone()
+                    ?: TimingToneLimits.DEFAULT_FALSE_START_TONE,
             )
         }
 

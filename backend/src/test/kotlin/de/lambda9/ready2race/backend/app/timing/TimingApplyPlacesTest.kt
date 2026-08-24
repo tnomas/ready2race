@@ -65,6 +65,7 @@ class TimingApplyPlacesTest {
                 timingPrecision = precision,
                 finishTone = null,
                 splitTone = null,
+                falseStartTone = null,
             ),
         ).map { }
 

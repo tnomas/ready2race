@@ -82,6 +82,7 @@ object TimingConfigService {
                     // "Standard wiederherstellen" - aufgelöst liefert erst GET /timing/settings.
                     finishTone = event.timingFinishTone.toCaptureTone(),
                     splitTone = event.timingSplitTone.toCaptureTone(),
+                    falseStartTone = event.timingFalseStartTone.toCaptureTone(),
                     deviatingCompetitions = deviations,
                 )
             )
@@ -103,7 +104,8 @@ object TimingConfigService {
         val precisionBefore = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
             ?: TimingPrecision.ZEHNTEL
         val tonesChanged = event.timingFinishTone.toCaptureTone() != request.finishTone ||
-            event.timingSplitTone.toCaptureTone() != request.splitTone
+            event.timingSplitTone.toCaptureTone() != request.splitTone ||
+            event.timingFalseStartTone.toCaptureTone() != request.falseStartTone
 
         !EventRepo.update(event) {
             timingSystem = request.timingSystem?.name
@@ -117,6 +119,7 @@ object TimingConfigService {
             timingPrecision = request.timingPrecision.name
             timingFinishTone = request.finishTone?.toJsonb()
             timingSplitTone = request.splitTone?.toJsonb()
+            timingFalseStartTone = request.falseStartTone?.toJsonb()
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()

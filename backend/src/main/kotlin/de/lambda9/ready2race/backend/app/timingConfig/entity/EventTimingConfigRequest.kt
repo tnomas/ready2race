@@ -40,6 +40,11 @@ data class EventTimingConfigRequest(
      */
     val finishTone: CaptureTone?,
     val splitTone: CaptureTone?,
+    /**
+     * Fehlstart-Ton der Startposten, gleiche PUT-Semantik wie die Erfassungstöne: `null` heisst
+     * "eingebauter Standard" (440 Hz / 3000 ms) und räumt einen eigenen Wert wieder ab.
+     */
+    val falseStartTone: CaptureTone?,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -50,6 +55,7 @@ data class EventTimingConfigRequest(
             validateMinutes(watchAfterMinutes, "watchAfterMinutes"),
             TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
             TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
+            TimingToneLimits.validateCaptureTone(falseStartTone, "falseStartTone"),
         )
 
     companion object {
@@ -86,6 +92,7 @@ data class EventTimingConfigRequest(
                 timingPrecision = TimingPrecision.ZEHNTEL,
                 finishTone = null,
                 splitTone = null,
+                falseStartTone = null,
             )
     }
 }

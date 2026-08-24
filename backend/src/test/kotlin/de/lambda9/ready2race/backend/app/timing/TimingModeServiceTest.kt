@@ -64,7 +64,8 @@ class TimingModeServiceTest {
         val (eventId, userId) = !createTestEventWithAdmin()
         val plan = listOf(
             TonePlanStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
-            TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400),
+            // Mit Ausklingzeit: auch releaseMillis muss den jsonb-Roundtrip unverändert überleben.
+            TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
         )
 
         val created = !TimingModeService.addMode(request().copy(tonePlan = plan), userId, eventId)

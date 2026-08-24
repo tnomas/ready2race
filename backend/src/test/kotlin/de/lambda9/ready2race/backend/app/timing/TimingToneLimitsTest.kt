@@ -28,7 +28,8 @@ class TimingToneLimitsTest {
         offsetMillis: Int = -1000,
         frequencyHz: Int = 600,
         durationMillis: Int = 100,
-    ) = TonePlanStep(offsetMillis, frequencyHz, durationMillis)
+        releaseMillis: Int? = null,
+    ) = TonePlanStep(offsetMillis, frequencyHz, durationMillis, releaseMillis)
 
     @Test
     fun nullMeansBuiltInDefaultAndIsValid() {
@@ -66,6 +67,30 @@ class TimingToneLimitsTest {
     fun durationsOutsideTheLimitsAreRejected() {
         assertTrue(request(listOf(step(durationMillis = TimingToneLimits.DURATION_MIN_MILLIS - 1))).validate() is ValidationResult.Invalid)
         assertTrue(request(listOf(step(durationMillis = TimingToneLimits.DURATION_MAX_MILLIS + 1))).validate() is ValidationResult.Invalid)
+    }
+
+    @Test
+    fun theDurationCeilingIsTenSeconds() {
+        // Angehoben von 2000 ms, damit der lange Fehlstart-Ton (und bewusst lange Plantoene)
+        // durch die Validierung kommen.
+        assertEquals(10_000, TimingToneLimits.DURATION_MAX_MILLIS)
+        assertEquals(ValidationResult.Valid, request(listOf(step(durationMillis = 10_000))).validate())
+    }
+
+    @Test
+    fun releaseIsOptionalAndLimitedToFiveSeconds() {
+        assertEquals(ValidationResult.Valid, request(listOf(step(releaseMillis = null))).validate())
+        assertEquals(ValidationResult.Valid, request(listOf(step(releaseMillis = TimingToneLimits.RELEASE_MIN_MILLIS))).validate())
+        // Das Ausklingen darf die Nenndauer ueberragen: 100 ms Haltezeit + 5 s Abfall.
+        assertEquals(ValidationResult.Valid, request(listOf(step(releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS))).validate())
+        assertTrue(request(listOf(step(releaseMillis = -1))).validate() is ValidationResult.Invalid)
+        assertTrue(request(listOf(step(releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS + 1))).validate() is ValidationResult.Invalid)
+    }
+
+    @Test
+    fun theBuiltInDefaultTonesAreInsideTheLimits() {
+        assertEquals(ValidationResult.Valid, TimingToneLimits.validateCaptureTone(TimingToneLimits.DEFAULT_CAPTURE_TONE, "finishTone"))
+        assertEquals(ValidationResult.Valid, TimingToneLimits.validateCaptureTone(TimingToneLimits.DEFAULT_FALSE_START_TONE, "falseStartTone"))
     }
 
     @Test
