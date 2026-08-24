@@ -1447,6 +1447,10 @@ Erwartet: 8 Tests grün.
 - Ein Hinweistext unter der Überschrift (`event.timing.profiles.hint`), der zwei Dinge sagt:
   speziellere Ebene gewinnt, und Partie-Zuordnungen verschwinden, wenn der Wettkampfablauf neu
   gebaut wird.
+- Sobald im sichtbaren Ausschnitt mindestens eine Partie ein eigenes Profil trägt, zusätzlich
+  `event.timing.profiles.matchLevelExportHint` als dezenter `Alert severity="info"`: Der
+  Startlisten-Sammelexport gruppiert je Wettkampf und ist blind für Partie-Zuordnungen (in
+  Task 4 bewusst so entschieden). Ohne den Hinweis fällt das erst am Renntag auf.
 
 - [ ] **Schritt 6: Die i18n-Schlüssel anlegen**
 
@@ -1457,6 +1461,7 @@ In `de/translations.json` unter `event.timing` den Ast `profiles` ergänzen und 
 "profiles": {
   "title": "Zeitnahmeprofile",
   "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird ein Wettkampfablauf neu gebaut, verlieren seine Partien ihre eigenen Profile.",
+  "matchLevelExportHint": "Der Startlisten-Sammelexport gruppiert je Wettkampf. Eine Partie mit eigenem Rennen erscheint dort unter dem Rennen ihres Wettkampfs — ihre Startliste muss einzeln exportiert werden.",
   "noSystem": "Für dieses Zeitnahme-System gibt es keine Profile. Wählen Sie oben „RaceClocker“ oder „Interne Zeitnahme“.",
   "noOptions": "Es ist noch kein Profil angelegt. Legen Sie oben ein Rennen bzw. einen Zeitnahmetyp an.",
   "event": "Ganze Veranstaltung",
