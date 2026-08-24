@@ -1,12 +1,63 @@
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
 
 /**
- * Tonpläne der Zeitnahme: WELCHER Sinus-Piep WANN relativ zum Start fällig ist.
+ * Tonpläne der Zeitnahme: WELCHER Piep WANN relativ zum Start fällig ist.
  *
  * Alles hier ist pur (Muster `sequenceDisplay.ts`): die Komponenten halten nur einen
  * Fortschrittszeiger und rufen pro Tick [advanceTonePlan] — kein Timer-Gestrüpp, und die
  * Kernfrage „welcher Ton bei welcher Serverzeit" ist direkt testbar.
  */
+
+// --- Wellenform ----------------------------------------------------------------------------------
+
+/**
+ * Die vier Grundformen des WebAudio-`OscillatorNode` als API-Werte. Englisch und großgeschrieben,
+ * weil sie 1:1 den `OscillatorType`-Strings entsprechen (`'sine'` usw. — siehe [oscillatorType])
+ * und die technischen Enums der Zeitnahme-API ohnehin englisch sind (`MASS`/`INTERVAL`,
+ * `START`/`FINISH`/`SPLIT`); deutsch sind nur Fachbegriffe der Regattaleitung (`EINZEL`/`WELLE`).
+ * `null`/nicht gesetzt = Sinus — kein bestehender Klang ändert sich.
+ */
+export const TONE_WAVEFORMS = ['SINE', 'TRIANGLE', 'SQUARE', 'SAWTOOTH'] as const
+export type ToneWaveform = (typeof TONE_WAVEFORMS)[number]
+
+/** `null`/nicht gesetzt ist gültig (= Sinus); gesetzt muss es eine der vier Grundformen sein. */
+export function isValidToneWaveform(waveform: string | null | undefined): boolean {
+    return waveform == null || (TONE_WAVEFORMS as readonly string[]).includes(waveform)
+}
+
+/** Der Web-Audio-`OscillatorNode.type` zur gewählten Form; nicht gesetzt = `'sine'`. */
+export function oscillatorType(waveform?: ToneWaveform | null): OscillatorType {
+    return (waveform ?? 'SINE').toLowerCase() as OscillatorType
+}
+
+/**
+ * Fester Lautstärke-Formfaktor je Wellenform — der Spitzen-Gain, mit dem [oscillatorType] in
+ * `feedback.ts` gespielt wird. Ohne Angleich wäre ein Wellenform-Wechsel im Editor zugleich ein
+ * Lautstärkesprung: bei gleicher Amplitude tragen die Formen verschieden viel Energie (RMS: Sinus
+ * ≈ 0.71, Dreieck/Sägezahn ≈ 0.58, Rechteck 1.0) UND verteilen sie verschieden aufs Spektrum.
+ *
+ * Die Werte sind eine dokumentierte Klangentscheidung, kein reiner RMS-Ausgleich:
+ * - SINE 0.2: die bisherige Lautstärke aller Töne — bleibt exakt, damit Alt-Klänge nicht driften.
+ * - TRIANGLE 0.22: RMS liegt UNTER dem Sinus und die Obertöne fallen steil ab (−12 dB/Okt.,
+ *   klingt fast sinusartig) — leicht angehoben, aber nicht der volle RMS-Ausgleich (~0.245),
+ *   damit das Dreieck nicht lauter wirkt als der Sinus.
+ * - SQUARE 0.12: höchste RMS (doppelte Sinus-Energie bei gleicher Spitze) plus kräftige ungerade
+ *   Obertöne im empfindlichsten Hörbereich (2–5 kHz) — deutlich unter den reinen RMS-Ausgleich
+ *   (~0.14) gedrückt, weil das Ohr die Obertöne überproportional laut wahrnimmt.
+ * - SAWTOOTH 0.14: RMS wie das Dreieck, aber das dichteste Spektrum (alle Obertöne,
+ *   −6 dB/Okt.) — schriller als das Dreieck, deshalb zwischen Rechteck und Sinus einsortiert.
+ */
+export const TONE_WAVEFORM_GAIN: Record<ToneWaveform, number> = {
+    SINE: 0.2,
+    TRIANGLE: 0.22,
+    SQUARE: 0.12,
+    SAWTOOTH: 0.14,
+}
+
+/** Der wirksame Spitzen-Gain eines Tons; nicht gesetzt = Sinus = die bisherigen 0.2. */
+export function toneGain(waveform?: ToneWaveform | null): number {
+    return TONE_WAVEFORM_GAIN[waveform ?? 'SINE']
+}
 
 /**
  * Ein Eintrag des Tonplans. Strukturell identisch zum generierten API-Typ (`ToneStepDto`) —
@@ -33,6 +84,13 @@ export type ToneStep = {
      * `null` ist zugelassen, damit der generierte API-Typ (`ToneStepDto`) direkt hineinpasst.
      */
     releaseMillis?: number | null
+    /**
+     * Die Wellenform des Oszillators (siehe [TONE_WAVEFORMS]); `null`/nicht gesetzt = Sinus.
+     * Unabhängig von der Hüllkurve: ein gehaltener Sägezahn trägt beides. Anders als bei
+     * [releaseMillis] ist explizites `'SINE'` klanggleich mit „nicht gesetzt" — die Editoren
+     * normalisieren es deshalb auf „nicht gesetzt" (siehe `tonePlanEditor.stepFromRow`).
+     */
+    waveform?: ToneWaveform | null
 }
 
 // --- Grenzen -------------------------------------------------------------------------------------
@@ -93,7 +151,8 @@ export function isValidToneStep(step: ToneStep): boolean {
         Number.isInteger(step.durationMillis) &&
         step.durationMillis >= TONE_DURATION_MIN_MILLIS &&
         step.durationMillis <= TONE_DURATION_MAX_MILLIS &&
-        isValidToneRelease(step.releaseMillis)
+        isValidToneRelease(step.releaseMillis) &&
+        isValidToneWaveform(step.waveform)
     )
 }
 
@@ -139,8 +198,19 @@ export const DEFAULT_CAPTURE_TONE = {frequencyHz: 880, durationMillis: 150}
  * oder dem Startton (900 Hz) verwechselt werden kann. 440 Hz liegt tief genug für den Kontrast,
  * trägt aber auf kleinen Tablet-Lautsprechern noch; 3000 ms ohne eigene Ausklingzeit heißt: die
  * Lautstärke fällt über die vollen 3 Sekunden exponentiell ab — ein langes, ausklingendes Horn.
+ *
+ * SAWTOOTH mit Absicht — die EINE gewollte Ausnahme von „Standard bleibt Sinus": der
+ * Fehlstart-Ton ist brandneu (niemand hat sich an einen Sinus-Fehlstart gewöhnt, es gibt keinen
+ * Bestandsklang zu schützen) und soll aggressiv-schnarrend klingen, nicht brav — ein Sinus geht
+ * im Regattalärm als „irgendein Piep" unter, der Sägezahn schneidet durch. Dieselbe Entscheidung
+ * hält das Backend in `TimingToneLimits.DEFAULT_FALSE_START_TONE`, das den Ton über
+ * GET /timing/settings aufgelöst ausliefert.
  */
-export const DEFAULT_FALSE_START_TONE = {frequencyHz: 440, durationMillis: 3000}
+export const DEFAULT_FALSE_START_TONE: {
+    frequencyHz: number
+    durationMillis: number
+    waveform: ToneWaveform
+} = {frequencyHz: 440, durationMillis: 3000, waveform: 'SAWTOOTH'}
 
 /**
  * Vorbelegte Dauer NEU angelegter Töne in den Editoren („Ton hinzufügen", frisch geleerte
@@ -204,7 +274,11 @@ export function equalsDefaultStartPlan(plan: readonly ToneStep[]): boolean {
                 step.durationMillis === reference.durationMillis &&
                 // Die Hüllkurve zählt EXAKT mit: „Gehalten mit 0 ms" (releaseMillis 0) ist eine
                 // andere Klangform als das abfallende `null` — nur `undefined`/`null` sind gleich.
-                (step.releaseMillis ?? null) === (reference.releaseMillis ?? null)
+                (step.releaseMillis ?? null) === (reference.releaseMillis ?? null) &&
+                // Bei der Wellenform ist explizites SINE dagegen KLANGGLEICH mit „nicht gesetzt"
+                // (gleicher Oszillatortyp, gleicher Formfaktor — siehe [oscillatorType] und
+                // [toneGain]), deshalb darf hier auf Sinus vereinheitlicht verglichen werden.
+                (step.waveform ?? 'SINE') === (reference.waveform ?? 'SINE')
             )
         })
     )

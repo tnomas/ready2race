@@ -86,6 +86,8 @@ class FakeGain {
 
 class FakeOscillator {
     frequency = {value: 0}
+    // Browser-Default des OscillatorNode — bleibt 'sine', solange niemand die Form setzt.
+    type = 'sine'
     start = vi.fn()
     stop = vi.fn()
     connect(node: unknown) {
@@ -118,7 +120,12 @@ class RecordingAudioContext {
 describe('playToneStep envelope', () => {
     afterEach(() => vi.unstubAllGlobals())
 
-    const play = async (releaseMillis?: number | null) => {
+    const playStep = async (step: {
+        frequencyHz: number
+        durationMillis: number
+        releaseMillis?: number | null
+        waveform?: 'SINE' | 'TRIANGLE' | 'SQUARE' | 'SAWTOOTH' | null
+    }) => {
         const contexts: RecordingAudioContext[] = []
         vi.stubGlobal(
             'AudioContext',
@@ -130,10 +137,13 @@ describe('playToneStep envelope', () => {
             },
         )
         const {playToneStep} = await load()
-        playToneStep({frequencyHz: 900, durationMillis: 400, releaseMillis})
+        playToneStep(step)
         const ctx = contexts[0]
         return {gain: ctx.gains[0].gain, oscillator: ctx.oscillators[0]}
     }
+
+    const play = (releaseMillis?: number | null) =>
+        playStep({frequencyHz: 900, durationMillis: 400, releaseMillis})
 
     test('Abfallend (releaseMillis fehlt): Abfall ueber die GESAMTE Nenndauer', async () => {
         const {gain, oscillator} = await play(undefined)
@@ -184,5 +194,92 @@ describe('playToneStep envelope', () => {
         ])
         expect(gain.exponentialRampToValueAtTime.mock.calls[0][1]).toBeCloseTo(101.2, 6)
         expect(oscillator.stop.mock.calls[0][0]).toBeCloseTo(101.2, 6)
+    })
+})
+
+// --- Wellenform ----------------------------------------------------------------------------------
+
+describe('playToneStep waveform', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    const playStep = async (step: {
+        frequencyHz: number
+        durationMillis: number
+        releaseMillis?: number | null
+        waveform?: 'SINE' | 'TRIANGLE' | 'SQUARE' | 'SAWTOOTH' | null
+    }) => {
+        const contexts: RecordingAudioContext[] = []
+        vi.stubGlobal(
+            'AudioContext',
+            class extends RecordingAudioContext {
+                constructor() {
+                    super()
+                    contexts.push(this)
+                }
+            },
+        )
+        const {playToneStep} = await load()
+        playToneStep(step)
+        const ctx = contexts[0]
+        return {gain: ctx.gains[0].gain, oscillator: ctx.oscillators[0]}
+    }
+
+    test('Alt-Ton ohne waveform: Oszillator bleibt Sinus, Gain bleibt 0.2 — kein Klangdrift', async () => {
+        const {gain, oscillator} = await playStep({frequencyHz: 880, durationMillis: 150})
+        expect(oscillator.type).toBe('sine')
+        expect(gain.setValueAtTime.mock.calls).toEqual([[0.2, 100]])
+    })
+
+    test('SINE explizit klingt exakt wie nicht gesetzt', async () => {
+        const {gain, oscillator} = await playStep({
+            frequencyHz: 880,
+            durationMillis: 150,
+            waveform: 'SINE',
+        })
+        expect(oscillator.type).toBe('sine')
+        expect(gain.setValueAtTime.mock.calls).toEqual([[0.2, 100]])
+    })
+
+    test('SQUARE: type square und der Formfaktor 0.12 statt 0.2', async () => {
+        const {gain, oscillator} = await playStep({
+            frequencyHz: 440,
+            durationMillis: 300,
+            waveform: 'SQUARE',
+        })
+        expect(oscillator.type).toBe('square')
+        expect(gain.setValueAtTime.mock.calls).toEqual([[0.12, 100]])
+    })
+
+    test('SAWTOOTH: type sawtooth, Formfaktor 0.14', async () => {
+        const {gain, oscillator} = await playStep({
+            frequencyHz: 440,
+            durationMillis: 3000,
+            waveform: 'SAWTOOTH',
+        })
+        expect(oscillator.type).toBe('sawtooth')
+        expect(gain.setValueAtTime.mock.calls).toEqual([[0.14, 100]])
+    })
+
+    test('TRIANGLE: type triangle, Formfaktor 0.22', async () => {
+        const {oscillator, gain} = await playStep({
+            frequencyHz: 600,
+            durationMillis: 100,
+            waveform: 'TRIANGLE',
+        })
+        expect(oscillator.type).toBe('triangle')
+        expect(gain.setValueAtTime.mock.calls).toEqual([[0.22, 100]])
+    })
+
+    test('Gehalten + SQUARE: BEIDE Lautstaerke-Anker tragen den Formfaktor', async () => {
+        const {gain} = await playStep({
+            frequencyHz: 440,
+            durationMillis: 400,
+            releaseMillis: 800,
+            waveform: 'SQUARE',
+        })
+        expect(gain.setValueAtTime.mock.calls).toEqual([
+            [0.12, 100],
+            [0.12, 100.4],
+        ])
     })
 })

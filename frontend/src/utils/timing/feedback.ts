@@ -1,4 +1,10 @@
-import {DEFAULT_CAPTURE_TONE, effectiveReleaseMillis} from '@utils/timing/tonePlan.ts'
+import {
+    DEFAULT_CAPTURE_TONE,
+    ToneWaveform,
+    effectiveReleaseMillis,
+    oscillatorType,
+    toneGain,
+} from '@utils/timing/tonePlan.ts'
 
 let ctx: AudioContext | null = null
 
@@ -79,19 +85,32 @@ export function unlockAudio() {
  * Exponentiell statt linear ist eine Klangentscheidung: das Ohr hört Lautstärke logarithmisch,
  * eine lineare Rampe klänge erst „hängend" und risse am Ende hörbar ab, während die
  * exponentielle gleichmäßig und natürlich ausklingt.
+ *
+ * Die WELLENFORM (`waveform`, nicht gesetzt = Sinus) ist von der Hüllkurve unabhängig und wird
+ * direkt auf den `OscillatorNode` gesetzt. Ihr Spitzen-Gain kommt aus [toneGain] statt fix 0.2:
+ * Rechteck/Sägezahn tragen bei gleichem Gain deutlich mehr Energie als der Sinus und klängen
+ * sonst erheblich lauter — der feste Formfaktor je Form gleicht das an, damit ein
+ * Wellenform-Wechsel im Editor kein Lautstärkesprung ist (Begründung der Werte in `tonePlan.ts`).
  */
-function playTone(frequency: number, durationSeconds: number, releaseMillis?: number | null) {
+function playTone(
+    frequency: number,
+    durationSeconds: number,
+    releaseMillis?: number | null,
+    waveform?: ToneWaveform | null,
+) {
     try {
         unlockAudio()
         if (ctx === null) return
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.frequency.value = frequency
-        gain.gain.setValueAtTime(0.2, ctx.currentTime)
+        osc.type = oscillatorType(waveform)
+        const peak = toneGain(waveform)
+        gain.gain.setValueAtTime(peak, ctx.currentTime)
         const release = effectiveReleaseMillis(releaseMillis)
         if (release !== null) {
             const releaseSeconds = release / 1000
-            gain.gain.setValueAtTime(0.2, ctx.currentTime + durationSeconds)
+            gain.gain.setValueAtTime(peak, ctx.currentTime + durationSeconds)
             gain.gain.exponentialRampToValueAtTime(
                 0.0001,
                 ctx.currentTime + durationSeconds + releaseSeconds,
@@ -127,10 +146,11 @@ export function playCaptureFeedback(tone?: {
     frequencyHz: number
     durationMillis: number
     releaseMillis?: number | null
+    waveform?: ToneWaveform | null
 }) {
     const effective = tone ?? DEFAULT_CAPTURE_TONE
-    // releaseMillis unveraendert durchreichen: null/fehlend = Abfallend, Zahl = Gehalten.
-    playTone(effective.frequencyHz, effective.durationMillis / 1000, tone?.releaseMillis)
+    // releaseMillis/waveform unveraendert durchreichen: null/fehlend = Abfallend bzw. Sinus.
+    playTone(effective.frequencyHz, effective.durationMillis / 1000, tone?.releaseMillis, tone?.waveform)
     navigator.vibrate?.(80)
 }
 
@@ -145,6 +165,7 @@ export function playToneStep(step: {
     frequencyHz: number
     durationMillis: number
     releaseMillis?: number | null
+    waveform?: ToneWaveform | null
 }) {
-    playTone(step.frequencyHz, step.durationMillis / 1000, step.releaseMillis)
+    playTone(step.frequencyHz, step.durationMillis / 1000, step.releaseMillis, step.waveform)
 }

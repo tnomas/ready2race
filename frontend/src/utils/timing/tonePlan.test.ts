@@ -10,15 +10,19 @@ import {
     TONE_HELD_MIN_RELEASE_MILLIS,
     TONE_RELEASE_MAX_MILLIS,
     TONE_RELEASE_MIN_MILLIS,
+    TONE_WAVEFORM_GAIN,
     ToneStep,
     advanceTonePlan,
     effectiveReleaseMillis,
     equalsDefaultStartPlan,
     isValidToneRelease,
     isValidToneStep,
+    isValidToneWaveform,
+    oscillatorType,
     previewSchedule,
     sortedTonePlan,
     toneEnvelope,
+    toneGain,
     toneTotalMillis,
     tonePlanForSequence,
 } from './tonePlan.ts'
@@ -237,6 +241,51 @@ describe('Grenzen und Voreinstellungen', () => {
         ).toBe(true)
     })
 
+    test('Wellenform: die vier Formen sind gueltig, alles andere nicht', () => {
+        const step = (waveform?: string) =>
+            ({offsetMillis: 0, frequencyHz: 600, durationMillis: 100, waveform}) as ToneStep
+        expect(isValidToneStep(step(undefined))).toBe(true)
+        expect(isValidToneStep(step('SINE'))).toBe(true)
+        expect(isValidToneStep(step('TRIANGLE'))).toBe(true)
+        expect(isValidToneStep(step('SQUARE'))).toBe(true)
+        expect(isValidToneStep(step('SAWTOOTH'))).toBe(true)
+        expect(isValidToneStep(step('sine'))).toBe(false)
+        expect(isValidToneStep(step('NOISE'))).toBe(false)
+        expect(isValidToneWaveform(undefined)).toBe(true)
+        expect(isValidToneWaveform(null)).toBe(true)
+        expect(isValidToneWaveform('SAWTOOTH')).toBe(true)
+        expect(isValidToneWaveform('sawtooth')).toBe(false)
+    })
+
+    test('oscillatorType: API-Wert -> Web-Audio-Typ, nicht gesetzt = Sinus', () => {
+        expect(oscillatorType(undefined)).toBe('sine')
+        expect(oscillatorType(null)).toBe('sine')
+        expect(oscillatorType('SINE')).toBe('sine')
+        expect(oscillatorType('TRIANGLE')).toBe('triangle')
+        expect(oscillatorType('SQUARE')).toBe('square')
+        expect(oscillatorType('SAWTOOTH')).toBe('sawtooth')
+    })
+
+    test('toneGain: fester Formfaktor je Wellenform, Sinus behaelt die bisherigen 0.2', () => {
+        // Die exakten Werte sind eine dokumentierte Klangentscheidung (siehe tonePlan.ts):
+        // ein Wellenform-Wechsel im Editor darf kein Lautstaerkesprung sein.
+        expect(TONE_WAVEFORM_GAIN).toEqual({SINE: 0.2, TRIANGLE: 0.22, SQUARE: 0.12, SAWTOOTH: 0.14})
+        expect(toneGain(undefined)).toBe(0.2)
+        expect(toneGain(null)).toBe(0.2)
+        expect(toneGain('SINE')).toBe(0.2)
+        expect(toneGain('TRIANGLE')).toBe(0.22)
+        expect(toneGain('SQUARE')).toBe(0.12)
+        expect(toneGain('SAWTOOTH')).toBe(0.14)
+    })
+
+    test('der eingebaute Fehlstart-Ton ist ein Saegezahn (440 Hz / 3000 ms bleiben)', () => {
+        expect(DEFAULT_FALSE_START_TONE).toEqual({
+            frequencyHz: 440,
+            durationMillis: 3000,
+            waveform: 'SAWTOOTH',
+        })
+    })
+
     test('equalsDefaultStartPlan erkennt den Standard auch unsortiert, aber keine Abweichung', () => {
         expect(equalsDefaultStartPlan(DEFAULT_START_TONE_PLAN)).toBe(true)
         expect(equalsDefaultStartPlan([...DEFAULT_START_TONE_PLAN].reverse())).toBe(true)
@@ -258,6 +307,20 @@ describe('Grenzen und Voreinstellungen', () => {
             equalsDefaultStartPlan(
                 DEFAULT_START_TONE_PLAN.map((step, index) =>
                     index === 0 ? {...step, releaseMillis: 500} : step,
+                ),
+            ),
+        ).toBe(false)
+        // Wellenform: explizites SINE ist KLANGGLEICH mit "nicht gesetzt" (gleicher Oszillator,
+        // gleicher Formfaktor) — anders als bei releaseMillis, wo 0 und null verschiedene
+        // Huellkurven waehlen. Der Plan gilt deshalb weiter als Standard.
+        expect(
+            equalsDefaultStartPlan(DEFAULT_START_TONE_PLAN.map(step => ({...step, waveform: 'SINE' as const}))),
+        ).toBe(true)
+        // Eine andere Wellenform ist dagegen ein echter Klangunterschied.
+        expect(
+            equalsDefaultStartPlan(
+                DEFAULT_START_TONE_PLAN.map((step, index) =>
+                    index === 0 ? {...step, waveform: 'SQUARE' as const} : step,
                 ),
             ),
         ).toBe(false)
