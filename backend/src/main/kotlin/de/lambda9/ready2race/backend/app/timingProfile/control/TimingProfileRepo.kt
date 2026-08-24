@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timingProfile.control
 
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
@@ -38,7 +39,23 @@ object TimingProfileRepo {
         val executionOrder: Int?,
     )
 
-    fun getAssignments(eventId: UUID) = Jooq.query {
+    /**
+     * Die Zuordnungen einer Veranstaltung — ausschließlich die der geltenden Art [kind].
+     *
+     * Die Art gehört in die Abfrage und nicht zum Aufrufer: Eine Veranstaltung kann Zeilen beider
+     * Arten tragen (die Übernahme des Altbestands in V202608242100 hat auch die
+     * Zeitnahmetyp-Zuordnungen extern gezeiteter Veranstaltungen mitgenommen), und die Auflösung
+     * selbst kennt die Art nicht — `TimingProfileResolveLogic` sieht nur noch Pfad und Profil. Läge
+     * die Einschränkung bei den Lesern, müsste jeder von ihnen sie erneut treffen; wer sie vergisst,
+     * bekommt ein Profil zurück, das an dieser Veranstaltung gar nicht wählbar ist. Also filtert die
+     * eine Stelle, an der ohnehin alle vorbeikommen.
+     */
+    fun getAssignments(eventId: UUID, kind: TimingProfileKind) = Jooq.query {
+        val profileSet = when (kind) {
+            TimingProfileKind.RACE -> TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE.isNotNull
+            TimingProfileKind.MODE -> TIMING_PROFILE_ASSIGNMENT.TIMING_MODE.isNotNull
+        }
+
         select(
             TIMING_PROFILE_ASSIGNMENT.COMPETITION,
             TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_ROUND,
@@ -48,6 +65,7 @@ object TimingProfileRepo {
         )
             .from(TIMING_PROFILE_ASSIGNMENT)
             .where(TIMING_PROFILE_ASSIGNMENT.EVENT.eq(eventId))
+            .and(profileSet)
             .fetch {
                 AssignmentRow(
                     competition = it[TIMING_PROFILE_ASSIGNMENT.COMPETITION],

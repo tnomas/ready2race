@@ -61,12 +61,9 @@ object TimingProfileService {
         val options = !options(eventId, kind)
         val structure = !TimingProfileRepo.getStructure(eventId).orDie()
 
-        // Nur die Zeilen der geltenden Art. Eine Veranstaltung kann Zeilen beider Arten tragen —
-        // die Übernahme des Altbestands (V202608242100) hat auch die Zeitnahmetyp-Zuordnungen
-        // extern gezeiteter Veranstaltungen mitgenommen. Sie zu zeigen hieße, auf ein Profil zu
-        // verweisen, das gar nicht zur Auswahl steht.
-        val assignments = (!TimingProfileRepo.getAssignments(eventId).orDie())
-            .filter { if (kind == TimingProfileKind.RACE) it.race != null else it.mode != null }
+        // Der Zuschnitt auf die geltende Art steckt in der Abfrage - siehe die Begründung an
+        // TimingProfileRepo.getAssignments.
+        val assignments = (!TimingProfileRepo.getAssignments(eventId, kind).orDie())
             .map {
                 TimingProfileResolveLogic.Assignment(
                     competition = it.competition,
@@ -126,6 +123,11 @@ object TimingProfileService {
      * Räumt alle Ebenen unterhalb der angegebenen ab — ohne [competitionId] die ganze
      * Veranstaltung außer ihrer Wurzel, mit [competitionId] die Runden und Partien dieses
      * Wettkampfs. Was übrig bleibt, vererbt sich wieder nach unten.
+     *
+     * Ein Wettkampf einer FREMDEN Veranstaltung endet als [TimingProfileError.ScopeInvalid] und
+     * nicht in einem stillen 204: Die Löschbedingung filtert ohnehin über die Veranstaltung, es
+     * verschwände also nichts — nur würde die Oberfläche einen Fehlgriff als Erfolg vermelden.
+     * Derselbe Fehler wie beim Schreiben, weil es dieselbe Frage ist.
      */
     fun resetAssignments(
         eventId: UUID,
@@ -133,6 +135,12 @@ object TimingProfileService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
         !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+
+        if (competitionId != null) {
+            val belongs = !TimingProfileRepo.competitionBelongsToEvent(competitionId, eventId).orDie()
+            !KIO.failOn(!belongs) { TimingProfileError.ScopeInvalid }
+        }
+
         !TimingProfileRepo.deleteBelow(eventId, competitionId).orDie()
 
         noData

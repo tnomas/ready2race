@@ -214,6 +214,91 @@ class TimingProfileServiceTest {
         }
     }
 
+    /**
+     * Der Zuschnitt auf die geltende Art sitzt in `TimingProfileRepo.getAssignments`. Ohne ihn
+     * meldete der Baum ein Profil, das an dieser Veranstaltung gar nicht wählbar ist — genau die
+     * Lage, die die Übernahme des Altbestands (V202608242100) hinterlässt, wenn eine Veranstaltung
+     * ihr System wechselt.
+     */
+    @Test
+    fun `eine Zuordnung der anderen Art zählt nicht`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+        val modeId = !addMode(eventId, userId, "Timetrial 30s")
+        !upsert(eventId, userId, competition = fixture.competitionId, profile = modeId)
+
+        // Umstellung auf RaceClocker: die Zeitnahmetyp-Zeile bleibt in der Datenbank stehen.
+        !setEventTimingSystem(eventId, TimingSystem.RACECLOCKER)
+        val raceId = !addRace(eventId, userId)
+
+        val tree = (!TimingProfileService.getTree(eventId)).dto
+        assertEquals(TimingProfileKind.RACE, tree.kind)
+        assertEquals(listOf(raceId), tree.options.map { it.id })
+        val competition = tree.competitions.single()
+        assertNull(competition.ownProfile)
+        assertNull(competition.effectiveProfile)
+        assertNull(competition.rounds.single().matches.single().effectiveProfile)
+    }
+
+    /**
+     * Die drei Zugehörigkeitsprüfungen sind die Sperre gegen Schreibzugriffe über
+     * Veranstaltungsgrenzen hinweg: Die Fremdschlüssel allein erlauben jede dieser drei
+     * Vertauschungen, fachlich ergäbe keine davon eine auflösbare Zuordnung.
+     */
+    @Test
+    fun `ein Pfad aus einer fremden Veranstaltung wird abgelehnt`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val eigen = !createTestMatchFixture(eventId)
+        val modeId = !addMode(eventId, userId, "Timetrial 30s")
+
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val fremd = !createTestMatchFixture(otherEventId)
+
+        // Der Wettkampf gehört einer anderen Veranstaltung.
+        assertKIOFails(TimingProfileError.ScopeInvalid) {
+            upsert(eventId, userId, competition = fremd.competitionId, profile = modeId)
+        }
+
+        // Der Wettkampf stimmt, die Runde gehört zu einem anderen.
+        assertKIOFails(TimingProfileError.ScopeInvalid) {
+            upsert(
+                eventId,
+                userId,
+                competition = eigen.competitionId,
+                round = fremd.roundId,
+                profile = modeId,
+            )
+        }
+
+        // Wettkampf und Runde stimmen, die Partie gehört zu einer anderen Runde.
+        assertKIOFails(TimingProfileError.ScopeInvalid) {
+            upsert(
+                eventId,
+                userId,
+                competition = eigen.competitionId,
+                round = eigen.roundId,
+                match = fremd.setupMatchId,
+                profile = modeId,
+            )
+        }
+    }
+
+    @Test
+    fun `bereinigen eines fremden Wettkampfs wird abgelehnt`() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val fremd = !createTestMatchFixture(otherEventId)
+
+        // Ohne die Prüfung bliebe es bei einem stillen 204 - gelöscht würde ohnehin nichts.
+        assertKIOFails(TimingProfileError.ScopeInvalid) {
+            TimingProfileService.resetAssignments(eventId, fremd.competitionId)
+        }
+    }
+
     @Test
     fun `bereinigen räumt genau die Ebenen darunter ab`() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
