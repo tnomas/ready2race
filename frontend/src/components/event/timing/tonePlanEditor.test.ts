@@ -22,29 +22,51 @@ describe('tonePlanEditor', () => {
             secondsBeforeStart: '2.5',
             frequencyHz: '700',
             durationMillis: '120',
+            envelope: 'DECAY',
             releaseMillis: '',
         })
         expect(step).toEqual({offsetMillis: -2500, frequencyHz: 700, durationMillis: 120})
     })
 
-    test('Ausklingen: Roundtrip erhaelt den Wert, leer und 0 werden zu "nicht gesetzt"', () => {
+    test('Huellkurve: null wird zur Zeile "Abfallend", jede Zahl (auch 0) zu "Gehalten"', () => {
+        const rows = rowsFromPlan([
+            {offsetMillis: -1000, frequencyHz: 600, durationMillis: 100},
+            {offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 800},
+        ])
+        expect(rows[0].envelope).toBe('DECAY')
+        expect(rows[0].releaseMillis).toBe('')
+        expect(rows[1].envelope).toBe('HELD')
+        expect(rows[1].releaseMillis).toBe('800')
+        // 0 ist ein legitimer Gehalten-Wert und bleibt beim Roundtrip erhalten — KEINE
+        // Normalisierung mehr zu "nicht gesetzt", sonst spraenge die Klanggestalt.
+        const zeroRows = rowsFromPlan([
+            {offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 0},
+        ])
+        expect(zeroRows[0].envelope).toBe('HELD')
+        expect(zeroRows[0].releaseMillis).toBe('0')
+        expect(planFromRows(zeroRows)).toEqual([
+            {offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 0},
+        ])
+    })
+
+    test('Ausklingen: Roundtrip erhaelt den Wert, "Abfallend" traegt nie ein releaseMillis', () => {
         const rows = rowsFromPlan([
             {offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 800},
         ])
-        expect(rows[0].releaseMillis).toBe('800')
         expect(planFromRows(rows)).toEqual([
             {offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 800},
         ])
-        // 0 zeigt das Feld leer und schickt KEIN releaseMillis — dieselbe Huellkurve.
-        expect(rowsFromPlan([{offsetMillis: 0, frequencyHz: 900, durationMillis: 400, releaseMillis: 0}])[0].releaseMillis).toBe('')
-        const zero = stepFromRow({
+        // "Abfallend" ignoriert einen (noch) eingetragenen Ausklingen-Text — das Feld hat in
+        // diesem Modus keine Bedeutung und darf die Zeile weder praegen noch kaputt machen.
+        const decay = stepFromRow({
             key: 1,
             secondsBeforeStart: '0',
             frequencyHz: '900',
             durationMillis: '400',
-            releaseMillis: '0',
+            envelope: 'DECAY',
+            releaseMillis: '800',
         })
-        expect(zero).toEqual({offsetMillis: 0, frequencyHz: 900, durationMillis: 400})
+        expect(decay).toEqual({offsetMillis: 0, frequencyHz: 900, durationMillis: 400})
     })
 
     test('leere oder unsinnige Felder machen die Zeile ungueltig', () => {
@@ -53,23 +75,32 @@ describe('tonePlanEditor', () => {
             secondsBeforeStart: '5',
             frequencyHz: '600',
             durationMillis: '100',
-            releaseMillis: '',
-        }
-        expect(stepFromRow({...base, secondsBeforeStart: ''})).toBeNull()
-        expect(stepFromRow({...base, frequencyHz: 'abc'})).toBeNull()
-        expect(stepFromRow({...base, frequencyHz: '600.5'})).toBeNull()
-        expect(stepFromRow({...base, durationMillis: ''})).toBeNull()
+            envelope: 'DECAY',
+        } as const
+        const decayBase = {...base, releaseMillis: ''}
+        expect(stepFromRow({...decayBase, secondsBeforeStart: ''})).toBeNull()
+        expect(stepFromRow({...decayBase, frequencyHz: 'abc'})).toBeNull()
+        expect(stepFromRow({...decayBase, frequencyHz: '600.5'})).toBeNull()
+        expect(stepFromRow({...decayBase, durationMillis: ''})).toBeNull()
         // Grenzen aus tonePlan.ts greifen auch hier (Dauer seit dem Fehlstart-Ton bis 10 s).
-        expect(stepFromRow({...base, secondsBeforeStart: '-1'})).toBeNull()
-        expect(stepFromRow({...base, frequencyHz: '99'})).toBeNull()
-        expect(stepFromRow({...base, durationMillis: '10001'})).toBeNull()
-        expect(stepFromRow({...base, durationMillis: '2001'})).not.toBeNull()
-        // Ausklingen: 0-5000 ganze ms oder leer.
-        expect(stepFromRow({...base, releaseMillis: '-1'})).toBeNull()
-        expect(stepFromRow({...base, releaseMillis: '5001'})).toBeNull()
-        expect(stepFromRow({...base, releaseMillis: '2.5'})).toBeNull()
-        expect(stepFromRow({...base, releaseMillis: 'abc'})).toBeNull()
-        expect(stepFromRow({...base, releaseMillis: '5000'})).not.toBeNull()
+        expect(stepFromRow({...decayBase, secondsBeforeStart: '-1'})).toBeNull()
+        expect(stepFromRow({...decayBase, frequencyHz: '99'})).toBeNull()
+        expect(stepFromRow({...decayBase, durationMillis: '10001'})).toBeNull()
+        expect(stepFromRow({...decayBase, durationMillis: '2001'})).not.toBeNull()
+        // Gehalten: 0-5000 ganze ms, ein leeres Feld ist hier ein FEHLER (der Wert hat Bedeutung).
+        const held = {...base, envelope: 'HELD'} as const
+        expect(stepFromRow({...held, releaseMillis: ''})).toBeNull()
+        expect(stepFromRow({...held, releaseMillis: '-1'})).toBeNull()
+        expect(stepFromRow({...held, releaseMillis: '5001'})).toBeNull()
+        expect(stepFromRow({...held, releaseMillis: '2.5'})).toBeNull()
+        expect(stepFromRow({...held, releaseMillis: 'abc'})).toBeNull()
+        expect(stepFromRow({...held, releaseMillis: '0'})).toEqual({
+            offsetMillis: -5000,
+            frequencyHz: 600,
+            durationMillis: 100,
+            releaseMillis: 0,
+        })
+        expect(stepFromRow({...held, releaseMillis: '5000'})).not.toBeNull()
     })
 
     test('planFromRows liefert null, sobald eine Zeile kaputt ist, sonst sortiert', () => {
@@ -81,7 +112,14 @@ describe('tonePlanEditor', () => {
         expect(
             planFromRows([
                 ...rows,
-                {key: 99, secondsBeforeStart: 'x', frequencyHz: '600', durationMillis: '100', releaseMillis: ''},
+                {
+                    key: 99,
+                    secondsBeforeStart: 'x',
+                    frequencyHz: '600',
+                    durationMillis: '100',
+                    envelope: 'DECAY',
+                    releaseMillis: '',
+                },
             ]),
         ).toBeNull()
     })

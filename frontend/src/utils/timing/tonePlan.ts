@@ -18,11 +18,18 @@ export type ToneStep = {
     frequencyHz: number
     durationMillis: number
     /**
-     * Ausklingzeit in ms — wie flach die Lautstärke nach der Nenndauer abfällt. Die Nenndauer
-     * ([durationMillis]) ist dann die HALTEZEIT bei voller Lautstärke, das Ausklingen kommt
-     * OBENDRAUF (Gesamtklang = duration + release); ein kurzes Ausklingen klingt abgehackt-steil,
-     * ein langes weich-flach. Nicht gesetzt (oder 0) = exakt die bisherige Hüllkurve: die
-     * Lautstärke fällt über die GESAMTE Nenndauer exponentiell ab (siehe `feedback.ts`).
+     * Wählt die HÜLLKURVE des Tons — zwei ausdrücklich verschiedene Klangformen:
+     *
+     * - `null`/nicht gesetzt = „Abfallend": die Lautstärke fällt über die GESAMTE Nenndauer
+     *   exponentiell ab (die klassische Form — ein ausklingender Pling, siehe `feedback.ts`).
+     * - Zahl 0–5000 = „Gehalten": die Nenndauer ([durationMillis]) ist die HALTEZEIT bei voller
+     *   Lautstärke, das Ausklingen kommt OBENDRAUF (Gesamtklang = duration + release). Ein kurzes
+     *   Ausklingen klingt abgehackt-steil, ein langes weich-flach; 0 endet nicht knallhart,
+     *   sondern mit der eingebauten Mini-Entknackung ([TONE_HELD_MIN_RELEASE_MILLIS]) — innerhalb
+     *   des Modus ist der Klang also stetig, 0 ≈ 1 ≈ 10 ms.
+     *
+     * 0 ist damit ein LEGITIMER Gehalten-Wert und wird nirgends mehr zu `null` normalisiert —
+     * zwischen den beiden Formen liegt ein echter Modellwechsel, kein Zahlensprung.
      * `null` ist zugelassen, damit der generierte API-Typ (`ToneStepDto`) direkt hineinpasst.
      */
     releaseMillis?: number | null
@@ -35,8 +42,8 @@ export type ToneStep = {
 // nicht, darüber wird es unangenehm und viele Erwachsene hören es kaum noch. Dauer 20–10000 ms:
 // kürzer ist kein hörbarer Piep mehr; die Obergrenze war früher 2000 ms (nicht in den Sekundentakt
 // des Countdowns hineinragen), aber der lange Fehlstart-Ton braucht mehr — wer im Tonplan selbst
-// einen 10-Sekünder konfiguriert, tut das jetzt bewusst. Ausklingen 0–5000 ms: 0 = die bisherige
-// Hüllkurve (Abfall über die Nenndauer), mehr ist Hall-Spielerei ohne Nutzen.
+// einen 10-Sekünder konfiguriert, tut das jetzt bewusst. Ausklingen 0–5000 ms gilt NUR für die
+// Gehalten-Hüllkurve (Abfallend hat kein Ausklingen-Feld); mehr als 5 s ist Hall-Spielerei.
 // Offset −600000..0: negativ = vor dem Start, 0 = der Start selbst; die Untergrenze entspricht dem
 // größten erlaubten Sequenz-Vorlauf (leadInMillis ≤ 600000). Positive Offsets sind bewusst NICHT
 // erlaubt: nach dem Start wandert das Countdown-Ziel sofort zum nächsten Boot (INTERVAL), ein Ton
@@ -53,9 +60,17 @@ export const TONE_OFFSET_MIN_MILLIS = -600_000
 export const TONE_OFFSET_MAX_MILLIS = 0
 
 /**
- * Ob eine Ausklingzeit gültig ist. `undefined` heißt „keine eigene — Standardhüllkurve" und ist
- * immer gültig; ein gesetzter Wert muss eine ganze Zahl in 0–5000 ms sein. Die Editoren
- * normalisieren 0 zu „nicht gesetzt", beides klingt identisch (siehe [ToneStep.releaseMillis]).
+ * Mini-Entknackung der Gehalten-Hüllkurve: ein bei voller Lautstärke gestoppter Oszillator
+ * knackt hörbar (die Wellenform reißt mitten im Schwung ab). Deshalb fällt auch „Ausklingen 0"
+ * über diese wenigen Millisekunden ab — unhörbar als Ausklingen, aber knackfrei. Zugleich die
+ * Untergrenze des wirksamen Ausklingens: 0–8 ms klingen identisch, der Modus ist stetig.
+ */
+export const TONE_HELD_MIN_RELEASE_MILLIS = 8
+
+/**
+ * Ob eine Ausklingzeit gültig ist. `null`/`undefined` heißt „Abfallend — kein Ausklingen-Feld"
+ * und ist immer gültig; ein gesetzter Wert (Gehalten) muss eine ganze Zahl in 0–5000 ms sein,
+ * 0 eingeschlossen (siehe [ToneStep.releaseMillis]).
  */
 export function isValidToneRelease(releaseMillis: number | null | undefined): boolean {
     return (
@@ -136,12 +151,33 @@ export const DEFAULT_FALSE_START_TONE = {frequencyHz: 440, durationMillis: 3000}
 export const NEW_TONE_DURATION_MILLIS = 500
 
 /**
- * Gesamtklanglänge eines Tons: Nenndauer (Haltezeit) plus Ausklingen. Ohne eigene Ausklingzeit
- * klingt der Ton genau seine Nenndauer (der Abfall liegt dann IN der Nenndauer, siehe
- * [ToneStep.releaseMillis]).
+ * Die gewählte Hüllkurve eines Tons als benanntes Modell — die Editoren zeigen sie an
+ * („abfallend" / „gehalten · X ms Ausklingen") und die Wiedergabe schaltet danach.
+ */
+export type ToneEnvelope = {kind: 'DECAY'} | {kind: 'HELD'; releaseMillis: number}
+
+/** `null`/nicht gesetzt = Abfallend; jede Zahl (auch 0) = Gehalten mit genau diesem Ausklingen. */
+export function toneEnvelope(tone: {releaseMillis?: number | null}): ToneEnvelope {
+    return tone.releaseMillis == null
+        ? {kind: 'DECAY'}
+        : {kind: 'HELD', releaseMillis: tone.releaseMillis}
+}
+
+/**
+ * Das WIRKSAME Ausklingen in ms: Abfallend hat keins (`null`, der Abfall liegt in der Nenndauer);
+ * Gehalten fällt nie schneller als die Mini-Entknackung ab (siehe [TONE_HELD_MIN_RELEASE_MILLIS]).
+ */
+export function effectiveReleaseMillis(releaseMillis: number | null | undefined): number | null {
+    return releaseMillis == null ? null : Math.max(releaseMillis, TONE_HELD_MIN_RELEASE_MILLIS)
+}
+
+/**
+ * Gesamtklanglänge eines Tons: Nenndauer (Haltezeit) plus wirksames Ausklingen. Abfallend klingt
+ * genau seine Nenndauer (der Abfall liegt IN der Nenndauer); Gehalten hängt mindestens die
+ * Mini-Entknackung hinten an (siehe [ToneStep.releaseMillis]).
  */
 export function toneTotalMillis(tone: {durationMillis: number; releaseMillis?: number | null}): number {
-    return tone.durationMillis + (tone.releaseMillis ?? 0)
+    return tone.durationMillis + (effectiveReleaseMillis(tone.releaseMillis) ?? 0)
 }
 
 // --- Normalisierung und Vergleich ----------------------------------------------------------------
@@ -166,9 +202,9 @@ export function equalsDefaultStartPlan(plan: readonly ToneStep[]): boolean {
                 step.offsetMillis === reference.offsetMillis &&
                 step.frequencyHz === reference.frequencyHz &&
                 step.durationMillis === reference.durationMillis &&
-                // 0 und „nicht gesetzt" sind dieselbe (Standard-)Hüllkurve — ein Plan, dessen
-                // Ausklingen explizit auf 0 steht, ist also weiterhin der Standard.
-                (step.releaseMillis ?? 0) === (reference.releaseMillis ?? 0)
+                // Die Hüllkurve zählt EXAKT mit: „Gehalten mit 0 ms" (releaseMillis 0) ist eine
+                // andere Klangform als das abfallende `null` — nur `undefined`/`null` sind gleich.
+                (step.releaseMillis ?? null) === (reference.releaseMillis ?? null)
             )
         })
     )

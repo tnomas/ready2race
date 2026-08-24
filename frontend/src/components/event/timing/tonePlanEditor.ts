@@ -1,10 +1,19 @@
 import {ToneStep, isValidToneRelease, isValidToneStep, sortedTonePlan} from '@utils/timing/tonePlan.ts'
 
+/** Die Hüllkurven-Wahl einer Editor-Zeile — sichtbar statt als versteckte Zahlen-Fuge. */
+export type ToneEnvelopeChoice = 'DECAY' | 'HELD'
+
 /**
- * Zeilen-Zustand des Tonplan-Editors (TimingModeDialog): die drei Zahlen als Strings, damit sie
+ * Zeilen-Zustand des Tonplan-Editors (TimingModeDialog): die Zahlen als Strings, damit sie
  * beim Tippen vorübergehend leer sein dürfen — dieselbe Begründung wie bei den übrigen
  * Zahlenfeldern des Dialogs. Der Zeitpunkt wird als „Sekunden vor Start" geführt (0 = Start),
  * weil die Regattaleitung so denkt; das Vorzeichen-Millisekunden-Format bleibt der API.
+ *
+ * Die Hüllkurve ist eine EIGENE, sichtbare Wahl je Zeile: „Abfallend" (Abfall über die gesamte
+ * Nenndauer, kein Ausklingen-Feld) oder „Gehalten" (volle Lautstärke über die Nenndauer, dann
+ * Ausklingen über [releaseMillis] ms — 0 ist dabei ein legitimer Wert). Früher entschied allein
+ * die Zahl: 0/leer sprang aufs alte Modell, 1 aufs neue — ein kompletter Klangwechsel zwischen
+ * zwei Nachbarwerten, als Bedienung eine Falle.
  */
 export type ToneRow = {
     /** Stabiler React-Key, unabhängig von Sortierung und Löschungen. */
@@ -12,7 +21,8 @@ export type ToneRow = {
     secondsBeforeStart: string
     frequencyHz: string
     durationMillis: string
-    /** Ausklingzeit in ms; leer = keine eigene (Standardhüllkurve, Abfall über die Nenndauer). */
+    envelope: ToneEnvelopeChoice
+    /** Ausklingzeit in ms; nur bei `envelope === 'HELD'` von Bedeutung (dort Pflichtfeld). */
     releaseMillis: string
 }
 
@@ -25,8 +35,10 @@ export function rowFromStep(step: ToneStep): ToneRow {
         secondsBeforeStart: String(step.offsetMillis === 0 ? 0 : -step.offsetMillis / 1000),
         frequencyHz: String(step.frequencyHz),
         durationMillis: String(step.durationMillis),
-        // 0 und „nicht gesetzt" sind dieselbe Hüllkurve — beides zeigt das Feld leer.
-        releaseMillis: step.releaseMillis != null && step.releaseMillis !== 0 ? String(step.releaseMillis) : '',
+        // null = Abfallend; jede Zahl (auch 0!) = Gehalten — 0 wird NICHT mehr wegnormalisiert,
+        // sonst käme ein gespeicherter Gehalten-0-Ton als Abfallend wieder hoch.
+        envelope: step.releaseMillis != null ? 'HELD' : 'DECAY',
+        releaseMillis: step.releaseMillis != null ? String(step.releaseMillis) : '',
     }
 }
 
@@ -37,9 +49,12 @@ export function rowsFromPlan(plan: readonly ToneStep[]): ToneRow[] {
 /**
  * Eine Zeile zurück in einen Plan-Eintrag, oder null, wenn sie (noch) nicht gültig ist —
  * leere Felder, keine Zahl oder außerhalb der Grenzen aus `tonePlan.ts`. Sekunden dürfen
- * Dezimalstellen tragen (2.5 s vor Start); gerundet wird auf ganze Millisekunden. Das
- * Ausklingen darf leer bleiben (keine eigene Ausklingzeit); leer und 0 werden gleichermaßen
- * zu „nicht gesetzt" normalisiert, damit die API nie ein bedeutungsloses 0 trägt.
+ * Dezimalstellen tragen (2.5 s vor Start); gerundet wird auf ganze Millisekunden.
+ *
+ * Hüllkurve: „Abfallend" schickt NIE ein `releaseMillis` (ein etwaiger Feldrest wird ignoriert,
+ * er hat in dem Modus keine Bedeutung); „Gehalten" verlangt eine ganze Zahl 0–5000 — auch 0
+ * geht als echter Wert an die API, denn 0 heißt jetzt „Gehalten mit Sofort-Ausklang", nicht
+ * „keine Angabe".
  */
 export function stepFromRow(row: ToneRow): ToneStep | null {
     const seconds = Number(row.secondsBeforeStart)
@@ -48,18 +63,20 @@ export function stepFromRow(row: ToneRow): ToneStep | null {
     if (row.secondsBeforeStart.trim() === '' || !Number.isFinite(seconds)) return null
     if (row.frequencyHz.trim() === '' || !Number.isInteger(frequencyHz)) return null
     if (row.durationMillis.trim() === '' || !Number.isInteger(durationMillis)) return null
-    const releaseText = row.releaseMillis.trim()
-    const release = releaseText === '' ? undefined : Number(releaseText)
-    if (release !== undefined && (!Number.isInteger(release) || !isValidToneRelease(release))) {
-        return null
+    let release: number | undefined
+    if (row.envelope === 'HELD') {
+        const releaseText = row.releaseMillis.trim()
+        if (releaseText === '') return null
+        release = Number(releaseText)
+        if (!Number.isInteger(release) || !isValidToneRelease(release)) return null
     }
     // "|| 0" räumt das -0 aus -Math.round(0 * 1000) ab — die API soll echte 0 tragen.
     const step: ToneStep = {
         offsetMillis: -Math.round(seconds * 1000) || 0,
         frequencyHz,
         durationMillis,
-        // `release ? …` lässt 0 (und leer) bewusst weg — Normalisierung siehe oben.
-        ...(release ? {releaseMillis: release} : {}),
+        // `!== undefined` statt Truthiness: die Gehalten-0 muss mitgehen.
+        ...(release !== undefined ? {releaseMillis: release} : {}),
     }
     return isValidToneStep(step) ? step : null
 }

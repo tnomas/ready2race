@@ -1,4 +1,4 @@
-import {DEFAULT_CAPTURE_TONE} from '@utils/timing/tonePlan.ts'
+import {DEFAULT_CAPTURE_TONE, effectiveReleaseMillis} from '@utils/timing/tonePlan.ts'
 
 let ctx: AudioContext | null = null
 
@@ -61,17 +61,26 @@ export function unlockAudio() {
 /**
  * Synthesized single tone, fire-and-forget. Silent (never throwing) when audio is unavailable.
  *
- * Hüllkurve (die Ist-Kurve seit jeher, hier destilliert): Lautstärke 0.2 beim Einsatz, dann
- * `exponentialRampToValueAtTime` auf 0.0001 (≈ −66 dB — ein >0-Zielwert, weil die exponentielle
- * Rampe 0 nicht erreichen kann) — das ist zugleich die Anti-Knacks-Rampe am Tonende, einen
- * eigenen Attack gab es nie. OHNE Ausklingzeit läuft dieser Abfall wie bisher über die GESAMTE
- * Nenndauer; MIT Ausklingzeit hält der Ton die Nenndauer voll durch (expliziter Stütz-Anker bei
- * duration, sonst rampte WebAudio ab dem Einsatz) und fällt erst danach über `releaseSeconds` ab
- * — Gesamtklang = duration + release. Exponentiell statt linear ist eine Klangentscheidung: das
- * Ohr hört Lautstärke logarithmisch, eine lineare Rampe klänge erst „hängend" und risse am Ende
- * hörbar ab, während die exponentielle gleichmäßig und natürlich ausklingt.
+ * Zwei ausdrücklich VERSCHIEDENE Hüllkurven, gewählt über `releaseMillis` (siehe
+ * [ToneStep.releaseMillis] in `tonePlan.ts` — der Wert ist ein Modellschalter, kein Regler):
+ *
+ * - „Abfallend" (`releaseMillis` null/nicht gesetzt): Lautstärke 0.2 beim Einsatz, dann
+ *   `exponentialRampToValueAtTime` auf 0.0001 (≈ −66 dB — ein >0-Zielwert, weil die exponentielle
+ *   Rampe 0 nicht erreichen kann) über die GESAMTE Nenndauer — der Ton ist ein einziges
+ *   Abklingen, die Rampe ist zugleich die Anti-Knacks-Rampe am Ende; einen eigenen Attack gab
+ *   es nie.
+ * - „Gehalten" (`releaseMillis` 0–5000): der Ton hält die Nenndauer voll durch (expliziter
+ *   Stütz-Anker bei duration, sonst rampte WebAudio ab dem Einsatz) und fällt erst danach ab —
+ *   Gesamtklang = duration + release. Der Abfall dauert nie unter der Mini-Entknackung
+ *   ([TONE_HELD_MIN_RELEASE_MILLIS], via [effectiveReleaseMillis]): ein bei voller Lautstärke
+ *   gestoppter Oszillator knackte hörbar, und so klingen 0, 1 und 10 ms praktisch gleich —
+ *   innerhalb des Modus gibt es keinen Klangsprung.
+ *
+ * Exponentiell statt linear ist eine Klangentscheidung: das Ohr hört Lautstärke logarithmisch,
+ * eine lineare Rampe klänge erst „hängend" und risse am Ende hörbar ab, während die
+ * exponentielle gleichmäßig und natürlich ausklingt.
  */
-function playTone(frequency: number, durationSeconds: number, releaseSeconds = 0) {
+function playTone(frequency: number, durationSeconds: number, releaseMillis?: number | null) {
     try {
         unlockAudio()
         if (ctx === null) return
@@ -79,18 +88,23 @@ function playTone(frequency: number, durationSeconds: number, releaseSeconds = 0
         const gain = ctx.createGain()
         osc.frequency.value = frequency
         gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        if (releaseSeconds > 0) {
+        const release = effectiveReleaseMillis(releaseMillis)
+        if (release !== null) {
+            const releaseSeconds = release / 1000
             gain.gain.setValueAtTime(0.2, ctx.currentTime + durationSeconds)
             gain.gain.exponentialRampToValueAtTime(
                 0.0001,
                 ctx.currentTime + durationSeconds + releaseSeconds,
             )
+            osc.connect(gain).connect(ctx.destination)
+            osc.start()
+            osc.stop(ctx.currentTime + durationSeconds + releaseSeconds)
         } else {
             gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSeconds)
+            osc.connect(gain).connect(ctx.destination)
+            osc.start()
+            osc.stop(ctx.currentTime + durationSeconds)
         }
-        osc.connect(gain).connect(ctx.destination)
-        osc.start()
-        osc.stop(ctx.currentTime + durationSeconds + releaseSeconds)
     } catch {
         // audio unavailable — ignore
     }
@@ -115,7 +129,8 @@ export function playCaptureFeedback(tone?: {
     releaseMillis?: number | null
 }) {
     const effective = tone ?? DEFAULT_CAPTURE_TONE
-    playTone(effective.frequencyHz, effective.durationMillis / 1000, (tone?.releaseMillis ?? 0) / 1000)
+    // releaseMillis unveraendert durchreichen: null/fehlend = Abfallend, Zahl = Gehalten.
+    playTone(effective.frequencyHz, effective.durationMillis / 1000, tone?.releaseMillis)
     navigator.vibrate?.(80)
 }
 
@@ -131,5 +146,5 @@ export function playToneStep(step: {
     durationMillis: number
     releaseMillis?: number | null
 }) {
-    playTone(step.frequencyHz, step.durationMillis / 1000, (step.releaseMillis ?? 0) / 1000)
+    playTone(step.frequencyHz, step.durationMillis / 1000, step.releaseMillis)
 }

@@ -7,15 +7,18 @@ import {
     PRESET_TEN_COUNTDOWN,
     PREVIEW_MAX_GAP_MILLIS,
     TONE_FRESHNESS_MILLIS,
+    TONE_HELD_MIN_RELEASE_MILLIS,
     TONE_RELEASE_MAX_MILLIS,
     TONE_RELEASE_MIN_MILLIS,
     ToneStep,
     advanceTonePlan,
+    effectiveReleaseMillis,
     equalsDefaultStartPlan,
     isValidToneRelease,
     isValidToneStep,
     previewSchedule,
     sortedTonePlan,
+    toneEnvelope,
     toneTotalMillis,
     tonePlanForSequence,
 } from './tonePlan.ts'
@@ -197,6 +200,38 @@ describe('Grenzen und Voreinstellungen', () => {
         expect(toneTotalMillis({durationMillis: 400})).toBe(400)
         expect(toneTotalMillis({durationMillis: 400, releaseMillis: 800})).toBe(1200)
         expect(toneTotalMillis({durationMillis: 400, releaseMillis: null})).toBe(400)
+        // Gehalten mit 0 ms Ausklingen traegt trotzdem die Mini-Entknackung — der Gesamtklang
+        // ist also nie exakt die Nenndauer, sondern Nenndauer + Entknackung.
+        expect(toneTotalMillis({durationMillis: 400, releaseMillis: 0})).toBe(
+            400 + TONE_HELD_MIN_RELEASE_MILLIS,
+        )
+        expect(toneTotalMillis({durationMillis: 400, releaseMillis: 3})).toBe(
+            400 + TONE_HELD_MIN_RELEASE_MILLIS,
+        )
+    })
+
+    test('toneEnvelope: null = Abfallend, jede Zahl ab 0 = Gehalten mit genau diesem Ausklingen', () => {
+        expect(toneEnvelope({durationMillis: 400})).toEqual({kind: 'DECAY'})
+        expect(toneEnvelope({durationMillis: 400, releaseMillis: null})).toEqual({kind: 'DECAY'})
+        expect(toneEnvelope({durationMillis: 400, releaseMillis: 0})).toEqual({
+            kind: 'HELD',
+            releaseMillis: 0,
+        })
+        expect(toneEnvelope({durationMillis: 400, releaseMillis: 800})).toEqual({
+            kind: 'HELD',
+            releaseMillis: 800,
+        })
+    })
+
+    test('effectiveReleaseMillis: Abfallend ohne Wert, Gehalten nie unter der Entknackung', () => {
+        expect(effectiveReleaseMillis(undefined)).toBeNull()
+        expect(effectiveReleaseMillis(null)).toBeNull()
+        // Innerhalb von „Gehalten" ist der Klang stetig: 0 und 1 ms landen beide bei der
+        // Mini-Entknackung, erst groessere Werte verlaengern das Ausklingen wirklich.
+        expect(effectiveReleaseMillis(0)).toBe(TONE_HELD_MIN_RELEASE_MILLIS)
+        expect(effectiveReleaseMillis(1)).toBe(TONE_HELD_MIN_RELEASE_MILLIS)
+        expect(effectiveReleaseMillis(TONE_HELD_MIN_RELEASE_MILLIS)).toBe(TONE_HELD_MIN_RELEASE_MILLIS)
+        expect(effectiveReleaseMillis(800)).toBe(800)
     })
 
     test('alle Voreinstellungen sind innerhalb der Grenzen', () => {
@@ -219,10 +254,11 @@ describe('Grenzen und Voreinstellungen', () => {
                 ),
             ),
         ).toBe(false)
-        // Explizites Ausklingen 0 ist dieselbe Huellkurve wie „nicht gesetzt" — weiterhin Standard.
+        // Explizites Ausklingen 0 ist jetzt „Gehalten" (Haltezeit + Entknackung) — eine ANDERE
+        // Huellkurve als der abfallende Standard, der Plan ist also ein eigener.
         expect(
             equalsDefaultStartPlan(DEFAULT_START_TONE_PLAN.map(step => ({...step, releaseMillis: 0}))),
-        ).toBe(true)
+        ).toBe(false)
         // Ein echtes Ausklingen macht den Plan dagegen zum eigenen.
         expect(
             equalsDefaultStartPlan(
