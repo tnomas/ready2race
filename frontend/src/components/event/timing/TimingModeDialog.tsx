@@ -38,7 +38,9 @@ import {
     TONE_PLAN_MAX_STEPS,
     TONE_RELEASE_MAX_MILLIS,
     TONE_RELEASE_MIN_MILLIS,
+    TONE_WAVEFORMS,
     ToneStep,
+    ToneWaveform,
     equalsDefaultStartPlan,
     previewSchedule,
     toneTotalMillis,
@@ -373,6 +375,27 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                                 })
                                             }
                                         />
+                                        {/* Wellenform vor der Hüllkurve: die beiden sind unabhängig
+                                            (ein gehaltener Sägezahn trägt beides). Die Vorschau je
+                                            Zeile spielt die echte Form samt Formfaktor. */}
+                                        <TextField
+                                            select
+                                            size="small"
+                                            label={t('event.timing.toneWaveform.label')}
+                                            value={row.waveform}
+                                            sx={{width: 130}}
+                                            onChange={event =>
+                                                updateRow(row.key, {
+                                                    waveform: event.target
+                                                        .value as ToneWaveform,
+                                                })
+                                            }>
+                                            {TONE_WAVEFORMS.map(waveform => (
+                                                <MenuItem key={waveform} value={waveform}>
+                                                    {t(`event.timing.toneWaveform.${waveform}`)}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
                                         {/* Die Hüllkurve ist eine SICHTBARE Wahl je Ton: Abfallend
                                             (Abfall über die gesamte Dauer, kein Ausklingen-Feld)
                                             oder Gehalten (volle Lautstärke, dann Ausklingen — 0 ist
@@ -446,9 +469,12 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                                             </IconButton>
                                         </Tooltip>
                                     </Stack>
-                                    {/* Zeilen-Zusammenfassung: die gewählte Klangform in Worten,
-                                        damit sie auch beim Überfliegen ablesbar ist. */}
+                                    {/* Zeilen-Zusammenfassung: Wellenform und Hüllkurve in Worten
+                                        („Sägezahn · gehalten · 800 ms Ausklingen"), damit die
+                                        Klanggestalt auch beim Überfliegen ablesbar ist. */}
                                     <Typography variant="caption" color="text.secondary">
+                                        {t(`event.timing.toneWaveform.${row.waveform}`)}
+                                        {' · '}
                                         {row.envelope === 'HELD'
                                             ? t('event.timing.toneEnvelope.summaryHeld', {
                                                   millis:
@@ -495,10 +521,11 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         <Typography variant="caption" color="text.secondary">
                             {t('event.timing.modes.tones.previewHint')}
                         </Typography>
-                        {/* Die zwei Klangformen in je einem Satz — die Wahl selbst steht je Ton. */}
+                        {/* Hüllkurven und Wellenformen in je einem Satz — die Wahl steht je Ton. */}
                         <Typography variant="caption" color="text.secondary">
                             {t('event.timing.toneEnvelope.decayHelp')}{' '}
-                            {t('event.timing.toneEnvelope.heldHelp')}
+                            {t('event.timing.toneEnvelope.heldHelp')}{' '}
+                            {t('event.timing.toneWaveform.help')}
                         </Typography>
                     </Stack>
                 </Stack>

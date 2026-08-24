@@ -23,6 +23,7 @@ describe('tonePlanEditor', () => {
             frequencyHz: '700',
             durationMillis: '120',
             envelope: 'DECAY',
+            waveform: 'SINE',
             releaseMillis: '',
         })
         expect(step).toEqual({offsetMillis: -2500, frequencyHz: 700, durationMillis: 120})
@@ -64,6 +65,7 @@ describe('tonePlanEditor', () => {
             frequencyHz: '900',
             durationMillis: '400',
             envelope: 'DECAY',
+            waveform: 'SINE',
             releaseMillis: '800',
         })
         expect(decay).toEqual({offsetMillis: 0, frequencyHz: 900, durationMillis: 400})
@@ -76,6 +78,7 @@ describe('tonePlanEditor', () => {
             frequencyHz: '600',
             durationMillis: '100',
             envelope: 'DECAY',
+            waveform: 'SINE',
         } as const
         const decayBase = {...base, releaseMillis: ''}
         expect(stepFromRow({...decayBase, secondsBeforeStart: ''})).toBeNull()
@@ -103,6 +106,51 @@ describe('tonePlanEditor', () => {
         expect(stepFromRow({...held, releaseMillis: '5000'})).not.toBeNull()
     })
 
+    test('Wellenform: Roundtrip erhaelt sie, explizites SINE wird zu "nicht gesetzt"', () => {
+        // Gespeichertes Rechteck kommt als Rechteck-Zeile wieder hoch und geht als Rechteck zurueck.
+        const rows = rowsFromPlan([
+            {offsetMillis: 0, frequencyHz: 440, durationMillis: 300, waveform: 'SQUARE'},
+        ])
+        expect(rows[0].waveform).toBe('SQUARE')
+        expect(planFromRows(rows)).toEqual([
+            {offsetMillis: 0, frequencyHz: 440, durationMillis: 300, waveform: 'SQUARE'},
+        ])
+        // Ohne waveform (Alt-Bestand) zeigt die Zeile Sinus.
+        expect(rowsFromPlan([{offsetMillis: 0, frequencyHz: 900, durationMillis: 400}])[0].waveform).toBe(
+            'SINE',
+        )
+        // Explizit gewaehlter Sinus wird zu "nicht gesetzt" normalisiert: SINE und null sind
+        // KLANGGLEICH (gleicher Oszillatortyp, gleicher Formfaktor) — hier verschluckt die
+        // Normalisierung also keine Bedeutung, anders als es bei releaseMillis 0 vs null waere.
+        const sineStep = stepFromRow({
+            key: 1,
+            secondsBeforeStart: '0',
+            frequencyHz: '900',
+            durationMillis: '400',
+            envelope: 'DECAY',
+            waveform: 'SINE',
+            releaseMillis: '',
+        })
+        expect(sineStep).toEqual({offsetMillis: 0, frequencyHz: 900, durationMillis: 400})
+        // Wellenform und Huellkurve sind unabhaengig: gehaltener Saegezahn traegt beides.
+        const held = stepFromRow({
+            key: 2,
+            secondsBeforeStart: '0',
+            frequencyHz: '440',
+            durationMillis: '800',
+            envelope: 'HELD',
+            waveform: 'SAWTOOTH',
+            releaseMillis: '800',
+        })
+        expect(held).toEqual({
+            offsetMillis: 0,
+            frequencyHz: 440,
+            durationMillis: 800,
+            releaseMillis: 800,
+            waveform: 'SAWTOOTH',
+        })
+    })
+
     test('planFromRows liefert null, sobald eine Zeile kaputt ist, sonst sortiert', () => {
         const rows = rowsFromPlan([
             {offsetMillis: 0, frequencyHz: 900, durationMillis: 400},
@@ -118,6 +166,7 @@ describe('tonePlanEditor', () => {
                     frequencyHz: '600',
                     durationMillis: '100',
                     envelope: 'DECAY',
+                    waveform: 'SINE',
                     releaseMillis: '',
                 },
             ]),

@@ -677,11 +677,15 @@ export type CaptchaDto = {
 }
 
 /**
- * A single configurable tone of the event (sine tone): the confirmation beep played when a FINISH/SPLIT station captures a time, and the false-start tone of start boards. Limits: frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000.
+ * A single configurable tone of the event: the confirmation beep played when a FINISH/SPLIT station captures a time, and the false-start tone of start boards. Limits: frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000.
  */
 export type CaptureToneDto = {
     frequencyHz: number
     durationMillis: number
+    /**
+     * Oscillator waveform, independent of the envelope (a held sawtooth carries both). Null = sine; existing tones stored without this field keep their sound.
+     */
+    waveform?: ToneWaveform | null
     /**
      * Selects the tone's ENVELOPE - two explicitly different sound shapes, not a continuous knob. Null = "decaying": an exponential decay across the whole nominal duration (the classic envelope). 0..5000 = "held": durationMillis is the hold time at full volume and the total sound is duration + release (the release may exceed the nominal duration). 0 is a legitimate held value - boards play a built-in de-click fade of a few ms so the ending never pops - and is never normalized to null: null and 0 are different envelopes.
      */
@@ -4343,7 +4347,7 @@ export type TimingSettingsDto = {
      */
     splitTone: CaptureToneDto
     /**
-     * False-start tone of start boards, also resolved (unconfigured events get the built-in 440 Hz / 3000 ms). Played on the start board and the start display when an attempt is retracted or a running sequence is aborted for the match they are currently showing.
+     * False-start tone of start boards, also resolved (unconfigured events get the built-in 440 Hz / 3000 ms SAWTOOTH - deliberately aggressive, the one built-in tone that is not a sine). Played on the start board and the start display when an attempt is retracted or a running sequence is aborted for the match they are currently showing.
      */
     falseStartTone: CaptureToneDto
 }
@@ -4447,17 +4451,26 @@ export type TimingTeamDto = {
 }
 
 /**
- * One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave the countdown is currently running for. offsetMillis is negative before the start and 0 at the start itself; positive values are not allowed (after the start the countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per plan. Missed tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
+ * One entry of a timing mode's tone plan: a synthesized beep relative to the start of the boat/wave the countdown is currently running for. offsetMillis is negative before the start and 0 at the start itself; positive values are not allowed (after the start the countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per plan. Missed tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
  */
 export type ToneStepDto = {
     offsetMillis: number
     frequencyHz: number
     durationMillis: number
     /**
+     * Oscillator waveform, same semantics as CaptureToneDto.waveform: null = sine, existing steps stored without the field keep their sound.
+     */
+    waveform?: ToneWaveform | null
+    /**
      * Selects the tone's ENVELOPE, same semantics as CaptureToneDto.releaseMillis: null = "decaying" (exponential decay across the whole nominal duration); 0..5000 = "held" (full volume for the nominal duration, then a fall-off over the release; total sound = duration + release). 0 is a legitimate held value (a built-in de-click fade of a few ms keeps the ending pop-free) and is never normalized to null - null and 0 are different envelopes.
      */
     releaseMillis?: number | null
 }
+
+/**
+ * Waveform of a synthesized timing tone: the four basic shapes of the Web Audio OscillatorNode, named exactly like the browser's OscillatorType values (uppercased). Boards compensate the loudness difference between the shapes with a fixed per-shape gain factor, so switching the waveform does not also change the perceived volume. Null/absent always means SINE; an explicit SINE sounds identical to null and clients normalize it to absent before saving.
+ */
+export type ToneWaveform = 'SINE' | 'TRIANGLE' | 'SQUARE' | 'SAWTOOTH'
 
 export type TooManyRequestsError = ApiError & {
     details: {

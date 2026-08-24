@@ -1718,6 +1718,14 @@
           "MILLISEKUNDE": "Millisekund"
         }
       },
+      "toneWaveform": {
+        "label": "Bølgeform",
+        "SINE": "Sinus",
+        "TRIANGLE": "Trekant",
+        "SQUARE": "Firkant",
+        "SAWTOOTH": "Savtand",
+        "help": "Sinus og trekant lyder blødt; firkant og savtand lyder gennemtrængende og snerrende og egner sig som signal- eller advarselstoner."
+      },
       "toneEnvelope": {
         "label": "Kurveform",
         "decay": "Aftagende",

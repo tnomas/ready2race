@@ -12,6 +12,8 @@ import {
     TONE_FREQUENCY_MIN_HZ,
     TONE_RELEASE_MAX_MILLIS,
     TONE_RELEASE_MIN_MILLIS,
+    TONE_WAVEFORMS,
+    ToneWaveform,
     isValidToneRelease,
 } from '@utils/timing/tonePlan.ts'
 import {ToneEnvelopeChoice} from './tonePlanEditor.ts'
@@ -41,20 +43,26 @@ const isValidTone = (tone: CaptureToneDto): boolean =>
 const envelopeOf = (tone: CaptureToneDto): ToneEnvelopeChoice =>
     tone.releaseMillis != null ? 'HELD' : 'DECAY'
 
+/** Die Wellenform eines gespeicherten Tons — nicht gesetzt (Alt-Bestand) heißt Sinus. */
+const waveformOf = (tone: CaptureToneDto): ToneWaveform => tone.waveform ?? 'SINE'
+
 const releaseTextOf = (tone: CaptureToneDto): string =>
     tone.releaseMillis != null ? String(tone.releaseMillis) : ''
 
 /**
- * Felder + Hüllkurven-Wahl zurück in einen Ton, oder null, solange etwas ungültig ist.
+ * Felder + Hüllkurven-/Wellenform-Wahl zurück in einen Ton, oder null, solange etwas ungültig ist.
  * „Abfallend" trägt NIE ein `releaseMillis`; „Gehalten" verlangt eine ganze Zahl 0–5000 —
  * auch die 0 geht als echter Wert an die API (Gehalten mit Sofort-Ausklang), sie wird nicht
  * mehr zu „nicht gesetzt" normalisiert, denn das wäre die andere Klangform.
+ * Die Wellenform SINE wird dagegen zu „nicht gesetzt" normalisiert — dort ist das verlustfrei,
+ * weil SINE und `null` denselben Klang spielen (gleicher Oszillatortyp, gleicher Formfaktor).
  */
 const parseTone = (
     frequency: string,
     duration: string,
     envelope: ToneEnvelopeChoice,
     release: string,
+    waveform: ToneWaveform,
 ): CaptureToneDto | null => {
     if (frequency.trim() === '' || duration.trim() === '') return null
     let releaseMillis: number | undefined
@@ -68,15 +76,20 @@ const parseTone = (
         frequencyHz: Number(frequency),
         durationMillis: Number(duration),
         ...(releaseMillis !== undefined ? {releaseMillis} : {}),
+        ...(waveform !== 'SINE' ? {waveform} : {}),
     }
     return isValidTone(tone) ? tone : null
 }
 
-/** Hüllkurven-genauer Vergleich: `null` (Abfallend) und 0 (Gehalten) sind VERSCHIEDEN. */
+/**
+ * Klanggenauer Vergleich: Bei der Hüllkurve sind `null` (Abfallend) und 0 (Gehalten)
+ * VERSCHIEDEN; bei der Wellenform sind `null` und SINE dagegen GLEICH (identischer Klang).
+ */
 const sameTone = (a: CaptureToneDto, b: CaptureToneDto): boolean =>
     a.frequencyHz === b.frequencyHz &&
     a.durationMillis === b.durationMillis &&
-    (a.releaseMillis ?? null) === (b.releaseMillis ?? null)
+    (a.releaseMillis ?? null) === (b.releaseMillis ?? null) &&
+    (a.waveform ?? 'SINE') === (b.waveform ?? 'SINE')
 
 /**
  * Editor für EINEN konfigurierbaren Ton der Veranstaltung (Erfassungston eines Ziel- oder
@@ -97,6 +110,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
     const [frequency, setFrequency] = useState(String(effective.frequencyHz))
     const [duration, setDuration] = useState(String(effective.durationMillis))
     const [envelope, setEnvelope] = useState<ToneEnvelopeChoice>(envelopeOf(effective))
+    const [waveform, setWaveform] = useState<ToneWaveform>(waveformOf(effective))
     const [release, setRelease] = useState(releaseTextOf(effective))
 
     // Von außen hereinkommende Stände (frischer GET, „Standard wiederherstellen") übernehmen —
@@ -109,6 +123,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
             setFrequency(String(effective.frequencyHz))
             setDuration(String(effective.durationMillis))
             setEnvelope(envelopeOf(effective))
+            setWaveform(waveformOf(effective))
             setRelease(releaseTextOf(effective))
         }
     }, [effective])
@@ -118,14 +133,15 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
         nextDuration: string,
         nextEnvelope: ToneEnvelopeChoice,
         nextRelease: string,
+        nextWaveform: ToneWaveform,
     ) => {
-        const tone = parseTone(nextFrequency, nextDuration, nextEnvelope, nextRelease)
+        const tone = parseTone(nextFrequency, nextDuration, nextEnvelope, nextRelease, nextWaveform)
         if (tone === null) return
         lastPropRef.current = tone
         onChange(sameTone(tone, builtIn) ? null : tone)
     }
 
-    const parsed = parseTone(frequency, duration, envelope, release)
+    const parsed = parseTone(frequency, duration, envelope, release, waveform)
     const invalid = parsed === null
 
     return (
@@ -145,7 +161,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                     sx={{width: 140}}
                     onChange={event => {
                         setFrequency(event.target.value)
-                        publish(event.target.value, duration, envelope, release)
+                        publish(event.target.value, duration, envelope, release, waveform)
                     }}
                 />
                 <TextField
@@ -158,9 +174,28 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                     sx={{width: 140}}
                     onChange={event => {
                         setDuration(event.target.value)
-                        publish(frequency, event.target.value, envelope, release)
+                        publish(frequency, event.target.value, envelope, release, waveform)
                     }}
                 />
+                {/* Wellenform vor der Hüllkurve — unabhängige Klangdimensionen: die Form bestimmt
+                    Farbe und Formfaktor-Gain, die Hüllkurve den Lautstärkeverlauf. */}
+                <TextField
+                    select
+                    size="small"
+                    label={t('event.timing.toneWaveform.label')}
+                    value={waveform}
+                    sx={{width: 140}}
+                    onChange={event => {
+                        const nextWaveform = event.target.value as ToneWaveform
+                        setWaveform(nextWaveform)
+                        publish(frequency, duration, envelope, release, nextWaveform)
+                    }}>
+                    {TONE_WAVEFORMS.map(candidate => (
+                        <MenuItem key={candidate} value={candidate}>
+                            {t(`event.timing.toneWaveform.${candidate}`)}
+                        </MenuItem>
+                    ))}
+                </TextField>
                 {/* Sichtbare Hüllkurven-Wahl statt der versteckten Zahlen-Fuge: früher schaltete
                     allein der Wert des Ausklingen-Felds die Klangform um (0 ≠ 1 ms). */}
                 <TextField
@@ -176,7 +211,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                             nextEnvelope === 'HELD' && release.trim() === '' ? '0' : release
                         setEnvelope(nextEnvelope)
                         setRelease(nextRelease)
-                        publish(frequency, duration, nextEnvelope, nextRelease)
+                        publish(frequency, duration, nextEnvelope, nextRelease, waveform)
                     }}>
                     <MenuItem value="DECAY">{t('event.timing.toneEnvelope.decay')}</MenuItem>
                     <MenuItem value="HELD">{t('event.timing.toneEnvelope.held')}</MenuItem>
@@ -192,7 +227,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                         sx={{width: 140}}
                         onChange={event => {
                             setRelease(event.target.value)
-                            publish(frequency, duration, envelope, event.target.value)
+                            publish(frequency, duration, envelope, event.target.value, waveform)
                         }}
                     />
                 )}
@@ -215,6 +250,7 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                             setFrequency(String(builtIn.frequencyHz))
                             setDuration(String(builtIn.durationMillis))
                             setEnvelope(envelopeOf(builtIn))
+                            setWaveform(waveformOf(builtIn))
                             setRelease(releaseTextOf(builtIn))
                             onChange(null)
                         }}>
@@ -222,8 +258,11 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                     </Button>
                 )}
             </Stack>
-            {/* Zeilen-Zusammenfassung + der Ein-Satz-Hilfetext zur gerade gewählten Klangform. */}
+            {/* Zeilen-Zusammenfassung („Sägezahn · gehalten · 800 ms Ausklingen") + der
+                Ein-Satz-Hilfetext zur gewählten Hüllkurve und der Wellenform-Hinweis. */}
             <Typography variant="caption" color="text.secondary">
+                {t(`event.timing.toneWaveform.${waveform}`)}
+                {' · '}
                 {envelope === 'HELD'
                     ? t('event.timing.toneEnvelope.summaryHeld', {
                           millis: parsed?.releaseMillis ?? release,
@@ -234,7 +273,8 @@ const CaptureToneEditor = ({label, value, onChange, defaultTone}: CaptureToneEdi
                     envelope === 'HELD'
                         ? 'event.timing.toneEnvelope.heldHelp'
                         : 'event.timing.toneEnvelope.decayHelp',
-                )}
+                )}{' '}
+                {t('event.timing.toneWaveform.help')}
             </Typography>
             {invalid && (
                 <Typography variant="caption" color="error">

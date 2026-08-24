@@ -20787,15 +20787,31 @@ components:
           $ref: '#/components/schemas/CaptureToneDto'
           description: >-
             False-start tone of start boards, also resolved (unconfigured events get the built-in
-            440 Hz / 3000 ms). Played on the start board and the start display when an attempt is
+            440 Hz / 3000 ms SAWTOOTH - deliberately aggressive, the one built-in tone that is
+            not a sine). Played on the start board and the start display when an attempt is
             retracted or a running sequence is aborted for the match they are currently showing.
+
+    ToneWaveform:
+      type: string
+      enum:
+        - SINE
+        - TRIANGLE
+        - SQUARE
+        - SAWTOOTH
+      description: >-
+        Waveform of a synthesized timing tone: the four basic shapes of the Web Audio
+        OscillatorNode, named exactly like the browser's OscillatorType values (uppercased).
+        Boards compensate the loudness difference between the shapes with a fixed per-shape gain
+        factor, so switching the waveform does not also change the perceived volume. Null/absent
+        always means SINE; an explicit SINE sounds identical to null and clients normalize it to
+        absent before saving.
 
     CaptureToneDto:
       type: object
       description: >-
-        A single configurable tone of the event (sine tone): the confirmation beep played when a
-        FINISH/SPLIT station captures a time, and the false-start tone of start boards. Limits:
-        frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000.
+        A single configurable tone of the event: the confirmation beep played when a FINISH/SPLIT
+        station captures a time, and the false-start tone of start boards. Limits: frequencyHz
+        100..4000, durationMillis 20..10000, releaseMillis 0..5000.
       required:
         - frequencyHz
         - durationMillis
@@ -20806,6 +20822,13 @@ components:
         durationMillis:
           type: integer
           format: int32
+        waveform:
+          allOf:
+            - $ref: '#/components/schemas/ToneWaveform'
+          nullable: true
+          description: >-
+            Oscillator waveform, independent of the envelope (a held sawtooth carries both).
+            Null = sine; existing tones stored without this field keep their sound.
         releaseMillis:
           type: integer
           format: int32
@@ -20822,13 +20845,13 @@ components:
     ToneStepDto:
       type: object
       description: >-
-        One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave
-        the countdown is currently running for. offsetMillis is negative before the start and 0 at
-        the start itself; positive values are not allowed (after the start the countdown target
-        immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the
-        maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000, releaseMillis
-        0..5000, at most 30 steps per plan. Missed tones are never played late - a board that
-        reconnects mid-countdown stays silent for everything older than about a second.
+        One entry of a timing mode's tone plan: a synthesized beep relative to the start of the
+        boat/wave the countdown is currently running for. offsetMillis is negative before the
+        start and 0 at the start itself; positive values are not allowed (after the start the
+        countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0
+        (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000,
+        releaseMillis 0..5000, at most 30 steps per plan. Missed tones are never played late - a
+        board that reconnects mid-countdown stays silent for everything older than about a second.
       required:
         - offsetMillis
         - frequencyHz
@@ -20843,6 +20866,13 @@ components:
         durationMillis:
           type: integer
           format: int32
+        waveform:
+          allOf:
+            - $ref: '#/components/schemas/ToneWaveform'
+          nullable: true
+          description: >-
+            Oscillator waveform, same semantics as CaptureToneDto.waveform: null = sine, existing
+            steps stored without the field keep their sound.
         releaseMillis:
           type: integer
           format: int32

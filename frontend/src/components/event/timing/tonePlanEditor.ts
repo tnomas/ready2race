@@ -1,4 +1,10 @@
-import {ToneStep, isValidToneRelease, isValidToneStep, sortedTonePlan} from '@utils/timing/tonePlan.ts'
+import {
+    ToneStep,
+    ToneWaveform,
+    isValidToneRelease,
+    isValidToneStep,
+    sortedTonePlan,
+} from '@utils/timing/tonePlan.ts'
 
 /** Die Hüllkurven-Wahl einer Editor-Zeile — sichtbar statt als versteckte Zahlen-Fuge. */
 export type ToneEnvelopeChoice = 'DECAY' | 'HELD'
@@ -22,6 +28,11 @@ export type ToneRow = {
     frequencyHz: string
     durationMillis: string
     envelope: ToneEnvelopeChoice
+    /**
+     * Die Wellenform der Zeile — im Editor immer konkret (nicht gesetzt kommt als `'SINE'`
+     * hoch); beim Zurückschreiben wird `'SINE'` wieder zu „nicht gesetzt" (siehe [stepFromRow]).
+     */
+    waveform: ToneWaveform
     /** Ausklingzeit in ms; nur bei `envelope === 'HELD'` von Bedeutung (dort Pflichtfeld). */
     releaseMillis: string
 }
@@ -38,6 +49,8 @@ export function rowFromStep(step: ToneStep): ToneRow {
         // null = Abfallend; jede Zahl (auch 0!) = Gehalten — 0 wird NICHT mehr wegnormalisiert,
         // sonst käme ein gespeicherter Gehalten-0-Ton als Abfallend wieder hoch.
         envelope: step.releaseMillis != null ? 'HELD' : 'DECAY',
+        // Nicht gesetzt = Sinus: die Zeile zeigt die Form immer konkret an.
+        waveform: step.waveform ?? 'SINE',
         releaseMillis: step.releaseMillis != null ? String(step.releaseMillis) : '',
     }
 }
@@ -77,6 +90,13 @@ export function stepFromRow(row: ToneRow): ToneStep | null {
         durationMillis,
         // `!== undefined` statt Truthiness: die Gehalten-0 muss mitgehen.
         ...(release !== undefined ? {releaseMillis: release} : {}),
+        // Explizites SINE wird zu „nicht gesetzt" normalisiert. Das ist hier — anders als beim
+        // releaseMillis, wo 0 und null verschiedene Hüllkurven wählen — verlustfrei: SINE und
+        // „nicht gesetzt" spielen denselben Oszillatortyp mit demselben Formfaktor (siehe
+        // oscillatorType/toneGain in tonePlan.ts), es gibt also keine Bedeutung zu verschlucken.
+        // So bleibt „unkonfiguriert" in der Datenbank unkonfiguriert, konsistent zur
+        // Plan-Normalisierung (equalsDefaultStartPlan -> null).
+        ...(row.waveform !== 'SINE' ? {waveform: row.waveform} : {}),
     }
     return isValidToneStep(step) ? step : null
 }

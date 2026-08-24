@@ -1718,6 +1718,14 @@
           "MILLISEKUNDE": "Millisekunde"
         }
       },
+      "toneWaveform": {
+        "label": "Wellenform",
+        "SINE": "Sinus",
+        "TRIANGLE": "Dreieck",
+        "SQUARE": "Rechteck",
+        "SAWTOOTH": "Sägezahn",
+        "help": "Sinus und Dreieck klingen weich; Rechteck und Sägezahn klingen durchdringend-schnarrend und eignen sich als Signal- oder Warntöne."
+      },
       "toneEnvelope": {
         "label": "Hüllkurve",
         "decay": "Abfallend",

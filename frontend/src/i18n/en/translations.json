@@ -1718,6 +1718,14 @@
           "MILLISEKUNDE": "Millisecond"
         }
       },
+      "toneWaveform": {
+        "label": "Waveform",
+        "SINE": "Sine",
+        "TRIANGLE": "Triangle",
+        "SQUARE": "Square",
+        "SAWTOOTH": "Sawtooth",
+        "help": "Sine and triangle sound soft; square and sawtooth sound piercing and buzzy, which makes them well suited as signal or warning tones."
+      },
       "toneEnvelope": {
         "label": "Envelope",
         "decay": "Decaying",
