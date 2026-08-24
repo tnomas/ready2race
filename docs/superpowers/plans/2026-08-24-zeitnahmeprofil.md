@@ -88,7 +88,9 @@ Testcontainers; React/TypeScript, MUI, react-i18next, Vitest.
 - Produces: Tabelle `ready2race.timing_profile_assignment` mit den Spalten `id, event,
   competition, competition_setup_round, competition_setup_match, raceclocker_race, timing_mode,
   created_at, created_by, updated_at, updated_by`. jOOQ erzeugt daraus
-  `TIMING_PROFILE_ASSIGNMENT` und `TimingProfileAssignmentRecord`.
+  `TIMING_PROFILE_ASSIGNMENT` und `TimingProfileAssignmentRecord`. `timing_mode_assignment`
+  bleibt vorerst stehen (Löschung erst in Task 6) — der Build muss nach jedem Task grün
+  sein, und bis Task 6 benutzen neun Dateien den generierten Typ noch.
 
 - [ ] **Schritt 1: Migration schreiben**
 
@@ -177,7 +179,9 @@ select gen_random_uuid(),
 from competition c
 where c.raceclocker_race is not null;
 
-drop table timing_mode_assignment;
+-- Die alte Tabelle bleibt vorerst stehen und wird in V202608242110 gelöscht: Bis dahin benutzen
+-- neun Dateien den generierten Typ TIMING_MODE_ASSIGNMENT noch, und ein Zwischenstand, in dem das
+-- Modul nicht übersetzt, wäre in jeder Zwischenprüfung ein Blindflug.
 ```
 
 - [ ] **Schritt 2: Migrationstest schreiben**
@@ -257,14 +261,6 @@ class TimingProfileMigrationTest {
                     ),
                 )
                 assertEquals(2, count(conn, "select count(*) from ready2race.timing_profile_assignment"))
-                assertEquals(
-                    0,
-                    count(
-                        conn,
-                        "select count(*) from information_schema.tables " +
-                            "where table_schema = 'ready2race' and table_name = 'timing_mode_assignment'",
-                    ),
-                )
             }
         } finally {
             postgres.stop()
@@ -1530,6 +1526,8 @@ git commit -m "Zeitnahmeprofile: ein Baum statt zweier Zuordnungswelten"
 
 **Files:**
 - Create: `backend/src/main/resources/db/migration/V202608242110__competition_timing_override_weg.sql`
+- Modify: `backend/src/test/kotlin/de/lambda9/ready2race/backend/app/timingProfile/TimingProfileMigrationTest.kt`
+  (Gegenprobe: alte Tabelle und die vier Spalten sind weg)
 - Delete: `app/timingConfig/entity/TimingConfigDto.kt`, `TimingConfigRequest.kt`,
   `CompetitionTimingDeviationDto.kt`, `app/timingConfig/control/TimingConfigRepo.kt`
 - Delete: `app/timing/boundary/TimingModeResolveLogic.kt`,
@@ -1568,6 +1566,52 @@ alter table competition
     drop column timing_system,
     drop column startlist_config,
     drop column result_import_config;
+
+-- Die alte Zuordnungstabelle der Zeitnahmetypen: ihr Inhalt steht seit V202608242100 im
+-- Profil-Baum, und ab diesem Task benutzt sie kein Code mehr.
+drop table timing_mode_assignment;
+```
+
+Den Migrationstest aus Task 1 (`TimingProfileMigrationTest`) um die Gegenprobe erweitern — er
+migriert ohnehin bis zum Ende, dort gilt also schon der Stand NACH dieser Migration. Innerhalb
+des bestehenden `connect(postgres).use { conn -> … }`-Blocks ergänzen:
+
+```kotlin
+                // Die alten Wege sind wirklich weg -- nicht nur unbenutzt.
+                assertFalse(tableExists(conn, "timing_mode_assignment"))
+                assertFalse(columnExists(conn, "competition", "raceclocker_race"))
+                assertFalse(columnExists(conn, "competition", "timing_system"))
+                assertFalse(columnExists(conn, "competition", "startlist_config"))
+                assertFalse(columnExists(conn, "competition", "result_import_config"))
+```
+
+Die beiden Hilfsfunktionen dazu (Vorbild: `RaceClockerSingleRaceMigrationTest`):
+
+```kotlin
+    private fun tableExists(conn: Connection, table: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.tables " +
+                "where table_schema = 'ready2race' and table_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }
+
+    private fun columnExists(conn: Connection, table: String, column: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.columns " +
+                "where table_schema = 'ready2race' and table_name = ? and column_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.setString(2, column)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }
 ```
 
 **Vor dem Ausrollen auf Produktion** die Abfrage aus dem Design-Dokument laufen lassen — hier
