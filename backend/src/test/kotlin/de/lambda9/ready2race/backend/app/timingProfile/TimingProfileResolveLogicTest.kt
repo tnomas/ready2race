@@ -28,7 +28,7 @@ class TimingProfileResolveLogicTest {
     )
 
     @Test
-    fun `die Partie schlaegt alles darueber`() {
+    fun `die Partie schlägt alles darüber`() {
         assertEquals(matchProfile, TimingProfileResolveLogic.resolve(all, competition, round, match))
     }
 
@@ -55,7 +55,7 @@ class TimingProfileResolveLogicTest {
         assertNull(TimingProfileResolveLogic.resolve(emptyList(), competition, round, match))
     }
 
-    // Eine Runden-Zeile deckt ausschliesslich ihre Runde ab.
+    // Eine Runden-Zeile deckt ausschließlich ihre Runde ab.
     @Test
     fun `die Nachbarrunde erbt nicht vom Runden-Eintrag`() {
         assertEquals(
@@ -65,15 +65,15 @@ class TimingProfileResolveLogicTest {
     }
 
     @Test
-    fun `fremde Wettkaempfe stoeren nicht`() {
+    fun `fremde Wettkämpfe stören nicht`() {
         val assignments = all + Assignment(otherCompetition, null, null, UUID.randomUUID())
         assertEquals(matchProfile, TimingProfileResolveLogic.resolve(assignments, competition, round, match))
     }
 
-    // Dieselbe Funktion beantwortet "was gilt auf DIESER Ebene, wenn sie erbt?" - die Oberflaeche
-    // braucht das fuer die Beschriftung "Erbt (...)".
+    // Dieselbe Funktion beantwortet "was gilt auf DIESER Ebene, wenn sie erbt?" - die Oberfläche
+    // braucht das für die Beschriftung "Erbt (...)".
     @Test
-    fun `fragt man eine hoehere Ebene ab, bleiben die tieferen Eintraege aussen vor`() {
+    fun `fragt man eine höhere Ebene ab, bleiben die tieferen Einträge außen vor`() {
         assertEquals(competitionProfile, TimingProfileResolveLogic.resolve(all, competition, null, null))
         assertEquals(eventProfile, TimingProfileResolveLogic.resolve(all, null, null, null))
     }
