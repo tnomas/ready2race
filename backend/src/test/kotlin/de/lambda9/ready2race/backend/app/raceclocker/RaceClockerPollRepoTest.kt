@@ -25,7 +25,6 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_SCHEDULE_SLOT
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
 import de.lambda9.ready2race.backend.database.generated.tables.references.STARTLIST_EXPORT_CONFIG
-import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
@@ -90,8 +89,10 @@ class RaceClockerPollRepoTest {
         val eventId: UUID,
         val competitionId: UUID,
         val raceId: UUID?,
+        val roundId: UUID,
         val matchId: UUID,
         /** Nur belegt, wenn zusätzlich eine Qualifikationsrunde angelegt wurde. */
+        val qualificationRoundId: UUID?,
         val qualificationMatchId: UUID?,
     )
 
@@ -100,9 +101,9 @@ class RaceClockerPollRepoTest {
      * `getCandidates` es zulassen: Veranstaltung, Wettkampf, Eigenschaften, Ablauf, Runde,
      * Setup-Lauf, Lauf. Mannschaften braucht die Abfrage nicht - sie zählt keine Boote.
      *
-     * Der Wettkampf wählt genau EIN Rennen an (`raceclocker_race`), das für Qualifikation und alle
-     * übrigen Runden gemeinsam gilt. Mit [withQualificationRound] kommt eine Qualifikationsrunde
-     * samt eigenem Lauf dazu - der Beleg, dass beide Runden auf demselben Rennen landen.
+     * Der Wettkampf trägt weiterhin seine Anwahl (`raceclocker_race`) - der Knopf-Weg liest sie
+     * noch; die Abfrage des Jobs nicht mehr. Mit [withQualificationRound] kommt eine
+     * Qualifikationsrunde samt eigenem Lauf dazu: zwei Läufe in zwei Runden desselben Wettkampfs.
      */
     private fun TestComprehensionScope<JEnv>.seed(
         eventTimingSystem: String? = TimingSystem.RACECLOCKER.name,
@@ -204,11 +205,13 @@ class RaceClockerPollRepoTest {
             )
         )
 
-        // Die Qualifikationsrunde ist Turnierstruktur (Setzung, Weiterkommen) - für die Zeitnahme
-        // ist sie seit dem 11.08.2026 keine Weiche mehr: ihr Lauf hängt am selben Rennen.
+        // Die Qualifikationsrunde ist Turnierstruktur (Setzung, Weiterkommen) und für sich keine
+        // Weiche der Zeitnahme - welches Rennen gilt, sagt allein der Zeitnahmeprofil-Baum.
+        var qualificationRoundId: UUID? = null
         var qualificationMatchId: UUID? = null
         if (withQualificationRound) {
             val qualiRoundId = UUID.randomUUID()
+            qualificationRoundId = qualiRoundId
             qualificationMatchId = UUID.randomUUID()
 
             !COMPETITION_SETUP_ROUND.insert(
@@ -257,7 +260,7 @@ class RaceClockerPollRepoTest {
             )
         }
 
-        return Seeded(eventId, competitionId, raceId, matchId, qualificationMatchId)
+        return Seeded(eventId, competitionId, raceId, roundId, matchId, qualificationRoundId, qualificationMatchId)
     }
 
     @Test
@@ -271,13 +274,13 @@ class RaceClockerPollRepoTest {
         assertEquals(seeded.matchId, candidate.matchId)
         assertNotNull(candidate.activatedAt)
         assertEquals(now, candidate.startTime)
+        // Wettkampf und Runde tragen den Pfad, mit dem der Takt das Rennen auflöst.
+        assertEquals(seeded.competitionId, candidate.competitionId)
+        assertEquals(seeded.roundId, candidate.roundId)
         // Die Wellenbezeichnung entsteht wie beim Startlisten-Export aus Startzeit, Wettkampf
         // (Rennnummer und Kürzel) und Laufname - hier zugleich der Beleg, dass die beiden
         // Wettkampf-Spalten aus competition_properties in der Projektion ankommen.
-        assertEquals("10:00 | 1 JM4x | Lauf 1", candidate.target.waveName)
-        assertEquals(raceUrl, candidate.target.race?.resultsUrl)
-        assertEquals("Kurzstrecke", candidate.target.race?.name)
-        assertEquals(listOf(raceUrl), candidate.target.candidateUrls)
+        assertEquals("10:00 | 1 JM4x | Lauf 1", candidate.waveName)
     }
 
     /**
@@ -332,16 +335,18 @@ class RaceClockerPollRepoTest {
     }
 
     /**
-     * Ein Wettkampf, der die RaceClocker-Voreinstellung der Veranstaltung mit Webscorer
-     * überschreibt, hat keinen Feed, den der Job abholen könnte. Der Fall prüft zugleich, dass die
-     * Coalesce-Kette im WHERE überhaupt rendert - genau daran ist die Abfrage schon einmal
-     * gescheitert.
+     * Das Zeitnahme-System gilt nur noch an der Veranstaltung: Zwei Zeitnahme-Softwares in einer
+     * Regatta gibt es nicht. Ein Wettkampf mit eigenem Eintrag ändert deshalb nichts mehr - vorher
+     * hätte dieser Wettkampf den Abruf für seine Läufe abgeschaltet.
+     *
+     * Der Fall stützt sich noch auf die Spalte `competition.timing_system`; er wird gegenstandslos,
+     * sobald sie fällt - dann erzwingt das Schema, was hier steht.
      */
     @Test
-    fun aCompetitionOverridingTheTimingSystemIsExcluded() = testComprehension {
-        val eventId = seed(competitionTimingSystem = TimingSystem.WEBSCORER.name).eventId
+    fun aCompetitionOverridingTheTimingSystemChangesNothing() = testComprehension {
+        val seeded = seed(competitionTimingSystem = TimingSystem.WEBSCORER.name)
 
-        assertEquals(emptyList(), !RaceClockerPollRepo.getCandidates(eventId))
+        assertEquals(listOf(seeded.matchId), (!RaceClockerPollRepo.getCandidates(seeded.eventId)).map { it.matchId })
     }
 
     /** Ohne Zeitnahmesystem - der Zustand jeder Bestandsveranstaltung - gibt es nichts abzurufen. */
@@ -352,12 +357,17 @@ class RaceClockerPollRepoTest {
         assertEquals(emptyList(), !RaceClockerPollRepo.getCandidates(eventId))
     }
 
-    /** Ohne ein angewähltes Rennen gibt es nichts, das man abfragen könnte. */
+    /**
+     * Die Abfrage kennt keine Rennen mehr: Seit dem Zeitnahmeprofil-Baum hängt das Rennen an einer
+     * von vier Ebenen, und eine Ebenen-Auflösung gehört nicht in eine where-Klausel. Der Lauf kommt
+     * deshalb auch ohne Rennen zurück - dass er ohne aufgelöstes Rennen trotzdem nicht abgerufen
+     * wird, hält `RaceClockerPollLogicTest` fest (die Wirkung des früheren INNEREN Joins).
+     */
     @Test
-    fun aMatchWithoutASelectedRaceIsExcluded() = testComprehension {
-        val eventId = seed(raceResultsUrl = null).eventId
+    fun aMatchWithoutARaceIsStillReturnedByTheQuery() = testComprehension {
+        val seeded = seed(raceResultsUrl = null)
 
-        assertEquals(emptyList(), !RaceClockerPollRepo.getCandidates(eventId))
+        assertEquals(listOf(seeded.matchId), (!RaceClockerPollRepo.getCandidates(seeded.eventId)).map { it.matchId })
     }
 
     /**
@@ -380,14 +390,13 @@ class RaceClockerPollRepoTest {
     }
 
     /**
-     * DER Kern des Umbaus vom 11.08.2026, gegen echtes Postgres festgenagelt: Der Lauf einer
-     * Qualifikationsrunde und der Lauf einer Folgerunde desselben Wettkampfs landen auf DEMSELBEN
-     * Rennen. Die Rundenart ist Turnierstruktur geblieben (`competition_setup_round
-     * .is_qualification`), aber keine Weiche für die Rennwahl mehr - vorher hätte die
-     * Qualifikation ihr eigenes Zeitfahren-Rennen zuerst versucht.
+     * Beide Runden eines Wettkampfs kommen zurück, jede mit IHRER Runde. Die Rundenart ist
+     * Turnierstruktur (`competition_setup_round.is_qualification`) und keine Weiche für die
+     * Rennwahl; welches Rennen gilt, entscheidet der Zeitnahmeprofil-Baum - und der braucht genau
+     * diese Runden-Id, um einer Qualifikation ein anderes Rennen geben zu können als der Folgerunde.
      */
     @Test
-    fun aQualificationAndAFollowingRoundShareTheSameRace() = testComprehension {
+    fun aQualificationAndAFollowingRoundComeBackWithTheirOwnRound() = testComprehension {
         val seeded = seed(withQualificationRound = true)
 
         val candidates = !RaceClockerPollRepo.getCandidates(seeded.eventId)
@@ -397,10 +406,10 @@ class RaceClockerPollRepoTest {
         val qualification = byMatch.getValue(seeded.qualificationMatchId!!)
         val following = byMatch.getValue(seeded.matchId)
 
-        assertEquals(seeded.raceId, qualification.target.race?.id)
-        assertEquals(seeded.raceId, following.target.race?.id)
-        assertEquals(listOf(raceUrl), qualification.target.candidateUrls)
-        assertEquals(listOf(raceUrl), following.target.candidateUrls)
+        assertEquals(seeded.qualificationRoundId, qualification.roundId)
+        assertEquals(seeded.roundId, following.roundId)
+        assertEquals(seeded.competitionId, qualification.competitionId)
+        assertEquals(seeded.competitionId, following.competitionId)
     }
 
     /** Ein anderer Veranstaltungs-Filter darf nichts durchlassen. */
@@ -412,27 +421,14 @@ class RaceClockerPollRepoTest {
     }
 
     /**
-     * Ein gelöschtes Rennen entwertet die Anwahl (`on delete set null`), statt das Löschen zu
-     * blockieren. Der Lauf fällt danach still aus der Kandidatenmenge - der Job überspringt ihn,
-     * statt am fehlenden Rennen zu scheitern.
+     * Der Knopf-Weg holt sein Rennen über eine eigene Abfrage mit eigener Join-Kette
+     * (`CompetitionMatchRepo.getForRaceClockerPull`) und liest dafür weiterhin die Anwahl am
+     * Wettkampf - anders als der Job, der sein Rennen inzwischen aus dem Zeitnahmeprofil-Baum
+     * auflöst. Auch diese Abfrage steht einmal gegen echtes Postgres, und auch hier gilt:
+     * Qualifikations- und Folgerunden-Lauf desselben Wettkampfs zeigen auf dasselbe Rennen.
      */
     @Test
-    fun aDeletedRaceLeavesTheMatchWithoutASelection() = testComprehension {
-        val eventId = seed().eventId
-
-        !RACECLOCKER_RACE.delete { EVENT.eq(eventId) }
-
-        assertEquals(emptyList(), !RaceClockerPollRepo.getCandidates(eventId))
-    }
-
-    /**
-     * Der Knopf-Weg liest dieselbe Anwahl wie der Job, aber über eine eigene Abfrage mit eigener
-     * Join-Kette (`CompetitionMatchRepo.getForRaceClockerPull`). Auch sie steht einmal gegen
-     * echtes Postgres - und auch hier gilt: Qualifikations- und Folgerunden-Lauf desselben
-     * Wettkampfs zeigen auf dasselbe Rennen.
-     */
-    @Test
-    fun theButtonPathReadsTheSameSelectionAsTheJob() = testComprehension {
+    fun theButtonPathReadsTheSelectionAtTheCompetition() = testComprehension {
         val seeded = seed(withQualificationRound = true)
 
         val following = !CompetitionMatchRepo.getForRaceClockerPull(seeded.matchId)
@@ -450,16 +446,16 @@ class RaceClockerPollRepoTest {
     }
 
     /**
-     * Das Startlisten-Preset ist seit dem 11.08.2026 ebenfalls eindimensional: eines je Wettkampf,
-     * mit der Veranstaltung als Vorgabe (coalesce). Beide Läufe - Qualifikation wie Folgerunde -
-     * bekommen dasselbe Preset; die frühere Weiche nach Rundenart ist weg.
+     * Das Startlisten-Preset gehört zur Veranstaltung: Alle Wettkämpfe exportieren dieselben
+     * Spalten. Jeder Lauf - Qualifikation wie Folgerunde - bekommt deshalb dasselbe Preset, und ein
+     * eigener Wert am Wettkampf ändert daran nichts mehr (auch dieser Fall wird gegenstandslos,
+     * sobald die Spalte fällt).
      */
     @Test
-    fun theStartListConfigIsSharedAcrossRoundTypesAndInheritsFromTheEvent() = testComprehension {
+    fun theStartListConfigComesFromTheEventAlone() = testComprehension {
         val eventConfig = insertStartlistConfig("Veranstaltungs-Preset")
         val ownConfig = insertStartlistConfig("Eigenes Preset")
 
-        // Erbt: kein eigenes Preset am Wettkampf.
         val inheriting = seed(withQualificationRound = true, eventStartlistConfig = eventConfig)
         assertEquals(eventConfig, (!CompetitionMatchRepo.getStartListConfigTarget(inheriting.matchId))?.configId)
         assertEquals(
@@ -467,9 +463,9 @@ class RaceClockerPollRepoTest {
             (!CompetitionMatchRepo.getStartListConfigTarget(inheriting.qualificationMatchId!!))?.configId,
         )
 
-        // Eigener Wert schlägt die Vorgabe.
+        // Der eigene Wert des Wettkampfs zählt nicht mehr.
         val overriding = seed(eventStartlistConfig = eventConfig, competitionStartlistConfig = ownConfig)
-        assertEquals(ownConfig, (!CompetitionMatchRepo.getStartListConfigTarget(overriding.matchId))?.configId)
+        assertEquals(eventConfig, (!CompetitionMatchRepo.getStartListConfigTarget(overriding.matchId))?.configId)
 
         // Nichts konfiguriert: null heißt "kein Preset", nicht "Lauf nicht gefunden".
         val unconfigured = seed()

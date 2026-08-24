@@ -164,16 +164,13 @@ object CompetitionMatchRepo {
     }
 
     /**
-     * Welches Spalten-Preset die Startliste dieses Laufs bekommt: das eine Preset des Wettkampfs,
-     * mit der Veranstaltung als Vorgabe. Die frühere Weiche nach Rundenart ist mit den
-     * RaceClocker-Startarten entfallen (11.08.2026) — jede Runde exportiert dieselben Spalten.
+     * Welches Spalten-Preset die Startliste dieses Laufs bekommt: das eine Preset der
+     * Veranstaltung. Die frühere Weiche nach Rundenart ist mit den RaceClocker-Startarten entfallen
+     * (11.08.2026), das eigene Preset je Wettkampf mit dem Zeitnahmeprofil-Baum — alle Wettkämpfe
+     * einer Regatta exportieren dieselben Spalten.
      */
     fun getStartListConfigTarget(id: UUID) = Jooq.query {
-        // Wettkampf-Wert vor Veranstaltungs-Voreinstellung, wie beim Zeitnahmesystem.
-        val config = DSL.coalesce(
-            COMPETITION.STARTLIST_CONFIG,
-            EVENT.STARTLIST_CONFIG,
-        ).`as`("startlist_config")
+        val config = EVENT.STARTLIST_CONFIG.`as`("startlist_config")
 
         select(config)
             .from(COMPETITION_MATCH)

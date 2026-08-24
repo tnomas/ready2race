@@ -1,7 +1,13 @@
 package de.lambda9.ready2race.backend.app.raceclocker.boundary
 
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollCandidate
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollMatch
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
 import java.time.LocalDateTime
+import java.util.UUID
 
 /**
  * Die Entscheidungen des automatischen RaceClocker-Abrufs, bewusst ohne Datenbank- und HTTP-Bezug —
@@ -20,6 +26,39 @@ object RaceClockerPollLogic {
     const val MIN_INTERVAL_SECONDS = 2
 
     enum class PollMode { ACTIVE, UPCOMING }
+
+    /**
+     * Die Kandidaten eines Takts: die Läufe der Abfrage, jeder mit seinem aufgelösten Rennen.
+     *
+     * Ein Lauf, für den sich kein Rennen auflösen lässt, fällt still heraus. Das ist genau die
+     * Wirkung, die früher der INNERE Join auf `raceclocker_race` in `getCandidates` hatte - nur
+     * steht sie jetzt hier, weil das Rennen an einer von vier Ebenen hängt und eine
+     * Ebenen-Auflösung nicht in eine where-Klausel gehört. Ohne sie liefe der Abruf für solche
+     * Läufe ins Leere und belastete den Takt mit Fehlern, die niemand beheben kann.
+     *
+     * [racesById] fängt denselben Fall noch einmal ab: Zeigt eine Zuordnung auf ein Rennen, das es
+     * nicht (mehr) gibt, ist das Ergebnis dasselbe wie ohne Zuordnung.
+     */
+    fun candidatesFor(
+        matches: List<RaceClockerPollMatch>,
+        assignments: Collection<TimingProfileResolveLogic.Assignment>,
+        racesById: Map<UUID, RaceClockerRaceRef>,
+    ): List<RaceClockerPollCandidate> = matches.mapNotNull { match ->
+        val race = TimingProfileResolveLogic
+            .resolve(assignments, match.competitionId, match.roundId, match.matchId)
+            ?.let { racesById[it] }
+            ?: return@mapNotNull null
+
+        RaceClockerPollCandidate(
+            matchId = match.matchId,
+            competitionId = match.competitionId,
+            startTime = match.startTime,
+            activatedAt = match.activatedAt,
+            startedAt = match.startedAt,
+            autoPausedAt = match.autoPausedAt,
+            target = RaceClockerMatchTarget(waveName = match.waveName, race = race),
+        )
+    }
 
     fun intervalSeconds(configured: Int): Int = configured.coerceAtLeast(MIN_INTERVAL_SECONDS)
 

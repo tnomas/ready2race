@@ -949,14 +949,12 @@ object CompetitionExecutionService {
         val match = !checkUpdateMatchResult(competitionId, matchId)
         !pauseRaceClockerAutoPull(matchId)
 
-        // Das Format gehoert zum Wettkampf (Zeitnahme-Tab), nicht mehr zur einzelnen Anfrage --
-        // und der Wettkampf erbt es von der Veranstaltung, solange er selbst keines gesetzt hat
-        // (Migration V202608071300, dieselbe Regel wie beim Startlisten-Export).
-        val competition = !CompetitionRepo.getRecordById(competitionId).orDie()
-            .onNullFail { CompetitionError.CompetitionNotFound }
+        // Das Format gehört zur Veranstaltung (Zeitnahme-Tab), nicht zur einzelnen Anfrage und
+        // nicht mehr zum Wettkampf: Alle Wettkämpfe einer Regatta importieren dieselben Spalten
+        // (dieselbe Regel wie beim Startlisten-Export).
         val event = !EventRepo.get(eventId).orDie()
             .onNullFail { EventError.NotFound }
-        val configId = !KIO.failOnNull(competition.resultImportConfig ?: event.resultImportConfig) {
+        val configId = !KIO.failOnNull(event.resultImportConfig) {
             MatchResultImportConfigError.NotConfigured
         }
         val config = !MatchResultImportConfigRepo.get(configId).orDie()

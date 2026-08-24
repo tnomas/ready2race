@@ -3,7 +3,6 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.timing.control.TimingMatchRepo
-import de.lambda9.ready2race.backend.app.timing.control.TimingModeAssignmentRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
@@ -13,6 +12,9 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchPhase
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchProgress
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchTeamDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
+import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
@@ -25,8 +27,8 @@ import java.util.UUID
  * Ein Endpunkt für beide Posten: der Startposten arbeitet die Liste von oben nach unten ab, der
  * Zielposten liest daraus, welches Rennen im Ziel erwartet wird und welche Boote noch fehlen
  * ([TimingMatchTeamDto.finished]). Alles Abgeleitete kommt aus reiner, einzeln getesteter Logik
- * (TimingStartOrderLogic, TimingModeResolveLogic, TimingMatchProgress) - dieser Service verdrahtet
- * sie nur mit den Zeilen aus der Datenbank.
+ * (TimingStartOrderLogic, TimingProfileResolveLogic, TimingMatchProgress) - dieser Service
+ * verdrahtet sie nur mit den Zeilen aus der Datenbank.
  */
 object TimingMatchService {
 
@@ -39,11 +41,13 @@ object TimingMatchService {
         val marks = !TimingOfficialTimeRepo.getAssignedActiveMarks(eventId).orDie()
         val teamsInActiveSequences = (!TimingSequenceEntryRepo.getTeamsInActiveSequences(eventId).orDie()).toSet()
         val modes = !TimingModeRepo.getByEvent(eventId).orDie()
-        val assignments = !TimingModeAssignmentRepo.getByEvent(eventId).orDie()
+        // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
+        // TimingProfileRepo.getAssignments.
+        val assignments = !TimingProfileRepo.getAssignments(eventId, TimingProfileKind.MODE).orDie()
 
         val modeById = modes.associateBy { it.id }
         val assignmentRows = assignments.map {
-            TimingModeResolveLogic.ModeAssignment(it.competition, it.competitionSetupRound, it.timingMode)
+            TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile)
         }
 
         val startedTeams = marks
@@ -110,8 +114,11 @@ object TimingMatchService {
                     anyTeamStarted = anyTeamStarted,
                     allTeamsFinished = allTeamsFinished,
                 ),
-                timingMode = TimingModeResolveLogic
-                    .resolve(assignmentRows, match.competitionId, match.roundId)
+                // Vier Ebenen, die speziellste gewinnt: Damit wirkt am Posten auch eine Zuordnung
+                // je Partie - der Wettkampf, dessen Qualifikation ein Zeitfahren ist und dessen
+                // übrige Läufe im Wellenstart fahren.
+                timingMode = TimingProfileResolveLogic
+                    .resolve(assignmentRows, match.competitionId, match.roundId, match.setupMatchId)
                     ?.let { modeById[it]?.toDto() },
                 teams = teams,
             )

@@ -99,16 +99,15 @@ object RaceClockerRaceService {
     }
 
     /**
-     * Löschen entwertet die Anwahl, statt sie zu blockieren (`on delete set null` in der Migration).
-     * Ein Wettkampf, der auf das gelöschte Rennen zeigte, hat danach kein Rennen mehr — und ein
-     * Lauf ohne Rennen wird vom Abruf still übersprungen.
+     * Gelöscht wird nur ein Rennen, das niemand mehr benutzt: Erst die Zuordnungen abräumen, dann
+     * löschen.
      */
     fun deleteRace(eventId: UUID, raceId: UUID): App<ServiceError, ApiResponse.NoData> =
         KIO.comprehension {
-            // Der Fremdschlüssel steht auf SET NULL - ohne diese Sperre würde das Löschen
-            // zugewiesene Wettkämpfe stillschweigend von ihrer Zeitnahme trennen und der
-            // Abruf bliebe kommentarlos stehen. Erst die Zuordnung abhaken, dann löschen.
-            val assigned = !RaceClockerRaceRepo.countAssignedCompetitions(raceId).orDie()
+            // Der Fremdschlüssel des Zeitnahmeprofil-Baums steht auf RESTRICT - ohne diese
+            // Sperre bekäme das Regattabüro statt einer verständlichen Meldung einen rohen
+            // Constraint-Fehler zu sehen.
+            val assigned = !RaceClockerRaceRepo.countAssignments(raceId).orDie()
             if (assigned > 0) {
                 return@comprehension KIO.fail(RaceClockerRaceError.StillAssigned)
             }
