@@ -58,8 +58,20 @@ export function unlockAudio() {
     }
 }
 
-/** Synthesized single tone, fire-and-forget. Silent (never throwing) when audio is unavailable. */
-function playTone(frequency: number, durationSeconds: number) {
+/**
+ * Synthesized single tone, fire-and-forget. Silent (never throwing) when audio is unavailable.
+ *
+ * Hüllkurve (die Ist-Kurve seit jeher, hier destilliert): Lautstärke 0.2 beim Einsatz, dann
+ * `exponentialRampToValueAtTime` auf 0.0001 (≈ −66 dB — ein >0-Zielwert, weil die exponentielle
+ * Rampe 0 nicht erreichen kann) — das ist zugleich die Anti-Knacks-Rampe am Tonende, einen
+ * eigenen Attack gab es nie. OHNE Ausklingzeit läuft dieser Abfall wie bisher über die GESAMTE
+ * Nenndauer; MIT Ausklingzeit hält der Ton die Nenndauer voll durch (expliziter Stütz-Anker bei
+ * duration, sonst rampte WebAudio ab dem Einsatz) und fällt erst danach über `releaseSeconds` ab
+ * — Gesamtklang = duration + release. Exponentiell statt linear ist eine Klangentscheidung: das
+ * Ohr hört Lautstärke logarithmisch, eine lineare Rampe klänge erst „hängend" und risse am Ende
+ * hörbar ab, während die exponentielle gleichmäßig und natürlich ausklingt.
+ */
+function playTone(frequency: number, durationSeconds: number, releaseSeconds = 0) {
     try {
         unlockAudio()
         if (ctx === null) return
@@ -67,10 +79,18 @@ function playTone(frequency: number, durationSeconds: number) {
         const gain = ctx.createGain()
         osc.frequency.value = frequency
         gain.gain.setValueAtTime(0.2, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSeconds)
+        if (releaseSeconds > 0) {
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + durationSeconds)
+            gain.gain.exponentialRampToValueAtTime(
+                0.0001,
+                ctx.currentTime + durationSeconds + releaseSeconds,
+            )
+        } else {
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + durationSeconds)
+        }
         osc.connect(gain).connect(ctx.destination)
         osc.start()
-        osc.stop(ctx.currentTime + durationSeconds)
+        osc.stop(ctx.currentTime + durationSeconds + releaseSeconds)
     } catch {
         // audio unavailable — ignore
     }
@@ -89,9 +109,13 @@ function playTone(frequency: number, durationSeconds: number) {
  * — das Nachsenden der Offline-Warteschlange bestätigt nichts, was der Bediener gerade tut, und
  * bleibt deshalb stumm.
  */
-export function playCaptureFeedback(tone?: {frequencyHz: number; durationMillis: number}) {
+export function playCaptureFeedback(tone?: {
+    frequencyHz: number
+    durationMillis: number
+    releaseMillis?: number | null
+}) {
     const effective = tone ?? DEFAULT_CAPTURE_TONE
-    playTone(effective.frequencyHz, effective.durationMillis / 1000)
+    playTone(effective.frequencyHz, effective.durationMillis / 1000, (tone?.releaseMillis ?? 0) / 1000)
     navigator.vibrate?.(80)
 }
 
@@ -102,6 +126,10 @@ export function playCaptureFeedback(tone?: {frequencyHz: number; durationMillis:
  * dasselbe `now()` braucht es nicht; welcher Ton wann fällig ist, entscheidet die reine
  * `advanceTonePlan`-Logik in `tonePlan.ts`.
  */
-export function playToneStep(step: {frequencyHz: number; durationMillis: number}) {
-    playTone(step.frequencyHz, step.durationMillis / 1000)
+export function playToneStep(step: {
+    frequencyHz: number
+    durationMillis: number
+    releaseMillis?: number | null
+}) {
+    playTone(step.frequencyHz, step.durationMillis / 1000, (step.releaseMillis ?? 0) / 1000)
 }
