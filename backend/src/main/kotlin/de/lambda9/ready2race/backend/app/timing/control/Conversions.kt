@@ -299,10 +299,21 @@ fun TimingModeAssignmentRecord.toDto(): TimingModeAssignmentDto = TimingModeAssi
     timingMode = timingMode,
 )
 
+/**
+ * Der Geräte-Reiter der Zeitnahme — und der zeigt ausschließlich POSTEN-Tokens.
+ *
+ * Seit Migration V202608250900 trägt dieselbe Tabelle auch Board-Tokens; dort ist station null
+ * und board gesetzt (genau eines von beiden, per Check-Constraint). Diese Konvertierung wird
+ * deshalb nur auf Posten-Tokens angewandt: [de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService.list]
+ * holt sie über [TimingDeviceTokenRepo.getStationTokensByEvent] (`station is not null`), und die
+ * Ausstell- wie die Posten-Share-Link-Antwort bauen ihren Record selbst mit gesetztem Posten.
+ * Das `!!` trägt also die Abfrage, nicht die Hoffnung — Board-Tokens bekommen mit
+ * [de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto] ihre eigene Antwort.
+ */
 fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
     id = id,
     event = event,
-    station = station,
+    station = station!!,
     name = name,
     revoked = revoked ?: false,
     // Die Spalte ist zugleich das Kennzeichen (siehe Migration V202608211420): Klartext

@@ -355,3 +355,85 @@ Nichts davon wurde in der laufenden App geklickt — kein Server in diesem Workt
 5. Tageswechsel in der Tagesablauf-Spalte, Kopfzeile klebt beim Scrollen.
 6. Folgerunde erzeugen und zusehen, ob Board und Startbildschirm die neuen Läufe ohne Neuladen
    zeigen.
+
+---
+
+# Nachtrag 25.08.: Kachel-Boards hinter Auth, Teilen per Token
+
+## Was sich ändert
+Die Kachel-Boards („Anzeigen", `/board/{eventId}/{boardId}`) waren öffentlich. Ab jetzt gilt:
+- **Sitzung** mit `ReadBoardGlobal` oder `ReadEventGlobal`, **oder**
+- **Board-Geräte-Token** im Header `X-Timing-Device-Token`.
+
+Betroffen sind genau zwei Endpunkte: `GET /event/{id}/info/boards` und
+`GET /event/{id}/info/board/{boardId}`. Alle übrigen öffentlichen Anzeigen (Ergebnisse, Zeitplan,
+Live-Läufe, „Mein Event") bleiben unverändert offen.
+
+**Folge, die jemand wissen muss:** Ein Board-Link, der bisher irgendwo öffentlich stand, läuft ab
+jetzt in „Diese Anzeige ist nicht freigegeben". Für Zuschauerbildschirme, OBS-Quellen und
+Steg-Monitore ist der Weg jetzt der Token-Link aus der Board-Verwaltung.
+
+## Teilen wie bei Start/Ziel
+Eine Token-Infrastruktur, nicht zwei: `timing_device_token` trägt jetzt entweder einen Posten
+ODER ein Board (Check-Constraint, Migration `V202608250900`). Damit gelten Ausstellen,
+Wiederverwendung des Links, Widerruf und die Rechteprüfung unverändert weiter.
+Neue Route: `POST /event/{eventId}/boards/{boardId}/share-link`.
+
+## Am laufenden Server verifiziert (25.08., Instanz auf 8138/5178)
+| Prüfung | Ergebnis |
+|---|---|
+| Board ohne Anmeldung | 401 |
+| Board mit Sitzung | 200 |
+| Board-Token → sein Board | 200 |
+| Board-Token → fremdes Board | 401 |
+| Board-Token → Zeitnahme-Endpunkt | 401 |
+| Posten-Token → Zeitnahme | 200 |
+| Posten-Token → Board | 401 |
+| Zweimal teilen | derselbe Link, dieselbe Token-Id |
+| Token-Link im Browser | Token übernommen, aus der Adresszeile entfernt, Board lädt live ohne Anmeldung |
+| Ohne Token/Sitzung im Browser | Klartext „Diese Anzeige ist nicht freigegeben" statt weißem Schirm |
+
+## Offen
+- Board-Tokens tauchen in **keiner Liste** auf. Zurückziehen geht nur über den Teilen-Dialog des
+  jeweiligen Boards. Wer den Dialog nicht öffnet, sieht nicht, dass ein Board geteilt ist — ein
+  Board-Reiter „Geräte" bräuchte einen eigenen Backend-Endpunkt.
+
+## Echtzeit-Kacheln über WebSocket
+Neuer Kanal `/api/ws/event/{eventId}/board/{boardId}`, gleiche Auth wie der HTTP-Zwilling
+(Sitzung oder Board-Token im zweiten Subprotokoll-Slot). Beim Verbinden kommt sofort der volle
+Stand, danach bei jeder Änderung die fertige Board-Ansicht — kein HTTP-Nachschlag mehr.
+
+- Ausgelöst am vorhandenen Änderungsmarker der Veranstaltung, keine neuen Auslöser im Code
+  verstreut; zusätzlich bei einer Änderung der Board-Konfiguration.
+- Je Board eine Render-Coroutine mit 150-ms-Sammelfenster; ohne Abonnent wird nie gerechnet.
+- Der Kanal wird nur geöffnet, wenn das Board Echtzeit-Kacheln hat (MATCH, MATCH_DETAIL,
+  MATCH_LIST, STREAM, DELAY, AWARD_CEREMONY). Ein reines Uhr-/Text-Board verbindet gar nicht.
+- Das Polling bleibt als Sicherheitsnetz und streckt sich, solange der Kanal steht.
+
+**Am laufenden Server verifiziert:** Board-Token öffnet den Kanal, voller Stand kommt beim
+Verbinden, eine Änderung erzeugt einen zweiten Push. Im Browser zeigt das Livestream-Overlay über
+zwölf Sekunden **null** HTTP-Abrufe der Board-Ansicht (Board-Takt wäre 5 s) und läuft trotzdem mit.
+
+## Alarmfarben nachgeschärft (25.08.)
+Beim Klicktest fiel auf, dass Pause- und Fehlstart-Alarm die Theme-Farben benutzten und als
+blasser Sandton bzw. Rosa herauskamen — auf einem Bildschirm am Steg kein Alarm. Die Farben stehen
+jetzt fest im Code (Bernstein `#e65100`, Rot `#c62828`), die Fläche ist deckend, weiße Schrift,
+und geblinkt wird über eine weiße Aufhellung. Begründung im Code: ein Alarm darf nicht davon
+abhängen, welche Farben eine Veranstaltung hinterlegt hat.
+
+## Handtests dieser Runde — erledigt
+| Fall | Ergebnis |
+|---|---|
+| Einstellungs-Formular: beide neuen Abschnitte | steht korrekt |
+| Tagesablauf: Tageswechsel „Mo · 24.08." / „Di · 25.08." | sichtbar |
+| Zweiter grüner „Start" (manueller Stempel) | verschwunden (Vorgabe aus) |
+| Ankündigung des nächsten Laufs samt erstem Boot | steht, Nummer doppelt nicht mehr |
+| Sequenz anhalten → Anzeige blinkt orange | belegt |
+| Letzten Start zurücknehmen | Eintrag wieder anstehend, Marke `RETRACTED` |
+| Fortsetzen verschiebt die Kette | +138,3 s bei 138,2 s Pause, Abstand bleibt 60 s |
+| Fehlstart → Anzeige blinkt rot mit „Fehlstart" | belegt |
+| Board-Token-Kette (7 Fälle) | siehe Tabelle oben |
+| Board-WebSocket statt Polling | belegt |
+
+**Weiterhin offen:** Punkt 9 der Ursprungsliste (Sequenzen im Schiedsrichter-Dashboard und im
+Kachel-Dashboard, Uhr die von minus hochzählt) und der Handtest des Overlays in OBS.

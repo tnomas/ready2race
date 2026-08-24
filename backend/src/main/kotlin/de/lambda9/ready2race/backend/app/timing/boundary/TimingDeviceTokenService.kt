@@ -2,6 +2,9 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto
+import de.lambda9.ready2race.backend.app.eventInfo.entity.EventInfoProblem
 import de.lambda9.ready2race.backend.app.timing.control.TimingDeviceTokenRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingStationRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
@@ -31,6 +34,19 @@ import java.util.UUID
  * response, the database keeps a hash, and every rejection - unknown, revoked, wrong event, wrong
  * station - produces the same [TimingError.DeviceTokenInvalid] without echoing anything about the
  * presented value.
+ *
+ * Seit dem 25.08.2026 (Migration V202608250900) trägt dieselbe Tabelle eine zweite Sorte:
+ * BOARD-Tokens für die Kachel-Anzeigen. Deren Endpunkte verlangen jetzt ebenfalls eine
+ * Authentifizierung, und ein montierter Bildschirm oder eine OBS-Quelle kann sich nun einmal
+ * nicht anmelden - er bekommt denselben geteilten Link mit Geräte-Token wie ein Posten. Bewusst
+ * eine Infrastruktur statt zweier: Ausstellen, Wiederverwendung, Widerruf und Hashing gelten
+ * unverändert weiter, statt ein zweites Mal geschrieben zu werden.
+ *
+ * Der Zuschnitt bleibt die Sicherheitsgrenze und wird an genau einer Stelle gezogen, nämlich
+ * hier: [validate] und [validateForEvent] lassen ausschließlich Posten-Tokens durch,
+ * [validateForBoard] und [validateBoardTokenForEvent] ausschließlich Board-Tokens. Ein
+ * Board-Token öffnet also nie einen Zeitnahme-Endpunkt und ein Posten-Token nie eine Anzeige -
+ * beides mit derselben opaken Antwort wie jede andere Ablehnung.
  */
 object TimingDeviceTokenService {
 
@@ -122,10 +138,79 @@ object TimingDeviceTokenService {
         )
     }
 
+    /**
+     * Dasselbe für eine Anzeige: stellt für [boardId] ein Board-Geräte-Token aus und liefert die
+     * fertige Anzeigen-Adresse.
+     *
+     * Wortgleiche Regel wie beim Posten-Link ([shareLink]): Wiederverwendung statt Inflation -
+     * solange ein automatisch ausgestelltes, nicht widerrufenes Token für das Board lebt, kommt
+     * DASSELBE zurück; erst nach einem Widerruf stellt der nächste Klick ein frisches aus. Der
+     * Klartext liegt dafür in der Zeile (Begründung in Migration V202608211420: der Link IST das
+     * Credential).
+     *
+     * Ein Board, das es nicht gibt, und ein Board einer ANDEREN Veranstaltung antworten gleich -
+     * sonst verriete der Endpunkt, welche Board-Kennungen existieren.
+     */
+    fun shareLinkForBoard(
+        eventId: UUID,
+        boardId: UUID,
+        userId: UUID,
+    ): App<ServiceError, ApiResponse.Dto<BoardShareLinkDto>> = KIO.comprehension {
+        val board = !BoardRepo.findById(boardId).orDie()
+            .onNullFail { EventInfoProblem.BoardNotFound(boardId) }
+        !KIO.failOn(board.eventId != eventId) { EventInfoProblem.BoardNotFound(boardId) }
+
+        val existing = !TimingDeviceTokenRepo.getActiveShareLinkByBoard(boardId).orDie()
+        val record = existing ?: run {
+            val plain = RandomUtilities.alphanumerical(TOKEN_LENGTH)
+            val created = TimingDeviceTokenRecord(
+                id = UUID.randomUUID(),
+                event = eventId,
+                // Genau eines von beiden ist gesetzt (Check-Constraint der Migration): hier das
+                // Board, kein Posten.
+                station = null,
+                board = boardId,
+                // Der Name benennt die Anzeige, nicht das Gerät - welcher Bildschirm den Link
+                // am Ende bekommt, weiß beim Teilen niemand.
+                name = "${board.name} (Link)",
+                tokenHash = hash(plain),
+                revoked = false,
+                shareLinkToken = plain,
+                createdAt = LocalDateTime.now(),
+                createdBy = userId,
+            )
+            !TimingDeviceTokenRepo.create(created).orDie()
+            created
+        }
+
+        val plain = record.shareLinkToken!!
+        // Dieselbe Adressbildung wie die Board-Links der Oberfläche: die Anzeige-Route des
+        // Boards. Wurzelrelativ - den Origin kennt nur der Browser.
+        val encoded = URLEncoder.encode(plain, Charsets.UTF_8)
+
+        KIO.ok(
+            ApiResponse.Dto(
+                BoardShareLinkDto(
+                    deviceTokenId = record.id,
+                    board = boardId,
+                    token = plain,
+                    path = "/board/$eventId/$boardId?token=$encoded",
+                )
+            )
+        )
+    }
+
+    /**
+     * Der Geräte-Reiter des Leitstands: die Posten-Tokens der Veranstaltung.
+     *
+     * Board-Tokens bleiben hier bewusst außen vor - sie haben keinen Posten, und der Reiter führt
+     * eine Postenspalte. Widerrufen lassen sie sich über dieselbe Route wie jedes andere Token
+     * ([revoke]); ihre Kennung liefert die Share-Link-Antwort.
+     */
     fun list(
         eventId: UUID,
     ): App<ServiceError, ApiResponse.ListDto<TimingDeviceTokenDto>> = KIO.comprehension {
-        val records = !TimingDeviceTokenRepo.getByEvent(eventId).orDie()
+        val records = !TimingDeviceTokenRepo.getStationTokensByEvent(eventId).orDie()
         KIO.ok(ApiResponse.ListDto(records.sortedBy { it.createdAt }.map { it.toDto() }))
     }
 
@@ -170,6 +255,9 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
+            // record.station ist seit V202608250900 nullbar (Board-Tokens haben keinen Posten).
+            // Der Vergleich mit dem nicht-nullbaren [stationId] schließt sie damit von selbst
+            // aus: null ist nie gleich einer Posten-Kennung.
         ) && record.revoked != true && record.event == eventId && record.station == stationId
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
@@ -186,6 +274,11 @@ object TimingDeviceTokenService {
      * Posten von [validate] beschränkt (Zeitmarken-POST); alle weiteren Mutationen verlangen
      * weiterhin eine Nutzersitzung. Jede Ablehnung ist auch hier das eine
      * [TimingError.DeviceTokenInvalid], ohne etwas über den präsentierten Wert zu verraten.
+     *
+     * "Veranstaltung" heißt trotzdem nicht "alles dieser Veranstaltung": ein BOARD-Token
+     * (station null, siehe Migration V202608250900) kommt hier nicht durch. Es ist auf seine
+     * Anzeige zugeschnitten und darf keinen einzigen Zeitnahme-Endpunkt öffnen - diese eine
+     * Zeile ist die Grenze, hinter der alle Lesewege der Zeitnahme liegen.
      */
     fun validateForEvent(
         plainToken: String,
@@ -198,7 +291,63 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
-        ) && record.revoked != true && record.event == eventId
+        ) && record.revoked != true && record.event == eventId && record.station != null
+
+        !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
+        KIO.ok(record)
+    }
+
+    /**
+     * Gilt dieses Token für GENAU DIESES Board?
+     *
+     * Der Zuschnitt eines Board-Tokens ist eng: eine Veranstaltung, ein Board, ausschließlich
+     * lesen. Ein Token, das für Board A ausgestellt wurde, öffnet Board B nicht - auch nicht in
+     * derselben Veranstaltung -, und ein Posten-Token öffnet gar kein Board (`record.board` ist
+     * dort null und nie gleich einer Board-Kennung).
+     *
+     * Das ist die Funktion, an der jeder weitere Board-Lesezugriff hängt - die Board-Ansicht
+     * ebenso wie der Push-Kanal, der die Anzeigen später live nachzieht.
+     */
+    fun validateForBoard(
+        plainToken: String,
+        eventId: UUID,
+        boardId: UUID,
+    ): App<TimingError, TimingDeviceTokenRecord> = KIO.comprehension {
+        val expected = hash(plainToken)
+        val record = !TimingDeviceTokenRepo.getByHash(expected).orDie()
+            .onNullFail { TimingError.DeviceTokenInvalid }
+
+        val valid = MessageDigest.isEqual(
+            record.tokenHash.toByteArray(Charsets.UTF_8),
+            expected.toByteArray(Charsets.UTF_8),
+        ) && record.revoked != true && record.event == eventId && record.board == boardId
+
+        !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
+        KIO.ok(record)
+    }
+
+    /**
+     * Wie [validateForBoard], aber ohne Bindung an ein bestimmtes Board - nur "ein gültiges
+     * Board-Token dieser Veranstaltung".
+     *
+     * Ausschließlich für die Kurzliste `/info/boards` gedacht, die nur Kennung und Name der
+     * Anzeigen führt: ein geteiltes Gerät muss darin sein eigenes Board wiederfinden können (die
+     * Liste trägt auch die Umleitung der alten Athleten-Board-URL), und ein Board-Token auf die
+     * Kennung genau des Boards zu binden, dessen Kennung es erst nachschlagen will, wäre ein
+     * Zirkelschluss. Inhalte gibt sie keine preis - die stehen hinter [validateForBoard].
+     */
+    fun validateBoardTokenForEvent(
+        plainToken: String,
+        eventId: UUID,
+    ): App<TimingError, TimingDeviceTokenRecord> = KIO.comprehension {
+        val expected = hash(plainToken)
+        val record = !TimingDeviceTokenRepo.getByHash(expected).orDie()
+            .onNullFail { TimingError.DeviceTokenInvalid }
+
+        val valid = MessageDigest.isEqual(
+            record.tokenHash.toByteArray(Charsets.UTF_8),
+            expected.toByteArray(Charsets.UTF_8),
+        ) && record.revoked != true && record.event == eventId && record.board != null
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)

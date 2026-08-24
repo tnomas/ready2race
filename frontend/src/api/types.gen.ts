@@ -623,6 +623,22 @@ export type BoardRequest = {
  */
 export type BoardScheduleMode = 'FOLLOW' | 'FULL'
 
+/**
+ * The shareable board link. Repeatable like the station link: the same board returns the same link until its token is revoked. Deliberately not a TimingDeviceTokenDto - that one names a timing station, which a board token does not have (it is the same table, but with two different targets).
+ */
+export type BoardShareLinkDto = {
+    /**
+     * Handle for revoking this link, through the same route as the station tokens (deleteTimingDeviceToken).
+     */
+    deviceTokenId: string
+    board: string
+    token: string
+    /**
+     * Root-relative frontend path including the token query parameter (`/board/{eventId}/{boardId}?token=...`). The client prepends its own origin. The display sends the token as the X-Timing-Device-Token header.
+     */
+    path: string
+}
+
 export type BoardTile = {
     rotationIntervalSeconds?: number
     colSpan?: number
@@ -650,6 +666,32 @@ export type BoardTile = {
  * the server's ping/pong keepalive.
  * - On every (re)connect clients should refetch once, to cover changes missed while
  * disconnected, and keep a slow safety poll as fallback for connections that die silently.
+ *
+ * Displays that render one specific board should prefer the per-board channel instead,
+ * which pushes this very payload rather than a hint:
+ *
+ * - Path: `/api/ws/event/{eventId}/board/{boardId}` (again outside the `/api` REST routes
+ * documented in this spec).
+ * - Auth: same two doors as the HTTP route above - a session with READ BOARD or READ EVENT,
+ * or a device token issued for EXACTLY THIS board. Browsers cannot set headers on a
+ * websocket handshake, so the token travels as the second subprotocol entry:
+ * `new WebSocket(url, ["r2r", token])`. Non-browser clients may send the session header and
+ * omit the subprotocol. Anything else is closed with 1008 (policy violation) right after the
+ * upgrade.
+ * - Messages are JSON objects discriminated by a `type` field. The only type is
+ * `{ type: "boardView", view: BoardViewDto }` - the complete, already rendered view, field
+ * for field the body of `getBoardView`. Apply it directly; there is nothing left to fetch.
+ * That is the point of this channel: for a livestream overlay the HTTP round trip after a
+ * hint is the delay you can see on screen.
+ * - The full view is also sent as the first frame of every connection, so a reconnect after
+ * a dropout recovers on its own and needs no refetch.
+ * - Pushes are triggered by the same event change marker that drives the channel above
+ * (results, activation, schedule actions, notice banner, ...) plus a change to the board's
+ * own configuration. The server coalesces bursts and computes each board's view once for
+ * all its subscribers; a board nobody is connected to is never computed.
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on
+ * the server's ping/pong keepalive. Keep a slow safety poll as fallback for connections that
+ * die silently.
  */
 export type BoardViewDto = {
     boardId: string
@@ -4504,6 +4546,13 @@ export type TimingStationRequest = {
  * distinguish "no assignment" from a field that was never sent.
  * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
  * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - `{ type: "matchesChanged" }` - the set of timed matches changed: rounds were created or
+ * deleted, schedule slots moved a start time, a bye entered or left the field, or a timing
+ * mode assignment changed. A trigger without a body (like `stationsChanged`), because a
+ * single round generation changes many matches at once; refetch
+ * `GET /event/{eventId}/timing/matches` (clients debounce this - see `useTimingMatches`).
+ * The other messages all presuppose that a match already exists, so without this one a
+ * newly generated race never reaches a board that stays connected.
  * - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
  * a whole attempt was retracted ("retract start", one message per retraction in addition to
  * the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
@@ -9013,6 +9062,17 @@ export type DeleteBoardData = {
 export type DeleteBoardResponse = void
 
 export type DeleteBoardError = ApiError
+
+export type CreateBoardShareLinkData = {
+    path: {
+        boardId: string
+        eventId: string
+    }
+}
+
+export type CreateBoardShareLinkResponse = BoardShareLinkDto
+
+export type CreateBoardShareLinkError = ApiError
 
 export type AddRatingCategoryData = {
     body: RatingCategoryRequest

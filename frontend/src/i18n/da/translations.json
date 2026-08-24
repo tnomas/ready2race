@@ -2488,6 +2488,32 @@
         "showCountdown": "Ur/nedtælling",
         "upcomingListTitle": "Næste løb",
         "inMinutes": "om {{time}}"
+      },
+      "share": {
+        "action": "Del link",
+        "title": "Del boardet “{{name}}”",
+        "description": "Linket bærer dette boards enhedsadgang: skærmen (fastmonteret visning, OBS-browserkilde, telefon) behøver intet login. Samme board giver altid samme link — indtil det trækkes tilbage her.",
+        "copy": "Kopiér link",
+        "copied": "Link kopieret",
+        "revokeHint": "Linket kan altid hentes her igen. Det gælder kun for dette ene board — et andet board på samme skærm kræver sit eget link.",
+        "error": "Linket kunne ikke oprettes.",
+        "again": "Opret nyt link",
+        "revoke": {
+          "action": "Træk link tilbage",
+          "success": "Link trukket tilbage",
+          "error": "Linket kunne ikke trækkes tilbage.",
+          "done": "Linket er trukket tilbage og ugyldigt. “Opret nyt link” udsteder et nyt — allerede uddelte QR-koder bliver ikke gyldige igen.",
+          "confirm": {
+            "title": "Træk link tilbage?",
+            "content": "Det delte link til “{{name}}” bliver ugyldigt med det samme; skærme, der har indlæst det, viser intet ved næste opdatering. En ny deling opretter et NYT link — den gamle QR-kode virker ikke længere."
+          }
+        }
+      },
+      "display": {
+        "unauthorized": {
+          "title": "Denne visning er ikke frigivet",
+          "hint": "Bed om et link med token, eller log ind. Linket findes i stævnets board-administration under “Del link”."
+        }
       }
     },
     "betrieb": {

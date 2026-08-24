@@ -38,17 +38,42 @@ export type BoardAlarmProps = {
  * Deckkraft-Stufen, damit der Alarm trotzdem unübersehbar bleibt. Ein Alarm, den man abschalten
  * kann, wäre kein Alarm.
  */
+/**
+ * Die Alarmfarben stehen hier FEST und kommen bewusst nicht aus dem Theme (`warning.main` /
+ * `error.main`). Zwei Gründe, beide am laufenden Bildschirm aufgefallen:
+ *
+ * - Das Theme einer Veranstaltung ist Gestaltung: Vereinsfarben, Sponsorentöne, oft pastellig.
+ *   Der Vorgabe-Warnton lief als heller Sandton (rgb(245,217,176)) durch — auf einem Bildschirm
+ *   am Steg ist das aus zehn Metern kein Alarm mehr, sondern eine Verfärbung.
+ * - Ein Alarm muss auf JEDER Veranstaltung gleich aussehen. Wer das Theme umstellt, darf nicht
+ *   versehentlich die Bedeutung von „angehalten" und „Fehlstart" verwässern.
+ *
+ * Deshalb: kräftiges Bernstein für „angehalten", kräftiges Rot für „Fehlstart", beide dunkel
+ * genug für weiße Schrift.
+ */
+const ALARM_COLORS: Record<BoardAlarmTone, string> = {
+    warning: '#e65100',
+    error: '#c62828',
+}
+
 const BoardAlarm = ({tone, children, sx}: BoardAlarmProps) => {
     if (tone === undefined) return <>{children}</>
+    const color = ALARM_COLORS[tone]
     return (
         <Box
             sx={[
                 {
                     position: 'relative',
                     borderRadius: 2,
-                    border: 8,
-                    borderColor: `${tone}.main`,
                     overflow: 'hidden',
+                    // DECKENDE Fläche statt eines Schleiers über dem Seitenhintergrund: Ein
+                    // pulsierender Schleier war in der Spitze halbdurchsichtig und damit blass.
+                    // Die Farbe steht jetzt fest, geblinkt wird über die Aufhellung darüber.
+                    bgcolor: color,
+                    // Alles darin erbt Weiß — auf beiden Alarmfarben der kontrastreichste Wert.
+                    // Einzelne `color`-Angaben der Kinder (z.B. `text.secondary`) müssen deshalb
+                    // vermieden werden; die Aufrufer setzen stattdessen `opacity`.
+                    color: '#fff',
                 },
                 ...(Array.isArray(sx) ? sx : sx !== undefined ? [sx] : []),
             ]}>
@@ -60,17 +85,22 @@ const BoardAlarm = ({tone, children, sx}: BoardAlarmProps) => {
                     // Der Schleier darf nie Klicks oder Tipp-Gesten schlucken — auf dem
                     // Startbildschirm entsperrt genau eine Geste den Ton (siehe `unlockAudio`).
                     pointerEvents: 'none',
-                    bgcolor: `${tone}.main`,
-                    opacity: 0.5,
+                    // Weiße Aufhellung, die auf- und abschwillt: Die Fläche bleibt dabei immer
+                    // satt farbig (der Alarm ist nie „halb weg"), das Pulsieren sieht man
+                    // trotzdem quer über den Steg.
+                    bgcolor: '#fff',
+                    opacity: 0,
                     '@keyframes boardAlarmPulse': {
-                        '0%': {opacity: 0.15},
-                        '50%': {opacity: 0.5},
-                        '100%': {opacity: 0.15},
+                        '0%': {opacity: 0},
+                        '50%': {opacity: 0.3},
+                        '100%': {opacity: 0},
                     },
                     animation: 'boardAlarmPulse 1s ease-in-out infinite',
                     '@media (prefers-reduced-motion: reduce)': {
+                        // Blinken ist für manche Menschen ein echtes Gesundheitsrisiko. Ohne
+                        // Bewegung bleibt die volle Farbfläche stehen — unübersehbar genug.
                         animation: 'none',
-                        opacity: 0.5,
+                        opacity: 0,
                     },
                 }}
             />

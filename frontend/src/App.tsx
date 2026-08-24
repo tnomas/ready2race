@@ -15,6 +15,7 @@ import './i18n/config'
 import {isLanguage, locales} from './i18n/config.ts'
 import CloseIcon from '@mui/icons-material/Close'
 import {installTimingDeviceTokenInterceptor} from '@utils/timing/deviceTokenInterceptor.ts'
+import {installBoardDeviceTokenInterceptor} from '@utils/board/deviceTokenInterceptor.ts'
 
 client.setConfig({
     baseUrl: Config.api.baseUrl,
@@ -23,6 +24,11 @@ client.setConfig({
 // Geteilte Zeitnahme-Geräte (Posten-Link mit ?token=…) authentifizieren sich ohne Sitzung über
 // das abgelegte Geräte-Token - der Interceptor hängt es an alle Timing-Aufrufe der Veranstaltung.
 installTimingDeviceTokenInterceptor()
+
+// Dasselbe für die Kachel-Boards: Ein montierter Bildschirm oder eine OBS-Browserquelle kann sich
+// nicht anmelden und kommt über den geteilten Board-Link (?token=…) an seine Anzeige - der
+// Interceptor hängt das dabei abgelegte Token an die beiden Board-Abrufe.
+installBoardDeviceTokenInterceptor()
 
 const language = document.getElementById('ready2race-root')!.dataset.lng
 if (isLanguage(language)) {

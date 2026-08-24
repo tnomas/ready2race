@@ -594,10 +594,14 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                                     </Typography>
                                     {view.next !== undefined && (
                                         <Stack spacing={1} alignItems="center" sx={{width: 1}}>
+                                            {/* Kein `color="text.secondary"` innerhalb des
+                                                Alarms: Die Alarmfläche ist deckend eingefärbt
+                                                und vererbt Weiß — eine Theme-Graustufe säße
+                                                darauf unlesbar. Zurückgenommen wird die Zeile
+                                                stattdessen über die Deckkraft. */}
                                             <Typography
                                                 variant="h6"
-                                                color="text.secondary"
-                                                sx={listFont('h6')}>
+                                                sx={[listFont('h6'), {opacity: 0.85}]}>
                                                 {t('timing.startDisplay.next')}
                                             </Typography>
                                             <Typography

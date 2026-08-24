@@ -408,7 +408,12 @@ object TimingService {
         val mark = !TimingTimeMarkRepo.get(timeMarkId).orDie().onNullFail { TimingError.TimeMarkNotFound }
         !KIO.failOn(mark.station != deviceToken.station) { TimingError.DeviceTokenInvalid }
 
-        val station = !TimingStationRepo.get(deviceToken.station).orDie()
+        // station ist seit Migration V202608250900 nullbar, weil dieselbe Tabelle auch
+        // Board-Tokens trägt (Anzeigen-Links). Ein solches Token hat hier nichts verloren -
+        // Zeitmarken hängt nur ein Posten-Token um -, und es fliegt mit derselben opaken
+        // Antwort raus wie jeder andere falsche Zuschnitt.
+        val stationId = !KIO.ok(deviceToken.station).onNullFail { TimingError.DeviceTokenInvalid }
+        val station = !TimingStationRepo.get(stationId).orDie()
             .onNullFail { TimingError.DeviceTokenInvalid }
         !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.DeviceTokenInvalid }
 

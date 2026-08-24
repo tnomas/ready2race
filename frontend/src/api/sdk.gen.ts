@@ -880,6 +880,9 @@ import type {
     DeleteBoardData,
     DeleteBoardError,
     DeleteBoardResponse,
+    CreateBoardShareLinkData,
+    CreateBoardShareLinkError,
+    CreateBoardShareLinkResponse,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -4514,7 +4517,7 @@ export const getPublicProgram = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Public list of the event's boards (id and name only); carries the redirect of the legacy athlete board url
+ * Short list of the event's boards (id and name only); carries the redirect of the legacy athlete board url. No longer public: needs either a session with READ BOARD or READ EVENT, or a board device token in the X-Timing-Device-Token header. Any board token OF THIS EVENT is accepted here, because a shared screen has to find its own board before it knows its id; the contents stay behind the per-board endpoint. A timing station token is rejected.
  */
 export const getPublicBoards = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetPublicBoardsData, ThrowOnError>,
@@ -4530,7 +4533,7 @@ export const getPublicBoards = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Everything one board needs in a single response: resolved configuration, timeline slots and lists
+ * Everything one board needs in a single response: resolved configuration, timeline slots and lists. No longer public: needs either a session with READ BOARD or READ EVENT, or a device token issued for EXACTLY THIS board in the X-Timing-Device-Token header (see createBoardShareLink). A token of another board, a timing station token and a revoked token are all answered alike with 401.
  */
 export const getBoardView = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetBoardViewData, ThrowOnError>,
@@ -4998,6 +5001,22 @@ export const deleteBoard = <ThrowOnError extends boolean = false>(
     return (options?.client ?? client).delete<DeleteBoardResponse, DeleteBoardError, ThrowOnError>({
         ...options,
         url: '/event/{eventId}/boards/{boardId}',
+    })
+}
+
+/**
+ * Issues a device token for the board automatically and returns the finished link (root-relative path plus token) - the way a wall-mounted screen or an OBS source gets at a board it cannot log in for. Mirrors createTimingStationShareLink down to the rule: reuse instead of inflation, so as long as an automatically issued, unrevoked token exists for the board, every call returns the SAME link; revoking it (deleteTimingDeviceToken, same table) makes the next call issue a fresh one. Requires a session with UPDATE BOARD or UPDATE EVENT - the same rights as the rest of the board administration.
+ */
+export const createBoardShareLink = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateBoardShareLinkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateBoardShareLinkResponse,
+        CreateBoardShareLinkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/boards/{boardId}/share-link',
     })
 }
 

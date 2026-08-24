@@ -2508,6 +2508,32 @@
         "showCountdown": "Clock/countdown",
         "upcomingListTitle": "Upcoming matches",
         "inMinutes": "in {{time}}"
+      },
+      "share": {
+        "action": "Share link",
+        "title": "Share board “{{name}}”",
+        "description": "The link carries this board’s device access: the screen (wall-mounted display, OBS browser source, phone) needs no login. The same board always returns the same link — until it is withdrawn here.",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "revokeHint": "The link stays retrievable here at any time. It is valid for this one board only — a second board on the same screen needs its own link.",
+        "error": "The link could not be created.",
+        "again": "Create new link",
+        "revoke": {
+          "action": "Withdraw link",
+          "success": "Link withdrawn",
+          "error": "The link could not be withdrawn.",
+          "done": "The link has been withdrawn and is invalid. “Create new link” issues a new one — QR codes already handed out do not become valid again.",
+          "confirm": {
+            "title": "Withdraw link?",
+            "content": "The shared link for “{{name}}” becomes invalid immediately; screens that loaded it will show nothing on their next refresh. Sharing again creates a NEW link — the old QR code will no longer work."
+          }
+        }
+      },
+      "display": {
+        "unauthorized": {
+          "title": "This display is not shared",
+          "hint": "Request a link with a token, or log in. The link is available in the event’s board administration under “Share link”."
+        }
       }
     },
     "betrieb": {

@@ -2508,6 +2508,32 @@
         "showCountdown": "Uhrzeit/Countdown",
         "upcomingListTitle": "Nächste Läufe",
         "inMinutes": "in {{time}}"
+      },
+      "share": {
+        "action": "Link teilen",
+        "title": "Board „{{name}}“ teilen",
+        "description": "Der Link trägt den Geräte-Zugang dieses Boards: Der Bildschirm (montierte Anzeige, OBS-Browserquelle, Telefon) braucht keine Anmeldung. Dasselbe Board liefert immer denselben Link — bis er hier zurückgezogen wird.",
+        "copy": "Link kopieren",
+        "copied": "Link kopiert",
+        "revokeHint": "Der Link bleibt hier jederzeit abrufbar. Er gilt nur für dieses eine Board — ein zweites Board am selben Bildschirm braucht seinen eigenen Link.",
+        "error": "Der Link konnte nicht erzeugt werden.",
+        "again": "Neuen Link erzeugen",
+        "revoke": {
+          "action": "Link zurückziehen",
+          "success": "Link zurückgezogen",
+          "error": "Der Link konnte nicht zurückgezogen werden.",
+          "done": "Der Link ist zurückgezogen und ungültig. „Neuen Link erzeugen“ stellt einen neuen aus — bereits verteilte QR-Codes werden dadurch nicht wieder gültig.",
+          "confirm": {
+            "title": "Link zurückziehen?",
+            "content": "Der geteilte Link für „{{name}}“ wird sofort ungültig; Bildschirme, die ihn geladen haben, zeigen beim nächsten Abruf nichts mehr. Ein erneutes Teilen erzeugt einen NEUEN Link — der alte QR-Code taugt dann nicht mehr."
+          }
+        }
+      },
+      "display": {
+        "unauthorized": {
+          "title": "Diese Anzeige ist nicht freigegeben",
+          "hint": "Link mit Token anfordern oder anmelden. Den Link gibt es in der Board-Verwaltung der Veranstaltung unter „Link teilen“."
+        }
       }
     },
     "betrieb": {
