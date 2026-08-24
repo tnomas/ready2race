@@ -42,11 +42,22 @@ create table timing_profile_assignment
     unique nulls not distinct (event, competition, competition_setup_round, competition_setup_match)
 );
 
-create index on timing_profile_assignment (event);
+-- Kein Einzelindex auf (event): die Spalte steht bereits an erster Stelle im Unique-Index über
+-- alle vier Pfad-Spalten und wird von dem mitbedient.
 create index on timing_profile_assignment (competition);
 
--- Altbestand 1: die Zeitnahmetyp-Zuordnungen. Wettkampf- und Runden-Zeilen wandern unverändert
--- herüber; die Veranstaltung kommt aus dem Wettkampf, eine Partie-Ebene gab es dort noch nicht.
+-- Altbestand: zwei frühere Wege kannten einander nicht. Ein Wettkampf konnte gleichzeitig eine
+-- wettkampfweite Zeitnahmetyp-Zuordnung (Runde null) UND ein gesetztes competition.raceclocker_race
+-- tragen -- beide wollen dieselbe Zeile (event, competition, null, null) belegen, was den
+-- unique-nulls-not-distinct-Constraint oben verletzen würde. Vorrang nach dem System der
+-- Veranstaltung: bei INTERN gewinnt der Zeitnahmetyp, sonst das Rennen -- nach dem Umbau ist
+-- ohnehin nur das Profil auflösbar, das zur Art der Veranstaltung passt, die jeweils andere Zeile
+-- wäre tote Datenlage. Betroffen ist ausschließlich die Wettkampf-Ebene: Runden-Zeilen tragen
+-- immer ihre eigene Runden-Id und können mit der Rennen-Zeile (die nie eine Runde trägt) nie
+-- kollidieren -- die on-conflict-Klauseln unten greifen dort schlicht nie.
+
+-- Altbestand 1a: Zeitnahmetyp-Zuordnungen der Veranstaltungen mit INTERN-System. Zuerst
+-- eingefügt, damit sie bei einer Kollision den Vorrang gegenüber dem Rennen behalten.
 insert into timing_profile_assignment
     (id, event, competition, competition_setup_round, competition_setup_match,
      timing_mode, created_at, created_by, updated_at, updated_by)
@@ -61,9 +72,14 @@ select tma.id,
        tma.updated_at,
        tma.updated_by
 from timing_mode_assignment tma
-         join competition c on c.id = tma.competition;
+         join competition c on c.id = tma.competition
+         join event e on e.id = c.event
+where e.timing_system = 'INTERN';
 
 -- Altbestand 2: das je Wettkampf angewählte RaceClocker-Rennen wird eine Wettkampf-Zeile.
+-- on conflict do nothing, ohne Zielangabe: deckt genau den unique-nulls-not-distinct-Constraint
+-- oben ab -- bei einer INTERN-Veranstaltung ist die Zeile durch Altbestand 1a schon belegt und
+-- bleibt beim Typ.
 insert into timing_profile_assignment
     (id, event, competition, competition_setup_round, competition_setup_match,
      raceclocker_race, created_at, created_by, updated_at, updated_by)
@@ -74,11 +90,35 @@ select gen_random_uuid(),
        null,
        c.raceclocker_race,
        now(),
-       c.updated_by,
+       c.created_by,
        now(),
        c.updated_by
 from competition c
-where c.raceclocker_race is not null;
+where c.raceclocker_race is not null
+on conflict do nothing;
+
+-- Altbestand 1b: die übrigen Zeitnahmetyp-Zuordnungen -- alle Veranstaltungen, deren System nicht
+-- INTERN ist (RACECLOCKER, WEBSCORER oder unkonfiguriert). Dort gewinnt das Rennen: bei einer
+-- Kollision ist die Wettkampf-Zeile schon durch Altbestand 2 belegt, on conflict do nothing lässt
+-- sie stehen.
+insert into timing_profile_assignment
+    (id, event, competition, competition_setup_round, competition_setup_match,
+     timing_mode, created_at, created_by, updated_at, updated_by)
+select tma.id,
+       c.event,
+       tma.competition,
+       tma.competition_setup_round,
+       null,
+       tma.timing_mode,
+       tma.created_at,
+       tma.created_by,
+       tma.updated_at,
+       tma.updated_by
+from timing_mode_assignment tma
+         join competition c on c.id = tma.competition
+         join event e on e.id = c.event
+where e.timing_system is distinct from 'INTERN'
+on conflict do nothing;
 
 -- Die alte Tabelle bleibt vorerst stehen und wird in V202608242110 gelöscht: Bis dahin benutzen
 -- neun Dateien den generierten Typ TIMING_MODE_ASSIGNMENT noch, und ein Zwischenstand, in dem das
