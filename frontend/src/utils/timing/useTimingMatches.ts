@@ -12,19 +12,35 @@ export type UseTimingMatchesResult = {
     /** Sofort neu laden (Mount, Reconnect, Sichtbarkeit). */
     refetch: () => void
     /**
-     * Entprelltes Neuladen für WebSocket-Trigger: `timeMarkCreated`/`assignmentChanged`/
-     * `sequenceChanged` ändern `progress` und die Team-Häkchen der Partien, kommen aber in
-     * Schüben (eine Welle startet acht Boote in acht Nachrichten). Statt je Nachricht eine
-     * Anfrage zu feuern, sammelt `bump` 800 ms und lädt dann einmal.
+     * Entprelltes Neuladen für WebSocket-Trigger, in zwei Rollen:
+     *
+     * - `matchesChanged` meldet, dass die Partienmenge selbst eine andere ist (ein Lauf ist
+     *   dazugekommen, weggefallen oder verschoben, oder sein Zeitnahmetyp löst sich anders auf).
+     * - `timeMarkCreated`/`assignmentChanged`/`sequenceChanged` melden das nicht, verschieben aber
+     *   `progress` und die Team-Häkchen der Partien.
+     *
+     * Beide kommen in Schüben (eine Welle startet acht Boote in acht Nachrichten, eine
+     * Rundenerzeugung fällt mit dem Zeitplan-Schreiben zusammen). Statt je Nachricht eine Anfrage
+     * zu feuern, sammelt `bump` 800 ms und lädt dann einmal.
      */
     bump: () => void
 }
 
 /**
  * Die Startliste eines Posten-Boards: `GET /event/{eventId}/timing/matches`, lesbar mit Sitzung
- * oder Geräte-Token. Es gibt keine eigene WebSocket-Nachricht für Partien — die vorhandenen
- * Nachrichten dienen als Auffrischungs-Trigger (siehe `bump`), dieselbe Entscheidung wie beim
- * Backend-Umbau dokumentiert.
+ * oder Geräte-Token.
+ *
+ * Seit dem 24.08.2026 gibt es dafür eine eigene WebSocket-Nachricht: `matchesChanged`, ein reiner
+ * Auslöser ohne Rumpf. Vorher trugen ausschließlich die übrigen Nachrichten die Auffrischung — und
+ * die setzen alle voraus, dass es die Partie schon gibt (eine Marke, eine Zuordnung, eine Sequenz
+ * hängen an einer bestehenden Partie). Ein frisch erzeugter Lauf, eine gelöschte Runde, eine
+ * verschobene Zeitplan-Zeile oder ein nachträglich gesetzter Zeitnahmetyp erreichten die Boards
+ * deshalb gar nicht; am Steg stand die Startliste dann still, bis jemand neu lud.
+ *
+ * Rumpflos ist die Nachricht mit Absicht: die Startliste ist eine gerechnete Sicht (Sortierung über
+ * die Rundenkette, aufgelöster Typ, Fortschritt je Team). Sie mitzuschicken hieße, diese Rechnung
+ * an jeder Schreibstelle des Backends anzustoßen; stattdessen holt sie sich der Hook selbst, über
+ * dieselbe entprellte `bump`-Bahn wie die übrigen Trigger.
  */
 export function useTimingMatches(eventId: string): UseTimingMatchesResult {
     const [matches, setMatches] = useState<TimingMatchDto[]>([])

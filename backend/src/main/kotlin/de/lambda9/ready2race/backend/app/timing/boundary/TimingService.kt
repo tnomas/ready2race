@@ -314,6 +314,75 @@ object TimingService {
         noData
     }
 
+    /**
+     * Der ausdrückliche FEHLSTART einer Partie - der Rückruf am Startposten.
+     *
+     * Mechanisch ist das nichts Neues, und das ist Absicht: Erst werden die aktiven Startsequenzen
+     * abgebrochen, in denen Boote dieser Partie stehen ([TimingSequenceService.abortSequence] -
+     * sonst feuerte die Kette weiter Startmarken, während die alten gerade zurückgehen), dann geht
+     * der ganze Versuch zurück ([retractMatchAttempt]). Beide Wege gab es schon, beide bleiben die
+     * eine Stelle, an der ihre Regeln stehen - hier wird nur die Reihenfolge festgelegt.
+     *
+     * Neu ist die ABSICHT, und die trägt [TimingWsMessage.FalseStart]: „dieser Lauf wurde
+     * zurückgerufen", damit die Athletenanzeigen rot blinken können. Die
+     * [TimingWsMessage.AttemptRetracted] der Rücknahme läuft unverändert mit - sie kommt auch beim
+     * stillen Aufräumen und taugt deshalb nicht als Signal für eine Anzeige am Wasser.
+     *
+     * Abgelehnt wird der Rückruf, wenn der wirksame Zeitnahmetyp der Partie ihn abschaltet (oder
+     * die Partie gar keinen Typ hat): im Rudersport wird ein Fehlstart im Timetrial mit Strafzeit
+     * geahndet statt mit Rückruf, ein zurückgeholtes Einzelstart-Feld wäre dort falsch. Die
+     * Prüfung sitzt bewusst HIER und nicht nur in der Oberfläche - ein Board mit veralteter
+     * Startliste (Typ gerade umgestellt) darf keinen Rückruf durchbringen.
+     *
+     * Was hier ABSICHTLICH nicht passiert: eine automatische 10-Sekunden-Strafzeit. Die 10 s waren
+     * die Begründung dafür, dass Timetrials den Rückruf abschalten, nicht ein Auftrag, sie zu
+     * vergeben - eine Strafe entscheidet der Schiedsrichter, und der Weg dafür steht schon
+     * (`penaltyMillis` an der offiziellen Zeit).
+     *
+     * Rechte wie bei der Versuchs-Rücknahme: nur mit Nutzersitzung, nie per Geräte-Token - ein
+     * Fehlstart nimmt Ergebnisse zurück.
+     */
+    fun falseStart(
+        setupMatchId: UUID,
+        eventId: UUID,
+        userId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        // Über die Startliste statt über eine eigene Abfrage: sie ist der Zuschnitt, den die
+        // Posten sehen (nur INTERN gezeitete, materialisierte, wirklich zu fahrende Läufe). Eine
+        // Partie, die dort nicht vorkommt, hat am Startposten keinen Rückruf zu erwarten.
+        val matches = !TimingMatchRepo.getMatchesByEvent(eventId).orDie()
+        val match = !KIO.ok(matches.firstOrNull { it.setupMatchId == setupMatchId })
+            .onNullFail { TimingError.FalseStartDisabled }
+
+        val assignments = !TimingModeAssignmentRepo.getByEvent(eventId).orDie()
+        val modeId = TimingModeResolveLogic.resolve(
+            assignments.map {
+                TimingModeResolveLogic.ModeAssignment(it.competition, it.competitionSetupRound, it.timingMode)
+            },
+            match.competitionId,
+            match.roundId,
+        )
+        val mode = modeId?.let { !TimingModeRepo.get(it).orDie() }
+        // Über die DTO-Umwandlung, damit die Rückfallregel für die nullable getippte Spalte an
+        // genau einer Stelle steht (siehe Conversions) - kein zweites `?: true` hier.
+        !KIO.failOn(mode == null || !mode.toDto().falseStartEnabled) { TimingError.FalseStartDisabled }
+
+        // Zuerst die Kette anhalten, dann zurücknehmen: umgekehrt könnte ein fälliger Eintrag
+        // zwischen Rücknahme und Abbruch noch eine frische Startmarke setzen, die niemand mehr
+        // abräumt.
+        val sequenceIds = !TimingSequenceEntryRepo.getActiveSequenceIdsForMatch(eventId, setupMatchId).orDie()
+        !sequenceIds.traverse { TimingSequenceService.abortSequence(it, userId, eventId) }
+
+        !retractMatchAttempt(setupMatchId, eventId, userId)
+
+        // Immer gemeldet, auch wenn nichts zurückzunehmen war (Rückruf noch vor der ersten Marke):
+        // Genau dann ist der Rückruf am wichtigsten - die Boote stehen noch, und die Anzeige ist
+        // das Einzige, was sie erreicht. Die Sparsamkeit der Rücknahme ("nur wenn wirklich etwas
+        // zurückging") passt zum Aufräumen, nicht zum Rückruf.
+        broadcastAsync(eventId, TimingWsMessage.FalseStart(setupMatchId))
+        noData
+    }
+
     fun assignTimeMark(
         request: AssignTimeMarkRequest,
         userId: UUID,

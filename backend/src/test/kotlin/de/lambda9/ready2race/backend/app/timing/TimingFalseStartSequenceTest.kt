@@ -72,6 +72,8 @@ class TimingFalseStartSequenceTest {
             finishTone = null,
             splitTone = null,
             falseStartTone = sequence,
+            showManualCapture = false,
+            startDisplay = null,
         ),
     ).map { }
 

@@ -192,12 +192,165 @@ object TimingSequenceService {
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        // Aus jedem aktiven Zustand heraus, ausdrücklich auch aus der Pause: „doch nicht
+        // weiterlaufen lassen" ist die zweite Antwort, die der Posten aus der Pause heraus
+        // braucht - neben dem Fortsetzen.
         !KIO.failOn(!sequence.stateEnum.isActive) { TimingError.SequenceStateConflict }
 
         // Leaves already fired entries (and their marks) alone - only the pending ones are called
         // off, which is exactly what an abort means at a start line.
         val updated = !TimingSequenceRepo.update(sequenceId) {
             state = SequenceState.ABORTED.name
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        !broadcastSequence(updated)
+        noData
+    }
+
+    /**
+     * Hält eine laufende Sequenz an: sie feuert nichts mehr, bleibt aber die Sequenz ihres
+     * Postens und steht weiter auf allen Boards.
+     *
+     * Der Fall am Wasser ist die Kulanz-Entscheidung der Schiedsrichter - eine Athletin kommt
+     * unverschuldet zu spät an den Start. Bisher blieb dafür nur das Abbrechen, das die ganze
+     * Kette verwarf; jetzt wird angehalten, ggf. der letzte Schritt zurückgesetzt
+     * ([rewindSequence]) und anschließend fortgesetzt ([resumeSequence]).
+     *
+     * Angehalten wird NICHT über einen gestoppten Wecker: gefeuert wird gegen die geplanten
+     * Zeitpunkte der Einträge, es gibt also gar keinen laufenden Timer. Die Pause ist deshalb nur
+     * dieser Zustand - [TimingSequenceRepo.getRunning] nimmt PAUSED nicht mehr auf, damit hört
+     * das Feuern auf - plus der gemerkte Pausenbeginn, aus dem [resumeSequence] die Verschiebung
+     * der Kette berechnet.
+     *
+     * Nur aus RUNNING: eine scharfgestellte Sequenz hat nichts anzuhalten (dort ist "abbrechen"
+     * das richtige Werkzeug), eine beendete erst recht nicht.
+     *
+     * Rennen mit dem Scheduler: ein Tick, der bereits mitten in seiner eigenen Transaktion
+     * steckt, kann noch einen fälligen Eintrag feuern, während dieser Aufruf pausiert - ein
+     * Fenster von unter einer Sekunde. Das ist bewusst nicht abgedichtet: der Posten drückt die
+     * Pause zwischen zwei Starts, und ein in derselben Sekunde ohnehin fälliger Start ist genau
+     * der, den [rewindSequence] anschließend zurücknehmen kann.
+     */
+    fun pauseSequence(
+        sequenceId: UUID,
+        userId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        !KIO.failOn(sequence.stateEnum != SequenceState.RUNNING) { TimingError.SequenceStateConflict }
+
+        // Die Serveruhr ist auch hier das Protokoll: aus DIESEM Zeitpunkt und dem des Fortsetzens
+        // ergibt sich die Pausendauer, um die die ganze Kette nach hinten rückt. Die Boards
+        // rechnen daran nichts mit, sie bekommen die fertigen geplanten Zeiten.
+        val pausedAt = System.currentTimeMillis()
+        val updated = !TimingSequenceRepo.update(sequenceId) {
+            state = SequenceState.PAUSED.name
+            pausedAtMillis = pausedAt
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        !broadcastSequence(updated)
+        noData
+    }
+
+    /**
+     * Setzt eine angehaltene Sequenz fort und schiebt dabei die ganze Kette um die Pausendauer
+     * nach hinten.
+     *
+     * Die Verschiebung läuft über `pause_shift_millis`, das [plannedStartMillis] auf JEDE Position
+     * gleichermaßen aufschlägt. Damit bleibt genau das erhalten, was am Start zählt: der Abstand
+     * zwischen zwei Booten ändert sich nicht, die Kette wandert nur als Ganzes. Bewusst nicht in
+     * `started_at_millis` hineingerechnet - der tatsächliche Startzeitpunkt der Sequenz bleibt
+     * ehrlich, und die Verschiebung steht nachvollziehbar daneben.
+     *
+     * Mehrfaches Anhalten summiert sich (der bestehende Wert wird erhöht, nicht überschrieben).
+     * `paused_at_millis` wird geleert - es beschreibt immer nur die LAUFENDE Pause.
+     *
+     * Nur aus PAUSED. Ein fehlender Pausenbeginn (theoretisch nur bei von Hand verbogenen Daten)
+     * verschiebt nichts, statt mit einem unsinnigen Wert zu rechnen: die Sequenz läuft dann
+     * einfach mit ihrem ursprünglichen Plan weiter.
+     */
+    fun resumeSequence(
+        sequenceId: UUID,
+        userId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        !KIO.failOn(sequence.stateEnum != SequenceState.PAUSED) { TimingError.SequenceStateConflict }
+
+        val pausedAt = sequence.pausedAtMillis
+        // coerceAtLeast(0): eine rückwärts gestellte Serveruhr darf die Kette niemals nach VORNE
+        // ziehen - dann feuerte sie Starts früher als geplant.
+        val pauseDuration = if (pausedAt == null) 0L else (System.currentTimeMillis() - pausedAt).coerceAtLeast(0L)
+
+        val updated = !TimingSequenceRepo.update(sequenceId) {
+            state = SequenceState.RUNNING.name
+            // Not-null-Spalte mit Default, vom jOOQ-Generator dennoch nullable typisiert.
+            pauseShiftMillis = (pauseShiftMillis ?: 0L) + pauseDuration
+            pausedAtMillis = null
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        !broadcastSequence(updated)
+        noData
+    }
+
+    /**
+     * Setzt aus der Pause heraus den letzten Schritt zurück: der zuletzt GESTARTETE Eintrag wird
+     * wieder zu einem anstehenden Start, seine Startmarke geht zurück.
+     *
+     * Das ist der eigentliche Kulanz-Griff: das Boot, dessen Start gerade rausging, obwohl die
+     * Athletin noch nicht da war, steht danach wieder auf der Liste und wird beim Fortsetzen
+     * erneut gestartet. Weil sein Slot zu diesem Zeitpunkt schon vorbei ist, feuert er direkt
+     * nach dem Fortsetzen - die nachfolgenden Boote behalten ihren gewohnten Abstand dazu, weil
+     * die Pausen-Verschiebung für alle gleich ist.
+     *
+     * Für die Marke wird die vorhandene Rücknahme benutzt ([TimingService.retractTimeMark]) statt
+     * einer eigenen Mechanik: dort hängt bereits alles dran, was eine zurückgenommene Marke nach
+     * sich zieht - die Neuberechnung und Rückschreibung der offiziellen Zeit des Teams und der
+     * `timeMarkRetracted`-Broadcast an die Leitstände. Die Zuordnung der Marke bleibt wie immer
+     * stehen, die Rücknahme ist also über die Reaktivierung umkehrbar.
+     *
+     * Bewusst NICHT dabei: der Ist-Start der Partie (`started_at`). Bei einem Einzelstart ist der
+     * zurückgesetzte Eintrag in aller Regel nicht das erste Boot seiner Partie - der Stempel
+     * gehört dann weiterhin zum Start des ersten Bootes und darf nicht fallen. Wer den ganzen
+     * Versuch einer Partie verwerfen will, nimmt „Start zurücknehmen und neu starten" im
+     * Partie-Menü ([TimingService.retractMatchAttempt]); das ist die Bündel-Rücknahme mit
+     * Laufzustand, diese hier ist die punktgenaue.
+     *
+     * Nur aus PAUSED (ein Zurücksetzen mitten im laufenden Countdown wäre ein Wettlauf mit dem
+     * Scheduler) und nur, wenn es überhaupt einen gestarteten Eintrag gibt.
+     */
+    fun rewindSequence(
+        sequenceId: UUID,
+        userId: UUID,
+        eventId: UUID,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        !KIO.failOn(sequence.stateEnum != SequenceState.PAUSED) { TimingError.SequenceStateConflict }
+
+        val entry = !TimingSequenceEntryRepo.getLastStarted(sequenceId).orDie()
+        !KIO.failOn(entry == null) { TimingError.SequenceStateConflict }
+
+        // Erst die Marke zurücknehmen, dann den Eintrag umstellen: solange der Eintrag noch auf
+        // seine Marke zeigt, ist der Zusammenhang lückenlos, falls die Rücknahme scheitert und
+        // die Transaktion zurückrollt.
+        val markId = entry!!.timeMark
+        if (markId != null) {
+            !TimingService.retractTimeMark(markId, eventId, userId)
+        }
+        !TimingSequenceEntryRepo.update(entry.id) {
+            status = SequenceEntryStatus.PENDING.name
+            timeMark = null
+        }.orDie().onNullFail { TimingError.SequenceEntryNotFound }
+
+        // Einträge führen keine eigenen Audit-Spalten, die Änderung wird deshalb an der Sequenz
+        // protokolliert (dasselbe Muster wie beim Überspringen).
+        val updated = !TimingSequenceRepo.update(sequenceId) {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
@@ -260,6 +413,11 @@ object TimingSequenceService {
      * capture path uses.
      *
      * Broadcasts: none happen here - see [FireResult] and [broadcastFireResult].
+     *
+     * Pause: eine angehaltene Sequenz feuert nichts. Das entscheidet allein
+     * [TimingSequenceRepo.getRunning] - der Filter nimmt ausschließlich RUNNING auf, PAUSED
+     * kommt hier also gar nicht erst an. Deshalb braucht es unten keine zweite Prüfung, und
+     * deshalb darf der Filter nie auf „alle aktiven Zustände" aufgeweicht werden.
      */
     fun fireDueEntries(): App<Nothing, FireResult> = KIO.comprehension {
         val now = System.currentTimeMillis()

@@ -71,6 +71,10 @@ object TimingOfficialTimeService {
         val splitTone: CaptureTone,
         /** Fehlstart-FOLGE, ebenfalls aufgelöst - nie leer. */
         val falseStartTone: List<ToneStep>,
+        /** Zeigt das START-Board den manuellen Stempel? Vorgabe der Spalte ist `false`. */
+        val showManualCapture: Boolean,
+        /** Anzeige-Block des Startbildschirms, aufgelöst - siehe [toDto]. */
+        val startDisplay: StartDisplaySettings,
     ) {
         /** Die eine Stelle, die aus dem internen Stand die Board-Sicht baut (GET + Broadcast). */
         fun toDto() = TimingSettingsDto(
@@ -79,6 +83,8 @@ object TimingOfficialTimeService {
             finishTone = finishTone,
             splitTone = splitTone,
             falseStartTone = falseStartTone,
+            showManualCapture = showManualCapture,
+            startDisplay = startDisplay,
         )
     }
 
@@ -459,6 +465,14 @@ object TimingOfficialTimeService {
                 // einelementigen Folge - die Boards kennen nur noch Folgen.
                 falseStartTone = event?.timingFalseStartTone.toToneSequence()
                     ?: TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE,
+                // Spalte ist NOT NULL mit Vorgabe `false` (Migration V202608242000); jOOQ
+                // typisiert sie dennoch nullable - dieselbe Rückfalllinie wie beim Schalter oben.
+                showManualCapture = event?.timingShowManualCapture ?: false,
+                // null = unkonfiguriert: der Startbildschirm bekommt immer einen vollständigen
+                // Anzeige-Block, deshalb werden die eingebauten Vorgaben schon hier aufgelöst
+                // statt in jedem Client - genau wie bei den Tönen.
+                startDisplay = event?.timingStartDisplay.toStartDisplaySettings()
+                    ?: TimingStartDisplayLimits.DEFAULT,
             )
         }
 

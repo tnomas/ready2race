@@ -1,0 +1,27 @@
+-- Fehlstart je Zeitnahmetyp abschaltbar.
+--
+-- Bis hierher gab es „Fehlstart" nur als Nebenwirkung: ein Ton, den die Boards spielten, wenn eine
+-- laufende Sequenz abgebrochen (RUNNING→ABORTED) oder ein Versuch zurückgenommen wurde. Es gab
+-- keine Geste, die „Fehlstart" HIESS, keinen sichtbaren Zustand und nichts, was die Anzeigen am
+-- Wasser erreicht hätte. Seit dem 24.08.2026 gibt es den ausdrücklichen Auslöser am Erfassungsboard
+-- des START-Postens: er bricht die laufende Startsequenz der Partie ab, nimmt den Versuch zurück
+-- (beides die vorhandenen Wege) und schickt zusätzlich eine eigene Nachricht in den
+-- Zeitnahme-Kanal, damit die Athletenanzeige rot blinken kann.
+--
+-- Warum abschaltbar und warum genau hier: der Rückruf ist nicht überall die richtige Ahndung. Im
+-- Rudersport werden Timetrials mit einer Strafzeit von 10 s belegt, statt das Feld zurückzuholen -
+-- ein Fehlstart-Knopf wäre dort schlicht falsch und im Zweifel gefährlich (ein Rückruf mitten in
+-- ein laufendes Einzelstart-Feld hinein). Die Entscheidung hängt am Zeitnahmetyp, weil genau er die
+-- Frage „wie wird hier gestartet?" beantwortet und derselbe Typ für viele Wettkämpfe und Runden
+-- gilt (V202608211400) - eine Spalte am Wettkampf müsste dieselbe Antwort dutzendfach wiederholen.
+--
+-- not null default true: bestehende Typen behalten den Auslöser. Der Fehlstart ist der Normalfall
+-- am Massen- und Wellenstart; wer ihn nicht will (Timetrial), schaltet ihn bewusst ab. Ein Default
+-- von false hätte die Funktion für jede bestehende Veranstaltung unsichtbar gemacht.
+--
+-- NICHT Teil dieser Spalte: die 10-Sekunden-Strafzeit. Sie war die BEGRÜNDUNG dafür, dass
+-- Timetrials den Rückruf abschalten, nicht ein Auftrag, sie automatisch zu vergeben - eine Strafe
+-- vergibt der Schiedsrichter, und der Weg dafür steht schon (penalty_millis an der offiziellen
+-- Zeit). Bleibt als offener Punkt notiert.
+alter table timing_mode
+    add column false_start_enabled boolean not null default true;

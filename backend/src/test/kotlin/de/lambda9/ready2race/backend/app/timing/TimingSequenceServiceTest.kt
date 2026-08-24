@@ -678,6 +678,323 @@ class TimingSequenceServiceTest {
         assertEquals(startedAt + 3000 + 1000, entries[1].plannedStartMillis)
     }
 
+    // --- Anhalten, Zurücksetzen, Fortsetzen -----------------------------------------------------
+
+    @Test
+    fun pausedSequenceFiresNothing() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Position 0 ist 500 ms überfällig - ohne Pause würde sie im nächsten Tick feuern.
+        !shiftStart(sequenceId, System.currentTimeMillis() - 500 - LEAD_IN)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        val paused = !TimingSequenceRepo.get(sequenceId).orDie()
+        assertEquals(SequenceState.PAUSED.name, paused!!.state)
+        assertNotNull(paused.pausedAtMillis)
+
+        // Der Kern der Pause: der Scheduler lässt eine angehaltene Sequenz vollständig in Ruhe.
+        assertEquals(0, (!TimingSequenceService.fireDueEntries()).fired.size)
+        assertTrue(
+            (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+                .all { it.status == SequenceEntryStatus.PENDING.name }
+        )
+
+        // Und sie ist keine Sackgasse: fortgesetzt feuert der überfällige Eintrag sofort.
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        assertEquals(1, (!TimingSequenceService.fireDueEntries()).fired.size)
+    }
+
+    @Test
+    fun resumeShiftsPlannedStartsByThePauseDuration() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(teamA, teamB), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val startedAt = System.currentTimeMillis()
+        !shiftStart(sequenceId, startedAt)
+
+        val plannedBefore = !plannedStartsOf(sequenceId, eventId, stationId)
+        assertEquals(listOf(startedAt + LEAD_IN, startedAt + LEAD_IN + 60000), plannedBefore)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        // Statt zu schlafen: den Pausenbeginn um 30 s nach hinten datieren - das Fortsetzen
+        // rechnet dann mit einer 30-Sekunden-Pause, wie sie am Wasser realistisch ist.
+        val pauseMillis = 30000L
+        !backdatePause(sequenceId, pauseMillis)
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+
+        val resumed = !TimingSequenceRepo.get(sequenceId).orDie()
+        assertEquals(SequenceState.RUNNING.name, resumed!!.state)
+        // Die laufende Pause ist vorbei und darf nicht ein zweites Mal verrechnet werden.
+        assertNull(resumed.pausedAtMillis)
+        val shift = resumed.pauseShiftMillis!!
+        // Der Testlauf selbst braucht ein paar Millisekunden - deshalb ein Fenster statt eines
+        // exakten Werts; entscheidend ist, dass die datierte Pause auch wirklich drinsteckt.
+        assertTrue(shift >= pauseMillis, "Verschiebung $shift ist kleiner als die Pause $pauseMillis")
+        assertTrue(shift < pauseMillis + 10000, "Verschiebung $shift ist unplausibel groß")
+
+        // Die Kette wandert als GANZES: beide Positionen um exakt dieselbe Verschiebung, der
+        // Abstand zwischen den Booten bleibt damit die eingestellte Minute.
+        val plannedAfter = !plannedStartsOf(sequenceId, eventId, stationId)
+        assertEquals(plannedBefore.map { it + shift }, plannedAfter)
+        assertEquals(60000L, plannedAfter[1] - plannedAfter[0])
+        // Der tatsächliche Startzeitpunkt bleibt unangetastet - die Pause rechnet sich nicht in
+        // ihn hinein, sondern steht als eigener Wert daneben.
+        assertEquals(startedAt, resumed.startedAtMillis)
+    }
+
+    @Test
+    fun repeatedPausesAccumulateTheirShift() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !shiftStart(sequenceId, System.currentTimeMillis() + 600000)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        !backdatePause(sequenceId, 10000L)
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        !backdatePause(sequenceId, 20000L)
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+
+        // Zweimal angehalten heißt zweimal verschoben - die zweite Pause darf die erste nicht
+        // überschreiben, sonst verlöre die Kette den bereits gewährten Aufschub wieder.
+        val shift = (!TimingSequenceRepo.get(sequenceId).orDie())!!.pauseShiftMillis!!
+        assertTrue(shift >= 30000L, "Verschiebung $shift enthält nicht beide Pausen")
+        assertTrue(shift < 40000L, "Verschiebung $shift ist unplausibel groß")
+    }
+
+    @Test
+    fun rewindMakesTheLastStartedEntryPendingAgain() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(teamA, teamB), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Nur Position 0 wird fällig - Position 1 liegt eine volle Minute später.
+        !shiftStart(sequenceId, System.currentTimeMillis() - 500 - LEAD_IN)
+        val fired = (!TimingSequenceService.fireDueEntries()).fired.single()
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+
+        // Der Eintrag steht wieder an: kein Status STARTED, keine Marke mehr an ihm.
+        val entry = !TimingSequenceEntryRepo.get(fired.entryId).orDie()
+        assertEquals(SequenceEntryStatus.PENDING.name, entry!!.status)
+        assertNull(entry.timeMark)
+
+        // Und die Startmarke ist über die vorhandene Rücknahme zurückgegangen - nicht gelöscht,
+        // sondern RETRACTED, damit sie im Leitstand nachvollziehbar bleibt.
+        val mark = !TimingTimeMarkRepo.get(fired.mark.id).orDie()
+        assertEquals("RETRACTED", mark!!.status)
+
+        // Fortgesetzt startet das Boot erneut: sein Slot ist längst vorbei, also feuert es sofort
+        // und bekommt eine frische Marke.
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        val again = (!TimingSequenceService.fireDueEntries()).fired.single()
+        assertEquals(teamA, again.mark.assignedTeam)
+        assertTrue(again.mark.id != fired.mark.id)
+    }
+
+    @Test
+    fun rewindTakesTheLastStartedEntryNotTheFirst() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+        val teamC = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 1000, listOf(teamA, teamB, teamC), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Positionen 0 und 1 sind fällig, Position 2 noch nicht.
+        !shiftStart(sequenceId, System.currentTimeMillis() - 1500 - LEAD_IN)
+        assertEquals(2, (!TimingSequenceService.fireDueEntries()).fired.size)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+
+        // Genau EIN Schritt zurück: Position 1 steht wieder an, Position 0 bleibt gestartet.
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()).sortedBy { it.position }
+        assertEquals(
+            listOf(
+                SequenceEntryStatus.STARTED.name,
+                SequenceEntryStatus.PENDING.name,
+                SequenceEntryStatus.PENDING.name,
+            ),
+            entries.map { it.status },
+        )
+        assertNotNull(entries[0].timeMark)
+    }
+
+    @Test
+    fun pausingIsOnlyPossibleWhileRunning() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+
+        // Scharfgestellt, aber nicht gestartet - es läuft nichts, was man anhalten könnte.
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        }
+
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        // Zweimal anhalten würde den Pausenbeginn überschreiben und damit den bereits gewährten
+        // Aufschub verschlucken.
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        }
+
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        }
+    }
+
+    @Test
+    fun resumingAndRewindingAreOnlyPossibleWhilePaused() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+
+        // ARMED: weder fortzusetzen noch zurückzusetzen.
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        }
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+        }
+
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // RUNNING: das Zurücksetzen mitten im laufenden Countdown wäre ein Wettlauf mit dem
+        // Scheduler - erst anhalten.
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        }
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+        }
+    }
+
+    @Test
+    fun rewindingWithoutAnyStartedEntryConflicts() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+
+        // Angehalten noch im Vorlauf: es gibt keinen Start, den man zurücknehmen könnte.
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+        }
+    }
+
+    @Test
+    fun pausedSequenceKeepsHoldingItsStation() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+        val request = CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN)
+
+        val created = !TimingSequenceService.createSequence(request, userId, eventId)
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+
+        // Die Pause ist eine Unterbrechung, kein Ende: der Posten bleibt belegt (sonst feuerten
+        // nach dem Fortsetzen zwei Sequenzen auf dieselbe Startlinie) ...
+        assertKIOFails(TimingError.SequenceAlreadyActive) {
+            TimingSequenceService.createSequence(request, userId, eventId)
+        }
+
+        // ... und die Boards sehen sie weiterhin als die aktive Sequenz ihres Postens.
+        val response = !TimingSequenceService.getActiveSequence(eventId, stationId)
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence
+        assertNotNull(dto)
+        assertEquals(sequenceId, dto.id)
+        assertEquals(SequenceState.PAUSED, dto.state)
+        assertNotNull(dto.pausedAtMillis)
+    }
+
+    // Die geplanten Startzeiten so, wie die Boards sie sehen - über den Endpunkt statt über die
+    // Umrechnung, damit der Test wirklich die ausgelieferte Sicht prüft.
+    private fun plannedStartsOf(
+        sequenceId: java.util.UUID,
+        eventId: java.util.UUID,
+        stationId: java.util.UUID,
+    ) = TimingSequenceService.getActiveSequence(eventId, stationId).map { response ->
+        val dto = ((response as ApiResponse.Dto<ActiveSequenceDto>).dto).sequence!!
+        assertEquals(sequenceId, dto.id)
+        dto.entries.sortedBy { it.position }.map { it.plannedStartMillis!! }
+    }
+
+    // Statt zu schlafen: den Pausenbeginn um [millis] in die Vergangenheit datieren, damit das
+    // Fortsetzen mit einer echten Pausendauer rechnet.
+    private fun backdatePause(sequenceId: java.util.UUID, millis: Long) =
+        TimingSequenceRepo.update(sequenceId) {
+            pausedAtMillis = System.currentTimeMillis() - millis
+        }.orDie()
+
     // The scheduler owns the wall clock, so tests move the sequence's start instant instead of
     // sleeping: shifting startedAtMillis into the past makes exactly the intended slots due.
     private fun shiftStart(sequenceId: java.util.UUID, startedAt: Long) =

@@ -10005,6 +10005,41 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/matches/{matchId}/falseStart:
+    post:
+      operationId: falseStartMatch
+      description: >-
+        The explicit false start ("recall") of a match, triggered from the start station's capture
+        board. Mechanically it composes the two existing paths: the active start sequences holding
+        boats of this match are aborted first (so the chain cannot fire further start marks while
+        the old ones are being retracted), then the whole attempt is retracted exactly like
+        retractMatchAttempt does. What is new is the intent, carried by an own websocket message
+        `{ type: "falseStart", competitionSetupMatch: uuid }` on the timing channel, so athlete
+        displays can flash red and show "Fehlstart". The `attemptRetracted` message of the
+        retraction is still emitted unchanged - it also fires for silent clean-up and is therefore
+        not a usable signal for a display at the water. Rejected with 409 when the timing mode
+        resolved for the match does not allow a false start (or the match has no mode at all):
+        rowing time trials answer a false start with a time penalty instead of a recall. No penalty
+        is applied automatically - awarding one is a referee decision (penaltyMillis on the
+        official time). Requires a user session; device tokens cannot trigger a false start.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: The timing mode of this match does not allow a false start.
+      tags:
+        - Timing
   /event/{eventId}/timing/modes:
     get:
       operationId: getTimingModes
@@ -10325,6 +10360,74 @@ paths:
           schema:
             $ref: '#/components/schemas/uuid'
         - name: entryId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/pause:
+    post:
+      operationId: pauseTimingSequence
+      description: >
+        Hält eine laufende Sequenz an, ohne sie zu verwerfen - der Kulanz-Griff am Start, wenn ein
+        Boot unverschuldet zu spät kommt. Nur aus RUNNING, sonst 409.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/resume:
+    post:
+      operationId: resumeTimingSequence
+      description: >
+        Setzt eine angehaltene Sequenz fort. Die geplanten Startzeiten aller noch anstehenden
+        Einträge rücken um die Pausendauer nach hinten, das Intervall zwischen den Booten bleibt
+        gleich. Nur aus PAUSED, sonst 409.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/sequences/{sequenceId}/rewind:
+    post:
+      operationId: rewindTimingSequence
+      description: >
+        Setzt aus der Pause heraus den letzten Schritt zurück: der zuletzt GESTARTETE Eintrag wird
+        wieder zu einem anstehenden Start, seine Startmarke geht zurück (RETRACTED). Nur aus
+        PAUSED und nur, wenn es überhaupt einen gestarteten Eintrag gibt, sonst 409.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: sequenceId
           in: path
           required: true
           schema:
@@ -16016,6 +16119,18 @@ components:
             one-element sequence with offsetMillis 0, so no migration is needed.
           items:
             $ref: '#/components/schemas/ToneStepDto'
+        showManualCapture:
+          type: boolean
+          description: >-
+            Whether the capture board of a START station shows the manual capture button. Never
+            null - the column has a default (false), so the stamp is hidden unless somebody turns
+            it on; see TimingSettingsDto.showManualCapture for why.
+        startDisplay:
+          $ref: '#/components/schemas/StartDisplaySettingsDto'
+          nullable: true
+          description: >-
+            Display block of the start display. Like the tones NOT resolved - null means "built-in
+            defaults", so the form knows whether a custom value is set and can offer a reset.
         deviatingCompetitions:
           type: array
           description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
@@ -16028,6 +16143,7 @@ components:
         - watchBeforeMinutes
         - watchAfterMinutes
         - timingPrecision
+        - showManualCapture
 
     CompetitionTimingDeviationDto:
       type: object
@@ -16173,6 +16289,20 @@ components:
             single-tone object stays readable but is never produced again.
           items:
             $ref: '#/components/schemas/ToneStepDto'
+        showManualCapture:
+          type: boolean
+          description: >-
+            Whether the START capture board shows the manual capture button. Like the poll
+            intervals and the precision NOT optional - the column has a default (false), and null
+            would have to mean "leave unchanged", a meaning the form does not need and which would
+            make the switch impossible to turn off again.
+        startDisplay:
+          $ref: '#/components/schemas/StartDisplaySettingsDto'
+          nullable: true
+          description: >-
+            Display block of the start display, PUT semantics like the tones - null (or absent)
+            restores the built-in defaults. Partially set does not exist: either the whole block
+            or none of it. Limits are enforced here (scales 0.5..3.0, followingCount 0..20).
       required:
         - autoPull
         - intervalActiveSeconds
@@ -16180,6 +16310,7 @@ components:
         - watchBeforeMinutes
         - watchAfterMinutes
         - timingPrecision
+        - showManualCapture
 
     TimingSystem:
       type: string
@@ -20387,12 +20518,27 @@ components:
         distinguish "no assignment" from a field that was never sent.
         - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
         `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+        - `{ type: "matchesChanged" }` - the set of timed matches changed: rounds were created or
+        deleted, schedule slots moved a start time, a bye entered or left the field, or a timing
+        mode assignment changed. A trigger without a body (like `stationsChanged`), because a
+        single round generation changes many matches at once; refetch
+        `GET /event/{eventId}/timing/matches` (clients debounce this - see `useTimingMatches`).
+        The other messages all presuppose that a match already exists, so without this one a
+        newly generated race never reaches a board that stays connected.
         - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
         a whole attempt was retracted ("retract start", one message per retraction in addition to
         the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
         tone when the retracted match belongs to the sequence they are currently showing;
         `competitionMatchTeams` lists the teams whose active marks were retracted (may be empty
         when only the actual-start stamp was cleared).
+        - `{ type: "falseStart", competitionSetupMatch: uuid }` - an EXPLICIT false start (recall)
+        was triggered for that match from the start board. Athlete displays showing the match
+        should flash red and show "Fehlstart". Deliberately separate from `attemptRetracted`,
+        which also fires for silent clean-up ("retract start and restart" after a botched
+        capture) and must not make displays at the water flash; a false start emits both, so
+        boards keeping their mark lists and their false-start tone on `attemptRetracted` are
+        unaffected. Emitted even when nothing had to be retracted (a recall before the first
+        mark) - that is exactly when it matters most.
         - The channel is receive-only: clients should ignore any data they send on it and rely on the
         server's ping/pong keepalive.
         - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
@@ -20604,9 +20750,14 @@ components:
 
     SequenceState:
       type: string
+      description: >
+        PAUSED = angehalten: die Sequenz feuert nichts, belegt ihren Posten aber weiter und bleibt
+        die aktive Sequenz. Nur aus RUNNING erreichbar; von dort aus fortsetzen, zurücksetzen oder
+        abbrechen.
       enum:
         - ARMED
         - RUNNING
+        - PAUSED
         - DONE
         - ABORTED
 
@@ -20640,6 +20791,14 @@ components:
         startedAtMillis:
           type: integer
           format: int64
+        pausedAtMillis:
+          type: integer
+          format: int64
+          description: >
+            Beginn der laufenden Pause (Server-Epoch-Millis); nur bei state PAUSED gesetzt. Die
+            bereits aufgelaufene Pausendauer steckt dagegen schon in plannedStartMillis - eine
+            Pause verschiebt die ganze Kette um ihre Dauer nach hinten, der Abstand zwischen zwei
+            Booten bleibt gleich.
         entries:
           type: array
           items:
@@ -20777,6 +20936,8 @@ components:
         - finishTone
         - splitTone
         - falseStartTone
+        - showManualCapture
+        - startDisplay
       properties:
         autoApply:
           type: boolean
@@ -20805,6 +20966,89 @@ components:
             retracted or a running sequence is aborted for the match they are currently showing.
           items:
             $ref: '#/components/schemas/ToneStepDto'
+        showManualCapture:
+          type: boolean
+          description: >-
+            Whether the capture board of a START station shows the manual capture button. Default
+            false: otherwise a START station shows two green areas stacked on top of each other -
+            the big sequence start button and the manual stamp below it - both green, both labelled
+            "Start", which is an open mix-up on the water, and an accidental stamp writes a start
+            mark nobody ordered. Events that start without a sequence turn it on in the event
+            timing config; boards follow live via settingsChanged.
+        startDisplay:
+          $ref: '#/components/schemas/StartDisplaySettingsDto'
+          description: >-
+            What the start display (the athlete screen at the start) shows and how large, already
+            resolved like the tones: unconfigured events get the built-in defaults, so the display
+            simply renders what is sent here and never has to know about "unset".
+
+    StartDisplaySettingsDto:
+      type: object
+      description: >-
+        What the start display (the athlete screen at the start) shows and how large it shows it.
+        Until 24.08.2026 this was hard-wired to start number plus club, with the position number
+        duplicated on top - which does not carry on the water: a 27" screen on the pontoon needs
+        different type sizes than a tablet in the boat, and what identifies a boat differs from
+        regatta to regatta. Stored as ONE jsonb object on the event (null = the defaults below),
+        delivered resolved via GET /timing/settings and pushed live via settingsChanged. No field
+        is nullable - the fallback is the whole block, not a single field. Limits are enforced by
+        the service, not the database: clockScale/countdownScale/listScale 0.5..3.0,
+        followingCount 0..20.
+      required:
+        - showPosition
+        - showStartNumber
+        - showTeamName
+        - showClubName
+        - showAthleteNames
+        - clockScale
+        - countdownScale
+        - listScale
+        - followingCount
+      properties:
+        showPosition:
+          type: boolean
+          description: >-
+            The running number in front of a boat (1st, 2nd, 3rd ...). Default false - the screen
+            used to show the position twice, once as a number in the row and once through the
+            order of the list itself. Events with single starts at fixed intervals turn it on.
+        showStartNumber:
+          type: boolean
+          description: Start number of the boat - the usual identifier on the water, default true.
+        showTeamName:
+          type: boolean
+          description: Boat/team name, default true - it is what the announcer calls out.
+        showClubName:
+          type: boolean
+          description: Club(s) of the boat, default true; for composite crews the whole club chain.
+        showAthleteNames:
+          type: boolean
+          description: >-
+            Names of the rowers, default false: an eight is eight lines per boat, which leaves
+            nothing readable on a screen that lists several boats at once. Events rowing singles
+            or doubles have the room and turn it on.
+        clockScale:
+          type: number
+          format: double
+          description: >-
+            Size of the clock in the header as a factor on the built-in size (1.0 = unchanged,
+            allowed 0.5..3.0). A factor rather than a point size because the display already
+            scales relative to the screen width - a fixed point size would be wrong on every
+            second device.
+        countdownScale:
+          type: number
+          format: double
+          description: Size of the countdown, same factor semantics as clockScale (0.5..3.0).
+        listScale:
+          type: number
+          format: double
+          description: Size of the boat list, same factor semantics as clockScale (0.5..3.0).
+        followingCount:
+          type: integer
+          format: int32
+          description: >-
+            How many of the FOLLOWING boats are listed below the one currently being started
+            (0..20). 0 is a legitimate value and means "only the current boat" - the tidiest
+            display for a small screen.
 
     ToneWaveform:
       type: string
@@ -21078,6 +21322,7 @@ components:
         - withLaps
         - startGrouping
         - leadInSeconds
+        - falseStartEnabled
       properties:
         id:
           $ref: '#/components/schemas/uuid'
@@ -21088,6 +21333,13 @@ components:
         withLaps:
           type: boolean
           description: Whether lap times (SPLIT stations) are expected for matches of this mode.
+        falseStartEnabled:
+          type: boolean
+          description: >-
+            Whether the start board may trigger an explicit false start (recall) for matches of
+            this mode. Default true - the recall is the normal case for wave and mass starts. It
+            is switched off where a recall would be wrong: rowing time trials answer a false start
+            with a time penalty instead of calling the field back.
         startGrouping:
           $ref: '#/components/schemas/TimingStartGrouping'
         intervalSeconds:
@@ -21141,6 +21393,12 @@ components:
           description: Null restores the built-in default plan; limits see ToneStepDto.
           items:
             $ref: '#/components/schemas/ToneStepDto'
+        falseStartEnabled:
+          type: boolean
+          default: true
+          description: >-
+            Whether the start board may trigger an explicit false start (recall) for matches of
+            this mode. Omitted means true.
 
     TimingModeAssignmentDto:
       type: object

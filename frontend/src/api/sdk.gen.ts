@@ -1060,6 +1060,9 @@ import type {
     RetractMatchAttemptData,
     RetractMatchAttemptError,
     RetractMatchAttemptResponse,
+    FalseStartMatchData,
+    FalseStartMatchError,
+    FalseStartMatchResponse,
     GetTimingModesData,
     GetTimingModesError,
     GetTimingModesResponse,
@@ -1093,6 +1096,15 @@ import type {
     SkipTimingSequenceEntryData,
     SkipTimingSequenceEntryError,
     SkipTimingSequenceEntryResponse,
+    PauseTimingSequenceData,
+    PauseTimingSequenceError,
+    PauseTimingSequenceResponse,
+    ResumeTimingSequenceData,
+    ResumeTimingSequenceError,
+    ResumeTimingSequenceResponse,
+    RewindTimingSequenceData,
+    RewindTimingSequenceError,
+    RewindTimingSequenceResponse,
     StartTimingSequenceData,
     StartTimingSequenceError,
     StartTimingSequenceResponse,
@@ -5870,6 +5882,22 @@ export const retractMatchAttempt = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The explicit false start ("recall") of a match, triggered from the start station's capture board. Mechanically it composes the two existing paths: the active start sequences holding boats of this match are aborted first (so the chain cannot fire further start marks while the old ones are being retracted), then the whole attempt is retracted exactly like retractMatchAttempt does. What is new is the intent, carried by an own websocket message `{ type: "falseStart", competitionSetupMatch: uuid }` on the timing channel, so athlete displays can flash red and show "Fehlstart". The `attemptRetracted` message of the retraction is still emitted unchanged - it also fires for silent clean-up and is therefore not a usable signal for a display at the water. Rejected with 409 when the timing mode resolved for the match does not allow a false start (or the match has no mode at all): rowing time trials answer a false start with a time penalty instead of a recall. No penalty is applied automatically - awarding one is a referee decision (penaltyMillis on the official time). Requires a user session; device tokens cannot trigger a false start.
+ */
+export const falseStartMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<FalseStartMatchData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        FalseStartMatchResponse,
+        FalseStartMatchError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches/{matchId}/falseStart',
+    })
+}
+
 export const getTimingModes = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetTimingModesData, ThrowOnError>,
 ) => {
@@ -6022,6 +6050,57 @@ export const skipTimingSequenceEntry = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip',
+    })
+}
+
+/**
+ * Hält eine laufende Sequenz an, ohne sie zu verwerfen - der Kulanz-Griff am Start, wenn ein Boot unverschuldet zu spät kommt. Nur aus RUNNING, sonst 409.
+ *
+ */
+export const pauseTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PauseTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        PauseTimingSequenceResponse,
+        PauseTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/pause',
+    })
+}
+
+/**
+ * Setzt eine angehaltene Sequenz fort. Die geplanten Startzeiten aller noch anstehenden Einträge rücken um die Pausendauer nach hinten, das Intervall zwischen den Booten bleibt gleich. Nur aus PAUSED, sonst 409.
+ *
+ */
+export const resumeTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResumeTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ResumeTimingSequenceResponse,
+        ResumeTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/resume',
+    })
+}
+
+/**
+ * Setzt aus der Pause heraus den letzten Schritt zurück: der zuletzt GESTARTETE Eintrag wird wieder zu einem anstehenden Start, seine Startmarke geht zurück (RETRACTED). Nur aus PAUSED und nur, wenn es überhaupt einen gestarteten Eintrag gibt, sonst 409.
+ *
+ */
+export const rewindTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RewindTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        RewindTimingSequenceResponse,
+        RewindTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/rewind',
     })
 }
 

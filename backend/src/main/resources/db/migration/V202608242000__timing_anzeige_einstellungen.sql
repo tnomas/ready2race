@@ -1,0 +1,41 @@
+-- Zwei Anzeige-Entscheidungen der Zeitnahme, die bisher fest im Code standen.
+--
+-- 1) Manueller Stempel am START-Posten: Am Startposten stehen im Board zwei grüne Flächen
+--    untereinander — der große Sequenz-Startknopf und darunter der manuelle Stempel
+--    (CaptureButton). Beide sind grün, beide heißen „Start": am Wasser ist das eine offene
+--    Verwechslungsfalle, und ein versehentlicher Stempel setzt eine Startmarke, die niemand
+--    bestellt hat. Deshalb ist der Stempel künftig standardmäßig VERBORGEN (Vorgabe false) und
+--    wird nur eingeblendet, wo er wirklich gebraucht wird — etwa wenn eine Regatta spontan ohne
+--    Sequenz startet. Ein eigener boolean statt eines Eintrags im Anzeige-jsonb unten, weil er
+--    das ERFASSUNGS-Board betrifft und nicht den Startbildschirm; er hat außerdem eine echte
+--    Datenbank-Vorgabe und braucht die „null = Standard"-Semantik nicht.
+--
+-- 2) Startbildschirm (die Athleten-Anzeige am Start): Er zeigte bisher fest verdrahtet nur
+--    Startnummer und Verein und doppelte dabei die Positionsnummer. Was dort steht und wie groß
+--    es steht, hängt aber am Bildschirm und am Aufbau — ein 27-Zöller am Steg trägt andere
+--    Schriftgrößen als ein Tablet im Boot, und manche Regatten wollen die Bootsnamen sehen, andere
+--    nur die Nummer. Also wird der Block konfigurierbar: ein jsonb-OBJEKT an der Veranstaltung
+--    mit den Feldern {showPosition, showStartNumber, showTeamName, showClubName, showAthleteNames,
+--    clockScale, countdownScale, listScale, followingCount}. null = eingebaute Vorgaben
+--    (Startnummer/Bootsname/Verein an, Position und Athletennamen aus, alle Skalen 1.0, fünf
+--    folgende Boote) — genau wie bei den Tönen (V202608211470/V202608211480) muss eine
+--    unangefasste Regatta nichts gespeichert haben und bekommt trotzdem eine sinnvolle Anzeige.
+--
+-- Warum jsonb und keine neun Spalten: Die Felder gehören fachlich zu EINEM Bildschirm, werden
+-- immer gemeinsam gelesen und gemeinsam gesetzt, und der Block wächst erfahrungsgemäß weiter
+-- (jedes weitere Anzeige-Detail wäre sonst eine weitere Migration an der ohnehin breiten Tabelle
+-- `event`). Dieselbe Ablage wie die Ton-Felder daneben, dieselbe „null = Standard"-Bedeutung.
+--
+-- Grenzen erzwingt bewusst der SERVICE, nicht die Datenbank (Muster: TimingToneLimits) —
+-- Skalen 0.5..3.0, folgende Boote 0..20. Ein Check-Constraint auf jsonb-Feldern wäre
+-- schwerfällig, könnte den Fehler nicht feldweise benennen, und die Grenzen sind
+-- Bedien-Vernunft, keine Datenintegrität: zu klein ist unlesbar, zu groß passt nicht mehr auf
+-- den Bildschirm.
+--
+-- Beide Werte erreichen die Boards über GET /timing/settings (Geräte-Token-lesbar) und werden bei
+-- jeder Änderung live über settingsChanged an alle verbundenen Leitstände und Boards geschoben —
+-- ein Bildschirm am Steg soll einer Umstellung folgen, ohne dass jemand hinlaufen und neu laden
+-- muss.
+alter table event
+    add column timing_show_manual_capture boolean not null default false,
+    add column timing_start_display jsonb;

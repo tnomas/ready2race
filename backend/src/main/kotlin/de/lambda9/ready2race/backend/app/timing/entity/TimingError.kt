@@ -27,6 +27,13 @@ sealed interface TimingError : ServiceError {
     data object LinkedStationInvalid : TimingError
     data object StationNotCapturing : TimingError
 
+    /**
+     * Fehlstart auf einer Partie, deren Zeitnahmetyp ihn abschaltet (oder die gar keinen Typ hat).
+     * Kein 404 und kein 400: die Partie gibt es, der Aufruf ist wohlgeformt - er ist an DIESER
+     * Partie fachlich nicht zulässig, und das ist ein Konflikt.
+     */
+    data object FalseStartDisabled : TimingError
+
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
         StationHasTimeMarks -> ApiError(
@@ -89,6 +96,10 @@ sealed interface TimingError : ServiceError {
         StationNotCapturing -> ApiError(
             HttpStatusCode.BadRequest,
             message = "Time marks cannot be captured on a display station"
+        )
+        FalseStartDisabled -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "The timing mode of this match does not allow a false start"
         )
     }
 }

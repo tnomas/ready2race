@@ -2064,6 +2064,14 @@ export type EventTimingConfigDto = {
      */
     falseStartTone?: Array<ToneStepDto> | null
     /**
+     * Whether the capture board of a START station shows the manual capture button. Never null - the column has a default (false), so the stamp is hidden unless somebody turns it on; see TimingSettingsDto.showManualCapture for why.
+     */
+    showManualCapture: boolean
+    /**
+     * Display block of the start display. Like the tones NOT resolved - null means "built-in defaults", so the form knows whether a custom value is set and can offer a reset.
+     */
+    startDisplay?: StartDisplaySettingsDto | null
+    /**
      * The competitions that do not follow these defaults but set at least one of the three fields themselves.
      */
     deviatingCompetitions?: Array<CompetitionTimingDeviationDto>
@@ -2110,6 +2118,14 @@ export type EventTimingConfigRequest = {
      * False-start SEQUENCE, PUT semantics - null (or absent) restores the built-in default sequence. offsetMillis is counted FORWARD from the trigger here (0..60000), unlike a timing mode's tone plan; at most 30 steps. Always written as an array - the former single-tone object stays readable but is never produced again.
      */
     falseStartTone?: Array<ToneStepDto> | null
+    /**
+     * Whether the START capture board shows the manual capture button. Like the poll intervals and the precision NOT optional - the column has a default (false), and null would have to mean "leave unchanged", a meaning the form does not need and which would make the switch impossible to turn off again.
+     */
+    showManualCapture: boolean
+    /**
+     * Display block of the start display, PUT semantics like the tones - null (or absent) restores the built-in defaults. Partially set does not exist: either the whole block or none of it. Limits are enforced here (scales 0.5..3.0, followingCount 0..20).
+     */
+    startDisplay?: StartDisplaySettingsDto | null
 }
 
 export type FeeDto = {
@@ -3864,7 +3880,11 @@ export type SequenceEntryStatus = 'PENDING' | 'STARTED' | 'SKIPPED'
 
 export type SequenceMode = 'MASS' | 'INTERVAL'
 
-export type SequenceState = 'ARMED' | 'RUNNING' | 'DONE' | 'ABORTED'
+/**
+ * PAUSED = angehalten: die Sequenz feuert nichts, belegt ihren Posten aber weiter und bleibt die aktive Sequenz. Nur aus RUNNING erreichbar; von dort aus fortsetzen, zurücksetzen oder abbrechen.
+ *
+ */
+export type SequenceState = 'ARMED' | 'RUNNING' | 'PAUSED' | 'DONE' | 'ABORTED'
 
 export type ServerTimeResponse = {
     serverTimeMillis: number
@@ -3908,6 +3928,48 @@ export type SmtpConfigOverrideDto = {
 }
 
 export type smtpStrategy = 'SMTP' | 'SMTP_TLS' | 'SMTPS'
+
+/**
+ * What the start display (the athlete screen at the start) shows and how large it shows it. Until 24.08.2026 this was hard-wired to start number plus club, with the position number duplicated on top - which does not carry on the water: a 27" screen on the pontoon needs different type sizes than a tablet in the boat, and what identifies a boat differs from regatta to regatta. Stored as ONE jsonb object on the event (null = the defaults below), delivered resolved via GET /timing/settings and pushed live via settingsChanged. No field is nullable - the fallback is the whole block, not a single field. Limits are enforced by the service, not the database: clockScale/countdownScale/listScale 0.5..3.0, followingCount 0..20.
+ */
+export type StartDisplaySettingsDto = {
+    /**
+     * The running number in front of a boat (1st, 2nd, 3rd ...). Default false - the screen used to show the position twice, once as a number in the row and once through the order of the list itself. Events with single starts at fixed intervals turn it on.
+     */
+    showPosition: boolean
+    /**
+     * Start number of the boat - the usual identifier on the water, default true.
+     */
+    showStartNumber: boolean
+    /**
+     * Boat/team name, default true - it is what the announcer calls out.
+     */
+    showTeamName: boolean
+    /**
+     * Club(s) of the boat, default true; for composite crews the whole club chain.
+     */
+    showClubName: boolean
+    /**
+     * Names of the rowers, default false: an eight is eight lines per boat, which leaves nothing readable on a screen that lists several boats at once. Events rowing singles or doubles have the room and turn it on.
+     */
+    showAthleteNames: boolean
+    /**
+     * Size of the clock in the header as a factor on the built-in size (1.0 = unchanged, allowed 0.5..3.0). A factor rather than a point size because the display already scales relative to the screen width - a fixed point size would be wrong on every second device.
+     */
+    clockScale: number
+    /**
+     * Size of the countdown, same factor semantics as clockScale (0.5..3.0).
+     */
+    countdownScale: number
+    /**
+     * Size of the boat list, same factor semantics as clockScale (0.5..3.0).
+     */
+    listScale: number
+    /**
+     * How many of the FOLLOWING boats are listed below the one currently being started (0..20). 0 is a legitimate value and means "only the current boat" - the tidiest display for a small screen.
+     */
+    followingCount: number
+}
 
 export type StartListConfigDto = {
     id: string
@@ -4278,6 +4340,10 @@ export type TimingModeDto = {
      * Whether lap times (SPLIT stations) are expected for matches of this mode.
      */
     withLaps: boolean
+    /**
+     * Whether the start board may trigger an explicit false start (recall) for matches of this mode. Default true - the recall is the normal case for wave and mass starts. It is switched off where a recall would be wrong: rowing time trials answer a false start with a time penalty instead of calling the field back.
+     */
+    falseStartEnabled: boolean
     startGrouping: TimingStartGrouping
     /**
      * Set: starts follow automatically at this fixed interval (time trial). Null: every start is triggered by hand.
@@ -4303,6 +4369,10 @@ export type TimingModeRequest = {
      * Null restores the built-in default plan; limits see ToneStepDto.
      */
     tonePlan?: Array<ToneStepDto> | null
+    /**
+     * Whether the start board may trigger an explicit false start (recall) for matches of this mode. Omitted means true.
+     */
+    falseStartEnabled?: boolean
 }
 
 /**
@@ -4319,6 +4389,11 @@ export type TimingSequenceDto = {
     leadInMillis: number
     state: SequenceState
     startedAtMillis?: number
+    /**
+     * Beginn der laufenden Pause (Server-Epoch-Millis); nur bei state PAUSED gesetzt. Die bereits aufgelaufene Pausendauer steckt dagegen schon in plannedStartMillis - eine Pause verschiebt die ganze Kette um ihre Dauer nach hinten, der Abstand zwischen zwei Booten bleibt gleich.
+     *
+     */
+    pausedAtMillis?: number
     entries: Array<TimingSequenceEntryDto>
 }
 
@@ -4350,6 +4425,14 @@ export type TimingSettingsDto = {
      * False-start SEQUENCE of start boards, also resolved and never empty. Unconfigured events get the built-in default: three SAWTOOTH tones held at full volume - 200 Hz / 300 ms at 0 ms, the same again at 400 ms, then 180 Hz / 1500 ms with a 400 ms release at 800 ms ("short - short - long"). Sawtooth and the low pitch are deliberate: a sine is lost in regatta noise, and a repeated pattern with a differing final tone reads as a recall rather than as just another beep. Boards play the whole sequence with its offsets (counted forward from the trigger) when an attempt is retracted or a running sequence is aborted for the match they are currently showing.
      */
     falseStartTone: Array<ToneStepDto>
+    /**
+     * Whether the capture board of a START station shows the manual capture button. Default false: otherwise a START station shows two green areas stacked on top of each other - the big sequence start button and the manual stamp below it - both green, both labelled "Start", which is an open mix-up on the water, and an accidental stamp writes a start mark nobody ordered. Events that start without a sequence turn it on in the event timing config; boards follow live via settingsChanged.
+     */
+    showManualCapture: boolean
+    /**
+     * What the start display (the athlete screen at the start) shows and how large, already resolved like the tones: unconfigured events get the built-in defaults, so the display simply renders what is sent here and never has to know about "unset".
+     */
+    startDisplay: StartDisplaySettingsDto
 }
 
 /**
@@ -4427,6 +4510,14 @@ export type TimingStationRequest = {
  * tone when the retracted match belongs to the sequence they are currently showing;
  * `competitionMatchTeams` lists the teams whose active marks were retracted (may be empty
  * when only the actual-start stamp was cleared).
+ * - `{ type: "falseStart", competitionSetupMatch: uuid }` - an EXPLICIT false start (recall)
+ * was triggered for that match from the start board. Athlete displays showing the match
+ * should flash red and show "Fehlstart". Deliberately separate from `attemptRetracted`,
+ * which also fires for silent clean-up ("retract start and restart" after a botched
+ * capture) and must not make displays at the water flash; a false start emits both, so
+ * boards keeping their mark lists and their false-start tone on `attemptRetracted` are
+ * unaffected. Emitted even when nothing had to be retracted (a recall before the first
+ * mark) - that is exactly when it matters most.
  * - The channel is receive-only: clients should ignore any data they send on it and rely on the
  * server's ping/pong keepalive.
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
@@ -9722,6 +9813,17 @@ export type RetractMatchAttemptResponse = void
 
 export type RetractMatchAttemptError = unknown
 
+export type FalseStartMatchData = {
+    path: {
+        eventId: uuid
+        matchId: uuid
+    }
+}
+
+export type FalseStartMatchResponse = void
+
+export type FalseStartMatchError = unknown
+
 export type GetTimingModesData = {
     path: {
         eventId: uuid
@@ -9868,6 +9970,39 @@ export type SkipTimingSequenceEntryData = {
 export type SkipTimingSequenceEntryResponse = void
 
 export type SkipTimingSequenceEntryError = unknown
+
+export type PauseTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type PauseTimingSequenceResponse = void
+
+export type PauseTimingSequenceError = unknown
+
+export type ResumeTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type ResumeTimingSequenceResponse = void
+
+export type ResumeTimingSequenceError = unknown
+
+export type RewindTimingSequenceData = {
+    path: {
+        eventId: uuid
+        sequenceId: uuid
+    }
+}
+
+export type RewindTimingSequenceResponse = void
+
+export type RewindTimingSequenceError = unknown
 
 export type StartTimingSequenceData = {
     path: {

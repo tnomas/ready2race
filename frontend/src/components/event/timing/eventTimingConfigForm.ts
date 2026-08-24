@@ -1,10 +1,12 @@
 import {
     EventTimingConfigDto,
     EventTimingConfigRequest,
+    StartDisplaySettingsDto,
     TimingPrecision,
     TimingSystem,
 } from '@api/types.gen.ts'
 import {AutocompleteOption} from '@utils/types.ts'
+import {DEFAULT_START_DISPLAY, isDefaultStartDisplay} from '@utils/timing/startDisplay.ts'
 
 /** Wie im Wettkampf-Formular: „nicht gesetzt" ist im Radio ein Wert, im Request null. */
 export type EventTimingFormSystem = TimingSystem | 'NONE'
@@ -36,6 +38,20 @@ export type EventTimingForm = {
      * Systemwechsel soll den eingestellten Wert nicht verlieren.
      */
     timingPrecision: TimingPrecision
+    /**
+     * Ob das START-Board den manuellen Stempel zeigt. Wie die Genauigkeit nur bei INTERN sichtbar,
+     * aber immer im Request: die Spalte hat eine Vorgabe, und ein Systemwechsel soll die
+     * Entscheidung nicht verlieren.
+     */
+    showManualCapture: boolean
+    /**
+     * Der Anzeige-Block des Startbildschirms — im Formular IMMER vollständig (nie null), auch wenn
+     * die Veranstaltung noch nichts gespeichert hat: Schalter und Zahlenfelder brauchen einen
+     * konkreten Anfangswert, sonst stünden sie beim ersten Öffnen leer. Ob daraus beim Speichern
+     * ein eigener Wert oder wieder `null` („Standard") wird, entscheidet erst
+     * [mapEventTimingFormToRequest].
+     */
+    startDisplay: StartDisplaySettingsDto
 }
 
 export const emptyEventTimingForm: EventTimingForm = {
@@ -48,6 +64,8 @@ export const emptyEventTimingForm: EventTimingForm = {
     watchBeforeMinutes: 15,
     watchAfterMinutes: 120,
     timingPrecision: 'ZEHNTEL',
+    showManualCapture: false,
+    startDisplay: {...DEFAULT_START_DISPLAY},
 }
 
 export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingForm => ({
@@ -61,6 +79,12 @@ export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingF
     watchBeforeMinutes: dto.watchBeforeMinutes,
     watchAfterMinutes: dto.watchAfterMinutes,
     timingPrecision: dto.timingPrecision,
+    showManualCapture: dto.showManualCapture,
+    // null vom Server heisst „noch nichts gespeichert" — im Formular wird daraus der eingebaute
+    // Standard, damit die Schalter zeigen, was der Bildschirm tatsächlich anzeigt. Der Unterschied
+    // geht dabei nicht verloren: unverändert gespeichert wird daraus beim Zurückschreiben wieder
+    // null (siehe [mapEventTimingFormToRequest]).
+    startDisplay: dto.startDisplay ?? {...DEFAULT_START_DISPLAY},
 })
 
 /**
@@ -88,5 +112,14 @@ export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingC
         // Wie die Takte immer mitgeschickt (nicht verworfen wie die Presets): der Wert hat in der
         // Datenbank eine Vorgabe, und ein Systemwechsel soll ihn nicht zurücksetzen.
         timingPrecision: form.timingPrecision,
+        // Beide Anzeige-Entscheidungen reisen wie die Genauigkeit immer mit: Sie beschreiben
+        // Bildschirme, die auch nach einem Systemwechsel dieselben bleiben.
+        showManualCapture: form.showManualCapture,
+        // Ein unangetasteter Block wird wieder zu `null` — so bleibt die Veranstaltung an den
+        // eingebauten Vorgaben HÄNGEN statt sie einzufrieren: Wird der Standard später einmal
+        // verändert (etwa weil sich am Wasser zeigt, dass fünf folgende Boote zu viele sind),
+        // folgen alle Regatten, die nie etwas eingestellt haben, automatisch mit. Genau dieselbe
+        // Überlegung wie bei den Tönen.
+        startDisplay: isDefaultStartDisplay(form.startDisplay) ? null : form.startDisplay,
     }
 }

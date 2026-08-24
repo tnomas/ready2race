@@ -60,6 +60,7 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
     const [intervalInput, setIntervalInput] = useState('')
     const [leadInInput, setLeadInInput] = useState('10')
     const [withLaps, setWithLaps] = useState(false)
+    const [falseStartEnabled, setFalseStartEnabled] = useState(true)
     const [toneRows, setToneRows] = useState<ToneRow[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [invalidField, setInvalidField] = useState<
@@ -73,6 +74,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         setIntervalInput(entity?.intervalSeconds != null ? String(entity.intervalSeconds) : '')
         setLeadInInput(String(entity?.leadInSeconds ?? 10))
         setWithLaps(entity?.withLaps ?? false)
+        // Vorgabe „an“ wie in der Datenbank: der Rückruf ist der Normalfall, abgeschaltet wird er
+        // bewusst (Timetrial: Strafzeit statt Rückruf).
+        setFalseStartEnabled(entity?.falseStartEnabled ?? true)
         // null/leer = eingebauter Standard: der Editor zeigt ihn als konkrete, bearbeitbare
         // Zeilen — beim Speichern wird ein unveränderter Standard wieder zu null normalisiert.
         setToneRows(
@@ -115,6 +119,7 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         const body: TimingModeRequest = {
             name: trimmedName,
             withLaps,
+            falseStartEnabled,
             startGrouping,
             intervalSeconds: intervalSeconds !== null ? Math.floor(intervalSeconds) : null,
             leadInSeconds: Math.floor(leadInSeconds),
@@ -216,6 +221,24 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         }
                         label={t('event.timing.modes.withLaps')}
                     />
+                    {/* Fehlstart-Rückruf: der Schalter entscheidet, ob das Erfassungsboard des
+                        START-Postens den Fehlstart überhaupt anbietet — und der Server lehnt ihn
+                        ohne ihn auch ab. Aus für Timetrials: dort wird ein Fehlstart mit
+                        Strafzeit geahndet, nicht mit einem Rückruf des Feldes. */}
+                    <Stack spacing={0.5}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={falseStartEnabled}
+                                    onChange={(_, checked) => setFalseStartEnabled(checked)}
+                                />
+                            }
+                            label={t('event.timing.modes.falseStartEnabled')}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                            {t('event.timing.modes.falseStartEnabledHelp')}
+                        </Typography>
+                    </Stack>
 
                     <Divider />
 

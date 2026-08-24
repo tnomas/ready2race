@@ -1794,7 +1794,9 @@
           "presetDefault": "Standard (5…1−Start)",
           "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
           "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
-        }
+        },
+        "falseStartEnabled": "Fehlstart-Rückruf erlauben",
+        "falseStartEnabledHelp": "An: Der Startposten kann Läufe dieses Typs zurückrufen — die Startsequenz wird abgebrochen, der Versuch zurückgenommen und die Athletenanzeigen blinken rot. Aus für Timetrials: dort wird ein Fehlstart mit einer Strafzeit geahndet statt mit einem Rückruf des Feldes."
       },
       "races": {
         "title": "RaceClocker-Rennen",
@@ -1835,6 +1837,27 @@
         "timeline": "Zeitleiste der Töne",
         "timelineSpan": "Gesamtlänge {{millis}} ms",
         "offsetAfterTriggerHelp": "Der Zeitpunkt zählt vorwärts ab der Auslösung: 0 heißt sofort, 400 heißt 400 Millisekunden später."
+      },
+      "manualCapture": {
+        "title": "Manueller Stempel am Startposten",
+        "label": "Manuellen Stempel im Start-Board einblenden",
+        "hint": "Standardmäßig verborgen: Sonst stehen im Start-Board zwei grüne Flächen untereinander — der große Sequenz-Startknopf und darunter der manuelle Stempel, beide grün, beide „Start\". Am Wasser ist das eine Verwechslungsfalle, und ein versehentlicher Stempel setzt eine Startmarke, die niemand bestellt hat. Einblenden, wenn spontan ohne Startsequenz gestartet wird."
+      },
+      "startDisplay": {
+        "title": "Startbildschirm",
+        "hint": "Die Athleten-Anzeige am Start: Was zu jedem Boot angezeigt wird und wie groß. Ein 27-Zöller am Steg trägt andere Schriftgrößen als ein Tablet im Boot, und die eine Regatta ruft Startnummern aus, die nächste Bootsnamen. Änderungen erreichen jeden angeschlossenen Bildschirm sofort — ohne Neuladen.",
+        "showPosition": "Laufende Nummer vor dem Boot",
+        "showStartNumber": "Startnummer",
+        "showTeamName": "Bootsname",
+        "showClubName": "Verein",
+        "showAthleteNames": "Namen der Athletinnen und Athleten",
+        "clockScale": "Größe der Uhrzeit (Faktor)",
+        "countdownScale": "Größe des Countdowns (Faktor)",
+        "listScale": "Größe der Bootsliste (Faktor)",
+        "followingCount": "Folgende Boote in der Liste",
+        "scaleHint": "Die Größen sind Faktoren auf die eingebaute Darstellung: 1 lässt alles wie bisher, 2 verdoppelt, 0,5 halbiert. Erlaubt ist 0,5 bis 3. Bei den folgenden Booten bedeutet 0 „nur das aktuelle Boot\".",
+        "scaleInvalid": "Bitte einen Faktor zwischen 0,5 und 3 angeben.",
+        "followingInvalid": "Bitte eine Anzahl zwischen 0 und 20 angeben."
       }
     },
     "info": {
@@ -3200,7 +3223,8 @@
       "startSelected": "Starten: {{match}}",
       "error": {
         "start": "Die Startsequenz konnte nicht gestartet werden.",
-        "restart": "Der Start konnte nicht zurückgenommen werden."
+        "restart": "Der Start konnte nicht zurückgenommen werden.",
+        "falseStart": "Der Fehlstart konnte nicht ausgelöst werden."
       },
       "mode": {
         "interval": "alle {{seconds}} s",
@@ -3225,7 +3249,15 @@
         "keep": "Nichts ändern"
       },
       "restartDone": "Versuch zurückgenommen — die Partie kann neu gestartet werden",
-      "startFocused": "Start: {{match}}"
+      "startFocused": "Start: {{match}}",
+      "falseStart": "Fehlstart — Rennen zurückrufen",
+      "falseStartDone": "Fehlstart ausgelöst — das Rennen ist zurückgerufen",
+      "falseStartConfirm": {
+        "title": "Fehlstart auslösen?",
+        "content": "{{match}} wird zurückgerufen: Die laufende Startsequenz wird abgebrochen, der ganze Versuch zurückgenommen (Startmarken UND bereits erfasste Zielzeiten), und die Athletenanzeigen blinken rot mit „Fehlstart“. Eine Strafzeit wird dabei nicht vergeben — die entscheidet der Schiedsrichter.",
+        "ok": "Fehlstart auslösen",
+        "keep": "Weiterlaufen lassen"
+      }
     },
     "sequence": {
       "mode": {
@@ -3265,10 +3297,24 @@
         "create": "Sequenz konnte nicht angelegt werden",
         "start": "Sequenz konnte nicht gestartet werden",
         "abort": "Abbrechen fehlgeschlagen",
-        "skip": "Überspringen fehlgeschlagen"
+        "skip": "Überspringen fehlgeschlagen",
+        "pause": "Anhalten fehlgeschlagen",
+        "resume": "Weiterlaufen fehlgeschlagen",
+        "rewind": "Zurücknehmen fehlgeschlagen"
       },
       "bar": {
         "started": "{{started}}/{{total}} gestartet"
+      },
+      "pause": "Sequenz anhalten",
+      "resume": "Weiterlaufen lassen",
+      "rewind": "Letzten Start zurücknehmen",
+      "paused": {
+        "title": "Sequenz angehalten",
+        "next": "Als Nächstes: {{team}}"
+      },
+      "rewindConfirm": {
+        "title": "Letzten Start zurücknehmen?",
+        "content": "{{team}} steht danach wieder an und wird beim Weiterlaufen erneut gestartet. Die Startzeit wird zurückgenommen."
       }
     },
     "board": {
@@ -3523,7 +3569,13 @@
       "aborted": "Startsequenz abgebrochen",
       "next": "Am Start",
       "following": "Danach",
-      "notStart": "Dieser Posten ist kein Start-Posten — der Startbildschirm zeigt hier nichts an."
+      "notStart": "Dieser Posten ist kein Start-Posten — der Startbildschirm zeigt hier nichts an.",
+      "paused": "Startsequenz angehalten",
+      "pausedHint": "Es geht weiter, sobald die Sequenz fortgesetzt wird.",
+      "upcoming": "Nächster Lauf",
+      "upcomingFirst": "Zuerst am Start",
+      "falseStart": "Fehlstart",
+      "falseStartHint": "Rennen zurückgerufen — bitte an den Start zurückkehren und auf Anweisung warten."
     },
     "schedule": {
       "title": "Tagesablauf",
@@ -3535,6 +3587,9 @@
         "STARTED": "gestartet",
         "FINISHED": "fertig",
         "finishProgress": "{{finished}}/{{total}} im Ziel"
+      },
+      "day": {
+        "withoutTime": "ohne Startzeit"
       }
     },
     "marks": {

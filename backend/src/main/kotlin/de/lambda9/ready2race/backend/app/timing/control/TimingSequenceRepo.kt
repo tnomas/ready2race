@@ -11,7 +11,10 @@ import java.util.UUID
 
 object TimingSequenceRepo {
 
-    private val activeStates = listOf(SequenceState.ARMED.name, SequenceState.RUNNING.name)
+    // Aktiv = belegt den Posten: ARMED, RUNNING und - seit der Pause-Funktion - PAUSED. Die
+    // Liste kommt aus SequenceState.isActive, damit ein neuer Zustand nicht an einer von
+    // mehreren handgepflegten Aufzählungen vorbeirutscht.
+    private val activeStates = SequenceState.activeNames
     private val terminalStates = listOf(SequenceState.DONE.name, SequenceState.ABORTED.name)
 
     /**
@@ -103,6 +106,15 @@ object TimingSequenceRepo {
                 .fetchOne()
         }
 
+    /**
+     * Die Sequenzen, gegen die der Scheduler feuert - ausschließlich RUNNING.
+     *
+     * Genau hier greift die Pause: eine PAUSED-Sequenz ist zwar aktiv (belegt ihren Posten,
+     * bleibt auf den Boards stehen), fällt aber aus diesem Prädikat heraus und kann deshalb
+     * keinen einzigen Start mehr auslösen, solange sie nicht fortgesetzt wird. Der Filter ist
+     * damit die eine Stelle, an der „pausiert feuert nichts" wirklich entschieden wird - er darf
+     * nie auf [SequenceState.activeNames] verallgemeinert werden.
+     */
     fun getRunning() = TIMING_START_SEQUENCE.select { STATE.eq(SequenceState.RUNNING.name) }
 
     fun update(id: UUID, f: TimingStartSequenceRecord.() -> Unit) = TIMING_START_SEQUENCE.update(f) { ID.eq(id) }

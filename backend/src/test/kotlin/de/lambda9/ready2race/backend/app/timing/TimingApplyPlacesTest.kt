@@ -66,6 +66,8 @@ class TimingApplyPlacesTest {
                 finishTone = null,
                 splitTone = null,
                 falseStartTone = null,
+                showManualCapture = false,
+                startDisplay = null,
             ),
         ).map { }
 

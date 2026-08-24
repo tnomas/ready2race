@@ -5,7 +5,11 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import {MouseEvent, ReactNode} from 'react'
 import {useTranslation} from 'react-i18next'
 import {TimingMatchDto} from '@api/types.gen.ts'
-import {compactScheduleTitle, dayScheduleStatus} from '@utils/timing/matchBoard.ts'
+import {
+    compactScheduleTitle,
+    dayScheduleStatus,
+    groupMatchesByDay,
+} from '@utils/timing/matchBoard.ts'
 import {ModeChip} from '@components/timing/matchDisplay.tsx'
 import {touchTargetSx} from '@utils/touch.ts'
 
@@ -39,6 +43,17 @@ export type DayScheduleColumnProps = {
     inDrawer?: boolean
 }
 
+/**
+ * Die Kopfzeile eines Tagesblocks: „Sa · 15.08." — kurz genug für die 280px schmale Spalte, aber
+ * eindeutig, weil der Wochentag den Regattatag benennt, wie ihn alle auf dem Steg nennen. Locale
+ * wie bei der Uhrzeit aus dem Browser, damit Datum und Zeit in einer Sprache sprechen.
+ */
+function dayHeaderLabel(date: Date): string {
+    const weekday = date.toLocaleDateString([], {weekday: 'short'})
+    const dayMonth = date.toLocaleDateString([], {day: '2-digit', month: '2-digit'})
+    return `${weekday} · ${dayMonth}`
+}
+
 /** „09:20" aus dem geplanten Start — ohne Zeit bleibt der Platz leer statt „Invalid Date". */
 function startTimeLabel(match: TimingMatchDto): string | null {
     if (match.startTime == null) return null
@@ -46,9 +61,11 @@ function startTimeLabel(match: TimingMatchDto): string | null {
 }
 
 /**
- * Die Tagesablauf-Spalte beider Posten-Boards: alle Partien des Tages chronologisch (die
- * Reihenfolge liefert `/matches` bereits), je Partie Uhrzeit, Rennnummer/Kurzname, Typ-Chip und
- * Status. Ein Klick fokussiert die Partie in der Arbeitsfläche. Eingeklappt bleibt eine schmale
+ * Die Tagesablauf-Spalte beider Posten-Boards: alle Partien chronologisch (die Reihenfolge
+ * liefert `/matches` bereits), je Partie Uhrzeit, Rennnummer/Kurzname, Typ-Chip und Status. Bei
+ * mehrtägigen Regatten trennen klebende Tageskopfzeilen die Blöcke — die Zeile zeigt nur Stunde
+ * und Minute, ein Wechsel von `18:48` auf `09:00` wäre sonst nicht zu sehen.
+ * Ein Klick fokussiert die Partie in der Arbeitsfläche. Eingeklappt bleibt eine schmale
  * Leiste mit dem Aufklapp-Knopf stehen, damit die Spalte auf einem Telefon keine Erfassungsfläche
  * frisst — der Zustand gehört der Seite (sie merkt ihn sich über Reloads hinweg).
  */
@@ -99,6 +116,80 @@ const DayScheduleColumn = ({
         return <Chip size="small" color={STATUS_COLOR[status.kind]} label={label} />
     }
 
+    /** Eine Zeile der Spalte — als eigene Funktion, damit die Tagesblöcke darüber lesbar bleiben. */
+    const renderMatch = (match: TimingMatchDto): ReactNode => {
+        const isFocused = match.competitionSetupMatch === focusedId
+        const time = startTimeLabel(match)
+        const showMenu = onOpenMenu !== undefined && (menuAvailable?.(match) ?? true)
+        return (
+            <Stack
+                key={match.competitionSetupMatch}
+                direction="row"
+                alignItems="stretch"
+                sx={{borderBottom: 1, borderColor: 'divider'}}>
+                <ButtonBase
+                    onClick={() => onFocus(match.competitionSetupMatch)}
+                    sx={{
+                        flexGrow: 1,
+                        minWidth: 0,
+                        display: 'block',
+                        textAlign: 'left',
+                        px: 1,
+                        py: 0.75,
+                        minHeight: 44,
+                        bgcolor: isFocused ? 'action.selected' : undefined,
+                        borderLeft: 3,
+                        borderLeftColor: isFocused ? 'primary.main' : 'transparent',
+                    }}>
+                    <Stack spacing={0.5}>
+                        <Stack direction="row" spacing={0.75} alignItems="baseline">
+                            {time !== null && (
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        fontVariantNumeric: 'tabular-nums',
+                                        color: 'text.secondary',
+                                        flexShrink: 0,
+                                    }}>
+                                    {time}
+                                </Typography>
+                            )}
+                            <Typography
+                                variant="body2"
+                                noWrap
+                                sx={{fontWeight: isFocused ? 700 : 500, minWidth: 0}}>
+                                {compactScheduleTitle(match)}
+                            </Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                            <ModeChip mode={match.timingMode} />
+                            {renderStatus(match)}
+                        </Stack>
+                    </Stack>
+                </ButtonBase>
+                {showMenu && (
+                    <IconButton
+                        size="small"
+                        aria-label={t('timing.matches.menu.open')}
+                        sx={[{alignSelf: 'center', mx: 0.25}, touchTargetSx]}
+                        onClick={(event: MouseEvent<HTMLButtonElement>) =>
+                            onOpenMenu(match, event.currentTarget)
+                        }>
+                        <MoreVertIcon fontSize="small" />
+                    </IconButton>
+                )}
+            </Stack>
+        )
+    }
+
+    const groups = groupMatchesByDay(matches)
+    /**
+     * Kopfzeilen nur, wenn es überhaupt etwas zu unterscheiden gibt: bei einem einzigen Block
+     * (ein Veranstaltungstag, oder ausschließlich Partien ohne Startzeit) sagt eine Überschrift
+     * nichts und kostet in der 280px schmalen Spalte eine Zeile, die einer Partie gehört.
+     */
+    const showDayHeaders = groups.length > 1
+
     return (
         <Stack
             sx={{
@@ -129,75 +220,35 @@ const DayScheduleColumn = ({
                 </Tooltip>
             </Stack>
             <Stack sx={{flexGrow: 1, minHeight: 0, overflowY: 'auto'}}>
-                {matches.map(match => {
-                    const isFocused = match.competitionSetupMatch === focusedId
-                    const time = startTimeLabel(match)
-                    const showMenu =
-                        onOpenMenu !== undefined && (menuAvailable?.(match) ?? true)
-                    return (
-                        <Stack
-                            key={match.competitionSetupMatch}
-                            direction="row"
-                            alignItems="stretch"
-                            sx={{borderBottom: 1, borderColor: 'divider'}}>
-                            <ButtonBase
-                                onClick={() => onFocus(match.competitionSetupMatch)}
+                {groups.map(group => (
+                    <Stack key={group.dayKey}>
+                        {showDayHeaders && (
+                            <Typography
+                                component="div"
+                                variant="caption"
                                 sx={{
-                                    flexGrow: 1,
-                                    minWidth: 0,
-                                    display: 'block',
-                                    textAlign: 'left',
+                                    // Klebt im scrollenden Stack darüber: beim Blättern durch einen
+                                    // langen Regattatag bleibt sichtbar, welcher Tag gerade läuft.
+                                    position: 'sticky',
+                                    top: 0,
+                                    zIndex: 1,
+                                    // Deckend, sonst scheinen die Zeilen beim Scrollen durch.
+                                    bgcolor: 'background.paper',
+                                    borderBottom: 1,
+                                    borderColor: 'divider',
                                     px: 1,
-                                    py: 0.75,
-                                    minHeight: 44,
-                                    bgcolor: isFocused ? 'action.selected' : undefined,
-                                    borderLeft: 3,
-                                    borderLeftColor: isFocused ? 'primary.main' : 'transparent',
+                                    py: 0.25,
+                                    fontWeight: 700,
+                                    color: 'text.secondary',
                                 }}>
-                                <Stack spacing={0.5}>
-                                    <Stack direction="row" spacing={0.75} alignItems="baseline">
-                                        {time !== null && (
-                                            <Typography
-                                                variant="caption"
-                                                sx={{
-                                                    fontVariantNumeric: 'tabular-nums',
-                                                    color: 'text.secondary',
-                                                    flexShrink: 0,
-                                                }}>
-                                                {time}
-                                            </Typography>
-                                        )}
-                                        <Typography
-                                            variant="body2"
-                                            noWrap
-                                            sx={{fontWeight: isFocused ? 700 : 500, minWidth: 0}}>
-                                            {compactScheduleTitle(match)}
-                                        </Typography>
-                                    </Stack>
-                                    <Stack
-                                        direction="row"
-                                        spacing={0.5}
-                                        flexWrap="wrap"
-                                        useFlexGap>
-                                        <ModeChip mode={match.timingMode} />
-                                        {renderStatus(match)}
-                                    </Stack>
-                                </Stack>
-                            </ButtonBase>
-                            {showMenu && (
-                                <IconButton
-                                    size="small"
-                                    aria-label={t('timing.matches.menu.open')}
-                                    sx={[{alignSelf: 'center', mx: 0.25}, touchTargetSx]}
-                                    onClick={(event: MouseEvent<HTMLButtonElement>) =>
-                                        onOpenMenu(match, event.currentTarget)
-                                    }>
-                                    <MoreVertIcon fontSize="small" />
-                                </IconButton>
-                            )}
-                        </Stack>
-                    )
-                })}
+                                {group.date !== null
+                                    ? dayHeaderLabel(group.date)
+                                    : t('timing.schedule.day.withoutTime')}
+                            </Typography>
+                        )}
+                        {group.matches.map(renderMatch)}
+                    </Stack>
+                ))}
                 {matches.length === 0 && (
                     <Typography variant="body2" color="text.secondary" sx={{p: 1.5}}>
                         {t('timing.matches.empty')}

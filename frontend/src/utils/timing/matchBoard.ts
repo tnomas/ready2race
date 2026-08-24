@@ -185,3 +185,50 @@ export function modeChipParts(mode: TimingModeDto): ModeChipParts {
         withLaps: mode.withLaps,
     }
 }
+
+export type DayScheduleGroup = {
+    /** Lokaler Tagesschlüssel `YYYY-MM-DD`, oder `'none'` für Partien ohne geplante Startzeit. */
+    dayKey: string
+    /** Der Tag als Datum für die Beschriftung — `null` in der Gruppe ohne Startzeit. */
+    date: Date | null
+    matches: TimingMatchDto[]
+}
+
+/** Lokaler Tagesschlüssel `YYYY-MM-DD` — bewusst lokal, weil der Posten in Ortszeit denkt. */
+function localDayKey(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${date.getFullYear()}-${month}-${day}`
+}
+
+/**
+ * Die Partien der Tagesablauf-Spalte in Tagesblöcke schneiden, damit ein Tageswechsel sichtbar
+ * wird: die Spalte zeigt nur Stunde und Minute, auf `18:48` folgt sonst wortlos `09:00` des
+ * nächsten Tages. Die Liste kommt bereits sortiert vom Server — hier wird deshalb ausschließlich
+ * gruppiert und NICHT umsortiert: die Blöcke stehen in der Reihenfolge ihres ersten Auftretens,
+ * innerhalb eines Blocks bleibt die Eingabereihenfolge unangetastet.
+ *
+ * Partien ohne (oder mit unbrauchbarer) `startTime` landen in einer eigenen Gruppe `'none'` ganz
+ * am Ende — sie gehören zu keinem Tag, und vorne würden sie den Tagesanfang verstellen. Ein
+ * unlesbares Datum wie ein fehlendes zu behandeln hält „Invalid Date" aus der Beschriftung.
+ */
+export function groupMatchesByDay(matches: TimingMatchDto[]): DayScheduleGroup[] {
+    const groups = new Map<string, DayScheduleGroup>()
+    for (const match of matches) {
+        const parsed = match.startTime != null ? new Date(match.startTime) : null
+        const date = parsed !== null && !Number.isNaN(parsed.getTime()) ? parsed : null
+        const dayKey = date !== null ? localDayKey(date) : 'none'
+        const existing = groups.get(dayKey)
+        if (existing !== undefined) {
+            existing.matches.push(match)
+        } else {
+            groups.set(dayKey, {dayKey, date, matches: [match]})
+        }
+    }
+    // Die Gruppe ohne Startzeit ans Ende ziehen — alle übrigen behalten ihre Reihenfolge.
+    const withoutTime = groups.get('none')
+    if (withoutTime !== undefined) groups.delete('none')
+    const ordered = [...groups.values()]
+    if (withoutTime !== undefined) ordered.push(withoutTime)
+    return ordered
+}

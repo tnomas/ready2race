@@ -15,6 +15,15 @@ data class TimingModeDto(
     /** Vorlauf/Countdown vor dem (ersten) Start, Anschluss an die lead_in-Mechanik der Sequenzen. */
     val leadInSeconds: Int,
     /**
+     * Darf der Startposten für Läufe dieses Typs einen Fehlstart auslösen (Sequenz abbrechen +
+     * Versuch zurücknehmen + rotes Signal an die Anzeigen)?
+     *
+     * Steuert die Sichtbarkeit des Knopfes am Board UND die Route selbst - ein abgeschalteter Typ
+     * lehnt den Fehlstart ab, nicht nur die Oberfläche. Der Fall dahinter ist der Timetrial im
+     * Rudersport: dort wird ein Fehlstart mit Strafzeit geahndet, nicht mit Rückruf.
+     */
+    val falseStartEnabled: Boolean,
+    /**
      * Tonplan der Startsequenz: welche Sinus-Pieps wann relativ zum Start gespielt werden,
      * aufsteigend nach Offset. null = eingebauter Standardplan (klingt exakt wie bisher).
      */

@@ -30,10 +30,16 @@ import java.util.UUID
  * Wettkämpfen und Runden.
  *
  * Der Typ ist die Vorlage, die Zuordnung der Geltungsbereich, und `TimingModeResolveLogic` die
- * eine Stelle, die daraus den wirksamen Typ eines Laufs bestimmt. Bewusst KEINE
- * Websocket-Broadcasts: Typen und Zuordnungen sind Konfiguration, die vor dem Renntag gepflegt
- * wird - die Posten-Boards bekommen den aufgelösten Typ über die Startliste
- * (`TimingMatchService`), nicht über einen eigenen Kanal.
+ * eine Stelle, die daraus den wirksamen Typ eines Laufs bestimmt. Die Posten-Boards bekommen den
+ * aufgelösten Typ über die Startliste ([TimingMatchService]) und nicht über einen eigenen Kanal -
+ * es gibt deshalb bewusst keine eigene Nachricht "Typ geändert".
+ *
+ * Was es seit dem 24.08.2026 gibt: ein [TimingMatchService.broadcastMatchesChanged] nach jedem
+ * Schreiben, das den WIRKSAMEN Typ einer Partie verschiebt. Die Annahme "Typen sind Konfiguration,
+ * die vor dem Renntag gepflegt wird" hielt am Steg nicht: wird ein vergessener Typ mitten am
+ * Renntag nachgetragen, standen die offenen Boards bis zum nächsten Neuladen weiter ohne
+ * Startablauf da. Die Nachricht ist ein reiner Auslöser - die Boards holen die Startliste, und
+ * damit den aufgelösten Typ, wie bisher selbst.
  */
 object TimingModeService {
 
@@ -75,9 +81,14 @@ object TimingModeService {
             intervalSeconds = request.intervalSeconds
             leadInSeconds = request.leadInSeconds
             tonePlan = request.tonePlan?.toJsonb()
+            falseStartEnabled = request.falseStartEnabled
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.ModeNotFound }
+
+        // Der Typ steckt aufgelöst in jeder Partie der Startliste (Taktung, Gruppierung, Tonfolge) -
+        // ein geänderter Typ ändert also den Startablauf jedes Laufs, für den er gilt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 
@@ -165,6 +176,11 @@ object TimingModeService {
                 }.orDie()
             }
         }
+
+        // Gesetzt, umgehängt oder abgeräumt - in allen drei Fällen lösen betroffene Partien den Typ
+        // ab jetzt anders auf. Auch der Abräum-Fall meldet: eine Partie, die ihren Startablauf
+        // verliert, ist am Startposten genauso eine Änderung wie eine, die einen bekommt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 }

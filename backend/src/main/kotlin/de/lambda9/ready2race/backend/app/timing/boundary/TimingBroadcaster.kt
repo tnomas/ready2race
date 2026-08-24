@@ -31,11 +31,13 @@ import java.util.concurrent.ConcurrentHashMap
     JsonSubTypes.Type(TimingWsMessage.TimeMarkReactivated::class, name = "timeMarkReactivated"),
     JsonSubTypes.Type(TimingWsMessage.AssignmentChanged::class, name = "assignmentChanged"),
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
+    JsonSubTypes.Type(TimingWsMessage.MatchesChanged::class, name = "matchesChanged"),
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
     JsonSubTypes.Type(TimingWsMessage.OfficialTimeChanged::class, name = "officialTimeChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
     JsonSubTypes.Type(TimingWsMessage.SettingsChanged::class, name = "settingsChanged"),
     JsonSubTypes.Type(TimingWsMessage.AttemptRetracted::class, name = "attemptRetracted"),
+    JsonSubTypes.Type(TimingWsMessage.FalseStart::class, name = "falseStart"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
@@ -52,6 +54,25 @@ sealed class TimingWsMessage {
         val competitionMatchTeam: UUID?,
     ) : TimingWsMessage()
     data object StationsChanged : TimingWsMessage()
+
+    /**
+     * Die Partienmenge der Posten-Startliste hat sich geändert: ein Lauf ist dazugekommen
+     * (Rundenerzeugung, Folgerunden-Automatik), weggefallen (Runde gelöscht, Freilos) oder
+     * verschoben worden (Zeitplan-Slot, Startzeit, Startnummern) - oder der wirksame Zeitnahmetyp
+     * einer Partie ist ein anderer.
+     *
+     * Reiner Auslöser ohne Rumpf, genau wie [StationsChanged]: die Startliste ist eine gerechnete
+     * Sicht (Sortierung über die Rundenkette, aufgelöster Typ, Zeitnahme-Fortschritt je Team), und
+     * sie als Nachrichtenrumpf zu verschicken hieße, diese Rechnung an jeder Schreibstelle noch
+     * einmal anzustoßen. Die Boards holen sich stattdessen `GET /timing/matches` - entprellt, ein
+     * Schub aus einer Rundenerzeugung kostet damit eine Anfrage.
+     *
+     * Vorher erreichte eine solche Änderung die Boards gar nicht: die übrigen Nachrichten taugen
+     * nur als Auffrischungs-Trigger für Partien, die es schon gibt (eine Marke, eine Zuordnung, eine
+     * Sequenz setzt eine Partie voraus). Ein frisch erzeugter Lauf blieb bis zum nächsten Neuladen
+     * unsichtbar.
+     */
+    data object MatchesChanged : TimingWsMessage()
     data class SequenceChanged(val sequence: TimingSequenceDto) : TimingWsMessage()
 
     /**
@@ -83,6 +104,26 @@ sealed class TimingWsMessage {
     data class AttemptRetracted(
         val competitionSetupMatch: UUID,
         val competitionMatchTeams: List<UUID>,
+    ) : TimingWsMessage()
+
+    /**
+     * AUSDRÜCKLICHER Fehlstart: der Startposten hat den Lauf zurückgerufen
+     * (TimingService.falseStart). Mechanisch passiert dabei nichts Neues - die laufende Sequenz
+     * wird abgebrochen und der Versuch zurückgenommen, beide Wege gab es schon -, aber die ABSICHT
+     * ist eine andere, und genau die trägt diese Nachricht.
+     *
+     * Warum sie neben [AttemptRetracted] steht und nicht in ihr aufgeht: [AttemptRetracted] feuert
+     * auch beim stillen Aufräumen („Start zurücknehmen und neu starten" nach einer verpatzten
+     * Erfassung), und ein Aufräumen darf die Anzeigen am Steg nicht rot blinken lassen. Umgekehrt
+     * bleibt [AttemptRetracted] bei einem Fehlstart erhalten - die Boards, die daran ihre
+     * Markenlisten und ihren Fehlstart-Ton hängen, merken davon nichts.
+     *
+     * Trägt nur die betroffene Partie: die Anzeige braucht die Antwort auf „bin ich gemeint?", und
+     * das ist eine Partie-Frage (die Anzeige zeigt einen Lauf, nicht ein Boot). Die Teams stehen
+     * ohnehin schon in der [AttemptRetracted] derselben Rücknahme.
+     */
+    data class FalseStart(
+        val competitionSetupMatch: UUID,
     ) : TimingWsMessage()
 }
 

@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.eventSchedule.entity.*
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardService
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.OpenResultHandling
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchByeService
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventScheduleSlotRecord
@@ -148,6 +149,13 @@ object EventScheduleService {
         // Das Tagesprogramm der Boards zeigt die Slots — Zeitplan-Schreiber bumpen deshalb alle.
         EventChangeMarker.bump(eventId)
 
+        // Ein verlinkter Slot stempelt seine Startzeit auf den Lauf, und die Startzeit ist das
+        // erste Sortierkriterium der Posten-Startliste: der Lauf wandert für die Posten also an
+        // eine andere Stelle. Ohne verlinkten Lauf ändert sich für die Zeitnahme nichts.
+        if (setupMatchId != null) {
+            TimingMatchService.broadcastMatchesChanged(eventId)
+        }
+
         KIO.ok(ApiResponse.Created(id))
     }
 
@@ -185,6 +193,13 @@ object EventScheduleService {
         }
 
         EventChangeMarker.bump(eventId)
+
+        // Anders als in [createSlot] hier ohne Bedingung: der Slot kann vorher an einem ANDEREN
+        // Lauf gehangen haben (Umhängen, Entkoppeln), und dessen Startzeit bliebe stehen, während
+        // die Startliste sich trotzdem sortiert. Wer das genau treffen wollte, müsste die alte
+        // Zeile vorher lesen - für einen entprellten Auslöser ohne Rumpf ist das der falsche
+        // Aufwand, ein Schuss zu viel kostet die Boards eine Anfrage.
+        TimingMatchService.broadcastMatchesChanged(eventId)
 
         noData
     }
@@ -782,6 +797,11 @@ object EventScheduleService {
             // Der gemeinsame Trichter von Verschieben und Aufrücken: neue Startzeiten stehen im
             // Tagesprogramm und in den Countdowns der Anzeigen. Dry-Runs kommen hier nie an.
             EventChangeMarker.bump(eventId)
+            // Genau derselbe Trichter für die Posten: ein Verschieben stempelt die neuen Zeiten auf
+            // die verlinkten Läufe, und die Posten-Startliste ist nach eben diesen Zeiten sortiert.
+            // Das ist der Fall „Läufe werden verschoben" in Reinform - der einzige, bei dem sich am
+            // Steg die Reihenfolge unter der Hand ändert, ohne dass ein Lauf entsteht oder wegfällt.
+            TimingMatchService.broadcastMatchesChanged(eventId)
         }
 
     /**
@@ -927,6 +947,8 @@ object EventScheduleService {
 
         // Der Import ersetzt den ganzen Zeitstrahl — Tagesprogramm und Startzeiten sind neu.
         EventChangeMarker.bump(eventId)
+        // … und damit auch die komplette Reihenfolge der Posten-Startliste.
+        TimingMatchService.broadcastMatchesChanged(eventId)
 
         KIO.ok(ApiResponse.Dto(ScheduleImportResultDto(rowDtos, applied = true)))
     }

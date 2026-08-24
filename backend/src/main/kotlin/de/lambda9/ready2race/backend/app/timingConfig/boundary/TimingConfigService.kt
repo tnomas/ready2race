@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceError
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timing.control.toCaptureTone
 import de.lambda9.ready2race.backend.app.timing.control.toJsonb
+import de.lambda9.ready2race.backend.app.timing.control.toStartDisplaySettings
 import de.lambda9.ready2race.backend.app.timing.control.toToneSequence
 import de.lambda9.ready2race.backend.app.timingConfig.control.TimingConfigRepo
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigDto
@@ -84,6 +85,10 @@ object TimingConfigService {
                     finishTone = event.timingFinishTone.toCaptureTone(),
                     splitTone = event.timingSplitTone.toCaptureTone(),
                     falseStartTone = event.timingFalseStartTone.toToneSequence(),
+                    // NOT NULL mit Vorgabe (V202608242000), jOOQ typisiert dennoch nullable -
+                    // dasselbe Muster wie bei den Abruf-Takten weiter oben.
+                    showManualCapture = event.timingShowManualCapture!!,
+                    startDisplay = event.timingStartDisplay.toStartDisplaySettings(),
                     deviatingCompetitions = deviations,
                 )
             )
@@ -107,6 +112,12 @@ object TimingConfigService {
         val tonesChanged = event.timingFinishTone.toCaptureTone() != request.finishTone ||
             event.timingSplitTone.toCaptureTone() != request.splitTone ||
             event.timingFalseStartTone.toToneSequence() != request.falseStartTone
+        // Die beiden Anzeige-Entscheidungen (Stempel am START-Board, Startbildschirm) gehen
+        // denselben Weg wie die Töne: gerechnet wird nichts, aber jedes verbundene Board muss den
+        // neuen Stand sofort sehen - ein Bildschirm am Steg soll einer Umstellung folgen, ohne
+        // dass jemand hinläuft und neu lädt.
+        val displayChanged = event.timingShowManualCapture != request.showManualCapture ||
+            event.timingStartDisplay.toStartDisplaySettings() != request.startDisplay
 
         !EventRepo.update(event) {
             timingSystem = request.timingSystem?.name
@@ -121,6 +132,8 @@ object TimingConfigService {
             timingFinishTone = request.finishTone?.toJsonb()
             timingSplitTone = request.splitTone?.toJsonb()
             timingFalseStartTone = request.falseStartTone?.toJsonb()
+            timingShowManualCapture = request.showManualCapture
+            timingStartDisplay = request.startDisplay?.toJsonb()
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -129,12 +142,13 @@ object TimingConfigService {
         // - der Fingerabdruck trägt den abgeschnittenen Wert, deshalb erkennt die Übernahme ihre
         // Zeilen wieder und missdeutet sie nicht als fremd. Zusätzlich erfahren alle verbundenen
         // Leitstände und Boards den neuen Stand live (settingsChanged), damit die Anzeige ohne
-        // Neuladen folgt. Geänderte Erfassungstöne brauchen nur den Broadcast - die Boards
-        // spielen ab der nächsten Erfassung den neuen Ton, gerechnet wird dafür nichts.
+        // Neuladen folgt. Geänderte Erfassungstöne und geänderte Anzeige-Einstellungen brauchen
+        // nur den Broadcast - die Boards spielen ab der nächsten Erfassung den neuen Ton bzw.
+        // zeichnen den Startbildschirm neu, gerechnet wird dafür nichts.
         if (request.timingPrecision != precisionBefore) {
             !TimingOfficialTimeService.recomputeApplyEvent(eventId, userId)
             !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
-        } else if (tonesChanged) {
+        } else if (tonesChanged || displayChanged) {
             !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         }
 

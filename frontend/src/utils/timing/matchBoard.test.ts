@@ -16,6 +16,9 @@ const mode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
     event: eventId,
     name: 'Timetrial 30s',
     withLaps: false,
+    // Vorgabe wie in der Datenbank: der Fehlstart-Rückruf ist erlaubt, solange er nicht am
+    // Zeitnahmetyp abgeschaltet wurde.
+    falseStartEnabled: true,
     startGrouping: 'EINZEL',
     intervalSeconds: 30,
     leadInSeconds: 10,

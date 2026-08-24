@@ -89,6 +89,12 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
         case 'stationsChanged':
             // Only affects `stations`, handled as a side effect by the caller.
             return marks
+        case 'matchesChanged':
+            // Betrifft nur die Startliste des Postens, nicht die Markenliste — geht an den
+            // optionalen `onMatchesChanged`-Callback (gleiche Form wie `stationsChanged`). Im
+            // Wiedereinspiel-Pfad ist die Nachricht damit folgenlos, und das ist richtig: die
+            // Startliste hat einen eigenen Ladeweg mit eigener Reihenfolge-Sicherung.
+            return marks
         case 'sequenceChanged':
             // Not mark data at all — handled by the optional `onSequenceChanged` callback in
             // `useTimingBoardState`, not by this reducer. Present here only so the switch stays
@@ -112,6 +118,13 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
         case 'attemptRetracted':
             // Fehlstart-Signal, keine Markendaten (die einzelnen timeMarkRetracted-Echos derselben
             // Rücknahme pflegen die Liste) — geht an den optionalen `onAttemptRetracted`-Callback.
+            return marks
+        case 'falseStart':
+            // Der ausdrückliche Rückruf: ein reines Signal für die Anzeigen, keine Markendaten.
+            // Die Rücknahme, die derselbe Griff auslöst, meldet sich ohnehin über ihre eigenen
+            // Nachrichten (timeMarkRetracted/attemptRetracted) — hier ist deshalb nichts zu tun,
+            // und im Wiedereinspiel-Pfad ist die Nachricht folgenlos. Geht an den optionalen
+            // `onFalseStart`-Callback.
             return marks
     }
 }
@@ -152,6 +165,14 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
  * (bumped on every `stationsChanged`) is captured when the snapshot's request starts; if it changed by
  * the time the snapshot lands, `refetchStations` is called once more to self-heal.
  *
+ * **Matches.** `matchesChanged` is the counterpart for the station's start list: the set of matches
+ * the station is expected to time changed (a run was created, dropped, moved, or resolves to a
+ * different timing mode). It is passed straight through to `onMatchesChanged` — this hook does not
+ * own that list. Everything else on the channel only ever describes matches that already exist (a
+ * mark, an assignment, a sequence all presuppose one), which is why those messages work as mere
+ * refresh triggers while this one had to be added: a freshly generated run reaches no board without
+ * it.
+ *
  * **Locally-created marks.** `preservedLocal` in `applyServerState` keeps marks the snapshot doesn't
  * know about yet. Filtering on `pending || failed` alone has a gap: a mark can be durably confirmed
  * (both flags cleared, via the POST response or a websocket echo) while an in-flight snapshot that
@@ -174,6 +195,23 @@ export function useTimingBoardState(
     onSettingsChanged?: (settings: TimingSettingsDto) => void,
     /** Fehlstart-Signal (Versuchs-Rücknahme) — siehe `falseStart.ts` für die Abspiel-Bedingung. */
     onAttemptRetracted?: (info: {competitionSetupMatch: string; competitionMatchTeams: string[]}) => void,
+    /**
+     * Die Partienmenge hat sich geändert — hier gehört `bump` aus `useTimingMatches` hinein.
+     * Bewusst ein Callback statt eines eigenen Ladewegs in diesem Hook: die Startliste ist keine
+     * Markendaten, sie hat ihren eigenen Endpunkt, ihre eigene Entprellung und ihre eigenen
+     * Fehlerzustände — dieser Hook reicht nur den Auslöser durch.
+     */
+    onMatchesChanged?: () => void,
+    /**
+     * Der AUSDRÜCKLICHE Fehlstart (Rückruf) einer Partie — das Signal, an dem die Athletenanzeige
+     * ihr rotes Blinken aufhängt. Getrennt von `onAttemptRetracted`, weil die Rücknahme auch beim
+     * stillen Aufräumen kommt und eine Anzeige am Wasser davon nicht rot werden darf.
+     *
+     * Ganz am Ende der Parameterliste und nicht neben `onAttemptRetracted`, wo es inhaltlich
+     * hingehörte: die Aufrufer übergeben positionell, ein Einschub in der Mitte hätte jedem von
+     * ihnen stillschweigend den falschen Rückruf zugeschoben.
+     */
+    onFalseStart?: (info: {competitionSetupMatch: string}) => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -212,11 +250,17 @@ export function useTimingBoardState(
     const onSettingsChangedRef = useRef(onSettingsChanged)
     /** Same for `onAttemptRetracted` (Fehlstart-Signal der Boards). */
     const onAttemptRetractedRef = useRef(onAttemptRetracted)
+    /** Same for `onFalseStart` (der ausdrückliche Rückruf — Auslöser des roten Blinkens). */
+    const onFalseStartRef = useRef(onFalseStart)
+    /** Same for `onMatchesChanged` (die Startliste des Postens). */
+    const onMatchesChangedRef = useRef(onMatchesChanged)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
         onOfficialTimeChangedRef.current = onOfficialTimeChanged
         onSettingsChangedRef.current = onSettingsChanged
         onAttemptRetractedRef.current = onAttemptRetracted
+        onFalseStartRef.current = onFalseStart
+        onMatchesChangedRef.current = onMatchesChanged
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -418,10 +462,20 @@ export function useTimingBoardState(
                 onSettingsChangedRef.current?.(message.settings)
                 return
             }
+            if (message.type === 'matchesChanged') {
+                onMatchesChangedRef.current?.()
+                return
+            }
             if (message.type === 'attemptRetracted') {
                 onAttemptRetractedRef.current?.({
                     competitionSetupMatch: message.competitionSetupMatch,
                     competitionMatchTeams: message.competitionMatchTeams,
+                })
+                return
+            }
+            if (message.type === 'falseStart') {
+                onFalseStartRef.current?.({
+                    competitionSetupMatch: message.competitionSetupMatch,
                 })
                 return
             }
