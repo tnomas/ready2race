@@ -2,7 +2,8 @@ import {useEffect, useRef} from 'react'
 import {Typography} from '@mui/material'
 import {SxProps, Theme} from '@mui/material/styles'
 import {formatCountdown} from '@utils/timing/sequenceDisplay.ts'
-import {playCountdownBeep} from '@utils/timing/feedback.ts'
+import {playToneStep} from '@utils/timing/feedback.ts'
+import {DEFAULT_START_TONE_PLAN, ToneStep, advanceTonePlan} from '@utils/timing/tonePlan.ts'
 
 const COUNTDOWN_PLACEHOLDER = '--:--'
 
@@ -19,6 +20,12 @@ export type SequenceCountdownProps = {
     targetMillis: number
     now: () => number | null
     overdueLabel: string
+    /**
+     * Der Tonplan des aufgelösten Zeitnahmetyps (aufsteigend sortiert, siehe
+     * `tonePlanForSequence`); ohne Angabe der eingebaute Standard — so klingt der Countdown
+     * unkonfiguriert exakt wie bisher.
+     */
+    tonePlan?: readonly ToneStep[]
     /** Zusätzliche Stile, z.B. eine größere Schrift für den Startbildschirm (Zeitnahme). */
     sx?: SxProps<Theme>
 }
@@ -26,27 +33,33 @@ export type SequenceCountdownProps = {
 /**
  * Großer rAF-getriebener Countdown auf `targetMillis`, der direkt in das `textContent` eines
  * ref-Elements schreibt (wie die Uhr im `BoardHeader`), damit der Rest der Seite nicht in jedem
- * Frame neu rendert. Feuert außerdem die Countdown-Beeps (`playCountdownBeep`) bei T-5..T-1 (kurz)
- * und T-0 (lang), mit `lastBeepedSecondRef` als Wiederholungsschutz innerhalb derselben Sekunde.
- * Der Schutz wird zurückgesetzt, sobald sich `targetMillis` ändert (im INTERVAL-Modus wandert das
- * Ziel zum nächsten Eintrag, sobald der aktuelle gefeuert hat).
+ * Frame neu rendert. Feuert außerdem die Countdown-Töne des Tonplans: welcher Ton wann fällig
+ * ist (und dass Verpasstes nie nachgeholt wird), entscheidet die reine `advanceTonePlan`-Logik;
+ * die Komponente hält nur den Fortschrittszeiger `playedUpToRef`. Der Zeiger wird zurückgesetzt,
+ * sobald sich `targetMillis` ändert (im INTERVAL-Modus wandert das Ziel zum nächsten Eintrag,
+ * sobald der aktuelle gefeuert hat — jedes Boot bekommt seinen eigenen Plan-Durchlauf).
  *
  * Herausgezogen, damit Startbildschirm (Zeitnahme) und Sequenz-Leiste denselben Countdown
- * zeigt — inklusive Beeps, die die Athleten am Start hören sollen.
+ * zeigt — inklusive Töne, die die Athleten am Start hören sollen.
  */
-const SequenceCountdown = ({targetMillis, now, overdueLabel, sx}: SequenceCountdownProps) => {
+const SequenceCountdown = ({targetMillis, now, overdueLabel, tonePlan, sx}: SequenceCountdownProps) => {
     const textRef = useRef<HTMLSpanElement | null>(null)
     const nowRef = useRef(now)
     const overdueLabelRef = useRef(overdueLabel)
-    const lastBeepedSecondRef = useRef<number>(Number.NaN)
+    const tonePlanRef = useRef<readonly ToneStep[]>(tonePlan ?? DEFAULT_START_TONE_PLAN)
+    const playedUpToRef = useRef(-1)
 
     useEffect(() => {
         nowRef.current = now
         overdueLabelRef.current = overdueLabel
+        // Über die Ref statt als Effekt-Abhängigkeit: ein neues Plan-Array (z.B. frischer
+        // Fetch mit gleichem Inhalt) darf den Fortschrittszeiger nicht zurücksetzen, sonst
+        // wiederholte ein Re-Render bereits gespielte Töne.
+        tonePlanRef.current = tonePlan ?? DEFAULT_START_TONE_PLAN
     })
 
     useEffect(() => {
-        lastBeepedSecondRef.current = Number.NaN
+        playedUpToRef.current = -1
         let rafId: number
 
         const tick = () => {
@@ -60,15 +73,14 @@ const SequenceCountdown = ({targetMillis, now, overdueLabel, sx}: SequenceCountd
                 const overdueFlag = overdue ? 'true' : 'false'
                 if (element.dataset.overdue !== overdueFlag) element.dataset.overdue = overdueFlag
 
-                const secondsRemaining = Math.ceil(remaining / 1000)
-                if (secondsRemaining !== lastBeepedSecondRef.current) {
-                    lastBeepedSecondRef.current = secondsRemaining
-                    if (secondsRemaining >= 1 && secondsRemaining <= 5) {
-                        playCountdownBeep(false)
-                    } else if (secondsRemaining === 0) {
-                        playCountdownBeep(true)
-                    }
-                }
+                const advance = advanceTonePlan(
+                    tonePlanRef.current,
+                    targetMillis,
+                    current,
+                    playedUpToRef.current,
+                )
+                playedUpToRef.current = advance.playedUpTo
+                if (advance.play !== null) playToneStep(advance.play)
             }
             rafId = requestAnimationFrame(tick)
         }

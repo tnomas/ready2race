@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {getTimingSettings} from '@api/sdk.gen.ts'
 import {TimingSettingsDto} from '@api/types.gen.ts'
+import {DEFAULT_CAPTURE_TONE} from '@utils/timing/tonePlan.ts'
 
 export type UseTimingSettingsResult = {
     /**
@@ -22,8 +23,16 @@ export type UseTimingSettingsResult = {
     applyChanged: (settings: TimingSettingsDto) => void
 }
 
-/** Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450. */
-const DEFAULT_SETTINGS: TimingSettingsDto = {autoApply: true, precision: 'ZEHNTEL'}
+/**
+ * Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450
+ * und (Erfassungstöne, V202608211470) den eingebauten Standardton aus `tonePlan.ts`.
+ */
+const DEFAULT_SETTINGS: TimingSettingsDto = {
+    autoApply: true,
+    precision: 'ZEHNTEL',
+    finishTone: DEFAULT_CAPTURE_TONE,
+    splitTone: DEFAULT_CAPTURE_TONE,
+}
 
 /**
  * Die Zeitnahme-Einstellungen der Veranstaltung (Schalter „Automatische Übernahme" + Genauigkeit),

@@ -513,6 +513,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const capture = useCaptureFlow({
         eventId,
         station,
+        // Erfassungston je Postentyp aus den Zeitnahme-Einstellungen (live via settingsChanged).
+        // Andere Postentypen (START-Handmarken) behalten den eingebauten Standardton.
+        captureTone:
+            station?.type === 'FINISH'
+                ? settings.finishTone
+                : station?.type === 'SPLIT'
+                  ? settings.splitTone
+                  : undefined,
         now: clock.now,
         applyLocalMark,
         markSaved: handleMarkSaved,

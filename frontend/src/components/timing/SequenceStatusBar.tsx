@@ -6,6 +6,7 @@ import {useMemo} from 'react'
 import {useTranslation} from 'react-i18next'
 import {TimingSequenceDto} from '@api/types.gen.ts'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
+import {ToneStep} from '@utils/timing/tonePlan.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {touchTargetSx} from '@utils/touch.ts'
 
@@ -14,6 +15,8 @@ export type SequenceStatusBarProps = {
     /** Team-Beschriftung je competitionMatchTeam-Id. */
     label: (id: string) => string
     now: () => number | null
+    /** Tonplan des aufgelösten Zeitnahmetyps der Sequenz (siehe `tonePlanForSequence`). */
+    tonePlan?: readonly ToneStep[]
     busy: boolean
     onStart: () => void
     onAbort: () => void
@@ -35,6 +38,7 @@ const SequenceStatusBar = ({
     sequence,
     label,
     now,
+    tonePlan,
     busy,
     onStart,
     onAbort,
@@ -92,6 +96,7 @@ const SequenceStatusBar = ({
                             <SequenceCountdown
                                 targetMillis={split.targetMillis}
                                 now={now}
+                                tonePlan={tonePlan}
                                 overdueLabel={t('timing.sequence.running.overdue')}
                                 // Kompakte Ziffer statt Vollbild — die große Fassung gehört der
                                 // Anzeige-Route.

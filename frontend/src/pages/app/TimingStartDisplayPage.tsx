@@ -2,7 +2,7 @@ import {Alert, Box, Divider, Stack, Typography} from '@mui/material'
 import {useEffect, useMemo, useRef} from 'react'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
-import {getTimingTeams} from '@api/sdk.gen.ts'
+import {getTimingMatches, getTimingTeams} from '@api/sdk.gen.ts'
 import {TimingSequenceEntryDto, TimingStationDto, TimingTeamDto} from '@api/types.gen.ts'
 import {
     readEventGlobal,
@@ -21,6 +21,7 @@ import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {deviceSessionForEvent} from '@utils/timing/deviceSession.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
+import {tonePlanForSequence} from '@utils/timing/tonePlan.ts'
 import {useAudioUnlocked} from '@utils/timing/useAudioUnlocked.ts'
 import {useTouchOnly} from '@utils/touch.ts'
 
@@ -91,6 +92,15 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     const {data: teamsData} = useFetch(signal => getTimingTeams({signal, path: {eventId}}), {
         deps: [eventId],
     })
+    // Die Startliste liefert den aufgelösten Zeitnahmetyp samt Tonplan (wie das Erfassungsboard);
+    // läuft wie /teams auch mit Geräte-Token. Ohne Treffer spielt der eingebaute Standardplan.
+    const {data: matchesData} = useFetch(signal => getTimingMatches({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
+    const tonePlan = useMemo(
+        () => tonePlanForSequence(matchesData ?? [], sequenceState.sequence),
+        [matchesData, sequenceState.sequence],
+    )
     const teamsById = useMemo(() => {
         const map = new Map<string, TimingTeamDto>()
         for (const team of teamsData ?? []) map.set(team.competitionMatchTeam, team)
@@ -256,6 +266,7 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                             <SequenceCountdown
                                 targetMillis={view.targetMillis}
                                 now={clock.now}
+                                tonePlan={tonePlan}
                                 overdueLabel={t('timing.sequence.running.overdue')}
                                 sx={{fontSize: 'clamp(4rem, 24vmin, 18rem)', lineHeight: 1.1}}
                             />

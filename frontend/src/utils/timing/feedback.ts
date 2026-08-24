@@ -1,3 +1,5 @@
+import {DEFAULT_CAPTURE_TONE} from '@utils/timing/tonePlan.ts'
+
 let ctx: AudioContext | null = null
 
 // --- Entsperr-Zustand für sichtbare Hinweise -----------------------------------------------------
@@ -80,19 +82,26 @@ function playTone(frequency: number, durationSeconds: number) {
  * assets — the beep is synthesized. Both channels are best-effort: a browser without WebAudio (or
  * one that hasn't unlocked the audio context yet) or without the vibration API must not throw and
  * must not block the capture flow.
+ *
+ * Ohne `tone` klingt der Piep wie eh und je (880 Hz / 150 ms); Ziel- und Zwischenposten reichen
+ * hier den je Postentyp konfigurierten Erfassungston aus den Zeitnahme-Einstellungen durch
+ * (GET /timing/settings, live via settingsChanged). Gespielt wird NUR bei der Nutzergeste selbst
+ * — das Nachsenden der Offline-Warteschlange bestätigt nichts, was der Bediener gerade tut, und
+ * bleibt deshalb stumm.
  */
-export function playCaptureFeedback() {
-    playTone(880, 0.15)
+export function playCaptureFeedback(tone?: {frequencyHz: number; durationMillis: number}) {
+    const effective = tone ?? DEFAULT_CAPTURE_TONE
+    playTone(effective.frequencyHz, effective.durationMillis / 1000)
     navigator.vibrate?.(80)
 }
 
 /**
- * Countdown beep for a running start sequence: a short 600Hz tick for T-5..T-1 (`final: false`), a
- * longer 900Hz tone for T-0 (`final: true`). Same synthesized-WebAudio pattern as
- * `playCaptureFeedback` — fire-and-forget, never throws, no audio assets. Each board plays its own
- * beeps from its own countdown loop (driven by the shared server clock), so no explicit
- * synchronization is needed beyond every board reading the same `now()`.
+ * Ein Eintrag eines Tonplans (Countdown-Pieps der Startsequenz oder Editor-Vorschau), gleiche
+ * Fire-and-forget-Garantien wie `playCaptureFeedback`. Jedes Board spielt seine Töne aus der
+ * eigenen Countdown-Schleife (getrieben von der geteilten Server-Uhr) — mehr Synchronisation als
+ * dasselbe `now()` braucht es nicht; welcher Ton wann fällig ist, entscheidet die reine
+ * `advanceTonePlan`-Logik in `tonePlan.ts`.
  */
-export function playCountdownBeep(final: boolean) {
-    playTone(final ? 900 : 600, final ? 0.4 : 0.1)
+export function playToneStep(step: {frequencyHz: number; durationMillis: number}) {
+    playTone(step.frequencyHz, step.durationMillis / 1000)
 }

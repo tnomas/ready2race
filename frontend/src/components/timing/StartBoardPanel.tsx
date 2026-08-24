@@ -14,6 +14,7 @@ import {TimingMatchDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
 import {sequenceRequestFromMode} from '@utils/timing/matchBoard.ts'
+import {tonePlanForSequence} from '@utils/timing/tonePlan.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import SequenceStatusBar from '@components/timing/SequenceStatusBar.tsx'
@@ -166,6 +167,10 @@ const StartBoardPanel = ({
                     sequence={sequence}
                     label={label}
                     now={now}
+                    // Der Plan der Partie, zu der die SEQUENZ gehört — nicht der fokussierten:
+                    // der Fokus rückt nach dem Start weiter, die Töne laufen aber noch für den
+                    // gestarteten Lauf.
+                    tonePlan={tonePlanForSequence(matches, sequence)}
                     busy={busy}
                     onStart={handleSequenceStart}
                     onAbort={onAbort}
