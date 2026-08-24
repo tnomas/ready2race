@@ -9,7 +9,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentReque
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
-import de.lambda9.ready2race.backend.app.timing.entity.TonePlanStep
+import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.testing.testComprehension
@@ -64,16 +64,16 @@ class TimingModeServiceTest {
     fun tonePlanSurvivesTheJsonbRoundtrip() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val plan = listOf(
-            TonePlanStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
+            ToneStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
             // Gehalten mit 0 ms Ausklingen: die 0 waehlt eine ANDERE Huellkurve als null
             // (Abfallend) und muss den Roundtrip als echte 0 ueberleben, nicht als null.
-            TonePlanStep(offsetMillis = -5_000, frequencyHz = 600, durationMillis = 100, releaseMillis = 0),
+            ToneStep(offsetMillis = -5_000, frequencyHz = 600, durationMillis = 100, releaseMillis = 0),
             // Mit Ausklingzeit: auch releaseMillis muss den jsonb-Roundtrip unverändert überleben.
-            TonePlanStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
+            ToneStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
             // Wellenform: gesetzt bleibt gesetzt, nicht gesetzt bleibt null (= Sinus) - auch
             // kombiniert mit einer Ausklingzeit (die Dimensionen sind unabhaengig).
-            TonePlanStep(offsetMillis = -2_000, frequencyHz = 440, durationMillis = 300, waveform = ToneWaveform.SQUARE),
-            TonePlanStep(offsetMillis = -1_000, frequencyHz = 440, durationMillis = 300, releaseMillis = 500, waveform = ToneWaveform.SAWTOOTH),
+            ToneStep(offsetMillis = -2_000, frequencyHz = 440, durationMillis = 300, waveform = ToneWaveform.SQUARE),
+            ToneStep(offsetMillis = -1_000, frequencyHz = 440, durationMillis = 300, releaseMillis = 500, waveform = ToneWaveform.SAWTOOTH),
         )
 
         val created = !TimingModeService.addMode(request().copy(tonePlan = plan), userId, eventId)
@@ -82,7 +82,7 @@ class TimingModeServiceTest {
 
         // Update auf einen anderen Plan und zurück auf null (= Standard) - beides muss die
         // jsonb-Spalte exakt nachziehen, nicht nur beim Anlegen.
-        val updated = listOf(TonePlanStep(offsetMillis = 0, frequencyHz = 1200, durationMillis = 200))
+        val updated = listOf(ToneStep(offsetMillis = 0, frequencyHz = 1200, durationMillis = 200))
         !TimingModeService.updateMode(request().copy(tonePlan = updated), userId, modeId, eventId)
         assertEquals(updated, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
 

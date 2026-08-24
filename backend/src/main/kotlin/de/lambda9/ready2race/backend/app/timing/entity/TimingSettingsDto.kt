@@ -25,9 +25,11 @@ data class TimingSettingsDto(
     val finishTone: CaptureTone,
     val splitTone: CaptureTone,
     /**
-     * Fehlstart-Ton der Startposten, ebenfalls aufgelöst (unkonfiguriert =
-     * [TimingToneLimits.DEFAULT_FALSE_START_TONE]). Start-Board und Startbildschirm spielen ihn
-     * bei Versuchs-Rücknahme oder Abbruch einer laufenden Sequenz der gerade geführten Partie.
+     * Fehlstart-FOLGE der Startposten, ebenfalls aufgelöst (unkonfiguriert =
+     * [TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]). Start-Board und Startbildschirm spielen
+     * sie GANZ - Ton für Ton mit den Zeitpunkten der Folge - bei Versuchs-Rücknahme oder Abbruch
+     * einer laufenden Sequenz der gerade geführten Partie. Nie leer: ein noch als Einzelton
+     * gespeicherter Wert kommt als einelementige Folge an.
      */
-    val falseStartTone: CaptureTone,
+    val falseStartTone: List<ToneStep>,
 )

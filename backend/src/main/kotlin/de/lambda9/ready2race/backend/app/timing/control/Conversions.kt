@@ -23,16 +23,49 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 /**
- * Eigener Mapper mit Kotlin-Modul für die Ton-JSONB-Spalten ([TonePlanStep], [CaptureTone]) -
+ * Eigener Mapper mit Kotlin-Modul für die Ton-JSONB-Spalten ([ToneStep], [CaptureTone]) -
  * dasselbe Muster wie beim Board-Config-Mapper (eventInfo/control/Conversions.kt): der nackte
  * ObjectMapper kann Kotlin-Datenklassen nicht konstruieren.
  */
 private val toneMapper = ObjectMapper().registerKotlinModule()
 
-fun List<TonePlanStep>.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+fun List<ToneStep>.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
 
-fun JSONB?.toTonePlan(): List<TonePlanStep>? =
-    this?.let { toneMapper.readValue<List<TonePlanStep>>(it.data()) }
+fun JSONB?.toTonePlan(): List<ToneStep>? =
+    this?.let { toneMapper.readValue<List<ToneStep>>(it.data()) }
+
+/**
+ * Die Fehlstart-FOLGE aus ihrer jsonb-Spalte - mit Rückwärtskompatibilität OHNE Migration.
+ *
+ * Bis zum 24.08.2026 war der Fehlstart-Ton ein EINZELTON und liegt in bestehenden Datenbanken
+ * als jsonb-OBJEKT (`{"frequencyHz":200,"durationMillis":2000,...}`); seither schreibt der
+ * Service immer ein ARRAY. Statt einer Migration, die jede Zeile anfassen müsste (und bei einem
+ * Rollback wieder zurückmüsste), entscheidet hier die Gestalt des gespeicherten Werts: ein
+ * Objekt wird als einelementige Folge mit Zeitpunkt 0 gelesen - der alte Ton klingt also
+ * unverändert, sofort bei der Auslösung, und beim nächsten Speichern wandert er von selbst in
+ * die neue Array-Form.
+ *
+ * Ein Array-Wert geht direkt durch; alles andere (Zahl, String, `null`-Literal) ist kaputter
+ * Bestand und fliegt wie bisher beim Einlesen, statt still zu einem stummen Board zu werden.
+ */
+fun JSONB?.toToneSequence(): List<ToneStep>? =
+    this?.let {
+        val node = toneMapper.readTree(it.data())
+        if (node.isObject) {
+            val tone = toneMapper.treeToValue(node, CaptureTone::class.java)
+            listOf(
+                ToneStep(
+                    offsetMillis = 0,
+                    frequencyHz = tone.frequencyHz,
+                    durationMillis = tone.durationMillis,
+                    releaseMillis = tone.releaseMillis,
+                    waveform = tone.waveform,
+                )
+            )
+        } else {
+            toneMapper.readValue<List<ToneStep>>(it.data())
+        }
+    }
 
 fun CaptureTone.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
 

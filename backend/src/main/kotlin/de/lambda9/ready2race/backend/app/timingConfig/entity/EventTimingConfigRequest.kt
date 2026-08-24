@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.timingConfig.entity
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
+import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
@@ -41,10 +42,13 @@ data class EventTimingConfigRequest(
     val finishTone: CaptureTone?,
     val splitTone: CaptureTone?,
     /**
-     * Fehlstart-Ton der Startposten, gleiche PUT-Semantik wie die Erfassungstöne: `null` heisst
-     * "eingebauter Standard" (440 Hz / 3000 ms) und räumt einen eigenen Wert wieder ab.
+     * Fehlstart-FOLGE der Startposten, gleiche PUT-Semantik wie die Erfassungstöne: `null` heisst
+     * "eingebaute Standardfolge" (kurz-kurz-lang, siehe
+     * [TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]) und räumt einen eigenen Wert wieder ab.
+     * Geschrieben wird immer die Liste - der frühere Einzelton-Wert bleibt lesbar (Conversions),
+     * entsteht aber nicht mehr neu.
      */
-    val falseStartTone: CaptureTone?,
+    val falseStartTone: List<ToneStep>?,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -55,7 +59,7 @@ data class EventTimingConfigRequest(
             validateMinutes(watchAfterMinutes, "watchAfterMinutes"),
             TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
             TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
-            TimingToneLimits.validateCaptureTone(falseStartTone, "falseStartTone"),
+            TimingToneLimits.validateToneSequence(falseStartTone, "falseStartTone"),
         )
 
     companion object {

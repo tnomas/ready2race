@@ -69,7 +69,8 @@ object TimingOfficialTimeService {
         /** Erfassungstöne (FINISH/SPLIT), bereits auf den Standard aufgelöst - siehe [toDto]. */
         val finishTone: CaptureTone,
         val splitTone: CaptureTone,
-        val falseStartTone: CaptureTone,
+        /** Fehlstart-FOLGE, ebenfalls aufgelöst - nie leer. */
+        val falseStartTone: List<ToneStep>,
     ) {
         /** Die eine Stelle, die aus dem internen Stand die Board-Sicht baut (GET + Broadcast). */
         fun toDto() = TimingSettingsDto(
@@ -454,8 +455,10 @@ object TimingOfficialTimeService {
                     ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
                 splitTone = event?.timingSplitTone.toCaptureTone()
                     ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
-                falseStartTone = event?.timingFalseStartTone.toCaptureTone()
-                    ?: TimingToneLimits.DEFAULT_FALSE_START_TONE,
+                // Ein noch als Einzelton (jsonb-Objekt) gespeicherter Wert wird hier bereits zur
+                // einelementigen Folge - die Boards kennen nur noch Folgen.
+                falseStartTone = event?.timingFalseStartTone.toToneSequence()
+                    ?: TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE,
             )
         }
 

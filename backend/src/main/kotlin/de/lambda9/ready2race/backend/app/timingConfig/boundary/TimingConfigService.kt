@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceError
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timing.control.toCaptureTone
 import de.lambda9.ready2race.backend.app.timing.control.toJsonb
+import de.lambda9.ready2race.backend.app.timing.control.toToneSequence
 import de.lambda9.ready2race.backend.app.timingConfig.control.TimingConfigRepo
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
@@ -82,7 +83,7 @@ object TimingConfigService {
                     // "Standard wiederherstellen" - aufgelöst liefert erst GET /timing/settings.
                     finishTone = event.timingFinishTone.toCaptureTone(),
                     splitTone = event.timingSplitTone.toCaptureTone(),
-                    falseStartTone = event.timingFalseStartTone.toCaptureTone(),
+                    falseStartTone = event.timingFalseStartTone.toToneSequence(),
                     deviatingCompetitions = deviations,
                 )
             )
@@ -105,7 +106,7 @@ object TimingConfigService {
             ?: TimingPrecision.ZEHNTEL
         val tonesChanged = event.timingFinishTone.toCaptureTone() != request.finishTone ||
             event.timingSplitTone.toCaptureTone() != request.splitTone ||
-            event.timingFalseStartTone.toCaptureTone() != request.falseStartTone
+            event.timingFalseStartTone.toToneSequence() != request.falseStartTone
 
         !EventRepo.update(event) {
             timingSystem = request.timingSystem?.name

@@ -18,5 +18,5 @@ data class TimingModeDto(
      * Tonplan der Startsequenz: welche Sinus-Pieps wann relativ zum Start gespielt werden,
      * aufsteigend nach Offset. null = eingebauter Standardplan (klingt exakt wie bisher).
      */
-    val tonePlan: List<TonePlanStep>?,
+    val tonePlan: List<ToneStep>?,
 )

@@ -13,7 +13,7 @@ data class TimingModeRequest(
     val intervalSeconds: Int?,
     val leadInSeconds: Int,
     /** null = eingebauter Standardplan; Grenzen siehe [TimingToneLimits]. */
-    val tonePlan: List<TonePlanStep>?,
+    val tonePlan: List<ToneStep>?,
 ) : Validatable {
 
     override fun validate(): ValidationResult = ValidationResult.allOf(

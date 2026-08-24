@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import java.util.UUID
 
 /**
@@ -35,11 +36,14 @@ data class EventTimingConfigDto(
     val finishTone: CaptureTone?,
     val splitTone: CaptureTone?,
     /**
-     * Fehlstart-Ton der Startposten. Wie die Erfassungstöne unaufgelöst: null heisst "eingebauter
-     * Standard" (440 Hz / 3000 ms) - das Formular braucht den Unterschied für "Standard
-     * wiederherstellen"; aufgelöst liefert erst GET /timing/settings.
+     * Fehlstart-FOLGE der Startposten (kurz-kurz-lang und Verwandtes, Zeitpunkte vorwärts ab der
+     * Auslösung). Wie die Erfassungstöne unaufgelöst: null heisst "eingebaute Standardfolge"
+     * ([TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]) - das Formular braucht den Unterschied
+     * für "Standard wiederherstellen"; aufgelöst liefert erst GET /timing/settings. Eine noch als
+     * Einzelton gespeicherte Spalte kommt hier bereits als einelementige Folge an (siehe
+     * `JSONB?.toToneSequence()`).
      */
-    val falseStartTone: CaptureTone?,
+    val falseStartTone: List<ToneStep>?,
     /**
      * Die Wettkaempfe, die dieser Voreinstellung nicht folgen. Ohne sie waere die Voreinstellung eine
      * Einstellung, deren Reichweite man nicht sieht: wer hier eine Adresse aendert, muss wissen,

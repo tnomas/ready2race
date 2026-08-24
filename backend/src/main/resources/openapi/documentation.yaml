@@ -16006,11 +16006,16 @@ components:
           nullable: true
           description: Capture confirmation tone of SPLIT stations; null means "built-in default".
         falseStartTone:
-          $ref: '#/components/schemas/CaptureToneDto'
+          type: array
           nullable: true
           description: >-
-            False-start tone of start boards. Like the capture tones NOT resolved - null means
-            "built-in default" (440 Hz / 3000 ms), so the form can offer a reset.
+            False-start SEQUENCE of start boards (offsets counted forward from the trigger). Like
+            the capture tones NOT resolved - null means "built-in default sequence" (short-short-
+            long, see TimingSettingsDto.falseStartTone), so the form can offer a reset. A column
+            still holding the pre-24.08.2026 single tone (a jsonb object) is read as a
+            one-element sequence with offsetMillis 0, so no migration is needed.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
         deviatingCompetitions:
           type: array
           description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
@@ -16159,11 +16164,15 @@ components:
           nullable: true
           description: PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
         falseStartTone:
-          $ref: '#/components/schemas/CaptureToneDto'
+          type: array
           nullable: true
           description: >-
-            PUT semantics - null (or absent) restores the built-in default false-start tone
-            (440 Hz / 3000 ms).
+            False-start SEQUENCE, PUT semantics - null (or absent) restores the built-in default
+            sequence. offsetMillis is counted FORWARD from the trigger here (0..60000), unlike a
+            timing mode's tone plan; at most 30 steps. Always written as an array - the former
+            single-tone object stays readable but is never produced again.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
       required:
         - autoPull
         - intervalActiveSeconds
@@ -20784,12 +20793,18 @@ components:
           $ref: '#/components/schemas/CaptureToneDto'
           description: Capture confirmation tone of SPLIT stations, resolved like finishTone.
         falseStartTone:
-          $ref: '#/components/schemas/CaptureToneDto'
+          type: array
           description: >-
-            False-start tone of start boards, also resolved (unconfigured events get the built-in
-            440 Hz / 3000 ms SAWTOOTH - deliberately aggressive, the one built-in tone that is
-            not a sine). Played on the start board and the start display when an attempt is
+            False-start SEQUENCE of start boards, also resolved and never empty. Unconfigured
+            events get the built-in default: three SAWTOOTH tones held at full volume -
+            200 Hz / 300 ms at 0 ms, the same again at 400 ms, then 180 Hz / 1500 ms with a
+            400 ms release at 800 ms ("short - short - long"). Sawtooth and the low pitch are
+            deliberate: a sine is lost in regatta noise, and a repeated pattern with a differing
+            final tone reads as a recall rather than as just another beep. Boards play the whole
+            sequence with its offsets (counted forward from the trigger) when an attempt is
             retracted or a running sequence is aborted for the match they are currently showing.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
 
     ToneWaveform:
       type: string
@@ -20810,8 +20825,9 @@ components:
       type: object
       description: >-
         A single configurable tone of the event: the confirmation beep played when a FINISH/SPLIT
-        station captures a time, and the false-start tone of start boards. Limits: frequencyHz
-        100..4000, durationMillis 20..10000, releaseMillis 0..5000.
+        station captures a time. A capture tone stays a SINGLE tone on purpose - it confirms a
+        key press and must be short. Limits: frequencyHz 100..4000, durationMillis 20..10000,
+        releaseMillis 0..5000.
       required:
         - frequencyHz
         - durationMillis
@@ -20845,13 +20861,18 @@ components:
     ToneStepDto:
       type: object
       description: >-
-        One entry of a timing mode's tone plan: a synthesized beep relative to the start of the
-        boat/wave the countdown is currently running for. offsetMillis is negative before the
-        start and 0 at the start itself; positive values are not allowed (after the start the
-        countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0
-        (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000,
-        releaseMillis 0..5000, at most 30 steps per plan. Missed tones are never played late - a
-        board that reconnects mid-countdown stays silent for everything older than about a second.
+        One tone of a tone sequence: a synthesized beep at a point in time relative to a
+        reference. The same shape carries both sequences of the system; only the DIRECTION of
+        offsetMillis differs, and that is decided by the FIELD carrying the sequence, not by this
+        type. A timing mode's tonePlan counts BACKWARDS from the start of the boat/wave the
+        countdown is running for: offsetMillis is negative before the start and 0 at the start
+        itself, positive values are rejected (after the start the countdown target immediately
+        moves on to the next boat), limits -600000..0 matching the maximum sequence lead-in. The
+        event's falseStartTone counts FORWARD from the trigger: 0 = immediately, positive = that
+        many milliseconds later, limits 0..60000. Common limits: frequencyHz 100..4000,
+        durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per sequence. Missed
+        countdown tones are never played late - a board that reconnects mid-countdown stays
+        silent for everything older than about a second.
       required:
         - offsetMillis
         - frequencyHz
