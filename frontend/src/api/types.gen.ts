@@ -677,11 +677,15 @@ export type CaptchaDto = {
 }
 
 /**
- * A single confirmation beep (sine tone) played when a FINISH/SPLIT station captures a time. Limits: frequencyHz 100..4000, durationMillis 20..2000.
+ * A single configurable tone of the event (sine tone): the confirmation beep played when a FINISH/SPLIT station captures a time, and the false-start tone of start boards. Limits: frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000.
  */
 export type CaptureToneDto = {
     frequencyHz: number
     durationMillis: number
+    /**
+     * Release time in ms - how gently the volume falls off AFTER the nominal duration. With a release, durationMillis is the hold time at full volume and the total sound is duration + release (the release may exceed the nominal duration). Null (or 0) keeps the classic envelope: an exponential decay across the whole nominal duration.
+     */
+    releaseMillis?: number | null
 }
 
 export type CatererTransactionRequest = {
@@ -2052,6 +2056,10 @@ export type EventTimingConfigDto = {
      */
     splitTone?: CaptureToneDto | null
     /**
+     * False-start tone of start boards. Like the capture tones NOT resolved - null means "built-in default" (440 Hz / 3000 ms), so the form can offer a reset.
+     */
+    falseStartTone?: CaptureToneDto | null
+    /**
      * The competitions that do not follow these defaults but set at least one of the three fields themselves.
      */
     deviatingCompetitions?: Array<CompetitionTimingDeviationDto>
@@ -2094,6 +2102,10 @@ export type EventTimingConfigRequest = {
      * PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
      */
     splitTone?: CaptureToneDto | null
+    /**
+     * PUT semantics - null (or absent) restores the built-in default false-start tone (440 Hz / 3000 ms).
+     */
+    falseStartTone?: CaptureToneDto | null
 }
 
 export type FeeDto = {
@@ -4330,6 +4342,10 @@ export type TimingSettingsDto = {
      * Capture confirmation tone of SPLIT stations, resolved like finishTone.
      */
     splitTone: CaptureToneDto
+    /**
+     * False-start tone of start boards, also resolved (unconfigured events get the built-in 440 Hz / 3000 ms). Played on the start board and the start display when an attempt is retracted or a running sequence is aborted for the match they are currently showing.
+     */
+    falseStartTone: CaptureToneDto
 }
 
 /**
@@ -4401,6 +4417,12 @@ export type TimingStationRequest = {
  * distinguish "no assignment" from a field that was never sent.
  * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
  * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
+ * a whole attempt was retracted ("retract start", one message per retraction in addition to
+ * the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
+ * tone when the retracted match belongs to the sequence they are currently showing;
+ * `competitionMatchTeams` lists the teams whose active marks were retracted (may be empty
+ * when only the actual-start stamp was cleared).
  * - The channel is receive-only: clients should ignore any data they send on it and rely on the
  * server's ping/pong keepalive.
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
@@ -4425,12 +4447,16 @@ export type TimingTeamDto = {
 }
 
 /**
- * One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave the countdown is currently running for. offsetMillis is negative before the start and 0 at the start itself; positive values are not allowed (after the start the countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..2000, at most 30 steps per plan. Missed tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
+ * One entry of a timing mode's tone plan: a sine beep relative to the start of the boat/wave the countdown is currently running for. offsetMillis is negative before the start and 0 at the start itself; positive values are not allowed (after the start the countdown target immediately moves on to the next boat). Limits: offsetMillis -600000..0 (matching the maximum sequence lead-in), frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per plan. Missed tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
  */
 export type ToneStepDto = {
     offsetMillis: number
     frequencyHz: number
     durationMillis: number
+    /**
+     * Release time in ms after the nominal duration (hold at full volume, then fall off; total sound = duration + release). Null (or 0) keeps the classic envelope - an exponential decay across the whole nominal duration.
+     */
+    releaseMillis?: number | null
 }
 
 export type TooManyRequestsError = ApiError & {
