@@ -224,11 +224,19 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
 
     const label = (profile: string | null | undefined) => profileLabel(options, profile)
 
-    /** „Erbt (…)“ mit dem Wert der Ebene DARÜBER — das ist es, was ohne eigenen Wert gilt. */
-    const inheritLabel = (inherited: string | null | undefined) =>
-        t('event.timing.profiles.inherit', {
-            profile: label(inherited) ?? t('event.timing.profiles.inheritsNothing'),
-        })
+    /**
+     * „Erbt (…)“ mit dem Wert der Ebene DARÜBER — das ist es, was ohne eigenen Wert gilt.
+     *
+     * Die beiden Texte sind Alternativen, keine Bausteine: `inheritsNothing` ist selbst schon ein
+     * vollständiges „Erbt (nichts gesetzt)“. Wer ihn in `inherit` einsetzt, bekommt
+     * „Erbt (Erbt (nichts gesetzt))“ — genau das stand am 25.08.2026 in der laufenden Anwendung.
+     */
+    const inheritLabel = (inherited: string | null | undefined) => {
+        const inheritedName = label(inherited)
+        return inheritedName !== null
+            ? t('event.timing.profiles.inherit', {profile: inheritedName})
+            : t('event.timing.profiles.inheritsNothing')
+    }
 
     const toggle = (id: string) => setExpanded(prev => toggleExpanded(prev, id))
 
