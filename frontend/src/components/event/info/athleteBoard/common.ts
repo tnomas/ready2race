@@ -144,10 +144,13 @@ export const teamLabel = (
 }
 
 /**
- * Kurzform eines Rundennamens für die Runden-Zeile an der Zeit: „Runde 1" → „R1",
- * „Lap 2" → „L2". Die Namen sind Spaltenüberschriften aus RaceClocker und damit freier
- * Text — nur das Muster „ein Wort plus Zahl" wird eingedampft, alles andere (etwa
- * „500m") bleibt unverändert stehen, bevor eine zu forsche Kürzung den Sinn kostet.
+ * Kurzform einer Zwischenzeit-Beschriftung für die Zeile an der Zeit: „Runde 1" → „R1",
+ * „Lap 2" → „L2", „Boje 1" → „B1".
+ *
+ * Die Beschriftung hat zwei Herkünfte, weil `competition_match_team_lap` zwei Schreiber hat: der
+ * Name des Streckenpostens bei der hauseigenen Zeitnahme, die Spaltenüberschrift aus RaceClocker
+ * beim Feed. Beides ist freier Text — nur das Muster „ein Wort plus Zahl" wird eingedampft, alles
+ * andere (etwa „500m") bleibt unverändert stehen, bevor eine zu forsche Kürzung den Sinn kostet.
  */
 export const compactLapLabel = (name: string): string => {
     const match = name.trim().match(/^(\p{L})\p{L}*\s*(\d+)$/u)

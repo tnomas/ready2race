@@ -133,6 +133,54 @@ class TimingSplitServiceTest {
     }
 
     /**
+     * Ein Zielposten darf auf der Strecke stehen — das Schema sieht ihn ausdrücklich vor (der
+     * Startposten bei 0, der Zielposten bei der Gesamtdistanz), und die Auswahlliste im
+     * Zeitnahme-Tab bietet ihn an. Eine Zwischenzeit wird seine Marke aber NIE: Am Ziel entsteht
+     * die offizielle Zeit, und die steht am Lauf. Wer am Ziel eine Tempo-Angabe für den letzten
+     * Abschnitt erwartet, erwartet deshalb vergeblich — der Hinweistext an der Liste sagt das
+     * inzwischen ausdrücklich.
+     *
+     * Zugesichert war das bisher nirgends, obwohl die Regel an zwei weit auseinanderliegenden
+     * Stellen sitzt: Die Leseabfrage lässt FINISH schon in SQL heraus, die Logik zusätzlich die
+     * START-Marken. Beides zusammen ergibt hier eine einzige Zeile — die der Boje. Nähme jemand
+     * eine der beiden Stellen versehentlich zurück, stünde die Zielzeit plötzlich als
+     * Zwischenzeit im Rundenband.
+     */
+    @Test
+    fun `eine Marke am Zielposten wird keine Zwischenzeit`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+        val teamId = fixture.teamIds.single()
+
+        val startId = !addStation(eventId, userId, "Startturm", TimingStationType.START)
+        val bojeId = !addStation(eventId, userId, "Boje 1", TimingStationType.SPLIT)
+        val zielId = !addStation(eventId, userId, "Zielturm", TimingStationType.FINISH)
+        // Die volle Strecke, so wie der Hinweistext sie zulässt: Start bei 0, Ziel bei 2000.
+        !setStations(
+            eventId,
+            userId,
+            fixture.competitionId,
+            startId to 0,
+            bojeId to 1000,
+            zielId to 2000,
+        )
+
+        !addAssignedMark(eventId, userId, startId, teamId, 10_000)
+        !addAssignedMark(eventId, userId, bojeId, teamId, 100_000)
+        !addAssignedMark(eventId, userId, zielId, teamId, 190_000)
+
+        val laps = !lapsOf(teamId)
+        assertEquals(
+            listOf("Boje 1"),
+            laps.map { it.name },
+            "Weder Start noch Ziel ergeben eine Zwischenzeit - nur der Posten dazwischen",
+        )
+        assertEquals(listOf(1), laps.map { it.position })
+        assertEquals(listOf(90_000L), laps.map { it.lapMillis })
+    }
+
+    /**
      * Wird die Zuordnung wieder gelöst, verschwindet die Zeile. Ohne das Abräumen bliebe eine
      * Zwischenzeit am Boot stehen, deren Marke keinem Boot mehr gehört — der Upsert allein
      * schreibt nur, er räumt nicht.

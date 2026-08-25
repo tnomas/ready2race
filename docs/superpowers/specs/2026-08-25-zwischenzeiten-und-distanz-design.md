@@ -47,8 +47,20 @@ Intervall, Vorlauf, Tonplan). **Wie er gemessen wird**, sagen die Posten am Wett
    „Zeit pro 500 m", im Laufen „Zeit pro Kilometer", im Radsport „km/h".
 5. **Gerechnet wird: die Zwischenzeit selbst, das Tempo je Abschnitt und die Rangfolge an der
    Zwischenzeit.** Eine Hochrechnung auf die Zielzeit ist ausdrücklich nicht Teil dieser Arbeit.
-6. **`timing_mode.with_laps` fällt ersatzlos.** Die beiden Beschriftungen leiten sich künftig
-   daraus ab, ob der Wettkampf überhaupt SPLIT-Posten zugeordnet hat.
+6. **`timing_mode.with_laps` fällt ersatzlos** — Spalte, DTO-Feld, Request-Feld, Schalter im
+   Typ-Dialog, Chip-Feld und Beschreibungszeile. *Nachtrag 25.08.2026, Ist-Zustand:* Die
+   ursprünglich vorgesehene **Ableitung aus den SPLIT-Posten wurde bewusst nicht gebaut**, und
+   zwar aus zwei verschiedenen Gründen:
+   - Der **Chip an der Partie** rendert das Feld gar nicht — `matchBoard.ModeChipParts` trug es
+     mit, ohne dass es je auf einem Board erschienen wäre. Ein totes Datum braucht keinen Ersatz;
+     es abzuleiten hieße, eine Rechnung für eine Anzeige zu bauen, die es nicht gibt.
+   - Der **Beschreibungszeile im Typ-Panel** fehlt die Datengrundlage: Der Zeitnahmetyp gehört der
+     Veranstaltung, die Posten gehören dem Wettkampf. Ein Typ weiß nicht, welchen Wettkämpfen er
+     zugeordnet ist, und „hat SPLIT-Posten" ist deshalb an ihm keine beantwortbare Frage.
+     Beantwortbar wäre sie erst am Wettkampf — und dort steht die Liste der Posten ohnehin
+     ausgeschrieben im Zeitnahme-Tab.
+
+   Wer hier eine Ableitung sucht: Es gibt keine, und das ist Absicht.
 
 ## Modell
 
@@ -219,11 +231,27 @@ Migrationsnummern ab `V202608251200`; `V202608250900` ist im Nachbar-Worktree
 ## Risiken
 
 - **Zwei Schreiber, eine Tabelle.** RaceClocker-Abruf und `TimingSplitService` teilen sich
-  `competition_match_team_lap`. Sie sind über das Zeitnahme-System der Veranstaltung getrennt, aber
-  eine Veranstaltung, die das System mitten im Betrieb umstellt, kann Zeilen aus der einen Welt
-  neben denen der anderen stehen haben. Der `unique (competition_match_team, position)` fängt das
-  als Fehler ab, nicht als stille Vermischung — das ist die richtige Richtung, aber der Fall
-  gehört in den Handtest.
+  `competition_match_team_lap`. Sie sind über das Zeitnahme-System der Veranstaltung getrennt, und
+  solange es steht, kommen sie einander nicht in die Quere. Stellt eine Veranstaltung mitten im
+  Betrieb aber von RACECLOCKER auf INTERN um, geschieht Folgendes — nachgeprüft am gebauten Stand,
+  und es ist weder die Kollision noch die stille Vermischung, die dieser Absatz zunächst
+  vorhersagte:
+
+  `TimingSplitRepo.getTeamsWithLaps` liefert ab der Umstellung auch die Boote mit **Feed-Zeilen**,
+  denn die Abfrage hängt am System der Veranstaltung und nicht an der Herkunft der Zeile. Für
+  diese Boote gibt es keine Marken, also keine `splits`, also ein leeres `keepPositions` — und
+  `CompetitionMatchTeamLapRepo.deleteBeyond` löscht mit leerer Liste **alles**. Die erste
+  Markenzuordnung nach der Umstellung räumt damit sämtliche RaceClocker-Rundenzeiten der
+  Veranstaltung ab. Der `unique (competition_match_team, position)` kommt gar nicht erst zum
+  Zug.
+
+  Vertretbar ist das: Nach der Umstellung gehören die Zwischenzeiten dem neuen System, und eine
+  halb aufgeräumte Tabelle wäre schlimmer als eine leere. **Unumkehrbar ist es aber auch** — die
+  Feed-Zeilen sind fort und kämen nur über einen erneuten Abruf zurück, den es nach der
+  Umstellung nicht mehr gibt. Der Handtest prüft deshalb nicht, ob es kollidiert, sondern **dass
+  die alten Zeilen verschwinden**: Veranstaltung mit RaceClocker-Rundenzeiten auf INTERN
+  umstellen, eine einzige Marke zuordnen, und danach nachsehen, dass die Feed-Rundenzeiten der
+  ganzen Veranstaltung weg sind.
 - **Die Distanz ist eine Behauptung.** Niemand misst nach, ob der Posten wirklich bei 3000 m steht.
   Ein falscher Meter erzeugt ein falsches Tempo, das plausibel aussieht. Deshalb keine
   Hochrechnung auf die Zielzeit in dieser Arbeit: Ein falscher Meter wäre dort nicht mehr nur

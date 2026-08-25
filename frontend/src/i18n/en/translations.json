@@ -1366,7 +1366,7 @@
         },
         "stations": {
           "title": "Stations on the course",
-          "hint": "Which timing stations this competition passes and at which metre. The start is at 0, the finish at the total distance. Split times are ordered by the metre, not by the order of the stations in the control room. The stations themselves are maintained in the event settings.",
+          "hint": "Which timing stations this competition passes and at which metre. Start and finish stations may be listed as well — the start at 0, the finish at the total distance — so the course is described in full. A split time is only created at stations of type “Split”, though: at the finish the official time is measured, so there is no split time there and consequently no pace for the last section. Split times are ordered by the metre, not by the order of the stations in the control room. The stations themselves are maintained in the event settings.",
           "distance": "Metres",
           "noStations": "This event has no capturing timing stations yet. Display stations are not offered - they never capture a time.",
           "saved": "Stations on the course saved",

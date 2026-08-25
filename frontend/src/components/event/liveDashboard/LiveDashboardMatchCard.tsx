@@ -568,8 +568,10 @@ const LiveDashboardMatchCard = ({
                                             {(team.crew ?? []).map(crewMemberLabel).join(' / ')}
                                         </Typography>
                                     )}
-                                    {/* Zwischenzeiten aus RaceClocker, sobald der Feed sie liefert -
-                                        dieselben Laps wie auf den Boards, hier in der Zeile mit. */}
+                                    {/* Zwischenzeiten, sobald es welche gibt - aus den Marken der
+                                        Streckenposten der hauseigenen Zeitnahme oder aus dem
+                                        RaceClocker-Feed. Dieselben Laps wie auf den Boards, hier
+                                        in der Zeile mit. */}
                                     {(team.laps ?? []).length > 0 && (
                                         <Typography
                                             variant="caption"

@@ -1366,7 +1366,7 @@
         },
         "stations": {
           "title": "Poster på ruten",
-          "hint": "Hvilke tidtagningsposter denne konkurrence passerer, og ved hvilken meter. Starten er ved 0, målet ved den samlede distance. Mellemtiderne ordnes efter meteren, ikke efter posternes rækkefølge i kontrolrummet. Posterne selv vedligeholdes i arrangementets indstillinger.",
+          "hint": "Hvilke tidtagningsposter denne konkurrence passerer, og ved hvilken meter. Start- og målposter må gerne føres med — starten ved 0, målet ved den samlede distance — så hele distancen er beskrevet. En mellemtid opstår dog kun ved poster af typen “Mellemtid”: ved målet måles den officielle tid, så der hverken står en mellemtid eller et tempo for den sidste strækning. Mellemtiderne ordnes efter meteren, ikke efter posternes rækkefølge i kontrolrummet. Posterne selv vedligeholdes i arrangementets indstillinger.",
           "distance": "Meter",
           "noStations": "Der er endnu ingen registrerende tidtagningsposter for dette arrangement. Visningsposter tilbydes ikke - de registrerer ingen tider.",
           "saved": "Poster på ruten gemt",

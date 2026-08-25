@@ -123,8 +123,10 @@ data class AthleteBoardTeam(
     /** Meldender Verein — nur befüllt, wenn ein Element showRegisteringClub anfordert. */
     val registeringClub: String? = null,
     /**
-     * Zwischenzeiten aus RaceClocker, in Markenreihenfolge — leer, wenn das Rennen keine führt.
-     * Die Anzeige zeigt sie unter der Zeile, sobald sie da sind (Rückmeldung vom 11.08.2026).
+     * Zwischenzeiten in der Reihenfolge ihrer Stellen auf der Strecke — leer, wenn es für dieses
+     * Boot keine gibt. Sie stammen aus einer von zwei Quellen: den Marken der Streckenposten der
+     * hauseigenen Zeitnahme oder dem RaceClocker-Feed. Die Anzeige zeigt sie unter der Zeile,
+     * sobald sie da sind (Rückmeldung vom 11.08.2026).
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
     /**

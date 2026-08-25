@@ -138,22 +138,28 @@ const CompetitionTimingStations = ({eventId, competitionId}: Props) => {
 
     const save = async () => {
         setSubmitting(true)
-        const {error} = await setCompetitionTimingStations({
-            path: {eventId, competitionId},
-            body: {
-                stations: checkedEntries.map(([timingStation, value]) => ({
-                    timingStation,
-                    distanceMeters: Number(value),
-                })),
-            },
-        })
-        setSubmitting(false)
+        try {
+            const {error} = await setCompetitionTimingStations({
+                path: {eventId, competitionId},
+                body: {
+                    stations: checkedEntries.map(([timingStation, value]) => ({
+                        timingStation,
+                        distanceMeters: Number(value),
+                    })),
+                },
+            })
 
-        if (error) {
-            feedback.error(t('common.error.unexpected'))
-        } else {
-            feedback.success(t('event.competition.timing.stations.saved'))
-            reloadAssigned()
+            if (error) {
+                feedback.error(t('common.error.unexpected'))
+            } else {
+                feedback.success(t('event.competition.timing.stations.saved'))
+                reloadAssigned()
+            }
+        } finally {
+            // Der erzeugte Client liefert Fehler als Wert und wirft im Normalfall nicht - fliegt
+            // dennoch etwas (Netzabbruch im Fetch), bliebe der Knopf ohne diesen Zweig bis zum
+            // Verlassen der Seite tot.
+            setSubmitting(false)
         }
     }
 

@@ -31,13 +31,24 @@ data class CompetitionMatchTeamWithRegistration(
     val ratingCategory: RatingCategoryRef?,
     val mixedTeamTerm: String?,
     /**
-     * Zwischenzeiten aus RaceClocker, in Feed-Reihenfolge. Jede Marke trägt den frei vergebenen
-     * Spaltennamen des Zeitnehmers und die kumulierte Fahrzeit seit dem gemessenen Start.
+     * Zwischenzeiten dieses Bootes, in der Reihenfolge ihrer Position.
+     *
+     * ZWEI Quellen schreiben sie, getrennt über das Zeitnahme-System der Veranstaltung: die
+     * hauseigene Zeitnahme aus den Marken ihrer Streckenposten (`TimingSplitService`, System
+     * INTERN) und der RaceClocker-Abruf aus dem Feed (`applyLapsFromFeed`, System RACECLOCKER).
+     * Beide füllen dieselbe Tabelle `competition_match_team_lap`; wer hier etwas ändert oder einen
+     * neuen Korrekturweg baut, muss an beide denken. Der Name ist im ersten Fall der Name des
+     * Postens, im zweiten der frei vergebene Spaltenname des Zeitnehmers; die Zeit ist in beiden
+     * Fällen die Fahrzeit seit dem gemessenen Start.
      */
     val laps: List<MatchTeamLap> = emptyList(),
 )
 
-/** Eine Zwischenzeit-Marke: Spaltenname aus RaceClocker und kumulierte Fahrzeit in Millisekunden. */
+/**
+ * Eine Zwischenzeit: Beschriftung und kumulierte Fahrzeit in Millisekunden. Die Beschriftung ist
+ * der Name des Streckenpostens (hauseigene Zeitnahme) oder der Spaltenname aus RaceClocker — je
+ * nachdem, welcher der beiden Schreiber die Zeile angelegt hat.
+ */
 data class MatchTeamLap(
     val name: String,
     val lapMillis: Long,

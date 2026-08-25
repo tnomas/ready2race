@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Die Migration V202608242100 gegen echte Altdaten: Typ-Zuordnungen und das je Wettkampf
@@ -23,6 +24,13 @@ import kotlin.test.assertNull
  * schließt derselbe Fall mit der Gegenprobe, dass die alten Wege nicht bloß unbenutzt, sondern
  * wirklich fort sind. Wäre die Übernahme lückenhaft und das Löschen trotzdem gelaufen, stünde der
  * Verlust hier schwarz auf weiß.
+ *
+ * Aus demselben Grund hängt am Ende der Formstand der Zwischenzeiten-Arbeit (V202608251200 bis
+ * V202608251240): Der Container migriert ohnehin bis zum Ende, und ein zweiter Container nur für
+ * fünf Schema-Fragen wäre eine halbe Minute Laufzeit für nichts. Geprüft wird das, was keine
+ * andere Zusicherung trägt — dass `timing_mode.with_laps` WIRKLICH weg ist, sieht man den Tests
+ * sonst nirgends an: Die Einfüge-Anweisungen hier oben liefen auch mit der Spalte, weil sie
+ * `not null default false` trug.
  */
 class TimingProfileMigrationTest {
 
@@ -137,6 +145,15 @@ class TimingProfileMigrationTest {
                 assertFalse(columnExists(conn, "competition", "timing_system"))
                 assertFalse(columnExists(conn, "competition", "startlist_config"))
                 assertFalse(columnExists(conn, "competition", "result_import_config"))
+
+                // Der Formstand der Zwischenzeiten-Arbeit: die vier neuen Objekte stehen ...
+                assertTrue(tableExists(conn, "pace_reference"))
+                assertTrue(tableExists(conn, "competition_timing_station"))
+                assertTrue(columnExists(conn, "competition_properties", "distance_meters"))
+                assertTrue(columnExists(conn, "competition_properties", "pace_reference"))
+                assertTrue(columnExists(conn, "competition_match_team_lap", "distance_meters"))
+                // ... und der Schalter, der nie etwas verzweigte, ist ersatzlos fort.
+                assertFalse(columnExists(conn, "timing_mode", "with_laps"))
             }
         } finally {
             postgres.stop()

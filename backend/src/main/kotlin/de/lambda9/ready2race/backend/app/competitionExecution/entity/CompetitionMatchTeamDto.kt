@@ -24,14 +24,21 @@ data class CompetitionMatchTeamDto(
     val penaltySeconds: Int?,
     val penaltyNote: String?,
     /**
-     * Zwischenzeiten aus RaceClocker, in der Reihenfolge der Marken auf der Strecke. Leer, wenn
-     * das Rennen keine Split-Spalten führt.
+     * Zwischenzeiten in der Reihenfolge ihrer Stellen auf der Strecke. Leer, wenn es für dieses
+     * Boot keine gibt.
+     *
+     * Zwei Quellen füllen sie: die hauseigene Zeitnahme aus den Marken der Streckenposten
+     * (`TimingSplitService`, System INTERN) und der RaceClocker-Abruf aus dem Feed (System
+     * RACECLOCKER). Leer heißt also entweder „keine Streckenposten zugeordnet“ oder „das Rennen
+     * führt keine Split-Spalten“.
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
 )
 
 /**
- * Eine Zwischenzeit: Spaltenname aus RaceClocker und kumulierte Fahrzeit als Anzeige-Text.
+ * Eine Zwischenzeit: Beschriftung und kumulierte Fahrzeit als Anzeige-Text. Die Beschriftung ist
+ * der Name des Streckenpostens (hauseigene Zeitnahme) oder der Spaltenname aus RaceClocker — die
+ * Tabelle dahinter hat zwei Schreiber.
  * [recordedAt] ist der Erfassungszeitpunkt (`created_at`) — additiv und nullable, weil nur
  * der Stream-Overlay-Modus LAPS ihn braucht (Eintreffzeit je Marke); alle anderen Anzeigen
  * lassen ihn weg (NON_NULL-Serialisierung).

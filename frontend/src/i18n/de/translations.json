@@ -1366,7 +1366,7 @@
         },
         "stations": {
           "title": "Posten auf der Strecke",
-          "hint": "Welche Zeitnahme-Posten dieser Wettkampf passiert und bei welchem Meter. Der Start steht bei 0, das Ziel bei der Gesamtdistanz. Die Reihenfolge der Zwischenzeiten ergibt sich aus dem Meter, nicht aus der Reihenfolge der Posten im Leitstand. Die Posten selbst werden in den Einstellungen der Veranstaltung gepflegt.",
+          "hint": "Welche Zeitnahme-Posten dieser Wettkampf passiert und bei welchem Meter. Start- und Zielposten dürfen mit eingetragen werden — der Start bei 0, das Ziel bei der Gesamtdistanz —, damit die Strecke vollständig beschrieben ist. Eine Zwischenzeit entsteht aber nur an Posten vom Typ „Zwischenzeit“: Am Ziel wird die offizielle Zeit gemessen, deshalb gibt es dort keine Zwischenzeit und folglich auch kein Tempo für den letzten Abschnitt. Die Reihenfolge der Zwischenzeiten ergibt sich aus dem Meter, nicht aus der Reihenfolge der Posten im Leitstand. Die Posten selbst werden in den Einstellungen der Veranstaltung gepflegt.",
           "distance": "Meter",
           "noStations": "Für diese Veranstaltung gibt es noch keine erfassenden Zeitnahme-Posten. Anzeige-Posten stehen nicht zur Wahl, sie erfassen keine Zeiten.",
           "saved": "Posten auf der Strecke gespeichert",
