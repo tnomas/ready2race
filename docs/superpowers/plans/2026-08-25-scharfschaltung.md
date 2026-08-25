@@ -310,7 +310,16 @@ Die offenen Handtests aufschreiben:
 
 ---
 
-## Task 4: Boote am Ton unterscheiden
+## Task 4: Boote am Ton unterscheiden — ANGEHALTEN am 25.08.2026
+
+> **Nicht umsetzen.** Dieser Task hängt den Schalter ans Event. Thomas hat entschieden, dass die
+> Erfassungstöne (samt Fehlstart- und Zielton) künftig zum **Zeitnahmetyp** gehören und aus
+> benannten Ton-Sätzen des Events gewählt werden — dorthin gehören dann auch dieser Schalter und
+> die anpassbare Tastenbelegung. Task 4 wandert deshalb in den Entwurf „Zeitnahmetyp als vollständige
+> Beschreibung", statt hier gebaut und sofort umgebaut zu werden. Die Tonleiter selbst (Verhältnisse,
+> Kappung, Tests) bleibt gültig und wird von dort übernommen.
+
+## Task 4 (angehalten): Boote am Ton unterscheiden
 
 **Files:**
 - Create: `backend/src/main/resources/db/migration/V202608251310__capture_tone_per_boat.sql`
