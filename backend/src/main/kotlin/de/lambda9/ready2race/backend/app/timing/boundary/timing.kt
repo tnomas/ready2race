@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationsRequest
 import de.lambda9.ready2race.backend.app.timing.entity.ComputeOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
@@ -456,6 +457,39 @@ fun Route.timing() {
                     val tokenId = !pathParam("tokenId", uuid)
                     TimingDeviceTokenService.revoke(eventId, tokenId)
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Die Posten auf der Strecke EINES Wettkampfs — unterhalb der Wettkampf-Route zu mounten, denn
+ * der Meter gehört dem Wettkampf: Derselbe Posten steht für die Langstrecke bei 3000 m und für
+ * den Sprint bei 250 m. Der Posten selbst bleibt Sache der Veranstaltung (/timing/stations).
+ */
+fun Route.competitionTimingStations() {
+    route("/timing-stations") {
+
+        get {
+            call.respondComprehension {
+                !authenticate(Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionId = !pathParam("competitionId", uuid)
+
+                TimingService.getCompetitionStations(competitionId, eventId)
+            }
+        }
+
+        // Ein PUT über die GANZE Liste: Was fehlt, wird gelöscht. Die Oberfläche hakt Posten an
+        // und speichert einmal - nicht je Zeile.
+        put {
+            call.respondComprehension {
+                val user = !authenticate(Privilege.UpdateEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionId = !pathParam("competitionId", uuid)
+
+                val body = !receiveKIO(CompetitionTimingStationsRequest.example)
+                TimingService.setCompetitionStations(body, user.id!!, competitionId, eventId)
             }
         }
     }

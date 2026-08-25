@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.competitionExecution.boundary.roundProg
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionPropertiesRequest
 import de.lambda9.ready2race.backend.app.competitionRegistration.boundary.competitionRegistration
 import de.lambda9.ready2race.backend.app.competitionSetup.boundary.competitionSetup
+import de.lambda9.ready2race.backend.app.timing.boundary.competitionTimingStations
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
@@ -116,6 +117,7 @@ fun Route.competition() {
             competitionSetup("competitionId")
             competitionExecution()
             roundProgression()
+            competitionTimingStations()
         }
     }
 }

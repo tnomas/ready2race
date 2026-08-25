@@ -1363,6 +1363,18 @@
           "title": "Denne tidtagning er endnu ikke klar til brug",
           "startlist": "Startlistepresettet mangler – uden det kan der ikke eksporteres en startliste som CSV.",
           "link": "Gå til stævnets tidtagningsindstillinger"
+        },
+        "stations": {
+          "title": "Poster på ruten",
+          "hint": "Hvilke tidtagningsposter denne konkurrence passerer, og ved hvilken meter. Starten er ved 0, målet ved den samlede distance. Mellemtiderne ordnes efter meteren, ikke efter posternes rækkefølge i kontrolrummet. Posterne selv vedligeholdes i arrangementets indstillinger.",
+          "distance": "Meter",
+          "noStations": "Der er endnu ingen tidtagningsposter for dette arrangement.",
+          "saved": "Poster på ruten gemt",
+          "warning": {
+            "missingDistance": "Mindst én valgt post mangler meteren.",
+            "overDistance": "Mindst én post står længere ude end konkurrencens samlede distance ({{distance}} m).",
+            "duplicateDistance": "To poster står ved samme meter."
+          }
         }
       },
       "places": {

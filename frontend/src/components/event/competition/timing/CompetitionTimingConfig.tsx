@@ -3,6 +3,7 @@ import {Trans, useTranslation} from 'react-i18next'
 import {competitionRoute, eventRoute} from '@routes'
 import InlineLink from '@components/InlineLink.tsx'
 import TimingProfileTree from '@components/event/timing/TimingProfileTree.tsx'
+import CompetitionTimingStations from '@components/event/competition/timing/CompetitionTimingStations.tsx'
 
 /**
  * Der Zeitnahme-Tab eines Wettkampfs: nur noch der Ausschnitt des Zeitnahmeprofil-Baums, der zu
@@ -41,6 +42,8 @@ const CompetitionTimingConfig = () => {
                     </Typography>
                 </Box>
                 <TimingProfileTree eventId={eventId} competitionId={competitionId} />
+                {/* Womit gestoppt wird, steht oben; hier steht, WO auf der Strecke gestoppt wird. */}
+                <CompetitionTimingStations eventId={eventId} competitionId={competitionId} />
             </Stack>
         </Box>
     )

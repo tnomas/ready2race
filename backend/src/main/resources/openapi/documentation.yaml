@@ -2142,6 +2142,66 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/competition/{competitionId}/timing-stations:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - $ref: '#/components/parameters/competitionId'
+    get:
+      operationId: getCompetitionTimingStations
+      description: >-
+        The timing stations this competition passes, each with its distance on THIS course, ordered
+        by that distance. The station itself belongs to the event; only the metre belongs to the
+        competition, because the same station sits at 3000 m for the long distance and at 250 m for
+        the sprint.
+      responses:
+        200:
+          description: Timing stations of the competition successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompetitionTimingStationDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    put:
+      operationId: setCompetitionTimingStations
+      description: >-
+        Replaces the WHOLE list of this competition: anything missing from the body is deleted,
+        everything in it is created or moved to its new metre. An empty list clears the
+        competition. Every station has to belong to the same event, and no station may appear
+        twice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompetitionTimingStationsRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          description: The competition or one of the stations does not belong to this event.
+        409:
+          description: The same timing station was listed twice.
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
   /event/{eventId}/competition/{competitionId}/competitionExecution/{competitionMatchId}/results/from-raceclocker:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -20430,6 +20490,53 @@ components:
           nullable: true
           description: >-
             Only allowed for type ANZEIGE, and must reference a START station of the same event.
+
+    CompetitionTimingStationDto:
+      type: object
+      required:
+        - timingStation
+        - name
+        - type
+        - distanceMeters
+      properties:
+        timingStation:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        distanceMeters:
+          type: integer
+          format: int32
+          description: >-
+            Where this station stands on this competition's course. The start is at 0, the finish
+            at the total distance. Split times are ordered by this value, not by the station's
+            sorting - the sorting orders stations in the control room, the distance orders them on
+            the course.
+
+    CompetitionTimingStationsRequest:
+      type: object
+      required:
+        - stations
+      properties:
+        stations:
+          type: array
+          description: The complete list; anything missing here is deleted.
+          items:
+            $ref: '#/components/schemas/CompetitionTimingStationEntry'
+
+    CompetitionTimingStationEntry:
+      type: object
+      required:
+        - timingStation
+        - distanceMeters
+      properties:
+        timingStation:
+          $ref: '#/components/schemas/uuid'
+        distanceMeters:
+          type: integer
+          format: int32
+          minimum: 0
 
     TimeMarkDto:
       type: object

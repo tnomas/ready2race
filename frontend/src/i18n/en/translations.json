@@ -1363,6 +1363,18 @@
           "title": "This timing setup is not ready for use yet",
           "startlist": "The start list export is missing – without it, no start list can be exported as CSV.",
           "link": "Go to the event's timing settings"
+        },
+        "stations": {
+          "title": "Stations on the course",
+          "hint": "Which timing stations this competition passes and at which metre. The start is at 0, the finish at the total distance. Split times are ordered by the metre, not by the order of the stations in the control room. The stations themselves are maintained in the event settings.",
+          "distance": "Metres",
+          "noStations": "This event has no timing stations yet.",
+          "saved": "Stations on the course saved",
+          "warning": {
+            "missingDistance": "At least one selected station has no metre.",
+            "overDistance": "At least one station stands beyond the competition's total distance ({{distance}} m).",
+            "duplicateDistance": "Two stations stand at the same metre."
+          }
         }
       },
       "places": {

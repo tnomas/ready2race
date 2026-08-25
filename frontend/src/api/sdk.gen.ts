@@ -240,6 +240,12 @@ import type {
     UpdateRoundProgressionConfigData,
     UpdateRoundProgressionConfigError,
     UpdateRoundProgressionConfigResponse,
+    GetCompetitionTimingStationsData,
+    GetCompetitionTimingStationsError,
+    GetCompetitionTimingStationsResponse,
+    SetCompetitionTimingStationsData,
+    SetCompetitionTimingStationsError,
+    SetCompetitionTimingStationsResponse,
     PullMatchResultsFromRaceClockerData,
     PullMatchResultsFromRaceClockerError,
     PullMatchResultsFromRaceClockerResponse,
@@ -2125,6 +2131,38 @@ export const updateRoundProgressionConfig = <ThrowOnError extends boolean = fals
     >({
         ...options,
         url: '/event/{eventId}/competition/{competitionId}/roundProgression',
+    })
+}
+
+/**
+ * The timing stations this competition passes, each with its distance on THIS course, ordered by that distance. The station itself belongs to the event; only the metre belongs to the competition, because the same station sits at 3000 m for the long distance and at 250 m for the sprint.
+ */
+export const getCompetitionTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetCompetitionTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetCompetitionTimingStationsResponse,
+        GetCompetitionTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-stations',
+    })
+}
+
+/**
+ * Replaces the WHOLE list of this competition: anything missing from the body is deleted, everything in it is created or moved to its new metre. An empty list clears the competition. Every station has to belong to the same event, and no station may appear twice.
+ */
+export const setCompetitionTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetCompetitionTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetCompetitionTimingStationsResponse,
+        SetCompetitionTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-stations',
     })
 }
 

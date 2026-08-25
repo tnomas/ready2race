@@ -1351,6 +1351,28 @@ export type CompetitionTemplateDto = {
     setupTemplate?: CompetitionSetupTemplateOverviewDto
 }
 
+export type CompetitionTimingStationDto = {
+    timingStation: uuid
+    name: string
+    type: TimingStationType
+    /**
+     * Where this station stands on this competition's course. The start is at 0, the finish at the total distance. Split times are ordered by this value, not by the station's sorting - the sorting orders stations in the control room, the distance orders them on the course.
+     */
+    distanceMeters: number
+}
+
+export type CompetitionTimingStationEntry = {
+    timingStation: uuid
+    distanceMeters: number
+}
+
+export type CompetitionTimingStationsRequest = {
+    /**
+     * The complete list; anything missing here is deleted.
+     */
+    stations: Array<CompetitionTimingStationEntry>
+}
+
 export type ComputeOfficialTimesRequest = {
     teams?: Array<uuid>
 }
@@ -6033,6 +6055,33 @@ export type UpdateRoundProgressionConfigResponse = void
 export type UpdateRoundProgressionConfigError =
     | BadRequestError
     | ApiError
+    | UnprocessableEntityError
+
+export type GetCompetitionTimingStationsData = {
+    path: {
+        competitionId: string
+        eventId: string
+    }
+}
+
+export type GetCompetitionTimingStationsResponse = Array<CompetitionTimingStationDto>
+
+export type GetCompetitionTimingStationsError = BadRequestError | ApiError
+
+export type SetCompetitionTimingStationsData = {
+    body: CompetitionTimingStationsRequest
+    path: {
+        competitionId: string
+        eventId: string
+    }
+}
+
+export type SetCompetitionTimingStationsResponse = void
+
+export type SetCompetitionTimingStationsError =
+    | BadRequestError
+    | ApiError
+    | unknown
     | UnprocessableEntityError
 
 export type PullMatchResultsFromRaceClockerData = {

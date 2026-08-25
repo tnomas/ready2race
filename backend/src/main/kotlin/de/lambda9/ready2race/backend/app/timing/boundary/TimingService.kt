@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.control.*
@@ -91,6 +92,81 @@ object TimingService {
         !TimingStationRepo.delete(stationId).orDie()
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData
+    }
+
+    /**
+     * Die Posten, die dieser Wettkampf passiert, mit ihrer Distanz auf DIESER Strecke - nach
+     * Distanz sortiert, weil der Meter sie auf der Strecke ordnet und nicht die
+     * Leitstand-Sortierung.
+     */
+    fun getCompetitionStations(
+        competitionId: UUID,
+        eventId: UUID,
+    ): App<CompetitionTimingStationError, ApiResponse.ListDto<CompetitionTimingStationDto>> = KIO.comprehension {
+        !ensureCompetitionOfEvent(competitionId, eventId)
+
+        val rows = !CompetitionTimingStationRepo.getByCompetition(competitionId).orDie()
+        KIO.ok(
+            ApiResponse.ListDto(
+                rows.map {
+                    CompetitionTimingStationDto(
+                        timingStation = it.timingStation,
+                        name = it.name,
+                        type = TimingStationType.valueOf(it.type),
+                        distanceMeters = it.distanceMeters,
+                    )
+                }
+            )
+        )
+    }
+
+    /**
+     * Ersetzt die GANZE Liste dieses Wettkampfs: Was nicht mehr dabei ist, wird gelöscht, der Rest
+     * angelegt bzw. auf seinen neuen Meter gesetzt. Die Oberfläche denkt in Listen (Kontrollkästchen
+     * und Meter-Felder, ein Speichern-Knopf), also ist ein PUT über die Liste die passende Form.
+     *
+     * Zwei Prüfungen, die die Datenbank so nicht leisten kann: Der Wettkampf muss zu dieser
+     * Veranstaltung gehören, und jeder Posten ebenfalls - der Fremdschlüssel kennt die
+     * Veranstaltung nicht und ließe den Posten einer fremden Regatta zu. Derselbe Posten zweimal
+     * wird abgewiesen, weil das Schreiben ihn sonst still auf den zuletzt genannten Meter setzte
+     * (ein `on conflict do update` je Posten) — eine Liste mit einer Bedeutung, die niemand so
+     * gemeint hat.
+     */
+    fun setCompetitionStations(
+        request: CompetitionTimingStationsRequest,
+        userId: UUID,
+        competitionId: UUID,
+        eventId: UUID,
+    ): App<CompetitionTimingStationError, ApiResponse.NoData> = KIO.comprehension {
+        !ensureCompetitionOfEvent(competitionId, eventId)
+
+        val stationIds = request.stations.map { it.timingStation }
+        !KIO.failOn(stationIds.size != stationIds.distinct().size) {
+            CompetitionTimingStationError.DuplicateStation
+        }
+
+        if (stationIds.isNotEmpty()) {
+            val ofEvent = !TimingStationRepo.countOfEvent(eventId, stationIds).orDie()
+            !KIO.failOn(ofEvent != stationIds.size) { CompetitionTimingStationError.StationNotFound }
+        }
+
+        !CompetitionTimingStationRepo.replaceForCompetition(competitionId, request.stations, userId).orDie()
+        noData
+    }
+
+    /**
+     * Der Wettkampf einer fremden Veranstaltung ist hier nicht "verboten", sondern schlicht nicht
+     * vorhanden: Die Veranstaltung aus dem Pfad ist der einzige Rahmen, in dem dieser Weg etwas
+     * findet.
+     */
+    private fun ensureCompetitionOfEvent(
+        competitionId: UUID,
+        eventId: UUID,
+    ): App<CompetitionTimingStationError, Unit> = KIO.comprehension {
+        val competition = !CompetitionRepo.getRecordById(competitionId).orDie()
+            .onNullFail { CompetitionTimingStationError.CompetitionNotFound }
+        !KIO.failOn(competition.event != eventId) { CompetitionTimingStationError.CompetitionNotFound }
+        KIO.ok(Unit)
     }
 
     fun createTimeMark(
