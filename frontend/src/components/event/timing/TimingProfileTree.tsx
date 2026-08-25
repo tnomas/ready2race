@@ -150,8 +150,12 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
             t('event.timing.profiles.saved'),
         )
 
-    /** Räumt alles UNTERHALB der Ebene ab; die Ebene selbst behält ihren Wert. */
-    const reset = (competition?: string) =>
+    /**
+     * Räumt alles UNTERHALB der Ebene ab; die Ebene selbst behält ihren Wert. Ohne `competition`
+     * betrifft das die ganze Veranstaltung, mit `competition` nur dessen Runden und Partien —
+     * die beiden Bestätigungstexte benennen deshalb ausdrücklich, was verschwindet.
+     */
+    const reset = (competition?: {competitionId: string; identifier: string; name: string}) =>
         confirmAction(
             () =>
                 write(
@@ -159,11 +163,18 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
                     () =>
                         resetTimingProfileAssignments({
                             path: {eventId},
-                            query: competition ? {competition} : {},
+                            query: competition ? {competition: competition.competitionId} : {},
                         }),
                     t('event.timing.profiles.reset'),
                 ),
-            {content: t('event.timing.profiles.resetConfirm')},
+            {
+                content: competition
+                    ? t('event.timing.profiles.resetConfirmCompetition', {
+                          identifier: competition.identifier,
+                          name: competition.name,
+                      })
+                    : t('event.timing.profiles.resetConfirmEvent'),
+            },
         )
 
     if (pending && !tree) return <Throbber />
@@ -385,7 +396,7 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
                                                     'event.timing.profiles.resetCompetition',
                                                 )}
                                                 disabled={saving.has('reset')}
-                                                onClick={() => reset(competition.competitionId)}>
+                                                onClick={() => reset(competition)}>
                                                 <RestartAlt fontSize={'small'} />
                                             </IconButton>
                                         </span>

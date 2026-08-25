@@ -166,7 +166,8 @@ class RaceClockerPollRepoTest {
             )
         )
 
-        // Die Rennen gehören der Veranstaltung; der Wettkampf zeigt auf genau eines davon.
+        // Das Rennen gehört der Veranstaltung; ob und wo es einem Wettkampf zugeordnet ist,
+        // bestimmt der Zeitnahmeprofil-Baum (assignRace), nicht diese Zeile.
         val raceId = raceResultsUrl?.let { insertRace(eventId, "Kurzstrecke", it, 1) }
 
         !COMPETITION.insert(

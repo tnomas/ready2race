@@ -1779,7 +1779,8 @@
         "deviations_other": "{{count}} eigene Profile darunter",
         "resetAll": "Alles darunter auf Erben",
         "resetCompetition": "Runden und Partien dieses Wettkampfs auf Erben",
-        "resetConfirm": "Alle Zuordnungen unterhalb dieser Ebene werden entfernt. Danach erbt alles wieder von oben. Fortfahren?",
+        "resetConfirmEvent": "Alle Zuordnungen der ganzen Veranstaltung werden entfernt. Danach erbt jeder Wettkampf, jede Runde und jede Partie wieder von oben. Fortfahren?",
+        "resetConfirmCompetition": "Alle Zuordnungen der Runden und Partien von {{identifier}} {{name}} werden entfernt. Danach erben sie wieder vom Wettkampf. Fortfahren?",
         "reset": "Zuordnungen entfernt"
       }
     },

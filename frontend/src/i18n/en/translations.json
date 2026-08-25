@@ -1779,7 +1779,8 @@
         "deviations_other": "{{count}} own profiles below",
         "resetAll": "Reset everything below to inherit",
         "resetCompetition": "Reset the rounds and matches of this competition to inherit",
-        "resetConfirm": "All assignments below this level will be removed. Afterwards everything inherits from above again. Continue?",
+        "resetConfirmEvent": "All assignments of the whole event will be removed. Afterwards every competition, round and match inherits from above again. Continue?",
+        "resetConfirmCompetition": "All assignments of the rounds and matches of {{identifier}} {{name}} will be removed. Afterwards they inherit from the competition again. Continue?",
         "reset": "Assignments removed"
       }
     },

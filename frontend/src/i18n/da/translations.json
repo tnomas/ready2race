@@ -1779,7 +1779,8 @@
         "deviations_other": "{{count}} egne profiler nedenunder",
         "resetAll": "Sæt alt nedenunder til at arve",
         "resetCompetition": "Sæt denne konkurrences runder og heats til at arve",
-        "resetConfirm": "Alle tildelinger under dette niveau fjernes. Derefter arver alt igen ovenfra. Fortsæt?",
+        "resetConfirmEvent": "Alle tildelinger for hele arrangementet fjernes. Derefter arver hver konkurrence, runde og heat igen ovenfra. Fortsæt?",
+        "resetConfirmCompetition": "Alle tildelinger for runderne og heats i {{identifier}} {{name}} fjernes. Derefter arver de igen fra konkurrencen. Fortsæt?",
         "reset": "Tildelinger fjernet"
       }
     },

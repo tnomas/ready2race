@@ -47,8 +47,9 @@ class RaceClockerSingleRaceMigrationTest {
         postgres.start()
         try {
             // Bis einschließlich V202608111200 migrieren — der letzte Stand, auf dem die alten
-            // Spaltenpaare existieren. Ohne afterMigrate: Das Skript baut die Views des ENDSTANDS;
-            // der zweite, vollständige Lauf unten zieht sie regulär hoch.
+            // Spaltenpaare existieren. Ohne afterMigrate: Das Skript baut die Sichten des
+            // Endstands, den dieser Test gar nicht erreicht — geprüft wird das Schema unmittelbar
+            // nach V202608111500, nicht die Sichten.
             flyway(postgres).target("202608111200").skipDefaultCallbacks(true).load().migrate()
 
             connect(postgres).use { seedLegacyState(it) }
