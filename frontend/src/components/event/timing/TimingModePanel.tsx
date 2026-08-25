@@ -10,6 +10,8 @@ import TimingModeDialog from './TimingModeDialog.tsx'
 
 export type TimingModePanelProps = {
     eventId: string
+    /** Wird nach jeder Änderung gerufen, damit der Zeitnahmeprofil-Baum darunter die neuen Typen kennt. */
+    onChanged?: () => void
 }
 
 /**
@@ -18,12 +20,16 @@ export type TimingModePanelProps = {
  * RaceClocker-Rennen-Liste darüber im Einstellungen-Tab: eigene Endpunkte, eigenes Neuladen,
  * bewusst außerhalb des Speichern-Formulars.
  */
-const TimingModePanel = ({eventId}: TimingModePanelProps) => {
+const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
 
     const [reloaded, setReloaded] = useState(0)
+    const reload = () => {
+        setReloaded(Date.now())
+        onChanged?.()
+    }
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editedMode, setEditedMode] = useState<TimingModeDto | undefined>(undefined)
 
@@ -68,7 +74,7 @@ const TimingModePanel = ({eventId}: TimingModePanelProps) => {
                     }
                 } else {
                     feedback.success(t('event.timing.modes.deleted'))
-                    setReloaded(Date.now())
+                    reload()
                 }
             },
             {content: t('event.timing.modes.deleteConfirm', {name: mode.name})},
@@ -128,7 +134,7 @@ const TimingModePanel = ({eventId}: TimingModePanelProps) => {
                 onClose={() => setDialogOpen(false)}
                 eventId={eventId}
                 entity={editedMode}
-                reloadData={() => setReloaded(Date.now())}
+                reloadData={reload}
             />
         </Box>
     )

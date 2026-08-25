@@ -1351,64 +1351,15 @@
       },
       "timing": {
         "tabTitle": "Timing",
-        "system": "Timing system",
-        "systems": {
-          "none": "not set",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer",
-          "intern": "Internal timing"
-        },
-        "eventDefaults": {
-          "title": "Event default",
-          "unset": "not set",
-          "link": "Edit the event's timing setup"
-        },
-        "override": {
-          "label": "Set separately for this competition",
-          "hint": "Applies to the timing system and the file formats. Off: the competition follows the event and picks up every later change there. On: it gets values of its own. The race assignment above is not affected — it always belongs to the competition."
-        },
-        "raceSection": {
-          "title": "This competition's race"
-        },
-        "presets": {
-          "title": "File formats",
-          "hint": "Which columns are exported and imported. Only needed separately if this competition runs into a different race in the timing system."
-        },
-        "raceclockerHint": "RaceClocker races are created in the event settings. Select this competition's one race here — it applies to the qualification and all other rounds. The same assignment can also be ticked the other way round, at the race.",
-        "startlist": "Start list export",
-        "resultImport": "Race results import",
-        "importHint": "The RaceClocker presets export without a header row, because RaceClocker would otherwise import that row as a participant. Map the columns by their position when importing into RaceClocker – the internal identifier in particular onto \"Extra info\".",
-        "presetsHint": {
-          "1": "Start list exports and race results imports are created ",
-          "2": "in the configuration",
-          "3": " and apply to all events."
+        "inheritedHint": {
+          "1": "The timing system and the file formats apply to the whole event and are maintained ",
+          "2": "in its settings",
+          "3": ". Here you only assign what this competition is timed with."
         },
         "incomplete": {
           "title": "This timing setup is not ready for use yet",
           "startlist": "The start list export is missing – without it, no start list can be exported as CSV.",
-          "race": "No race is selected – without one, results cannot be pulled from RaceClocker.",
           "link": "Go to the timing settings"
-        },
-        "saved": "Timing settings saved",
-        "invalid": "Please select a race belonging to this event.",
-        "race": "RaceClocker race",
-        "modes": {
-          "title": "Timing mode of this competition",
-          "hint": "The timing mode defines how the start station starts this competition's races — individual starts at an interval or a wave, and with which countdown lead-in. Rounds without their own selection inherit from the competition.",
-          "competitionWide": "Timing mode (whole competition)",
-          "unset": "not set",
-          "unsetWarning": "Without a timing mode the start station cannot create a start sequence for this competition in one tap — its races can only be set up manually.",
-          "inherit": "inherits from the competition",
-          "inherits": "inherits: {{mode}}",
-          "inheritsNothing": "inherits: not set — no timing mode applies to this round",
-          "roundsHint": "Per-round override — empty means the round inherits the competition's timing mode.",
-          "saved": "Timing mode assignment saved",
-          "detailInterval": "interval {{seconds}} s",
-          "noModes": {
-            "1": "No timing modes have been created for this event yet. They are managed ",
-            "2": "in the event's timing settings",
-            "3": "."
-          }
         }
       },
       "places": {
@@ -1660,7 +1611,7 @@
     },
     "timing": {
       "title": "Timing",
-      "hint": "Applies to every competition of this event. A single competition can enter its own values in its timing tab and deviate deliberately.",
+      "hint": "Applies to every competition of this event: one timing system and one set of file formats. What the individual competitions, rounds and matches are timed with is assigned in the timing profile tree below.",
       "system": "Timing system",
       "systems": {
         "none": "not set",
@@ -1668,7 +1619,7 @@
         "webscorer": "Webscorer",
         "intern": "Internal timing"
       },
-      "raceclockerHint": "RaceClocker races belong to the event, not to a single competition. Create each race once here — for example “Long course” and “Short course” — and tick below, per race, which competitions use it. Each competition runs all of its rounds in one race.",
+      "raceclockerHint": "RaceClocker races belong to the event, not to a single competition. Create each race once here — for example “Long course” and “Short course” — and use the timing profile tree below to assign which competition, round or match runs in which race.",
       "autoPull": {
         "enabled": "Pull results automatically",
         "hint": "While a match is running, the server pulls its results at the fast interval. Upcoming matches are watched at the slow interval to detect their start; finished matches are not polled at all.",
@@ -1686,28 +1637,7 @@
       },
       "saved": "Timing defaults saved",
       "invalid": "The timing defaults could not be saved.",
-      "deviations": {
-        "title": "Competitions with their own timing",
-        "none": "No competition deviates – all of them follow these defaults.",
-        "system": "own system",
-        "startlist": "own start list export",
-        "resultImport": "own race results import"
-      },
-      "competitions": {
-        "title": "Competitions",
-        "hint": "Assign timing system and timing mode per competition right here, without clicking through the competitions. Every change saves immediately. \"Inherits\" follows the defaults above; deviations of individual rounds are still managed in the competition's timing tab.",
-        "competition": "Competition",
-        "system": "Timing system",
-        "mode": "Timing mode",
-        "inherit": "Inherits ({{system}})",
-        "modeUnset": "none",
-        "noModes": "At least one competition uses internal timing, but no timing modes exist yet. The timing mode management appears above once \"Internal timing\" is selected as the timing system.",
-        "saved": "Competition timing system saved",
-        "modeSaved": "Competition timing mode saved",
-        "roundDeviations_one": "+ {{count}} round deviation",
-        "roundDeviations_other": "+ {{count}} round deviations"
-      },
-      "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing tab of each competition.",
+      "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing profile tree below.",
       "precision": {
         "label": "Precision of official times",
         "hint": "Raw times are still stored to the millisecond; this setting controls what is published as the official time on a race and shown in the app (truncated, never rounded up). Tenths match the accuracy of hand timing. Finer levels are only meaningful with timing hardware — hand-tapped times include human reaction time.",
@@ -1759,7 +1689,7 @@
       },
       "modes": {
         "title": "Timing modes",
-        "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned per competition or round in the competition's timing tab.",
+        "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned in the timing profile tree below.",
         "none": "No timing modes created yet.",
         "add": "Add timing mode",
         "edit": "Edit timing mode",
@@ -1785,7 +1715,7 @@
         "saved": "Timing mode saved",
         "deleted": "Timing mode deleted",
         "deleteConfirm": "Really delete the timing mode \"{{name}}\"?",
-        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one competition or round. Remove the assignments in the competitions' timing tabs first.",
+        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one level of the timing profile tree. Remove the assignments in the tree below first.",
         "tones": {
           "title": "Tones",
           "hint": "The beeps of the start sequence, relative to the start of the respective boat or wave (0 = start). They play on the start board and the start display; missed tones are never played late.",
@@ -1806,18 +1736,12 @@
         "capturesLaps": "Records lap times",
         "none": "No race created yet.",
         "deleteConfirm": "Really delete “{{name}}”?",
-        "deleteBlocked": "“{{name}}” is still assigned to at least one competition and was not deleted — untick the assignment below and try again.",
+        "deleteBlocked": "“{{name}}” is still assigned to at least one level and was not deleted — remove the assignment in the timing profile tree below and try again.",
         "nameTaken": "A race with this name already exists.",
         "urlTaken": "A race with this results URL already exists.",
         "invalidUrl": "The URL must be on raceclocker.com.",
         "saved": "Race saved.",
         "deleted": "Race deleted."
-      },
-      "assignments": {
-        "title": "Assign competitions per race",
-        "hint": "The reverse of choosing in the competition: tick here which competitions use each race. A competition belongs to exactly one race with all of its rounds — ticking it here moves it away from another. Unticked competitions have no race.",
-        "competitions": "Used by",
-        "saved": "Assignment saved."
       },
       "tones": {
         "play": "Play tone",
@@ -1835,6 +1759,28 @@
         "timeline": "Timeline of the tones",
         "timelineSpan": "Total length {{millis}} ms",
         "offsetAfterTriggerHelp": "The time counts forward from the trigger: 0 means immediately, 400 means 400 milliseconds later."
+      },
+      "profiles": {
+        "title": "Timing profiles",
+        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. When a competition setup is rebuilt, its matches lose their own profiles.",
+        "matchLevelExportHint": "The bulk start list export groups by competition. A match with a race of its own appears there under its competition's race — its start list has to be exported on its own.",
+        "noSystem": "There are no profiles for this timing system. Select “RaceClocker” or “Internal timing” above.",
+        "noOptions": "No profile has been created yet. Create a race or a timing mode above.",
+        "noCompetitions": "This event has no competitions yet.",
+        "event": "Whole event",
+        "unset": "not set",
+        "inherit": "Inherits ({{profile}})",
+        "inheritsNothing": "Inherits (nothing set)",
+        "fromEvent": "Inherited from the event: {{profile}}.",
+        "fromEventLink": "Edit the event's timing setup",
+        "toggle": "Expand or collapse",
+        "saved": "Timing profile saved",
+        "deviations_one": "{{count}} own profile below",
+        "deviations_other": "{{count}} own profiles below",
+        "resetAll": "Reset everything below to inherit",
+        "resetCompetition": "Reset the rounds and matches of this competition to inherit",
+        "resetConfirm": "All assignments below this level will be removed. Afterwards everything inherits from above again. Continue?",
+        "reset": "Assignments removed"
       }
     },
     "info": {

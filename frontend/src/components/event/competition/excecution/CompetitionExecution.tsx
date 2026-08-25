@@ -2,7 +2,7 @@ import {
     createNextCompetitionRound,
     downloadRoundStartList,
     downloadStartList,
-    getTimingConfig,
+    getEventTimingConfig,
     pullMatchResultsFromRaceClocker,
     resumeRaceClockerAutoPull,
     getCompetitionExecutionProgress,
@@ -81,11 +81,6 @@ import {
     emptyEditMatchForm,
     mapMatchDtoToEditMatchForm,
 } from '@components/event/competition/excecution/editMatchForm.ts'
-import {
-    mapDtoToTimingForm,
-    timingConfigWarnings,
-    effectiveTimingSystem,
-} from '@components/event/competition/timing/timingConfigForm.ts'
 import {
     ExecutionApiError,
     matchErrorText,
@@ -209,13 +204,24 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         [eventSchedule],
     )
 
+    // Die Zeitnahme gehört zur Veranstaltung: EIN System und EIN Startlisten-Format für alle ihre
+    // Wettkämpfe. Womit die einzelne Partie gestoppt wird, steht im Zeitnahmeprofil-Baum und wird
+    // hier nicht gebraucht.
     const {data: timingConfig} = useFetch(
-        signal => getTimingConfig({signal, path: {eventId, competitionId}}),
-        {deps: [eventId, competitionId]},
+        signal => getEventTimingConfig({signal, path: {eventId}}),
+        {deps: [eventId]},
     )
 
-    // Dieselbe Prüfung wie im Zeitnahme-Tab, damit beide Stellen nicht auseinanderlaufen.
-    const timingWarnings = timingConfig ? timingConfigWarnings(mapDtoToTimingForm(timingConfig)) : []
+    // Nur noch das Startlisten-Format: Ohne es antwortet der Export mit
+    // STARTLIST_CONFIG_NOT_CONFIGURED, und das fällt sonst erst am Renntag auf. Die hauseigene
+    // Zeitnahme exportiert keine Dateien, sie kann hier nichts vermissen; das fehlende Profil
+    // meldet der Baum selbst.
+    const timingWarnings: 'startlist'[] =
+        (timingConfig?.timingSystem === 'RACECLOCKER' ||
+            timingConfig?.timingSystem === 'WEBSCORER') &&
+        !timingConfig.startlistConfig
+            ? ['startlist']
+            : []
 
     /**
      * Der zuletzt erfolgreich geladene Stand. Er liegt hier und nicht in `useFetch`, weil der
@@ -1142,16 +1148,9 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                             handleDownloadStartList(matchId, 'CSV')
                         }
                         handleDownloadRoundStartList={handleDownloadRoundStartList}
-                        /* Das effektive System, nicht die eigene Spalte des Wettkampfs: Setzt die
-                           Veranstaltung RaceClocker und erben ihre Wettkämpfe es, ist
-                           `timingConfig.timingSystem` null — der Abruf-Status samt „Automatik wieder
-                           aufnehmen" verschwände dann genau dort, wo die Automatik läuft. Dieselbe
-                           Auflösung wie bei den Warnungen oben. */
-                        timingSystem={
-                            timingConfig
-                                ? effectiveTimingSystem(mapDtoToTimingForm(timingConfig))
-                                : 'NONE'
-                        }
+                        /* Das System der Veranstaltung — es gilt für alle ihre Wettkämpfe. Daran
+                           hängt der Abruf-Status samt „Automatik wieder aufnehmen". */
+                        timingSystem={timingConfig?.timingSystem ?? 'NONE'}
                     />
                 ))}
             </Stack>

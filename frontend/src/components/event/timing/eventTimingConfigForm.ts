@@ -12,12 +12,11 @@ export type EventTimingFormSystem = TimingSystem | 'NONE'
 export type EventTimingForm = {
     timingSystem: EventTimingFormSystem
     /**
-     * Startlisten-Export und Rennergebnisse-Import wie im Wettkampf. Sie stehen hier, weil alle
-     * Wettkämpfe einer Regatta dieselben Spalten brauchen; abweichende Bootsklassen scheren im
-     * Wettkampf aus. Seit dem 11.08.2026 gibt es nur noch EIN Startlisten-Preset — RaceClocker
-     * kennt keine Startarten mehr, also braucht die Qualifikation kein eigenes. Die
-     * RaceClocker-Rennen werden pro Wettkampf zugewiesen (RaceClockerRaceAssignments) — die
-     * Veranstaltung hat dafür keine Voreinstellung.
+     * Startlisten-Export und Rennergebnisse-Import. Sie stehen nur hier, weil alle Wettkämpfe
+     * einer Regatta dieselben Spalten brauchen; eine Übersteuerung je Wettkampf gibt es nicht.
+     * Seit dem 11.08.2026 gibt es nur noch EIN Startlisten-Preset — RaceClocker kennt keine
+     * Startarten mehr, also braucht die Qualifikation kein eigenes. WELCHES Rennen eine Ebene
+     * fährt, steht im Zeitnahmeprofil-Baum (TimingProfileTree) und nicht hier.
      */
     startlistConfig: AutocompleteOption
     resultImportConfig: AutocompleteOption

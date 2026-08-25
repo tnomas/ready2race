@@ -1351,64 +1351,15 @@
       },
       "timing": {
         "tabTitle": "Tidtagning",
-        "system": "Tidtagningssystem",
-        "systems": {
-          "none": "ikke angivet",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer",
-          "intern": "Intern tidtagning"
-        },
-        "eventDefaults": {
-          "title": "Arrangementets standard",
-          "unset": "ikke angivet",
-          "link": "Rediger arrangementets tidtagning"
-        },
-        "override": {
-          "label": "Angiv separat for denne konkurrence",
-          "hint": "Gælder tidtagningssystem og filformater. Fra: konkurrencen følger arrangementet og overtager enhver senere ændring der. Til: den får sine egne værdier. Løbstildelingen ovenfor berøres ikke – den hører altid til konkurrencen."
-        },
-        "raceSection": {
-          "title": "Denne konkurrences løb"
-        },
-        "presets": {
-          "title": "Filformater",
-          "hint": "Hvilke kolonner der eksporteres og importeres. Kun nødvendigt separat, hvis denne konkurrence kører ind i et andet løb i tidtagningssystemet."
-        },
-        "raceclockerHint": "RaceClocker-løb oprettes i stævnets indstillinger. Vælg denne konkurrences ene løb her — det gælder for kvalifikationen og alle øvrige runder. Den samme tildeling kan også sættes omvendt, ved løbet.",
-        "startlist": "Startliste-eksport",
-        "resultImport": "Løbsresultater-import",
-        "importHint": "RaceClocker-skabelonerne eksporterer uden overskriftsrække, fordi RaceClocker ellers importerer den som deltager. Tilknyt derfor kolonnerne efter deres rækkefølge ved import i RaceClocker – især den interne id til \"Extra info\".",
-        "presetsHint": {
-          "1": "Presets oprettes ",
-          "2": "i konfigurationen",
-          "3": " og gælder for alle arrangementer."
+        "inheritedHint": {
+          "1": "Tidtagningssystem og filformater gælder for hele stævnet og vedligeholdes ",
+          "2": "i dets indstillinger",
+          "3": ". Her tildeles kun, hvad denne konkurrence tages tid med."
         },
         "incomplete": {
           "title": "Denne tidtagning er endnu ikke klar til brug",
           "startlist": "Startlistepresettet mangler – uden det kan der ikke eksporteres en startliste som CSV.",
-          "race": "Der er ikke valgt et løb – uden et kan der ikke hentes resultater fra RaceClocker.",
           "link": "Gå til tidtagningsindstillingerne"
-        },
-        "saved": "Tidtagningsindstillinger gemt",
-        "invalid": "Vælg venligst et løb, der hører til dette stævne.",
-        "race": "RaceClocker-løb",
-        "modes": {
-          "title": "Tidtagningstype for denne konkurrence",
-          "hint": "Tidtagningstypen bestemmer, hvordan startposten starter denne konkurrences løb — enkeltstart med interval eller bølge, og med hvilken nedtælling. Runder uden eget valg arver fra konkurrencen.",
-          "competitionWide": "Tidtagningstype (hele konkurrencen)",
-          "unset": "ikke angivet",
-          "unsetWarning": "Uden tidtagningstype kan startposten ikke oprette en startsekvens for denne konkurrence med ét tryk — løbene kan så kun sættes op manuelt.",
-          "inherit": "arver fra konkurrencen",
-          "inherits": "arver: {{mode}}",
-          "inheritsNothing": "arver: ikke angivet — ingen tidtagningstype gælder for denne runde",
-          "roundsHint": "Afvigelse pr. runde — tomt betyder, at runden arver konkurrencens tidtagningstype.",
-          "saved": "Tildeling af tidtagningstype gemt",
-          "detailInterval": "interval {{seconds}} s",
-          "noModes": {
-            "1": "Der er endnu ikke oprettet tidtagningstyper for dette stævne. De vedligeholdes ",
-            "2": "i stævnets tidtagningsindstillinger",
-            "3": "."
-          }
         }
       },
       "places": {
@@ -1660,7 +1611,7 @@
     },
     "timing": {
       "title": "Tidtagning",
-      "hint": "Gælder for alle konkurrencer i dette arrangement. En enkelt konkurrence kan angive sine egne værdier i sin tidtagningsfane og dermed afvige bevidst.",
+      "hint": "Gælder for alle konkurrencer i dette arrangement: ét tidtagningssystem og ét sæt filformater. Hvad de enkelte konkurrencer, runder og heats tages tid med, tildeles nedenfor i tidtagningsprofil-træet.",
       "system": "Tidtagningssystem",
       "systems": {
         "none": "ikke angivet",
@@ -1668,7 +1619,7 @@
         "webscorer": "Webscorer",
         "intern": "Intern tidtagning"
       },
-      "raceclockerHint": "RaceClocker-løb hører til stævnet, ikke til den enkelte konkurrence. Opret hvert løb én gang her — for eksempel „Langdistance“ og „Kortdistance“ — og markér nedenfor pr. løb, hvilke konkurrencer der bruger det. Hver konkurrence kører alle sine runder i ét løb.",
+      "raceclockerHint": "RaceClocker-løb hører til stævnet, ikke til den enkelte konkurrence. Opret hvert løb én gang her — for eksempel „Langdistance“ og „Kortdistance“ — og tildel i tidtagningsprofil-træet nedenfor, hvilken konkurrence, runde eller hvilket heat der kører i hvilket løb.",
       "autoPull": {
         "enabled": "Hent resultater automatisk",
         "hint": "Når et heat er i gang, henter serveren resultaterne i det hurtige interval. Kommende heats overvåges i det langsomme interval for at opdage deres start; afsluttede heats hentes ikke.",
@@ -1686,28 +1637,7 @@
       },
       "saved": "Tidtagningsstandard gemt",
       "invalid": "Tidtagningsstandarden kunne ikke gemmes.",
-      "deviations": {
-        "title": "Konkurrencer med egen tidtagning",
-        "none": "Ingen konkurrence afviger – alle følger denne standard.",
-        "system": "eget system",
-        "startlist": "egen startliste-eksport",
-        "resultImport": "egen løbsresultater-import"
-      },
-      "competitions": {
-        "title": "Konkurrencer",
-        "hint": "Tildel tidtagningssystem og tidtagningstype pr. konkurrence direkte her uden at klikke gennem konkurrencerne. Hver ændring gemmes med det samme. \"Arver\" følger standarden ovenfor; afvigelser for enkelte runder vedligeholdes fortsat i konkurrencens tidtagningsfane.",
-        "competition": "Konkurrence",
-        "system": "Tidtagningssystem",
-        "mode": "Tidtagningstype",
-        "inherit": "Arver ({{system}})",
-        "modeUnset": "ingen",
-        "noModes": "Mindst én konkurrence bruger intern tidtagning, men der er endnu ingen tidtagningstyper. Administrationen af tidtagningstyper vises ovenfor, når \"Intern tidtagning\" er valgt som tidtagningssystem.",
-        "saved": "Konkurrencens tidtagningssystem gemt",
-        "modeSaved": "Konkurrencens tidtagningstype gemt",
-        "roundDeviations_one": "+ {{count}} rundeafvigelse",
-        "roundDeviations_other": "+ {{count}} rundeafvigelser"
-      },
-      "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i konkurrencernes tidtagningsfane.",
+      "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i tidtagningsprofil-træet nedenfor.",
       "precision": {
         "label": "Nøjagtighed for officielle tider",
         "hint": "Råtider gemmes fortsat med millisekunder; indstillingen bestemmer, hvad der offentliggøres som officiel tid på et løb og vises i appen (afkortet, aldrig rundet op). Tiendedele svarer til nøjagtigheden af håndtidtagning. Finere trin giver først mening med tidtagningshardware — håndtastede tider indeholder menneskelig reaktionstid.",
@@ -1759,7 +1689,7 @@
       },
       "modes": {
         "title": "Tidtagningstyper",
-        "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles pr. konkurrence eller runde i konkurrencens tidtagningsfane.",
+        "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles i tidtagningsprofil-træet nedenfor.",
         "none": "Endnu ingen tidtagningstyper oprettet.",
         "add": "Opret tidtagningstype",
         "edit": "Rediger tidtagningstype",
@@ -1785,7 +1715,7 @@
         "saved": "Tidtagningstype gemt",
         "deleted": "Tidtagningstype slettet",
         "deleteConfirm": "Skal tidtagningstypen \"{{name}}\" virkelig slettes?",
-        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst én konkurrence eller runde. Fjern først tildelingerne i konkurrencernes tidtagningsfane.",
+        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst ét niveau i tidtagningsprofil-træet. Fjern først tildelingerne i træet nedenfor.",
         "tones": {
           "title": "Toner",
           "hint": "Bippene i startsekvensen, relativt til starten af den enkelte båd eller bølge (0 = start). De afspilles på start-boardet og startskærmen; missede toner afspilles aldrig senere.",
@@ -1806,18 +1736,12 @@
         "capturesLaps": "Registrerer omgangstider",
         "none": "Endnu intet løb oprettet.",
         "deleteConfirm": "Vil du virkelig slette „{{name}}“?",
-        "deleteBlocked": "„{{name}}“ er stadig tildelt mindst én konkurrence og blev ikke slettet — fjern tildelingen nedenfor og prøv igen.",
+        "deleteBlocked": "„{{name}}“ er stadig tildelt mindst ét niveau og blev ikke slettet — fjern tildelingen i tidtagningsprofil-træet nedenfor og prøv igen.",
         "nameTaken": "Der findes allerede et løb med dette navn.",
         "urlTaken": "Der findes allerede et løb med denne adresse.",
         "invalidUrl": "Adressen skal ligge på raceclocker.com.",
         "saved": "Løb gemt.",
         "deleted": "Løb slettet."
-      },
-      "assignments": {
-        "title": "Tildel konkurrencer pr. løb",
-        "hint": "Omvendt af valget i konkurrencen: markér her, hvilke konkurrencer der bruger hvert løb. En konkurrence hører med alle sine runder til præcis ét løb — markerer du den her, flytter den fra et andet. Umarkerede konkurrencer har intet løb.",
-        "competitions": "Gælder for",
-        "saved": "Tildeling gemt."
       },
       "tones": {
         "play": "Afspil tone",
@@ -1835,6 +1759,28 @@
         "timeline": "Tidslinje over tonerne",
         "timelineSpan": "Samlet længde {{millis}} ms",
         "offsetAfterTriggerHelp": "Tidspunktet tælles fremad fra udløsningen: 0 betyder med det samme, 400 betyder 400 millisekunder senere."
+      },
+      "profiles": {
+        "title": "Tidtagningsprofiler",
+        "hint": "En tidtagningsprofil er det, der tages tid med: løbet ved RaceClocker, tidtagningstypen ved intern tidtagning. Den arves nedad fra stævnet — konkurrence, runde og heat kan afvige, og det mest specifikke niveau, der er sat, gælder. Hver ændring gemmes med det samme. Bygges en konkurrences opsætning om, mister dens heats deres egne profiler.",
+        "matchLevelExportHint": "Sameksporten af startlister grupperer pr. konkurrence. Et heat med sit eget løb optræder der under konkurrencens løb — dets startliste skal eksporteres for sig.",
+        "noSystem": "Der findes ingen profiler for dette tidtagningssystem. Vælg „RaceClocker“ eller „Intern tidtagning“ ovenfor.",
+        "noOptions": "Der er endnu ikke oprettet en profil. Opret et løb eller en tidtagningstype ovenfor.",
+        "noCompetitions": "Dette stævne har endnu ingen konkurrencer.",
+        "event": "Hele stævnet",
+        "unset": "ikke angivet",
+        "inherit": "Arver ({{profile}})",
+        "inheritsNothing": "Arver (intet angivet)",
+        "fromEvent": "Arvet fra stævnet: {{profile}}.",
+        "fromEventLink": "Rediger stævnets tidtagning",
+        "toggle": "Fold ud eller sammen",
+        "saved": "Tidtagningsprofil gemt",
+        "deviations_one": "{{count}} egen profil nedenunder",
+        "deviations_other": "{{count}} egne profiler nedenunder",
+        "resetAll": "Sæt alt nedenunder til at arve",
+        "resetCompetition": "Sæt denne konkurrences runder og heats til at arve",
+        "resetConfirm": "Alle tildelinger under dette niveau fjernes. Derefter arver alt igen ovenfra. Fortsæt?",
+        "reset": "Tildelinger fjernet"
       }
     },
     "info": {
