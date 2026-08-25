@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: sonst liefern die env(safe-area-inset-*)-Werte der Vollbild-Boards
+         (Zeitnahme) auf iPhones mit Notch immer 0 und die Inhalte kleben unter der Aussparung. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ready2Race</title>
     <meta name="theme-color" content="#4d9f85" />
     <link rel="apple-touch-icon" href="/app/apple-touch-icon.png" />

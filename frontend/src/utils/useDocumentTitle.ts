@@ -2,6 +2,10 @@ import {useEffect} from 'react'
 
 const BASE = 'Ready2Race'
 
+/** Die reine Zusammensetzung: „Teil · Teil · Ready2Race", leere Teile fallen weg (testbar). */
+export const composeDocumentTitle = (parts: Array<string | null | undefined>): string =>
+    [...parts.filter((p): p is string => !!p && p.trim() !== ''), BASE].join(' · ')
+
 /**
  * Setzt den Tab-Titel und stellt beim Verlassen wieder `Ready2Race` her.
  *
@@ -11,7 +15,7 @@ const BASE = 'Ready2Race'
  * Teile (z. B. ein noch nicht geladener Eventname) fallen weg, bis die Daten da sind.
  */
 export const useDocumentTitle = (...parts: Array<string | null | undefined>) => {
-    const title = [...parts.filter((p): p is string => !!p && p.trim() !== ''), BASE].join(' · ')
+    const title = composeDocumentTitle(parts)
     useEffect(() => {
         const previous = document.title
         document.title = title

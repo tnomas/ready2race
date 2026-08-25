@@ -7,9 +7,12 @@ import EditIcon from '@mui/icons-material/Edit'
 import {useTranslation} from 'react-i18next'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {retractTimeMark} from '@api/sdk.gen.ts'
-import {TimingTeamDto} from '@api/types.gen.ts'
+import {TimingMatchDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
+import {groupMarksByMatch} from '@utils/timing/markGrouping.ts'
+import {touchTargetSx} from '@utils/touch.ts'
+import {matchTitle} from '@components/timing/matchDisplay.tsx'
 import AssignTeamDialog from '@components/timing/AssignTeamDialog.tsx'
 
 /** Shortened form of a team id used when a mark is assigned to a team not present in `teams` (e.g. a
@@ -41,6 +44,12 @@ export type MarkListProps = {
     teams: TimingTeamDto[]
     /** True while the initial teams request is still in flight (forwarded to the assign dialog). */
     teamsLoading?: boolean
+    /**
+     * Die Partien der Startliste — gruppiert die Liste in Partie-Blöcke („09:20 Finale CF2x" als
+     * Gruppenkopf), damit sichtbar ist, was zusammen gestartet wurde. Ohne Partien bleibt die
+     * Liste flach.
+     */
+    matches?: TimingMatchDto[]
 }
 
 /**
@@ -59,7 +68,7 @@ export type MarkListProps = {
  * `sequenceMapRef`/`nextSequenceRef` are reset whenever `eventId`/`stationId` changes, so switching
  * event or station starts a fresh sequence instead of carrying over the previous board's numbers.
  */
-const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: MarkListProps) => {
+const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false, matches}: MarkListProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const [retracting, setRetracting] = useState<Set<string>>(new Set())
@@ -136,6 +145,18 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
         [marks],
     )
 
+    // Partie-Blöcke, sobald es eine Startliste gibt: jede Zeit trägt dann Partie UND Boot, und
+    // die Gruppenköpfe zeigen, was zusammen gestartet wurde. Ohne Partien (kein INTERN-Wettkampf)
+    // bleibt die flache Liste — dann gäbe es ohnehin nur die Sammelgruppe.
+    const grouped = matches !== undefined && matches.length > 0
+    const groups = useMemo(
+        () =>
+            grouped
+                ? groupMarksByMatch(marks, matches)
+                : [{match: undefined, marks: reversedMarks}],
+        [grouped, marks, matches, reversedMarks],
+    )
+
     // Once a mark's real status becomes RETRACTED (via the websocket echo or a refetch), the
     // optimistic flag for it is redundant — drop it so the set doesn't grow unbounded over a long
     // session.
@@ -195,9 +216,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
             ? {...rawAssignDialogMark, assignedTeam: localAssignments.get(rawAssignDialogMark.id) ?? undefined}
             : rawAssignDialogMark
 
-    return (
-        <Stack sx={{width: 1}} divider={<Box sx={{borderBottom: 1, borderColor: 'divider'}} />}>
-            {reversedMarks.map(mark => {
+    const renderMark = (mark: BoardMark) => {
                 const isRetracted = mark.status === 'RETRACTED' || retracting.has(mark.id)
                 // `failed` disqualifies a mark just as `pending` does: in both cases the server has no
                 // record of it, so retracting or assigning it could only 404. The mark is still queued
@@ -261,6 +280,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                                         <Button
                                             size="small"
                                             variant="outlined"
+                                            sx={touchTargetSx}
                                             onClick={() => setAssignDialogMarkId(mark.id)}>
                                             {t('timing.assign.assign')}
                                         </Button>
@@ -279,6 +299,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                                             <IconButton
                                                 size="small"
                                                 aria-label={t('timing.assign.edit')}
+                                                sx={touchTargetSx}
                                                 onClick={() => setAssignDialogMarkId(mark.id)}>
                                                 <EditIcon fontSize="small" />
                                             </IconButton>
@@ -291,6 +312,7 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                                 <IconButton
                                     size="small"
                                     aria-label={t('timing.board.mark.undo')}
+                                    sx={touchTargetSx}
                                     onClick={() => handleUndo(mark)}>
                                     <UndoIcon fontSize="small" />
                                 </IconButton>
@@ -298,7 +320,30 @@ const MarkList = ({eventId, stationId, marks, teams, teamsLoading = false}: Mark
                         )}
                     </Stack>
                 )
-            })}
+    }
+
+    return (
+        <Stack sx={{width: 1}} spacing={grouped ? 1.5 : 0}>
+            {groups.map(group => (
+                <Stack
+                    key={group.match?.competitionSetupMatch ?? 'ohne-partie'}
+                    sx={{width: 1}}>
+                    {grouped && (
+                        <Typography
+                            variant="overline"
+                            sx={{color: 'text.secondary', lineHeight: 2}}>
+                            {group.match !== undefined
+                                ? matchTitle(group.match)
+                                : t('timing.marks.noMatchGroup')}
+                        </Typography>
+                    )}
+                    <Stack
+                        divider={<Box sx={{borderBottom: 1, borderColor: 'divider'}} />}
+                        sx={{width: 1}}>
+                        {group.marks.map(renderMark)}
+                    </Stack>
+                </Stack>
+            ))}
             {assignDialogMark !== undefined && (
                 <AssignTeamDialog
                     open

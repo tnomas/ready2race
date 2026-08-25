@@ -1,6 +1,6 @@
 import {useCallback} from 'react'
 import {assignTimeMark, createTimeMark} from '@api/sdk.gen.ts'
-import {ApiError, AssignTimeMarkRequest, TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
+import {ApiError, AssignTimeMarkRequest, CaptureToneDto, TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
 import {RequestResult} from '@hey-api/client-fetch'
 import {playCaptureFeedback} from '@utils/timing/feedback.ts'
 import {enqueue, PendingTimeMark, remove as removeQueued} from '@utils/timing/offlineQueue.ts'
@@ -42,6 +42,13 @@ export type UseCaptureFlowOptions = {
     eventId: string
     /** The current station, or undefined while the board's initial state load is still in flight. */
     station: TimingStationDto | undefined
+    /**
+     * Der Bestätigungston dieses Postens aus den Zeitnahme-Einstellungen (FINISH/SPLIT, je
+     * Postentyp getrennt); undefined = eingebauter Standard. Gespielt wird er ausschließlich
+     * hier, bei der Nutzergeste — der Drain der Offline-Warteschlange bleibt stumm, weil ein
+     * Nachsenden Minuten später niemandem eine Erfassung bestätigt.
+     */
+    captureTone?: CaptureToneDto
     now: () => number | null
     applyLocalMark: (mark: TimeMarkDto) => void
     markSaved: (id: string) => void
@@ -98,6 +105,7 @@ export type UseCaptureFlowOptions = {
 export function useCaptureFlow({
     eventId,
     station,
+    captureTone,
     now,
     applyLocalMark,
     markSaved,
@@ -126,7 +134,7 @@ export function useCaptureFlow({
             }
 
             applyLocalMark(mark)
-            playCaptureFeedback()
+            playCaptureFeedback(captureTone)
 
             void (async () => {
                 const item: PendingTimeMark = {
@@ -198,6 +206,7 @@ export function useCaptureFlow({
         [
             now,
             station,
+            captureTone,
             eventId,
             applyLocalMark,
             markSaved,

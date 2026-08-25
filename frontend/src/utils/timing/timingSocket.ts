@@ -1,5 +1,5 @@
 import Config from '../../Config'
-import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto } from '../../api'
+import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto, TimingSettingsDto } from '../../api'
 
 /**
  * Discriminated union of messages pushed by the timing websocket channel.
@@ -13,20 +13,29 @@ import { OfficialTimeDto, TimeMarkDto, TimingSequenceDto } from '../../api'
 export type TimingWsMessage =
 	| { type: 'timeMarkCreated'; mark: TimeMarkDto }
 	| { type: 'timeMarkRetracted'; id: string }
+	| { type: 'timeMarkReactivated'; id: string }
 	| { type: 'assignmentChanged'; timeMark: string; competitionMatchTeam: string | null }
 	| { type: 'stationsChanged' }
 	| { type: 'sequenceChanged'; sequence: TimingSequenceDto }
 	| { type: 'officialTimeChanged'; officialTimes: OfficialTimeDto[] }
 	| { type: 'timesDeleted'; timeMarks: string[] }
+	| { type: 'settingsChanged'; settings: TimingSettingsDto }
+	// Ein GANZER Versuch wurde zurückgenommen („Start zurücknehmen") — das Fehlstart-Signal der
+	// Boards, zusätzlich zu den einzelnen timeMarkRetracted-Echos (die feuern auch bei der
+	// harmlosen Einzelmarken-Korrektur und taugen deshalb nicht als Auslöser).
+	| { type: 'attemptRetracted'; competitionSetupMatch: string; competitionMatchTeams: string[] }
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
 	'timeMarkRetracted',
+	'timeMarkReactivated',
 	'assignmentChanged',
 	'stationsChanged',
 	'sequenceChanged',
 	'officialTimeChanged',
 	'timesDeleted',
+	'settingsChanged',
+	'attemptRetracted',
 ])
 
 /**

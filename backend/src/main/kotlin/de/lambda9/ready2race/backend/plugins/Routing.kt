@@ -26,6 +26,7 @@ import de.lambda9.ready2race.backend.app.invoice.boundary.invoice
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.liveDashboard
 import de.lambda9.ready2race.backend.app.matchResultImportConfig.boundary.matchResultImportConfig
 import de.lambda9.ready2race.backend.app.namedParticipant.boundary.namedParticipant
+import de.lambda9.ready2race.backend.app.paceReference.boundary.paceReference
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.participantRequirement
 import de.lambda9.ready2race.backend.app.qrCodeApp.boundary.qrCodeApp
 import de.lambda9.ready2race.backend.app.ratingcategory.boundary.ratingCategory
@@ -72,6 +73,7 @@ fun Application.configureRouting(config: Config, env: JEnv) {
             invoice()
             qrCodeApp()
             startListConfig()
+            paceReference()
             ratingCategory()
             matchResultImportConfig()
             results()

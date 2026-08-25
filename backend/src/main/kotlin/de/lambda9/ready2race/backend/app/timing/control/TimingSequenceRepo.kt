@@ -72,6 +72,37 @@ object TimingSequenceRepo {
         STATION.eq(stationId).and(STATE.`in`(activeStates))
     }
 
+    /**
+     * Die eine Sequenz, die eine unverknüpfte ANZEIGE (linked_station null = "alle Starts der
+     * Veranstaltung") gerade zeigen soll: unter mehreren aktiven Sequenzen verschiedener
+     * START-Posten gewinnt die zuletzt angefasste - eine frisch scharfgestellte oder gestartete
+     * Sequenz ist das, worauf der Bildschirm am Start gerade wartet.
+     */
+    fun getMostRecentActiveByEvent(eventId: UUID): JIO<TimingStartSequenceRecord?> = Jooq.query {
+        selectFrom(TIMING_START_SEQUENCE)
+            .where(
+                TIMING_START_SEQUENCE.EVENT.eq(eventId)
+                    .and(TIMING_START_SEQUENCE.STATE.`in`(activeStates))
+            )
+            .orderBy(TIMING_START_SEQUENCE.UPDATED_AT.desc())
+            .limit(1)
+            .fetchOne()
+    }
+
+    /** Wie [getRecentTerminalByStation], nur veranstaltungsweit - für die unverknüpfte ANZEIGE. */
+    fun getRecentTerminalByEvent(eventId: UUID, since: LocalDateTime): JIO<TimingStartSequenceRecord?> =
+        Jooq.query {
+            selectFrom(TIMING_START_SEQUENCE)
+                .where(
+                    TIMING_START_SEQUENCE.EVENT.eq(eventId)
+                        .and(TIMING_START_SEQUENCE.STATE.`in`(terminalStates))
+                        .and(TIMING_START_SEQUENCE.UPDATED_AT.ge(since))
+                )
+                .orderBy(TIMING_START_SEQUENCE.UPDATED_AT.desc())
+                .limit(1)
+                .fetchOne()
+        }
+
     fun getRunning() = TIMING_START_SEQUENCE.select { STATE.eq(SequenceState.RUNNING.name) }
 
     fun update(id: UUID, f: TimingStartSequenceRecord.() -> Unit) = TIMING_START_SEQUENCE.update(f) { ID.eq(id) }

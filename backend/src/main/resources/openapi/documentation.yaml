@@ -1875,62 +1875,6 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
-  /event/{eventId}/raceclocker-race/competition-assignments:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-    get:
-      operationId: getRaceClockerCompetitionAssignments
-      description: "The reverse view: every competition of the event with its explicit RaceClocker race choice (null = inherits the event default), for assigning competitions from the race side."
-      responses:
-        200:
-          description: Competition assignments
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CompetitionRaceAssignmentDto'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
-  /event/{eventId}/raceclocker-race/{raceId}/assignments:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-      - name: raceId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      operationId: setRaceClockerRaceAssignments
-      description: "Set which competitions use this race (reverse assignment). Checking a competition here moves it away from another race - the last click wins; unchecking a competition that pointed here falls back to inheriting the event default."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RaceClockerRaceAssignmentsRequest'
-      responses:
-        204:
-          $ref: '#/components/responses/204'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
   /event/{eventId}/raceclocker-race/{raceId}:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -2027,6 +1971,96 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/timing-profile/tree:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingProfileTree
+      description: >-
+        The timing-profile tree of the event: root, competitions, rounds and matches, each level
+        with its own profile (null means inherit) and the profile actually in effect there. The
+        inheritance rule lives on the server only, so the UI stays a pure display.
+      responses:
+        200:
+          description: Timing profile tree successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingProfileTreeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing-profile/assignment:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    put:
+      operationId: upsertTimingProfileAssignment
+      description: >-
+        Upsert over the natural key (competition, round, match): creates or replaces the entry for
+        that path; a null profile removes it and puts the level back on "inherit". All three path
+        fields null address the root (the event itself).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingProfileAssignmentRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing-profile/assignments:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    delete:
+      operationId: resetTimingProfileAssignments
+      description: >-
+        Clears every level BELOW the given one, so all of them inherit again. Without the
+        competition parameter that is the whole event except its root; with it, the rounds and
+        matches of that competition (its own entry stays).
+      parameters:
+        - name: competition
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Limits the reset to the rounds and matches of this competition
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/notice:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -2061,53 +2095,6 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
-  /event/{eventId}/competition/{competitionId}/timing-config:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-      - $ref: '#/components/parameters/competitionId'
-    get:
-      operationId: getTimingConfig
-      description: The timing configuration of this competition - timing system, RaceClocker results URLs and the column presets used for export and import.
-      responses:
-        200:
-          description: Timing configuration successfully retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TimingConfigDto'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
-    put:
-      operationId: updateTimingConfig
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TimingConfigRequest'
-      responses:
-        204:
-          $ref: '#/components/responses/204'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        422:
-          $ref: '#/components/responses/422'
-        500:
-          $ref: '#/components/responses/500'
   /event/{eventId}/competition/{competitionId}/roundProgression:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -2151,6 +2138,67 @@ paths:
           $ref: '#/components/responses/403'
         404:
           $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/competition/{competitionId}/timing-stations:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - $ref: '#/components/parameters/competitionId'
+    get:
+      operationId: getCompetitionTimingStations
+      description: >-
+        The timing stations this competition passes, each with its distance on THIS course, ordered
+        by that distance. The station itself belongs to the event; only the metre belongs to the
+        competition, because the same station sits at 3000 m for the long distance and at 250 m for
+        the sprint.
+      responses:
+        200:
+          description: Timing stations of the competition successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompetitionTimingStationDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    put:
+      operationId: setCompetitionTimingStations
+      description: >-
+        Replaces the WHOLE list of this competition: anything missing from the body is deleted,
+        everything in it is created or moved to its new metre. An empty list clears the
+        competition. 404 if the competition or one of the stations does not belong to this event,
+        409 if the same station is listed twice. Display stations (ANZEIGE) are rejected with 400:
+        they never capture a time mark, so they cannot stand on the course.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompetitionTimingStationsRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
         422:
           $ref: '#/components/responses/422'
         500:
@@ -7022,6 +7070,116 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /pace-reference:
+    post:
+      operationId: addPaceReference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaceReferenceRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    get:
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      operationId: getPaceReferences
+      responses:
+        200:
+          description: Pace reference page successfully retrieved
+          content:
+            application/json:
+              schema:
+                type:
+                  object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaceReferenceDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /pace-reference/{paceReferenceId}:
+    parameters:
+      - in: path
+        name: paceReferenceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updatePaceReference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaceReferenceRequest'
+      responses:
+        204:
+          description: Pace reference updated
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deletePaceReference
+      responses:
+        204:
+          description: Pace reference successfully deleted
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/info/upcoming-matches:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -9701,6 +9859,52 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/stations/{stationId}/armed:
+    put:
+      operationId: setTimingStationArmed
+      description: >-
+        Arms or disarms the station. Only meaningful while its `captureMode` is ARMED: in
+        ONETOUCH mode every press captures and this state lies idle.
+
+
+        Deliberately separate from `PUT /timing/stations/{stationId}`: the capture mode belongs to
+        the organizers and is set once in the event settings, while this state is flipped by the
+        timekeeper many times a day. Sharing one body would mean disarming overwrites the
+        configuration.
+
+
+        Requires UpdateAppTimingGlobal or UpdateEventGlobal -- not ReadEventGlobal: disarming
+        blocks every assigned capture, which is no read.
+
+
+        Alternatively accepts an X-Timing-Device-Token header instead of a session -- the
+        timekeeper on a shared tablet has no login, only the station link. The token branch is
+        only taken when the header is present AND no session exists. Like the other writing token
+        paths the token must be issued for exactly this station, and tokens of ANZEIGE stations
+        are rejected; both answer 401 without saying which it was. A station only ever switches
+        itself.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationArmedRequest'
   /event/{eventId}/timing/timeMarks:
     post:
       operationId: createTimeMark
@@ -9794,6 +9998,12 @@ paths:
   /event/{eventId}/timing/timeMarks/{timeMarkId}/assignment:
     put:
       operationId: assignTimeMark
+      description: >-
+        Assigns the mark to a team, moves it to another team (mis-clicks are the normal case at a
+        busy finish line), or detaches it (null body value). Besides a session this also accepts
+        the X-Timing-Device-Token header (shared station devices): a device token may only assign
+        and re-assign marks of its OWN station, and tokens of ANZEIGE stations are read-only -
+        both rejections answer 401 without detail. Retraction stays session-only.
       parameters:
         - name: eventId
           in: path
@@ -9835,6 +10045,79 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/reactivate:
+    put:
+      operationId: reactivateTimeMark
+      description: |-
+        The counterpart to retracting: sets a RETRACTED time mark back to ACTIVE. The mark's former
+        team assignment was never detached, so it simply applies again, and the official time of the
+        affected team is recomputed and written back immediately. Idempotent - reactivating an
+        already ACTIVE mark succeeds without effect. Requires a user session (same privileges as
+        retracting); device tokens cannot reactivate marks.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: timeMarkId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/settings:
+    get:
+      operationId: getTimingSettings
+      description: |-
+        The event's timing settings in one fetch: the "automatic result write-back" switch (when
+        enabled - the default - every timing mutation immediately recomputes the affected official
+        times and writes them to the match teams) and the precision of published official times.
+        Readable with a device token like GET /timing/officialTimes, since the station boards need
+        the precision to render official times.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingSettingsDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/autoApply:
+    put:
+      operationId: setTimingAutoApply
+      description: |-
+        Persists the switch. Enabling it catches up once: every team with marks or an official-time
+        row is recomputed and written back (frozen or foreign results are skipped and stay flagged
+        dirty). Disabling only stops future writes - results already written remain untouched.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingAutoApplyRequest'
   /timing/serverTime:
     post:
       operationId: getServerTime
@@ -9866,6 +10149,201 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TimingTeamDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/matches:
+    get:
+      operationId: getTimingMatches
+      description: >-
+        The station start list: every materialized match of the event's internally timed
+        competitions (coalesce of competition/event timing system = INTERN), in start order, each
+        with its resolved timing mode, teams and derived progress. Readable with a session or with
+        the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded
+        unless the bye must race.
+
+
+        Pass `station` to narrow the list to what that station can actually capture. This only
+        takes effect for SPLIT stations: their marks become intermediate times solely for
+        competitions that carry the station on their course, so showing the rest would invite a
+        timekeeper to take times that go nowhere. START and FINISH stations are never narrowed --
+        their marks feed the official time regardless of any course assignment. An unknown station
+        id narrows nothing.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: station
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingMatchDto'
+      tags:
+        - Timing
+  /event/{eventId}/timing/matches/{matchId}/retractAttempt:
+    post:
+      operationId: retractMatchAttempt
+      description: >-
+        Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE
+        time mark that is assigned to a team of this match - start, finish and lap marks alike -
+        is set to RETRACTED in one call. Finish marks must go with the start marks, because stale
+        finish times of a discarded attempt would otherwise instantly recombine with the new start
+        marks into wrong official times through the realtime write-back. Assignments are kept
+        (like the single retract, so the existing reactivate endpoint restores the attempt), the
+        official times of the affected teams are recomputed and cleared from the matches
+        immediately, and the match falls back to "open" in the start list. Correcting a single
+        start time is NOT this endpoint - retract and re-capture the one mark via the time mark
+        list instead, which leaves the finish marks active. Idempotent - a match without active
+        marks succeeds without effect. Requires a user session; device tokens cannot retract
+        marks.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+  /event/{eventId}/timing/modes:
+    get:
+      operationId: getTimingModes
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingModeDto'
+      tags:
+        - Timing
+    post:
+      operationId: addTimingMode
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '409':
+          description: A timing mode with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingModeRequest'
+  /event/{eventId}/timing/modes/{modeId}:
+    put:
+      operationId: updateTimingMode
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: modeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: A timing mode with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingModeRequest'
+    delete:
+      operationId: deleteTimingMode
+      description: >-
+        Deletes the mode. Refused with 409 while the mode is still assigned to competitions or
+        rounds - clear the assignments first, nothing is unconfigured silently.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: modeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: This timing mode is still assigned somewhere in the timing profile tree.
+      tags:
+        - Timing
+  /event/{eventId}/timing/stations/{stationId}/share-link:
+    post:
+      operationId: createTimingStationShareLink
+      description: >-
+        Issues a device token for the station automatically and returns the finished link
+        (root-relative path plus token). Reuse instead of inflation: as long as an automatically
+        issued, unrevoked token exists for the station, every call returns the SAME link. Revoking
+        the token in the devices tab makes the next call issue a fresh one. Requires a session
+        with UPDATE EVENT.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingShareLinkDto'
       tags:
         - Timing
   /event/{eventId}/timing/sequences:
@@ -9961,6 +10439,11 @@ paths:
   /event/{eventId}/timing/sequences/active:
     get:
       operationId: getActiveTimingSequence
+      description: >-
+        The sequence the station's board should show right now. For an ANZEIGE station the query
+        mirrors: with a linkedStation it answers for exactly that START station, without one it
+        returns the most recently touched active sequence of the whole event (falling back to the
+        most recent finished one within the usual window).
       parameters:
         - name: eventId
           in: path
@@ -10071,6 +10554,11 @@ paths:
   /event/{eventId}/timing/officialTimes:
     get:
       operationId: getOfficialTimes
+      description: >-
+        The event's official times. Readable with a session or with the X-Timing-Device-Token
+        header - the finish board shows official times live at each boat, and shared station
+        devices run without a session (the websocket's officialTimeChanged messages already accept
+        the same tokens; this is the initial state for them).
       parameters:
         - name: eventId
           in: path
@@ -10821,9 +11309,12 @@ components:
         - RACECLOCKER_RACE_NAME_TAKEN
         - RACECLOCKER_RACE_URL_TAKEN
         - RACECLOCKER_RACE_STILL_ASSIGNED
+        - TIMING_PROFILE_KIND_MISMATCH
+        - TIMING_PROFILE_SCOPE_INVALID
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED
+        - PACE_REFERENCE_NAME_TAKEN
         - SCHEDULE_SHIFT_WITHOUT_CHANGE
         - SCHEDULE_SHIFT_TARGET_INVALID
         - SCHEDULE_SHIFT_LEAVES_RACE_DAY
@@ -12160,6 +12651,11 @@ components:
           $ref: '#/components/schemas/CompetitionChallengeConfigDto'
         ratingCategoryRequired:
           type: boolean
+        distanceMeters:
+          type: integer
+          description: "Total course length in metres. Only needed to derive pace between timing stations - split times work without it."
+        paceReference:
+          $ref: '#/components/schemas/PaceReferenceDto'
 
 
     NamedParticipantForCompetitionDto:
@@ -12276,6 +12772,12 @@ components:
           $ref: '#/components/schemas/CompetitionChallengeConfigRequest'
         ratingCategoryRequired:
           type: boolean
+        distanceMeters:
+          type: integer
+          description: "Total course length in metres. Only needed to derive pace between timing stations - split times work without it."
+        paceReference:
+          type: string
+          format: uuid
 
 
     NamedParticipantForCompetitionRequestDto:
@@ -15055,6 +15557,14 @@ components:
             Elapsed time at this mark in milliseconds - a sorting aid for the lap band only, the
             display uses timeString. Marks arriving in the same poll share recordedAt; the higher
             time is then the more recent news.
+        distanceMeters:
+          type: integer
+          nullable: true
+          description: >-
+            Where on the course this time was taken, in metres - the basis for the per-segment pace
+            the display derives. Null for lap times from the external provider: their column names
+            belong to no timing station, so there is no pace and the display leaves the spot empty
+            instead of inventing a number.
 
     UpdateCompetitionMatchRequest:
       type: object
@@ -15588,40 +16098,6 @@ components:
 
 
 
-    TimingConfigDto:
-      type: object
-      properties:
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        race:
-          type: string
-          format: uuid
-          nullable: true
-          description: The one selected RaceClocker race of this competition - qualification and all other rounds alike.
-        startlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-        eventTimingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-          description: Event-wide default timing system; the competition inherits it while its own field is null.
-        eventStartlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-          description: Event-wide default start list export; inherited while the competition's own field is null.
-        eventResultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-          description: Event-wide default race results import; inherited while the competition's own field is null.
-
     RoundProgressionConfigDto:
       type: object
       required:
@@ -15648,9 +16124,11 @@ components:
     EventTimingConfigDto:
       type: object
       description: >
-        Event-wide timing defaults. Timing system and the file-format presets live here once and every
-        competition without its own values inherits them. The race selection is NOT here - it is
-        assigned per race on each competition (RaceClockerRaceAssignments), no event-wide default.
+        The event's timing settings. Timing system and the file-format presets live here once and
+        apply to EVERY competition - a per-competition deviation no longer exists (the competition
+        columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker
+        race or an internal timing mode - is not here either: that is the timing profile tree
+        (/event/{eventId}/timing-profile).
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -15678,47 +16156,37 @@ components:
         watchAfterMinutes:
           type: integer
           description: How long after its planned start a match that is not active yet is still watched.
-        deviatingCompetitions:
+        timingPrecision:
+          $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: >-
+            Capture confirmation tone of FINISH stations. Unlike TimingSettingsDto this is NOT
+            resolved - null means "built-in default", so the form knows whether a custom value is
+            set and can offer a reset.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Capture confirmation tone of SPLIT stations; null means "built-in default".
+        falseStartTone:
           type: array
-          description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
+          nullable: true
+          description: >-
+            False-start SEQUENCE of start boards (offsets counted forward from the trigger). Like
+            the capture tones NOT resolved - null means "built-in default sequence" (short-short-
+            long, see TimingSettingsDto.falseStartTone), so the form can offer a reset. A column
+            still holding the pre-24.08.2026 single tone (a jsonb object) is read as a
+            one-element sequence with offsetMillis 0, so no migration is needed.
           items:
-            $ref: '#/components/schemas/CompetitionTimingDeviationDto'
+            $ref: '#/components/schemas/ToneStepDto'
       required:
         - autoPull
         - intervalActiveSeconds
         - intervalUpcomingSeconds
         - watchBeforeMinutes
         - watchAfterMinutes
-
-    CompetitionTimingDeviationDto:
-      type: object
-      description: >
-        A competition that overrides the event-wide timing defaults. Only the inheritable fields are
-        listed - system, start list export and result import. The race selection is no deviation:
-        it is always assigned per competition, there is no event default to deviate from.
-      properties:
-        competitionId:
-          type: string
-          format: uuid
-        identifier:
-          type: string
-        name:
-          type: string
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        startlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-      required:
-        - competitionId
-        - identifier
-        - name
+        - timingPrecision
 
     RaceClockerRaceDto:
       type: object
@@ -15746,41 +16214,13 @@ components:
         capturesLaps:
           type: boolean
 
-    CompetitionRaceAssignmentDto:
-      type: object
-      required: [competitionId, identifier, name]
-      properties:
-        competitionId:
-          type: string
-          format: uuid
-        identifier:
-          type: string
-        name:
-          type: string
-        race:
-          type: string
-          format: uuid
-          nullable: true
-          description: "The one selected race; null means no race is assigned"
-
-    RaceClockerRaceAssignmentsRequest:
-      type: object
-      required: [competitions]
-      properties:
-        competitions:
-          type: array
-          description: "Competitions that use this race for all of their rounds"
-          items:
-            type: string
-            format: uuid
-
     EventTimingConfigRequest:
       type: object
       description: >
-        The RaceClocker fields are optional, like the per-competition config. The five auto-pull fields
-        are not optional - the database always has a value for them, and null here would ambiguously
-        mean "leave unchanged". The race selection is not here - it is assigned per race on each
-        competition, no event-wide default.
+        Timing system and the two file-format presets stay optional - they are not known when the
+        regatta is created. The five auto-pull fields are not optional: the database always has a
+        value for them, and null here would ambiguously mean "leave unchanged". Which profile stops
+        a single match is not here - that is the timing profile tree.
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -15808,42 +16248,87 @@ components:
         watchAfterMinutes:
           type: integer
           description: How long after its planned start a match that is not active yet is still watched.
+        timingPrecision:
+          $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: >-
+            PUT semantics like the other optional fields - null (or absent) restores the built-in
+            default capture tone for FINISH stations.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
+        falseStartTone:
+          type: array
+          nullable: true
+          description: >-
+            False-start SEQUENCE, PUT semantics - null (or absent) restores the built-in default
+            sequence. offsetMillis is counted FORWARD from the trigger here (0..60000), unlike a
+            timing mode's tone plan; at most 30 steps. Always written as an array - the former
+            single-tone object stays readable but is never produced again.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
       required:
         - autoPull
         - intervalActiveSeconds
         - intervalUpcomingSeconds
         - watchBeforeMinutes
         - watchAfterMinutes
+        - timingPrecision
 
     TimingSystem:
       type: string
       enum:
         - RACECLOCKER
         - WEBSCORER
+        - INTERN
+      description: >-
+        INTERN selects the built-in timing module (stations, time marks, start sequences, official
+        times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`)
+        and are never polled from an external provider.
 
-    TimingConfigRequest:
+    PaceReferenceMode:
+      type: string
+      description: How a sport expresses pace. TIME_PER_DISTANCE is "how long for n metres" (rowing, running), DISTANCE_PER_TIME is "how far in one hour" (cycling).
+      enum:
+        - TIME_PER_DISTANCE
+        - DISTANCE_PER_TIME
+
+    PaceReferenceRequest:
       type: object
-      description: >
-        Every field is optional - the RaceClocker races only exist shortly before the regatta, so an
-        incomplete configuration must be storable. The race id must belong to this competition's
-        event; the service rejects a race from another event.
+      required:
+        - name
+        - mode
+        - referenceMeters
       properties:
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        race:
+        name:
+          type: string
+        mode:
+          $ref: '#/components/schemas/PaceReferenceMode'
+        referenceMeters:
+          type: integer
+          description: Reference distance in metres - the distance the pace is calculated on (500 in rowing) or the unit of the output (1000 = km/h). Must be greater than zero.
+
+    PaceReferenceDto:
+      type: object
+      required:
+        - id
+        - name
+        - mode
+        - referenceMeters
+      properties:
+        id:
           type: string
           format: uuid
-          nullable: true
-          description: The one selected RaceClocker race - qualification and all other rounds alike.
-        startlistConfig:
+        name:
           type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
+        mode:
+          $ref: '#/components/schemas/PaceReferenceMode'
+        referenceMeters:
+          type: integer
+
     StartListConfigRequest:
       type: object
       description: At least one column must be specified, and at least one of colTeamRegistrationId / colTeamMatchId.
@@ -16433,6 +16918,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MatchResultTeamInfo'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "the competition's pace reference - the unit of the per-segment pace the display derives from the lap distances; null when the competition has none"
 
     MatchResultTeamInfo:
       type: object
@@ -16677,6 +17167,11 @@ components:
             - $ref: '#/components/schemas/MatchByeDto'
           nullable: true
           description: "the bye of this match, same derivation as schedule and referee dashboard - public boards need it mainly for must-race byes, where a second line explains why the boat races alone and that its time runs out of competition"
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "the competition's pace reference ('time per 500 m', 'km/h'). The display derives the per-segment pace itself from the lap distance and the elapsed time and only needs the unit from here; null when the competition has none"
 
     AthleteBoardResultTeam:
       type: object
@@ -16798,6 +17293,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AthleteBoardResultTeam'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "like AthleteBoardMatch.paceReference: the unit of the per-segment pace"
 
     BoardMatchSlotDto:
       type: object
@@ -16967,6 +17467,26 @@ components:
 
     BoardViewDto:
       type: object
+      description: |-
+        Everything one board renders in a single response.
+
+        In addition to polling the HTTP routes under `/event/{eventId}/info`, displays can listen
+        on a websocket channel that announces changes to the event:
+
+        - Path: `/api/ws/event/{eventId}/info` (note the `/api/ws` prefix - this channel lives
+        outside the regular `/api` REST routes documented in this spec).
+        - Auth: none. The channel mirrors the public display endpoints under
+        `/event/{eventId}/info` - connect with a plain `new WebSocket(url)`, no subprotocol and
+        no session required.
+        - Messages are JSON objects discriminated by a `type` field. The only type is
+        `{ type: "changed", marker: int64 }`: the event's change marker was bumped (results,
+        activation, schedule actions, notice banner, ...). The message deliberately carries no
+        payload - on receiving it, refetch the display's regular endpoint. `marker` is monotonic
+        per event; the current value is also sent once immediately after connecting.
+        - The channel is receive-only: clients should ignore any data they send on it and rely on
+        the server's ping/pong keepalive.
+        - On every (re)connect clients should refetch once, to cover changes missed while
+        disconnected, and keep a slow safety poll as fallback for connections that die silently.
       required:
         - boardId
         - eventName
@@ -17402,6 +17922,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RunningMatchTeamInfo'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "like LatestMatchResultInfo.paceReference: the unit of the per-segment pace"
 
     LiveDashboardMatchState:
       type: string
@@ -19970,9 +20495,13 @@ components:
         - START
         - SPLIT
         - FINISH
+        - ANZEIGE
       description: |-
         Live timing: stations capture time marks (start/split/finish), which are then assigned to a
-        competition match team to produce a result.
+        competition match team to produce a result. ANZEIGE is a read-only display station (start
+        referee / athlete screen): it never captures marks, its device tokens are limited to read
+        endpoints, and via `linkedStation` it mirrors one START station (or, unlinked, every start
+        sequence of the event).
 
         In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
 
@@ -19985,15 +20514,34 @@ components:
         - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
         - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
         - `{ type: "timeMarkRetracted", id: uuid }`
+        - `{ type: "timeMarkReactivated", id: uuid }` - a retracted mark is ACTIVE again (its former
+        assignment applies again).
         - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
         `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
         distinguish "no assignment" from a field that was never sent.
-        - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
-        `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+        - `{ type: "stationsChanged" }` - stations were added, edited, removed, armed, or
+        disarmed; refetch `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+        - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
+        a whole attempt was retracted ("retract start", one message per retraction in addition to
+        the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
+        tone when the retracted match belongs to the sequence they are currently showing;
+        `competitionMatchTeams` lists the teams whose active marks were retracted (may be empty
+        when only the actual-start stamp was cleared).
         - The channel is receive-only: clients should ignore any data they send on it and rely on the
         server's ping/pong keepalive.
         - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
         only then start applying incoming messages, to cover updates missed while disconnected.
+
+    TimingCaptureMode:
+      type: string
+      enum:
+        - ONETOUCH
+        - ARMED
+      description: >-
+        How a station reacts to a press. ONETOUCH captures immediately - right at the finish line,
+        where every press is intended. ARMED requires the station to be armed first: out on the
+        course the device lies around for minutes between two boats, and a sleeve over the keyboard
+        would otherwise pin a time on a boat that nobody took.
 
     TimingStationDto:
       type: object
@@ -20003,6 +20551,8 @@ components:
         - name
         - type
         - sorting
+        - captureMode
+        - armed
       properties:
         id:
           $ref: '#/components/schemas/uuid'
@@ -20015,6 +20565,20 @@ components:
         sorting:
           type: integer
           format: int32
+        linkedStation:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            Only set on ANZEIGE stations: the START station this display mirrors; null = every
+            start sequence of the event.
+        captureMode:
+          $ref: '#/components/schemas/TimingCaptureMode'
+        armed:
+          type: boolean
+          description: >-
+            Whether the station is currently armed. Only meaningful while `captureMode` is ARMED;
+            flipped through `PUT /timing/stations/{stationId}/armed`, never through the station
+            body.
 
     TimingStationRequest:
       type: object
@@ -20030,6 +20594,74 @@ components:
         sorting:
           type: integer
           format: int32
+        linkedStation:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            Only allowed for type ANZEIGE, and must reference a START station of the same event.
+        captureMode:
+          $ref: '#/components/schemas/TimingCaptureMode'
+          description: >-
+            Omit to leave the mode unchanged; on create it then becomes ONETOUCH - today's
+            behaviour. Deliberately not defaulted on update: a form that does not know the field
+            would otherwise let a mere rename drop an ARMED station back to ONETOUCH, a silent
+            fallback that REMOVES a safeguard. The state `armed` does not live here at all: it is
+            flipped on its own route.
+
+    TimingStationArmedRequest:
+      type: object
+      required:
+        - armed
+      properties:
+        armed:
+          type: boolean
+
+    CompetitionTimingStationDto:
+      type: object
+      required:
+        - timingStation
+        - name
+        - type
+        - distanceMeters
+      properties:
+        timingStation:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        distanceMeters:
+          type: integer
+          format: int32
+          description: >-
+            Where this station stands on this competition's course. The start is at 0, the finish
+            at the total distance. Split times are ordered by this value, not by the station's
+            sorting - the sorting orders stations in the control room, the distance orders them on
+            the course.
+
+    CompetitionTimingStationsRequest:
+      type: object
+      required:
+        - stations
+      properties:
+        stations:
+          type: array
+          description: The complete list; anything missing here is deleted.
+          items:
+            $ref: '#/components/schemas/CompetitionTimingStationEntry'
+
+    CompetitionTimingStationEntry:
+      type: object
+      required:
+        - timingStation
+        - distanceMeters
+      properties:
+        timingStation:
+          $ref: '#/components/schemas/uuid'
+        distanceMeters:
+          type: integer
+          format: int32
+          minimum: 0
 
     TimeMarkDto:
       type: object
@@ -20315,6 +20947,9 @@ components:
         penaltyMillis:
           type: integer
           format: int64
+        penaltyNote:
+          type: string
+          description: Free-text reason for the penalty; written to the team's penalty_note on write-back.
         resultStatus:
           $ref: '#/components/schemas/OfficialTimeResultStatus'
         effectiveMillis:
@@ -20325,6 +20960,13 @@ components:
         pushedAt:
           type: string
           format: date-time
+        place:
+          type: integer
+          format: int32
+          description: >-
+            Der Platz, wie er aktuell am Lauf steht - von der Übernahme aus den Zeiten abgeleitet
+            (Gleichstände teilen sich den Platz) oder von Hand gesetzt. Vorläufig, solange der Lauf
+            läuft.
 
     OfficialTimeOverrideRequest:
       type: object
@@ -20335,8 +20977,172 @@ components:
         penaltyMillis:
           type: integer
           format: int64
+        penaltyNote:
+          type: string
+          description: Free-text reason for the penalty. PUT semantics - an absent field clears a previous reason.
         resultStatus:
           $ref: '#/components/schemas/OfficialTimeResultStatus'
+
+    TimingSettingsDto:
+      type: object
+      description: >
+        The event's timing settings as one read: the "automatic result write-back" switch and the
+        precision of published official times. Writes stay separate - the switch via
+        PUT /timing/autoApply, the precision via the event timing config (updateEventTimingConfig).
+      required:
+        - autoApply
+        - precision
+        - finishTone
+        - splitTone
+        - falseStartTone
+      properties:
+        autoApply:
+          type: boolean
+        precision:
+          $ref: '#/components/schemas/TimingPrecision'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: >-
+            Capture confirmation tone of FINISH stations, already resolved: unconfigured events
+            get the built-in default (880 Hz / 150 ms), so boards simply play what is sent here.
+            Edited via the event timing config (updateEventTimingConfig), pushed live via
+            settingsChanged.
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: Capture confirmation tone of SPLIT stations, resolved like finishTone.
+        falseStartTone:
+          type: array
+          description: >-
+            False-start SEQUENCE of start boards, also resolved and never empty. Unconfigured
+            events get the built-in default: three SAWTOOTH tones held at full volume -
+            200 Hz / 300 ms at 0 ms, the same again at 400 ms, then 180 Hz / 1500 ms with a
+            400 ms release at 800 ms ("short - short - long"). Sawtooth and the low pitch are
+            deliberate: a sine is lost in regatta noise, and a repeated pattern with a differing
+            final tone reads as a recall rather than as just another beep. Boards play the whole
+            sequence with its offsets (counted forward from the trigger) when an attempt is
+            retracted or a running sequence is aborted for the match they are currently showing.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+
+    ToneWaveform:
+      type: string
+      enum:
+        - SINE
+        - TRIANGLE
+        - SQUARE
+        - SAWTOOTH
+      description: >-
+        Waveform of a synthesized timing tone: the four basic shapes of the Web Audio
+        OscillatorNode, named exactly like the browser's OscillatorType values (uppercased).
+        Boards compensate the loudness difference between the shapes with a fixed per-shape gain
+        factor, so switching the waveform does not also change the perceived volume. Null/absent
+        always means SINE; an explicit SINE sounds identical to null and clients normalize it to
+        absent before saving.
+
+    CaptureToneDto:
+      type: object
+      description: >-
+        A single configurable tone of the event: the confirmation beep played when a FINISH/SPLIT
+        station captures a time. A capture tone stays a SINGLE tone on purpose - it confirms a
+        key press and must be short. Limits: frequencyHz 100..4000, durationMillis 20..10000,
+        releaseMillis 0..5000.
+      required:
+        - frequencyHz
+        - durationMillis
+      properties:
+        frequencyHz:
+          type: integer
+          format: int32
+        durationMillis:
+          type: integer
+          format: int32
+        waveform:
+          allOf:
+            - $ref: '#/components/schemas/ToneWaveform'
+          nullable: true
+          description: >-
+            Oscillator waveform, independent of the envelope (a held sawtooth carries both).
+            Null = sine; existing tones stored without this field keep their sound.
+        releaseMillis:
+          type: integer
+          format: int32
+          nullable: true
+          description: >-
+            Selects the tone's ENVELOPE - two explicitly different sound shapes, not a continuous
+            knob. Null = "decaying": an exponential decay across the whole nominal duration (the
+            classic envelope). 0..5000 = "held": durationMillis is the hold time at full volume
+            and the total sound is duration + release (the release may exceed the nominal
+            duration). 0 is a legitimate held value - boards play a built-in de-click fade of a
+            few ms so the ending never pops - and is never normalized to null: null and 0 are
+            different envelopes.
+
+    ToneStepDto:
+      type: object
+      description: >-
+        One tone of a tone sequence: a synthesized beep at a point in time relative to a
+        reference. The same shape carries both sequences of the system; only the DIRECTION of
+        offsetMillis differs, and that is decided by the FIELD carrying the sequence, not by this
+        type. A timing mode's tonePlan counts BACKWARDS from the start of the boat/wave the
+        countdown is running for: offsetMillis is negative before the start and 0 at the start
+        itself, positive values are rejected (after the start the countdown target immediately
+        moves on to the next boat), limits -600000..0 matching the maximum sequence lead-in. The
+        event's falseStartTone counts FORWARD from the trigger: 0 = immediately, positive = that
+        many milliseconds later, limits 0..60000. Common limits: frequencyHz 100..4000,
+        durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per sequence. Missed
+        countdown tones are never played late - a board that reconnects mid-countdown stays
+        silent for everything older than about a second.
+      required:
+        - offsetMillis
+        - frequencyHz
+        - durationMillis
+      properties:
+        offsetMillis:
+          type: integer
+          format: int32
+        frequencyHz:
+          type: integer
+          format: int32
+        durationMillis:
+          type: integer
+          format: int32
+        waveform:
+          allOf:
+            - $ref: '#/components/schemas/ToneWaveform'
+          nullable: true
+          description: >-
+            Oscillator waveform, same semantics as CaptureToneDto.waveform: null = sine, existing
+            steps stored without the field keep their sound.
+        releaseMillis:
+          type: integer
+          format: int32
+          nullable: true
+          description: >-
+            Selects the tone's ENVELOPE, same semantics as CaptureToneDto.releaseMillis: null =
+            "decaying" (exponential decay across the whole nominal duration); 0..5000 = "held"
+            (full volume for the nominal duration, then a fall-off over the release; total sound
+            = duration + release). 0 is a legitimate held value (a built-in de-click fade of a
+            few ms keeps the ending pop-free) and is never normalized to null - null and 0 are
+            different envelopes.
+
+    TimingPrecision:
+      type: string
+      enum:
+        - SEKUNDE
+        - ZEHNTEL
+        - HUNDERTSTEL
+        - MILLISEKUNDE
+      description: >-
+        Precision of published official times. Raw data stays millisecond-exact; the setting only
+        affects what the write-back copies to the match teams and what is displayed. Values are
+        truncated (never rounded up), penalties are added before truncating.
+
+    TimingAutoApplyRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
 
     OfficialTimePushConflictDto:
       type: object
@@ -20402,6 +21208,7 @@ components:
         - station
         - name
         - revoked
+        - autoIssued
         - createdAt
       properties:
         id:
@@ -20414,6 +21221,12 @@ components:
           type: string
         revoked:
           type: boolean
+        autoIssued:
+          type: boolean
+          description: >-
+            True for tokens issued automatically via the station share-link endpoint (the same
+            link is returned on every click until revoked); false for manually issued hardware
+            tokens whose plaintext only ever exists in the issue response.
         createdAt:
           type: string
           format: date-time
@@ -20439,6 +21252,351 @@ components:
           type: string
         station:
           $ref: '#/components/schemas/uuid'
+
+    TimingShareLinkDto:
+      type: object
+      description: >-
+        The shareable station link. Unlike the manual token issue response this is repeatable:
+        the same station returns the same link until its token is revoked in the devices tab.
+      required:
+        - deviceToken
+        - token
+        - path
+      properties:
+        deviceToken:
+          $ref: '#/components/schemas/TimingDeviceTokenDto'
+        token:
+          type: string
+        path:
+          type: string
+          description: >-
+            Root-relative frontend path including the token query parameter
+            (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige`
+            display route). The client prepends its own origin.
+
+    TimingStartGrouping:
+      type: string
+      enum:
+        - EINZEL
+        - WELLE
+      description: >-
+        How many boats start per start action: EINZEL = one boat at a time (time trial), WELLE =
+        several together. A mass start is a WELLE containing every boat of the match, not a third
+        value.
+
+    TimingModeDto:
+      type: object
+      description: >-
+        A timing mode of the event - the template for how a match is started
+        (e.g. "Timetrial 30s", "Wellenstart", "Massenstart"). How a match is measured is not part
+        of it: whether there are splits follows from the competition's SPLIT stations.
+      required:
+        - id
+        - event
+        - name
+        - startGrouping
+        - leadInSeconds
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        event:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        startGrouping:
+          $ref: '#/components/schemas/TimingStartGrouping'
+        intervalSeconds:
+          type: integer
+          format: int32
+          nullable: true
+          description: >-
+            Set: starts follow automatically at this fixed interval (time trial). Null: every
+            start is triggered by hand.
+        leadInSeconds:
+          type: integer
+          format: int32
+          description: Countdown before the (first) start; feeds the start sequences' lead-in.
+        tonePlan:
+          type: array
+          nullable: true
+          description: >-
+            Tone plan of the start sequence, ascending by offset. Null means the built-in default
+            plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound
+            unconfigured modes always had.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+
+    TimingModeRequest:
+      type: object
+      required:
+        - name
+        - startGrouping
+        - leadInSeconds
+      properties:
+        name:
+          type: string
+        startGrouping:
+          $ref: '#/components/schemas/TimingStartGrouping'
+        intervalSeconds:
+          type: integer
+          format: int32
+          nullable: true
+          minimum: 1
+        leadInSeconds:
+          type: integer
+          format: int32
+          minimum: 0
+        tonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default plan; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+
+    TimingProfileKind:
+      type: string
+      enum:
+        - RACE
+        - MODE
+      description: >-
+        Which kind of timing profile the event uses. Not freely chosen: RACE goes with
+        timing_system RACECLOCKER, MODE with INTERN. With any other system there are no profiles.
+
+    TimingProfileOptionDto:
+      type: object
+      description: A selectable profile - a race for RACE, a timing mode for MODE.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        detail:
+          type: string
+          nullable: true
+          description: Second line of the select - results URL of the race, start grouping or interval of the mode.
+
+    TimingProfileMatchDto:
+      type: object
+      required:
+        - matchId
+        - name
+      properties:
+        matchId:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+
+    TimingProfileRoundDto:
+      type: object
+      required:
+        - roundId
+        - name
+        - matches
+      properties:
+        roundId:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileMatchDto'
+
+    TimingProfileCompetitionDto:
+      type: object
+      required:
+        - competitionId
+        - identifier
+        - name
+        - rounds
+      properties:
+        competitionId:
+          $ref: '#/components/schemas/uuid'
+        identifier:
+          type: string
+        name:
+          type: string
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        effectiveProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        rounds:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileRoundDto'
+
+    TimingProfileTreeDto:
+      type: object
+      description: >-
+        The timing-profile tree of one event. Every level carries both its own profile
+        (ownProfile, null means inherit) and the one in effect there (effectiveProfile).
+      required:
+        - options
+        - competitions
+      properties:
+        timingSystem:
+          $ref: '#/components/schemas/TimingSystem'
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/TimingProfileKind'
+          nullable: true
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileOptionDto'
+        ownProfile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: The profile of the root; null means not set (the root inherits from nobody).
+        competitions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingProfileCompetitionDto'
+
+    TimingProfileAssignmentRequest:
+      type: object
+      description: >-
+        Upsert of one level of the tree: the entry for the given path is created or replaced; a
+        null profile removes it and puts the level back on "inherit". All three path fields null
+        address the root (the event itself).
+      properties:
+        competition:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        competitionSetupRound:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        competitionSetupMatch:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+        profile:
+          $ref: '#/components/schemas/uuid'
+          nullable: true
+
+    TimingMatchProgress:
+      type: string
+      enum:
+        - OPEN
+        - STARTING
+        - STARTED
+        - FINISHED
+      description: >-
+        Where a match stands on its way from call-up to the finish line, derived (not stored):
+        OPEN = nothing happened yet, STARTING = an armed or running start sequence contains teams
+        of this match, STARTED = at least one team has an assigned start mark and no sequence is
+        live, FINISHED = finished_at is set or every started team has its finish mark.
+
+    TimingMatchTeamDto:
+      type: object
+      required:
+        - competitionMatchTeam
+        - startNumber
+        - started
+        - finished
+      properties:
+        competitionMatchTeam:
+          $ref: '#/components/schemas/uuid'
+        startNumber:
+          type: integer
+          format: int32
+          description: The team's position in the match (its "lane").
+        teamName:
+          type: string
+          nullable: true
+        clubName:
+          type: string
+          nullable: true
+        started:
+          type: boolean
+          description: The team has an assigned ACTIVE mark on a START station.
+        finished:
+          type: boolean
+          description: The team has an assigned ACTIVE mark on a FINISH station.
+
+    TimingMatchDto:
+      type: object
+      description: >-
+        One match of the internally timed competitions, delivered in start order (planned start
+        time first; matches without a time follow in setup order - race number, round chain,
+        execution order). The start station works this list top to bottom; the finish station
+        reads from it which race is expected and which boats are still missing. Participant names
+        are deliberately not embedded - `GET /event/{eventId}/timing/teams` carries them.
+      required:
+        - competitionSetupMatch
+        - competition
+        - round
+        - phase
+        - progress
+        - teams
+      properties:
+        competitionSetupMatch:
+          $ref: '#/components/schemas/uuid'
+          description: Key of the match (competition_match carries the setup match id as its primary key).
+        matchName:
+          type: string
+          nullable: true
+        competition:
+          $ref: '#/components/schemas/uuid'
+        competitionName:
+          type: string
+          nullable: true
+        competitionIdentifier:
+          type: string
+          nullable: true
+          description: The race number.
+        competitionShortName:
+          type: string
+          nullable: true
+          description: Short name of the competition (e.g. "CM 4x+") - the compact label of the day schedule.
+        round:
+          $ref: '#/components/schemas/uuid'
+        roundName:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Planned start time from the schedule.
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Real start (referee action or timing).
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        phase:
+          $ref: '#/components/schemas/TimingMatchPhase'
+        progress:
+          $ref: '#/components/schemas/TimingMatchProgress'
+        timingMode:
+          $ref: '#/components/schemas/TimingModeDto'
+          nullable: true
+          description: The resolved timing mode (round entry beats competition entry); null = not configured.
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingMatchTeamDto'
     AwardCeremonyChoiceDto:
       description: Eine Ehrung zur Auswahl - die Einheit ist (Wettkampf, Wertung).
       type: object

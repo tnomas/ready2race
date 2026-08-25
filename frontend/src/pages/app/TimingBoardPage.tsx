@@ -2,36 +2,58 @@ import {
     Alert,
     Box,
     Button,
+    ButtonBase,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    Drawer,
+    Menu,
+    MenuItem,
     Stack,
-    ToggleButton,
-    ToggleButtonGroup,
     Typography,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ListAltIcon from '@mui/icons-material/ListAlt'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
-import {updateAppTimingGlobal} from '@authorization/privileges.ts'
-import {timingEventRoute, timingStationRoute} from '@routes'
+import {updateAppTimingGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
+import {deviceSessionForStation} from '@utils/timing/deviceSession.ts'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
-import TeamCaptureGrid from '@components/timing/TeamCaptureGrid.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
-import SequencePanel from '@components/timing/SequencePanel.tsx'
+import MatchCaptureView from '@components/timing/MatchCaptureView.tsx'
+import ArmSwitch from '@components/timing/ArmSwitch.tsx'
+import DayScheduleColumn, {
+    initialScheduleCollapsed,
+    persistScheduleCollapsed,
+} from '@components/timing/DayScheduleColumn.tsx'
+import StartBoardPanel from '@components/timing/StartBoardPanel.tsx'
+import {matchTitle} from '@components/timing/matchDisplay.tsx'
+import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
+import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {assignCapturedMark, CaptureFn, useCaptureFlow} from '@components/timing/useCaptureFlow.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {unlockAudio} from '@utils/timing/feedback.ts'
+import {useFalseStartTone} from '@utils/timing/useFalseStartTone.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
-import {createTimeMark, getTimingTeams} from '@api/sdk.gen.ts'
+import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
+import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
+import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
+import {armedGateApplies, captureAllowed} from '@utils/timing/armed.ts'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {TimingMatchDto} from '@api/types.gen.ts'
+import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
@@ -55,24 +77,74 @@ function formatTimeOfDay(ms: number): string {
     return `${hh}:${mm}:${ss}`
 }
 
-const TimingBoardPage = () => {
+/**
+ * Route-unabhängig: hängt unter `/app/timing/$eventId/$stationId` (App-Welt) und kanonisch unter
+ * `/event/$eventId/timing/$stationId` (Betrieb-Reiter, geteilte Posten-Links) — Parameter kommen
+ * als Props von der jeweiligen Route.
+ */
+export type TimingBoardPageProps = {
+    eventId: string
+    stationId: string
+}
+
+const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const {t} = useTranslation()
     const user = useUser()
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
     const navigate = useNavigate()
-    const {eventId} = timingEventRoute.useParams()
-    const {stationId} = timingStationRoute.useParams()
 
     useEffect(() => {
-        if (!user.checkPrivilege(updateAppTimingGlobal)) {
+        // Ein geteiltes Gerät hat keine Sitzung, sondern das Geräte-Token dieses Postens - dann
+        // greift die Privilegien-Prüfung nicht (die Lese- und Erfassungswege authentifiziert der
+        // Server über das Token). updateEventGlobal zählt wie serverseitig ebenfalls.
+        if (deviceSessionForStation(eventId, stationId) !== null) return
+        if (
+            !user.checkPrivilege(updateAppTimingGlobal) &&
+            !user.checkPrivilege(updateEventGlobal)
+        ) {
             void navigate({to: '/app/forbidden'})
         }
-    }, [user, navigate])
+    }, [user, navigate, eventId, stationId])
 
     const clock = useServerClock()
     const sequenceState = useSequence(eventId, stationId)
     const {refetch: refetchSequence} = sequenceState
+    // Offizielle Zeiten für die Live-Anzeige am Boot (Zielposten): initialer Stand per GET, danach
+    // aus den officialTimeChanged-Nachrichten des Boards — beides läuft auch mit Geräte-Token.
+    const {officialTimes, applyChanged: applyOfficialTimes, reload: reloadOfficialTimes} =
+        useOfficialTimes(eventId)
+    const officialTimesByTeam = useMemo(
+        () => new Map(officialTimes.map(entry => [entry.competitionMatchTeam, entry])),
+        [officialTimes],
+    )
+    // Genauigkeit der Veranstaltung für die Zeit-Anzeige am Boot: initial per GET (läuft auch mit
+    // Geräte-Token), live über settingsChanged.
+    const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
+        useTimingSettings(eventId)
+
+    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Es
+    // gibt keine eigene WebSocket-Nachricht dafür — Marken-, Zuordnungs- und Sequenz-Nachrichten
+    // dienen als entprellte Auffrischungs-Trigger (siehe Effekt unten). VOR dem Board-State
+    // aufgerufen, weil der Fehlstart-Hook darunter die Startliste braucht und sein Callback in
+    // den Board-State hineingereicht wird.
+    const {
+        matches,
+        loading: matchesLoading,
+        error: matchesError,
+        refetch: refetchMatches,
+        bump: bumpMatches,
+    } = useTimingMatches(eventId, stationId)
+
+    // Fehlstart-Ton (Startposten): RUNNING→ABORTED der eigenen Sequenz und attemptRetracted der
+    // gerade geführten Partie — Bedingungen in `falseStart.ts`. Auf Zielposten läuft der Hook
+    // faktisch leer, weil `useSequence` dort nie eine Sequenz führt.
+    const {onAttemptRetracted} = useFalseStartTone(
+        sequenceState.sequence,
+        matches,
+        settings.falseStartTone,
+    )
+
     const {
         marks,
         stations,
@@ -83,7 +155,14 @@ const TimingBoardPage = () => {
         markSaved,
         markFailed,
         applyLocalAssignment,
-    } = useTimingBoardState(eventId, stationId, sequenceState.applySequenceChanged)
+    } = useTimingBoardState(
+        eventId,
+        stationId,
+        sequenceState.applySequenceChanged,
+        applyOfficialTimes,
+        applySettingsChanged,
+        onAttemptRetracted,
+    )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
@@ -94,25 +173,101 @@ const TimingBoardPage = () => {
     )
     const teams = useMemo(() => orderTeamsForBoard(teamsData ?? []), [teamsData])
 
+    // `marks` ändert seine Identität bei jeder timeMarkCreated/assignmentChanged-Nachricht, die
+    // Sequenz bei jeder sequenceChanged — genau die Ereignisse, die `progress` und die
+    // Team-Häkchen der Partien verschieben. Der bump ist entprellt, ein Nachrichtenschub am
+    // Wellenstart löst also eine einzige Anfrage aus.
+    useEffect(() => {
+        bumpMatches()
+    }, [marks, sequenceState.sequence, bumpMatches])
+
     const station = stations.find(s => s.id === stationId)
+    const isStart = station?.type === 'START'
+
+    // --- Scharfschaltung ------------------------------------------------------------------------
+    //
+    // Der Zustand gehört dem Server; `stationsChanged` lädt die Postenliste neu, sobald geschaltet
+    // wurde. Bis dieses Echo ankommt — oder falls die Verbindung gerade hängt — gilt der zuletzt vom
+    // Server BESTÄTIGTE eigene Schaltvorgang: Wer eben scharf geschaltet hat, muss sofort erfassen
+    // können und nicht auf eine Nachricht warten. Sobald die Liste denselben Wert liefert, fällt der
+    // Vorgriff wieder weg und der Server hat wieder allein das Wort.
+    const [switchedArmed, setSwitchedArmed] = useState<boolean | undefined>(undefined)
+    useEffect(() => {
+        if (switchedArmed !== undefined && station?.armed === switchedArmed) {
+            setSwitchedArmed(undefined)
+        }
+    }, [station?.armed, switchedArmed])
+    // Solange der Posten noch lädt, gilt ONETOUCH — im Zweifel erfassen, nicht verweigern (erfassen
+    // kann man dann ohnehin nicht, der Knopf hängt am geladenen Posten).
+    const captureMode = station?.captureMode ?? 'ONETOUCH'
+    const armed = switchedArmed ?? station?.armed ?? false
+    // Die Sperre greift nur dort, wo es überhaupt eine Erfassung MIT Zuordnung gibt: am Ziel- und
+    // am Zwischenzeit-Posten, die das Boots-Raster tragen (die Begründung je Typ steht bei
+    // `armedGateApplies`). Die Bedingung selbst liegt in `armed.ts`, weil der Leitstand sie für
+    // sein Abzeichen ebenfalls braucht: Liefen die beiden auseinander, meldete er dort eine Sperre,
+    // die es auf diesem Bildschirm gar nicht gibt.
+    //
+    // Solange der Posten noch lädt, greift sie nicht — im Zweifel erfassen, nicht verweigern.
+    const gateApplies = station !== undefined && armedGateApplies(station.type, captureMode)
+    const mayCaptureAssigned = !gateApplies || captureAllowed(captureMode, armed)
+    // Der Leertasten-Zuhörer registriert sich einmal; ohne Spiegel im Ref sähe er ewig den Zustand
+    // vom ersten Rendern.
+    const mayCaptureRef = useRef(mayCaptureAssigned)
+    mayCaptureRef.current = mayCaptureAssigned
+
+    // Tab-Titel „<Postenname> · Ready2Race" — am Renntag sind mehrere Posten-Boards offen, ohne
+    // Postennamen im Tab sind sie nicht auseinanderzuhalten. Der Hook stellt beim Verlassen den
+    // vorherigen Titel wieder her.
+    useDocumentTitle(station?.name)
+
+    // Ein ANZEIGE-Posten hat kein Erfassungsboard — wer seine Board-Adresse öffnet (alter Link,
+    // Tippfehler), landet auf der Anzeige, die dieser Posten IST.
+    useEffect(() => {
+        if (station?.type === 'ANZEIGE') {
+            void navigate({
+                to: '/event/$eventId/timing/$stationId/anzeige',
+                params: {eventId, stationId},
+                replace: true,
+            })
+        }
+    }, [station?.type, navigate, eventId, stationId])
 
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showClockDegradedBanner = clock.quality === 'DEGRADED'
 
-    // --- Capture view -----------------------------------------------------------------------------
+    // --- Fokus und Tagesablauf -------------------------------------------------------------------
     //
-    // Two ways to record a time, switched by the operator: the classic two-step button (bank a time,
-    // assign it afterwards from the mark list) and the direct-tap team grid (one gesture does both).
-    // Which one is right depends on the post, not on the software — a finish line with 60 teams
-    // streaming in wants the button, a split where the operator knows who is coming wants the grid —
-    // so this is a toggle rather than a decision baked into the station type.
-    //
-    // Except on START stations: those own the whole screen with their sequence panel, and their job is
-    // to start heats, not to attribute times to individual teams. The toggle is not rendered there.
-    const [captureView, setCaptureView] = useState<'TWO_STEP' | 'TEAMS'>('TWO_STEP')
-    const teamsViewAvailable = station !== undefined && station.type !== 'START'
-    const showTeamsView = teamsViewAvailable && captureView === 'TEAMS'
+    // EINE Ansicht je Posten-Typ (die früheren Reiter „Zwei-Schritt" und „Teams" sind ersatzlos
+    // weg): der Startposten startet die fokussierte Partie mit einem Griff, der Zielposten nimmt
+    // Zeiten per Boots-Knopf oder Taste auf die fokussierte Partie. Der Fokus gehört der Seite,
+    // weil Tagesablauf-Spalte und Arbeitsfläche denselben Zustand teilen — die Auflösung
+    // (Vorrücken nach Start bzw. Zieleinlauf) übernimmt je Posten-Typ die passende reine Logik.
+    // (`isStart` steht weiter oben, die Scharfschaltung braucht es schon dort.)
+    const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(undefined)
+    const focusedMatchId = isStart
+        ? resolveStartSelection(matches, selectedMatchId)
+        : resolveFinishFocus(matches, selectedMatchId)
+    const focusedMatch = matches.find(match => match.competitionSetupMatch === focusedMatchId)
+
+    // Eingeklappt merken (geräteweit): auf schmalen Bildschirmen startet die Spalte eingeklappt.
+    const [scheduleCollapsed, setScheduleCollapsed] = useState(initialScheduleCollapsed)
+    const toggleScheduleCollapsed = useCallback(() => {
+        setScheduleCollapsed(prev => {
+            persistScheduleCollapsed(!prev)
+            return !prev
+        })
+    }, [])
+
+    // Telefon-Layout (< sm): die Tagesablauf-Spalte würde die Erfassungsfläche erdrücken — sie
+    // wird zur überlagernden Schublade mit eigenem Öffner, und die Zeitenliste zu einem
+    // aufklappbaren Bodenpaneel, damit die Erfassung im Daumenbereich bleibt.
+    const theme = useTheme()
+    const isPhone = useMediaQuery(theme.breakpoints.down('sm'))
+    const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false)
+    const [markListOpen, setMarkListOpen] = useState(false)
+
+    const matchesAvailable = matches.length > 0
 
     /**
      * Teams that are done **at this station**: they have an ACTIVE mark here that is assigned to them.
@@ -322,9 +477,15 @@ const TimingBoardPage = () => {
             // marks/stations, so refetch it on the same reconnect transition. See `useSequence`'s docs
             // for why this can't restore a DONE/ABORTED sequence (GET active never returns those).
             refetchSequence()
+            // Die Partie-Startliste hat dieselbe Lücke (verpasste Trigger-Nachrichten).
+            refetchMatches()
+            // Und die offiziellen Zeiten ebenso — verpasste officialTimeChanged-Nachrichten.
+            reloadOfficialTimes()
+            // Genauigkeit/Schalter: verpasste settingsChanged-Nachrichten.
+            reloadSettings()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, runDrain, refetchSequence])
+    }, [wsStatus, runDrain, refetchSequence, refetchMatches, reloadOfficialTimes, reloadSettings])
 
     // (c) Every 15s while the queue is non-empty — or while its size is unknown, so a failed count
     // can never permanently silence the tick. Checked against the latest values via refs, so the
@@ -349,11 +510,14 @@ const TimingBoardPage = () => {
             if (document.visibilityState === 'visible') {
                 runDrain()
                 refetch()
+                refetchMatches()
+                reloadOfficialTimes()
+                reloadSettings()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [runDrain, refetch])
+    }, [runDrain, refetch, refetchMatches, reloadOfficialTimes, reloadSettings])
 
     // --- Staleness safety net -------------------------------------------------------------------
     //
@@ -397,6 +561,14 @@ const TimingBoardPage = () => {
     const capture = useCaptureFlow({
         eventId,
         station,
+        // Erfassungston je Postentyp aus den Zeitnahme-Einstellungen (live via settingsChanged).
+        // Andere Postentypen (START-Handmarken) behalten den eingebauten Standardton.
+        captureTone:
+            station?.type === 'FINISH'
+                ? settings.finishTone
+                : station?.type === 'SPLIT'
+                  ? settings.splitTone
+                  : undefined,
         now: clock.now,
         applyLocalMark,
         markSaved: handleMarkSaved,
@@ -407,6 +579,131 @@ const TimingBoardPage = () => {
     })
     const captureRef = useRef<CaptureFn>(capture)
     captureRef.current = capture
+
+    // --- Startposten: Sequenz-Aktionen und Partie-Menü ------------------------------------------
+    //
+    // Abbruch und Neustart hängen am Menü JEDER Partie (Tagesablauf-Spalte und Arbeitsfläche),
+    // nicht nur an der laufenden Sequenz — „auch nach Start" ist die Anforderung. Beide Wege
+    // bestätigen mit eindeutigen Knopftexten: nie zweimal „Abbrechen" in einem Dialog.
+    const {sequence} = sequenceState
+    const sequenceLive =
+        sequence !== undefined && (sequence.state === 'ARMED' || sequence.state === 'RUNNING')
+
+    /** Läuft/steht die Sequenz dieses Postens für Teams genau dieser Partie? */
+    const sequenceCoversMatch = useCallback(
+        (match: TimingMatchDto) =>
+            sequenceLive &&
+            sequence !== undefined &&
+            sequence.entries.some(entry =>
+                match.teams.some(
+                    team => team.competitionMatchTeam === entry.competitionMatchTeam,
+                ),
+            ),
+        [sequence, sequenceLive],
+    )
+
+    const handleAbortSequence = useCallback(() => {
+        confirmAction(
+            () => {
+                void sequenceState.abort().then(ok => {
+                    if (!ok) feedback.error(t('timing.sequence.error.abort'))
+                })
+            },
+            {
+                title: t('timing.sequence.abortConfirm.title'),
+                content: t('timing.sequence.abortConfirm.content'),
+                // Eindeutig statt zweimal „Abbrechen": weiterlaufen lassen vs. Sequenz abbrechen.
+                okText: t('timing.sequence.abort'),
+                cancelText: t('timing.sequence.abortConfirm.keep'),
+            },
+        )
+    }, [confirmAction, sequenceState, feedback, t])
+
+    // Überspringen ist unumkehrbar und sitzt neben dem Countdown auf einem Touchscreen — deshalb
+    // immer mit Bestätigung, die das Team nennt (unverändert vom bisherigen Panel übernommen).
+    const handleSkipEntry = useCallback(
+        (entryId: string, teamName: string) => {
+            confirmAction(
+                () => {
+                    void sequenceState.skip(entryId).then(ok => {
+                        if (!ok) feedback.error(t('timing.sequence.error.skip'))
+                    })
+                },
+                {
+                    title: t('timing.sequence.entry.skipConfirm.title'),
+                    content: t('timing.sequence.entry.skipConfirm.content', {team: teamName}),
+                    okText: t('timing.sequence.entry.skip'),
+                },
+            )
+        },
+        [confirmAction, sequenceState, feedback, t],
+    )
+
+    const handleRestartMatch = useCallback(
+        (match: TimingMatchDto) => {
+            confirmAction(
+                () => {
+                    void (async () => {
+                        // Läuft die eigene Sequenz noch für diese Partie, zuerst abbrechen —
+                        // sonst feuerte sie weitere Startmarken, während die alten zurückgehen.
+                        if (sequenceCoversMatch(match)) {
+                            const aborted = await sequenceState.abort()
+                            if (!aborted) {
+                                feedback.error(t('timing.sequence.error.abort'))
+                                return
+                            }
+                        }
+                        try {
+                            // Der Bündel-Weg verwirft den GANZEN Versuch (auch Ziel- und
+                            // Rundenmarken): alte Zielzeiten würden sich sonst durch die
+                            // Echtzeit-Übernahme sofort mit den neuen Startmarken zu falschen
+                            // offiziellen Zeiten verrechnen. Einzelne Startzeiten korrigiert
+                            // die Einzelmarken-Rücknahme in der Zeitenliste — dort bleibt das
+                            // Ziel unberührt.
+                            const {error} = await retractMatchAttempt({
+                                path: {eventId, matchId: match.competitionSetupMatch},
+                            })
+                            if (error !== undefined) {
+                                feedback.error(t('timing.matches.error.restart'))
+                                return
+                            }
+                            // Die Rückschreibung räumt die Läufe serverseitig selbst; die
+                            // WebSocket-Echos ziehen Markenliste und Startliste nach.
+                            feedback.success(t('timing.matches.restartDone'))
+                        } catch {
+                            feedback.error(t('timing.matches.error.restart'))
+                        }
+                    })()
+                },
+                {
+                    title: t('timing.matches.restartConfirm.title'),
+                    content: t('timing.matches.restartConfirm.content', {
+                        match: matchTitle(match),
+                    }),
+                    okText: t('timing.matches.restartConfirm.ok'),
+                    cancelText: t('timing.matches.restartConfirm.keep'),
+                },
+            )
+        },
+        [confirmAction, sequenceCoversMatch, sequenceState, eventId, feedback, t],
+    )
+
+    const [matchMenu, setMatchMenu] = useState<{
+        match: TimingMatchDto
+        anchor: HTMLElement
+    } | null>(null)
+    const openMatchMenu = useCallback(
+        (match: TimingMatchDto, anchor: HTMLElement) => setMatchMenu({match, anchor}),
+        [],
+    )
+    const closeMatchMenu = useCallback(() => setMatchMenu(null), [])
+
+    /** Ob das Partie-Menü etwas anzubieten hat (sonst erscheint gar kein Menü-Knopf). */
+    const matchMenuAvailable = useCallback(
+        (match: TimingMatchDto) =>
+            sequenceCoversMatch(match) || match.teams.some(team => team.started),
+        [sequenceCoversMatch],
+    )
 
     // --- Dead-letter recovery ------------------------------------------------------------------
     //
@@ -491,6 +788,18 @@ const TimingBoardPage = () => {
             if (event.code !== 'Space' && event.key !== ' ') return
             if (event.repeat) return
             if (isTypingContext() || isSpaceOwnedByFocusedControl()) return
+            // Sperrstelle 3: Entschärft tut die Leertaste nichts. Sie bankt technisch OHNE
+            // Zuordnung, täte also dasselbe wie der große Knopf — die Regel folgt hier nicht der
+            // Wirkung, sondern der Unfallfläche: TASTEN sind das, was versehentlich getroffen wird.
+            // Ein Ärmel trifft eine Tastatur, nicht einen bestimmten Knopf auf dem Bildschirm. Der
+            // Notausgang soll ein absichtlicher Griff sein, und der bleibt der große Knopf — der
+            // wird nie gesperrt. Kein `preventDefault`, damit der Browser eine Taste, die hier
+            // nichts mehr tut, wieder normal behandelt.
+            //
+            // Am Startposten greift das nicht (siehe `gateApplies`): Dort ist die Leertaste
+            // der Kurzweg zum manuellen Stempel und die einzige Taste überhaupt — sie zu sperren
+            // nähme einen Bedienweg, ohne eine Zuordnung zu verhindern, die es dort nicht gibt.
+            if (!mayCaptureRef.current) return
 
             event.preventDefault()
             captureRef.current()
@@ -516,6 +825,12 @@ const TimingBoardPage = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                // Notch und Home-Indicator (iPhone): das Board füllt den ganzen Bildschirm,
+                // seine Ränder müssen deshalb selbst aus den sicheren Zonen herausbleiben.
+                pt: 'env(safe-area-inset-top)',
+                pb: 'env(safe-area-inset-bottom)',
+                pl: 'env(safe-area-inset-left)',
+                pr: 'env(safe-area-inset-right)',
             }}>
             <BoardHeader
                 stationName={station?.name}
@@ -573,100 +888,312 @@ const TimingBoardPage = () => {
                 </Alert>
             )}
 
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    minHeight: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    p: 2,
-                }}>
-                {station?.type === 'START' && (
-                    <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex'}}>
-                        <SequencePanel
-                            stationId={stationId}
-                            teams={teams}
-                            teamsLoading={teamsPending}
-                            now={clock.now}
-                            sequenceState={sequenceState}
+            {/* Mittelteil: links die einklappbare Tagesablauf-Spalte (gemeinsames Gerüst beider
+                Posten), rechts die Arbeitsfläche des Posten-Typs. Die Spalte erscheint nur, wenn
+                es überhaupt intern gezeitete Partien gibt — ohne sie wäre sie eine leere Leiste.
+                Auf dem Telefon wird die Spalte zur überlagernden Schublade (Öffner in der
+                Arbeitsfläche), damit sie keine Erfassungsfläche frisst. */}
+            <Box sx={{flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'stretch'}}>
+                {matchesAvailable && !isPhone && (
+                    <DayScheduleColumn
+                        matches={matches}
+                        focusedId={focusedMatchId}
+                        onFocus={setSelectedMatchId}
+                        collapsed={scheduleCollapsed}
+                        onToggleCollapsed={toggleScheduleCollapsed}
+                        onOpenMenu={isStart ? openMatchMenu : undefined}
+                        menuAvailable={matchMenuAvailable}
+                    />
+                )}
+                {matchesAvailable && isPhone && (
+                    <Drawer
+                        open={scheduleDrawerOpen}
+                        onClose={() => setScheduleDrawerOpen(false)}
+                        // Das Board selbst liegt über dem Layout (drawer + 1) — die Schublade
+                        // muss also noch eine Ebene höher, sonst bliebe sie unsichtbar dahinter.
+                        sx={{zIndex: theme.zIndex.drawer + 2}}>
+                        <DayScheduleColumn
+                            matches={matches}
+                            focusedId={focusedMatchId}
+                            onFocus={matchId => {
+                                setSelectedMatchId(matchId)
+                                // Fokussieren ist auf dem Telefon der Abschluss der Auswahl —
+                                // die Schublade schließt, die Erfassung liegt wieder frei.
+                                setScheduleDrawerOpen(false)
+                            }}
+                            collapsed={false}
+                            onToggleCollapsed={() => setScheduleDrawerOpen(false)}
+                            onOpenMenu={isStart ? openMatchMenu : undefined}
+                            menuAvailable={matchMenuAvailable}
+                            inDrawer
                         />
-                    </Box>
+                    </Drawer>
                 )}
-                {teamsViewAvailable && (
-                    <ToggleButtonGroup
-                        data-capture-view-toggle=""
-                        exclusive
-                        size="small"
-                        value={captureView}
-                        // `null` arrives when the already-selected button is pressed again; keeping the
-                        // current view then is what makes this a switch rather than a way to end up
-                        // with no capture surface at all.
-                        onChange={(_, value: 'TWO_STEP' | 'TEAMS' | null) => {
-                            if (value !== null) setCaptureView(value)
-                        }}
-                        sx={{flexShrink: 0, alignSelf: 'flex-start'}}>
-                        <ToggleButton value="TWO_STEP">
-                            {t('timing.board.teams.viewTwoStep')}
-                        </ToggleButton>
-                        <ToggleButton value="TEAMS">
-                            {t('timing.board.teams.viewTeams')}
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                )}
-                {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
-                    `unlockAudio`): a board whose operator only ever taps the capture button would
-                    otherwise stay mute for the sequence countdown beeps. */}
                 <Box
-                    onPointerDown={unlockAudio}
                     sx={{
-                        flexShrink: showTeamsView ? 1 : 0,
+                        flexGrow: 1,
+                        minWidth: 0,
                         minHeight: 0,
                         display: 'flex',
-                        flexGrow: station?.type === 'START' ? 0 : 1,
+                        flexDirection: 'column',
+                        gap: 1.5,
+                        p: 2,
                     }}>
-                    {showTeamsView ? (
-                        <TeamCaptureGrid
-                            teams={teams}
-                            teamsLoading={teamsPending}
-                            finishedTeams={finishedTeams}
-                            capture={capture}
-                            disabled={clock.now() === null || station === undefined}
-                            disabledReason={
-                                clock.now() === null
-                                    ? t('timing.board.capture.clockNotSynced')
-                                    : t('timing.board.capture.stationLoading')
-                            }
-                        />
-                    ) : (
-                        <CaptureButton
-                            station={station}
-                            now={clock.now}
-                            onCapture={capture}
-                            compact={station?.type === 'START'}
-                        />
+                    {/* Öffner der Tagesablauf-Schublade (nur Telefon): oben, wo er die
+                        Erfassungsflächen im Daumenbereich nicht verdeckt. */}
+                    {isPhone && matchesAvailable && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<ListAltIcon />}
+                            onClick={() => setScheduleDrawerOpen(true)}
+                            sx={{alignSelf: 'flex-start', minHeight: 44, flexShrink: 0}}>
+                            {t('timing.schedule.title')}
+                        </Button>
                     )}
+                    {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
+                        `unlockAudio`): a board whose operator only ever taps the capture button
+                        would otherwise stay mute for the sequence countdown beeps. */}
+                    <Box
+                        onPointerDown={unlockAudio}
+                        sx={{
+                            flexGrow: 1,
+                            minHeight: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.5,
+                        }}>
+                        {gateApplies && (
+                            // Nur wo die Sperre auch greift: Im Onetouch-Betrieb gibt es nichts zu
+                            // schalten, am Startposten nichts zu sperren — dort erscheint hier
+                            // weder Schalter noch Balken.
+                            <Stack spacing={1} sx={{flexShrink: 0}}>
+                                {!mayCaptureAssigned && (
+                                    // Der Warnbalken. Er muss aus drei Metern lesbar sein — ein
+                                    // Zeitnehmer schaut aufs Wasser, nicht auf den Schirm — und er
+                                    // sagt beides: dass nicht erfasst wird UND was zu tun ist.
+                                    <Box
+                                        sx={{
+                                            bgcolor: 'warning.main',
+                                            color: 'warning.contrastText',
+                                            borderRadius: 2,
+                                            px: 2,
+                                            py: 1.5,
+                                            textAlign: 'center',
+                                        }}>
+                                        <Typography
+                                            variant="h4"
+                                            sx={{fontWeight: 800, lineHeight: 1.15}}>
+                                            {t('timing.board.armed.blockedTitle')}
+                                        </Typography>
+                                        <Typography variant="subtitle1" sx={{fontWeight: 600}}>
+                                            {t('timing.board.armed.blockedHint')}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                <ArmSwitch
+                                    eventId={eventId}
+                                    stationId={stationId}
+                                    armed={armed}
+                                    onSwitched={setSwitchedArmed}
+                                />
+                            </Stack>
+                        )}
+                        {isStart ? (
+                            <>
+                                <StartBoardPanel
+                                    stationId={stationId}
+                                    matches={matches}
+                                    matchesLoading={matchesLoading}
+                                    matchesError={matchesError}
+                                    teams={teams}
+                                    now={clock.now}
+                                    sequenceState={sequenceState}
+                                    focusedMatch={focusedMatch}
+                                    onOpenMenu={openMatchMenu}
+                                    menuAvailable={matchMenuAvailable}
+                                    onAbort={handleAbortSequence}
+                                    onSkip={handleSkipEntry}
+                                />
+                                {/* Der manuelle Stempel bleibt als kompakter Zweitweg: eine Zeit
+                                    ohne Boot banken (Fehlstart-Protokoll, Sonderfälle). */}
+                                <Box sx={{flex: '0 0 12vh', minHeight: 72, display: 'flex'}}>
+                                    <CaptureButton
+                                        station={station}
+                                        now={clock.now}
+                                        onCapture={capture}
+                                        compact
+                                        disarmed={!mayCaptureAssigned}
+                                    />
+                                </Box>
+                            </>
+                        ) : matchesAvailable || matchesLoading ? (
+                            // Die eine Zielposten-Ansicht: die große Erfassungsfläche (Zeit ohne
+                            // Boot banken — sie erscheint sofort als „zuordnen"-Banner) und die
+                            // erwarteten Partien mit ihren Boots-Knöpfen und Tasten. Am Laptop
+                            // steht die Fläche oben; auf dem Telefon unten, wo der Daumen sie im
+                            // Moment der Ziellinie ohne Umgreifen trifft.
+                            <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
+                                {!isPhone && (
+                                    <Box sx={{flex: '0 0 30%', minHeight: 96, display: 'flex'}}>
+                                        <CaptureButton
+                                            station={station}
+                                            now={clock.now}
+                                            onCapture={capture}
+                                            compact
+                                            disarmed={!mayCaptureAssigned}
+                                        />
+                                    </Box>
+                                )}
+                                <MatchCaptureView
+                                    eventId={eventId}
+                                    matches={matches}
+                                    matchesLoading={matchesLoading}
+                                    marks={marks}
+                                    finishedTeams={finishedTeams}
+                                    capture={capture}
+                                    disabled={clock.now() === null || station === undefined}
+                                    disabledReason={
+                                        clock.now() === null
+                                            ? t('timing.board.capture.clockNotSynced')
+                                            : t('timing.board.capture.stationLoading')
+                                    }
+                                    applyLocalAssignment={applyLocalAssignment}
+                                    focusedId={focusedMatchId}
+                                    onFocus={setSelectedMatchId}
+                                    officialTimes={officialTimesByTeam}
+                                    precision={settings.precision}
+                                    captureMode={captureMode}
+                                    armed={armed}
+                                />
+                                {isPhone && (
+                                    <Box sx={{flex: '0 0 18%', minHeight: 96, display: 'flex'}}>
+                                        <CaptureButton
+                                            station={station}
+                                            now={clock.now}
+                                            onCapture={capture}
+                                            compact
+                                            disarmed={!mayCaptureAssigned}
+                                        />
+                                    </Box>
+                                )}
+                            </Stack>
+                        ) : (
+                            // Ohne intern gezeitete Partien bleibt der Zwei-Schritt-Weg: Zeit
+                            // banken, Team danach in der Zeitenliste zuordnen.
+                            <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
+                                {/* Ein Zwischenzeit-Posten sieht nur die Wettkaempfe, auf deren
+                                    Strecke er steht. Steht er nirgends, ist die Liste leer -- und
+                                    ohne diesen Hinweis haelt ein Zeitnehmer den Bildschirm fuer
+                                    kaputt und erfasst weiter, obwohl seine Marke nirgends
+                                    ankaeme. Der Erfassungsknopf bleibt trotzdem: Zeit banken und
+                                    spaeter von Hand zuordnen geht nach wie vor. */}
+                                {station?.type === 'SPLIT' && !matchesLoading && (
+                                    <Alert severity={'info'} variant={'outlined'}>
+                                        {t('timing.board.noCourseAssignment')}
+                                    </Alert>
+                                )}
+                                <CaptureButton
+                                    station={station}
+                                    now={clock.now}
+                                    onCapture={capture}
+                                    disarmed={!mayCaptureAssigned}
+                                />
+                            </Stack>
+                        )}
+                    </Box>
                 </Box>
             </Box>
 
-            <Box
-                sx={{
-                    flex: '0 0 33%',
-                    minHeight: 0,
-                    overflowY: 'auto',
-                    borderTop: 1,
-                    borderColor: 'divider',
-                    px: 2,
-                    py: 1,
-                }}>
-                <MarkList
-                    eventId={eventId}
-                    stationId={stationId}
-                    marks={marks}
-                    teams={teams}
-                    teamsLoading={teamsPending}
-                />
-            </Box>
+            {isPhone ? (
+                // Telefon: die Zeitenliste als aufklappbares Bodenpaneel — zugeklappt bleibt nur
+                // die schmale Kopfzeile stehen, die Erfassung behält den Platz im Daumenbereich.
+                <Stack
+                    sx={{
+                        flexShrink: 0,
+                        maxHeight: '45%',
+                        minHeight: 0,
+                        borderTop: 1,
+                        borderColor: 'divider',
+                    }}>
+                    <ButtonBase
+                        onClick={() => setMarkListOpen(prev => !prev)}
+                        sx={{
+                            width: 1,
+                            justifyContent: 'space-between',
+                            px: 2,
+                            py: 1,
+                            minHeight: 44,
+                            flexShrink: 0,
+                        }}>
+                        <Typography variant="subtitle2">
+                            {t('timing.board.markList.toggle', {count: marks.length})}
+                        </Typography>
+                        {markListOpen ? (
+                            <ExpandMoreIcon fontSize="small" />
+                        ) : (
+                            <ExpandLessIcon fontSize="small" />
+                        )}
+                    </ButtonBase>
+                    {markListOpen && (
+                        <Box sx={{minHeight: 0, overflowY: 'auto', px: 2, pb: 1}}>
+                            <MarkList
+                                eventId={eventId}
+                                stationId={stationId}
+                                marks={marks}
+                                teams={teams}
+                                teamsLoading={teamsPending}
+                                matches={matches}
+                            />
+                        </Box>
+                    )}
+                </Stack>
+            ) : (
+                <Box
+                    sx={{
+                        flex: '0 0 33%',
+                        minHeight: 0,
+                        overflowY: 'auto',
+                        borderTop: 1,
+                        borderColor: 'divider',
+                        px: 2,
+                        py: 1,
+                    }}>
+                    <MarkList
+                        eventId={eventId}
+                        stationId={stationId}
+                        marks={marks}
+                        teams={teams}
+                        teamsLoading={teamsPending}
+                        matches={matches}
+                    />
+                </Box>
+            )}
+
+            {/* Aktionsmenü einer Partie (nur Startposten): Sequenz abbrechen, Start zurücknehmen
+                und neu starten. Die Einträge erscheinen nur, wenn sie gerade anwendbar sind. */}
+            <Menu
+                open={matchMenu !== null}
+                anchorEl={matchMenu?.anchor}
+                onClose={closeMatchMenu}>
+                {matchMenu !== null && sequenceCoversMatch(matchMenu.match) && (
+                    <MenuItem
+                        onClick={() => {
+                            closeMatchMenu()
+                            handleAbortSequence()
+                        }}>
+                        {t('timing.matches.abortSequence')}
+                    </MenuItem>
+                )}
+                {matchMenu !== null && matchMenu.match.teams.some(team => team.started) && (
+                    <MenuItem
+                        onClick={() => {
+                            closeMatchMenu()
+                            handleRestartMatch(matchMenu.match)
+                        }}>
+                        {t('timing.matches.restart')}
+                    </MenuItem>
+                )}
+            </Menu>
 
             <Dialog
                 open={deadDialogOpen}

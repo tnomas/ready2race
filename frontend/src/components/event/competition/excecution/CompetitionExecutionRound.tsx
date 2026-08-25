@@ -54,9 +54,13 @@ import {roundHasNothingToRace} from '@components/event/competition/excecution/ro
 import {matchesOnDisplay} from '@components/event/competition/excecution/roundDeletion.ts'
 import {byeMatches} from '@components/event/competition/excecution/byeMatches.ts'
 import {roundSkipErrorText} from '@components/event/schedule/scheduleError.ts'
-import {MatchResultOption, matchResultOptions} from './matchResultOptions.ts'
+import {
+    ExecutionTimingSystem,
+    MatchResultOption,
+    matchResultOptions,
+} from './matchResultOptions.ts'
 import {raceClockerPollStatus} from './raceClockerPollStatus.ts'
-import {TimingFormSystem} from '@components/event/competition/timing/timingConfigForm.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {
     arenaChip,
     deregisteredChip,
@@ -98,12 +102,10 @@ type Props = CompetitionScopeProps & {
     /** Die ganze Runde als eine CSV (eine Kopfzeile, Wellen über die Wellenname-Spalte). */
     handleDownloadRoundStartList: (setupRoundId: string) => Promise<void>
     /**
-     * Das EFFEKTIVE Zeitnahmesystem des Wettkampfs (`effectiveTimingSystem`), also einschließlich
-     * dessen, was er von der Veranstaltung erbt — nicht seine eigene Spalte. Daran hängt unter
-     * anderem der Knopf „Automatik wieder aufnehmen"; mit dem lokalen Wert verschwände er bei jedem
-     * Wettkampf, der RaceClocker erbt, und der pausierte Lauf ließe sich nirgends mehr freigeben.
+     * Das Zeitnahme-System der Veranstaltung — es gilt für alle ihre Wettkämpfe. Daran hängt unter
+     * anderem der Knopf „Automatik wieder aufnehmen".
      */
-    timingSystem: TimingFormSystem
+    timingSystem: ExecutionTimingSystem
 }
 
 const CompetitionExecutionRound = ({
@@ -944,7 +946,9 @@ const CompetitionExecutionRound = ({
                                         }}
                                     />
                                     {match.pairingsRecalculatedAt && (
-                                        <Typography variant={'caption'} color={'warning.main'}>
+                                        // warningTextColor: die Palette-Warnfarbe ist ein heller
+                                        // Hintergrundton, als Text kaum lesbar.
+                                        <Typography variant={'caption'} sx={{color: warningTextColor}}>
                                             {t('event.competition.execution.pairingsRecalculated')}
                                         </Typography>
                                     )}
@@ -957,11 +961,14 @@ const CompetitionExecutionRound = ({
                                                 <Stack spacing={0.5}>
                                                     <Typography
                                                         variant={'caption'}
-                                                        color={
-                                                            status.kind === 'ok'
-                                                                ? 'text.secondary'
-                                                                : 'warning.main'
-                                                        }>
+                                                        sx={{
+                                                            // warningTextColor: lesbar auf hellem
+                                                            // Grund, anders als warning.main.
+                                                            color:
+                                                                status.kind === 'ok'
+                                                                    ? 'text.secondary'
+                                                                    : warningTextColor,
+                                                        }}>
                                                         {status.kind === 'paused'
                                                             ? t(
                                                                   'event.competition.execution.results.raceclocker.poll.paused',

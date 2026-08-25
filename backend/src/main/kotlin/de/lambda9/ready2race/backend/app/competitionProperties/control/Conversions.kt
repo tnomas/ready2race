@@ -19,6 +19,8 @@ fun CompetitionPropertiesRequest.toRecord(competitionId: UUID?, competitionTempl
         competitionCategory = competitionCategory,
         lateRegistrationAllowed = lateRegistrationAllowed,
         ratingCategoryRequired = ratingCategoryRequired,
+        distanceMeters = distanceMeters,
+        paceReference = paceReference,
     )
 
 fun NamedParticipantForCompetitionRequestDto.toRecord(propertiesId: UUID) =
@@ -74,6 +76,8 @@ fun CompetitionPropertiesRequest.toUpdateFunction(): CompetitionPropertiesRecord
         competitionCategory = it.competitionCategory
         lateRegistrationAllowed = it.lateRegistrationAllowed
         ratingCategoryRequired = it.ratingCategoryRequired
+        distanceMeters = it.distanceMeters
+        paceReference = it.paceReference
     }
 }
 

@@ -231,6 +231,116 @@ describe('lastLaps', () => {
     it('leere Runden ergeben eine leere Liste', () => {
         expect(lastLaps(runningMatch([]))).toEqual([])
     })
+
+    it('trägt Tempo und Rang an jede Bandzeile', () => {
+        // Beides ist eine Aussage über den ganzen Lauf und muss deshalb HIER entstehen, wo die
+        // Boote noch beieinanderstehen — die flach gelegte Bandzeile kennt weder ihren Vorgänger
+        // noch die anderen Boote.
+        const m = {
+            matchName: 'VF1',
+            paceReference: {
+                id: 'p',
+                name: '500 m',
+                mode: 'TIME_PER_DISTANCE',
+                referenceMeters: 500,
+            },
+            teams: [
+                {
+                    startNumber: 1,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '1:40.0',
+                            recordedAt: '2026-08-25T10:00:00Z',
+                            lapMillis: 100_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+                {
+                    startNumber: 2,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '1:30.0',
+                            recordedAt: '2026-08-25T10:00:10Z',
+                            lapMillis: 90_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+            ],
+        } as unknown as AthleteBoardMatch
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, '1:30/500 m'],
+            [1, 2, '1:40/500 m'],
+        ])
+    })
+
+    it('ohne gepflegte Bezugsgröße bleibt das Tempo leer, der Rang steht trotzdem', () => {
+        // Distanzen sind da, aber der Wettkampf führt keine Bezugsgröße — dann fehlt die Einheit,
+        // in der das Tempo auszudrücken wäre. Wer zuerst an der Marke war, lässt sich trotzdem
+        // sagen.
+        const m = {
+            matchName: 'VF1',
+            teams: [
+                {
+                    startNumber: 1,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '0:31.0',
+                            recordedAt: '2026-08-25T10:00:00Z',
+                            lapMillis: 31_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+                {
+                    startNumber: 2,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '0:30.0',
+                            recordedAt: '2026-08-25T10:00:10Z',
+                            lapMillis: 30_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+            ],
+        } as unknown as AthleteBoardMatch
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, null],
+            [1, 2, null],
+        ])
+    })
+
+    it('Rundenzeiten ohne Distanz bekommen kein Tempo, auch mit Bezugsgröße', () => {
+        // Der Fremdsystem-Fall: Die Spaltennamen gehören keinem Posten der Strecke, die Zeilen
+        // tragen deshalb keine Distanz. Eine am Wettkampf gepflegte Bezugsgröße ändert daran
+        // nichts — ohne Meter gibt es kein Tempo, und die Stelle bleibt leer.
+        const m = {
+            matchName: 'VF1',
+            paceReference: {
+                id: 'p',
+                name: '500 m',
+                mode: 'TIME_PER_DISTANCE',
+                referenceMeters: 500,
+            },
+            teams: [
+                lap(1, 'Runde 1', '0:31.0', '2026-08-25T10:00:00Z', 31_000),
+                lap(2, 'Runde 1', '0:30.0', '2026-08-25T10:00:10Z', 30_000),
+            ],
+        } as unknown as AthleteBoardMatch
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, null],
+            [1, 2, null],
+        ])
+    })
 })
 
 describe('streamOverlayContent CLOCK', () => {

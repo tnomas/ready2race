@@ -30,4 +30,23 @@ data class FiredEntry(
     val entryId: UUID,
     /** The start mark that was created, already carrying its team assignment. */
     val mark: TimeMarkDto,
+    /**
+     * Offizielle Zeiten, die die Echtzeit-Übernahme beim Feuern dieses Eintrags geändert hat -
+     * aus demselben Grund hier statt als Broadcast: die Nachricht darf erst nach dem Commit raus.
+     */
+    val changedOfficialTimes: List<OfficialTimeDto> = emptyList(),
+    /**
+     * Ob dieses Feuern den Laufzustand der Partie gestempelt hat (started_at, ggf. activated_at).
+     * Auch das darf erst nach dem Commit nach draußen - als `EventChangeMarker`-Bump in
+     * `broadcastFireResult`, damit die öffentlichen Anzeigen den neuen Zustand sofort nachladen.
+     */
+    val matchStamped: Boolean = false,
+    /**
+     * Ob die Echtzeit-Übernahme beim Feuern tatsächlich ein Ergebnis an `competition_match_team`
+     * geschrieben hat (Zielzeit lag schon vor dem Start bereit) - im Gegensatz zu
+     * [changedOfficialTimes], das auch bloße Stand-Meldungen ohne Schreibvorgang enthält. Wandert
+     * wie [matchStamped] als `EventChangeMarker`-Bump erst nach dem Commit nach draußen; beide
+     * Flags derselben Veranstaltung bündelt `broadcastFireResult` zu EINEM Bump.
+     */
+    val resultsWritten: Boolean = false,
 )

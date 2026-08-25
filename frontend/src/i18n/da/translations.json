@@ -778,6 +778,9 @@
       "description": "Beskrivelse",
       "lateRegistrationAllowed": "Eftertilmelding tilladt",
       "ratingCategoryRequired": "Rangeringskategori påkrævet",
+      "distanceMeters": "Samlet distance i meter",
+      "paceReference": "Temporeference",
+      "paceHint": "Begge angivelser bruges kun til tempovisningen mellem to tidtagningsposter. Mellemtider fungerer også uden dem.",
       "registrationCount": "Tilmeldinger",
       "shortName": "Kort navn",
       "checkInOutRequired": "Kræver ind-/udtjekning i arenaen",
@@ -1351,46 +1354,28 @@
       },
       "timing": {
         "tabTitle": "Tidtagning",
-        "system": "Tidtagningssystem",
-        "systems": {
-          "none": "ikke angivet",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
-        },
-        "eventDefaults": {
-          "title": "Arrangementets standard",
-          "unset": "ikke angivet",
-          "link": "Rediger arrangementets tidtagning"
-        },
-        "override": {
-          "label": "Angiv separat for denne konkurrence",
-          "hint": "Gælder tidtagningssystem og filformater. Fra: konkurrencen følger arrangementet og overtager enhver senere ændring der. Til: den får sine egne værdier. Løbstildelingen ovenfor berøres ikke – den hører altid til konkurrencen."
-        },
-        "raceSection": {
-          "title": "Denne konkurrences løb"
-        },
-        "presets": {
-          "title": "Filformater",
-          "hint": "Hvilke kolonner der eksporteres og importeres. Kun nødvendigt separat, hvis denne konkurrence kører ind i et andet løb i tidtagningssystemet."
-        },
-        "raceclockerHint": "RaceClocker-løb oprettes i stævnets indstillinger. Vælg denne konkurrences ene løb her — det gælder for kvalifikationen og alle øvrige runder. Den samme tildeling kan også sættes omvendt, ved løbet.",
-        "startlist": "Startliste-eksport",
-        "resultImport": "Løbsresultater-import",
-        "importHint": "RaceClocker-skabelonerne eksporterer uden overskriftsrække, fordi RaceClocker ellers importerer den som deltager. Tilknyt derfor kolonnerne efter deres rækkefølge ved import i RaceClocker – især den interne id til \"Extra info\".",
-        "presetsHint": {
-          "1": "Presets oprettes ",
-          "2": "i konfigurationen",
-          "3": " og gælder for alle arrangementer."
+        "inheritedHint": {
+          "1": "Tidtagningssystem og filformater gælder for hele stævnet og vedligeholdes ",
+          "2": "i dets indstillinger",
+          "3": ". Her tildeles kun, hvad denne konkurrence tages tid med."
         },
         "incomplete": {
           "title": "Denne tidtagning er endnu ikke klar til brug",
           "startlist": "Startlistepresettet mangler – uden det kan der ikke eksporteres en startliste som CSV.",
-          "race": "Der er ikke valgt et løb – uden et kan der ikke hentes resultater fra RaceClocker.",
-          "link": "Gå til tidtagningsindstillingerne"
+          "link": "Gå til stævnets tidtagningsindstillinger"
         },
-        "saved": "Tidtagningsindstillinger gemt",
-        "invalid": "Vælg venligst et løb, der hører til dette stævne.",
-        "race": "RaceClocker-løb"
+        "stations": {
+          "title": "Poster på ruten",
+          "hint": "Hvilke tidtagningsposter denne konkurrence passerer, og ved hvilken meter. Start- og målposter må gerne føres med — starten ved 0, målet ved den samlede distance — så hele distancen er beskrevet. En mellemtid opstår dog kun ved poster af typen “Mellemtid”: ved målet måles den officielle tid, så der hverken står en mellemtid eller et tempo for den sidste strækning. Mellemtiderne ordnes efter meteren, ikke efter posternes rækkefølge i kontrolrummet. Posterne selv vedligeholdes i arrangementets indstillinger.",
+          "distance": "Meter",
+          "noStations": "Der er endnu ingen registrerende tidtagningsposter for dette arrangement. Visningsposter tilbydes ikke - de registrerer ingen tider.",
+          "saved": "Poster på ruten gemt",
+          "warning": {
+            "missingDistance": "Mindst én valgt post mangler meteren.",
+            "overDistance": "Mindst én post står længere ude end konkurrencens samlede distance ({{distance}} m).",
+            "duplicateDistance": "To poster står ved samme meter."
+          }
+        }
       },
       "places": {
         "places": "Placeringer",
@@ -1621,7 +1606,8 @@
       "settings": "Indstillinger",
       "actions": "Handlinger",
       "organisation": "Organisation",
-      "invoices": "Fakturaer"
+      "invoices": "Fakturaer",
+      "betrieb": "Drift"
     },
     "notice": {
       "title": "Global meddelelse",
@@ -1640,14 +1626,15 @@
     },
     "timing": {
       "title": "Tidtagning",
-      "hint": "Gælder for alle konkurrencer i dette arrangement. En enkelt konkurrence kan angive sine egne værdier i sin tidtagningsfane og dermed afvige bevidst.",
+      "hint": "Gælder for alle konkurrencer i dette arrangement: ét tidtagningssystem og ét sæt filformater. Hvad de enkelte konkurrencer, runder og heats tages tid med, tildeles nedenfor i tidtagningsprofil-træet.",
       "system": "Tidtagningssystem",
       "systems": {
         "none": "ikke angivet",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Intern tidtagning"
       },
-      "raceclockerHint": "RaceClocker-løb hører til stævnet, ikke til den enkelte konkurrence. Opret hvert løb én gang her — for eksempel „Langdistance“ og „Kortdistance“ — og markér nedenfor pr. løb, hvilke konkurrencer der bruger det. Hver konkurrence kører alle sine runder i ét løb.",
+      "raceclockerHint": "RaceClocker-løb hører til stævnet, ikke til den enkelte konkurrence. Opret hvert løb én gang her — for eksempel „Langdistance“ og „Kortdistance“ — og tildel i tidtagningsprofil-træet nedenfor, hvilken konkurrence, runde eller hvilket heat der kører i hvilket løb.",
       "autoPull": {
         "enabled": "Hent resultater automatisk",
         "hint": "Når et heat er i gang, henter serveren resultaterne i det hurtige interval. Kommende heats overvåges i det langsomme interval for at opdage deres start; afsluttede heats hentes ikke.",
@@ -1665,12 +1652,92 @@
       },
       "saved": "Tidtagningsstandard gemt",
       "invalid": "Tidtagningsstandarden kunne ikke gemmes.",
-      "deviations": {
-        "title": "Konkurrencer med egen tidtagning",
-        "none": "Ingen konkurrence afviger – alle følger denne standard.",
-        "system": "eget system",
-        "startlist": "egen startliste-eksport",
-        "resultImport": "egen løbsresultater-import"
+      "internHint": "Den interne tidtagning kører helt inde i denne app: poster registrerer tidsmærker, startsekvenser styrer starterne, kontrolrummet beregner resultaterne. Opret tidtagningstyperne her og tildel dem i tidtagningsprofil-træet nedenfor.",
+      "precision": {
+        "label": "Nøjagtighed for officielle tider",
+        "hint": "Råtider gemmes fortsat med millisekunder; indstillingen bestemmer, hvad der offentliggøres som officiel tid på et løb og vises i appen (afkortet, aldrig rundet op). Tiendedele svarer til nøjagtigheden af håndtidtagning. Finere trin giver først mening med tidtagningshardware — håndtastede tider indeholder menneskelig reaktionstid.",
+        "options": {
+          "SEKUNDE": "Sekund",
+          "ZEHNTEL": "Tiendedel sekund",
+          "HUNDERTSTEL": "Hundrededel sekund",
+          "MILLISEKUNDE": "Millisekund"
+        }
+      },
+      "toneWaveform": {
+        "label": "Bølgeform",
+        "SINE": "Sinus",
+        "TRIANGLE": "Trekant",
+        "SQUARE": "Firkant",
+        "SAWTOOTH": "Savtand",
+        "help": "Sinus og trekant lyder blødt; firkant og savtand lyder gennemtrængende og snerrende og egner sig som signal- eller advarselstoner."
+      },
+      "toneEnvelope": {
+        "label": "Kurveform",
+        "decay": "Aftagende",
+        "held": "Fastholdt",
+        "decayHelp": "Aftagende: lydstyrken falder jævnt over hele varigheden — et udklingende bip.",
+        "heldHelp": "Fastholdt: tonen holder fuld lydstyrke i hele varigheden og falder derefter i efterklangen — ved 0 ms forhindrer en indbygget udtoning på få millisekunder et hørbart klik.",
+        "summaryDecay": "aftagende",
+        "summaryHeld": "fastholdt · {{millis}} ms efterklang"
+      },
+      "captureTones": {
+        "title": "Registreringstoner",
+        "hint": "Bekræftelsestonen, som mål- og mellemtidsposter afspiller, når en tid registreres — kan indstilles pr. posttype. Den lyder kun ved selve tastetrykket; genafsendelse fra offline-køen forbliver stum.",
+        "finish": "Målpost",
+        "split": "Mellemtidspost",
+        "frequencyHz": "Tonehøjde (Hz)",
+        "durationMillis": "Varighed (ms)",
+        "releaseMillis": "Efterklang (ms)",
+        "play": "Afspil tone",
+        "reset": "Gendan standard",
+        "isDefault": "standard",
+        "invalid": "Tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms."
+      },
+      "falseStartTone": {
+        "title": "Tyvstart-tilbagekaldelse",
+        "hint": "Den tonefølge, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. En følge frem for én enkelt tone, fordi et mønster med en afvigende sidste tone (\"kort, kort, lang\") kan genkendes som en tilbagekaldelse på vandet, hvor en enkelt tone bare lyder som et signal.",
+        "label": "Tyvstart",
+        "presetSingle": "Enkelt tone",
+        "presetTriple": "Tre korte",
+        "presetShortShortLong": "Kort-kort-lang (standard)",
+        "invalid": "Kontrollér de markerede toner: tidspunkt 0–60000 ms efter udløsning, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, mindst én og højst 30 toner."
+      },
+      "modes": {
+        "title": "Tidtagningstyper",
+        "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles i tidtagningsprofil-træet nedenfor.",
+        "none": "Endnu ingen tidtagningstyper oprettet.",
+        "add": "Opret tidtagningstype",
+        "edit": "Rediger tidtagningstype",
+        "name": "Navn",
+        "startGrouping": {
+          "label": "Starttype",
+          "EINZEL": "Enkeltstart",
+          "WELLE": "Bølge"
+        },
+        "intervalSeconds": "Startinterval (sekunder)",
+        "intervalHelp": "Lad feltet stå tomt, hvis hver start udløses manuelt. Med en værdi følger starterne automatisk med dette interval (enkeltstart mod uret).",
+        "invalidInterval": "Intervallet skal være mindst 1 sekund — eller stå tomt for manuel start.",
+        "leadInSeconds": "Nedtælling før start (sekunder)",
+        "leadInHelp": "Nedtælling før den (første) start.",
+        "invalidLeadIn": "Angiv venligst et antal sekunder på 0 eller mere.",
+        "describe": {
+          "interval": "interval {{seconds}} s",
+          "manualStart": "manuel start",
+          "leadIn": "nedtælling {{seconds}} s"
+        },
+        "saved": "Tidtagningstype gemt",
+        "deleted": "Tidtagningstype slettet",
+        "deleteConfirm": "Skal tidtagningstypen \"{{name}}\" virkelig slettes?",
+        "deleteBlocked": "\"{{name}}\" er stadig i brug: typen er tildelt mindst ét niveau i tidtagningsprofil-træet. Fjern først tildelingerne i træet nedenfor.",
+        "tones": {
+          "title": "Toner",
+          "hint": "Bippene i startsekvensen, relativt til starten af den enkelte båd eller bølge (0 = start). De afspilles på start-boardet og startskærmen; missede toner afspilles aldrig senere.",
+          "presetOnlyStart": "Kun start",
+          "presetTenCountdown": "10−5−4−3−2−1−start",
+          "presetDefault": "Standard (5…1−start)",
+          "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
+          "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
+        }
       },
       "races": {
         "title": "RaceClocker-løb",
@@ -1682,18 +1749,52 @@
         "capturesLaps": "Registrerer omgangstider",
         "none": "Endnu intet løb oprettet.",
         "deleteConfirm": "Vil du virkelig slette „{{name}}“?",
-        "deleteBlocked": "„{{name}}“ er stadig tildelt mindst én konkurrence og blev ikke slettet — fjern tildelingen nedenfor og prøv igen.",
+        "deleteBlocked": "„{{name}}“ er stadig tildelt mindst ét niveau og blev ikke slettet — fjern tildelingen i tidtagningsprofil-træet nedenfor og prøv igen.",
         "nameTaken": "Der findes allerede et løb med dette navn.",
         "urlTaken": "Der findes allerede et løb med denne adresse.",
         "invalidUrl": "Adressen skal ligge på raceclocker.com.",
         "saved": "Løb gemt.",
         "deleted": "Løb slettet."
       },
-      "assignments": {
-        "title": "Tildel konkurrencer pr. løb",
-        "hint": "Omvendt af valget i konkurrencen: markér her, hvilke konkurrencer der bruger hvert løb. En konkurrence hører med alle sine runder til præcis ét løb — markerer du den her, flytter den fra et andet. Umarkerede konkurrencer har intet løb.",
-        "competitions": "Gælder for",
-        "saved": "Tildeling gemt."
+      "tones": {
+        "play": "Afspil tone",
+        "edit": "Rediger tone",
+        "remove": "Fjern tone",
+        "addTone": "Tilføj tone",
+        "playAll": "Afspil sekvens",
+        "secondsBeforeStart": "Sekunder før start",
+        "millisAfterTrigger": "Millisekunder efter udløsning",
+        "atStart": "Start",
+        "atTrigger": "med det samme",
+        "frequencyHz": "Tonehøjde (Hz)",
+        "durationMillis": "Varighed (ms)",
+        "releaseMillis": "Efterklang (ms)",
+        "timeline": "Tidslinje over tonerne",
+        "timelineSpan": "Samlet længde {{millis}} ms",
+        "offsetAfterTriggerHelp": "Tidspunktet tælles fremad fra udløsningen: 0 betyder med det samme, 400 betyder 400 millisekunder senere."
+      },
+      "profiles": {
+        "title": "Tidtagningsprofiler",
+        "hint": "En tidtagningsprofil er det, der tages tid med: løbet ved RaceClocker, tidtagningstypen ved intern tidtagning. Den arves nedad fra stævnet — konkurrence, runde og heat kan afvige, og det mest specifikke niveau, der er sat, gælder. Hver ændring gemmes med det samme. Ombygges selve konkurrenceforløbet, mister dets heats deres egne profiler — en runde, der genskabes under afviklingen, beholder dem.",
+        "matchLevelExportHint": "Sameksporten af startlister grupperer pr. konkurrence. Et heat med sit eget løb optræder der under konkurrencens løb — dets startliste skal eksporteres for sig.",
+        "noSystem": "Der findes ingen profiler for dette tidtagningssystem. Vælg „RaceClocker“ eller „Intern tidtagning“ ovenfor.",
+        "noOptions": "Der er endnu ikke oprettet en profil. Opret et løb eller en tidtagningstype ovenfor.",
+        "noCompetitions": "Dette stævne har endnu ingen konkurrencer.",
+        "event": "Hele stævnet",
+        "unset": "ikke angivet",
+        "inherit": "Arver ({{profile}})",
+        "inheritsNothing": "Arver (intet angivet)",
+        "fromEvent": "Arvet fra stævnet: {{profile}}.",
+        "fromEventLink": "Rediger stævnets tidtagning",
+        "toggle": "Fold ud eller sammen",
+        "saved": "Tidtagningsprofil gemt",
+        "deviations_one": "{{count}} egen profil nedenunder",
+        "deviations_other": "{{count}} egne profiler nedenunder",
+        "resetAll": "Sæt alt nedenunder til at arve",
+        "resetCompetition": "Sæt denne konkurrences runder og heats til at arve",
+        "resetConfirmEvent": "Alle tildelinger for hele arrangementet fjernes. Derefter arver hver konkurrence, runde og heat igen ovenfra. Fortsæt?",
+        "resetConfirmCompetition": "Alle tildelinger for runderne og heats i {{identifier}} {{name}} fjernes. Derefter arver de igen fra konkurrencen. Fortsæt?",
+        "reset": "Tildelinger fjernet"
       }
     },
     "info": {
@@ -1738,7 +1839,9 @@
         "advancing_one": "1 båd går videre → {{round}}",
         "advancingUnsized": "Videre: {{round}}",
         "birthYear": "årg. {{year}}",
-        "registeringClub": "Tilmeldt af: {{club}}"
+        "registeringClub": "Tilmeldt af: {{club}}",
+        "lapRank": "Placering ved denne mellemtid",
+        "lapPace": "Tempo på afsnittet"
       }
     },
     "match": {
@@ -2325,6 +2428,37 @@
         "upcomingListTitle": "Næste løb",
         "inMinutes": "om {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
+      "referee": {
+        "title": "Dommer",
+        "description": "Live-dashboardet viser igangværende og kommende løb, kontroller og afgørelser for dommerne.",
+        "open": "Åbn live-dashboard"
+      },
+      "speaker": {
+        "title": "Speaker",
+        "description": "Speaker-visningen samler startlister, resultater og igangværende løb til speakeren.",
+        "open": "Åbn speaker-visning"
+      },
+      "timing": {
+        "title": "Tidtagning",
+        "description": "Kontrolpult til tidtagningslederen på en bærbar, derunder posterne (start, mellemtid, mål) med direkte links: åbn registrering, startskærm for START-poster, \"Del til enhed\" for telefoner og skærme uden login.",
+        "openLeitstand": "Åbn kontrolpult",
+        "mobileHint": "Til telefoner ved en post findes desuden den mobile indgangsside:",
+        "mobileLink": "Åbn mobil registrering"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards og stream-overlays til billedproduktionen: offentlige visninger og chroma-key-felter til OBS.",
+        "open": "Administrér boards & stream-overlays"
+      },
+      "helpers": {
+        "title": "Hjælpere",
+        "description": "Hjælper-appen til telefonen (QR-scanning, check-in/-ud, opgaver) og stævnets vagtplan.",
+        "openApp": "Åbn hjælper-app",
+        "shifts": "Til vagtplanen (organisation)"
+      }
     }
   },
   "task": {
@@ -2590,6 +2724,23 @@
       "name": "Navn",
       "description": "Beskrivelse",
       "tableHint": "Kan tildeles konkurrencehold."
+    },
+    "paceReference": {
+      "paceReference": "Temporeference",
+      "paceReferences": "Temporeferencer",
+      "tableHint": "Fastlægger, hvad en konkurrences tempoangivelse henviser til — tid pr. 500 m i roning, tid pr. kilometer i løb, kilometer i timen i cykling.",
+      "name": "Navn",
+      "mode": {
+        "mode": "Type",
+        "TIME_PER_DISTANCE": "Tid pr. distance",
+        "DISTANCE_PER_TIME": "Distance pr. time"
+      },
+      "referenceMeters": "Referencedistance i meter",
+      "label": "Betegnelse",
+      "preview": "viser: {{label}}",
+      "error": {
+        "nameTaken": "Der findes allerede en temporeference med dette navn."
+      }
     },
     "import": {
       "matchResult": {
@@ -2905,6 +3056,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "ingen start",
+        "NO_FINISH_MARK": "intet mål",
+        "NEGATIVE_DURATION": "start efter mål",
+        "NO_MARKS": "ingen tidsmærker"
+      }
+    },
     "title": "Tidtagning",
     "selectEvent": "Vælg arrangement",
     "selectStation": "Vælg post",
@@ -2925,10 +3084,40 @@
       "types": {
         "START": "Start",
         "SPLIT": "Mellemtid",
-        "FINISH": "Mål"
+        "FINISH": "Mål",
+        "ANZEIGE": "Skærm"
+      },
+      "linkedStation": {
+        "label": "Tilknyttet startpost",
+        "all": "Alle stævnets startsekvenser",
+        "hint": "Skærmen spejler denne startposts startsekvenser (nedtælling, hvem der er på, hvem der følger). Uden tilknytning viser den stævnets senest aktive startsekvens."
+      },
+      "captureMode": {
+        "label": "Registreringstilstand",
+        "hint": "Onetouch registrerer ved hvert tryk, sådan som posten arbejder i dag. „Aktivering“ kræver, at tidtageren på stedet aktiverer posten, før et tryk registrerer en tid med tilknytning; den store knap gemmer fortsat en tid uden tilknytning, også når posten er deaktiveret. Efter skiftet står posten deaktiveret og skal aktiveres på stedet.",
+        "ONETOUCH": "Onetouch — hvert tryk registrerer straks",
+        "ARMED": "Aktivering — posten aktiveres på stedet"
       },
       "error": {
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
+      },
+      "openCapture": "Åbn registrering",
+      "openBoard": "Åbn postens board (nyt vindue)",
+      "copyUrl": "Kopiér board-adresse",
+      "urlCopied": "Board-adresse kopieret",
+      "openStartDisplay": "Åbn startskærm",
+      "share": {
+        "action": "Del til enhed",
+        "title": "Del posten \"{{station}}\" til en enhed",
+        "description": "Linket bærer denne posts enhedsadgang: enheden (delt telefon, visningsskærm) behøver intet login. Samme post giver altid samme link — indtil adgangen tilbagekaldes i kontrolpulten under \"Enheder\".",
+        "copied": "Link kopieret",
+        "copy": "Kopiér link",
+        "revokeHint": "Linket kan altid hentes her igen. Tilbagekald i kontrolpulten, fanen \"Enheder\" (posten \"Link\") — en tilbagekaldt adgang gør linket ubrugeligt med det samme, og næste klik på \"Del\" opretter et nyt.",
+        "target": {
+          "capture": "Registrering",
+          "display": "Startskærm"
+        },
+        "error": "Linket kunne ikke oprettes."
       }
     },
     "assign": {
@@ -2943,19 +3132,63 @@
     "mark": {
       "retractError": "Fortryd mislykkedes"
     },
+    "finish": {
+      "assignPrompt": "Tiden {{time}} venter — tryk på en båd for at tildele den.",
+      "assignLater": "Tildel senere",
+      "hint": "Tryk på en båd eller tast 1–6 / A–F: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
+      "hintTouch": "Tryk på en båd: tag tid og tildel i én bevægelse. Stor flade: gem en tid uden båd og tildel den ved bagefter at trykke på en båd.",
+      "finishedCount": "{{finished}}/{{total}} i mål",
+      "upcomingTitle": "Forventes som næste",
+      "noneExpected": "Der er ikke noget løb på vandet lige nu.",
+      "focused": "Fokuseret",
+      "startMissing": "Start mangler — resultatet følger, så snart starten er sat",
+      "focusHint": "Tasterne virker kun på det fokuserede løb — skift fokus med Tab eller klik."
+    },
+    "matches": {
+      "title": "Startliste",
+      "loadError": "Løbene kunne ikke indlæses.",
+      "empty": "Ingen løb med intern tidtagning.",
+      "boats_one": "{{count}} båd",
+      "boats_other": "{{count}} både",
+      "noMode": "ingen tidtagningstype",
+      "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
+      "noTeamsLeft": "Alle både i dette løb er allerede startet.",
+      "allStarted": "Alle løb er startet — intet står åbent.",
+      "start": "Start startsekvens",
+      "startSelected": "Start: {{match}}",
+      "error": {
+        "start": "Startsekvensen kunne ikke startes.",
+        "restart": "Starten kunne ikke trækkes tilbage."
+      },
+      "mode": {
+        "interval": "hvert {{seconds}} s",
+        "EINZEL": "enkeltstart",
+        "WELLE": "bølge"
+      },
+      "progress": {
+        "OPEN": "åben",
+        "STARTING": "startsekvens kører",
+        "STARTED": "startet",
+        "FINISHED": "i mål"
+      },
+      "menu": {
+        "open": "Handlinger for løbet"
+      },
+      "abortSequence": "Afbryd sekvens",
+      "restart": "Fortryd start og start igen",
+      "restartConfirm": {
+        "title": "Kassér forsøget?",
+        "content": "Hele forsøget for {{match}} trækkes tilbage — startmærker OG allerede registrerede måltider; løbet står derefter som åbent i startlisten igen. En kørende sekvens afbrydes først. Skal kun en enkelt starttid rettes, så træk i stedet mærket tilbage i tidslisten — måltiderne bevares dér.",
+        "ok": "Kassér forsøget",
+        "keep": "Ændr intet"
+      },
+      "restartDone": "Forsøget trukket tilbage — løbet kan startes igen",
+      "startFocused": "Start: {{match}}"
+    },
     "sequence": {
       "mode": {
         "MASS": "Massestart",
         "INTERVAL": "Intervalstart"
-      },
-      "setup": {
-        "title": "Opsæt sekvens",
-        "intervalSeconds": "Interval (sekunder)",
-        "leadInSeconds": "Optakt (sekunder)",
-        "leadInHelp": "Tid fra sekvensen startes til første start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} af {{total}} valgt",
-        "orderHint": "Startrækkefølgen følger startnummeret",
-        "armButton": "Klargør sekvens"
       },
       "armed": {
         "title": "Sekvens klargjort",
@@ -2968,8 +3201,7 @@
       },
       "summary": {
         "titleDone": "Sekvens afsluttet",
-        "titleAborted": "Sekvens afbrudt",
-        "reset": "Ny sekvens"
+        "titleAborted": "Sekvens afbrudt"
       },
       "entry": {
         "skip": "Spring over",
@@ -2979,10 +3211,11 @@
           "content": "{{team}} bliver ikke startet. Det kan ikke fortrydes."
         }
       },
-      "abort": "Afbryd",
+      "abort": "Afbryd sekvens",
       "abortConfirm": {
         "title": "Afbryd sekvens?",
-        "content": "Afventende starter udløses ikke længere."
+        "content": "Afventende starter udløses ikke længere.",
+        "keep": "Lad den fortsætte"
       },
       "loadError": "Sekvens kunne ikke indlæses",
       "retry": "Prøv igen",
@@ -2990,13 +3223,14 @@
         "create": "Sekvens kunne ikke oprettes",
         "start": "Sekvens kunne ikke startes",
         "abort": "Afbrydelse mislykkedes",
-        "skip": "Spring over mislykkedes",
-        "invalidInterval": "Interval skal være mindst 1 sekund",
-        "invalidLeadIn": "Optakt skal være mellem {{min}} og {{max}} sekunder",
-        "noTeams": "Vælg mindst ét hold"
+        "skip": "Spring over mislykkedes"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} startet"
       }
     },
     "board": {
+      "noCourseAssignment": "Denne post står ikke på nogen konkurrences rute — derfor er listen tom. En mellemtid opstår kun, hvor posten er indtastet med sin afstand i konkurrencens tidtagningsfane. Tider kan stadig gemmes og tildeles manuelt senere.",
       "wsStatus": {
         "CONNECTING": "Forbinder…",
         "OPEN": "Forbundet",
@@ -3031,24 +3265,31 @@
         }
       },
       "stateError": "Data kunne ikke indlæses – prøver igen…",
+      "armed": {
+        "blockedTitle": "Registrering spærret — posten er deaktiveret",
+        "blockedHint": "Hold kontakten nede i ét sekund for at registrere. I nødstilfælde kan tiden gemmes uden tilknytning med den store knap og tilknyttes senere.",
+        "stateArmed": "Aktiveret — registrering mulig",
+        "stateDisarmed": "Deaktiveret — ingen registrering",
+        "holdHint": "Hold nede i ét sekund",
+        "arm": "Aktivér",
+        "disarm": "Deaktivér",
+        "captureFallback": "Gem tid uden tilknytning",
+        "error": "Skift mislykkedes"
+      },
       "capture": {
         "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
         "stationLoading": "Indlæser post…"
       },
+      "markList": {
+        "toggle": "Tidsliste ({{count}})"
+      },
+      "audioHint": "Tryk én gang på skærmen, så nedtællingslydene kan afspilles.",
       "mark": {
         "pending": "sender",
         "failed": "mislykkedes",
         "undo": "Fortryd"
       },
       "teams": {
-        "viewTwoStep": "To trin",
-        "viewTeams": "Hold",
-        "arm": "Klargør",
-        "armHint": "Tryk på hold for at lægge dem på en tast",
-        "armedFull": "Højst {{count}} hold kan klargøres samtidig",
-        "unarm": "Fjern klargøring",
-        "hint": "Tasterne 1–9: startnummer · Mellemrum: tid uden tildeling",
-        "empty": "Ingen hold til dette event",
         "phase": {
           "ACTIVE": "Forventes nu",
           "OPEN": "Stadig forude",
@@ -3062,7 +3303,8 @@
       "tab": {
         "times": "Tider",
         "results": "Resultater",
-        "devices": "Enheder"
+        "devices": "Enheder",
+        "overview": "Oversigt"
       },
       "marks": {
         "stationFilter": "Post",
@@ -3102,6 +3344,10 @@
           "success_one": "{{count}} tid fjernet",
           "success_other": "{{count}} tider fjernet",
           "error": "Tiderne kunne ikke fjernes"
+        },
+        "reactivate": {
+          "action": "Genaktivér",
+          "error": "Tiden kunne ikke genaktiveres"
         }
       },
       "results": {
@@ -3113,7 +3359,7 @@
         "pushableCount_other": "{{count}} rækker klar til overførsel",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Forældet",
-        "dirtyHint": "En tid er ændret siden beregningen eller overførslen – beregn igen og overfør på ny",
+        "dirtyHint": "Resultatet på løbet svarer ikke til tidtagningens aktuelle stand – fastfrosset, ændret andetsteds eller automatisk overførsel slået fra",
         "notPushed": "ikke overført",
         "column": {
           "team": "Startnr. / hold",
@@ -3124,6 +3370,7 @@
           "penalty": "Straftid",
           "status": "Status",
           "effective": "Effektiv",
+          "place": "Plads",
           "pushed": "Overført"
         },
         "status": {
@@ -3131,22 +3378,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Beregn igen",
-          "error": "Beregningen mislykkedes",
-          "resultTitle": "Beregning afsluttet",
-          "computedCount_one": "{{count}} tid beregnet",
-          "computedCount_other": "{{count}} tider beregnet",
-          "skippedCount_one": "{{count}} hold sprunget over",
-          "skippedCount_other": "{{count}} hold sprunget over",
-          "noSkips": "Ingen hold blev sprunget over",
-          "skipReason": {
-            "NO_START_MARK": "Ingen starttid",
-            "NO_FINISH_MARK": "Ingen sluttid",
-            "NEGATIVE_DURATION": "Sluttiden ligger før starttiden",
-            "NO_MARKS": "Ingen tidsmarkeringer"
-          }
         },
         "push": {
           "action": "Overfør til resultater",
@@ -3182,7 +3413,9 @@
           "statusHelp": "DNS/DNF/DSQ erstatter tiden i resultatet",
           "invalidSeconds": "Indtast et antal sekunder",
           "error": "Kunne ikke gemmes",
-          "success": "Tid gemt"
+          "success": "Tid gemt",
+          "penaltyNote": "Årsag til straftid",
+          "penaltyNoteHelp": "Fritekst; vises sammen med straffen på løbet"
         }
       },
       "devices": {
@@ -3218,8 +3451,74 @@
             "title": "Tilbagekald token?",
             "content": "Enheden “{{name}}” kan derefter ikke længere sende tider."
           }
+        },
+        "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatisk overførsel",
+          "hintOn": "Tildelte tider står straks på løbet",
+          "hintOff": "Tider registreres fortsat, men skrives ikke til løbene",
+          "enabled": "Automatisk overførsel slået til – status blev opdateret",
+          "disabled": "Automatisk overførsel slået fra",
+          "error": "Kontakten kunne ikke gemmes",
+          "loadError": "Status for automatisk overførsel kunne ikke indlæses"
+        },
+        "stations": {
+          "empty": "Der er endnu ingen poster",
+          "armed": {
+            "ARMED": "aktiveret",
+            "DISARMED": "deaktiveret",
+            "ONETOUCH": "Onetouch",
+            "hint": {
+              "ARMED": "Posten er aktiveret og registrerer.",
+              "DISARMED": "Posten er deaktiveret: bådknapper og taster registrerer intet. Kun tidtageren på stedet kan aktivere den — ring inden løbet.",
+              "ONETOUCH": "Onetouch: hvert tryk registrerer straks, der er intet at aktivere."
+            }
+          },
+          "lastMark": "Seneste registrering {{time}}",
+          "noMarks": "Endnu ingen registreringer",
+          "shareLink": "Enhedslink udstedt",
+          "sequence": "Sekvens {{match}}: {{started}}/{{total}} startet",
+          "sequenceUnknown": "kører"
+        },
+        "matches": {
+          "title": "Senest aktive løb",
+          "empty": "Endnu ingen aktive løb – de vises her, så snart tider er tildelt",
+          "progress": {
+            "OPEN": "Åben",
+            "STARTING": "Startsekvens kører",
+            "STARTED": "Startet",
+            "FINISHED": "I mål"
+          }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Startskærm",
+      "idle": "Ingen startsekvens aktiv",
+      "armed": "Startsekvens klargjort",
+      "finishing": "Alle starter afviklet",
+      "done": "Startsekvens afsluttet",
+      "aborted": "Startsekvens afbrudt",
+      "next": "Ved starten",
+      "following": "Derefter",
+      "notStart": "Denne post er ikke en startpost — startskærmen viser intet her."
+    },
+    "schedule": {
+      "title": "Dagsprogram",
+      "expand": "Vis dagsprogram",
+      "collapse": "Skjul dagsprogram",
+      "status": {
+        "OPEN": "åben",
+        "STARTING": "sekvens i gang",
+        "STARTED": "startet",
+        "FINISHED": "færdig",
+        "finishProgress": "{{finished}}/{{total}} i mål"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "Uden løb"
     }
   },
   "caterer": {

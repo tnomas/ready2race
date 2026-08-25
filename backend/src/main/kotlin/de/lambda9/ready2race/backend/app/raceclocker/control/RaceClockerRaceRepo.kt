@@ -1,19 +1,20 @@
 package de.lambda9.ready2race.backend.app.raceclocker.control
 
-import de.lambda9.ready2race.backend.app.raceclocker.entity.CompetitionRaceAssignmentDto
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceDto
-import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
-import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
 import de.lambda9.tailwind.jooq.Jooq
 import org.jooq.impl.DSL
 import java.util.UUID
 
 object RaceClockerRaceRepo {
 
-    /** Wie viele Wettkämpfe noch auf dieses Rennen zeigen — die Löschsperre fragt das ab. */
-    fun countAssignedCompetitions(raceId: UUID) = Jooq.query {
-        fetchCount(COMPETITION, COMPETITION.RACECLOCKER_RACE.eq(raceId))
+    /**
+     * Wie viele Zuordnungen noch auf dieses Rennen zeigen — die Löschsperre fragt das ab. Gezählt
+     * werden alle vier Ebenen des Zeitnahmeprofil-Baums, denn jede von ihnen bindet das Rennen.
+     */
+    fun countAssignments(raceId: UUID) = Jooq.query {
+        fetchCount(TIMING_PROFILE_ASSIGNMENT, TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE.eq(raceId))
     }
 
     fun getForEvent(eventId: UUID) = Jooq.query {
@@ -35,32 +36,6 @@ object RaceClockerRaceRepo {
                     resultsUrl = it[RACECLOCKER_RACE.RESULTS_URL]!!,
                     capturesLaps = it[RACECLOCKER_RACE.CAPTURES_LAPS]!!,
                     position = it[RACECLOCKER_RACE.POSITION]!!,
-                )
-            }
-    }
-
-    /**
-     * Alle Wettkämpfe einer Veranstaltung mit ihrer RaceClocker-Anwahl — die Datenbasis für die
-     * umgekehrte Zuordnung (am Rennen die Wettkämpfe anhaken). Ein Wettkampf hängt an genau einem
-     * Rennen für alle seine Runden; eine getrennte Qualifikations-Liste gibt es nicht mehr.
-     */
-    fun getCompetitionAssignments(eventId: UUID) = Jooq.query {
-        select(
-            COMPETITION.ID,
-            COMPETITION_PROPERTIES.IDENTIFIER,
-            COMPETITION_PROPERTIES.NAME,
-            COMPETITION.RACECLOCKER_RACE,
-        )
-            .from(COMPETITION)
-            .join(COMPETITION_PROPERTIES).on(COMPETITION_PROPERTIES.COMPETITION.eq(COMPETITION.ID))
-            .where(COMPETITION.EVENT.eq(eventId))
-            .orderBy(COMPETITION_PROPERTIES.IDENTIFIER)
-            .fetch {
-                CompetitionRaceAssignmentDto(
-                    competitionId = it[COMPETITION.ID]!!,
-                    identifier = it[COMPETITION_PROPERTIES.IDENTIFIER]!!,
-                    name = it[COMPETITION_PROPERTIES.NAME]!!,
-                    race = it[COMPETITION.RACECLOCKER_RACE],
                 )
             }
     }

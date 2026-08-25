@@ -13,7 +13,7 @@ import {
     AthleteBoardSectionHeading,
     BoatListRow,
 } from './AthleteBoardBoatRow'
-import {formatClockTime, scaled} from './common'
+import {formatClockTime, lapRanksByStartNumber, scaled} from './common'
 import PlaceOrdinal from '@components/PlaceOrdinal'
 import {groupByRatingCategory, hasRatingCategories} from '@utils/ratingCategorySections.ts'
 
@@ -57,6 +57,11 @@ const AthleteBoardResultCard = ({
     // Lauf ohne Kategorien ergibt genau einen namenlosen Abschnitt und bleibt damit wie bisher.
     const sections = groupByRatingCategory(teams, team => team.ratingCategory)
     const showSectionHeadings = hasRatingCategories(sections)
+
+    // Der Rang an einer Zwischenzeit gilt für den ganzen Lauf und nicht für einen Abschnitt:
+    // gerechnet über result.teams, nicht je Wertungskategorie. Die Kategorien teilen die Anzeige
+    // auf, nicht das Rennen — an der Marke sind alle Boote gemeinsam gefahren.
+    const lapRanks = lapRanksByStartNumber(result.teams)
 
     // Das Zeilenraster der Liste, in derselben Reihenfolge wie die Kinder darunter: je Abschnitt
     // erst die Überschrift (falls es Kategorien gibt), dann seine Boote.
@@ -196,7 +201,13 @@ const AthleteBoardResultCard = ({
                                                     {/* Rundenzeiten prominent unter der Endzeit
                                                         (12.08.2026) — identisch zur Lauf-Karte;
                                                         vorher eine Crew-Subline links. */}
-                                                    <AthleteBoardLapTimes laps={team.laps} />
+                                                    <AthleteBoardLapTimes
+                                                        laps={team.laps}
+                                                        ranks={lapRanks.get(
+                                                            `${team.startNumber}`,
+                                                        )}
+                                                        paceReference={result.paceReference}
+                                                    />
                                                 </>
                                             )}
                                         </>

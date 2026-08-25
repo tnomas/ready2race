@@ -2,12 +2,16 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.timing.entity.AssignTimeMarkRequest
+import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationsRequest
 import de.lambda9.ready2race.backend.app.timing.entity.ComputeOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.CreateTimeMarkRequest
 import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingAutoApplyRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStationArmedRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -25,19 +29,120 @@ const val TIMING_DEVICE_TOKEN_HEADER = "X-Timing-Device-Token"
 fun Route.timing() {
     route("/timing") {
 
+        // Die Lese-Endpunkte der Boards (Zustand, Teams, Posten, aktive Sequenz) akzeptieren
+        // zusätzlich zur Nutzersitzung ein Geräte-Token: geteilte Posten-Links (Erfassung,
+        // Startbildschirm) tragen es in der URL und müssen den Veranstaltungszustand lesen
+        // können, ohne dass jemand am Gerät angemeldet ist. Wie beim Zeitmarken-POST greift der
+        // Token-Zweig nur ohne Sitzung - ein angemeldeter Nutzer nimmt exakt den bisherigen Weg.
+        //
+        // Lesend genügt die Bindung an die Veranstaltung (`validateForEvent`). Schreibend gibt es
+        // genau drei Token-Wege - Zeitmarken-POST, Zuordnung, Scharfschaltung -, und jeder ist
+        // zusätzlich an den EIGENEN Posten des Tokens gebunden und weist ANZEIGE-Tokens ab; alles
+        // Übrige verlangt weiterhin eine Sitzung.
         get("/state") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
+                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                } else {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                }
                 TimingService.getState(eventId)
+            }
+        }
+
+        // Die Posten-Startliste: Partien der intern gezeiteten Wettkämpfe in Startreihenfolge.
+        // Lesend wie /teams - auch mit Geräte-Token, denn Start- und Zielposten laufen auf
+        // geteilten Geräten ohne Sitzung.
+        route("/matches") {
+
+            get {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
+                    // Der Posten schneidet seine eigene Liste zu (siehe getMatches); ohne
+                    // Parameter - Leitstand, Startbildschirm - bleibt sie vollstaendig.
+                    val stationId = !optionalQueryParam("station", uuid)
+                    TimingMatchService.getMatches(eventId, stationId)
+                }
+            }
+
+            // „Start zurücknehmen und neu starten": nimmt den ganzen Versuch der Partie in einem
+            // Griff zurück — Start-, Ziel- und Rundenmarken (siehe TimingService.retractMatchAttempt,
+            // warum die Zielzeiten mitgehen müssen). Wie die Einzel-Rücknahme nur mit
+            // Nutzersitzung — Geräte-Tokens nehmen keine Ergebnisse zurück.
+            post("/{matchId}/retractAttempt") {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val matchId = !pathParam("matchId", uuid)
+                    TimingService.retractMatchAttempt(matchId, eventId, user.id!!)
+                }
             }
         }
 
         get("/teams") {
             call.respondComprehension {
-                !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
+                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                    !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                } else {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                }
                 TimingService.getTeams(eventId)
+            }
+        }
+
+        // Zeitnahmetypen sind Konfiguration (wie die Posten): gepflegt mit UPDATE EVENT, gelesen
+        // mit denselben Sitzungsrechten wie die übrigen Leitstand-Daten. Kein Geräte-Token-Zweig -
+        // die Posten-Boards bekommen den aufgelösten Typ über die Startliste (/matches), nicht
+        // über die Rohkonfiguration.
+        route("/modes") {
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingModeRequest.example)
+                    TimingModeService.addMode(body, user.id!!, eventId)
+                }
+            }
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingModeService.getModes(eventId)
+                }
+            }
+
+            route("/{modeId}") {
+
+                put {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val modeId = !pathParam("modeId", uuid)
+                        val body = !receiveKIO(TimingModeRequest.example)
+                        TimingModeService.updateMode(body, user.id!!, modeId, eventId)
+                    }
+                }
+
+                delete {
+                    call.respondComprehension {
+                        !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val modeId = !pathParam("modeId", uuid)
+                        TimingModeService.deleteMode(modeId, eventId)
+                    }
+                }
             }
         }
 
@@ -54,13 +159,31 @@ fun Route.timing() {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
                     TimingService.getStations(eventId)
                 }
             }
 
             route("/{stationId}") {
+
+                // "Link anklicken = Token ausgestellt": liefert die fertige Posten-Adresse samt
+                // Geräte-Token - beim zweiten Klick DENSELBEN Link (Wiederverwendung statt
+                // Inflation), erst nach einem Widerruf im Geräte-Reiter wieder einen frischen.
+                // POST trotz Wiederholbarkeit: der erste Aufruf stellt ein Credential aus.
+                post("/share-link") {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val stationId = !pathParam("stationId", uuid)
+                        TimingDeviceTokenService.shareLink(eventId, stationId, user.id!!)
+                    }
+                }
 
                 put {
                     call.respondComprehension {
@@ -78,6 +201,42 @@ fun Route.timing() {
                         val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
                         TimingService.deleteStation(stationId, eventId)
+                    }
+                }
+
+                // Die Scharfschaltung: der Zeitnehmer am geteilten Tablet hat keine Anmeldung,
+                // nur den Posten-Link mit seinem Geräte-Token - ohne diesen Zweig wäre die
+                // Sicherung genau dort nicht bedienbar, wo sie gebraucht wird. Wie bei den
+                // anderen Token-Wegen greift er nur ohne Sitzung; ein angemeldeter Nutzer nimmt
+                // exakt den gewohnten Weg.
+                //
+                // Ein SCHREIBENDER Weg, also die enge Token-Prüfung der Zeitmarken und nicht die
+                // der Lesewege: `validate` bindet das Token an genau den Posten aus dem Pfad
+                // (hier einfacher als beim Zeitmarken-POST, wo er aus dem Körper kommt), den
+                // ANZEIGE-Fall weist der Dienst ab. Sonst entschärfte das Token des Zielpostens
+                // den Startposten - und ein Anzeige-Link, der nur lesen darf, wäre der
+                // Ausschalter für die Ziellinie.
+                //
+                // Mit Sitzung reichen die Zeitnahme-Rechte, ReadEventGlobal aber NICHT:
+                // Entschärfen sperrt jede zugeordnete Erfassung, das ist kein Lesevorgang.
+                // Anders als die Betriebsart (PUT auf den Posten, UPDATE EVENT) ist das Schalten
+                // Betrieb, keine Einrichtung - deshalb ein eigener Weg mit eigenen Rechten.
+                put("/armed") {
+                    call.respondComprehension {
+                        val eventId = !pathParam("eventId", uuid)
+                        val stationId = !pathParam("stationId", uuid)
+                        val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                        val hasSession = call.sessions.get<UserSession>()?.token != null
+
+                        if (deviceToken != null && !hasSession) {
+                            val token = !TimingDeviceTokenService.validate(deviceToken, eventId, stationId)
+                            val body = !receiveKIO(TimingStationArmedRequest.example)
+                            TimingService.setStationArmedByDevice(token, stationId, eventId, body.armed)
+                        } else {
+                            !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                            val body = !receiveKIO(TimingStationArmedRequest.example)
+                            TimingService.setStationArmed(stationId, eventId, body.armed)
+                        }
                     }
                 }
             }
@@ -132,13 +291,40 @@ fun Route.timing() {
                     }
                 }
 
-                put("/assignment") {
+                // Das Gegenstück zur Rücknahme: RETRACTED -> ACTIVE, die frühere Zuordnung lebt
+                // wieder auf und die Echtzeit-Übernahme rechnet sofort nach. Wie die Rücknahme
+                // selbst nur mit Nutzersitzung - Geräte-Tokens nehmen keine Ergebnisse zurück und
+                // stellen folglich auch keine wieder her.
+                put("/reactivate") {
                     call.respondComprehension {
                         val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
                         val eventId = !pathParam("eventId", uuid)
                         val timeMarkId = !pathParam("timeMarkId", uuid)
-                        val body = !receiveKIO(AssignTimeMarkRequest.example)
-                        TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
+                        TimingService.reactivateTimeMark(timeMarkId, eventId, user.id!!)
+                    }
+                }
+
+                put("/assignment") {
+                    call.respondComprehension {
+                        val eventId = !pathParam("eventId", uuid)
+                        val timeMarkId = !pathParam("timeMarkId", uuid)
+                        val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                        val hasSession = call.sessions.get<UserSession>()?.token != null
+
+                        // Klick-Zuordnung am geteilten Posten-Gerät: der Zielposten ordnet eine
+                        // Marke direkt beim Stempeln einem Boot zu (und hängt sie bei Verklicken
+                        // um), ohne Sitzung. Wie beim Zeitmarken-POST greift der Token-Zweig nur
+                        // ohne Sitzung; der Service engt weiter ein (nur Marken des eigenen
+                        // Postens, keine ANZEIGE-Tokens). Sitzungen behalten exakt den alten Weg.
+                        if (deviceToken != null && !hasSession) {
+                            val body = !receiveKIO(AssignTimeMarkRequest.example)
+                            val token = !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                            TimingService.assignTimeMarkByDevice(body, token, timeMarkId, eventId)
+                        } else {
+                            val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                            val body = !receiveKIO(AssignTimeMarkRequest.example)
+                            TimingService.assignTimeMark(body, user.id!!, timeMarkId, eventId)
+                        }
                     }
                 }
             }
@@ -157,12 +343,17 @@ fun Route.timing() {
 
             get("/active") {
                 call.respondComprehension {
-                    !authenticateAny(
-                        Privilege.UpdateAppTimingGlobal,
-                        Privilege.UpdateEventGlobal,
-                        Privilege.ReadEventGlobal,
-                    )
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(
+                            Privilege.UpdateAppTimingGlobal,
+                            Privilege.UpdateEventGlobal,
+                            Privilege.ReadEventGlobal,
+                        )
+                    }
                     val stationId = !queryParam("stationId", uuid)
                     TimingSequenceService.getActiveSequence(eventId, stationId)
                 }
@@ -199,12 +390,57 @@ fun Route.timing() {
             }
         }
 
-        route("/officialTimes") {
+        // Die Zeitnahme-Einstellungen als EIN Lese-Endpunkt (Schalter „Automatische Übernahme" +
+        // Genauigkeit): lesbar auch mit Geräte-Token, weil die Boards die Genauigkeit für die
+        // Anzeige der offiziellen Zeiten brauchen - derselbe Auth-Zweig wie GET /officialTimes.
+        // Geschrieben wird getrennt: der Schalter hier per PUT /autoApply, die Genauigkeit über
+        // die Zeitnahme-Einstellungen der Veranstaltung (updateEventTimingConfig).
+        route("/settings") {
 
             get {
                 call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
+                    TimingOfficialTimeService.getSettings(eventId)
+                }
+            }
+        }
+
+        // Der Schalter „Automatische Übernahme": geschaltet nur mit UPDATE EVENT - der PUT
+        // schreibt bei enabled=true den aufgelaufenen Stand an die Läufe nach. Gelesen wird er
+        // über GET /settings (gemeinsamer Fetch mit der Genauigkeit).
+        route("/autoApply") {
+
+            put {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingAutoApplyRequest.example)
+                    TimingOfficialTimeService.setAutoApply(eventId, body, user.id!!)
+                }
+            }
+        }
+
+        route("/officialTimes") {
+
+            // Lesend auch mit Geräte-Token: der Zielposten zeigt die offiziellen Zeiten live am
+            // Boot, und geteilte Posten-Geräte laufen ohne Sitzung. Der Live-Kanal
+            // (officialTimeChanged) akzeptiert dieselben Tokens bereits — dieser GET ist nur der
+            // initiale Stand dazu.
+            get {
+                call.respondComprehension {
+                    val eventId = !pathParam("eventId", uuid)
+                    val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                    if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                        !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                    } else {
+                        !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    }
                     TimingOfficialTimeService.getForEvent(eventId)
                 }
             }
@@ -264,6 +500,39 @@ fun Route.timing() {
                     val tokenId = !pathParam("tokenId", uuid)
                     TimingDeviceTokenService.revoke(eventId, tokenId)
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Die Posten auf der Strecke EINES Wettkampfs — unterhalb der Wettkampf-Route zu mounten, denn
+ * der Meter gehört dem Wettkampf: Derselbe Posten steht für die Langstrecke bei 3000 m und für
+ * den Sprint bei 250 m. Der Posten selbst bleibt Sache der Veranstaltung (/timing/stations).
+ */
+fun Route.competitionTimingStations() {
+    route("/timing-stations") {
+
+        get {
+            call.respondComprehension {
+                !authenticate(Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionId = !pathParam("competitionId", uuid)
+
+                TimingService.getCompetitionStations(competitionId, eventId)
+            }
+        }
+
+        // Ein PUT über die GANZE Liste: Was fehlt, wird gelöscht. Die Oberfläche hakt Posten an
+        // und speichert einmal - nicht je Zeile.
+        put {
+            call.respondComprehension {
+                val user = !authenticate(Privilege.UpdateEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionId = !pathParam("competitionId", uuid)
+
+                val body = !receiveKIO(CompetitionTimingStationsRequest.example)
+                TimingService.setCompetitionStations(body, user.id!!, competitionId, eventId)
             }
         }
     }

@@ -1,6 +1,12 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {getTimingState, getTimingStations} from '@api/sdk.gen.ts'
-import {OfficialTimeDto, TimeMarkDto, TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
+import {
+    OfficialTimeDto,
+    TimeMarkDto,
+    TimingSequenceDto,
+    TimingSettingsDto,
+    TimingStationDto,
+} from '@api/types.gen.ts'
 import {TimingWsMessage} from '@utils/timing/timingSocket.ts'
 import {TimingWsStatus, useTimingWebSocket} from '@utils/timing/useTimingWebSocket.ts'
 
@@ -71,6 +77,9 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
         }
         case 'timeMarkRetracted':
             return marks.map(m => (m.id === message.id ? {...m, status: 'RETRACTED'} : m))
+        case 'timeMarkReactivated':
+            // The counterpart to a retraction: the mark is ACTIVE again, its assignment untouched.
+            return marks.map(m => (m.id === message.id ? {...m, status: 'ACTIVE'} : m))
         case 'assignmentChanged':
             return marks.map(m =>
                 m.id === message.timeMark
@@ -96,6 +105,14 @@ export function applyWsMessage(marks: BoardMark[], message: TimingWsMessage): Bo
             const deleted = new Set(message.timeMarks)
             return marks.filter(m => !deleted.has(m.id))
         }
+        case 'settingsChanged':
+            // Einstellungs-Stand, keine Markendaten — geht an den optionalen `onSettingsChanged`-
+            // Callback (gleiche Form wie `sequenceChanged`/`officialTimeChanged`).
+            return marks
+        case 'attemptRetracted':
+            // Fehlstart-Signal, keine Markendaten (die einzelnen timeMarkRetracted-Echos derselben
+            // Rücknahme pflegen die Liste) — geht an den optionalen `onAttemptRetracted`-Callback.
+            return marks
     }
 }
 
@@ -154,6 +171,9 @@ export function useTimingBoardState(
     stationId: string | null,
     onSequenceChanged?: (sequence: TimingSequenceDto) => void,
     onOfficialTimeChanged?: (officialTimes: OfficialTimeDto[]) => void,
+    onSettingsChanged?: (settings: TimingSettingsDto) => void,
+    /** Fehlstart-Signal (Versuchs-Rücknahme) — siehe `falseStart.ts` für die Abspiel-Bedingung. */
+    onAttemptRetracted?: (info: {competitionSetupMatch: string; competitionMatchTeams: string[]}) => void,
 ): UseTimingBoardStateResult {
     const [allMarks, setAllMarks] = useState<BoardMark[]>([])
     const [stations, setStations] = useState<TimingStationDto[]>([])
@@ -188,9 +208,15 @@ export function useTimingBoardState(
     const onSequenceChangedRef = useRef(onSequenceChanged)
     /** Same for `onOfficialTimeChanged` (the Leitstand's result-table feed). */
     const onOfficialTimeChangedRef = useRef(onOfficialTimeChanged)
+    /** Same for `onSettingsChanged` (Schalter + Genauigkeit — siehe `useTimingSettings`). */
+    const onSettingsChangedRef = useRef(onSettingsChanged)
+    /** Same for `onAttemptRetracted` (Fehlstart-Signal der Boards). */
+    const onAttemptRetractedRef = useRef(onAttemptRetracted)
     useEffect(() => {
         onSequenceChangedRef.current = onSequenceChanged
         onOfficialTimeChangedRef.current = onOfficialTimeChanged
+        onSettingsChangedRef.current = onSettingsChanged
+        onAttemptRetractedRef.current = onAttemptRetracted
     })
 
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -386,6 +412,17 @@ export function useTimingBoardState(
             }
             if (message.type === 'officialTimeChanged') {
                 onOfficialTimeChangedRef.current?.(message.officialTimes)
+                return
+            }
+            if (message.type === 'settingsChanged') {
+                onSettingsChangedRef.current?.(message.settings)
+                return
+            }
+            if (message.type === 'attemptRetracted') {
+                onAttemptRetractedRef.current?.({
+                    competitionSetupMatch: message.competitionSetupMatch,
+                    competitionMatchTeams: message.competitionMatchTeams,
+                })
                 return
             }
             setAllMarks(prev => applyWsMessage(prev, message))

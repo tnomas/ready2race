@@ -14,9 +14,12 @@ import {
     getStartListConfigs,
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
-import {CompetitionTimingDeviationDto, RaceClockerRaceDto} from '@api/types.gen.ts'
+import {CaptureToneDto, RaceClockerRaceDto, ToneStepDto} from '@api/types.gen.ts'
+import CaptureToneEditor from './CaptureToneEditor.tsx'
+import FalseStartToneEditor from './FalseStartToneEditor.tsx'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
-import RaceClockerRaceAssignments from './RaceClockerRaceAssignments.tsx'
+import TimingModePanel from './TimingModePanel.tsx'
+import TimingProfileTree from './TimingProfileTree.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
@@ -31,33 +34,11 @@ import {
 } from './eventTimingConfigForm.ts'
 
 /**
- * Was an einem Wettkampf abweicht — jedes gesetzte Feld einzeln, weil ein Teil-Override („erbt das
- * System, hat aber ein eigenes Startlisten-Format") die am leichtesten zu übersehende Abweichung
- * ist. Die RaceClocker-Rennen stehen bewusst nicht mehr hier: sie werden pro Wettkampf zugewiesen
- * (RaceClockerRaceAssignments) und haben keine Veranstaltungs-Voreinstellung, von der man abweichen
- * könnte.
+ * Die Zeitnahme-Einstellungen einer Veranstaltung: Zeitnahme-System, Startlisten-Export und
+ * Ergebnis-Import — sie gelten für alle Wettkämpfe, eine Übersteuerung je Wettkampf gibt es nicht.
  *
- * Die `as never`-Casts sind der Preis dafür, dass die Schlüssel hier zusammengesetzt und nicht als
- * Literale stehen, die der i18n-Typ prüfen könnte.
- */
-const describeDeviation = (
-    deviation: CompetitionTimingDeviationDto,
-    t: (key: never, options?: object) => string,
-) =>
-    [
-        deviation.timingSystem ? t('event.timing.deviations.system' as never) : null,
-        deviation.startlistConfig ? t('event.timing.deviations.startlist' as never) : null,
-        deviation.resultImportConfig ? t('event.timing.deviations.resultImport' as never) : null,
-    ].filter(text => text !== null)
-
-/**
- * Die Zeitnahme-Voreinstellung einer Veranstaltung: Zeitnahme-System, Startlisten-Export und
- * Ergebnis-Import, gemeinsam für alle Wettkämpfe.
- *
- * Die RaceClocker-Rennen werden hier angelegt, aber nicht mehr voreingestellt — welcher Wettkampf
- * in welches Rennen exportiert, wird pro Rennen angehakt (RaceClockerRaceAssignments), weil die
- * umgekehrte Pflege bequemer ist als sich durch jeden Wettkampf zu klicken. Der Zeitnahme-Tab des
- * Wettkampfs bleibt als gezielter Override für System und Formate erhalten.
+ * Die RaceClocker-Rennen und die Zeitnahmetypen werden hier angelegt; WOMIT eine Partie gestoppt
+ * wird, steht darunter im Zeitnahmeprofil-Baum — dem einen Ort für alle vier Ebenen.
  */
 const EventTimingConfig = () => {
     const {t} = useTranslation()
@@ -136,11 +117,19 @@ const EventTimingConfig = () => {
         )
     }
 
-    // Die Abweichungen stehen bewusst außerhalb des Formulars: sie werden hier nicht bearbeitet,
-    // sondern nur gezeigt. Nach dem Speichern neu geladen, weil ein Wettkampf durch eine geänderte
-    // Voreinstellung zur Abweichung werden kann, ohne dass ihn jemand angefasst hat.
-    const [deviations, setDeviations] = useState<CompetitionTimingDeviationDto[]>([])
+    // Nach dem Speichern neu geladen — und mit demselben Stempel auch der Profil-Baum darunter,
+    // dessen Auswahl vom gespeicherten Zeitnahme-System der Veranstaltung abhängt.
     const [lastSaved, setLastSaved] = useState(0)
+    /** Angelegte oder gelöschte Zeitnahmetypen; der Baum darunter wählt aus genau dieser Liste. */
+    const [modesReloaded, setModesReloaded] = useState(0)
+
+    // Erfassungstöne der Posten (FINISH/SPLIT) und der Fehlstart-Ton: außerhalb des
+    // react-hook-form-Formulars, weil ihr Editor (Strings beim Tippen, Vorschau,
+    // Standard-Normalisierung auf null) ein eigener kontrollierter Baustein ist; gespeichert
+    // werden sie mit demselben Submit.
+    const [finishTone, setFinishTone] = useState<CaptureToneDto | null>(null)
+    const [splitTone, setSplitTone] = useState<CaptureToneDto | null>(null)
+    const [falseStartTone, setFalseStartTone] = useState<ToneStepDto[] | null>(null)
 
     useFetch(signal => getEventTimingConfig({signal, path: {eventId}}), {
         onResponse: ({data, error}) => {
@@ -148,7 +137,9 @@ const EventTimingConfig = () => {
                 feedback.error(t('common.error.unexpected'))
             } else if (data) {
                 formContext.reset(mapDtoToEventTimingForm(data))
-                setDeviations(data.deviatingCompetitions ?? [])
+                setFinishTone(data.finishTone ?? null)
+                setSplitTone(data.splitTone ?? null)
+                setFalseStartTone(data.falseStartTone ?? null)
             }
         },
         deps: [eventId, lastSaved],
@@ -156,6 +147,7 @@ const EventTimingConfig = () => {
 
     const timingSystem = useWatch({control: formContext.control, name: 'timingSystem'})
     const autoPull = useWatch({control: formContext.control, name: 'autoPull'})
+    const timingPrecision = useWatch({control: formContext.control, name: 'timingPrecision'})
 
     return (
         // Kein Card-Rahmen: die Nachbarn im Einstellungen-Tab (Dokumente, Teilnahmebedingungen)
@@ -172,7 +164,9 @@ const EventTimingConfig = () => {
                     setSubmitting(true)
                     const {error} = await updateEventTimingConfig({
                         path: {eventId},
-                        body: mapEventTimingFormToRequest(data),
+                        // Die Töne reisen immer mit (wie die Genauigkeit): ein Systemwechsel
+                        // soll die eingestellten Töne nicht verlieren.
+                        body: {...mapEventTimingFormToRequest(data), finishTone, splitTone, falseStartTone},
                     })
                     setSubmitting(false)
 
@@ -196,8 +190,103 @@ const EventTimingConfig = () => {
                             {id: 'NONE', label: t('event.timing.systems.none')},
                             {id: 'RACECLOCKER', label: t('event.timing.systems.raceclocker')},
                             {id: 'WEBSCORER', label: t('event.timing.systems.webscorer')},
+                            {id: 'INTERN', label: t('event.timing.systems.intern')},
                         ]}
                     />
+
+                    {/* Die hauseigene Zeitnahme: statt Rennen und Dateiformaten werden hier die
+                        Zeitnahmetypen gepflegt, aus denen die Startposten ihre Sequenzen ableiten.
+                        Zugeordnet werden sie im Zeitnahmeprofil-Baum unterhalb des Formulars. */}
+                    {timingSystem === 'INTERN' && (
+                        <Stack spacing={4}>
+                            <Alert variant={'outlined'} severity={'info'}>
+                                <Trans i18nKey={'event.timing.internHint'} />
+                            </Alert>
+                            {/* Genauigkeit der veröffentlichten offiziellen Zeiten. Rohdaten
+                                bleiben Millisekunden — die Einstellung wirkt auf Übernahme und
+                                Anzeige; eine Änderung rechnet die Ergebnisse serverseitig um.
+                                Der Hinweis steht dauerhaft dabei; bei feineren Stufen als
+                                Zehntel wird er zum Warn-Alert (dezent, keine Blockade): von
+                                Hand getippte Zeiten tragen menschliche Reaktionszeit, feinere
+                                Stellen wären dann Scheingenauigkeit. Alert statt eingefärbter
+                                Typography, weil die Warnfarbe der Palette ein heller
+                                Hintergrundton ist — als Textfarbe war der Hinweis auf weißem
+                                Grund kaum lesbar; der Alert setzt seinen Text selbst in einem
+                                lesbar abgedunkelten Ton. */}
+                            <Box>
+                                <FormInputRadioButtonGroup
+                                    name={'timingPrecision'}
+                                    label={t('event.timing.precision.label')}
+                                    row
+                                    options={[
+                                        {id: 'SEKUNDE', label: t('event.timing.precision.options.SEKUNDE')},
+                                        {id: 'ZEHNTEL', label: t('event.timing.precision.options.ZEHNTEL')},
+                                        {id: 'HUNDERTSTEL', label: t('event.timing.precision.options.HUNDERTSTEL')},
+                                        {id: 'MILLISEKUNDE', label: t('event.timing.precision.options.MILLISEKUNDE')},
+                                    ]}
+                                />
+                                {timingPrecision === 'HUNDERTSTEL' ||
+                                timingPrecision === 'MILLISEKUNDE' ? (
+                                    <Alert severity={'warning'} sx={{mt: 1}}>
+                                        <Trans i18nKey={'event.timing.precision.hint'} />
+                                    </Alert>
+                                ) : (
+                                    <Typography
+                                        variant={'body2'}
+                                        color={'text.secondary'}
+                                        sx={{mt: 0.5}}>
+                                        <Trans i18nKey={'event.timing.precision.hint'} />
+                                    </Typography>
+                                )}
+                            </Box>
+                            {/* Bestätigungstöne beim Erfassen, je Postentyp getrennt — die
+                                Boards bekommen den Stand über GET /timing/settings und live
+                                via settingsChanged; die Countdown-Töne der STARTPOSTEN hängen
+                                dagegen am Zeitnahmetyp (Dialog unten). */}
+                            <Box>
+                                <Typography variant={'subtitle2'} gutterBottom>
+                                    <Trans i18nKey={'event.timing.captureTones.title'} />
+                                </Typography>
+                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
+                                    <Trans i18nKey={'event.timing.captureTones.hint'} />
+                                </Typography>
+                                <Stack spacing={2}>
+                                    <CaptureToneEditor
+                                        label={t('event.timing.captureTones.finish')}
+                                        value={finishTone}
+                                        onChange={setFinishTone}
+                                    />
+                                    <CaptureToneEditor
+                                        label={t('event.timing.captureTones.split')}
+                                        value={splitTone}
+                                        onChange={setSplitTone}
+                                    />
+                                </Stack>
+                            </Box>
+                            {/* Der Fehlstart-Rückruf: eigenständig neben den Erfassungstönen und
+                                anders als sie eine FOLGE von Tönen (Zeitpunkte vorwärts ab der
+                                Auslösung). Start-Board und Startbildschirm spielen sie ganz, bei
+                                Versuchs-Rücknahme oder Abbruch einer laufenden Sequenz der gerade
+                                geführten Partie — ausgeliefert wie die Erfassungstöne über
+                                GET /timing/settings und live via settingsChanged. */}
+                            <Box>
+                                <Typography variant={'subtitle2'} gutterBottom>
+                                    <Trans i18nKey={'event.timing.falseStartTone.title'} />
+                                </Typography>
+                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
+                                    <Trans i18nKey={'event.timing.falseStartTone.hint'} />
+                                </Typography>
+                                <FalseStartToneEditor
+                                    value={falseStartTone}
+                                    onChange={setFalseStartTone}
+                                />
+                            </Box>
+                            <TimingModePanel
+                                eventId={eventId}
+                                onChanged={() => setModesReloaded(Date.now())}
+                            />
+                        </Stack>
+                    )}
 
                     {timingSystem === 'RACECLOCKER' && (
                         <Stack spacing={4}>
@@ -262,18 +351,6 @@ const EventTimingConfig = () => {
                                     <Trans i18nKey={'event.timing.races.add'} />
                                 </Button>
                             </Box>
-
-                            {/* Umgedrehte Zuordnung: am Rennen die Wettkämpfe anhaken, statt sich
-                                durch jeden Wettkampf zu klicken. Die Komponente lädt ihre Daten
-                                selbst neu; die Abweichungsliste unten ist nur informativ und zieht
-                                beim nächsten Speichern/Neuladen nach — bewusst kein Formular-Reset
-                                hier, der ungespeicherte Eingaben verwerfen würde. */}
-                            {(races ?? []).length > 0 && (
-                                <RaceClockerRaceAssignments
-                                    eventId={eventId}
-                                    races={races ?? []}
-                                />
-                            )}
 
                             <Divider />
                             <FormInputSwitch
@@ -350,8 +427,10 @@ const EventTimingConfig = () => {
 
                     {/* Die beiden Dateiformate: welche Spalten exportiert und importiert werden.
                         Auch sie gelten für die ganze Veranstaltung, weil alle Wettkämpfe in dieselben
-                        Rennen im Fremdsystem laufen und dort dieselbe Spaltenzuordnung brauchen. */}
-                    {timingSystem !== 'NONE' && (
+                        Rennen im Fremdsystem laufen und dort dieselbe Spaltenzuordnung brauchen.
+                        Nur für die Fremdsysteme — die hauseigene Zeitnahme exportiert und
+                        importiert keine Dateien. */}
+                    {(timingSystem === 'RACECLOCKER' || timingSystem === 'WEBSCORER') && (
                         <Stack spacing={4}>
                             <FormInputAutocomplete
                                 name={'startlistConfig'}
@@ -384,41 +463,24 @@ const EventTimingConfig = () => {
                         </SubmitButton>
                     </Box>
 
-                    {/* Die Reichweite dieser Voreinstellung: welche Wettkämpfe ihr bei System oder
-                        Dateiformat nicht folgen. Ohne diese Liste ändert man hier ein Format und
-                        merkt erst am Renntag, dass drei Wettkämpfe ein eigenes gesetzt haben. */}
-                    <Divider />
-                    <Box>
-                        <Typography variant={'subtitle2'} gutterBottom>
-                            <Trans i18nKey={'event.timing.deviations.title'} />
-                        </Typography>
-                        {deviations.length === 0 ? (
-                            <Typography variant={'body2'} color={'text.secondary'}>
-                                <Trans i18nKey={'event.timing.deviations.none'} />
-                            </Typography>
-                        ) : (
-                            <Stack spacing={1}>
-                                {deviations.map(deviation => (
-                                    <Box key={deviation.competitionId}>
-                                        <InlineLink
-                                            to={'/event/$eventId/competition/$competitionId'}
-                                            params={{
-                                                eventId,
-                                                competitionId: deviation.competitionId,
-                                            }}
-                                            search={{tab: 'timing'}}>
-                                            {deviation.identifier} {deviation.name}
-                                        </InlineLink>
-                                        <Typography variant={'body2'} color={'text.secondary'}>
-                                            {describeDeviation(deviation, t).join(', ')}
-                                        </Typography>
-                                    </Box>
-                                ))}
-                            </Stack>
-                        )}
-                    </Box>
                 </Stack>
             </FormContainer>
+
+            {/* Der eine Ort für „womit wird gestoppt": Veranstaltung, Wettkampf, Runde, Partie.
+                Bewusst AUSSERHALB des Formulars und seiner 720-Pixel-Spalte: Der Baum ist kein
+                Formularfeld — jede Zeile speichert für sich —, und in der schmalen Spalte blieben
+                der Beschriftung keine 250 Pixel, sodass jeder zweite Wettkampfname umbrach.
+
+                Der `key` baut ihn neu auf, sobald sich seine Auswahl ändern kann: welche Profile
+                es überhaupt gibt, hängt am GESPEICHERTEN Zeitnahme-System und an den Rennen bzw.
+                Zeitnahmetypen darüber — nicht am Radio, das noch ungespeichert ist. */}
+            <Divider sx={{my: 4, maxWidth: 1200}} />
+            <Box sx={{maxWidth: 1200}}>
+                <TimingProfileTree
+                    key={`${lastSaved}:${racesReloaded}:${modesReloaded}`}
+                    eventId={eventId}
+                />
+            </Box>
 
             <RaceClockerRaceDialog
                 eventId={eventId}

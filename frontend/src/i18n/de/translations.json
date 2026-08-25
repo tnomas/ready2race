@@ -778,6 +778,9 @@
       "description": "Beschreibung",
       "lateRegistrationAllowed": "Nachmeldung erlaubt",
       "ratingCategoryRequired": "Wertungskategorie erforderlich",
+      "distanceMeters": "Gesamtdistanz in Metern",
+      "paceReference": "Bezugsgröße Tempo",
+      "paceHint": "Beide Angaben werden nur für die Tempo-Anzeige zwischen zwei Streckenposten gebraucht. Zwischenzeiten funktionieren auch ohne sie.",
       "registrationCount": "Meldungen",
       "shortName": "Kurzname",
       "checkInOutRequired": "An-/Abmeldung in die Arena erforderlich",
@@ -1351,46 +1354,28 @@
       },
       "timing": {
         "tabTitle": "Zeitnahme",
-        "system": "Zeitnahme-System",
-        "systems": {
-          "none": "nicht gesetzt",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
-        },
-        "eventDefaults": {
-          "title": "Vorgabe der Veranstaltung",
-          "unset": "nicht gesetzt",
-          "link": "Zeitnahme der Veranstaltung bearbeiten"
-        },
-        "override": {
-          "label": "Für diesen Wettkampf abweichend einstellen",
-          "hint": "Gilt für Zeitnahme-System und Dateiformate. Aus: der Wettkampf folgt der Veranstaltung und übernimmt jede spätere Änderung dort. An: er bekommt eigene Werte. Die Rennen-Zuordnung oben bleibt davon unberührt — sie gehört immer zum Wettkampf."
-        },
-        "raceSection": {
-          "title": "Rennen dieses Wettkampfs"
-        },
-        "presets": {
-          "title": "Dateiformate",
-          "hint": "Welche Spalten exportiert und importiert werden. Abweichend nur nötig, wenn dieser Wettkampf in ein anderes Rennen im Zeitnahme-System läuft."
-        },
-        "raceclockerHint": "RaceClocker-Rennen werden in den Einstellungen der Veranstaltung angelegt. Wählen Sie hier das eine Rennen dieses Wettkampfs — es gilt für die Qualifikation und alle übrigen Runden. Dieselbe Zuordnung lässt sich auch umgekehrt am Rennen anhaken.",
-        "startlist": "Startlisten Export",
-        "resultImport": "Rennergebnisse Import",
-        "importHint": "Die RaceClocker-Vorlagen exportieren ohne Kopfzeile, weil RaceClocker eine solche Zeile sonst als Teilnehmer importiert. Ordnen Sie die Spalten beim Import in RaceClocker deshalb nach ihrer Reihenfolge zu – insbesondere die interne Kennung auf \"Extra info\".",
-        "presetsHint": {
-          "1": "Startlisten Exports und Rennergebnisse Imports werden ",
-          "2": "in der Konfiguration",
-          "3": " angelegt und gelten für alle Veranstaltungen."
+        "inheritedHint": {
+          "1": "Zeitnahme-System und Dateiformate gelten für die ganze Veranstaltung und werden ",
+          "2": "in deren Einstellungen",
+          "3": " gepflegt. Hier wird nur zugeordnet, womit dieser Wettkampf gestoppt wird."
         },
         "incomplete": {
           "title": "Diese Zeitnahme ist noch nicht einsatzbereit",
           "startlist": "Es fehlt der Startlisten Export – ohne ihn lässt sich keine Startliste als CSV exportieren.",
-          "race": "Es ist kein Rennen angewählt – ohne eines lassen sich keine Ergebnisse aus RaceClocker holen.",
-          "link": "Zu den Zeitnahme-Einstellungen"
+          "link": "Zu den Zeitnahme-Einstellungen der Veranstaltung"
         },
-        "saved": "Zeitnahme-Einstellungen gespeichert",
-        "invalid": "Bitte wählen Sie ein Rennen dieser Veranstaltung aus.",
-        "race": "RaceClocker-Rennen"
+        "stations": {
+          "title": "Posten auf der Strecke",
+          "hint": "Welche Zeitnahme-Posten dieser Wettkampf passiert und bei welchem Meter. Start- und Zielposten dürfen mit eingetragen werden — der Start bei 0, das Ziel bei der Gesamtdistanz —, damit die Strecke vollständig beschrieben ist. Eine Zwischenzeit entsteht aber nur an Posten vom Typ „Zwischenzeit“: Am Ziel wird die offizielle Zeit gemessen, deshalb gibt es dort keine Zwischenzeit und folglich auch kein Tempo für den letzten Abschnitt. Die Reihenfolge der Zwischenzeiten ergibt sich aus dem Meter, nicht aus der Reihenfolge der Posten im Leitstand. Die Posten selbst werden in den Einstellungen der Veranstaltung gepflegt.",
+          "distance": "Meter",
+          "noStations": "Für diese Veranstaltung gibt es noch keine erfassenden Zeitnahme-Posten. Anzeige-Posten stehen nicht zur Wahl, sie erfassen keine Zeiten.",
+          "saved": "Posten auf der Strecke gespeichert",
+          "warning": {
+            "missingDistance": "Für mindestens einen angehakten Posten fehlt der Meter.",
+            "overDistance": "Mindestens ein Posten steht weiter als die Gesamtdistanz des Wettkampfs ({{distance}} m).",
+            "duplicateDistance": "Zwei Posten stehen beim selben Meter."
+          }
+        }
       },
       "places": {
         "places": "Platzierungen",
@@ -1621,7 +1606,8 @@
       "settings": "Einstellungen",
       "actions": "Aktionen",
       "organisation": "Organisation",
-      "invoices": "Rechnungen"
+      "invoices": "Rechnungen",
+      "betrieb": "Betrieb"
     },
     "notice": {
       "title": "Globaler Hinweis",
@@ -1640,14 +1626,15 @@
     },
     "timing": {
       "title": "Zeitnahme",
-      "hint": "Gilt für alle Wettkämpfe dieser Veranstaltung. Ein einzelner Wettkampf kann in seinem Zeitnahme-Tab eigene Werte eintragen und weicht damit gezielt ab.",
+      "hint": "Gilt für alle Wettkämpfe dieser Veranstaltung: ein Zeitnahme-System und ein Satz Dateiformate. Womit die einzelnen Wettkämpfe, Runden und Partien gestoppt werden, wird darunter im Zeitnahmeprofil-Baum zugeordnet.",
       "system": "Zeitnahme-System",
       "systems": {
         "none": "nicht gesetzt",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Interne Zeitnahme"
       },
-      "raceclockerHint": "RaceClocker-Rennen gehören zur Veranstaltung, nicht zum Wettkampf. Legen Sie hier jedes Rennen einmal an — etwa „Langstrecke“ und „Kurzstrecke“ — und haken Sie darunter je Rennen an, welche Wettkämpfe es nutzen. Jeder Wettkampf fährt alle seine Runden in einem Rennen.",
+      "raceclockerHint": "RaceClocker-Rennen gehören zur Veranstaltung, nicht zum Wettkampf. Legen Sie hier jedes Rennen einmal an — etwa „Langstrecke“ und „Kurzstrecke“ — und ordnen Sie im Zeitnahmeprofil-Baum darunter zu, welcher Wettkampf, welche Runde oder welche Partie in welchem Rennen gefahren wird.",
       "autoPull": {
         "enabled": "Ergebnisse automatisch abrufen",
         "hint": "Läuft ein Lauf, holt der Server die Ergebnisse im schnellen Takt. Bevorstehende Läufe werden im langsamen Takt beobachtet, um ihren Start zu erkennen; beendete Läufe gar nicht.",
@@ -1665,12 +1652,92 @@
       },
       "saved": "Zeitnahme-Voreinstellung gespeichert",
       "invalid": "Die Zeitnahme-Voreinstellung konnte nicht gespeichert werden.",
-      "deviations": {
-        "title": "Wettkämpfe mit eigener Zeitnahme",
-        "none": "Kein Wettkampf weicht ab — alle folgen dieser Voreinstellung.",
-        "system": "eigenes System",
-        "startlist": "eigener Startlisten Export",
-        "resultImport": "eigener Rennergebnisse Import"
+      "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahmeprofil-Baum darunter zu.",
+      "precision": {
+        "label": "Genauigkeit der offiziellen Zeiten",
+        "hint": "Rohzeiten werden weiterhin millisekundengenau gespeichert; die Einstellung bestimmt, was als offizielle Zeit am Lauf steht und angezeigt wird (abgeschnitten, nie aufgerundet). Zehntel entspricht der Genauigkeit von Handzeitnahme. Feinere Stufen sind erst mit Zeitnahme-Hardware aussagekräftig — von Hand getippte Zeiten enthalten menschliche Reaktionszeit.",
+        "options": {
+          "SEKUNDE": "Sekunde",
+          "ZEHNTEL": "Zehntelsekunde",
+          "HUNDERTSTEL": "Hundertstelsekunde",
+          "MILLISEKUNDE": "Millisekunde"
+        }
+      },
+      "toneWaveform": {
+        "label": "Wellenform",
+        "SINE": "Sinus",
+        "TRIANGLE": "Dreieck",
+        "SQUARE": "Rechteck",
+        "SAWTOOTH": "Sägezahn",
+        "help": "Sinus und Dreieck klingen weich; Rechteck und Sägezahn klingen durchdringend-schnarrend und eignen sich als Signal- oder Warntöne."
+      },
+      "toneEnvelope": {
+        "label": "Hüllkurve",
+        "decay": "Abfallend",
+        "held": "Gehalten",
+        "decayHelp": "Abfallend: die Lautstärke fällt über die gesamte Dauer gleichmäßig ab — ein ausklingender Piepton.",
+        "heldHelp": "Gehalten: der Ton hält die volle Lautstärke über die gesamte Dauer und fällt danach im Ausklingen ab — bei 0 ms verhindert eine eingebaute Entknackung von wenigen Millisekunden ein hörbares Knacken.",
+        "summaryDecay": "abfallend",
+        "summaryHeld": "gehalten · {{millis}} ms Ausklingen"
+      },
+      "captureTones": {
+        "title": "Erfassungstöne",
+        "hint": "Der Bestätigungston, den Ziel- und Zwischenzeitposten beim Erfassen einer Zeit spielen — je Postentyp getrennt einstellbar. Er erklingt nur beim Tastendruck selbst; das Nachsenden aus der Offline-Warteschlange bleibt stumm.",
+        "finish": "Zielposten",
+        "split": "Zwischenzeitposten",
+        "frequencyHz": "Tonhöhe (Hz)",
+        "durationMillis": "Dauer (ms)",
+        "releaseMillis": "Ausklingen (ms)",
+        "play": "Ton anhören",
+        "reset": "Standard wiederherstellen",
+        "isDefault": "Standard",
+        "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms."
+      },
+      "falseStartTone": {
+        "title": "Fehlstart-Rückruf",
+        "hint": "Die Tonfolge, die Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt. Eine Folge statt eines einzelnen Tons, weil ein Muster mit abweichendem Schluss („kurz, kurz, lang\") am Wasser als Rückruf erkennbar ist, wo ein einzelner Ton als irgendein Signal durchgeht.",
+        "label": "Fehlstart",
+        "presetSingle": "Einzelton",
+        "presetTriple": "Dreifach kurz",
+        "presetShortShortLong": "Kurz-kurz-lang (Standard)",
+        "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–60000 ms nach Auslösung, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, mindestens ein und höchstens 30 Töne."
+      },
+      "modes": {
+        "title": "Zeitnahmetypen",
+        "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie im Zeitnahmeprofil-Baum darunter.",
+        "none": "Noch keine Zeitnahmetypen angelegt.",
+        "add": "Zeitnahmetyp anlegen",
+        "edit": "Zeitnahmetyp bearbeiten",
+        "name": "Name",
+        "startGrouping": {
+          "label": "Startart",
+          "EINZEL": "Einzelstart",
+          "WELLE": "Welle"
+        },
+        "intervalSeconds": "Startintervall (Sekunden)",
+        "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
+        "invalidInterval": "Das Intervall muss mindestens 1 Sekunde betragen — oder leer bleiben für Start von Hand.",
+        "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
+        "leadInHelp": "Countdown vor dem (ersten) Start.",
+        "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
+        "describe": {
+          "interval": "Intervall {{seconds}} s",
+          "manualStart": "Start von Hand",
+          "leadIn": "Vorlauf {{seconds}} s"
+        },
+        "saved": "Zeitnahmetyp gespeichert",
+        "deleted": "Zeitnahmetyp gelöscht",
+        "deleteConfirm": "Soll der Zeitnahmetyp „{{name}}“ wirklich gelöscht werden?",
+        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einer Ebene des Zeitnahmeprofil-Baums zugeordnet. Entfernen Sie zuerst die Zuordnungen im Baum darunter.",
+        "tones": {
+          "title": "Töne",
+          "hint": "Die Pieps der Startsequenz, relativ zum Start des jeweiligen Boots bzw. der Welle (0 = Start). Sie erklingen auf dem Start-Board und dem Startbildschirm; verpasste Töne werden nie nachgeholt.",
+          "presetOnlyStart": "Nur Start",
+          "presetTenCountdown": "10−5−4−3−2−1−Start",
+          "presetDefault": "Standard (5…1−Start)",
+          "previewHint": "Die Vorschau spielt die Töne zeitlich gerafft: Pausen über 2 Sekunden werden gekürzt, der Rhythmus der letzten Sekunden bleibt echt.",
+          "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
+        }
       },
       "races": {
         "title": "RaceClocker-Rennen",
@@ -1682,18 +1749,52 @@
         "capturesLaps": "Erfasst Rundenzeiten",
         "none": "Noch kein Rennen angelegt.",
         "deleteConfirm": "„{{name}}“ wirklich löschen?",
-        "deleteBlocked": "„{{name}}“ ist noch mindestens einem Wettkampf zugewiesen und wurde nicht gelöscht — hake die Zuordnung unten ab und versuche es erneut.",
+        "deleteBlocked": "„{{name}}“ ist noch mindestens einer Ebene zugewiesen und wurde nicht gelöscht — entferne die Zuordnung im Zeitnahmeprofil-Baum darunter und versuche es erneut.",
         "nameTaken": "Es gibt schon ein Rennen mit diesem Namen.",
         "urlTaken": "Es gibt schon ein Rennen mit dieser Adresse.",
         "invalidUrl": "Die Adresse muss auf raceclocker.com liegen.",
         "saved": "Rennen gespeichert.",
         "deleted": "Rennen gelöscht."
       },
-      "assignments": {
-        "title": "Wettkämpfe je Rennen zuordnen",
-        "hint": "Umgekehrt zur Anwahl im Wettkampf: Hake hier je Rennen an, welche Wettkämpfe es nutzen. Ein Wettkampf hängt mit allen seinen Runden an genau einem Rennen — hakst du ihn hier an, wandert er von einem anderen hierher. Nicht angehakte Wettkämpfe haben kein Rennen.",
-        "competitions": "Gilt für",
-        "saved": "Zuordnung gespeichert."
+      "tones": {
+        "play": "Ton anhören",
+        "edit": "Ton bearbeiten",
+        "remove": "Ton entfernen",
+        "addTone": "Ton hinzufügen",
+        "playAll": "Folge anhören",
+        "secondsBeforeStart": "Sekunden vor Start",
+        "millisAfterTrigger": "Millisekunden nach Auslösung",
+        "atStart": "Start",
+        "atTrigger": "sofort",
+        "frequencyHz": "Tonhöhe (Hz)",
+        "durationMillis": "Dauer (ms)",
+        "releaseMillis": "Ausklingen (ms)",
+        "timeline": "Zeitleiste der Töne",
+        "timelineSpan": "Gesamtlänge {{millis}} ms",
+        "offsetAfterTriggerHelp": "Der Zeitpunkt zählt vorwärts ab der Auslösung: 0 heißt sofort, 400 heißt 400 Millisekunden später."
+      },
+      "profiles": {
+        "title": "Zeitnahmeprofile",
+        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird der Wettkampfablauf selbst umgebaut, verlieren seine Partien ihre eigenen Profile \u2014 eine in der Durchf\u00fchrung neu erzeugte Runde beh\u00e4lt sie dagegen.",
+        "matchLevelExportHint": "Der Startlisten-Sammelexport gruppiert je Wettkampf. Eine Partie mit eigenem Rennen erscheint dort unter dem Rennen ihres Wettkampfs — ihre Startliste muss einzeln exportiert werden.",
+        "noSystem": "Für dieses Zeitnahme-System gibt es keine Profile. Wählen Sie oben „RaceClocker“ oder „Interne Zeitnahme“.",
+        "noOptions": "Es ist noch kein Profil angelegt. Legen Sie oben ein Rennen bzw. einen Zeitnahmetyp an.",
+        "noCompetitions": "Diese Veranstaltung hat noch keine Wettkämpfe.",
+        "event": "Ganze Veranstaltung",
+        "unset": "nicht gesetzt",
+        "inherit": "Erbt ({{profile}})",
+        "inheritsNothing": "Erbt (nichts gesetzt)",
+        "fromEvent": "Von der Veranstaltung geerbt: {{profile}}.",
+        "fromEventLink": "Zeitnahme der Veranstaltung bearbeiten",
+        "toggle": "Auf- und zuklappen",
+        "saved": "Zeitnahmeprofil gespeichert",
+        "deviations_one": "{{count}} eigenes Profil darunter",
+        "deviations_other": "{{count}} eigene Profile darunter",
+        "resetAll": "Alles darunter auf Erben",
+        "resetCompetition": "Runden und Partien dieses Wettkampfs auf Erben",
+        "resetConfirmEvent": "Alle Zuordnungen der ganzen Veranstaltung werden entfernt. Danach erbt jeder Wettkampf, jede Runde und jede Partie wieder von oben. Fortfahren?",
+        "resetConfirmCompetition": "Alle Zuordnungen der Runden und Partien von {{identifier}} {{name}} werden entfernt. Danach erben sie wieder vom Wettkampf. Fortfahren?",
+        "reset": "Zuordnungen entfernt"
       }
     },
     "info": {
@@ -1738,7 +1839,9 @@
         "advancing_one": "Weiter kommt 1 Boot → {{round}}",
         "advancingUnsized": "Weiter geht es: {{round}}",
         "birthYear": "Jg. {{year}}",
-        "registeringClub": "Meldung: {{club}}"
+        "registeringClub": "Meldung: {{club}}",
+        "lapRank": "Rang an dieser Zwischenzeit",
+        "lapPace": "Tempo im Abschnitt"
       }
     },
     "match": {
@@ -2345,6 +2448,37 @@
         "upcomingListTitle": "Nächste Läufe",
         "inMinutes": "in {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "referee": {
+        "title": "Schiedsrichter:in",
+        "description": "Das Live-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
+        "open": "Live-Dashboard öffnen"
+      },
+      "speaker": {
+        "title": "Sprecher:in",
+        "description": "Die Sprecher-Ansicht bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
+        "open": "Sprecher-Ansicht öffnen"
+      },
+      "timing": {
+        "title": "Zeitnahme",
+        "description": "Leitstand für die Zeitnahme-Leitung am Laptop, darunter die Posten (Start, Zwischenzeit, Ziel) mit direkten Links: Erfassung öffnen, Startbildschirm für START-Posten, „Auf Gerät teilen\" für Handys und Bildschirme ohne Anmeldung.",
+        "openLeitstand": "Leitstand öffnen",
+        "mobileHint": "Für Handys am Posten gibt es zusätzlich die mobile Einstiegsseite:",
+        "mobileLink": "Mobile Erfassung öffnen"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards und Stream-Overlays für die Bildregie: öffentliche Anzeigen und Chroma-Key-Kacheln für OBS.",
+        "open": "Boards & Stream-Overlays verwalten"
+      },
+      "helpers": {
+        "title": "Helfer:innen",
+        "description": "Die Helfer-App fürs Handy (QR-Scannen, Check-in/-out, Aufgaben) und der Schichtplan der Veranstaltung.",
+        "openApp": "Helfer-App öffnen",
+        "shifts": "Zum Schichtplan (Organisation)"
+      }
     }
   },
   "task": {
@@ -2617,6 +2751,23 @@
       "name": "Name",
       "description": "Beschreibung",
       "tableHint": "Können Wettkampf-Teams zugewiesen werden."
+    },
+    "paceReference": {
+      "paceReference": "Bezugsgröße Tempo",
+      "paceReferences": "Bezugsgrößen Tempo",
+      "tableHint": "Legen fest, worauf sich die Tempo-Angabe eines Wettkampfs bezieht — im Rudern die Zeit pro 500 m, im Laufen die Zeit pro Kilometer, im Radsport Kilometer pro Stunde.",
+      "name": "Name",
+      "mode": {
+        "mode": "Art",
+        "TIME_PER_DISTANCE": "Zeit pro Strecke",
+        "DISTANCE_PER_TIME": "Strecke pro Stunde"
+      },
+      "referenceMeters": "Bezugsstrecke in Metern",
+      "label": "Beschriftung",
+      "preview": "zeigt: {{label}}",
+      "error": {
+        "nameTaken": "Es gibt bereits eine Bezugsgröße mit diesem Namen."
+      }
     },
     "import": {
       "matchResult": {
@@ -2932,6 +3083,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "kein Start",
+        "NO_FINISH_MARK": "kein Ziel",
+        "NEGATIVE_DURATION": "Start nach Ziel",
+        "NO_MARKS": "keine Zeitmarken"
+      }
+    },
     "title": "Zeitnahme",
     "selectEvent": "Veranstaltung wählen",
     "selectStation": "Posten wählen",
@@ -2952,10 +3111,40 @@
       "types": {
         "START": "Start",
         "SPLIT": "Zwischenzeit",
-        "FINISH": "Ziel"
+        "FINISH": "Ziel",
+        "ANZEIGE": "Anzeige"
+      },
+      "linkedStation": {
+        "label": "Verknüpfter Start-Posten",
+        "all": "Alle Startsequenzen der Veranstaltung",
+        "hint": "Die Anzeige zeigt die Startsequenzen dieses Start-Postens (Countdown, wer ist dran, wer folgt). Ohne Verknüpfung zeigt sie die jeweils zuletzt aktive Startsequenz der Veranstaltung."
+      },
+      "captureMode": {
+        "label": "Betriebsart der Erfassung",
+        "hint": "Onetouch erfasst bei jedem Druck sofort — so arbeitet der Posten bisher. „Scharfschalten“ verlangt, dass der Zeitnehmer vor Ort den Posten scharf schaltet, bevor ein Druck eine Zeit mit Zuordnung erfasst; der große Erfassungsknopf bankt auch entschärft weiterhin eine Zeit ohne Zuordnung. Nach dem Umstellen steht der Posten entschärft da und muss vor Ort scharf geschaltet werden.",
+        "ONETOUCH": "Onetouch — jeder Druck erfasst sofort",
+        "ARMED": "Scharfschalten — der Posten schaltet sich vor Ort scharf"
       },
       "error": {
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
+      },
+      "openCapture": "Erfassung öffnen",
+      "openBoard": "Board des Postens öffnen (neues Fenster)",
+      "copyUrl": "Board-Adresse kopieren",
+      "urlCopied": "Board-Adresse kopiert",
+      "openStartDisplay": "Startbildschirm öffnen",
+      "share": {
+        "action": "Auf Gerät teilen",
+        "title": "Posten „{{station}}\" auf Gerät teilen",
+        "description": "Der Link trägt den Geräte-Zugang dieses Postens: das Gerät (geteiltes Handy, Anzeige-Bildschirm) braucht keine Anmeldung. Derselbe Posten liefert immer denselben Link — bis der Zugang im Leitstand unter „Geräte“ widerrufen wird.",
+        "copied": "Link kopiert",
+        "copy": "Link kopieren",
+        "revokeHint": "Der Link bleibt hier jederzeit abrufbar. Widerruf im Leitstand, Reiter „Geräte“ (Eintrag „Link“) — ein widerrufener Zugang macht den Link sofort unbrauchbar, der nächste Klick auf „Teilen“ erzeugt einen neuen.",
+        "target": {
+          "capture": "Erfassung",
+          "display": "Startbildschirm"
+        },
+        "error": "Der Link konnte nicht erzeugt werden."
       }
     },
     "assign": {
@@ -2970,19 +3159,63 @@
     "mark": {
       "retractError": "Rückgängig machen fehlgeschlagen"
     },
+    "finish": {
+      "assignPrompt": "Zeit {{time}} wartet — Boot antippen, um sie zuzuordnen.",
+      "assignLater": "Später zuordnen",
+      "hint": "Boot antippen oder Taste 1–6 / A–F: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Druck aufs Boot zuordnen.",
+      "hintTouch": "Boot antippen: Zeit nehmen und sofort zuordnen. Große Fläche: Zeit ohne Boot speichern und danach durch Antippen eines Boots zuordnen.",
+      "finishedCount": "{{finished}}/{{total}} im Ziel",
+      "upcomingTitle": "Als Nächstes erwartet",
+      "noneExpected": "Gerade ist keine Partie auf dem Wasser.",
+      "focused": "Fokussiert",
+      "startMissing": "Start fehlt — Ergebnis folgt, sobald der Start gesetzt ist",
+      "focusHint": "Tasten wirken nur auf die fokussierte Partie — Fokus mit Tab oder Klick wechseln."
+    },
+    "matches": {
+      "title": "Startliste",
+      "loadError": "Die Partien konnten nicht geladen werden.",
+      "empty": "Keine Partien mit interner Zeitnahme.",
+      "boats_one": "{{count}} Boot",
+      "boats_other": "{{count}} Boote",
+      "noMode": "kein Zeitnahmetyp",
+      "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
+      "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
+      "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
+      "start": "Startsequenz starten",
+      "startSelected": "Starten: {{match}}",
+      "error": {
+        "start": "Die Startsequenz konnte nicht gestartet werden.",
+        "restart": "Der Start konnte nicht zurückgenommen werden."
+      },
+      "mode": {
+        "interval": "alle {{seconds}} s",
+        "EINZEL": "Einzelstart",
+        "WELLE": "Welle"
+      },
+      "progress": {
+        "OPEN": "offen",
+        "STARTING": "Startsequenz läuft",
+        "STARTED": "gestartet",
+        "FINISHED": "im Ziel"
+      },
+      "menu": {
+        "open": "Aktionen der Partie"
+      },
+      "abortSequence": "Sequenz abbrechen",
+      "restart": "Start zurücknehmen und neu starten",
+      "restartConfirm": {
+        "title": "Versuch verwerfen?",
+        "content": "Der ganze Versuch von {{match}} wird zurückgenommen — Startmarken UND bereits erfasste Zielzeiten; die Partie steht danach wieder als offen in der Startliste. Eine laufende Sequenz wird zuerst abgebrochen. Soll nur eine einzelne Startzeit korrigiert werden, nimm stattdessen die Marke in der Zeitenliste zurück — die Zielzeiten bleiben dabei erhalten.",
+        "ok": "Versuch verwerfen",
+        "keep": "Nichts ändern"
+      },
+      "restartDone": "Versuch zurückgenommen — die Partie kann neu gestartet werden",
+      "startFocused": "Start: {{match}}"
+    },
     "sequence": {
       "mode": {
         "MASS": "Massenstart",
         "INTERVAL": "Einzelstart"
-      },
-      "setup": {
-        "title": "Sequenz einrichten",
-        "intervalSeconds": "Abstand (Sekunden)",
-        "leadInSeconds": "Vorlauf (Sekunden)",
-        "leadInHelp": "Zeit vom Start der Sequenz bis zum ersten Start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} von {{total}} ausgewählt",
-        "orderHint": "Startreihenfolge folgt der Startnummer",
-        "armButton": "Sequenz scharf stellen"
       },
       "armed": {
         "title": "Sequenz scharf",
@@ -2995,8 +3228,7 @@
       },
       "summary": {
         "titleDone": "Sequenz abgeschlossen",
-        "titleAborted": "Sequenz abgebrochen",
-        "reset": "Neue Sequenz"
+        "titleAborted": "Sequenz abgebrochen"
       },
       "entry": {
         "skip": "Überspringen",
@@ -3006,10 +3238,11 @@
           "content": "{{team}} wird nicht gestartet. Das kann nicht rückgängig gemacht werden."
         }
       },
-      "abort": "Abbrechen",
+      "abort": "Sequenz abbrechen",
       "abortConfirm": {
         "title": "Sequenz wirklich abbrechen?",
-        "content": "Ausstehende Starts werden nicht mehr ausgelöst."
+        "content": "Ausstehende Starts werden nicht mehr ausgelöst.",
+        "keep": "Weiterlaufen lassen"
       },
       "loadError": "Sequenz konnte nicht geladen werden",
       "retry": "Erneut versuchen",
@@ -3017,13 +3250,14 @@
         "create": "Sequenz konnte nicht angelegt werden",
         "start": "Sequenz konnte nicht gestartet werden",
         "abort": "Abbrechen fehlgeschlagen",
-        "skip": "Überspringen fehlgeschlagen",
-        "invalidInterval": "Abstand muss mindestens 1 Sekunde betragen",
-        "invalidLeadIn": "Vorlauf muss zwischen {{min}} und {{max}} Sekunden liegen",
-        "noTeams": "Mindestens ein Team auswählen"
+        "skip": "Überspringen fehlgeschlagen"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} gestartet"
       }
     },
     "board": {
+      "noCourseAssignment": "Dieser Posten steht bei keinem Wettkampf auf der Strecke — deshalb ist die Liste leer. Eine Zwischenzeit entsteht nur dort, wo der Posten im Zeitnahme-Tab des Wettkampfs mit seinem Meter eingetragen ist. Zeiten lassen sich weiterhin banken und später von Hand zuordnen.",
       "wsStatus": {
         "CONNECTING": "Verbindet…",
         "OPEN": "Verbunden",
@@ -3058,24 +3292,31 @@
         }
       },
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
+      "armed": {
+        "blockedTitle": "Erfassung gesperrt — Posten entschärft",
+        "blockedHint": "Zum Erfassen den Schalter eine Sekunde halten. Notfalls die Zeit über den großen Knopf ohne Zuordnung banken und später zuordnen.",
+        "stateArmed": "Scharf — Erfassung frei",
+        "stateDisarmed": "Entschärft — keine Erfassung",
+        "holdHint": "Eine Sekunde halten",
+        "arm": "Scharf schalten",
+        "disarm": "Entschärfen",
+        "captureFallback": "Zeit ohne Zuordnung banken",
+        "error": "Schalten fehlgeschlagen"
+      },
       "capture": {
         "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
         "stationLoading": "Posten wird geladen…"
       },
+      "markList": {
+        "toggle": "Zeitenliste ({{count}})"
+      },
+      "audioHint": "Einmal auf den Bildschirm tippen, damit die Countdown-Töne abgespielt werden können.",
       "mark": {
         "pending": "wird übertragen",
         "failed": "fehlgeschlagen",
         "undo": "Rückgängig machen"
       },
       "teams": {
-        "viewTwoStep": "Zwei-Schritt",
-        "viewTeams": "Teams",
-        "arm": "Scharfstellen",
-        "armHint": "Teams antippen, um sie auf eine Taste zu legen",
-        "armedFull": "Es können höchstens {{count}} Teams gleichzeitig scharfgestellt werden",
-        "unarm": "Scharfstellung aufheben",
-        "hint": "Tasten 1–9: Startnummer · Leertaste: Zeit ohne Zuordnung",
-        "empty": "Keine Teams für dieses Event vorhanden",
         "phase": {
           "ACTIVE": "Jetzt erwartet",
           "OPEN": "Noch offen",
@@ -3089,7 +3330,8 @@
       "tab": {
         "times": "Zeiten",
         "results": "Ergebnisse",
-        "devices": "Geräte"
+        "devices": "Geräte",
+        "overview": "Übersicht"
       },
       "marks": {
         "stationFilter": "Posten",
@@ -3129,6 +3371,10 @@
           "success_one": "{{count}} Zeit entfernt",
           "success_other": "{{count}} Zeiten entfernt",
           "error": "Zeiten konnten nicht entfernt werden"
+        },
+        "reactivate": {
+          "action": "Wieder aktivieren",
+          "error": "Die Zeit konnte nicht wieder aktiviert werden"
         }
       },
       "results": {
@@ -3140,7 +3386,7 @@
         "pushableCount_other": "{{count}} Zeilen übertragbar",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Veraltet",
-        "dirtyHint": "Seit der Berechnung bzw. Übernahme wurde eine Zeit geändert – neu berechnen und erneut übernehmen",
+        "dirtyHint": "Das Ergebnis am Lauf entspricht nicht dem aktuellen Stand der Zeitnahme – eingefroren, fremd geändert oder Übernahme ausgeschaltet",
         "notPushed": "nicht übernommen",
         "column": {
           "team": "Startnr. / Team",
@@ -3151,6 +3397,7 @@
           "penalty": "Strafzeit",
           "status": "Status",
           "effective": "Effektiv",
+          "place": "Platz",
           "pushed": "Übernommen"
         },
         "status": {
@@ -3158,22 +3405,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Neu berechnen",
-          "error": "Berechnung fehlgeschlagen",
-          "resultTitle": "Berechnung abgeschlossen",
-          "computedCount_one": "{{count}} Zeit berechnet",
-          "computedCount_other": "{{count}} Zeiten berechnet",
-          "skippedCount_one": "{{count}} Team übersprungen",
-          "skippedCount_other": "{{count}} Teams übersprungen",
-          "noSkips": "Kein Team wurde übersprungen",
-          "skipReason": {
-            "NO_START_MARK": "Keine Startzeit",
-            "NO_FINISH_MARK": "Keine Zielzeit",
-            "NEGATIVE_DURATION": "Zielzeit liegt vor der Startzeit",
-            "NO_MARKS": "Keine Zeitmarken"
-          }
         },
         "push": {
           "action": "In Ergebnisse übernehmen",
@@ -3209,7 +3440,9 @@
           "statusHelp": "DNS/DNF/DSQ ersetzen die Zeit im Ergebnis",
           "invalidSeconds": "Bitte eine Zahl in Sekunden eingeben",
           "error": "Speichern fehlgeschlagen",
-          "success": "Zeit gespeichert"
+          "success": "Zeit gespeichert",
+          "penaltyNote": "Grund der Strafzeit",
+          "penaltyNoteHelp": "Freitext; wird mit der Strafe am Lauf angezeigt"
         }
       },
       "devices": {
@@ -3245,8 +3478,74 @@
             "title": "Token widerrufen?",
             "content": "Das Gerät „{{name}}“ kann danach keine Zeiten mehr senden."
           }
+        },
+        "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatische Übernahme",
+          "hintOn": "Zugeordnete Zeiten stehen sofort am Lauf",
+          "hintOff": "Zeiten laufen auf, werden aber nicht an die Läufe geschrieben",
+          "enabled": "Automatische Übernahme eingeschaltet – Stand wurde nachgezogen",
+          "disabled": "Automatische Übernahme ausgeschaltet",
+          "error": "Der Schalter konnte nicht gespeichert werden",
+          "loadError": "Der Stand der automatischen Übernahme konnte nicht geladen werden"
+        },
+        "stations": {
+          "empty": "Es gibt noch keine Posten",
+          "armed": {
+            "ARMED": "scharf",
+            "DISARMED": "entschärft",
+            "ONETOUCH": "Onetouch",
+            "hint": {
+              "ARMED": "Der Posten ist scharf geschaltet und erfasst.",
+              "DISARMED": "Der Posten ist entschärft: Boots-Knöpfe und Tasten erfassen nichts. Nur der Zeitnehmer vor Ort kann scharf schalten — vor dem Rennen anrufen.",
+              "ONETOUCH": "Onetouch: Jeder Druck erfasst sofort, es gibt nichts scharf zu schalten."
+            }
+          },
+          "lastMark": "Letzter Eingang {{time}}",
+          "noMarks": "Noch kein Eingang",
+          "shareLink": "Geräte-Link ausgestellt",
+          "sequence": "Sequenz {{match}}: {{started}}/{{total}} gestartet",
+          "sequenceUnknown": "läuft"
+        },
+        "matches": {
+          "title": "Zuletzt aktive Läufe",
+          "empty": "Noch keine aktiven Läufe – sobald Zeiten zugeordnet sind, erscheinen sie hier",
+          "progress": {
+            "OPEN": "Offen",
+            "STARTING": "Startsequenz läuft",
+            "STARTED": "Gestartet",
+            "FINISHED": "Im Ziel"
+          }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Startbildschirm",
+      "idle": "Keine Startsequenz aktiv",
+      "armed": "Startsequenz vorbereitet",
+      "finishing": "Alle Starts erfolgt",
+      "done": "Startsequenz abgeschlossen",
+      "aborted": "Startsequenz abgebrochen",
+      "next": "Am Start",
+      "following": "Danach",
+      "notStart": "Dieser Posten ist kein Start-Posten — der Startbildschirm zeigt hier nichts an."
+    },
+    "schedule": {
+      "title": "Tagesablauf",
+      "expand": "Tagesablauf einblenden",
+      "collapse": "Tagesablauf ausblenden",
+      "status": {
+        "OPEN": "offen",
+        "STARTING": "Sequenz läuft",
+        "STARTED": "gestartet",
+        "FINISHED": "fertig",
+        "finishProgress": "{{finished}}/{{total}} im Ziel"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "Ohne Partie"
     }
   },
   "caterer": {

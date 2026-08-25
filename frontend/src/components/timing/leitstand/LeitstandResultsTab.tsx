@@ -18,25 +18,27 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material'
-import CalculateIcon from '@mui/icons-material/Calculate'
 import EditIcon from '@mui/icons-material/Edit'
 import PublishIcon from '@mui/icons-material/Publish'
 import {useCallback, useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
-import {computeOfficialTimes, pushOfficialTimes} from '@api/sdk.gen.ts'
+import {pushOfficialTimes} from '@api/sdk.gen.ts'
 import {
     OfficialTimeDto,
     OfficialTimePushConflictDto,
-    OfficialTimeSkipDto,
+    TimingPrecision,
     TimingTeamDto,
 } from '@api/types.gen.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
+import OfficialTimeReasonChip from '@components/timing/leitstand/OfficialTimeReasonChip.tsx'
+import {computedReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {
     formatDuration,
+    formatOfficialTime,
     formatSeconds,
     formatTimeOfDay,
     teamContextLabel,
@@ -49,6 +51,12 @@ export type LeitstandResultsTabProps = {
     officialTimes: OfficialTimeDto[]
     officialTimesPending: boolean
     reloadOfficialTimes: () => void
+    /**
+     * Genauigkeit der Veranstaltung: die Spalte „Offiziell" zeigt genau die Stellen, die am Lauf
+     * stehen. Die Arbeitsspalten (Berechnet, Überschrieben) bleiben millisekundenfein — der
+     * Bediener muss sehen, was wirklich gemessen bzw. eingetragen wurde.
+     */
+    precision: TimingPrecision
 }
 
 type ResultRow = {
@@ -104,19 +112,15 @@ const LeitstandResultsTab = ({
     officialTimes,
     officialTimesPending,
     reloadOfficialTimes,
+    precision,
 }: LeitstandResultsTabProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
 
     const [selected, setSelected] = useState<Set<string>>(new Set())
-    const [computing, setComputing] = useState(false)
     const [pushing, setPushing] = useState(false)
     const [editTeamId, setEditTeamId] = useState<string | null>(null)
-    const [computeResult, setComputeResult] = useState<{
-        computed: number
-        skipped: OfficialTimeSkipDto[]
-    } | null>(null)
     const [conflicts, setConflicts] = useState<{
         list: OfficialTimePushConflictDto[]
         teams: string[]
@@ -181,28 +185,8 @@ const LeitstandResultsTab = ({
         })
     }, [pushableIds])
 
-    const handleCompute = useCallback(() => {
-        setComputing(true)
-        void (async () => {
-            try {
-                // Empty body = every team of the event; the per-team form exists on the API but the
-                // Leitstand's "Neu berechnen" is deliberately the whole event (a recompute never
-                // touches overrides, penalties or statuses, so it is safe to run broadly).
-                const {data, error} = await computeOfficialTimes({path: {eventId}, body: {}})
-                if (error !== undefined || data === undefined) {
-                    feedback.error(t('timing.leitstand.results.compute.error'))
-                    return
-                }
-                setComputeResult({computed: data.computed.length, skipped: data.skipped})
-                reloadOfficialTimes()
-            } catch {
-                feedback.error(t('common.error.unexpected'))
-            } finally {
-                setComputing(false)
-            }
-        })()
-    }, [eventId, feedback, reloadOfficialTimes, t])
-
+    // Ein "Neu berechnen" gibt es nicht mehr: die Echtzeit-Übernahme rechnet bei jeder Mutation
+    // serverseitig nach - dieser Reiter zeigt nur noch an und übernimmt (bei Bedarf) von Hand.
     const runPush = useCallback(
         (teamIds: string[], force: boolean) => {
             setPushing(true)
@@ -298,13 +282,6 @@ const LeitstandResultsTab = ({
         <Stack spacing={2} sx={{width: 1}}>
             <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
                 <Button
-                    variant="outlined"
-                    startIcon={<CalculateIcon />}
-                    disabled={computing}
-                    onClick={handleCompute}>
-                    {t('timing.leitstand.results.compute.action')}
-                </Button>
-                <Button
                     variant="contained"
                     startIcon={<PublishIcon />}
                     disabled={pushing || (selected.size === 0 && pushableIds.length === 0)}
@@ -343,6 +320,7 @@ const LeitstandResultsTab = ({
                             <TableCell>{t('timing.leitstand.results.column.penalty')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.status')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.effective')}</TableCell>
+                            <TableCell>{t('timing.leitstand.results.column.place')}</TableCell>
                             <TableCell>{t('timing.leitstand.results.column.pushed')}</TableCell>
                             <TableCell align="right">{t('common.actions')}</TableCell>
                         </TableRow>
@@ -386,9 +364,17 @@ const LeitstandResultsTab = ({
                                             : '–'}
                                     </TableCell>
                                     <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
-                                        {official?.computedMillis !== undefined
-                                            ? formatDuration(official.computedMillis)
-                                            : '–'}
+                                        {official?.computedMillis !== undefined ? (
+                                            formatDuration(official.computedMillis)
+                                        ) : computedReason(official) !== null ? (
+                                            // Statt des leeren Werts der Grund: warum aus den
+                                            // Marken (noch) keine Zeit berechnet werden kann.
+                                            <OfficialTimeReasonChip
+                                                reason={computedReason(official)!}
+                                            />
+                                        ) : (
+                                            '–'
+                                        )}
                                     </TableCell>
                                     <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
                                         {official?.overrideMillis !== undefined
@@ -396,11 +382,24 @@ const LeitstandResultsTab = ({
                                             : '–'}
                                     </TableCell>
                                     <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
-                                        {official !== undefined && official.penaltyMillis !== 0
-                                            ? t('timing.leitstand.results.penaltyValue', {
-                                                  seconds: formatSeconds(official.penaltyMillis),
-                                              })
-                                            : '–'}
+                                        {official !== undefined && official.penaltyMillis !== 0 ? (
+                                            <>
+                                                {t('timing.leitstand.results.penaltyValue', {
+                                                    seconds: formatSeconds(official.penaltyMillis),
+                                                })}
+                                                {official.penaltyNote !== undefined &&
+                                                    official.penaltyNote !== null && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            display="block">
+                                                            {official.penaltyNote}
+                                                        </Typography>
+                                                    )}
+                                            </>
+                                        ) : (
+                                            '–'
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {official !== undefined && official.resultStatus !== 'NONE' ? (
@@ -423,7 +422,16 @@ const LeitstandResultsTab = ({
                                             fontVariantNumeric: 'tabular-nums',
                                         }}>
                                         {official?.effectiveMillis !== undefined
-                                            ? formatDuration(official.effectiveMillis)
+                                            ? // Offizielle Zeit in der eingestellten Genauigkeit -
+                                              // exakt der Wert, den die Übernahme an den Lauf schreibt.
+                                              formatOfficialTime(official.effectiveMillis, precision)
+                                            : '–'}
+                                    </TableCell>
+                                    <TableCell sx={{fontVariantNumeric: 'tabular-nums'}}>
+                                        {/* Der Platz, wie er am Lauf steht - aus den Zeiten
+                                            abgeleitet; Gleichstände teilen sich den Platz. */}
+                                        {official?.place !== undefined && official.place !== null
+                                            ? official.place
                                             : '–'}
                                     </TableCell>
                                     <TableCell>
@@ -470,7 +478,7 @@ const LeitstandResultsTab = ({
                         })}
                         {rows.length === 0 && !officialTimesPending && (
                             <TableRow>
-                                <TableCell colSpan={11}>
+                                <TableCell colSpan={12}>
                                     <Typography variant="body2" color="text.secondary">
                                         {t('timing.leitstand.results.empty')}
                                     </Typography>
@@ -480,47 +488,6 @@ const LeitstandResultsTab = ({
                     </TableBody>
                 </Table>
             </Box>
-
-            <Dialog
-                open={computeResult !== null}
-                onClose={() => setComputeResult(null)}
-                fullWidth
-                maxWidth="sm">
-                <DialogTitle>{t('timing.leitstand.results.compute.resultTitle')}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText sx={{mb: 2}}>
-                        {t('timing.leitstand.results.compute.computedCount', {
-                            count: computeResult?.computed ?? 0,
-                        })}
-                    </DialogContentText>
-                    {(computeResult?.skipped.length ?? 0) === 0 ? (
-                        <Typography variant="body2" color="text.secondary">
-                            {t('timing.leitstand.results.compute.noSkips')}
-                        </Typography>
-                    ) : (
-                        <Stack spacing={0.5}>
-                            <Typography variant="subtitle2">
-                                {t('timing.leitstand.results.compute.skippedCount', {
-                                    count: computeResult?.skipped.length ?? 0,
-                                })}
-                            </Typography>
-                            {computeResult?.skipped.map(skip => (
-                                <Typography key={skip.competitionMatchTeam} variant="body2">
-                                    {teamLabel(
-                                        teamById.get(skip.competitionMatchTeam),
-                                        skip.competitionMatchTeam,
-                                    )}
-                                    {' — '}
-                                    {t(`timing.leitstand.results.compute.skipReason.${skip.reason}`)}
-                                </Typography>
-                            ))}
-                        </Stack>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setComputeResult(null)}>{t('common.close')}</Button>
-                </DialogActions>
-            </Dialog>
 
             <Dialog
                 open={conflicts !== null}

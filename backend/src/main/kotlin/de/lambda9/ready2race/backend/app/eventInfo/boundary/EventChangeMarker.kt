@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -31,9 +32,19 @@ object EventChangeMarker {
 
     private val counters = ConcurrentHashMap<UUID, AtomicLong>()
 
-    /** Meldet eine Änderung an der Veranstaltung — alle Cache-Einträge davor sind damit alt. */
+    /**
+     * Meldet eine Änderung an der Veranstaltung — alle Cache-Einträge davor sind damit alt.
+     *
+     * Zusätzlich wird der neue Stand über den Veranstaltungs-Kanal an verbundene Anzeigen
+     * gepusht ([EventChangeBroadcaster]) — zentral hier statt an den ~30 Aufrufstellen. Der
+     * Push läuft über [AfterCommit]: die Clients laden auf den Fingerzeig hin sofort nach,
+     * und ein Push vor dem Commit ließe sie den alten Stand lesen und (mit dem neuen
+     * Markerstand versehen) bis zum TTL-Ablauf im Cache festhalten. Das Inkrement selbst
+     * bleibt bewusst sofort wirksam — ein zu früh entwerteter Cache kostet nur einen Abruf.
+     */
     fun bump(eventId: UUID) {
-        counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
+        val stand = counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
+        AfterCommit.register { EventChangeBroadcaster.broadcast(eventId, stand) }
     }
 
     /**

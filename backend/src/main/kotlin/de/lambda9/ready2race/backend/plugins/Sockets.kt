@@ -2,7 +2,10 @@ package de.lambda9.ready2race.backend.plugins
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
 import de.lambda9.ready2race.backend.calls.requests.authenticateAnyWithToken
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
@@ -35,6 +38,8 @@ const val TIMING_WS_SUBPROTOCOL = "r2r"
 
 private const val TIMING_WS_PATH = "/api/ws/event/{eventId}/timing"
 
+private const val EVENT_CHANGE_WS_PATH = "/api/ws/event/{eventId}/info"
+
 fun Application.configureSockets(env: JEnv) {
     install(WebSockets) {
         pingPeriod = 15.seconds
@@ -51,6 +56,44 @@ fun Application.configureSockets(env: JEnv) {
         webSocket(TIMING_WS_PATH) {
             timingSocket(env)
         }
+
+        // Veranstaltungs-Kanal der Anzeigen: pusht den Änderungsmarker (EventChangeMarker) an
+        // alle verbundenen Boards, damit die nicht mehr im Takt pollen müssen. Bewusst OHNE
+        // Authentifizierung: der Kanal spiegelt die öffentlichen Anzeige-Endpunkte unter
+        // /event/{eventId}/info (eventInfo.kt) — montierte Bildschirme und Athleten-Handys laden
+        // ohne Anmeldung, also verbinden sie sich auch ohne. Preisgegeben wird nur „es hat sich
+        // etwas geändert" samt Zählerstand, nie Nutzdaten.
+        webSocket(EVENT_CHANGE_WS_PATH) {
+            eventChangeSocket()
+        }
+    }
+}
+
+private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
+    val rawEventId = call.parameters["eventId"]
+    val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    if (eventId == null) {
+        // Wie beim Timing-Kanal: der Pfadparameter ist client-kontrolliert und könnte per CR/LF
+        // Logzeilen fälschen — vor dem Loggen entschärfen.
+        val sanitized = rawEventId?.replace(Regex("[\r\n]"), "")
+        logger.info { "Rejecting event-change ws handshake: invalid eventId '$sanitized'" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid eventId"))
+        return
+    }
+
+    // Der aktuelle Stand sofort beim Verbinden: ein Client, der nach einem Funkloch neu
+    // verbindet, sieht daran (und am Reconnect selbst), dass er nachladen muss.
+    send(Frame.Text(EventChangeBroadcaster.message(EventChangeMarker.current(eventId))))
+
+    val subscription = EventChangeBroadcaster.subscribe(eventId) { json ->
+        send(Frame.Text(json))
+    }
+    try {
+        // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
+        // Ktor-Pings aus configureSockets).
+        incoming.consumeEach { }
+    } finally {
+        EventChangeBroadcaster.unsubscribe(subscription)
     }
 }
 
@@ -73,22 +116,36 @@ private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
         return
     }
 
-    val authorized = authenticateAnyWithToken(
+    val sessionAuthorized = authenticateAnyWithToken(
         token,
         Privilege.UpdateAppTimingGlobal,
         Privilege.UpdateEventGlobal,
         Privilege.ReadEventGlobal,
     ).unsafeRunSync(env).fold(
         onSuccess = { true },
-        onError = { error ->
-            logger.info { "Rejecting timing ws handshake for event $eventId: $error" }
-            false
-        },
+        onError = { false },
         onDefect = { defect ->
             logger.warn(defect) { "Rejecting timing ws handshake for event $eventId: authentication failed" }
             false
         },
     )
+
+    // Kein gültiger Sitzungstoken? Dann kann der Token-Slot des Subprotokolls auch ein
+    // Geräte-Token tragen: geteilte Posten-Links (Erfassung/Startbildschirm) laufen ohne
+    // Anmeldung und brauchen den Live-Kanal trotzdem. Dieselben Tokens wie beim
+    // Zeitmarken-POST, dieselbe Widerrufbarkeit über den Leitstand-Geräte-Reiter.
+    val authorized = sessionAuthorized || TimingDeviceTokenService.validateForEvent(token, eventId)
+        .unsafeRunSync(env).fold(
+            onSuccess = { true },
+            onError = { error ->
+                logger.info { "Rejecting timing ws handshake for event $eventId: $error" }
+                false
+            },
+            onDefect = { defect ->
+                logger.warn(defect) { "Rejecting timing ws handshake for event $eventId: device token check failed" }
+                false
+            },
+        )
     if (!authorized) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
         return

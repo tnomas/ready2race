@@ -1,9 +1,12 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingPrecisionLogic
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
@@ -11,8 +14,62 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingSta
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
 import de.lambda9.ready2race.backend.parsing.Parser
 import de.lambda9.tailwind.core.KIO
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.jooq.JSONB
 import java.time.LocalDateTime
 import java.util.UUID
+
+/**
+ * Eigener Mapper mit Kotlin-Modul für die Ton-JSONB-Spalten ([ToneStep], [CaptureTone]) -
+ * dasselbe Muster wie beim Board-Config-Mapper (eventInfo/control/Conversions.kt): der nackte
+ * ObjectMapper kann Kotlin-Datenklassen nicht konstruieren.
+ */
+private val toneMapper = ObjectMapper().registerKotlinModule()
+
+fun List<ToneStep>.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+
+fun JSONB?.toTonePlan(): List<ToneStep>? =
+    this?.let { toneMapper.readValue<List<ToneStep>>(it.data()) }
+
+/**
+ * Die Fehlstart-FOLGE aus ihrer jsonb-Spalte - mit Rückwärtskompatibilität OHNE Migration.
+ *
+ * Bis zum 24.08.2026 war der Fehlstart-Ton ein EINZELTON und liegt in bestehenden Datenbanken
+ * als jsonb-OBJEKT (`{"frequencyHz":200,"durationMillis":2000,...}`); seither schreibt der
+ * Service immer ein ARRAY. Statt einer Migration, die jede Zeile anfassen müsste (und bei einem
+ * Rollback wieder zurückmüsste), entscheidet hier die Gestalt des gespeicherten Werts: ein
+ * Objekt wird als einelementige Folge mit Zeitpunkt 0 gelesen - der alte Ton klingt also
+ * unverändert, sofort bei der Auslösung, und beim nächsten Speichern wandert er von selbst in
+ * die neue Array-Form.
+ *
+ * Ein Array-Wert geht direkt durch; alles andere (Zahl, String, `null`-Literal) ist kaputter
+ * Bestand und fliegt wie bisher beim Einlesen, statt still zu einem stummen Board zu werden.
+ */
+fun JSONB?.toToneSequence(): List<ToneStep>? =
+    this?.let {
+        val node = toneMapper.readTree(it.data())
+        if (node.isObject) {
+            val tone = toneMapper.treeToValue(node, CaptureTone::class.java)
+            listOf(
+                ToneStep(
+                    offsetMillis = 0,
+                    frequencyHz = tone.frequencyHz,
+                    durationMillis = tone.durationMillis,
+                    releaseMillis = tone.releaseMillis,
+                    waveform = tone.waveform,
+                )
+            )
+        } else {
+            toneMapper.readValue<List<ToneStep>>(it.data())
+        }
+    }
+
+fun CaptureTone.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+
+fun JSONB?.toCaptureTone(): CaptureTone? =
+    this?.let { toneMapper.readValue<CaptureTone>(it.data()) }
 
 fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
     TimingStationDto(
@@ -21,6 +78,11 @@ fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
         name = name,
         type = TimingStationType.valueOf(type),
         sorting = sorting,
+        linkedStation = linkedStation,
+        // Beide Spalten sind not null mit Vorgabe (V202608251300); nullable ist nur der Typ, den
+        // der jOOQ-Generator vergibt.
+        captureMode = TimingCaptureMode.valueOf(captureMode!!),
+        armed = armed!!,
     )
 )
 
@@ -32,6 +94,12 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
             name = name,
             type = type.name,
             sorting = sorting,
+            linkedStation = linkedStation,
+            // null im Request heißt beim Anlegen schlicht: die Vorgabe.
+            captureMode = (captureMode ?: TimingCaptureMode.ONETOUCH).name,
+            // Ein neuer Posten ist nie scharf - scharf schaltet ihn der Zeitnehmer, nicht das
+            // Anlegen.
+            armed = false,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,
@@ -101,6 +169,7 @@ fun officialTimeDto(
     record: TimingOfficialTimeRecord,
     startMillis: Long?,
     finishMillis: Long?,
+    place: Int?,
 ): OfficialTimeDto = OfficialTimeDto(
     competitionMatchTeam = record.competitionMatchTeam,
     event = record.event,
@@ -109,10 +178,12 @@ fun officialTimeDto(
     computedMillis = record.computedMillis,
     overrideMillis = record.overrideMillis,
     penaltyMillis = record.penaltyMillis ?: 0L,
+    penaltyNote = record.penaltyNote,
     resultStatus = OfficialTimeResultStatus.valueOf(record.resultStatus!!),
     effectiveMillis = effectiveMillis(record),
     dirty = record.dirty ?: false,
     pushedAt = record.pushedAt,
+    place = place,
 )
 
 /**
@@ -124,6 +195,7 @@ fun unpersistedOfficialTimeDto(
     eventId: UUID,
     startMillis: Long?,
     finishMillis: Long?,
+    place: Int?,
 ): OfficialTimeDto = OfficialTimeDto(
     competitionMatchTeam = teamId,
     event = eventId,
@@ -132,10 +204,12 @@ fun unpersistedOfficialTimeDto(
     computedMillis = null,
     overrideMillis = null,
     penaltyMillis = 0L,
+    penaltyNote = null,
     resultStatus = OfficialTimeResultStatus.NONE,
     effectiveMillis = null,
     dirty = false,
     pushedAt = null,
+    place = place,
 )
 
 /**
@@ -145,18 +219,51 @@ fun unpersistedOfficialTimeDto(
  * the very same [Parser.timecode] that `CompetitionExecutionService.updateMatchResult(-ByFile)` runs
  * on a time cell, so the stored `base_unit` / `millisecond_precision` cannot drift from what an
  * imported time of the same length would have produced. The base unit follows the magnitude (as a
- * hand-typed or exported time would), the precision is always THREE because timing marks are
- * millisecond-exact.
+ * hand-typed or exported time would).
+ *
+ * Die Millisekunden-Präzision folgt der eingestellten Genauigkeit der Veranstaltung
+ * ([TimingPrecision] -> [TimingPrecisionLogic.timecodePrecision]): der Aufrufer übergibt
+ * [effectiveMillis] bereits ABGESCHNITTEN, und die Stellenzahl des gerenderten Timecodes zeigt
+ * genau diese Stufe - bei ZEHNTEL steht am Lauf "1:31.5", nicht "1:31.500".
  */
-fun officialTimecode(effectiveMillis: Long): Timecode {
+fun officialTimecode(effectiveMillis: Long, precision: TimingPrecision): Timecode {
     val baseUnit = when {
         effectiveMillis >= 3_600_000 -> Timecode.BaseUnit.HOURS
         effectiveMillis >= 60_000 -> Timecode.BaseUnit.MINUTES
         else -> Timecode.BaseUnit.SECONDS
     }
-    val rendered = Timecode(effectiveMillis, baseUnit, Timecode.MillisecondPrecision.THREE).toString()
+    val rendered = Timecode(effectiveMillis, baseUnit, TimingPrecisionLogic.timecodePrecision(precision)).toString()
     return Parser.timecode.parse(rendered)
 }
+
+fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
+    id = id,
+    event = event,
+    name = name,
+    startGrouping = TimingStartGrouping.valueOf(startGrouping),
+    intervalSeconds = intervalSeconds,
+    // Not-null-Spalte mit Default; jOOQ typisiert sie dennoch nullable (bekanntes Muster, siehe
+    // EventTimingConfigDto) - der Datenbank-Default ist die einzig richtige Rückfalllinie.
+    leadInSeconds = leadInSeconds ?: 10,
+    tonePlan = tonePlan.toTonePlan(),
+)
+
+fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
+    LocalDateTime.now().let { now ->
+        TimingModeRecord(
+            id = UUID.randomUUID(),
+            event = eventId,
+            name = name,
+            startGrouping = startGrouping.name,
+            intervalSeconds = intervalSeconds,
+            leadInSeconds = leadInSeconds,
+            tonePlan = tonePlan?.toJsonb(),
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+    }
 
 fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
     id = id,
@@ -164,6 +271,10 @@ fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto
     station = station,
     name = name,
     revoked = revoked ?: false,
+    // Die Spalte ist zugleich das Kennzeichen (siehe Migration V202608211420): Klartext
+    // gespeichert <=> automatisch ausgestellt. Der Klartext selbst verlässt diese Konvertierung
+    // nie - er taucht nur in der Share-Link-Antwort auf.
+    autoIssued = shareLinkToken != null,
     createdAt = createdAt,
 )
 

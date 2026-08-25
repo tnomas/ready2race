@@ -1,6 +1,6 @@
 /**
  * Shared guards for the timing board's global keyboard shortcuts (Space for an unassigned capture,
- * digits 1-9 for a start number, A-H for an armed team slot).
+ * digits 1-6 and letters A-F for a boat position of the focused match).
  *
  * These are deliberately DOM checks rather than React state: the shortcuts are registered on `window`,
  * so they fire no matter what has focus, and the only reliable way to know whether the keystroke was
@@ -25,17 +25,15 @@ export function isTypingContext(): boolean {
 
 /**
  * True while the focused control owns the Space key itself, i.e. Space must activate that control
- * rather than record a time mark. Three carve-outs today, all marked in the DOM by a data attribute on
- * the container:
+ * rather than record a time mark. One carve-out today, marked in the DOM by a data attribute on the
+ * container:
  *
- * - `[data-sequence-panel]` — an operator who tabs to "Sequenz starten" and presses space must start
- *   the sequence, not silently bank a time.
- * - `[data-capture-view-toggle]` — same reasoning for the Zwei-Schritt/Teams switch.
- * - `[data-team-grid]` — any focused button inside the team grid, so the armed slots' ToggleButton and
- *   team ButtonBase elements take the Space press rather than silently banking a time.
+ * - `[data-sequence-panel]` — an operator who tabs to "Sequenz starten" (or the start board's big
+ *   start button / the sequence bar's abort) and presses space must activate that button, not
+ *   silently bank a time.
  *
  * Scoped to Space **only**. Applying it to the digit/letter shortcuts would be an actual regression:
- * clicking the view toggle leaves that button focused, and the team shortcuts have to keep working
+ * a click leaves the pressed button focused, and the boat-key shortcuts have to keep working
  * immediately afterwards without the operator first clicking somewhere else.
  */
 export function isSpaceOwnedByFocusedControl(): boolean {
@@ -43,9 +41,5 @@ export function isSpaceOwnedByFocusedControl(): boolean {
     const tag = active?.tagName
     if (tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'A') return false
     if (!(active instanceof HTMLElement)) return false
-    return (
-        active.closest('[data-sequence-panel]') !== null ||
-        active.closest('[data-capture-view-toggle]') !== null ||
-        active.closest('[data-team-grid]') !== null
-    )
+    return active.closest('[data-sequence-panel]') !== null
 }

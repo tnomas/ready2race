@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
@@ -101,6 +102,15 @@ object TimingSequenceService {
         }
         !TimingSequenceEntryRepo.create(entries).orDie()
 
+        // Die eingerichtete Sequenz ruft ihre Partien an den Start (activated_at, nur wenn noch
+        // nicht gesetzt) - Dashboard und Boards zeigen "In Vorbereitung", sobald der Posten die
+        // Sequenz anlegt, nicht erst mit dem ersten Start. Der Bump entwertet die Caches der
+        // öffentlichen Anzeigen im selben Request (Broadcast nach Commit).
+        val activated = !TimingMatchStampService.activateMatchesOfTeams(request.teams, userId)
+        if (activated) {
+            EventChangeMarker.bump(eventId)
+        }
+
         broadcastAsync(eventId, sequenceDto(record, entries))
         KIO.ok(ApiResponse.Created(sequenceId))
     }
@@ -119,12 +129,21 @@ object TimingSequenceService {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
         !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
-        val active = !TimingSequenceRepo.getActiveByStation(stationId).orDie()
-        val sequence = if (active != null) {
-            active
-        } else {
-            val since = LocalDateTime.now().minus(RECENT_TERMINAL_WINDOW)
-            !TimingSequenceRepo.getRecentTerminalByStation(stationId, since).orDie()
+        // Eine ANZEIGE hat nie eigene Sequenzen - sie spiegelt: mit linked_station genau diesen
+        // START-Posten, ohne alle Startsequenzen der Veranstaltung (dann gewinnt die zuletzt
+        // angefasste aktive). Der Vertrag des Endpunkts bleibt derselbe eine Sequenz-Slot.
+        val isDisplay = station.type == TimingStationType.ANZEIGE.name
+        val since = LocalDateTime.now().minus(RECENT_TERMINAL_WINDOW)
+        val sequence = when {
+            isDisplay && station.linkedStation == null -> {
+                (!TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie())
+                    ?: !TimingSequenceRepo.getRecentTerminalByEvent(eventId, since).orDie()
+            }
+            else -> {
+                val targetStation = if (isDisplay) station.linkedStation!! else stationId
+                (!TimingSequenceRepo.getActiveByStation(targetStation).orDie())
+                    ?: !TimingSequenceRepo.getRecentTerminalByStation(targetStation, since).orDie()
+            }
         }
         val dto = if (sequence == null) {
             null
@@ -152,6 +171,16 @@ object TimingSequenceService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        // Auch das Starten stempelt die Aktivierung (nur wenn noch nicht gesetzt): Wurde die
+        // Partie zwischen Einrichten und Start vom Schiedsrichter zurückgestellt, ist sie mit dem
+        // laufenden Countdown unstrittig wieder am Start.
+        val entryTeams = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .mapNotNull { it.competitionMatchTeam }
+        val activated = !TimingMatchStampService.activateMatchesOfTeams(entryTeams, userId)
+        if (activated) {
+            EventChangeMarker.bump(eventId)
+        }
 
         !broadcastSequence(updated)
         noData
@@ -270,6 +299,27 @@ object TimingSequenceService {
         result.changedSequences.forEach { sequence ->
             TimingBroadcaster.broadcast(sequence.event, TimingWsMessage.SequenceChanged(sequence))
         }
+        // Offizielle Zeiten, die die Echtzeit-Übernahme beim Feuern geändert hat, gebündelt je
+        // Veranstaltung - dieselbe Nachricht, die auch die HTTP-Mutationen senden.
+        result.fired
+            .filter { it.changedOfficialTimes.isNotEmpty() }
+            .groupBy { it.mark.event }
+            .forEach { (eventId, entries) ->
+                TimingBroadcaster.broadcast(
+                    eventId,
+                    TimingWsMessage.OfficialTimeChanged(entries.flatMap { it.changedOfficialTimes }),
+                )
+            }
+        // Laufzustands-Stempel (started_at/activated_at) UND geschriebene Ergebnisse des Laufs:
+        // erst hier, nach dem Commit, die Caches der öffentlichen Anzeigen entwerten - ein Bump
+        // aus der Scheduler-Transaktion heraus ginge vor dem Commit raus (AfterCommit hat dort
+        // keinen Puffer) und ließe die Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf
+        // festhalten. Beide Änderungsarten derselben Veranstaltung bündeln sich zu EINEM Bump.
+        result.fired
+            .filter { it.matchStamped || it.resultsWritten }
+            .map { it.mark.event }
+            .distinct()
+            .forEach { eventId -> EventChangeMarker.bump(eventId) }
     }
 
     private data class SequenceOutcome(
@@ -347,22 +397,49 @@ object TimingSequenceService {
             timeMark = markId
         }.orDie()
 
+        // Die soeben gefeuerte Startmarke ist ggf. die erste ihrer Partie: dann trägt sie den
+        // Ist-Start (started_at = Markenzeit) - in derselben Transaktion wie die Marke, damit
+        // Stempel und Marke nie auseinanderlaufen. Ein bestehender Ist-Start (Schiedsrichter!)
+        // wird nie verschoben (TimingMatchStampLogic.startStampFor). Der EventChangeMarker-Bump
+        // dazu darf hier NICHT laufen (Scheduler-Transaktion ohne AfterCommit-Puffer - der Push
+        // ginge vor dem Commit raus); das Flag wandert stattdessen im FireResult nach draußen.
+        val matchStamped = !TimingMatchStampService.stampStartFromMarks(
+            sequence.event,
+            listOfNotNull(entry.competitionMatchTeam),
+            sequence.createdBy,
+        )
+
         // A fired mark is assigned to its team from the moment it is created, so - exactly like
         // TimingService.assignTimeMark's freshly created marks are documented not to need - it can
-        // change what the team's official time would compute to. Flagged in the same transaction as
-        // the mark itself, so the two can never drift apart.
+        // change what the team's official time would compute to. Die Echtzeit-Übernahme rechnet
+        // deshalb in derselben Transaktion nach und schreibt ggf. zurück.
         //
-        // This calls the repo directly rather than TimingOfficialTimeService.markTeamsDirty: that
-        // method also broadcasts, and this runs inside the scheduler's transaction where no
-        // AfterCommit buffer is installed (see FireResult's doc comment) - registering there would
-        // send the websocket message before the commit instead of after it.
-        !TimingOfficialTimeRepo.markDirty(listOf(entry.competitionMatchTeam), sequence.createdBy).orDie()
+        // Bewusst recomputeAndApply statt recomputeApplyAndBroadcast: dies läuft in der
+        // Scheduler-Transaktion, wo kein AfterCommit-Puffer installiert ist (siehe FireResult) -
+        // ein dort registrierter Broadcast ginge VOR dem Commit raus. Die geänderten Zeilen wandern
+        // stattdessen im FireResult nach draußen und werden von broadcastFireResult gesendet.
+        val applyOutcome = !TimingOfficialTimeService.recomputeAndApply(
+            sequence.event,
+            listOf(entry.competitionMatchTeam),
+            sequence.createdBy,
+        )
+
+        // Die gefeuerte Startmarke ist der Bezugspunkt aller Zwischenzeiten ihres Bootes - hat ein
+        // verworfener Versuch noch welche stehen lassen, räumt die Übernahme sie hier ab. Ihr
+        // Rückgabewert wird bewusst verworfen: Der EventChangeMarker-Bump darf in dieser
+        // Scheduler-Transaktion nicht laufen (siehe oben), und die Anzeigen holen die Zeilen
+        // spätestens mit dem nächsten Bump - vor dem Start hat ohnehin kein Boot eine
+        // Zwischenzeit.
+        !TimingSplitService.recomputeEvent(sequence.event, sequence.createdBy)
 
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,
                 entryId = entry.id,
                 mark = timeMarkDto(mark, entry.competitionMatchTeam),
+                changedOfficialTimes = applyOutcome.officialTimes,
+                matchStamped = matchStamped,
+                resultsWritten = applyOutcome.resultsWritten,
             )
         )
     }

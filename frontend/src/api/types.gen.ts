@@ -214,6 +214,10 @@ export type AthleteBoardMatch = {
      * the bye of this match, same derivation as schedule and referee dashboard - public boards need it mainly for must-race byes, where a second line explains why the boat races alone and that its time runs out of competition
      */
     bye?: MatchByeDto | null
+    /**
+     * the competition's pace reference ('time per 500 m', 'km/h'). The display derives the per-segment pace itself from the lap distance and the elapsed time and only needs the unit from here; null when the competition has none
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type AthleteBoardParticipant = {
@@ -255,6 +259,10 @@ export type AthleteBoardResult = {
      */
     clarification?: boolean
     teams: Array<AthleteBoardResultTeam>
+    /**
+     * like AthleteBoardMatch.paceReference: the unit of the per-segment pace
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type AthleteBoardResultTeam = {
@@ -630,6 +638,27 @@ export type BoardTile = {
     elements: Array<BoardElement>
 }
 
+/**
+ * Everything one board renders in a single response.
+ *
+ * In addition to polling the HTTP routes under `/event/{eventId}/info`, displays can listen
+ * on a websocket channel that announces changes to the event:
+ *
+ * - Path: `/api/ws/event/{eventId}/info` (note the `/api/ws` prefix - this channel lives
+ * outside the regular `/api` REST routes documented in this spec).
+ * - Auth: none. The channel mirrors the public display endpoints under
+ * `/event/{eventId}/info` - connect with a plain `new WebSocket(url)`, no subprotocol and
+ * no session required.
+ * - Messages are JSON objects discriminated by a `type` field. The only type is
+ * `{ type: "changed", marker: int64 }`: the event's change marker was bumped (results,
+ * activation, schedule actions, notice banner, ...). The message deliberately carries no
+ * payload - on receiving it, refetch the display's regular endpoint. `marker` is monotonic
+ * per event; the current value is also sent once immediately after connecting.
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on
+ * the server's ping/pong keepalive.
+ * - On every (re)connect clients should refetch once, to cover changes missed while
+ * disconnected, and keep a slow safety poll as fallback for connections that die silently.
+ */
 export type BoardViewDto = {
     boardId: string
     eventName: string
@@ -653,6 +682,22 @@ export type CaptchaDto = {
     solutionMax: number
     handleToHeightRatio: number
     start: number
+}
+
+/**
+ * A single configurable tone of the event: the confirmation beep played when a FINISH/SPLIT station captures a time. A capture tone stays a SINGLE tone on purpose - it confirms a key press and must be short. Limits: frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000.
+ */
+export type CaptureToneDto = {
+    frequencyHz: number
+    durationMillis: number
+    /**
+     * Oscillator waveform, independent of the envelope (a held sawtooth carries both). Null = sine; existing tones stored without this field keep their sound.
+     */
+    waveform?: ToneWaveform | null
+    /**
+     * Selects the tone's ENVELOPE - two explicitly different sound shapes, not a continuous knob. Null = "decaying": an exponential decay across the whole nominal duration (the classic envelope). 0..5000 = "held": durationMillis is the hold time at full volume and the total sound is duration + release (the release may exceed the nominal duration). 0 is a legitimate held value - boards play a built-in de-click fade of a few ms so the ending never pops - and is never normalized to null: null and 0 are different envelopes.
+     */
+    releaseMillis?: number | null
 }
 
 export type CatererTransactionRequest = {
@@ -1004,6 +1049,11 @@ export type CompetitionPropertiesDto = {
     lateRegistrationAllowed: boolean
     challengeConfig?: CompetitionChallengeConfigDto
     ratingCategoryRequired: boolean
+    /**
+     * Total course length in metres. Only needed to derive pace between timing stations - split times work without it.
+     */
+    distanceMeters?: number
+    paceReference?: PaceReferenceDto
 }
 
 export type CompetitionPropertiesRequest = {
@@ -1022,16 +1072,11 @@ export type CompetitionPropertiesRequest = {
     setupTemplate?: string
     challengeConfig?: CompetitionChallengeConfigRequest
     ratingCategoryRequired: boolean
-}
-
-export type CompetitionRaceAssignmentDto = {
-    competitionId: string
-    identifier: string
-    name: string
     /**
-     * The one selected race; null means no race is assigned
+     * Total course length in metres. Only needed to derive pace between timing stations - split times work without it.
      */
-    race?: string | null
+    distanceMeters?: number
+    paceReference?: string
 }
 
 export type CompetitionRegistrationDto = {
@@ -1314,17 +1359,26 @@ export type CompetitionTemplateDto = {
     setupTemplate?: CompetitionSetupTemplateOverviewDto
 }
 
-/**
- * A competition that overrides the event-wide timing defaults. Only the inheritable fields are listed - system, start list export and result import. The race selection is no deviation: it is always assigned per competition, there is no event default to deviate from.
- *
- */
-export type CompetitionTimingDeviationDto = {
-    competitionId: string
-    identifier: string
+export type CompetitionTimingStationDto = {
+    timingStation: uuid
     name: string
-    timingSystem?: TimingSystem | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
+    type: TimingStationType
+    /**
+     * Where this station stands on this competition's course. The start is at 0, the finish at the total distance. Split times are ordered by this value, not by the station's sorting - the sorting orders stations in the control room, the distance orders them on the course.
+     */
+    distanceMeters: number
+}
+
+export type CompetitionTimingStationEntry = {
+    timingStation: uuid
+    distanceMeters: number
+}
+
+export type CompetitionTimingStationsRequest = {
+    /**
+     * The complete list; anything missing here is deleted.
+     */
+    stations: Array<CompetitionTimingStationEntry>
 }
 
 export type ComputeOfficialTimesRequest = {
@@ -1522,9 +1576,12 @@ export type ErrorCode =
     | 'RACECLOCKER_RACE_NAME_TAKEN'
     | 'RACECLOCKER_RACE_URL_TAKEN'
     | 'RACECLOCKER_RACE_STILL_ASSIGNED'
+    | 'TIMING_PROFILE_KIND_MISMATCH'
+    | 'TIMING_PROFILE_SCOPE_INVALID'
     | 'STARTLIST_CONFIG_NOT_CONFIGURED'
     | 'STARTLIST_MATCHES_WITHOUT_START_TIME'
     | 'RESULT_IMPORT_CONFIG_NOT_CONFIGURED'
+    | 'PACE_REFERENCE_NAME_TAKEN'
     | 'SCHEDULE_SHIFT_WITHOUT_CHANGE'
     | 'SCHEDULE_SHIFT_TARGET_INVALID'
     | 'SCHEDULE_SHIFT_LEAVES_RACE_DAY'
@@ -1982,7 +2039,7 @@ export type EventStartlistPreviewMatchDto = {
 }
 
 /**
- * Event-wide timing defaults. Timing system and the file-format presets live here once and every competition without its own values inherits them. The race selection is NOT here - it is assigned per race on each competition (RaceClockerRaceAssignments), no event-wide default.
+ * The event's timing settings. Timing system and the file-format presets live here once and apply to EVERY competition - a per-competition deviation no longer exists (the competition columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker race or an internal timing mode - is not here either: that is the timing profile tree (/event/{eventId}/timing-profile).
  *
  */
 export type EventTimingConfigDto = {
@@ -2009,14 +2066,23 @@ export type EventTimingConfigDto = {
      * How long after its planned start a match that is not active yet is still watched.
      */
     watchAfterMinutes: number
+    timingPrecision: TimingPrecision
     /**
-     * The competitions that do not follow these defaults but set at least one of the three fields themselves.
+     * Capture confirmation tone of FINISH stations. Unlike TimingSettingsDto this is NOT resolved - null means "built-in default", so the form knows whether a custom value is set and can offer a reset.
      */
-    deviatingCompetitions?: Array<CompetitionTimingDeviationDto>
+    finishTone?: CaptureToneDto | null
+    /**
+     * Capture confirmation tone of SPLIT stations; null means "built-in default".
+     */
+    splitTone?: CaptureToneDto | null
+    /**
+     * False-start SEQUENCE of start boards (offsets counted forward from the trigger). Like the capture tones NOT resolved - null means "built-in default sequence" (short-short- long, see TimingSettingsDto.falseStartTone), so the form can offer a reset. A column still holding the pre-24.08.2026 single tone (a jsonb object) is read as a one-element sequence with offsetMillis 0, so no migration is needed.
+     */
+    falseStartTone?: Array<ToneStepDto> | null
 }
 
 /**
- * The RaceClocker fields are optional, like the per-competition config. The five auto-pull fields are not optional - the database always has a value for them, and null here would ambiguously mean "leave unchanged". The race selection is not here - it is assigned per race on each competition, no event-wide default.
+ * Timing system and the two file-format presets stay optional - they are not known when the regatta is created. The five auto-pull fields are not optional: the database always has a value for them, and null here would ambiguously mean "leave unchanged". Which profile stops a single match is not here - that is the timing profile tree.
  *
  */
 export type EventTimingConfigRequest = {
@@ -2043,6 +2109,19 @@ export type EventTimingConfigRequest = {
      * How long after its planned start a match that is not active yet is still watched.
      */
     watchAfterMinutes: number
+    timingPrecision: TimingPrecision
+    /**
+     * PUT semantics like the other optional fields - null (or absent) restores the built-in default capture tone for FINISH stations.
+     */
+    finishTone?: CaptureToneDto | null
+    /**
+     * PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
+     */
+    splitTone?: CaptureToneDto | null
+    /**
+     * False-start SEQUENCE, PUT semantics - null (or absent) restores the built-in default sequence. offsetMillis is counted FORWARD from the trigger here (0..60000), unlike a timing mode's tone plan; at most 30 steps. Always written as an array - the former single-tone object stays readable but is never produced again.
+     */
+    falseStartTone?: Array<ToneStepDto> | null
 }
 
 export type FeeDto = {
@@ -2283,6 +2362,10 @@ export type LatestMatchResultInfo = {
     timingProviderName?: string | null
     timingProviderUrl?: string | null
     teams: Array<MatchResultTeamInfo>
+    /**
+     * the competition's pace reference - the unit of the per-segment pace the display derives from the lap distances; null when the competition has none
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type LiveDashboardCrewMemberDto = {
@@ -2731,6 +2814,10 @@ export type MatchTeamLapDto = {
      * Elapsed time at this mark in milliseconds - a sorting aid for the lap band only, the display uses timeString. Marks arriving in the same poll share recordedAt; the higher time is then the more recent news.
      */
     lapMillis?: number | null
+    /**
+     * Where on the course this time was taken, in metres - the basis for the per-segment pace the display derives. Null for lap times from the external provider: their column names belong to no timing station, so there is no pace and the display leaves the spot empty instead of inventing a number.
+     */
+    distanceMeters?: number | null
 }
 
 /**
@@ -2920,15 +3007,27 @@ export type OfficialTimeDto = {
     computedMillis?: number
     overrideMillis?: number
     penaltyMillis: number
+    /**
+     * Free-text reason for the penalty; written to the team's penalty_note on write-back.
+     */
+    penaltyNote?: string
     resultStatus: OfficialTimeResultStatus
     effectiveMillis?: number
     dirty: boolean
     pushedAt?: string
+    /**
+     * Der Platz, wie er aktuell am Lauf steht - von der Übernahme aus den Zeiten abgeleitet (Gleichstände teilen sich den Platz) oder von Hand gesetzt. Vorläufig, solange der Lauf läuft.
+     */
+    place?: number
 }
 
 export type OfficialTimeOverrideRequest = {
     overrideMillis?: number
     penaltyMillis?: number
+    /**
+     * Free-text reason for the penalty. PUT semantics - an absent field clears a previous reason.
+     */
+    penaltyNote?: string
     resultStatus?: OfficialTimeResultStatus
 }
 
@@ -2963,6 +3062,27 @@ export type OwnPendingClubRepresentativeApprovalDto = {
     clubId: string
     clubName: string
     createdAt: string
+}
+
+export type PaceReferenceDto = {
+    id: string
+    name: string
+    mode: PaceReferenceMode
+    referenceMeters: number
+}
+
+/**
+ * How a sport expresses pace. TIME_PER_DISTANCE is "how long for n metres" (rowing, running), DISTANCE_PER_TIME is "how far in one hour" (cycling).
+ */
+export type PaceReferenceMode = 'TIME_PER_DISTANCE' | 'DISTANCE_PER_TIME'
+
+export type PaceReferenceRequest = {
+    name: string
+    mode: PaceReferenceMode
+    /**
+     * Reference distance in metres - the distance the pace is calculated on (500 in rowing) or the unit of the output (1000 = km/h). Must be greater than zero.
+     */
+    referenceMeters: number
 }
 
 export type Pagination = {
@@ -3518,13 +3638,6 @@ export type QrCodePublicResponse = {
     type?: QrCodeDtoType
 }
 
-export type RaceClockerRaceAssignmentsRequest = {
-    /**
-     * Competitions that use this race for all of their rounds
-     */
-    competitions: Array<string>
-}
-
 export type RaceClockerRaceDto = {
     id: string
     name: string
@@ -3739,6 +3852,10 @@ export type RunningMatchInfo = {
     matchName?: string | null
     executionOrder: number
     teams: Array<RunningMatchTeamInfo>
+    /**
+     * like LatestMatchResultInfo.paceReference: the unit of the per-segment pace
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type RunningMatchTeamInfo = {
@@ -4036,41 +4153,14 @@ export type TimeMarkDto = {
     assignedTeam?: uuid
 }
 
-export type TimingConfigDto = {
-    timingSystem?: TimingSystem | null
-    /**
-     * The one selected RaceClocker race of this competition - qualification and all other rounds alike.
-     */
-    race?: string | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
-    /**
-     * Event-wide default timing system; the competition inherits it while its own field is null.
-     */
-    eventTimingSystem?: TimingSystem | null
-    /**
-     * Event-wide default start list export; inherited while the competition's own field is null.
-     */
-    eventStartlistConfig?: string | null
-    /**
-     * Event-wide default race results import; inherited while the competition's own field is null.
-     */
-    eventResultImportConfig?: string | null
+export type TimingAutoApplyRequest = {
+    enabled: boolean
 }
 
 /**
- * Every field is optional - the RaceClocker races only exist shortly before the regatta, so an incomplete configuration must be storable. The race id must belong to this competition's event; the service rejects a race from another event.
- *
+ * How a station reacts to a press. ONETOUCH captures immediately - right at the finish line, where every press is intended. ARMED requires the station to be armed first: out on the course the device lies around for minutes between two boats, and a sleeve over the keyboard would otherwise pin a time on a boat that nobody took.
  */
-export type TimingConfigRequest = {
-    timingSystem?: TimingSystem | null
-    /**
-     * The one selected RaceClocker race - qualification and all other rounds alike.
-     */
-    race?: string | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
-}
+export type TimingCaptureMode = 'ONETOUCH' | 'ARMED'
 
 export type TimingDeviceTokenDto = {
     id: uuid
@@ -4078,6 +4168,10 @@ export type TimingDeviceTokenDto = {
     station: uuid
     name: string
     revoked: boolean
+    /**
+     * True for tokens issued automatically via the station share-link endpoint (the same link is returned on every click until revoked); false for manually issued hardware tokens whose plaintext only ever exists in the issue response.
+     */
+    autoIssued: boolean
     createdAt: string
 }
 
@@ -4092,12 +4186,177 @@ export type TimingDeviceTokenRequest = {
 }
 
 /**
+ * One match of the internally timed competitions, delivered in start order (planned start time first; matches without a time follow in setup order - race number, round chain, execution order). The start station works this list top to bottom; the finish station reads from it which race is expected and which boats are still missing. Participant names are deliberately not embedded - `GET /event/{eventId}/timing/teams` carries them.
+ */
+export type TimingMatchDto = {
+    /**
+     * Key of the match (competition_match carries the setup match id as its primary key).
+     */
+    competitionSetupMatch: uuid
+    matchName?: string | null
+    competition: uuid
+    competitionName?: string | null
+    /**
+     * The race number.
+     */
+    competitionIdentifier?: string | null
+    /**
+     * Short name of the competition (e.g. "CM 4x+") - the compact label of the day schedule.
+     */
+    competitionShortName?: string | null
+    round: uuid
+    roundName?: string | null
+    /**
+     * Planned start time from the schedule.
+     */
+    startTime?: string | null
+    /**
+     * Real start (referee action or timing).
+     */
+    startedAt?: string | null
+    finishedAt?: string | null
+    phase: TimingMatchPhase
+    progress: TimingMatchProgress
+    /**
+     * The resolved timing mode (round entry beats competition entry); null = not configured.
+     */
+    timingMode?: TimingModeDto | null
+    teams: Array<TimingMatchTeamDto>
+}
+
+/**
  * The team's match as the boards need it: ACTIVE = called up or on the water (these teams are
  * expected right now), OPEN = still ahead, DONE = finished. Deliberately coarser than the
  * match state of the execution views; the branch order mirrors its derivation. Teams of a bye
  * match are not returned at all unless the bye is set to "must race".
  */
 export type TimingMatchPhase = 'ACTIVE' | 'OPEN' | 'DONE'
+
+/**
+ * Where a match stands on its way from call-up to the finish line, derived (not stored): OPEN = nothing happened yet, STARTING = an armed or running start sequence contains teams of this match, STARTED = at least one team has an assigned start mark and no sequence is live, FINISHED = finished_at is set or every started team has its finish mark.
+ */
+export type TimingMatchProgress = 'OPEN' | 'STARTING' | 'STARTED' | 'FINISHED'
+
+export type TimingMatchTeamDto = {
+    competitionMatchTeam: uuid
+    /**
+     * The team's position in the match (its "lane").
+     */
+    startNumber: number
+    teamName?: string | null
+    clubName?: string | null
+    /**
+     * The team has an assigned ACTIVE mark on a START station.
+     */
+    started: boolean
+    /**
+     * The team has an assigned ACTIVE mark on a FINISH station.
+     */
+    finished: boolean
+}
+
+/**
+ * A timing mode of the event - the template for how a match is started (e.g. "Timetrial 30s", "Wellenstart", "Massenstart"). How a match is measured is not part of it: whether there are splits follows from the competition's SPLIT stations.
+ */
+export type TimingModeDto = {
+    id: uuid
+    event: uuid
+    name: string
+    startGrouping: TimingStartGrouping
+    /**
+     * Set: starts follow automatically at this fixed interval (time trial). Null: every start is triggered by hand.
+     */
+    intervalSeconds?: number | null
+    /**
+     * Countdown before the (first) start; feeds the start sequences' lead-in.
+     */
+    leadInSeconds: number
+    /**
+     * Tone plan of the start sequence, ascending by offset. Null means the built-in default plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound unconfigured modes always had.
+     */
+    tonePlan?: Array<ToneStepDto> | null
+}
+
+export type TimingModeRequest = {
+    name: string
+    startGrouping: TimingStartGrouping
+    intervalSeconds?: number | null
+    leadInSeconds: number
+    /**
+     * Null restores the built-in default plan; limits see ToneStepDto.
+     */
+    tonePlan?: Array<ToneStepDto> | null
+}
+
+/**
+ * Precision of published official times. Raw data stays millisecond-exact; the setting only affects what the write-back copies to the match teams and what is displayed. Values are truncated (never rounded up), penalties are added before truncating.
+ */
+export type TimingPrecision = 'SEKUNDE' | 'ZEHNTEL' | 'HUNDERTSTEL' | 'MILLISEKUNDE'
+
+/**
+ * Upsert of one level of the tree: the entry for the given path is created or replaced; a null profile removes it and puts the level back on "inherit". All three path fields null address the root (the event itself).
+ */
+export type TimingProfileAssignmentRequest = {
+    competition?: uuid | null
+    competitionSetupRound?: uuid | null
+    competitionSetupMatch?: uuid | null
+    profile?: uuid | null
+}
+
+export type TimingProfileCompetitionDto = {
+    competitionId: uuid
+    identifier: string
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+    rounds: Array<TimingProfileRoundDto>
+}
+
+/**
+ * Which kind of timing profile the event uses. Not freely chosen: RACE goes with timing_system RACECLOCKER, MODE with INTERN. With any other system there are no profiles.
+ */
+export type TimingProfileKind = 'RACE' | 'MODE'
+
+export type TimingProfileMatchDto = {
+    matchId: uuid
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+}
+
+/**
+ * A selectable profile - a race for RACE, a timing mode for MODE.
+ */
+export type TimingProfileOptionDto = {
+    id: uuid
+    name: string
+    /**
+     * Second line of the select - results URL of the race, start grouping or interval of the mode.
+     */
+    detail?: string | null
+}
+
+export type TimingProfileRoundDto = {
+    roundId: uuid
+    name: string
+    ownProfile?: uuid | null
+    effectiveProfile?: uuid | null
+    matches: Array<TimingProfileMatchDto>
+}
+
+/**
+ * The timing-profile tree of one event. Every level carries both its own profile (ownProfile, null means inherit) and the one in effect there (effectiveProfile).
+ */
+export type TimingProfileTreeDto = {
+    timingSystem?: TimingSystem | null
+    kind?: TimingProfileKind | null
+    options: Array<TimingProfileOptionDto>
+    /**
+     * The profile of the root; null means not set (the root inherits from nobody).
+     */
+    ownProfile?: uuid | null
+    competitions: Array<TimingProfileCompetitionDto>
+}
 
 export type TimingSequenceDto = {
     id: uuid
@@ -4120,9 +4379,51 @@ export type TimingSequenceEntryDto = {
     timeMark?: uuid
 }
 
+/**
+ * The event's timing settings as one read: the "automatic result write-back" switch and the precision of published official times. Writes stay separate - the switch via PUT /timing/autoApply, the precision via the event timing config (updateEventTimingConfig).
+ *
+ */
+export type TimingSettingsDto = {
+    autoApply: boolean
+    precision: TimingPrecision
+    /**
+     * Capture confirmation tone of FINISH stations, already resolved: unconfigured events get the built-in default (880 Hz / 150 ms), so boards simply play what is sent here. Edited via the event timing config (updateEventTimingConfig), pushed live via settingsChanged.
+     */
+    finishTone: CaptureToneDto
+    /**
+     * Capture confirmation tone of SPLIT stations, resolved like finishTone.
+     */
+    splitTone: CaptureToneDto
+    /**
+     * False-start SEQUENCE of start boards, also resolved and never empty. Unconfigured events get the built-in default: three SAWTOOTH tones held at full volume - 200 Hz / 300 ms at 0 ms, the same again at 400 ms, then 180 Hz / 1500 ms with a 400 ms release at 800 ms ("short - short - long"). Sawtooth and the low pitch are deliberate: a sine is lost in regatta noise, and a repeated pattern with a differing final tone reads as a recall rather than as just another beep. Boards play the whole sequence with its offsets (counted forward from the trigger) when an attempt is retracted or a running sequence is aborted for the match they are currently showing.
+     */
+    falseStartTone: Array<ToneStepDto>
+}
+
+/**
+ * The shareable station link. Unlike the manual token issue response this is repeatable: the same station returns the same link until its token is revoked in the devices tab.
+ */
+export type TimingShareLinkDto = {
+    deviceToken: TimingDeviceTokenDto
+    token: string
+    /**
+     * Root-relative frontend path including the token query parameter (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige` display route). The client prepends its own origin.
+     */
+    path: string
+}
+
+/**
+ * How many boats start per start action: EINZEL = one boat at a time (time trial), WELLE = several together. A mass start is a WELLE containing every boat of the match, not a third value.
+ */
+export type TimingStartGrouping = 'EINZEL' | 'WELLE'
+
 export type TimingStateDto = {
     stations: Array<TimingStationDto>
     timeMarks: Array<TimeMarkDto>
+}
+
+export type TimingStationArmedRequest = {
+    armed: boolean
 }
 
 export type TimingStationDto = {
@@ -4131,17 +4432,37 @@ export type TimingStationDto = {
     name: string
     type: TimingStationType
     sorting: number
+    /**
+     * Only set on ANZEIGE stations: the START station this display mirrors; null = every start sequence of the event.
+     */
+    linkedStation?: uuid | null
+    captureMode: TimingCaptureMode
+    /**
+     * Whether the station is currently armed. Only meaningful while `captureMode` is ARMED; flipped through `PUT /timing/stations/{stationId}/armed`, never through the station body.
+     */
+    armed: boolean
 }
 
 export type TimingStationRequest = {
     name: string
     type: TimingStationType
     sorting: number
+    /**
+     * Only allowed for type ANZEIGE, and must reference a START station of the same event.
+     */
+    linkedStation?: uuid | null
+    /**
+     * Omit to leave the mode unchanged; on create it then becomes ONETOUCH - today's behaviour. Deliberately not defaulted on update: a form that does not know the field would otherwise let a mere rename drop an ARMED station back to ONETOUCH, a silent fallback that REMOVES a safeguard. The state `armed` does not live here at all: it is flipped on its own route.
+     */
+    captureMode?: TimingCaptureMode
 }
 
 /**
  * Live timing: stations capture time marks (start/split/finish), which are then assigned to a
- * competition match team to produce a result.
+ * competition match team to produce a result. ANZEIGE is a read-only display station (start
+ * referee / athlete screen): it never captures marks, its device tokens are limited to read
+ * endpoints, and via `linkedStation` it mirrors one START station (or, unlinked, every start
+ * sequence of the event).
  *
  * In addition to the HTTP routes below, timing state changes are pushed over a websocket channel:
  *
@@ -4154,19 +4475,30 @@ export type TimingStationRequest = {
  * - Messages are JSON objects discriminated by a `type` field, mirroring `TimingWsMessage`:
  * - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
  * - `{ type: "timeMarkRetracted", id: uuid }`
+ * - `{ type: "timeMarkReactivated", id: uuid }` - a retracted mark is ACTIVE again (its former
+ * assignment applies again).
  * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
  * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
  * distinguish "no assignment" from a field that was never sent.
- * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
- * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - `{ type: "stationsChanged" }` - stations were added, edited, removed, armed, or
+ * disarmed; refetch `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
+ * a whole attempt was retracted ("retract start", one message per retraction in addition to
+ * the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
+ * tone when the retracted match belongs to the sequence they are currently showing;
+ * `competitionMatchTeams` lists the teams whose active marks were retracted (may be empty
+ * when only the actual-start stamp was cleared).
  * - The channel is receive-only: clients should ignore any data they send on it and rely on the
  * server's ping/pong keepalive.
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
  * only then start applying incoming messages, to cover updates missed while disconnected.
  */
-export type TimingStationType = 'START' | 'SPLIT' | 'FINISH'
+export type TimingStationType = 'START' | 'SPLIT' | 'FINISH' | 'ANZEIGE'
 
-export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER'
+/**
+ * INTERN selects the built-in timing module (stations, time marks, start sequences, official times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`) and are never polled from an external provider.
+ */
+export type TimingSystem = 'RACECLOCKER' | 'WEBSCORER' | 'INTERN'
 
 export type TimingTeamDto = {
     competitionMatchTeam: uuid
@@ -4178,6 +4510,28 @@ export type TimingTeamDto = {
     matchName?: string
     matchPhase: TimingMatchPhase
 }
+
+/**
+ * One tone of a tone sequence: a synthesized beep at a point in time relative to a reference. The same shape carries both sequences of the system; only the DIRECTION of offsetMillis differs, and that is decided by the FIELD carrying the sequence, not by this type. A timing mode's tonePlan counts BACKWARDS from the start of the boat/wave the countdown is running for: offsetMillis is negative before the start and 0 at the start itself, positive values are rejected (after the start the countdown target immediately moves on to the next boat), limits -600000..0 matching the maximum sequence lead-in. The event's falseStartTone counts FORWARD from the trigger: 0 = immediately, positive = that many milliseconds later, limits 0..60000. Common limits: frequencyHz 100..4000, durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per sequence. Missed countdown tones are never played late - a board that reconnects mid-countdown stays silent for everything older than about a second.
+ */
+export type ToneStepDto = {
+    offsetMillis: number
+    frequencyHz: number
+    durationMillis: number
+    /**
+     * Oscillator waveform, same semantics as CaptureToneDto.waveform: null = sine, existing steps stored without the field keep their sound.
+     */
+    waveform?: ToneWaveform | null
+    /**
+     * Selects the tone's ENVELOPE, same semantics as CaptureToneDto.releaseMillis: null = "decaying" (exponential decay across the whole nominal duration); 0..5000 = "held" (full volume for the nominal duration, then a fall-off over the release; total sound = duration + release). 0 is a legitimate held value (a built-in de-click fade of a few ms keeps the ending pop-free) and is never normalized to null - null and 0 are different envelopes.
+     */
+    releaseMillis?: number | null
+}
+
+/**
+ * Waveform of a synthesized timing tone: the four basic shapes of the Web Audio OscillatorNode, named exactly like the browser's OscillatorType values (uppercased). Boards compensate the loudness difference between the shapes with a fixed per-shape gain factor, so switching the waveform does not also change the perceived volume. Null/absent always means SINE; an explicit SINE sounds identical to null and clients normalize it to absent before saving.
+ */
+export type ToneWaveform = 'SINE' | 'TRIANGLE' | 'SQUARE' | 'SAWTOOTH'
 
 export type TooManyRequestsError = ApiError & {
     details: {
@@ -5615,28 +5969,6 @@ export type AddRaceClockerRaceResponse = string
 
 export type AddRaceClockerRaceError = BadRequestError | ApiError | UnprocessableEntityError
 
-export type GetRaceClockerCompetitionAssignmentsData = {
-    path: {
-        eventId: string
-    }
-}
-
-export type GetRaceClockerCompetitionAssignmentsResponse = Array<CompetitionRaceAssignmentDto>
-
-export type GetRaceClockerCompetitionAssignmentsError = BadRequestError | ApiError
-
-export type SetRaceClockerRaceAssignmentsData = {
-    body: RaceClockerRaceAssignmentsRequest
-    path: {
-        eventId: string
-        raceId: string
-    }
-}
-
-export type SetRaceClockerRaceAssignmentsResponse = void
-
-export type SetRaceClockerRaceAssignmentsError = BadRequestError | ApiError
-
 export type UpdateRaceClockerRaceData = {
     body: RaceClockerRaceRequest
     path: {
@@ -5681,6 +6013,46 @@ export type UpdateEventTimingConfigResponse = void
 
 export type UpdateEventTimingConfigError = BadRequestError | ApiError | UnprocessableEntityError
 
+export type GetTimingProfileTreeData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetTimingProfileTreeResponse = TimingProfileTreeDto
+
+export type GetTimingProfileTreeError = BadRequestError | ApiError
+
+export type UpsertTimingProfileAssignmentData = {
+    body: TimingProfileAssignmentRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type UpsertTimingProfileAssignmentResponse = void
+
+export type UpsertTimingProfileAssignmentError =
+    | BadRequestError
+    | ApiError
+    | UnprocessableEntityError
+
+export type ResetTimingProfileAssignmentsData = {
+    path: {
+        eventId: string
+    }
+    query?: {
+        /**
+         * Limits the reset to the rounds and matches of this competition
+         */
+        competition?: string
+    }
+}
+
+export type ResetTimingProfileAssignmentsResponse = void
+
+export type ResetTimingProfileAssignmentsError = BadRequestError | ApiError
+
 export type UpdateEventNoticeData = {
     body: UpdateEventNoticeRequest
     path: {
@@ -5691,29 +6063,6 @@ export type UpdateEventNoticeData = {
 export type UpdateEventNoticeResponse = void
 
 export type UpdateEventNoticeError = BadRequestError | ApiError | UnprocessableEntityError
-
-export type GetTimingConfigData = {
-    path: {
-        competitionId: string
-        eventId: string
-    }
-}
-
-export type GetTimingConfigResponse = TimingConfigDto
-
-export type GetTimingConfigError = BadRequestError | ApiError
-
-export type UpdateTimingConfigData = {
-    body: TimingConfigRequest
-    path: {
-        competitionId: string
-        eventId: string
-    }
-}
-
-export type UpdateTimingConfigResponse = void
-
-export type UpdateTimingConfigError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetRoundProgressionConfigData = {
     path: {
@@ -5737,6 +6086,32 @@ export type UpdateRoundProgressionConfigData = {
 export type UpdateRoundProgressionConfigResponse = void
 
 export type UpdateRoundProgressionConfigError =
+    | BadRequestError
+    | ApiError
+    | UnprocessableEntityError
+
+export type GetCompetitionTimingStationsData = {
+    path: {
+        competitionId: string
+        eventId: string
+    }
+}
+
+export type GetCompetitionTimingStationsResponse = Array<CompetitionTimingStationDto>
+
+export type GetCompetitionTimingStationsError = BadRequestError | ApiError
+
+export type SetCompetitionTimingStationsData = {
+    body: CompetitionTimingStationsRequest
+    path: {
+        competitionId: string
+        eventId: string
+    }
+}
+
+export type SetCompetitionTimingStationsResponse = void
+
+export type SetCompetitionTimingStationsError =
     | BadRequestError
     | ApiError
     | UnprocessableEntityError
@@ -8117,6 +8492,63 @@ export type DeleteStartListConfigResponse = void
 
 export type DeleteStartListConfigError = BadRequestError | ApiError
 
+export type AddPaceReferenceData = {
+    body: PaceReferenceRequest
+}
+
+export type AddPaceReferenceResponse = string
+
+export type AddPaceReferenceError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetPaceReferencesData = {
+    query?: {
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetPaceReferencesResponse = {
+    data: Array<PaceReferenceDto>
+    pagination: Pagination
+}
+
+export type GetPaceReferencesError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type UpdatePaceReferenceData = {
+    body: PaceReferenceRequest
+    path: {
+        paceReferenceId: string
+    }
+}
+
+export type UpdatePaceReferenceResponse = void
+
+export type UpdatePaceReferenceError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeletePaceReferenceData = {
+    path: {
+        paceReferenceId: string
+    }
+}
+
+export type DeletePaceReferenceResponse = void
+
+export type DeletePaceReferenceError = BadRequestError | ApiError
+
 export type GetUpcomingMatchesData = {
     path: {
         eventId: string
@@ -9304,6 +9736,18 @@ export type DeleteTimingStationResponse = void
 
 export type DeleteTimingStationError = unknown
 
+export type SetTimingStationArmedData = {
+    body: TimingStationArmedRequest
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type SetTimingStationArmedResponse = void
+
+export type SetTimingStationArmedError = unknown
+
 export type CreateTimeMarkData = {
     body: CreateTimeMarkRequest
     path: {
@@ -9362,6 +9806,38 @@ export type RetractTimeMarkResponse = void
 
 export type RetractTimeMarkError = unknown
 
+export type ReactivateTimeMarkData = {
+    path: {
+        eventId: uuid
+        timeMarkId: uuid
+    }
+}
+
+export type ReactivateTimeMarkResponse = void
+
+export type ReactivateTimeMarkError = unknown
+
+export type GetTimingSettingsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingSettingsResponse = TimingSettingsDto
+
+export type GetTimingSettingsError = unknown
+
+export type SetTimingAutoApplyData = {
+    body: TimingAutoApplyRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type SetTimingAutoApplyResponse = void
+
+export type SetTimingAutoApplyError = unknown
+
 export type GetServerTimeResponse = ServerTimeResponse
 
 export type GetServerTimeError = unknown
@@ -9375,6 +9851,85 @@ export type GetTimingTeamsData = {
 export type GetTimingTeamsResponse = Array<TimingTeamDto>
 
 export type GetTimingTeamsError = unknown
+
+export type GetTimingMatchesData = {
+    path: {
+        eventId: uuid
+    }
+    query?: {
+        station?: uuid
+    }
+}
+
+export type GetTimingMatchesResponse = Array<TimingMatchDto>
+
+export type GetTimingMatchesError = unknown
+
+export type RetractMatchAttemptData = {
+    path: {
+        eventId: uuid
+        matchId: uuid
+    }
+}
+
+export type RetractMatchAttemptResponse = void
+
+export type RetractMatchAttemptError = unknown
+
+export type GetTimingModesData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingModesResponse = Array<TimingModeDto>
+
+export type GetTimingModesError = unknown
+
+export type AddTimingModeData = {
+    body: TimingModeRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type AddTimingModeResponse = uuid
+
+export type AddTimingModeError = unknown
+
+export type UpdateTimingModeData = {
+    body: TimingModeRequest
+    path: {
+        eventId: uuid
+        modeId: uuid
+    }
+}
+
+export type UpdateTimingModeResponse = void
+
+export type UpdateTimingModeError = unknown
+
+export type DeleteTimingModeData = {
+    path: {
+        eventId: uuid
+        modeId: uuid
+    }
+}
+
+export type DeleteTimingModeResponse = void
+
+export type DeleteTimingModeError = unknown
+
+export type CreateTimingStationShareLinkData = {
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type CreateTimingStationShareLinkResponse = TimingShareLinkDto
+
+export type CreateTimingStationShareLinkError = unknown
 
 export type CreateTimingSequenceData = {
     body: CreateSequenceRequest

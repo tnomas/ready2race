@@ -12,6 +12,7 @@ import {
     getCompetitionCategories,
     getFees,
     getCompetitionSetupTemplateOverview,
+    getPaceReferences,
 } from '@api/sdk.gen.ts'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
 import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
@@ -87,6 +88,26 @@ export const CompetitionPropertiesFormInputs = (props: Props) => {
     )
     const categories: AutocompleteOption[] =
         categoriesData?.data.map(dto => ({
+            id: dto.id,
+            label: dto.name,
+        })) ?? []
+
+    const {data: paceReferencesData, pending: paceReferencesPending} = useFetch(
+        signal => getPaceReferences({signal}),
+        {
+            onResponse: ({error}) => {
+                if (error) {
+                    feedback.error(
+                        t('common.load.error.multiple.short', {
+                            entity: t('configuration.paceReference.paceReferences'),
+                        }),
+                    )
+                }
+            },
+        },
+    )
+    const paceReferences: AutocompleteOption[] =
+        paceReferencesData?.data.map(dto => ({
             id: dto.id,
             label: dto.name,
         })) ?? []
@@ -252,6 +273,24 @@ export const CompetitionPropertiesFormInputs = (props: Props) => {
                     getOptionKey: field => field.id,
                 }}
             />
+            <FormInputNumber
+                name={'distanceMeters'}
+                label={t('event.competition.distanceMeters')}
+                min={1}
+                integer
+            />
+            <FormInputAutocomplete
+                name="paceReference"
+                options={paceReferences}
+                label={t('event.competition.paceReference')}
+                loading={paceReferencesPending}
+                autocompleteProps={{
+                    getOptionKey: field => field.id,
+                }}
+            />
+            <Typography variant={'body2'} color={'text.secondary'}>
+                {t('event.competition.paceHint')}
+            </Typography>
             {props.hideCompetitionSetupTemplate !== true && (
                 <FormInputAutocomplete
                     name="setupTemplate"

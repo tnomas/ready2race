@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.plugins
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TIMING_DEVICE_TOKEN_HEADER
 import de.lambda9.ready2race.backend.config.Config
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -32,6 +33,10 @@ fun Application.configureHTTP(mode: Config.Mode) {
             anyHost()
             allowHeader(HttpHeaders.ContentType)
             allowHeader("X-Api-Session")
+            // Geteilte Zeitnahme-Geräte schicken ihr Geräte-Token als eigenen Header - der löst
+            // einen Preflight aus, der ohne diese Freigabe im DEV-Setup (Frontend auf eigenem
+            // Port) in 403 liefe. In PROD liefert der Server das Frontend selbst, kein CORS.
+            allowHeader(TIMING_DEVICE_TOKEN_HEADER)
             exposeHeader(HttpHeaders.ContentDisposition)
             exposeHeader("X-Api-Session")
             allowMethod(HttpMethod.Options)

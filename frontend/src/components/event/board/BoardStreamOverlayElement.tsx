@@ -1,4 +1,5 @@
 import {useMemo} from 'react'
+import {useTranslation} from 'react-i18next'
 import {Box} from '@mui/material'
 import {BoardElement, BoardViewDto} from '@api/types.gen.ts'
 import {streamOverlayContent, STREAM_DEFAULT_BACKGROUND} from './streamOverlay.ts'
@@ -27,7 +28,10 @@ type Props = {
  * `streamOverlay/useStreamClockDisplay.ts`).
  */
 const BoardStreamOverlayElement = ({view, element}: Props) => {
-    const content = streamOverlayContent(view, element.streamMode)
+    const {t} = useTranslation()
+    // Das Dezimaltrennzeichen der Oberflächensprache reicht bis ins Rundenband durch: Dort steht
+    // als einziger Stelle des Overlays eine Kommazahl (das Tempo je Abschnitt).
+    const content = streamOverlayContent(view, element.streamMode, t('decimal.point'))
     const keyColor = element.backgroundColor ?? STREAM_DEFAULT_BACKGROUND
 
     // Serverzeitversatz: einmal je frisch eingetroffener Antwort gemessen (serverTime

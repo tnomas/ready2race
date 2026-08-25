@@ -210,12 +210,6 @@ import type {
     AddRaceClockerRaceData,
     AddRaceClockerRaceError,
     AddRaceClockerRaceResponse,
-    GetRaceClockerCompetitionAssignmentsData,
-    GetRaceClockerCompetitionAssignmentsError,
-    GetRaceClockerCompetitionAssignmentsResponse,
-    SetRaceClockerRaceAssignmentsData,
-    SetRaceClockerRaceAssignmentsError,
-    SetRaceClockerRaceAssignmentsResponse,
     UpdateRaceClockerRaceData,
     UpdateRaceClockerRaceError,
     UpdateRaceClockerRaceResponse,
@@ -228,21 +222,30 @@ import type {
     UpdateEventTimingConfigData,
     UpdateEventTimingConfigError,
     UpdateEventTimingConfigResponse,
+    GetTimingProfileTreeData,
+    GetTimingProfileTreeError,
+    GetTimingProfileTreeResponse,
+    UpsertTimingProfileAssignmentData,
+    UpsertTimingProfileAssignmentError,
+    UpsertTimingProfileAssignmentResponse,
+    ResetTimingProfileAssignmentsData,
+    ResetTimingProfileAssignmentsError,
+    ResetTimingProfileAssignmentsResponse,
     UpdateEventNoticeData,
     UpdateEventNoticeError,
     UpdateEventNoticeResponse,
-    GetTimingConfigData,
-    GetTimingConfigError,
-    GetTimingConfigResponse,
-    UpdateTimingConfigData,
-    UpdateTimingConfigError,
-    UpdateTimingConfigResponse,
     GetRoundProgressionConfigData,
     GetRoundProgressionConfigError,
     GetRoundProgressionConfigResponse,
     UpdateRoundProgressionConfigData,
     UpdateRoundProgressionConfigError,
     UpdateRoundProgressionConfigResponse,
+    GetCompetitionTimingStationsData,
+    GetCompetitionTimingStationsError,
+    GetCompetitionTimingStationsResponse,
+    SetCompetitionTimingStationsData,
+    SetCompetitionTimingStationsError,
+    SetCompetitionTimingStationsResponse,
     PullMatchResultsFromRaceClockerData,
     PullMatchResultsFromRaceClockerError,
     PullMatchResultsFromRaceClockerResponse,
@@ -766,6 +769,18 @@ import type {
     DeleteStartListConfigData,
     DeleteStartListConfigError,
     DeleteStartListConfigResponse,
+    AddPaceReferenceData,
+    AddPaceReferenceError,
+    AddPaceReferenceResponse,
+    GetPaceReferencesData,
+    GetPaceReferencesError,
+    GetPaceReferencesResponse,
+    UpdatePaceReferenceData,
+    UpdatePaceReferenceError,
+    UpdatePaceReferenceResponse,
+    DeletePaceReferenceData,
+    DeletePaceReferenceError,
+    DeletePaceReferenceResponse,
     GetUpcomingMatchesData,
     GetUpcomingMatchesError,
     GetUpcomingMatchesResponse,
@@ -1031,6 +1046,9 @@ import type {
     DeleteTimingStationData,
     DeleteTimingStationError,
     DeleteTimingStationResponse,
+    SetTimingStationArmedData,
+    SetTimingStationArmedError,
+    SetTimingStationArmedResponse,
     CreateTimeMarkData,
     CreateTimeMarkError,
     CreateTimeMarkResponse,
@@ -1040,11 +1058,41 @@ import type {
     RetractTimeMarkData,
     RetractTimeMarkError,
     RetractTimeMarkResponse,
+    ReactivateTimeMarkData,
+    ReactivateTimeMarkError,
+    ReactivateTimeMarkResponse,
+    GetTimingSettingsData,
+    GetTimingSettingsError,
+    GetTimingSettingsResponse,
+    SetTimingAutoApplyData,
+    SetTimingAutoApplyError,
+    SetTimingAutoApplyResponse,
     GetServerTimeError,
     GetServerTimeResponse,
     GetTimingTeamsData,
     GetTimingTeamsError,
     GetTimingTeamsResponse,
+    GetTimingMatchesData,
+    GetTimingMatchesError,
+    GetTimingMatchesResponse,
+    RetractMatchAttemptData,
+    RetractMatchAttemptError,
+    RetractMatchAttemptResponse,
+    GetTimingModesData,
+    GetTimingModesError,
+    GetTimingModesResponse,
+    AddTimingModeData,
+    AddTimingModeError,
+    AddTimingModeResponse,
+    UpdateTimingModeData,
+    UpdateTimingModeError,
+    UpdateTimingModeResponse,
+    DeleteTimingModeData,
+    DeleteTimingModeError,
+    DeleteTimingModeResponse,
+    CreateTimingStationShareLinkData,
+    CreateTimingStationShareLinkError,
+    CreateTimingStationShareLinkResponse,
     CreateTimingSequenceData,
     CreateTimingSequenceError,
     CreateTimingSequenceResponse,
@@ -1941,38 +1989,6 @@ export const addRaceClockerRace = <ThrowOnError extends boolean = false>(
     })
 }
 
-/**
- * The reverse view: every competition of the event with its explicit RaceClocker race choice (null = inherits the event default), for assigning competitions from the race side.
- */
-export const getRaceClockerCompetitionAssignments = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetRaceClockerCompetitionAssignmentsData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).get<
-        GetRaceClockerCompetitionAssignmentsResponse,
-        GetRaceClockerCompetitionAssignmentsError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/raceclocker-race/competition-assignments',
-    })
-}
-
-/**
- * Set which competitions use this race (reverse assignment). Checking a competition here moves it away from another race - the last click wins; unchecking a competition that pointed here falls back to inheriting the event default.
- */
-export const setRaceClockerRaceAssignments = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<SetRaceClockerRaceAssignmentsData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).put<
-        SetRaceClockerRaceAssignmentsResponse,
-        SetRaceClockerRaceAssignmentsError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/raceclocker-race/{raceId}/assignments',
-    })
-}
-
 export const updateRaceClockerRace = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<UpdateRaceClockerRaceData, ThrowOnError>,
 ) => {
@@ -2029,6 +2045,54 @@ export const updateEventTimingConfig = <ThrowOnError extends boolean = false>(
 }
 
 /**
+ * The timing-profile tree of the event: root, competitions, rounds and matches, each level with its own profile (null means inherit) and the profile actually in effect there. The inheritance rule lives on the server only, so the UI stays a pure display.
+ */
+export const getTimingProfileTree = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingProfileTreeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingProfileTreeResponse,
+        GetTimingProfileTreeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/tree',
+    })
+}
+
+/**
+ * Upsert over the natural key (competition, round, match): creates or replaces the entry for that path; a null profile removes it and puts the level back on "inherit". All three path fields null address the root (the event itself).
+ */
+export const upsertTimingProfileAssignment = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpsertTimingProfileAssignmentData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpsertTimingProfileAssignmentResponse,
+        UpsertTimingProfileAssignmentError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignment',
+    })
+}
+
+/**
+ * Clears every level BELOW the given one, so all of them inherit again. Without the competition parameter that is the whole event except its root; with it, the rounds and matches of that competition (its own entry stays).
+ */
+export const resetTimingProfileAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResetTimingProfileAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        ResetTimingProfileAssignmentsResponse,
+        ResetTimingProfileAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignments',
+    })
+}
+
+/**
  * Sets or clears the event-wide notice banner (e.g. a weather warning) - both fields set means set, both null means clear. Deliberately a small dedicated endpoint instead of a field on the big event update, so the race-day action stays lightweight. The notice is read through EventDto and embedded in the polled public responses (my-event, board view, live dashboard, live-matches); caches and poll intervals mean a change takes a few seconds to show up on devices.
  */
 export const updateEventNotice = <ThrowOnError extends boolean = false>(
@@ -2041,35 +2105,6 @@ export const updateEventNotice = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/notice',
-    })
-}
-
-/**
- * The timing configuration of this competition - timing system, RaceClocker results URLs and the column presets used for export and import.
- */
-export const getTimingConfig = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetTimingConfigData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).get<
-        GetTimingConfigResponse,
-        GetTimingConfigError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/competition/{competitionId}/timing-config',
-    })
-}
-
-export const updateTimingConfig = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<UpdateTimingConfigData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).put<
-        UpdateTimingConfigResponse,
-        UpdateTimingConfigError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/competition/{competitionId}/timing-config',
     })
 }
 
@@ -2099,6 +2134,38 @@ export const updateRoundProgressionConfig = <ThrowOnError extends boolean = fals
     >({
         ...options,
         url: '/event/{eventId}/competition/{competitionId}/roundProgression',
+    })
+}
+
+/**
+ * The timing stations this competition passes, each with its distance on THIS course, ordered by that distance. The station itself belongs to the event; only the metre belongs to the competition, because the same station sits at 3000 m for the long distance and at 250 m for the sprint.
+ */
+export const getCompetitionTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetCompetitionTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetCompetitionTimingStationsResponse,
+        GetCompetitionTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-stations',
+    })
+}
+
+/**
+ * Replaces the WHOLE list of this competition: anything missing from the body is deleted, everything in it is created or moved to its new metre. An empty list clears the competition. 404 if the competition or one of the stations does not belong to this event, 409 if the same station is listed twice. Display stations (ANZEIGE) are rejected with 400: they never capture a time mark, so they cannot stand on the course.
+ */
+export const setCompetitionTimingStations = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetCompetitionTimingStationsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetCompetitionTimingStationsResponse,
+        SetCompetitionTimingStationsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competition/{competitionId}/timing-stations',
     })
 }
 
@@ -4394,6 +4461,58 @@ export const deleteStartListConfig = <ThrowOnError extends boolean = false>(
     })
 }
 
+export const addPaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddPaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddPaceReferenceResponse,
+        AddPaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference',
+    })
+}
+
+export const getPaceReferences = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<GetPaceReferencesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetPaceReferencesResponse,
+        GetPaceReferencesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference',
+    })
+}
+
+export const updatePaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdatePaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdatePaceReferenceResponse,
+        UpdatePaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference/{paceReferenceId}',
+    })
+}
+
+export const deletePaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeletePaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeletePaceReferenceResponse,
+        DeletePaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference/{paceReferenceId}',
+    })
+}
+
 export const getUpcomingMatches = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetUpcomingMatchesData, ThrowOnError>,
 ) => {
@@ -5676,6 +5795,28 @@ export const deleteTimingStation = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Arms or disarms the station. Only meaningful while its `captureMode` is ARMED: in ONETOUCH mode every press captures and this state lies idle.
+ *
+ * Deliberately separate from `PUT /timing/stations/{stationId}`: the capture mode belongs to the organizers and is set once in the event settings, while this state is flipped by the timekeeper many times a day. Sharing one body would mean disarming overwrites the configuration.
+ *
+ * Requires UpdateAppTimingGlobal or UpdateEventGlobal -- not ReadEventGlobal: disarming blocks every assigned capture, which is no read.
+ *
+ * Alternatively accepts an X-Timing-Device-Token header instead of a session -- the timekeeper on a shared tablet has no login, only the station link. The token branch is only taken when the header is present AND no session exists. Like the other writing token paths the token must be issued for exactly this station, and tokens of ANZEIGE stations are rejected; both answer 401 without saying which it was. A station only ever switches itself.
+ */
+export const setTimingStationArmed = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetTimingStationArmedData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetTimingStationArmedResponse,
+        SetTimingStationArmedError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}/armed',
+    })
+}
+
 export const createTimeMark = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimeMarkData, ThrowOnError>,
 ) => {
@@ -5689,6 +5830,9 @@ export const createTimeMark = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Assigns the mark to a team, moves it to another team (mis-clicks are the normal case at a busy finish line), or detaches it (null body value). Besides a session this also accepts the X-Timing-Device-Token header (shared station devices): a device token may only assign and re-assign marks of its OWN station, and tokens of ANZEIGE stations are read-only - both rejections answer 401 without detail. Retraction stays session-only.
+ */
 export const assignTimeMark = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<AssignTimeMarkData, ThrowOnError>,
 ) => {
@@ -5712,6 +5856,64 @@ export const retractTimeMark = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/retract',
+    })
+}
+
+/**
+ * The counterpart to retracting: sets a RETRACTED time mark back to ACTIVE. The mark's former
+ * team assignment was never detached, so it simply applies again, and the official time of the
+ * affected team is recomputed and written back immediately. Idempotent - reactivating an
+ * already ACTIVE mark succeeds without effect. Requires a user session (same privileges as
+ * retracting); device tokens cannot reactivate marks.
+ */
+export const reactivateTimeMark = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ReactivateTimeMarkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        ReactivateTimeMarkResponse,
+        ReactivateTimeMarkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/timeMarks/{timeMarkId}/reactivate',
+    })
+}
+
+/**
+ * The event's timing settings in one fetch: the "automatic result write-back" switch (when
+ * enabled - the default - every timing mutation immediately recomputes the affected official
+ * times and writes them to the match teams) and the precision of published official times.
+ * Readable with a device token like GET /timing/officialTimes, since the station boards need
+ * the precision to render official times.
+ */
+export const getTimingSettings = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingSettingsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingSettingsResponse,
+        GetTimingSettingsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/settings',
+    })
+}
+
+/**
+ * Persists the switch. Enabling it catches up once: every team with marks or an official-time
+ * row is recomputed and written back (frozen or foreign results are skipped and stay flagged
+ * dirty). Disabling only stops future writes - results already written remain untouched.
+ */
+export const setTimingAutoApply = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetTimingAutoApplyData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetTimingAutoApplyResponse,
+        SetTimingAutoApplyError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/autoApply',
     })
 }
 
@@ -5741,6 +5943,111 @@ export const getTimingTeams = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The station start list: every materialized match of the event's internally timed competitions (coalesce of competition/event timing system = INTERN), in start order, each with its resolved timing mode, teams and derived progress. Readable with a session or with the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded unless the bye must race.
+ *
+ * Pass `station` to narrow the list to what that station can actually capture. This only takes effect for SPLIT stations: their marks become intermediate times solely for competitions that carry the station on their course, so showing the rest would invite a timekeeper to take times that go nowhere. START and FINISH stations are never narrowed -- their marks feed the official time regardless of any course assignment. An unknown station id narrows nothing.
+ */
+export const getTimingMatches = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingMatchesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingMatchesResponse,
+        GetTimingMatchesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches',
+    })
+}
+
+/**
+ * Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE time mark that is assigned to a team of this match - start, finish and lap marks alike - is set to RETRACTED in one call. Finish marks must go with the start marks, because stale finish times of a discarded attempt would otherwise instantly recombine with the new start marks into wrong official times through the realtime write-back. Assignments are kept (like the single retract, so the existing reactivate endpoint restores the attempt), the official times of the affected teams are recomputed and cleared from the matches immediately, and the match falls back to "open" in the start list. Correcting a single start time is NOT this endpoint - retract and re-capture the one mark via the time mark list instead, which leaves the finish marks active. Idempotent - a match without active marks succeeds without effect. Requires a user session; device tokens cannot retract marks.
+ */
+export const retractMatchAttempt = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RetractMatchAttemptData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        RetractMatchAttemptResponse,
+        RetractMatchAttemptError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches/{matchId}/retractAttempt',
+    })
+}
+
+export const getTimingModes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingModesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingModesResponse,
+        GetTimingModesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes',
+    })
+}
+
+export const addTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddTimingModeResponse,
+        AddTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes',
+    })
+}
+
+export const updateTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingModeResponse,
+        UpdateTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes/{modeId}',
+    })
+}
+
+/**
+ * Deletes the mode. Refused with 409 while the mode is still assigned to competitions or rounds - clear the assignments first, nothing is unconfigured silently.
+ */
+export const deleteTimingMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingModeResponse,
+        DeleteTimingModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/modes/{modeId}',
+    })
+}
+
+/**
+ * Issues a device token for the station automatically and returns the finished link (root-relative path plus token). Reuse instead of inflation: as long as an automatically issued, unrevoked token exists for the station, every call returns the SAME link. Revoking the token in the devices tab makes the next call issue a fresh one. Requires a session with UPDATE EVENT.
+ */
+export const createTimingStationShareLink = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateTimingStationShareLinkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateTimingStationShareLinkResponse,
+        CreateTimingStationShareLinkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}/share-link',
+    })
+}
+
 export const createTimingSequence = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimingSequenceData, ThrowOnError>,
 ) => {
@@ -5754,6 +6061,9 @@ export const createTimingSequence = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The sequence the station's board should show right now. For an ANZEIGE station the query mirrors: with a linkedStation it answers for exactly that START station, without one it returns the most recently touched active sequence of the whole event (falling back to the most recent finished one within the usual window).
+ */
 export const getActiveTimingSequence = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetActiveTimingSequenceData, ThrowOnError>,
 ) => {
@@ -5819,6 +6129,9 @@ export const deleteRetractedTimeMarks = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The event's official times. Readable with a session or with the X-Timing-Device-Token header - the finish board shows official times live at each boat, and shared station devices run without a session (the websocket's officialTimeChanged messages already accept the same tokens; this is the initial state for them).
+ */
 export const getOfficialTimes = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetOfficialTimesData, ThrowOnError>,
 ) => {

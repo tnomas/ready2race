@@ -1,13 +1,16 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
+import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
+import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
 
 /**
- * Zeitnahme-Voreinstellung der Veranstaltung. Jedes Feld optional wie beim Wettkampf
- * ([TimingConfigRequest]): die RaceClocker-Rennen entstehen erst kurz vor der Regatta.
+ * Zeitnahme-Einstellungen der Veranstaltung. System und Dateiformate bleiben optional: Sie werden
+ * beim Anlegen der Regatta noch nicht gewusst und dürfen deshalb leer bleiben.
  */
 data class EventTimingConfigRequest(
     val timingSystem: TimingSystem?,
@@ -24,6 +27,28 @@ data class EventTimingConfigRequest(
     val intervalUpcomingSeconds: Int,
     val watchBeforeMinutes: Int,
     val watchAfterMinutes: Int,
+    /**
+     * Genauigkeit der veroeffentlichten offiziellen Zeiten. Wie die Takte nicht optional: die
+     * Spalte hat eine Vorgabe, und `null` hiesse "unveraendert lassen" - eine Bedeutung, die das
+     * Formular nicht braucht. Eine Aenderung rechnet serverseitig alle eigenen Ergebnisse auf die
+     * neue Stufe um (TimingConfigService.updateEventTimingConfig).
+     */
+    val timingPrecision: TimingPrecision,
+    /**
+     * Erfassungstöne der Posten (FINISH/SPLIT). Anders als Takte und Genauigkeit optional MIT
+     * Bedeutung: `null` heisst "eingebauter Standard" und räumt einen eigenen Wert wieder ab
+     * ("Standard wiederherstellen") - PUT-Semantik wie beim OfficialTimeOverrideRequest.
+     */
+    val finishTone: CaptureTone?,
+    val splitTone: CaptureTone?,
+    /**
+     * Fehlstart-FOLGE der Startposten, gleiche PUT-Semantik wie die Erfassungstöne: `null` heisst
+     * "eingebaute Standardfolge" (kurz-kurz-lang, siehe
+     * [TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]) und räumt einen eigenen Wert wieder ab.
+     * Geschrieben wird immer die Liste - der frühere Einzelton-Wert bleibt lesbar (Conversions),
+     * entsteht aber nicht mehr neu.
+     */
+    val falseStartTone: List<ToneStep>?,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -32,6 +57,9 @@ data class EventTimingConfigRequest(
             validateInterval(intervalUpcomingSeconds, "intervalUpcomingSeconds"),
             validateMinutes(watchBeforeMinutes, "watchBeforeMinutes"),
             validateMinutes(watchAfterMinutes, "watchAfterMinutes"),
+            TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
+            TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
+            TimingToneLimits.validateToneSequence(falseStartTone, "falseStartTone"),
         )
 
     companion object {
@@ -65,6 +93,10 @@ data class EventTimingConfigRequest(
                 intervalUpcomingSeconds = 60,
                 watchBeforeMinutes = 15,
                 watchAfterMinutes = 120,
+                timingPrecision = TimingPrecision.ZEHNTEL,
+                finishTone = null,
+                splitTone = null,
+                falseStartTone = null,
             )
     }
 }

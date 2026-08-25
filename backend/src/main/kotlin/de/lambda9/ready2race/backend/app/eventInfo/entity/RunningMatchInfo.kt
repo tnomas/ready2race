@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -30,5 +31,11 @@ data class RunningMatchInfo(
     val roundName: String?,
     val matchName: String?,
     val executionOrder: Int,
-    val teams: List<RunningMatchTeamInfo>
+    val teams: List<RunningMatchTeamInfo>,
+    /**
+     * Die Bezugsgröße des Wettkampfs („Zeit pro 500 m", „km/h"), null ohne gepflegte. Sie reist
+     * am Lauf mit, weil die Anzeige das Tempo je Abschnitt selbst rechnet - ohne sie weiß sie
+     * nicht, in welcher Einheit.
+     */
+    val paceReference: PaceReferenceDto? = null,
 )

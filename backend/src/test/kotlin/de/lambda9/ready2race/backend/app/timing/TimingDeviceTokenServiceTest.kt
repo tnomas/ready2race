@@ -159,6 +159,64 @@ class TimingDeviceTokenServiceTest {
         }
     }
 
+    // --- validateForEvent: Geräte-Token als Lese-Zugang für geteilte Posten-Links -------------
+    //
+    // Ein per Link geteiltes Erfassungs- bzw. Startbildschirm-Gerät muss den Zustand der ganzen
+    // Veranstaltung lesen dürfen (Posten, Marken, aktive Sequenz) - dieselbe Sichtbarkeit, die
+    // jede angemeldete Zeitnahme-Rolle hat. Schreiben bleibt weiterhin auf die Posten-Bindung
+    // von `validate` (Zeitmarken) bzw. auf echte Sitzungen beschränkt.
+
+    @Test
+    fun validateForEventAcceptsTheTokenForAnyStationOfItsEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val issued = (!TimingDeviceTokenService.issue(
+            eventId,
+            TimingDeviceTokenRequest("Finish beam", stationId),
+            userId,
+        )).dto
+
+        val record = !TimingDeviceTokenService.validateForEvent(issued.token, eventId)
+
+        assertEquals(issued.deviceToken.id, record.id)
+    }
+
+    @Test
+    fun validateForEventRejectsTokenOfAnotherEvent() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val issued = (!TimingDeviceTokenService.issue(
+            eventId,
+            TimingDeviceTokenRequest("Finish beam", stationId),
+            userId,
+        )).dto
+
+        assertKIOFails(TimingError.DeviceTokenInvalid) {
+            TimingDeviceTokenService.validateForEvent(issued.token, otherEventId)
+        }
+    }
+
+    @Test
+    fun validateForEventRejectsUnknownAndRevokedTokens() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val issued = (!TimingDeviceTokenService.issue(
+            eventId,
+            TimingDeviceTokenRequest("Finish beam", stationId),
+            userId,
+        )).dto
+
+        assertKIOFails(TimingError.DeviceTokenInvalid) {
+            TimingDeviceTokenService.validateForEvent("not-a-real-token", eventId)
+        }
+
+        !TimingDeviceTokenService.revoke(eventId, issued.deviceToken.id)
+        assertKIOFails(TimingError.DeviceTokenInvalid) {
+            TimingDeviceTokenService.validateForEvent(issued.token, eventId)
+        }
+    }
+
     @Test
     fun hardwareMarkIsRecordedWithHardwareSourceAndNoUser() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

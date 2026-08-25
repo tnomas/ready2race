@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.caterer.entity.CatererTransactionViewSo
 import de.lambda9.ready2race.backend.app.certificate.boundary.awardCertificate
 import de.lambda9.ready2race.backend.app.certificate.boundary.certificate
 import de.lambda9.ready2race.backend.app.timingConfig.boundary.eventTimingConfig
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.timingProfile
 import de.lambda9.ready2race.backend.app.competition.boundary.competition
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.event.entity.EventPublicViewSort
@@ -105,6 +106,7 @@ fun Route.event() {
             awardCertificate()
             awardCeremony()
             eventTimingConfig()
+            timingProfile()
             eventNotice()
             raceClockerRace()
 

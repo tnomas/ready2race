@@ -12,12 +12,14 @@ import {
     BoardElement,
     BoardViewDto,
     MatchTeamLapDto,
+    PaceReferenceDto,
 } from '@api/types.gen'
 import {AthleteBoardLapTimes} from '../info/athleteBoard/AthleteBoardBoatRow'
 import {
     finishComplete,
     formatClockTime,
     formatClockTimeWithSeconds,
+    lapRanksByStartNumber,
     scaled,
     sortRunningTeams,
     teamLabel,
@@ -161,6 +163,8 @@ const BoardMatchDetailElement = ({
         subline: string | null,
         participants: AthleteBoardParticipant[],
         laps: MatchTeamLapDto[] | undefined,
+        lapRanks: (number | null)[] | undefined,
+        paceReference: PaceReferenceDto | null | undefined,
     ) => (
         <Stack
             key={key}
@@ -220,7 +224,11 @@ const BoardMatchDetailElement = ({
                     {/* Rundenzeiten prominent unter der Zeit — dieselbe Zeile wie auf
                         Lauf- und Ergebnis-Karte (12.08.2026); vorher eine kleine graue
                         Zeile links unter der Crew. */}
-                    <AthleteBoardLapTimes laps={laps} />
+                    <AthleteBoardLapTimes
+                        laps={laps}
+                        ranks={lapRanks}
+                        paceReference={paceReference}
+                    />
                     {/* Beim laufenden Boot der Live-Eindruck („schon unterwegs"), beim
                         gewerteten steht der Start dezent neben bzw. unter der Zielzeit. */}
                     {startedLine(team) && (
@@ -234,6 +242,12 @@ const BoardMatchDetailElement = ({
             )}
         </Stack>
     )
+
+    // Der Rang an einer Zwischenzeit ist eine Aussage über den ganzen Lauf — einmal je Kachel
+    // gerechnet und dann an die Bootszeilen verteilt, bewusst über die unsortierte Aufstellung:
+    // Der Rang hängt an den Zeiten, nicht an der Reihenfolge der Liste.
+    const matchLapRanks = match ? lapRanksByStartNumber(match.teams) : null
+    const resultLapRanks = result ? lapRanksByStartNumber(result.teams) : null
 
     // Laufende/anstehende Aufstellung: sobald Zwischenstände da sind, sortiert die
     // Platzierung (dieselbe Regel wie die „Im Rennen"-Karte).
@@ -271,6 +285,8 @@ const BoardMatchDetailElement = ({
                       : null,
                   team.participants,
                   team.laps,
+                  matchLapRanks?.get(`${team.startNumber}`),
+                  match.paceReference,
               ),
           )
         : null
@@ -305,6 +321,8 @@ const BoardMatchDetailElement = ({
                       : null,
                   team.participants ?? [],
                   team.laps,
+                  resultLapRanks?.get(`${team.startNumber}`),
+                  result.paceReference,
               ),
           )
         : null

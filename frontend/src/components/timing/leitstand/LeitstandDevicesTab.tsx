@@ -24,6 +24,7 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import DeviceTokenIssueDialog from '@components/timing/leitstand/DeviceTokenIssueDialog.tsx'
+import StationBoardLink from '@components/timing/StationBoardLink.tsx'
 
 export type LeitstandDevicesTabProps = {
     eventId: string
@@ -133,9 +134,33 @@ const LeitstandDevicesTab = ({eventId, stations}: LeitstandDevicesTabProps) => {
                     <TableBody>
                         {sortedTokens.map(token => (
                             <TableRow key={token.id} hover>
-                                <TableCell>{token.name}</TableCell>
                                 <TableCell>
-                                    {stationById.get(token.station)?.name ?? token.station.slice(0, 8)}
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <span>{token.name}</span>
+                                        {/* Auto-Token aus dem Teilen-Dialog des Postens: sein
+                                            Klartext bleibt über den Share-Link abrufbar —
+                                            anders als bei Hand-Tokens für Hardware. */}
+                                        {token.autoIssued && (
+                                            <Chip
+                                                size="small"
+                                                variant="outlined"
+                                                label={t('timing.leitstand.devices.autoIssued')}
+                                            />
+                                        )}
+                                    </Stack>
+                                </TableCell>
+                                <TableCell>
+                                    {/* Der Postenname führt auf sein Board (neues Fenster) —
+                                        wie im Posten-Streifen der Übersicht. */}
+                                    {stationById.has(token.station) ? (
+                                        <StationBoardLink
+                                            eventId={eventId}
+                                            stationId={token.station}>
+                                            {stationById.get(token.station)!.name}
+                                        </StationBoardLink>
+                                    ) : (
+                                        token.station.slice(0, 8)
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     {format(new Date(token.createdAt), t('format.datetime'))}

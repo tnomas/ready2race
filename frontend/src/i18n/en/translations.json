@@ -778,6 +778,9 @@
       "description": "Description",
       "lateRegistrationAllowed": "Late registration allowed",
       "ratingCategoryRequired": "Rating category required",
+      "distanceMeters": "Total distance in metres",
+      "paceReference": "Pace reference",
+      "paceHint": "Both are only needed for the pace display between two timing stations. Split times work without them.",
       "registrationCount": "Registrations",
       "shortName": "Short name",
       "checkInOutRequired": "Requires check-in/out for the arena",
@@ -1351,46 +1354,28 @@
       },
       "timing": {
         "tabTitle": "Timing",
-        "system": "Timing system",
-        "systems": {
-          "none": "not set",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer"
-        },
-        "eventDefaults": {
-          "title": "Event default",
-          "unset": "not set",
-          "link": "Edit the event's timing setup"
-        },
-        "override": {
-          "label": "Set separately for this competition",
-          "hint": "Applies to the timing system and the file formats. Off: the competition follows the event and picks up every later change there. On: it gets values of its own. The race assignment above is not affected — it always belongs to the competition."
-        },
-        "raceSection": {
-          "title": "This competition's race"
-        },
-        "presets": {
-          "title": "File formats",
-          "hint": "Which columns are exported and imported. Only needed separately if this competition runs into a different race in the timing system."
-        },
-        "raceclockerHint": "RaceClocker races are created in the event settings. Select this competition's one race here — it applies to the qualification and all other rounds. The same assignment can also be ticked the other way round, at the race.",
-        "startlist": "Start list export",
-        "resultImport": "Race results import",
-        "importHint": "The RaceClocker presets export without a header row, because RaceClocker would otherwise import that row as a participant. Map the columns by their position when importing into RaceClocker – the internal identifier in particular onto \"Extra info\".",
-        "presetsHint": {
-          "1": "Start list exports and race results imports are created ",
-          "2": "in the configuration",
-          "3": " and apply to all events."
+        "inheritedHint": {
+          "1": "The timing system and the file formats apply to the whole event and are maintained ",
+          "2": "in its settings",
+          "3": ". Here you only assign what this competition is timed with."
         },
         "incomplete": {
           "title": "This timing setup is not ready for use yet",
           "startlist": "The start list export is missing – without it, no start list can be exported as CSV.",
-          "race": "No race is selected – without one, results cannot be pulled from RaceClocker.",
-          "link": "Go to the timing settings"
+          "link": "Go to the event's timing settings"
         },
-        "saved": "Timing settings saved",
-        "invalid": "Please select a race belonging to this event.",
-        "race": "RaceClocker race"
+        "stations": {
+          "title": "Stations on the course",
+          "hint": "Which timing stations this competition passes and at which metre. Start and finish stations may be listed as well — the start at 0, the finish at the total distance — so the course is described in full. A split time is only created at stations of type “Split”, though: at the finish the official time is measured, so there is no split time there and consequently no pace for the last section. Split times are ordered by the metre, not by the order of the stations in the control room. The stations themselves are maintained in the event settings.",
+          "distance": "Metres",
+          "noStations": "This event has no capturing timing stations yet. Display stations are not offered - they never capture a time.",
+          "saved": "Stations on the course saved",
+          "warning": {
+            "missingDistance": "At least one selected station has no metre.",
+            "overDistance": "At least one station stands beyond the competition's total distance ({{distance}} m).",
+            "duplicateDistance": "Two stations stand at the same metre."
+          }
+        }
       },
       "places": {
         "places": "Places",
@@ -1621,7 +1606,8 @@
       "settings": "Settings",
       "actions": "Actions",
       "organisation": "Organisation",
-      "invoices": "Invoices"
+      "invoices": "Invoices",
+      "betrieb": "Operations"
     },
     "notice": {
       "title": "Global notice",
@@ -1640,14 +1626,15 @@
     },
     "timing": {
       "title": "Timing",
-      "hint": "Applies to every competition of this event. A single competition can enter its own values in its timing tab and deviate deliberately.",
+      "hint": "Applies to every competition of this event: one timing system and one set of file formats. What the individual competitions, rounds and matches are timed with is assigned in the timing profile tree below.",
       "system": "Timing system",
       "systems": {
         "none": "not set",
         "raceclocker": "RaceClocker",
-        "webscorer": "Webscorer"
+        "webscorer": "Webscorer",
+        "intern": "Internal timing"
       },
-      "raceclockerHint": "RaceClocker races belong to the event, not to a single competition. Create each race once here — for example “Long course” and “Short course” — and tick below, per race, which competitions use it. Each competition runs all of its rounds in one race.",
+      "raceclockerHint": "RaceClocker races belong to the event, not to a single competition. Create each race once here — for example “Long course” and “Short course” — and use the timing profile tree below to assign which competition, round or match runs in which race.",
       "autoPull": {
         "enabled": "Pull results automatically",
         "hint": "While a match is running, the server pulls its results at the fast interval. Upcoming matches are watched at the slow interval to detect their start; finished matches are not polled at all.",
@@ -1665,12 +1652,92 @@
       },
       "saved": "Timing defaults saved",
       "invalid": "The timing defaults could not be saved.",
-      "deviations": {
-        "title": "Competitions with their own timing",
-        "none": "No competition deviates – all of them follow these defaults.",
-        "system": "own system",
-        "startlist": "own start list export",
-        "resultImport": "own race results import"
+      "internHint": "Internal timing runs entirely inside this app: stations capture time marks, start sequences pace the starts, the control room computes the results. Create the timing modes here and assign them in the timing profile tree below.",
+      "precision": {
+        "label": "Precision of official times",
+        "hint": "Raw times are still stored to the millisecond; this setting controls what is published as the official time on a race and shown in the app (truncated, never rounded up). Tenths match the accuracy of hand timing. Finer levels are only meaningful with timing hardware — hand-tapped times include human reaction time.",
+        "options": {
+          "SEKUNDE": "Second",
+          "ZEHNTEL": "Tenth of a second",
+          "HUNDERTSTEL": "Hundredth of a second",
+          "MILLISEKUNDE": "Millisecond"
+        }
+      },
+      "toneWaveform": {
+        "label": "Waveform",
+        "SINE": "Sine",
+        "TRIANGLE": "Triangle",
+        "SQUARE": "Square",
+        "SAWTOOTH": "Sawtooth",
+        "help": "Sine and triangle sound soft; square and sawtooth sound piercing and buzzy, which makes them well suited as signal or warning tones."
+      },
+      "toneEnvelope": {
+        "label": "Envelope",
+        "decay": "Decaying",
+        "held": "Held",
+        "decayHelp": "Decaying: the volume falls off evenly across the whole duration — a fading beep.",
+        "heldHelp": "Held: the tone keeps full volume for the whole duration and then falls off during the release — at 0 ms a built-in fade of a few milliseconds prevents an audible click.",
+        "summaryDecay": "decaying",
+        "summaryHeld": "held · {{millis}} ms release"
+      },
+      "captureTones": {
+        "title": "Capture tones",
+        "hint": "The confirmation tone finish and split stations play when a time is captured — configurable per station type. It only sounds on the key press itself; resending from the offline queue stays silent.",
+        "finish": "Finish station",
+        "split": "Split station",
+        "frequencyHz": "Pitch (Hz)",
+        "durationMillis": "Duration (ms)",
+        "releaseMillis": "Release (ms)",
+        "play": "Play tone",
+        "reset": "Restore default",
+        "isDefault": "default",
+        "invalid": "Pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms."
+      },
+      "falseStartTone": {
+        "title": "False-start recall",
+        "hint": "The tone sequence the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing. A sequence rather than a single tone, because a pattern with a differing final tone (\"short, short, long\") reads as a recall out on the water, where a single tone passes as just another signal.",
+        "label": "False start",
+        "presetSingle": "Single tone",
+        "presetTriple": "Three short",
+        "presetShortShortLong": "Short-short-long (default)",
+        "invalid": "Please check the highlighted tones: time 0–60000 ms after the trigger, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at least one and at most 30 tones."
+      },
+      "modes": {
+        "title": "Timing modes",
+        "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned in the timing profile tree below.",
+        "none": "No timing modes created yet.",
+        "add": "Add timing mode",
+        "edit": "Edit timing mode",
+        "name": "Name",
+        "startGrouping": {
+          "label": "Start type",
+          "EINZEL": "Individual start",
+          "WELLE": "Wave"
+        },
+        "intervalSeconds": "Start interval (seconds)",
+        "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
+        "invalidInterval": "The interval must be at least 1 second — or stay empty for manual starts.",
+        "leadInSeconds": "Countdown lead-in (seconds)",
+        "leadInHelp": "Countdown before the (first) start.",
+        "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
+        "describe": {
+          "interval": "interval {{seconds}} s",
+          "manualStart": "manual start",
+          "leadIn": "lead-in {{seconds}} s"
+        },
+        "saved": "Timing mode saved",
+        "deleted": "Timing mode deleted",
+        "deleteConfirm": "Really delete the timing mode \"{{name}}\"?",
+        "deleteBlocked": "\"{{name}}\" is still in use: the mode is assigned to at least one level of the timing profile tree. Remove the assignments in the tree below first.",
+        "tones": {
+          "title": "Tones",
+          "hint": "The beeps of the start sequence, relative to the start of the respective boat or wave (0 = start). They play on the start board and the start display; missed tones are never played late.",
+          "presetOnlyStart": "Start only",
+          "presetTenCountdown": "10−5−4−3−2−1−start",
+          "presetDefault": "Default (5…1−start)",
+          "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real.",
+          "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
+        }
       },
       "races": {
         "title": "RaceClocker races",
@@ -1682,18 +1749,52 @@
         "capturesLaps": "Records lap times",
         "none": "No race created yet.",
         "deleteConfirm": "Really delete “{{name}}”?",
-        "deleteBlocked": "“{{name}}” is still assigned to at least one competition and was not deleted — untick the assignment below and try again.",
+        "deleteBlocked": "“{{name}}” is still assigned to at least one level and was not deleted — remove the assignment in the timing profile tree below and try again.",
         "nameTaken": "A race with this name already exists.",
         "urlTaken": "A race with this results URL already exists.",
         "invalidUrl": "The URL must be on raceclocker.com.",
         "saved": "Race saved.",
         "deleted": "Race deleted."
       },
-      "assignments": {
-        "title": "Assign competitions per race",
-        "hint": "The reverse of choosing in the competition: tick here which competitions use each race. A competition belongs to exactly one race with all of its rounds — ticking it here moves it away from another. Unticked competitions have no race.",
-        "competitions": "Used by",
-        "saved": "Assignment saved."
+      "tones": {
+        "play": "Play tone",
+        "edit": "Edit tone",
+        "remove": "Remove tone",
+        "addTone": "Add tone",
+        "playAll": "Play sequence",
+        "secondsBeforeStart": "Seconds before start",
+        "millisAfterTrigger": "Milliseconds after trigger",
+        "atStart": "Start",
+        "atTrigger": "immediately",
+        "frequencyHz": "Pitch (Hz)",
+        "durationMillis": "Duration (ms)",
+        "releaseMillis": "Release (ms)",
+        "timeline": "Timeline of the tones",
+        "timelineSpan": "Total length {{millis}} ms",
+        "offsetAfterTriggerHelp": "The time counts forward from the trigger: 0 means immediately, 400 means 400 milliseconds later."
+      },
+      "profiles": {
+        "title": "Timing profiles",
+        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. Rebuilding the competition setup itself makes its matches lose their own profiles \u2014 a round regenerated during execution keeps them.",
+        "matchLevelExportHint": "The bulk start list export groups by competition. A match with a race of its own appears there under its competition's race — its start list has to be exported on its own.",
+        "noSystem": "There are no profiles for this timing system. Select “RaceClocker” or “Internal timing” above.",
+        "noOptions": "No profile has been created yet. Create a race or a timing mode above.",
+        "noCompetitions": "This event has no competitions yet.",
+        "event": "Whole event",
+        "unset": "not set",
+        "inherit": "Inherits ({{profile}})",
+        "inheritsNothing": "Inherits (nothing set)",
+        "fromEvent": "Inherited from the event: {{profile}}.",
+        "fromEventLink": "Edit the event's timing setup",
+        "toggle": "Expand or collapse",
+        "saved": "Timing profile saved",
+        "deviations_one": "{{count}} own profile below",
+        "deviations_other": "{{count}} own profiles below",
+        "resetAll": "Reset everything below to inherit",
+        "resetCompetition": "Reset the rounds and matches of this competition to inherit",
+        "resetConfirmEvent": "All assignments of the whole event will be removed. Afterwards every competition, round and match inherits from above again. Continue?",
+        "resetConfirmCompetition": "All assignments of the rounds and matches of {{identifier}} {{name}} will be removed. Afterwards they inherit from the competition again. Continue?",
+        "reset": "Assignments removed"
       }
     },
     "info": {
@@ -1738,7 +1839,9 @@
         "advancing_one": "1 boat advances → {{round}}",
         "advancingUnsized": "Next up: {{round}}",
         "birthYear": "b. {{year}}",
-        "registeringClub": "Entered by: {{club}}"
+        "registeringClub": "Entered by: {{club}}",
+        "lapRank": "Rank at this split",
+        "lapPace": "Segment pace"
       }
     },
     "match": {
@@ -2345,6 +2448,37 @@
         "upcomingListTitle": "Upcoming matches",
         "inMinutes": "in {{time}}"
       }
+    },
+    "betrieb": {
+      "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
+      "referee": {
+        "title": "Referee",
+        "description": "The live dashboard shows running and upcoming matches, checks and decisions for the referees.",
+        "open": "Open live dashboard"
+      },
+      "speaker": {
+        "title": "Speaker",
+        "description": "The speaker view bundles start lists, results and running matches for the commentary.",
+        "open": "Open speaker view"
+      },
+      "timing": {
+        "title": "Timing",
+        "description": "Control desk for the timing lead on a laptop, below it the stations (start, split, finish) with direct links: open capture, start display for START stations, \"Share to device\" for phones and screens without a login.",
+        "openLeitstand": "Open control desk",
+        "mobileHint": "For phones at a station there is also the mobile entry page:",
+        "mobileLink": "Open mobile capture"
+      },
+      "livestream": {
+        "title": "Livestream",
+        "description": "Boards and stream overlays for the video direction: public displays and chroma-key tiles for OBS.",
+        "open": "Manage boards & stream overlays"
+      },
+      "helpers": {
+        "title": "Helpers",
+        "description": "The helper app for phones (QR scanning, check-in/out, tasks) and the event’s shift plan.",
+        "openApp": "Open helper app",
+        "shifts": "Go to shift plan (organisation)"
+      }
     }
   },
   "task": {
@@ -2617,6 +2751,23 @@
       "name": "Name",
       "description": "Description",
       "tableHint": "Can be assigned to competition teams."
+    },
+    "paceReference": {
+      "paceReference": "Pace reference",
+      "paceReferences": "Pace references",
+      "tableHint": "Define what the pace of a competition refers to — time per 500 m in rowing, time per kilometre in running, kilometres per hour in cycling.",
+      "name": "Name",
+      "mode": {
+        "mode": "Kind",
+        "TIME_PER_DISTANCE": "Time per distance",
+        "DISTANCE_PER_TIME": "Distance per hour"
+      },
+      "referenceMeters": "Reference distance in metres",
+      "label": "Label",
+      "preview": "shows: {{label}}",
+      "error": {
+        "nameTaken": "A pace reference with this name already exists."
+      }
     },
     "import": {
       "matchResult": {
@@ -2932,6 +3083,14 @@
     }
   },
   "timing": {
+    "officialTime": {
+      "reason": {
+        "NO_START_MARK": "no start",
+        "NO_FINISH_MARK": "no finish",
+        "NEGATIVE_DURATION": "start after finish",
+        "NO_MARKS": "no time marks"
+      }
+    },
     "title": "Timing",
     "selectEvent": "Select event",
     "selectStation": "Select station",
@@ -2952,10 +3111,40 @@
       "types": {
         "START": "Start",
         "SPLIT": "Split",
-        "FINISH": "Finish"
+        "FINISH": "Finish",
+        "ANZEIGE": "Display"
+      },
+      "linkedStation": {
+        "label": "Linked start station",
+        "all": "Every start sequence of the event",
+        "hint": "The display mirrors this start station's start sequences (countdown, who is up, who follows). Without a link it shows whichever start sequence of the event was active last."
+      },
+      "captureMode": {
+        "label": "Capture mode",
+        "hint": "One-touch captures on every press, the way the station works today. \"Arming\" requires the timekeeper on site to arm the station before a press captures a time with an assignment; the big capture button still banks a time without an assignment while disarmed. After the change the station is disarmed and has to be armed on site.",
+        "ONETOUCH": "One-touch — every press captures immediately",
+        "ARMED": "Arming — the station is armed on site"
       },
       "error": {
         "hasTimeMarks": "The station already has recorded times and cannot be deleted"
+      },
+      "openCapture": "Open capture",
+      "openBoard": "Open the station's board (new window)",
+      "copyUrl": "Copy board address",
+      "urlCopied": "Board address copied",
+      "openStartDisplay": "Open start display",
+      "share": {
+        "action": "Share to device",
+        "title": "Share station \"{{station}}\" to a device",
+        "description": "The link carries this station’s device access: the device (shared phone, display screen) needs no login. The same station always returns the same link — until the access is revoked in the control desk under \"Devices\".",
+        "copied": "Link copied",
+        "copy": "Copy link",
+        "revokeHint": "The link stays retrievable here at any time. Revoke in the control desk, \"Devices\" tab (entry \"Link\") — a revoked access makes the link unusable immediately, and the next click on \"Share\" creates a new one.",
+        "target": {
+          "capture": "Capture",
+          "display": "Start display"
+        },
+        "error": "The link could not be created."
       }
     },
     "assign": {
@@ -2970,19 +3159,63 @@
     "mark": {
       "retractError": "Undo failed"
     },
+    "finish": {
+      "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
+      "assignLater": "Assign later",
+      "hint": "Tap a boat or press 1–6 / A–F: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
+      "hintTouch": "Tap a boat: capture and assign in one gesture. Big surface: bank a time without a boat and assign it by tapping a boat afterwards.",
+      "finishedCount": "{{finished}}/{{total}} finished",
+      "upcomingTitle": "Expected next",
+      "noneExpected": "No race is on the water right now.",
+      "focused": "Focused",
+      "startMissing": "Start missing — the result follows once the start is set",
+      "focusHint": "Keys only act on the focused match — switch focus with Tab or a click."
+    },
+    "matches": {
+      "title": "Start list",
+      "loadError": "The races could not be loaded.",
+      "empty": "No races with internal timing.",
+      "boats_one": "{{count}} boat",
+      "boats_other": "{{count}} boats",
+      "noMode": "no timing mode",
+      "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
+      "noTeamsLeft": "Every boat of this race has already started.",
+      "allStarted": "All races have been started — nothing left open.",
+      "start": "Start sequence",
+      "startSelected": "Start: {{match}}",
+      "error": {
+        "start": "The start sequence could not be started.",
+        "restart": "The start could not be retracted."
+      },
+      "mode": {
+        "interval": "every {{seconds}} s",
+        "EINZEL": "individual start",
+        "WELLE": "wave"
+      },
+      "progress": {
+        "OPEN": "open",
+        "STARTING": "start sequence running",
+        "STARTED": "started",
+        "FINISHED": "finished"
+      },
+      "menu": {
+        "open": "Match actions"
+      },
+      "abortSequence": "Abort sequence",
+      "restart": "Retract start and restart",
+      "restartConfirm": {
+        "title": "Discard attempt?",
+        "content": "The whole attempt of {{match}} will be retracted — start marks AND any finish times already captured; the match returns to open in the start list. A running sequence is aborted first. To correct a single start time instead, retract that mark in the time list — the finish times are kept there.",
+        "ok": "Discard attempt",
+        "keep": "Keep as is"
+      },
+      "restartDone": "Attempt retracted — the match can be started again",
+      "startFocused": "Start: {{match}}"
+    },
     "sequence": {
       "mode": {
         "MASS": "Mass start",
         "INTERVAL": "Interval start"
-      },
-      "setup": {
-        "title": "Set up sequence",
-        "intervalSeconds": "Interval (seconds)",
-        "leadInSeconds": "Lead-in (seconds)",
-        "leadInHelp": "Time from starting the sequence to the first start ({{min}}–{{max}} s)",
-        "selectedCount": "{{selected}} of {{total}} selected",
-        "orderHint": "Start order follows the start number",
-        "armButton": "Arm sequence"
       },
       "armed": {
         "title": "Sequence armed",
@@ -2995,8 +3228,7 @@
       },
       "summary": {
         "titleDone": "Sequence completed",
-        "titleAborted": "Sequence aborted",
-        "reset": "New sequence"
+        "titleAborted": "Sequence aborted"
       },
       "entry": {
         "skip": "Skip",
@@ -3006,10 +3238,11 @@
           "content": "{{team}} will not be started. This cannot be undone."
         }
       },
-      "abort": "Abort",
+      "abort": "Abort sequence",
       "abortConfirm": {
         "title": "Abort sequence?",
-        "content": "Pending starts will no longer fire."
+        "content": "Pending starts will no longer fire.",
+        "keep": "Keep running"
       },
       "loadError": "Could not load sequence",
       "retry": "Try again",
@@ -3017,13 +3250,14 @@
         "create": "Could not create sequence",
         "start": "Could not start sequence",
         "abort": "Abort failed",
-        "skip": "Skip failed",
-        "invalidInterval": "Interval must be at least 1 second",
-        "invalidLeadIn": "Lead-in must be between {{min}} and {{max}} seconds",
-        "noTeams": "Select at least one team"
+        "skip": "Skip failed"
+      },
+      "bar": {
+        "started": "{{started}}/{{total}} started"
       }
     },
     "board": {
+      "noCourseAssignment": "This station is not on any competition's course, which is why the list is empty. An intermediate time is only created where the station is entered with its distance in the competition's timing tab. Times can still be banked and assigned by hand later.",
       "wsStatus": {
         "CONNECTING": "Connecting…",
         "OPEN": "Connected",
@@ -3058,24 +3292,31 @@
         }
       },
       "stateError": "Could not load data – retrying…",
+      "armed": {
+        "blockedTitle": "Capture locked — station disarmed",
+        "blockedHint": "Hold the switch for one second to capture. If in doubt, bank the time with the big button without an assignment and assign it later.",
+        "stateArmed": "Armed — capture enabled",
+        "stateDisarmed": "Disarmed — no capture",
+        "holdHint": "Hold for one second",
+        "arm": "Arm",
+        "disarm": "Disarm",
+        "captureFallback": "Bank time without an assignment",
+        "error": "Switching failed"
+      },
       "capture": {
         "clockNotSynced": "Clock not synced – capture unavailable",
         "stationLoading": "Loading station…"
       },
+      "markList": {
+        "toggle": "Time list ({{count}})"
+      },
+      "audioHint": "Tap the screen once so the countdown sounds can play.",
       "mark": {
         "pending": "sending",
         "failed": "failed",
         "undo": "Undo"
       },
       "teams": {
-        "viewTwoStep": "Two-step",
-        "viewTeams": "Teams",
-        "arm": "Arm",
-        "armHint": "Tap teams to put them on a key",
-        "armedFull": "At most {{count}} teams can be armed at the same time",
-        "unarm": "Disarm",
-        "hint": "Keys 1–9: start number · Space: time without assignment",
-        "empty": "No teams for this event",
         "phase": {
           "ACTIVE": "Expected now",
           "OPEN": "Still ahead",
@@ -3089,7 +3330,8 @@
       "tab": {
         "times": "Times",
         "results": "Results",
-        "devices": "Devices"
+        "devices": "Devices",
+        "overview": "Overview"
       },
       "marks": {
         "stationFilter": "Station",
@@ -3129,6 +3371,10 @@
           "success_one": "{{count}} time removed",
           "success_other": "{{count}} times removed",
           "error": "Times could not be removed"
+        },
+        "reactivate": {
+          "action": "Reactivate",
+          "error": "The time could not be reactivated"
         }
       },
       "results": {
@@ -3140,7 +3386,7 @@
         "pushableCount_other": "{{count}} rows ready to push",
         "penaltyValue": "+{{seconds}} s",
         "dirty": "Outdated",
-        "dirtyHint": "A time changed since this was computed or pushed – recompute and push again",
+        "dirtyHint": "The result on the match does not reflect the current timing state – frozen, changed elsewhere, or write-back disabled",
         "notPushed": "not pushed",
         "column": {
           "team": "Start no. / team",
@@ -3151,6 +3397,7 @@
           "penalty": "Penalty",
           "status": "Status",
           "effective": "Effective",
+          "place": "Place",
           "pushed": "Pushed"
         },
         "status": {
@@ -3158,22 +3405,6 @@
           "DNS": "DNS",
           "DNF": "DNF",
           "DSQ": "DSQ"
-        },
-        "compute": {
-          "action": "Recompute",
-          "error": "Computation failed",
-          "resultTitle": "Computation finished",
-          "computedCount_one": "{{count}} time computed",
-          "computedCount_other": "{{count}} times computed",
-          "skippedCount_one": "{{count}} team skipped",
-          "skippedCount_other": "{{count}} teams skipped",
-          "noSkips": "No team was skipped",
-          "skipReason": {
-            "NO_START_MARK": "No start time",
-            "NO_FINISH_MARK": "No finish time",
-            "NEGATIVE_DURATION": "Finish time is before the start time",
-            "NO_MARKS": "No time marks"
-          }
         },
         "push": {
           "action": "Push to results",
@@ -3209,7 +3440,9 @@
           "statusHelp": "DNS/DNF/DSQ replace the time in the result",
           "invalidSeconds": "Please enter a number of seconds",
           "error": "Saving failed",
-          "success": "Time saved"
+          "success": "Time saved",
+          "penaltyNote": "Penalty reason",
+          "penaltyNoteHelp": "Free text; shown with the penalty on the match"
         }
       },
       "devices": {
@@ -3245,8 +3478,74 @@
             "title": "Revoke token?",
             "content": "The device “{{name}}” will no longer be able to send times."
           }
+        },
+        "autoIssued": "Link"
+      },
+      "overview": {
+        "autoApply": {
+          "label": "Automatic write-back",
+          "hintOn": "Assigned times appear on the match immediately",
+          "hintOff": "Times keep accumulating but are not written to the matches",
+          "enabled": "Automatic write-back enabled – pending results were applied",
+          "disabled": "Automatic write-back disabled",
+          "error": "The switch could not be saved",
+          "loadError": "The automatic write-back state could not be loaded"
+        },
+        "stations": {
+          "empty": "No stations yet",
+          "armed": {
+            "ARMED": "armed",
+            "DISARMED": "disarmed",
+            "ONETOUCH": "One-touch",
+            "hint": {
+              "ARMED": "The station is armed and capturing.",
+              "DISARMED": "The station is disarmed: boat buttons and keys capture nothing. Only the timekeeper on site can arm it — call them before the race.",
+              "ONETOUCH": "One-touch: every press captures immediately, there is nothing to arm."
+            }
+          },
+          "lastMark": "Last capture {{time}}",
+          "noMarks": "No captures yet",
+          "shareLink": "Device link issued",
+          "sequence": "Sequence {{match}}: {{started}}/{{total}} started",
+          "sequenceUnknown": "running"
+        },
+        "matches": {
+          "title": "Recently active races",
+          "empty": "No active races yet – they appear here as soon as times are assigned",
+          "progress": {
+            "OPEN": "Open",
+            "STARTING": "Start sequence running",
+            "STARTED": "Started",
+            "FINISHED": "Finished"
+          }
         }
       }
+    },
+    "startDisplay": {
+      "title": "Start display",
+      "idle": "No start sequence active",
+      "armed": "Start sequence armed",
+      "finishing": "All starts fired",
+      "done": "Start sequence finished",
+      "aborted": "Start sequence aborted",
+      "next": "On the start",
+      "following": "Up next",
+      "notStart": "This station is not a start station — the start display shows nothing here."
+    },
+    "schedule": {
+      "title": "Day schedule",
+      "expand": "Show day schedule",
+      "collapse": "Hide day schedule",
+      "status": {
+        "OPEN": "open",
+        "STARTING": "sequence running",
+        "STARTED": "started",
+        "FINISHED": "finished",
+        "finishProgress": "{{finished}}/{{total}} finished"
+      }
+    },
+    "marks": {
+      "noMatchGroup": "No match"
     }
   },
   "caterer": {

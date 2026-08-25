@@ -171,8 +171,10 @@ data class LiveDashboardTeamDto(
      */
     val inArenaAt: LocalDateTime?,
     /**
-     * Zwischenzeiten aus RaceClocker, in Markenreihenfolge - leer, wenn das Rennen keine führt.
-     * Dieselben Laps, die auch die Boards zeigen; das Dashboard listet sie in der Zeile mit.
+     * Zwischenzeiten in der Reihenfolge ihrer Stellen auf der Strecke - leer, wenn es für dieses
+     * Boot keine gibt. Zwei Quellen füllen sie: die Marken der Streckenposten der hauseigenen
+     * Zeitnahme und der RaceClocker-Feed. Dieselben Laps, die auch die Boards zeigen; das
+     * Dashboard listet sie in der Zeile mit.
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
     /**

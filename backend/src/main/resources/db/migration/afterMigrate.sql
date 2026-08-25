@@ -212,10 +212,15 @@ select c.id,
        cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
+       cp.distance_meters,
        nps.total_count                                                           as total_count,
        cc.id                                                                     as category_id,
        cc.name                                                                   as category_name,
        cc.description                                                            as category_description,
+       pr.id                                                                     as pace_reference_id,
+       pr.name                                                                   as pace_reference_name,
+       pr.mode                                                                   as pace_reference_mode,
+       pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
        count(distinct cr.id)                                                     as registrations_count,
@@ -227,6 +232,7 @@ select c.id,
 from competition c
          left join competition_properties cp on c.id = cp.competition
          left join competition_category cc on cp.competition_category = cc.id
+         left join pace_reference pr on cp.pace_reference = pr.id
          left join (select npfcp.competition_properties,
                            (
                                coalesce(sum(npfcp.count_males), 0) +
@@ -248,7 +254,8 @@ from competition c
          left join event_day ed on edhc.event_day = ed.id
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 group by c.id, c.event, cp.id, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
-         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+         cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
+         pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
          fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required
 ;
 
@@ -264,10 +271,15 @@ select c.id,
        cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
+       cp.distance_meters,
        nps.total_count                                                           as total_count,
        cc.id                                                                     as category_id,
        cc.name                                                                   as category_name,
        cc.description                                                            as category_description,
+       pr.id                                                                     as pace_reference_id,
+       pr.name                                                                   as pace_reference_name,
+       pr.mode                                                                   as pace_reference_mode,
+       pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
        count(distinct cr.id)                                                     as registrations_count,
@@ -279,6 +291,7 @@ select c.id,
 from competition c
          left join competition_properties cp on c.id = cp.competition
          left join competition_category cc on cp.competition_category = cc.id
+         left join pace_reference pr on cp.pace_reference = pr.id
          left join (select npfcp.competition_properties,
                            (
                                coalesce(sum(npfcp.count_males), 0) +
@@ -299,7 +312,8 @@ from competition c
          left join competition_registration cr on c.id = cr.competition and cb.id = cr.club
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
-         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+         cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
+         pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
          fs.fees, cb.id, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at,
          cp.rating_category_required;
 
@@ -315,10 +329,15 @@ select c.id,
        cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
+       cp.distance_meters,
        nps.total_count                                                           as total_count,
        cc.id                                                                     as category_id,
        cc.name                                                                   as category_name,
        cc.description                                                            as category_description,
+       pr.id                                                                     as pace_reference_id,
+       pr.name                                                                   as pace_reference_name,
+       pr.mode                                                                   as pace_reference_mode,
+       pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
        cpcc.result_confirmation_image_required                                   as challenge_result_confirmation_image_required,
@@ -329,6 +348,7 @@ from competition c
          join event e on c.event = e.id
          left join competition_properties cp on c.id = cp.competition
          left join competition_category cc on cp.competition_category = cc.id
+         left join pace_reference pr on cp.pace_reference = pr.id
          left join (select npfcp.competition_properties,
                            (
                                coalesce(sum(npfcp.count_males), 0) +
@@ -348,7 +368,8 @@ from competition c
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 where e.published is true
 group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
-         cp.late_registration_allowed, cc.id, cc.name, cc.description, nps.total_count, nps.named_participants,
+         cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
+         pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
          fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required;
 
 create view competition_template_view as
@@ -359,9 +380,14 @@ select ct.id,
        cp.check_in_out_required,
        cp.description,
        cp.late_registration_allowed,
+       cp.distance_meters,
        cc.id                                  as category_id,
        cc.name                                as category_name,
        cc.description                         as category_description,
+       pr.id                                  as pace_reference_id,
+       pr.name                                as pace_reference_name,
+       pr.mode                                as pace_reference_mode,
+       pr.reference_meters                    as pace_reference_meters,
        coalesce(nps.named_participants, '{}') as named_participants,
        coalesce(fs.fees, '{}')                as fees,
        cst.id                                 as setup_template_id,
@@ -371,6 +397,7 @@ select ct.id,
 from competition_template ct
          left join competition_properties cp on ct.id = cp.competition_template
          left join competition_category cc on cp.competition_category = cc.id
+         left join pace_reference pr on cp.pace_reference = pr.id
          left join (select npfcp.competition_properties,
                            array_agg(npfcp)
                            filter (where npfcp.competition_properties is not null ) as named_participants

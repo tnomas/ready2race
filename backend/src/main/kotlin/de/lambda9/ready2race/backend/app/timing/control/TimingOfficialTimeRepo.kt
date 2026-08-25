@@ -47,23 +47,6 @@ object TimingOfficialTimeRepo {
         TIMING_OFFICIAL_TIME.update(f) { COMPETITION_MATCH_TEAM.eq(teamId) }
 
     /**
-     * Flags the official times of [teamIds] as out of date. Called from every timing mutation, so it
-     * has to be cheap and silent: teams without an official time simply match nothing.
-     *
-     * Returns the number of rows flagged, which the caller uses to decide whether a websocket update
-     * is worth sending at all.
-     */
-    fun markDirty(teamIds: List<UUID>, userId: UUID?): JIO<Int> = Jooq.query {
-        if (teamIds.isEmpty()) return@query 0
-        update(TIMING_OFFICIAL_TIME)
-            .set(TIMING_OFFICIAL_TIME.DIRTY, true)
-            .set(TIMING_OFFICIAL_TIME.UPDATED_AT, LocalDateTime.now())
-            .set(TIMING_OFFICIAL_TIME.UPDATED_BY, userId)
-            .where(TIMING_OFFICIAL_TIME.COMPETITION_MATCH_TEAM.`in`(teamIds))
-            .execute()
-    }
-
-    /**
      * Every assigned ACTIVE mark of [eventId] with the type of the station it was captured on.
      *
      * Retracted marks are excluded here rather than filtered later: they are exactly the marks an

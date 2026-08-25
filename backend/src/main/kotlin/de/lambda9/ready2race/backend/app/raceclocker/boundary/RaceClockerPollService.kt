@@ -168,7 +168,14 @@ object RaceClockerPollService {
         event: RaceClockerPollEvent,
         now: LocalDateTime,
     ) {
-        val candidates = !RaceClockerPollRepo.getCandidates(event.eventId).orDie()
+        val matches = !RaceClockerPollRepo.getCandidates(event.eventId).orDie()
+        // Das Rennen kommt aus dem Zeitnahmeprofil-Baum (Veranstaltung, Wettkampf, Runde, Partie -
+        // die speziellste Ebene gewinnt). Die beiden Abfragen dahinter sind winzig und stehen
+        // trotzdem hinter der Frage, ob es überhaupt Läufe gibt: Der Takt läuft den ganzen
+        // Regattatag durch, auch wenn längst alles beendet ist.
+        val candidates = if (matches.isEmpty()) emptyList() else {
+            RaceClockerPollLogic.candidatesFor(matches, !RaceClockerRaceResolution.forEvent(event.eventId))
+        }
         val watched = candidates.filter {
             RaceClockerPollLogic.isWatched(
                 activated = it.activatedAt != null,
@@ -243,9 +250,9 @@ object RaceClockerPollService {
             ResolvedMatch(candidate, match, match.teams.filter { !it.deregistered })
         }
 
-        // Phase 2: die angewählten Rennen holen. Ein Abruf liefert das ganze Rennen, deshalb je
+        // Phase 2: die aufgelösten Rennen holen. Ein Abruf liefert das ganze Rennen, deshalb je
         // Adresse genau einmal holen und die Antwort teilen. Eine Rückfall-Runde gibt es nicht
-        // mehr: Jeder Wettkampf hat genau ein Rennen (11.08.2026).
+        // mehr: Jeder Lauf hat genau ein Rennen, das seine speziellste gesetzte Ebene bestimmt.
         val feeds = mutableMapOf<String, FeedResult>()
         RaceClockerFeedAssignment.urls(resolved.map { it.candidate.target })
             .forEach { feeds[it] = fetchRows(it) }

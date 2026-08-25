@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -29,7 +30,9 @@ data class LatestMatchResultInfo(
     /** Nennung der externen Zeitnahme, falls die Ergebnisse von dort kamen. */
     val timingProviderName: String?,
     val timingProviderUrl: String?,
-    val teams: List<MatchResultTeamInfo>
+    val teams: List<MatchResultTeamInfo>,
+    /** Wie bei [RunningMatchInfo.paceReference]: die Bezugsgröße des Wettkampfs für die Anzeige. */
+    val paceReference: PaceReferenceDto? = null,
 )
 
 data class MatchResultTeamInfo(

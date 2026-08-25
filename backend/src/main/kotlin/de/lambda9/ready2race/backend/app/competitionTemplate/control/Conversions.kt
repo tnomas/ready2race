@@ -5,6 +5,8 @@ import de.lambda9.ready2race.backend.app.competitionCategory.entity.CompetitionC
 import de.lambda9.ready2race.backend.app.competitionProperties.control.toDto
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionPropertiesDto
 import de.lambda9.ready2race.backend.app.competitionSetupTemplate.entity.CompetitionSetupTemplateOverviewDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceMode
 import de.lambda9.ready2race.backend.app.competitionTemplate.entity.CompetitionTemplateDto
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionTemplateViewRecord
@@ -43,6 +45,15 @@ fun CompetitionTemplateViewRecord.toDto(): App<Nothing, CompetitionTemplateDto> 
                 lateRegistrationAllowed = lateRegistrationAllowed!!,
                 challengeConfig = null,
                 ratingCategoryRequired = ratingCategoryRequired!!,
+                distanceMeters = distanceMeters,
+                paceReference = if (paceReferenceId != null) {
+                    PaceReferenceDto(
+                        id = paceReferenceId!!,
+                        name = paceReferenceName!!,
+                        mode = PaceReferenceMode.valueOf(paceReferenceMode!!),
+                        referenceMeters = paceReferenceMeters!!,
+                    )
+                } else null,
             ),
             setupTemplate = if (setupTemplateId != null) {
                 CompetitionSetupTemplateOverviewDto(

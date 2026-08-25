@@ -191,6 +191,7 @@ fun RunningMatchInfo.toAthleteBoardMatch(
         ),
         startState = AthleteBoardLogic.startState(startTime, now, showCountdown),
         teams = teams.map { it.toAthleteBoardTeam(includeDetails, requirements) },
+        paceReference = paceReference,
     )
 
 fun UpcomingCompetitionMatchInfo.toAthleteBoardMatch(
@@ -271,6 +272,7 @@ fun LatestMatchResultInfo.toAthleteBoardResult(
             },
         )
     },
+    paceReference = paceReference,
 )
 
 /**

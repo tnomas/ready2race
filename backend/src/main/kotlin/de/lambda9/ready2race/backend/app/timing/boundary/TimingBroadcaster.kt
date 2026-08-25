@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimeMarkDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingSequenceDto
+import de.lambda9.ready2race.backend.app.timing.entity.TimingSettingsDto
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -27,15 +28,21 @@ import java.util.concurrent.ConcurrentHashMap
 @JsonSubTypes(
     JsonSubTypes.Type(TimingWsMessage.TimeMarkCreated::class, name = "timeMarkCreated"),
     JsonSubTypes.Type(TimingWsMessage.TimeMarkRetracted::class, name = "timeMarkRetracted"),
+    JsonSubTypes.Type(TimingWsMessage.TimeMarkReactivated::class, name = "timeMarkReactivated"),
     JsonSubTypes.Type(TimingWsMessage.AssignmentChanged::class, name = "assignmentChanged"),
     JsonSubTypes.Type(TimingWsMessage.StationsChanged::class, name = "stationsChanged"),
     JsonSubTypes.Type(TimingWsMessage.SequenceChanged::class, name = "sequenceChanged"),
     JsonSubTypes.Type(TimingWsMessage.OfficialTimeChanged::class, name = "officialTimeChanged"),
     JsonSubTypes.Type(TimingWsMessage.TimesDeleted::class, name = "timesDeleted"),
+    JsonSubTypes.Type(TimingWsMessage.SettingsChanged::class, name = "settingsChanged"),
+    JsonSubTypes.Type(TimingWsMessage.AttemptRetracted::class, name = "attemptRetracted"),
 )
 sealed class TimingWsMessage {
     data class TimeMarkCreated(val mark: TimeMarkDto) : TimingWsMessage()
     data class TimeMarkRetracted(val id: UUID) : TimingWsMessage()
+
+    /** Eine zurückgenommene Marke ist wieder ACTIVE - das Gegenstück zu [TimeMarkRetracted]. */
+    data class TimeMarkReactivated(val id: UUID) : TimingWsMessage()
     data class AssignmentChanged(
         val timeMark: UUID,
         // Always emitted, even when null (a detach): the mapper below uses NON_ABSENT, which would
@@ -56,6 +63,27 @@ sealed class TimingWsMessage {
 
     /** Ids of time marks that were physically deleted by the explicit "delete times" action. */
     data class TimesDeleted(val timeMarks: List<UUID>) : TimingWsMessage()
+
+    /**
+     * Die Zeitnahme-Einstellungen der Veranstaltung haben sich geändert (Schalter „Automatische
+     * Übernahme" oder Genauigkeit). Trägt den kompletten neuen Stand, damit Leitstand und Boards
+     * ihre Anzeige sofort umstellen können, ohne den Settings-GET erneut zu rufen.
+     */
+    data class SettingsChanged(val settings: TimingSettingsDto) : TimingWsMessage()
+
+    /**
+     * Ein GANZER Versuch wurde zurückgenommen („Start zurücknehmen", TimingService.retractMatchAttempt)
+     * — eine der beiden Fehlstart-Gesten. Eigene Nachricht zusätzlich zu den einzelnen
+     * [TimeMarkRetracted]-Echos, weil die auch bei der Einzelmarken-Korrektur in der Zeitenliste
+     * feuern und die Boards den Fehlstart-Ton sonst nicht vom Aufräumen unterscheiden könnten.
+     * Trägt die Partie und die Teams der tatsächlich zurückgenommenen Marken (kann leer sein,
+     * wenn nur noch der Ist-Start-Stempel fiel) — die Boards prüfen damit, ob ihre gerade
+     * geführte Sequenz betroffen ist.
+     */
+    data class AttemptRetracted(
+        val competitionSetupMatch: UUID,
+        val competitionMatchTeams: List<UUID>,
+    ) : TimingWsMessage()
 }
 
 typealias TimingSubscriber = suspend (String) -> Unit

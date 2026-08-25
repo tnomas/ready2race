@@ -6,19 +6,23 @@ import {useNavigate} from '@tanstack/react-router'
 import {getTimingTeams} from '@api/sdk.gen.ts'
 import {updateEventGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {TimingSequenceDto} from '@api/types.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
-import {timingEventRoute} from '@routes'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
+import LeitstandOverviewTab from '@components/timing/leitstand/LeitstandOverviewTab.tsx'
 import LeitstandMarksTab from '@components/timing/leitstand/LeitstandMarksTab.tsx'
 import LeitstandResultsTab from '@components/timing/leitstand/LeitstandResultsTab.tsx'
 import LeitstandDevicesTab from '@components/timing/leitstand/LeitstandDevicesTab.tsx'
 import {useOfficialTimes} from '@components/timing/leitstand/useOfficialTimes.ts'
+import {useStationSequences} from '@components/timing/leitstand/useStationSequences.ts'
+import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
+import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
-type LeitstandTab = 'times' | 'results' | 'devices'
+type LeitstandTab = 'overview' | 'times' | 'results' | 'devices'
 
-const TABS: LeitstandTab[] = ['times', 'results', 'devices']
+const TABS: LeitstandTab[] = ['overview', 'times', 'results', 'devices']
 
 /**
  * The Leitstand (control desk): one fullscreen board with the event's whole timing state, for the
@@ -36,12 +40,21 @@ const TABS: LeitstandTab[] = ['times', 'results', 'devices']
  * for the cross-station view, plus `useOfficialTimes` for the result table's own feed
  * (`officialTimeChanged`). The two are separate because they load from separate endpoints and only the
  * marks half is part of `/timing/state`.
+ *
+ * Route-unabhängig: die Seite hängt seit dem Betrieb-Umbau (22.08.2026) sowohl unter
+ * `/app/timing/$eventId/leitstand` als auch kanonisch unter `/event/$eventId/timing/leitstand` —
+ * Parameter und Rücksprungziel kommen deshalb als Props von der jeweiligen Route.
  */
-const TimingLeitstandPage = () => {
+export type TimingLeitstandPageProps = {
+    eventId: string
+    /** Wohin der Zurück-Pfeil führt - je nach Mount die App-Postenwahl oder der Betrieb-Reiter. */
+    onBack: () => void
+}
+
+const TimingLeitstandPage = ({eventId, onBack}: TimingLeitstandPageProps) => {
     const {t} = useTranslation()
     const user = useUser()
     const navigate = useNavigate()
-    const {eventId} = timingEventRoute.useParams()
 
     useEffect(() => {
         if (!user.checkPrivilege(updateEventGlobal)) {
@@ -49,17 +62,36 @@ const TimingLeitstandPage = () => {
         }
     }, [user, navigate])
 
-    const [tab, setTab] = useState<LeitstandTab>('times')
+    // Tab-Titel „Leitstand · Ready2Race" — neben offenen Posten-Boards muss der Leitstand-Tab
+    // benennbar sein; der Hook stellt beim Verlassen den vorherigen Titel wieder her.
+    useDocumentTitle(t('timing.leitstand.title'))
+
+    // Die Übersicht ist die Standardansicht: Posten-Streifen plus die zuletzt aktiven Läufe -
+    // die Detail-Reiter (Zeiten, Ergebnisse, Geräte) bleiben dahinter bestehen.
+    const [tab, setTab] = useState<LeitstandTab>('overview')
 
     const clock = useServerClock()
     const officialTimesState = useOfficialTimes(eventId)
     const {applyChanged, reload: reloadOfficialTimes} = officialTimesState
+    // Schalter „Automatische Übernahme" + Genauigkeit: einmal geladen, live über settingsChanged.
+    const settingsState = useTimingSettings(eventId)
+    const {applyChanged: applySettingsChanged, reload: reloadSettings} = settingsState
+    // Henne-Ei zwischen den beiden Hooks: useStationSequences braucht die Stationen aus
+    // useTimingBoardState, das seinerseits den Sequenz-Callback entgegennimmt. Der Ref-Umweg
+    // löst das auf; useTimingBoardState spiegelt den Callback intern ohnehin in einen Ref, die
+    // Inline-Funktion löst also kein Neu-Abonnieren aus.
+    const sequenceChangedRef = useRef<(sequence: TimingSequenceDto) => void>(() => {})
     const {marks, stations, refetch, wsStatus, stateError} = useTimingBoardState(
         eventId,
         null,
-        undefined,
+        sequence => sequenceChangedRef.current(sequence),
         applyChanged,
+        applySettingsChanged,
     )
+    const {sequences, applyChanged: applySequenceChanged} = useStationSequences(eventId, stations)
+    useEffect(() => {
+        sequenceChangedRef.current = applySequenceChanged
+    }, [applySequenceChanged])
 
     // Teams are loaded once per board mount (the roster does not change during a running event) and
     // sorted by start number, so every table and picker lists them in the order operators expect.
@@ -84,20 +116,24 @@ const TimingLeitstandPage = () => {
     useEffect(() => {
         if (prevWsStatusRef.current !== 'OPEN' && wsStatus === 'OPEN') {
             reloadOfficialTimes()
+            // Auch die Einstellungen können sich in der Lücke geändert haben (settingsChanged
+            // verpasst) - gleicher Trigger wie bei den offiziellen Zeiten.
+            reloadSettings()
         }
         prevWsStatusRef.current = wsStatus
-    }, [wsStatus, reloadOfficialTimes])
+    }, [wsStatus, reloadOfficialTimes, reloadSettings])
 
     useEffect(() => {
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
                 refetch()
                 reloadOfficialTimes()
+                reloadSettings()
             }
         }
         document.addEventListener('visibilitychange', handleVisibility)
         return () => document.removeEventListener('visibilitychange', handleVisibility)
-    }, [refetch, reloadOfficialTimes])
+    }, [refetch, reloadOfficialTimes, reloadSettings])
 
     const showUnauthorizedBanner = wsStatus === 'UNAUTHORIZED'
     const showReconnectBanner = wsStatus === 'CONNECTING' || wsStatus === 'RECONNECTING'
@@ -116,6 +152,12 @@ const TimingLeitstandPage = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                // Sichere Zonen (Notch/Home-Indicator) — der Leitstand ist Laptop-Werkzeug,
+                // aber auf einem Tablet quer darf nichts unter der Aussparung verschwinden.
+                pt: 'env(safe-area-inset-top)',
+                pb: 'env(safe-area-inset-bottom)',
+                pl: 'env(safe-area-inset-left)',
+                pr: 'env(safe-area-inset-right)',
             }}>
             <BoardHeader
                 stationName={t('timing.leitstand.title')}
@@ -156,11 +198,7 @@ const TimingLeitstandPage = () => {
                 spacing={1}
                 sx={{flexShrink: 0, borderBottom: 1, borderColor: 'divider', px: 1}}>
                 <Tooltip title={t('common.back')}>
-                    <IconButton
-                        aria-label={t('common.back')}
-                        onClick={() =>
-                            void navigate({to: '/app/timing/$eventId', params: {eventId}})
-                        }>
+                    <IconButton aria-label={t('common.back')} onClick={onBack}>
                         <ArrowBackIcon />
                     </IconButton>
                 </Tooltip>
@@ -176,6 +214,21 @@ const TimingLeitstandPage = () => {
             </Stack>
 
             <Box sx={{flexGrow: 1, minHeight: 0, overflowY: 'auto', p: 2}}>
+                {tab === 'overview' && (
+                    <LeitstandOverviewTab
+                        eventId={eventId}
+                        stations={stations}
+                        marks={marks}
+                        teams={teams}
+                        officialTimes={officialTimesState.officialTimes}
+                        sequences={sequences}
+                        reloadOfficialTimes={reloadOfficialTimes}
+                        settings={settingsState.settings}
+                        settingsLoading={settingsState.loading}
+                        settingsError={settingsState.error}
+                        applySettingsChanged={applySettingsChanged}
+                    />
+                )}
                 {tab === 'times' && (
                     <LeitstandMarksTab
                         eventId={eventId}
@@ -193,6 +246,7 @@ const TimingLeitstandPage = () => {
                         officialTimes={officialTimesState.officialTimes}
                         officialTimesPending={officialTimesState.pending}
                         reloadOfficialTimes={reloadOfficialTimes}
+                        precision={settingsState.settings.precision}
                     />
                 )}
                 {tab === 'devices' && <LeitstandDevicesTab eventId={eventId} stations={stations} />}

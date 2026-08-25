@@ -14,6 +14,8 @@ import de.lambda9.ready2race.backend.validation.validators.Validator
 data class OfficialTimeOverrideRequest(
     val overrideMillis: Long?,
     val penaltyMillis: Long?,
+    /** Freitext-Grund zur Strafe; absent räumt einen früheren Grund ab (PUT-Semantik wie oben). */
+    val penaltyNote: String? = null,
     val resultStatus: OfficialTimeResultStatus?,
 ) : Validatable {
 
@@ -38,6 +40,7 @@ data class OfficialTimeOverrideRequest(
             get() = OfficialTimeOverrideRequest(
                 overrideMillis = 90000,
                 penaltyMillis = 5000,
+                penaltyNote = "Frühstart",
                 resultStatus = OfficialTimeResultStatus.NONE,
             )
     }

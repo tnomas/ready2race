@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
 import java.time.LocalDateTime
 import java.util.UUID
@@ -66,6 +67,13 @@ data class AthleteBoardMatch(
      * fährt und dass die Zeit außer Konkurrenz läuft.
      */
     val bye: de.lambda9.ready2race.backend.app.matchStatus.entity.MatchByeDto? = null,
+    /**
+     * Die Bezugsgröße des Wettkampfs („Zeit pro 500 m", „km/h"). Die Anzeige rechnet das Tempo
+     * je Abschnitt aus der Distanz der Zwischenzeit und der gefahrenen Zeit selbst - beides
+     * steht an [AthleteBoardTeam.laps] - und braucht von hier nur die Einheit. Null ohne
+     * gepflegte Bezugsgröße; dann bleibt es bei den nackten Zwischenzeiten.
+     */
+    val paceReference: PaceReferenceDto? = null,
 )
 
 data class AthleteBoardTeam(
@@ -115,8 +123,10 @@ data class AthleteBoardTeam(
     /** Meldender Verein — nur befüllt, wenn ein Element showRegisteringClub anfordert. */
     val registeringClub: String? = null,
     /**
-     * Zwischenzeiten aus RaceClocker, in Markenreihenfolge — leer, wenn das Rennen keine führt.
-     * Die Anzeige zeigt sie unter der Zeile, sobald sie da sind (Rückmeldung vom 11.08.2026).
+     * Zwischenzeiten in der Reihenfolge ihrer Stellen auf der Strecke — leer, wenn es für dieses
+     * Boot keine gibt. Sie stammen aus einer von zwei Quellen: den Marken der Streckenposten der
+     * hauseigenen Zeitnahme oder dem RaceClocker-Feed. Die Anzeige zeigt sie unter der Zeile,
+     * sobald sie da sind (Rückmeldung vom 11.08.2026).
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
     /**
@@ -179,6 +189,8 @@ data class AthleteBoardResult(
      */
     val clarification: Boolean = false,
     val teams: List<AthleteBoardResultTeam>,
+    /** Wie bei [AthleteBoardMatch.paceReference]: die Einheit des Tempos je Abschnitt. */
+    val paceReference: PaceReferenceDto? = null,
 )
 
 data class AthleteBoardResultTeam(

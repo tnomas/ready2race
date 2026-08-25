@@ -42,6 +42,12 @@ export type Poller = {
     suspend: () => void
     /** Zurück in den Vordergrund: sofort ein Abruf, danach wieder im Takt. */
     resume: () => void
+    /**
+     * Ändert den Takt im Lauf — für die Streckung, solange ein Push-Kanal die Änderungen
+     * meldet (siehe `eventChangePush.ts`). Ein bereits gestellter Wecker wird umgestellt,
+     * ohne einen Abruf auszulösen.
+     */
+    setIntervalMs: (ms: number) => void
 }
 
 /**
@@ -61,6 +67,7 @@ export type Poller = {
  */
 export const createPoller = <T,>({load, intervalMs, onState}: PollerOptions<T>): Poller => {
     let state = initialPollerState<T>()
+    let currentIntervalMs = intervalMs
     let timer: ReturnType<typeof setTimeout> | null = null
     // Der Abruf, der gerade gilt. Ein älterer, abgelöster Abruf erkennt sich daran, dass hier
     // nicht mehr sein eigener Controller steht - er rührt dann weder Zustand noch Timer an.
@@ -86,7 +93,7 @@ export const createPoller = <T,>({load, intervalMs, onState}: PollerOptions<T>):
         timer = setTimeout(() => {
             timer = null
             void run()
-        }, intervalMs)
+        }, currentIntervalMs)
     }
 
     const run = async () => {
@@ -155,6 +162,16 @@ export const createPoller = <T,>({load, intervalMs, onState}: PollerOptions<T>):
             if (awake) return
             awake = true
             if (started) restart()
+        },
+        setIntervalMs: (ms: number) => {
+            if (ms === currentIntervalMs) return
+            currentIntervalMs = ms
+            // Einen bereits gestellten Wecker auf den neuen Takt umstellen — aber nur dann:
+            // läuft gerade ein Abruf, stellt dessen Abschluss den nächsten Wecker selbst,
+            // und ein zusätzlicher hier ergäbe zwei konkurrierende Takte.
+            if (timer !== null) {
+                schedule()
+            }
         },
     }
 }

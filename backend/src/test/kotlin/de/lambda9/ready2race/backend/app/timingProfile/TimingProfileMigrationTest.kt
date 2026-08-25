@@ -1,0 +1,319 @@
+package de.lambda9.ready2race.backend.app.timingProfile
+
+import org.flywaydb.core.Flyway
+import org.testcontainers.containers.PostgreSQLContainer
+import java.sql.Connection
+import java.sql.DriverManager
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Die Migration V202608242100 gegen echte Altdaten: Typ-Zuordnungen und das je Wettkampf
+ * angewählte Rennen müssen als Zeilen der neuen Zuordnungstabelle ankommen. Ein Fehler darin
+ * verlöre bei einer laufenden Regatta still die Zuordnung — und einen Rollback ohne Dump gibt es
+ * nicht.
+ *
+ * Eigener Container wie bei [RaceClockerSingleRaceMigrationTest]: Der übliche Testcontainer
+ * migriert immer bis zum Ende, und über einer leeren Datenbank gäbe es nichts zu übernehmen.
+ *
+ * Weil bis zum Ende migriert wird, gilt hier zugleich der Stand NACH V202608242110 — deshalb
+ * schließt derselbe Fall mit der Gegenprobe, dass die alten Wege nicht bloß unbenutzt, sondern
+ * wirklich fort sind. Wäre die Übernahme lückenhaft und das Löschen trotzdem gelaufen, stünde der
+ * Verlust hier schwarz auf weiß.
+ *
+ * Aus demselben Grund hängt am Ende der Formstand der Zwischenzeiten-Arbeit (V202608251200 bis
+ * V202608251240): Der Container migriert ohnehin bis zum Ende, und ein zweiter Container nur für
+ * fünf Schema-Fragen wäre eine halbe Minute Laufzeit für nichts. Geprüft wird das, was keine
+ * andere Zusicherung trägt — dass `timing_mode.with_laps` WIRKLICH weg ist, sieht man den Tests
+ * sonst nirgends an: Die Einfüge-Anweisungen hier oben liefen auch mit der Spalte, weil sie
+ * `not null default false` trug.
+ */
+class TimingProfileMigrationTest {
+
+    // Veranstaltung mit System RACECLOCKER: dort trägt die kollidierende Wettkampf-Zeile am Ende
+    // das Rennen.
+    private val eventId = UUID.randomUUID()
+    private val raceCompetitionId = UUID.randomUUID()
+    private val modeCompetitionId = UUID.randomUUID()
+    private val raceId = UUID.randomUUID()
+    private val modeId = UUID.randomUUID()
+    private val roundId = UUID.randomUUID()
+    private val competitionPropertiesId = UUID.randomUUID()
+
+    // Wettkampf, der BEIDES trug: eine wettkampfweite Typ-Zuordnung (Runde null) UND ein
+    // gesetztes raceclocker_race. Die Veranstaltung ist nicht INTERN, also gewinnt das Rennen.
+    private val raceWinsCompetitionId = UUID.randomUUID()
+    private val raceWinsRaceId = UUID.randomUUID()
+    private val raceWinsModeId = UUID.randomUUID()
+
+    // Veranstaltung mit System INTERN: dort trägt dieselbe Konstellation am Ende den Zeitnahmetyp.
+    private val eventInternId = UUID.randomUUID()
+    private val modeWinsCompetitionId = UUID.randomUUID()
+    private val modeWinsRaceId = UUID.randomUUID()
+    private val modeWinsModeId = UUID.randomUUID()
+
+    @Test
+    fun `übernimmt Typ-Zuordnungen und das angewählte Rennen`() {
+        val postgres = PostgreSQLContainer("postgres:17")
+        postgres.start()
+        try {
+            // Der letzte Stand vor der neuen Migration.
+            flyway(postgres).target("202608211480").skipDefaultCallbacks(true).load().migrate()
+            connect(postgres).use { seedLegacyState(it) }
+            flyway(postgres).load().migrate()
+
+            connect(postgres).use { conn ->
+                // Das Rennen des Wettkampfs ist eine Wettkampf-Zeile geworden.
+                assertEquals(
+                    raceId,
+                    queryUuid(
+                        conn,
+                        "select raceclocker_race from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
+                        raceCompetitionId,
+                    ),
+                )
+                // Die Runden-Zuordnung des Zeitnahmetyps ebenso, mit ihrer Veranstaltung.
+                assertEquals(
+                    modeId,
+                    queryUuid(
+                        conn,
+                        "select timing_mode from ready2race.timing_profile_assignment " +
+                            "where competition_setup_round = ?",
+                        roundId,
+                    ),
+                )
+                assertEquals(
+                    eventId,
+                    queryUuid(
+                        conn,
+                        "select event from ready2race.timing_profile_assignment where competition_setup_round = ?",
+                        roundId,
+                    ),
+                )
+                // Kollision bei einer nicht-INTERN-Veranstaltung: das Rennen gewinnt, der Typ
+                // taucht in der Zeile gar nicht auf.
+                assertEquals(
+                    raceWinsRaceId,
+                    queryUuid(
+                        conn,
+                        "select raceclocker_race from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
+                        raceWinsCompetitionId,
+                    ),
+                )
+                assertNull(
+                    queryUuid(
+                        conn,
+                        "select timing_mode from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
+                        raceWinsCompetitionId,
+                    ),
+                )
+                // Dieselbe Kollision bei einer INTERN-Veranstaltung: dort gewinnt der Typ.
+                assertEquals(
+                    modeWinsModeId,
+                    queryUuid(
+                        conn,
+                        "select timing_mode from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
+                        modeWinsCompetitionId,
+                    ),
+                )
+                assertNull(
+                    queryUuid(
+                        conn,
+                        "select raceclocker_race from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
+                        modeWinsCompetitionId,
+                    ),
+                )
+                assertEquals(4, count(conn, "select count(*) from ready2race.timing_profile_assignment"))
+
+                // Die alten Wege sind wirklich weg -- nicht nur unbenutzt.
+                assertFalse(tableExists(conn, "timing_mode_assignment"))
+                assertFalse(columnExists(conn, "competition", "raceclocker_race"))
+                assertFalse(columnExists(conn, "competition", "timing_system"))
+                assertFalse(columnExists(conn, "competition", "startlist_config"))
+                assertFalse(columnExists(conn, "competition", "result_import_config"))
+
+                // Der Formstand der Zwischenzeiten-Arbeit: die vier neuen Objekte stehen ...
+                assertTrue(tableExists(conn, "pace_reference"))
+                assertTrue(tableExists(conn, "competition_timing_station"))
+                assertTrue(columnExists(conn, "competition_properties", "distance_meters"))
+                assertTrue(columnExists(conn, "competition_properties", "pace_reference"))
+                assertTrue(columnExists(conn, "competition_match_team_lap", "distance_meters"))
+                // ... und der Schalter, der nie etwas verzweigte, ist ersatzlos fort.
+                assertFalse(columnExists(conn, "timing_mode", "with_laps"))
+            }
+        } finally {
+            postgres.stop()
+        }
+    }
+
+    private fun flyway(postgres: PostgreSQLContainer<*>) = Flyway.configure()
+        .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
+        .defaultSchema("ready2race")
+
+    private fun connect(postgres: PostgreSQLContainer<*>): Connection =
+        DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password)
+
+    private fun seedLegacyState(conn: Connection) {
+        exec(
+            conn,
+            "insert into ready2race.event (id, name, created_at, updated_at, timing_system) " +
+                "values (?, 'Testregatta', now(), now(), 'RACECLOCKER')",
+            eventId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.raceclocker_race (id, event, name, results_url, captures_laps, position, created_at, updated_at) " +
+                "values (?, ?, 'Kurzstrecke', 'https://raceclocker.com/kurz', false, 1, now(), now())",
+            raceId, eventId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Timetrial 30s', 'EINZEL', 10, now(), now())",
+            modeId, eventId,
+        )
+        exec(conn, "insert into ready2race.competition (id, event, created_at, updated_at, raceclocker_race) values (?, ?, now(), now(), ?)", raceCompetitionId, eventId, raceId)
+        exec(conn, "insert into ready2race.competition (id, event, created_at, updated_at) values (?, ?, now(), now())", modeCompetitionId, eventId)
+        exec(
+            conn,
+            "insert into ready2race.competition_properties (id, competition, identifier, name) values (?, ?, 'T1', 'Testwettkampf')",
+            competitionPropertiesId, modeCompetitionId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.competition_setup (competition_properties, created_at, updated_at) values (?, now(), now())",
+            competitionPropertiesId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.competition_setup_round (id, competition_setup, name, required, use_default_seeding, places_option) " +
+                "values (?, ?, 'Vorlauf', true, true, 'ASCENDING')",
+            roundId, competitionPropertiesId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode_assignment (id, competition, competition_setup_round, timing_mode, created_at, updated_at) " +
+                "values (?, ?, ?, ?, now(), now())",
+            UUID.randomUUID(), modeCompetitionId, roundId, modeId,
+        )
+
+        // Kollisionsfall bei RACECLOCKER (eventId): ein Wettkampf mit sowohl einer
+        // wettkampfweiten Typ-Zuordnung als auch einem gesetzten Rennen. Beide wollen dieselbe
+        // Zeile (event, competition, null, null) belegen -- das Rennen soll gewinnen.
+        exec(
+            conn,
+            "insert into ready2race.raceclocker_race (id, event, name, results_url, captures_laps, position, created_at, updated_at) " +
+                "values (?, ?, 'Langstrecke', 'https://raceclocker.com/lang', false, 2, now(), now())",
+            raceWinsRaceId, eventId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Massenstart', 'WELLE', 10, now(), now())",
+            raceWinsModeId, eventId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.competition (id, event, created_at, updated_at, raceclocker_race) values (?, ?, now(), now(), ?)",
+            raceWinsCompetitionId, eventId, raceWinsRaceId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode_assignment (id, competition, competition_setup_round, timing_mode, created_at, updated_at) " +
+                "values (?, ?, null, ?, now(), now())",
+            UUID.randomUUID(), raceWinsCompetitionId, raceWinsModeId,
+        )
+
+        // Dieselbe Kollision bei einer INTERN-Veranstaltung -- dort soll der Typ gewinnen.
+        exec(
+            conn,
+            "insert into ready2race.event (id, name, created_at, updated_at, timing_system) " +
+                "values (?, 'Testregatta Intern', now(), now(), 'INTERN')",
+            eventInternId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.raceclocker_race (id, event, name, results_url, captures_laps, position, created_at, updated_at) " +
+                "values (?, ?, 'Kurzstrecke', 'https://raceclocker.com/intern-kurz', false, 1, now(), now())",
+            modeWinsRaceId, eventInternId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Timetrial 30s', 'EINZEL', 10, now(), now())",
+            modeWinsModeId, eventInternId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.competition (id, event, created_at, updated_at, raceclocker_race) values (?, ?, now(), now(), ?)",
+            modeWinsCompetitionId, eventInternId, modeWinsRaceId,
+        )
+        exec(
+            conn,
+            "insert into ready2race.timing_mode_assignment (id, competition, competition_setup_round, timing_mode, created_at, updated_at) " +
+                "values (?, ?, null, ?, now(), now())",
+            UUID.randomUUID(), modeWinsCompetitionId, modeWinsModeId,
+        )
+    }
+
+    private fun exec(conn: Connection, sql: String, vararg args: Any?) =
+        conn.prepareStatement(sql).use { stmt ->
+            args.forEachIndexed { index, value -> stmt.setObject(index + 1, value) }
+            stmt.executeUpdate()
+        }
+
+    private fun queryUuid(conn: Connection, sql: String, id: UUID): UUID? =
+        conn.prepareStatement(sql).use { stmt ->
+            stmt.setObject(1, id)
+            stmt.executeQuery().use { rs ->
+                if (!rs.next()) null else rs.getObject(1, UUID::class.java)
+            }
+        }
+
+    private fun count(conn: Connection, sql: String): Int =
+        conn.prepareStatement(sql).use { stmt ->
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getInt(1)
+            }
+        }
+
+    private fun tableExists(conn: Connection, table: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.tables " +
+                "where table_schema = 'ready2race' and table_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }
+
+    private fun columnExists(conn: Connection, table: String, column: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.columns " +
+                "where table_schema = 'ready2race' and table_name = ? and column_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.setString(2, column)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }
+}

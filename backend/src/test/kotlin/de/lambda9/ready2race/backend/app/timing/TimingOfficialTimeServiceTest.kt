@@ -54,7 +54,9 @@ class TimingOfficialTimeServiceTest {
         assertEquals(startMillis, computed.startMillis)
         assertEquals(finishMillis, computed.finishMillis)
         assertFalse(computed.dirty)
-        assertNull(computed.pushedAt)
+        // Echtzeit-Übernahme: die Zuordnung der Marken hat bereits geschrieben, der Rechen-Endpunkt
+        // findet den Stand angewendet vor.
+        assertNotNull(computed.pushedAt)
 
         val record = !TimingOfficialTimeRepo.getByTeam(teamId)
         assertNotNull(record)
@@ -149,24 +151,28 @@ class TimingOfficialTimeServiceTest {
         assertEquals(80_000L, result.computed.single().computedMillis)
     }
 
+    // Eine Neuberechnung erneuert nur den Maschinenwert; Override, Strafe und Status bleiben - und
+    // die Echtzeit-Übernahme hält den Lauf dabei durchgehend auf dem effektiven Stand (dirty=false).
     @Test
-    fun computeKeepsOverridesAndClearsDirty() = testComprehension {
+    fun computeKeepsOverridesAcrossTimingEdits() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
         val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
         val teamId = !createTestMatchTeam(eventId)
         !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
         val finishMarkId = !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis)
-        !TimingOfficialTimeService.computeOfficialTimes(eventId, userId)
         !TimingOfficialTimeService.setOverride(
             eventId,
             teamId,
             OfficialTimeOverrideRequest(overrideMillis = 85_000, penaltyMillis = 2_000, resultStatus = null),
             userId,
         )
-        // Any timing edit on a team that has an official time marks it dirty.
+        // Die Rücknahme rechnet sofort nach: der Maschinenwert fällt weg, der Override trägt weiter.
         !TimingService.retractTimeMark(finishMarkId, eventId, userId)
-        assertTrue((!TimingOfficialTimeRepo.getByTeam(teamId))!!.dirty!!)
+        val afterRetract = !TimingOfficialTimeRepo.getByTeam(teamId)
+        assertNull(afterRetract!!.computedMillis)
+        assertEquals(85_000L, afterRetract.overrideMillis)
+        assertFalse(afterRetract.dirty!!)
 
         !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis + 1_000)
         val result = (!TimingOfficialTimeService.computeOfficialTimes(eventId, userId)).dto
@@ -208,8 +214,10 @@ class TimingOfficialTimeServiceTest {
 
         val result = (!TimingOfficialTimeService.computeOfficialTimes(eventId, userId, listOf(teams[0]))).dto
 
+        // Die Antwort bleibt auf die angefragten Teams beschränkt. (Eine Zeile für teams[1]
+        // existiert längst - die Echtzeit-Übernahme hat sie beim Zuordnen der Marken angelegt.)
         assertEquals(listOf(teams[0]), result.computed.map { it.competitionMatchTeam })
-        assertNull(!TimingOfficialTimeRepo.getByTeam(teams[1]))
+        assertEquals(90_000L, (!TimingOfficialTimeRepo.getByTeam(teams[1]))!!.computedMillis)
     }
 
     // ------------------------------------------------------- override / status
@@ -227,7 +235,7 @@ class TimingOfficialTimeServiceTest {
         !TimingOfficialTimeService.setOverride(
             eventId,
             teamId,
-            OfficialTimeOverrideRequest(null, null, OfficialTimeResultStatus.DSQ),
+            OfficialTimeOverrideRequest(null, null, null, OfficialTimeResultStatus.DSQ),
             userId,
         )
 
@@ -266,47 +274,37 @@ class TimingOfficialTimeServiceTest {
             TimingOfficialTimeService.setOverride(
                 eventId,
                 teamId,
-                OfficialTimeOverrideRequest(1000, null, null),
+                OfficialTimeOverrideRequest(1000, null, null, null),
                 userId,
             )
         }
     }
 
-    // -------------------------------------------------------------- dirty hook
+    // -------------------------------------------------------------- dirty-Kennzeichen
 
+    // Mit eingeschalteter Echtzeit-Übernahme wird nichts mehr "dirty": jede Mutation zieht sofort
+    // nach. Das Kennzeichen lebt dort weiter, wo das Nachziehen unterbleibt - etwa bei
+    // ausgeschaltetem Schalter, nachdem vorher schon geschrieben wurde.
     @Test
-    fun reassigningMarkMarksBothTeamsDirty() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val startStation = !addTestStation(eventId, userId, TimingStationType.START)
-        val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
-        val teams = !createTestMatchTeams(eventId, 2)
-        teams.forEach { teamId ->
-            !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
-        }
-        val finishMarkId = !addAssignedMark(eventId, userId, finishStation, teams[0], finishMillis)
-        !addAssignedMark(eventId, userId, finishStation, teams[1], finishMillis + 1_000)
-        !TimingOfficialTimeService.computeOfficialTimes(eventId, userId)
-
-        !TimingService.assignTimeMark(AssignTimeMarkRequest(teams[1]), userId, finishMarkId, eventId)
-
-        assertTrue((!TimingOfficialTimeRepo.getByTeam(teams[0]))!!.dirty!!, "previous team must go dirty")
-        assertTrue((!TimingOfficialTimeRepo.getByTeam(teams[1]))!!.dirty!!, "new team must go dirty")
-    }
-
-    @Test
-    fun retractingMarkMarksTeamDirty() = testComprehension {
+    fun retractingWithSwitchOffMarksTheAppliedRowDirty() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
         val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
         val teamId = !createTestMatchTeam(eventId)
         !addAssignedMark(eventId, userId, startStation, teamId, startMillis)
         val finishMarkId = !addAssignedMark(eventId, userId, finishStation, teamId, finishMillis)
-        !TimingOfficialTimeService.computeOfficialTimes(eventId, userId)
+        // Echtzeit-Übernahme hat geschrieben und alles ist sauber ...
         assertFalse((!TimingOfficialTimeRepo.getByTeam(teamId))!!.dirty!!)
 
+        // ... dann wird der Schalter ausgestellt und die Grundlage der Zeit zurückgenommen.
+        !Jooq.query {
+            update(EVENT).set(EVENT.TIMING_AUTO_APPLY, false).where(EVENT.ID.eq(eventId)).execute()
+        }
         !TimingService.retractTimeMark(finishMarkId, eventId, userId)
 
+        // Der Lauf trägt noch die alte Zeit, die Zeile weiß, dass sie nicht mehr stimmt.
         assertTrue((!TimingOfficialTimeRepo.getByTeam(teamId))!!.dirty!!)
+        assertEquals(teamId, (!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
     }
 
     @Test
@@ -337,19 +335,22 @@ class TimingOfficialTimeServiceTest {
         val team = !CompetitionMatchTeamRepo.getById(teamId)
         assertNotNull(team)
         // Exactly what CompetitionExecutionService.updateMatchResult(-ByFile) writes: the timecode
-        // row carries the match team's own id, the millis of the time, and the base unit /
-        // millisecond precision Parser.timecode derives for that value.
+        // row carries the match team's own id, the millis of the time, and the base unit
+        // Parser.timecode derives for that value. Die Millisekunden-Präzision folgt seit der
+        // Genauigkeits-Einstellung der Veranstaltung (Vorgabe ZEHNTEL -> ONE), siehe
+        // TimingPrecisionApplyTest für die übrigen Stufen.
         assertEquals(teamId, team.timecode)
         val timecode = !Jooq.query { selectFrom(TIMECODE).where(TIMECODE.ID.eq(teamId)).fetchOne() }
         assertNotNull(timecode)
         assertEquals(90_000L, timecode.time)
         assertEquals(Timecode.BaseUnit.MINUTES.name, timecode.baseUnit)
-        assertEquals(Timecode.MillisecondPrecision.THREE.name, timecode.millisecondPrecision)
-        // The push never touches places or the failed state of a finisher.
+        assertEquals(Timecode.MillisecondPrecision.ONE.name, timecode.millisecondPrecision)
+        // The push never touches the failed state of a finisher - aber den Platz leitet er wie
+        // die Echtzeit-Übernahme aus den Zeiten ab (places_calculated wie beim Import).
         assertFalse(team.failed!!)
         assertNull(team.failedReason)
-        assertNull(team.place)
-        assertFalse(team.placesCalculated!!)
+        assertEquals(1, team.place)
+        assertTrue(team.placesCalculated!!)
 
         val official = !TimingOfficialTimeRepo.getByTeam(teamId)
         assertNotNull(official!!.pushedAt)
@@ -415,7 +416,7 @@ class TimingOfficialTimeServiceTest {
         !TimingOfficialTimeService.setOverride(
             eventId,
             teamId,
-            OfficialTimeOverrideRequest(null, null, OfficialTimeResultStatus.DNF),
+            OfficialTimeOverrideRequest(null, null, null, OfficialTimeResultStatus.DNF),
             userId,
         )
 
@@ -432,6 +433,9 @@ class TimingOfficialTimeServiceTest {
     @Test
     fun pushFailsWhenPlacesAreCalculated() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
+        // Schalter aus: der reine Push-Pfad soll hier isoliert beobachtet werden - mit
+        // Echtzeit-Übernahme stünde die Zeit schon vor dem Push am Lauf.
+        !disableAutoApply(eventId)
         val teamId = !pushablePreparedTeam(eventId, userId)
         !CompetitionMatchTeamRepo.updateById(teamId) { placesCalculated = true }
 
@@ -443,11 +447,14 @@ class TimingOfficialTimeServiceTest {
         assertNull((!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
     }
 
+    // Seit dem Platz-Umbau friert nicht mehr jeder Platz ein, sondern nur ein FREMDER: Die
+    // Echtzeit-Übernahme hat hier selbst Platz 1 abgeleitet; erst der von Hand umgesetzte Platz
+    // macht den Stand fremd.
     @Test
-    fun pushFailsWhenTeamAlreadyHasAPlace() = testComprehension {
+    fun pushFailsWhenTeamHasAForeignPlace() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val teamId = !pushablePreparedTeam(eventId, userId)
-        !CompetitionMatchTeamRepo.updateById(teamId) { place = 1 }
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 2 }
 
         assertKIOFails(
             TimingError.PushConflict(listOf(OfficialTimePushConflictDto(teamId, PushConflictReason.RESULT_FROZEN)))
@@ -456,12 +463,26 @@ class TimingOfficialTimeServiceTest {
         }
     }
 
+    // Das Gegenstück: Der eigene, aus den Zeiten abgeleitete Platz friert den Push NICHT ein - er
+    // ist Teil des eigenen Fingerabdrucks.
+    @Test
+    fun pushSucceedsOverItsOwnDerivedPlace() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val teamId = !pushablePreparedTeam(eventId, userId)
+        assertEquals(1, (!CompetitionMatchTeamRepo.getById(teamId))!!.place)
+
+        !TimingOfficialTimeService.pushOfficialTimes(eventId, PushOfficialTimesRequest(listOf(teamId)), userId)
+
+        assertEquals(1, (!CompetitionMatchTeamRepo.getById(teamId))!!.place)
+    }
+
     // A referee can record a DNF/DNS/DSQ without ever calculating places (place stays null,
     // placesCalculated stays false) - `failed` alone is just as much a worked-on result and must
     // freeze the push the same way.
     @Test
     fun pushFailsWhenTeamWasFailedByReferee() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
+        !disableAutoApply(eventId)
         val teamId = !pushablePreparedTeam(eventId, userId)
         !CompetitionMatchTeamRepo.updateById(teamId) { failed = true; failedReason = "DNF" }
 
@@ -477,7 +498,9 @@ class TimingOfficialTimeServiceTest {
     fun forcePushOverridesTheFreeze() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
         val teamId = !pushablePreparedTeam(eventId, userId)
-        !CompetitionMatchTeamRepo.updateById(teamId) { placesCalculated = true }
+        // Ein fremder Platz friert ein (siehe oben) - genau diese Grenze überschreibt force,
+        // und der Platz wird dabei wieder aus den Zeiten abgeleitet.
+        !CompetitionMatchTeamRepo.updateById(teamId) { place = 2 }
 
         !TimingOfficialTimeService.pushOfficialTimes(
             eventId,
@@ -485,7 +508,9 @@ class TimingOfficialTimeServiceTest {
             userId,
         )
 
-        assertEquals(teamId, (!CompetitionMatchTeamRepo.getById(teamId))!!.timecode)
+        val team = !CompetitionMatchTeamRepo.getById(teamId)
+        assertEquals(teamId, team!!.timecode)
+        assertEquals(1, team.place)
         assertNotNull((!TimingOfficialTimeRepo.getByTeam(teamId))!!.pushedAt)
     }
 
@@ -496,7 +521,7 @@ class TimingOfficialTimeServiceTest {
         !TimingOfficialTimeService.setOverride(
             eventId,
             teamId,
-            OfficialTimeOverrideRequest(null, null, null),
+            OfficialTimeOverrideRequest(null, null, null, null),
             userId,
         )
 
@@ -526,6 +551,7 @@ class TimingOfficialTimeServiceTest {
     @Test
     fun pushIsAllOrNothing() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
+        !disableAutoApply(eventId)
         val startStation = !addTestStation(eventId, userId, TimingStationType.START)
         val finishStation = !addTestStation(eventId, userId, TimingStationType.FINISH)
         val teams = !createTestMatchTeams(eventId, 2)
@@ -695,6 +721,11 @@ class TimingOfficialTimeServiceTest {
     }
 
 }
+
+/** Schalter „Automatische Übernahme" der Veranstaltung ausstellen - für Tests des reinen Push-Pfads. */
+private fun disableAutoApply(eventId: UUID): App<Any?, Unit> = Jooq.query {
+    update(EVENT).set(EVENT.TIMING_AUTO_APPLY, false).where(EVENT.ID.eq(eventId)).execute()
+}.orDie().map { }
 
 /** A team with a computed official time of [durationMillis], ready to be pushed. */
 private fun pushablePreparedTeam(

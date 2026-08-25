@@ -1,4 +1,9 @@
-import {EventTimingConfigDto, EventTimingConfigRequest, TimingSystem} from '@api/types.gen.ts'
+import {
+    EventTimingConfigDto,
+    EventTimingConfigRequest,
+    TimingPrecision,
+    TimingSystem,
+} from '@api/types.gen.ts'
 import {AutocompleteOption} from '@utils/types.ts'
 
 /** Wie im Wettkampf-Formular: „nicht gesetzt" ist im Radio ein Wert, im Request null. */
@@ -7,12 +12,11 @@ export type EventTimingFormSystem = TimingSystem | 'NONE'
 export type EventTimingForm = {
     timingSystem: EventTimingFormSystem
     /**
-     * Startlisten-Export und Rennergebnisse-Import wie im Wettkampf. Sie stehen hier, weil alle
-     * Wettkämpfe einer Regatta dieselben Spalten brauchen; abweichende Bootsklassen scheren im
-     * Wettkampf aus. Seit dem 11.08.2026 gibt es nur noch EIN Startlisten-Preset — RaceClocker
-     * kennt keine Startarten mehr, also braucht die Qualifikation kein eigenes. Die
-     * RaceClocker-Rennen werden pro Wettkampf zugewiesen (RaceClockerRaceAssignments) — die
-     * Veranstaltung hat dafür keine Voreinstellung.
+     * Startlisten-Export und Rennergebnisse-Import. Sie stehen nur hier, weil alle Wettkämpfe
+     * einer Regatta dieselben Spalten brauchen; eine Übersteuerung je Wettkampf gibt es nicht.
+     * Seit dem 11.08.2026 gibt es nur noch EIN Startlisten-Preset — RaceClocker kennt keine
+     * Startarten mehr, also braucht die Qualifikation kein eigenes. WELCHES Rennen eine Ebene
+     * fährt, steht im Zeitnahmeprofil-Baum (TimingProfileTree) und nicht hier.
      */
     startlistConfig: AutocompleteOption
     resultImportConfig: AutocompleteOption
@@ -25,6 +29,12 @@ export type EventTimingForm = {
     intervalUpcomingSeconds: number
     watchBeforeMinutes: number
     watchAfterMinutes: number
+    /**
+     * Genauigkeit der veröffentlichten offiziellen Zeiten (interne Zeitnahme). Nur bei INTERN
+     * sichtbar, aber wie die Takte immer im Request: die Spalte hat eine Vorgabe, und ein
+     * Systemwechsel soll den eingestellten Wert nicht verlieren.
+     */
+    timingPrecision: TimingPrecision
 }
 
 export const emptyEventTimingForm: EventTimingForm = {
@@ -36,6 +46,7 @@ export const emptyEventTimingForm: EventTimingForm = {
     intervalUpcomingSeconds: 60,
     watchBeforeMinutes: 15,
     watchAfterMinutes: 120,
+    timingPrecision: 'ZEHNTEL',
 }
 
 export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingForm => ({
@@ -48,6 +59,7 @@ export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingF
     intervalUpcomingSeconds: dto.intervalUpcomingSeconds,
     watchBeforeMinutes: dto.watchBeforeMinutes,
     watchAfterMinutes: dto.watchAfterMinutes,
+    timingPrecision: dto.timingPrecision,
 })
 
 /**
@@ -57,7 +69,9 @@ export const mapDtoToEventTimingForm = (dto: EventTimingConfigDto): EventTimingF
  */
 export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingConfigRequest => {
     const raceClocker = form.timingSystem === 'RACECLOCKER'
-    const configured = form.timingSystem !== 'NONE'
+    // Nur die Fremdsysteme exportieren Startlisten und importieren Ergebnisse — die hauseigene
+    // Zeitnahme (INTERN) hat keine Dateiformate, ihre Presets werden wie bei NONE verworfen.
+    const configured = form.timingSystem === 'RACECLOCKER' || form.timingSystem === 'WEBSCORER'
 
     return {
         timingSystem: form.timingSystem === 'NONE' ? null : form.timingSystem,
@@ -70,5 +84,8 @@ export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingC
         intervalUpcomingSeconds: form.intervalUpcomingSeconds,
         watchBeforeMinutes: form.watchBeforeMinutes,
         watchAfterMinutes: form.watchAfterMinutes,
+        // Wie die Takte immer mitgeschickt (nicht verworfen wie die Presets): der Wert hat in der
+        // Datenbank eine Vorgabe, und ein Systemwechsel soll ihn nicht zurücksetzen.
+        timingPrecision: form.timingPrecision,
     }
 }

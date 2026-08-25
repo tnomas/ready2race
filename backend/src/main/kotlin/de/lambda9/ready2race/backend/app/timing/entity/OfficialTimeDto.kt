@@ -22,8 +22,16 @@ data class OfficialTimeDto(
     val computedMillis: Long?,
     val overrideMillis: Long?,
     val penaltyMillis: Long,
+    /** Freitext-Grund zur Strafe; wird mit der Rückschreibung als `penalty_note` ans Team übertragen. */
+    val penaltyNote: String?,
     val resultStatus: OfficialTimeResultStatus,
     val effectiveMillis: Long?,
     val dirty: Boolean,
     val pushedAt: LocalDateTime?,
+    /**
+     * Der Platz, wie er aktuell am Lauf steht (`competition_match_team.place`) - von der Übernahme
+     * aus den Zeiten abgeleitet (Gleichstände teilen sich den Platz: 1, 1, 3) oder von Hand
+     * gesetzt. Vorläufig, solange der Lauf läuft: er wandert mit jedem weiteren Zieleinlauf.
+     */
+    val place: Int?,
 )

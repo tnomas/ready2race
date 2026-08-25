@@ -24,14 +24,21 @@ data class CompetitionMatchTeamDto(
     val penaltySeconds: Int?,
     val penaltyNote: String?,
     /**
-     * Zwischenzeiten aus RaceClocker, in der Reihenfolge der Marken auf der Strecke. Leer, wenn
-     * das Rennen keine Split-Spalten führt.
+     * Zwischenzeiten in der Reihenfolge ihrer Stellen auf der Strecke. Leer, wenn es für dieses
+     * Boot keine gibt.
+     *
+     * Zwei Quellen füllen sie: die hauseigene Zeitnahme aus den Marken der Streckenposten
+     * (`TimingSplitService`, System INTERN) und der RaceClocker-Abruf aus dem Feed (System
+     * RACECLOCKER). Leer heißt also entweder „keine Streckenposten zugeordnet“ oder „das Rennen
+     * führt keine Split-Spalten“.
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
 )
 
 /**
- * Eine Zwischenzeit: Spaltenname aus RaceClocker und kumulierte Fahrzeit als Anzeige-Text.
+ * Eine Zwischenzeit: Beschriftung und kumulierte Fahrzeit als Anzeige-Text. Die Beschriftung ist
+ * der Name des Streckenpostens (hauseigene Zeitnahme) oder der Spaltenname aus RaceClocker — die
+ * Tabelle dahinter hat zwei Schreiber.
  * [recordedAt] ist der Erfassungszeitpunkt (`created_at`) — additiv und nullable, weil nur
  * der Stream-Overlay-Modus LAPS ihn braucht (Eintreffzeit je Marke); alle anderen Anzeigen
  * lassen ihn weg (NON_NULL-Serialisierung).
@@ -47,6 +54,13 @@ data class MatchTeamLapDto(
      * der Marke war.
      */
     val lapMillis: Long? = null,
+    /**
+     * Die Stelle auf der Strecke in Metern, an der diese Zeit gefallen ist — die Grundlage des
+     * Tempos je Abschnitt, das die Anzeige daraus rechnet. Null bei den Rundenzeiten aus dem
+     * Fremdsystem: Deren Spaltennamen gehören keinem Posten der Strecke, dort gibt es kein
+     * Tempo, und die Anzeige lässt die Stelle leer statt eine Zahl zu erfinden.
+     */
+    val distanceMeters: Int? = null,
 )
 
 /**
@@ -55,7 +69,12 @@ data class MatchTeamLapDto(
  * mehrere Anzeigen (Durchführung, Schiedsrichter-Dashboard, Boards) dieselben Zwischenzeiten zeigen.
  * [recordedAt] bleibt für Aufrufer ohne Erfassungszeitpunkt weg (Default null, Quellkompatibilität).
  */
-fun matchTeamLapDto(name: String, lapMillis: Long, recordedAt: LocalDateTime? = null) = MatchTeamLapDto(
+fun matchTeamLapDto(
+    name: String,
+    lapMillis: Long,
+    recordedAt: LocalDateTime? = null,
+    distanceMeters: Int? = null,
+) = MatchTeamLapDto(
     name = name,
     timeString = Timecode(
         millis = lapMillis,
@@ -64,4 +83,5 @@ fun matchTeamLapDto(name: String, lapMillis: Long, recordedAt: LocalDateTime? = 
     ).toString(),
     recordedAt = recordedAt,
     lapMillis = lapMillis,
+    distanceMeters = distanceMeters,
 )

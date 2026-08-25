@@ -14,10 +14,15 @@ import i18next from 'i18next'
 import './i18n/config'
 import {isLanguage, locales} from './i18n/config.ts'
 import CloseIcon from '@mui/icons-material/Close'
+import {installTimingDeviceTokenInterceptor} from '@utils/timing/deviceTokenInterceptor.ts'
 
 client.setConfig({
     baseUrl: Config.api.baseUrl,
 })
+
+// Geteilte Zeitnahme-Geräte (Posten-Link mit ?token=…) authentifizieren sich ohne Sitzung über
+// das abgelegte Geräte-Token - der Interceptor hängt es an alle Timing-Aufrufe der Veranstaltung.
+installTimingDeviceTokenInterceptor()
 
 const language = document.getElementById('ready2race-root')!.dataset.lng
 if (isLanguage(language)) {
