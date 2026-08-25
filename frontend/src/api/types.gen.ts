@@ -1061,20 +1061,6 @@ export type CompetitionPropertiesRequest = {
     ratingCategoryRequired: boolean
 }
 
-export type CompetitionRaceAssignmentDto = {
-    competitionId: string
-    identifier: string
-    name: string
-    /**
-     * The one selected race; null means no race is assigned
-     */
-    race?: string | null
-    /**
-     * The competition's own timing system; null means it inherits the event-wide default. Lets the event settings manage all competitions in one table.
-     */
-    timingSystem?: TimingSystem | null
-}
-
 export type CompetitionRegistrationDto = {
     id: string
     name?: string
@@ -1353,19 +1339,6 @@ export type CompetitionTemplateDto = {
     id: string
     properties: CompetitionPropertiesDto
     setupTemplate?: CompetitionSetupTemplateOverviewDto
-}
-
-/**
- * A competition that overrides the event-wide timing defaults. Only the inheritable fields are listed - system, start list export and result import. The race selection is no deviation: it is always assigned per competition, there is no event default to deviate from.
- *
- */
-export type CompetitionTimingDeviationDto = {
-    competitionId: string
-    identifier: string
-    name: string
-    timingSystem?: TimingSystem | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
 }
 
 export type ComputeOfficialTimesRequest = {
@@ -2025,7 +1998,7 @@ export type EventStartlistPreviewMatchDto = {
 }
 
 /**
- * Event-wide timing defaults. Timing system and the file-format presets live here once and every competition without its own values inherits them. The race selection is NOT here - it is assigned per race on each competition (RaceClockerRaceAssignments), no event-wide default.
+ * The event's timing settings. Timing system and the file-format presets live here once and apply to EVERY competition - a per-competition deviation no longer exists (the competition columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker race or an internal timing mode - is not here either: that is the timing profile tree (/event/{eventId}/timing-profile).
  *
  */
 export type EventTimingConfigDto = {
@@ -2065,14 +2038,10 @@ export type EventTimingConfigDto = {
      * False-start SEQUENCE of start boards (offsets counted forward from the trigger). Like the capture tones NOT resolved - null means "built-in default sequence" (short-short- long, see TimingSettingsDto.falseStartTone), so the form can offer a reset. A column still holding the pre-24.08.2026 single tone (a jsonb object) is read as a one-element sequence with offsetMillis 0, so no migration is needed.
      */
     falseStartTone?: Array<ToneStepDto> | null
-    /**
-     * The competitions that do not follow these defaults but set at least one of the three fields themselves.
-     */
-    deviatingCompetitions?: Array<CompetitionTimingDeviationDto>
 }
 
 /**
- * The RaceClocker fields are optional, like the per-competition config. The five auto-pull fields are not optional - the database always has a value for them, and null here would ambiguously mean "leave unchanged". The race selection is not here - it is assigned per race on each competition, no event-wide default.
+ * Timing system and the two file-format presets stay optional - they are not known when the regatta is created. The five auto-pull fields are not optional: the database always has a value for them, and null here would ambiguously mean "leave unchanged". Which profile stops a single match is not here - that is the timing profile tree.
  *
  */
 export type EventTimingConfigRequest = {
@@ -3599,13 +3568,6 @@ export type QrCodePublicResponse = {
     type?: QrCodeDtoType
 }
 
-export type RaceClockerRaceAssignmentsRequest = {
-    /**
-     * Competitions that use this race for all of their rounds
-     */
-    competitions: Array<string>
-}
-
 export type RaceClockerRaceDto = {
     id: string
     name: string
@@ -4121,42 +4083,6 @@ export type TimingAutoApplyRequest = {
     enabled: boolean
 }
 
-export type TimingConfigDto = {
-    timingSystem?: TimingSystem | null
-    /**
-     * The one selected RaceClocker race of this competition - qualification and all other rounds alike.
-     */
-    race?: string | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
-    /**
-     * Event-wide default timing system; the competition inherits it while its own field is null.
-     */
-    eventTimingSystem?: TimingSystem | null
-    /**
-     * Event-wide default start list export; inherited while the competition's own field is null.
-     */
-    eventStartlistConfig?: string | null
-    /**
-     * Event-wide default race results import; inherited while the competition's own field is null.
-     */
-    eventResultImportConfig?: string | null
-}
-
-/**
- * Every field is optional - the RaceClocker races only exist shortly before the regatta, so an incomplete configuration must be storable. The race id must belong to this competition's event; the service rejects a race from another event.
- *
- */
-export type TimingConfigRequest = {
-    timingSystem?: TimingSystem | null
-    /**
-     * The one selected RaceClocker race - qualification and all other rounds alike.
-     */
-    race?: string | null
-    startlistConfig?: string | null
-    resultImportConfig?: string | null
-}
-
 export type TimingDeviceTokenDto = {
     id: uuid
     event: uuid
@@ -4248,25 +4174,6 @@ export type TimingMatchTeamDto = {
      * The team has an assigned ACTIVE mark on a FINISH station.
      */
     finished: boolean
-}
-
-/**
- * One mode assignment. Without a round the mode applies to the whole competition; an entry with a round overrides it for exactly that round.
- */
-export type TimingModeAssignmentDto = {
-    id: uuid
-    competition: uuid
-    competitionSetupRound?: uuid | null
-    timingMode: uuid
-}
-
-/**
- * Upsert over the natural key (competition, round): creates or replaces the entry for the combination; a null timingMode removes it (idempotent).
- */
-export type TimingModeAssignmentRequest = {
-    competition: uuid
-    competitionSetupRound?: uuid | null
-    timingMode?: uuid | null
 }
 
 /**
@@ -5975,28 +5882,6 @@ export type AddRaceClockerRaceResponse = string
 
 export type AddRaceClockerRaceError = BadRequestError | ApiError | UnprocessableEntityError
 
-export type GetRaceClockerCompetitionAssignmentsData = {
-    path: {
-        eventId: string
-    }
-}
-
-export type GetRaceClockerCompetitionAssignmentsResponse = Array<CompetitionRaceAssignmentDto>
-
-export type GetRaceClockerCompetitionAssignmentsError = BadRequestError | ApiError
-
-export type SetRaceClockerRaceAssignmentsData = {
-    body: RaceClockerRaceAssignmentsRequest
-    path: {
-        eventId: string
-        raceId: string
-    }
-}
-
-export type SetRaceClockerRaceAssignmentsResponse = void
-
-export type SetRaceClockerRaceAssignmentsError = BadRequestError | ApiError
-
 export type UpdateRaceClockerRaceData = {
     body: RaceClockerRaceRequest
     path: {
@@ -6091,29 +5976,6 @@ export type UpdateEventNoticeData = {
 export type UpdateEventNoticeResponse = void
 
 export type UpdateEventNoticeError = BadRequestError | ApiError | UnprocessableEntityError
-
-export type GetTimingConfigData = {
-    path: {
-        competitionId: string
-        eventId: string
-    }
-}
-
-export type GetTimingConfigResponse = TimingConfigDto
-
-export type GetTimingConfigError = BadRequestError | ApiError
-
-export type UpdateTimingConfigData = {
-    body: TimingConfigRequest
-    path: {
-        competitionId: string
-        eventId: string
-    }
-}
-
-export type UpdateTimingConfigResponse = void
-
-export type UpdateTimingConfigError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetRoundProgressionConfigData = {
     path: {
@@ -9872,27 +9734,6 @@ export type DeleteTimingModeData = {
 export type DeleteTimingModeResponse = void
 
 export type DeleteTimingModeError = unknown
-
-export type GetTimingModeAssignmentsData = {
-    path: {
-        eventId: uuid
-    }
-}
-
-export type GetTimingModeAssignmentsResponse = Array<TimingModeAssignmentDto>
-
-export type GetTimingModeAssignmentsError = unknown
-
-export type UpsertTimingModeAssignmentData = {
-    body: TimingModeAssignmentRequest
-    path: {
-        eventId: uuid
-    }
-}
-
-export type UpsertTimingModeAssignmentResponse = void
-
-export type UpsertTimingModeAssignmentError = unknown
 
 export type CreateTimingStationShareLinkData = {
     path: {

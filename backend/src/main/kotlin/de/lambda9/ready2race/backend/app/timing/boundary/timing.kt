@@ -9,7 +9,6 @@ import de.lambda9.ready2race.backend.app.timing.entity.OfficialTimeOverrideReque
 import de.lambda9.ready2race.backend.app.timing.entity.TimingAutoApplyRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
-import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
@@ -135,28 +134,6 @@ fun Route.timing() {
                         val modeId = !pathParam("modeId", uuid)
                         TimingModeService.deleteMode(modeId, eventId)
                     }
-                }
-            }
-        }
-
-        route("/modeAssignments") {
-
-            get {
-                call.respondComprehension {
-                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
-                    val eventId = !pathParam("eventId", uuid)
-                    TimingModeService.getModeAssignments(eventId)
-                }
-            }
-
-            // Upsert über den natürlichen Schlüssel (Wettkampf, Runde) - timingMode null räumt den
-            // Eintrag ab. Ein PUT statt POST/DELETE-Paar, siehe TimingModeAssignmentRequest.
-            put {
-                call.respondComprehension {
-                    val user = !authenticate(Privilege.UpdateEventGlobal)
-                    val eventId = !pathParam("eventId", uuid)
-                    val body = !receiveKIO(TimingModeAssignmentRequest.example)
-                    TimingModeService.upsertModeAssignment(body, user.id!!, eventId)
                 }
             }
         }

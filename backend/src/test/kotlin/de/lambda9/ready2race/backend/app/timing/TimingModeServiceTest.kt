@@ -1,30 +1,56 @@
 package de.lambda9.ready2race.backend.app.timing
 
-import de.lambda9.ready2race.backend.app.timing.boundary.TimingModeResolveLogic
-import de.lambda9.ready2race.backend.app.timing.boundary.TimingModeResolveLogic.ModeAssignment
+import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingModeService
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
-import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentDto
-import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
+import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileService
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileAssignmentRequest
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
- * Zeitnahmetypen gegen echtes Postgres: CRUD, der (event, name)-Unique-Vorbau, die
- * Zuordnungs-Semantik (Upsert über den natürlichen Schlüssel, `unique nulls not distinct`) und
- * die Auflösung über TimingModeResolveLogic mit Zeilen aus der Datenbank.
+ * Zeitnahmetypen gegen echtes Postgres: CRUD, der (event, name)-Unique-Vorbau und die Löschsperre
+ * für einen Typ, der noch irgendwo gilt.
+ *
+ * WO ein Typ gilt, ist seit dem Zeitnahmeprofil-Baum nicht mehr Sache dieses Dienstes - die
+ * Zuordnungs-Semantik und ihre Auflösung prüft [TimingProfileServiceTest].
  */
 class TimingModeServiceTest {
+
+    private fun setEventTimingSystem(eventId: UUID, system: TimingSystem?): App<Any?, Unit> =
+        KIO.comprehension {
+            val event = (!EventRepo.get(eventId).orDie())!!
+            !EventRepo.update(event) { timingSystem = system?.name }.orDie()
+            KIO.ok(Unit)
+        }
+
+    /** Eine Wettkampf-Zeile des Zeitnahmeprofil-Baums; [modeId] null räumt sie wieder ab. */
+    private fun assignMode(
+        eventId: UUID,
+        userId: UUID,
+        competitionId: UUID,
+        modeId: UUID?,
+    ): App<Any?, Unit> = KIO.comprehension {
+        !TimingProfileService.upsertAssignment(
+            eventId,
+            userId,
+            TimingProfileAssignmentRequest(competitionId, null, null, modeId),
+        )
+        KIO.ok(Unit)
+    }
 
     private fun request(
         name: String = "Timetrial 30s",
@@ -111,135 +137,27 @@ class TimingModeServiceTest {
         }
     }
 
+    /**
+     * Die Löschsperre: ein zugeordneter Typ verschwindet nicht stillschweigend. Der
+     * on-delete-restrict-Fremdschlüssel des Zeitnahmeprofil-Baums käme sonst als roher
+     * Datenbank-Defekt hoch statt als Domänenfehler - deshalb steht der Fall hier und nicht nur
+     * im Schema.
+     */
     @Test
     fun deleteRefusesWhileAssigned() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
+        // Ein Zeitnahmetyp ist nur an einer intern gezeiteten Veranstaltung zuweisbar.
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
         val fixture = !createTestMatchFixture(eventId)
         val modeId = ((!TimingModeService.addMode(request(), userId, eventId)) as ApiResponse.Created).id
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, modeId),
-            userId,
-            eventId,
-        )
+        !assignMode(eventId, userId, fixture.competitionId, modeId)
 
         assertKIOFails(TimingError.ModeInUse) {
             TimingModeService.deleteMode(modeId, eventId)
         }
 
         // Zuordnung abräumen, dann klappt das Löschen.
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, null),
-            userId,
-            eventId,
-        )
+        !assignMode(eventId, userId, fixture.competitionId, null)
         assertKIOSucceeds<ApiResponse.NoData> { TimingModeService.deleteMode(modeId, eventId) }
-    }
-
-    @Test
-    fun assignmentUpsertReplacesInsteadOfDuplicating() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val fixture = !createTestMatchFixture(eventId)
-        val modeA = ((!TimingModeService.addMode(request("A"), userId, eventId)) as ApiResponse.Created).id
-        val modeB = ((!TimingModeService.addMode(request("B"), userId, eventId)) as ApiResponse.Created).id
-
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, modeA),
-            userId,
-            eventId,
-        )
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, modeB),
-            userId,
-            eventId,
-        )
-
-        val assignments = (!TimingModeService.getModeAssignments(eventId)).data
-        assertEquals(1, assignments.size, "Zweiter PUT ersetzt den Eintrag, statt einen zweiten anzulegen")
-        assertEquals(modeB, assignments.single().timingMode)
-        assertNull(assignments.single().competitionSetupRound)
-    }
-
-    @Test
-    fun roundAndCompetitionEntriesCoexistAndResolvePerRound() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val fixture = !createTestMatchFixture(eventId)
-        val modeA = ((!TimingModeService.addMode(request("A"), userId, eventId)) as ApiResponse.Created).id
-        val modeB = ((!TimingModeService.addMode(request("B"), userId, eventId)) as ApiResponse.Created).id
-
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, modeA),
-            userId,
-            eventId,
-        )
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, fixture.roundId, modeB),
-            userId,
-            eventId,
-        )
-
-        val assignments = (!TimingModeService.getModeAssignments(eventId)).data
-        assertEquals(2, assignments.size)
-
-        // Aufloesung mit den echten DB-Zeilen: Runde schlaegt Wettkampf.
-        val logicRows = assignments.map { ModeAssignment(it.competition, it.competitionSetupRound, it.timingMode) }
-        assertEquals(modeB, TimingModeResolveLogic.resolve(logicRows, fixture.competitionId, fixture.roundId))
-        assertEquals(modeA, TimingModeResolveLogic.resolve(logicRows, fixture.competitionId, UUID.randomUUID()))
-    }
-
-    @Test
-    fun assignmentRejectsARoundOfAnotherCompetition() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val fixture = !createTestMatchFixture(eventId)
-        val foreignFixture = !createTestMatchFixture(eventId)
-        val modeId = ((!TimingModeService.addMode(request(), userId, eventId)) as ApiResponse.Created).id
-
-        assertKIOFails(TimingError.RoundNotOfCompetition) {
-            TimingModeService.upsertModeAssignment(
-                TimingModeAssignmentRequest(fixture.competitionId, foreignFixture.roundId, modeId),
-                userId,
-                eventId,
-            )
-        }
-    }
-
-    @Test
-    fun assignmentRejectsCompetitionAndModeOfAnotherEvent() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
-        val fixture = !createTestMatchFixture(eventId)
-        val foreignMode =
-            ((!TimingModeService.addMode(request(), otherUserId, otherEventId)) as ApiResponse.Created).id
-
-        // Wettkampf gehört nicht zur adressierten Veranstaltung.
-        assertKIOFails(TimingError.EventMismatch) {
-            TimingModeService.upsertModeAssignment(
-                TimingModeAssignmentRequest(fixture.competitionId, null, foreignMode),
-                otherUserId,
-                otherEventId,
-            )
-        }
-        // Typ gehört nicht zur adressierten Veranstaltung.
-        assertKIOFails(TimingError.EventMismatch) {
-            TimingModeService.upsertModeAssignment(
-                TimingModeAssignmentRequest(fixture.competitionId, null, foreignMode),
-                userId,
-                eventId,
-            )
-        }
-    }
-
-    @Test
-    fun clearingANeverSetAssignmentIsANoOp() = testComprehension {
-        val (eventId, userId) = !createTestEventWithAdmin()
-        val fixture = !createTestMatchFixture(eventId)
-
-        assertKIOSucceeds<ApiResponse.NoData> {
-            TimingModeService.upsertModeAssignment(
-                TimingModeAssignmentRequest(fixture.competitionId, null, null),
-                userId,
-                eventId,
-            )
-        }
-        assertTrue((!TimingModeService.getModeAssignments(eventId)).data.isEmpty())
     }
 }

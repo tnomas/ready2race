@@ -8,10 +8,10 @@ import java.util.UUID
  *
  * Die Zuordnungen (`timing_profile_assignment`) kennen vier Ebenen: Veranstaltung, Wettkampf,
  * Runde, Partie. Jede Zeile trägt ihren vollen Pfad, die speziellere Ebene gewinnt — dieselbe
- * Richtung, die früher das `coalesce(competition.timing_system, event.timing_system)` beschrieb,
- * nur einmal statt an drei Stellen formuliert.
+ * Richtung, die die Vererbung früher an drei Stellen einzeln beschrieb, nur einmal statt dreimal
+ * formuliert.
  *
- * Ersetzt `TimingModeResolveLogic`, das dasselbe für zwei Ebenen und nur für Zeitnahmetypen tat.
+ * Die einzige Auflösung, die es noch gibt: Rennen und Zeitnahmetypen laufen beide hier durch.
  */
 object TimingProfileResolveLogic {
 

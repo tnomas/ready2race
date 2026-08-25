@@ -7,6 +7,7 @@ import java.sql.DriverManager
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 /**
@@ -17,6 +18,11 @@ import kotlin.test.assertNull
  *
  * Eigener Container wie bei [RaceClockerSingleRaceMigrationTest]: Der übliche Testcontainer
  * migriert immer bis zum Ende, und über einer leeren Datenbank gäbe es nichts zu übernehmen.
+ *
+ * Weil bis zum Ende migriert wird, gilt hier zugleich der Stand NACH V202608242110 — deshalb
+ * schließt derselbe Fall mit der Gegenprobe, dass die alten Wege nicht bloß unbenutzt, sondern
+ * wirklich fort sind. Wäre die Übernahme lückenhaft und das Löschen trotzdem gelaufen, stünde der
+ * Verlust hier schwarz auf weiß.
  */
 class TimingProfileMigrationTest {
 
@@ -124,6 +130,13 @@ class TimingProfileMigrationTest {
                     ),
                 )
                 assertEquals(4, count(conn, "select count(*) from ready2race.timing_profile_assignment"))
+
+                // Die alten Wege sind wirklich weg -- nicht nur unbenutzt.
+                assertFalse(tableExists(conn, "timing_mode_assignment"))
+                assertFalse(columnExists(conn, "competition", "raceclocker_race"))
+                assertFalse(columnExists(conn, "competition", "timing_system"))
+                assertFalse(columnExists(conn, "competition", "startlist_config"))
+                assertFalse(columnExists(conn, "competition", "result_import_config"))
             }
         } finally {
             postgres.stop()
@@ -259,6 +272,31 @@ class TimingProfileMigrationTest {
             stmt.executeQuery().use { rs ->
                 rs.next()
                 rs.getInt(1)
+            }
+        }
+
+    private fun tableExists(conn: Connection, table: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.tables " +
+                "where table_schema = 'ready2race' and table_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }
+
+    private fun columnExists(conn: Connection, table: String, column: String): Boolean =
+        conn.prepareStatement(
+            "select exists (select 1 from information_schema.columns " +
+                "where table_schema = 'ready2race' and table_name = ? and column_name = ?)"
+        ).use { stmt ->
+            stmt.setString(1, table)
+            stmt.setString(2, column)
+            stmt.executeQuery().use { rs ->
+                rs.next()
+                rs.getBoolean(1)
             }
         }
 }

@@ -1,6 +1,5 @@
 package de.lambda9.ready2race.backend.app.timing
 
-import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
@@ -101,29 +100,6 @@ class TimingMatchServiceTest {
 
         assertEquals("CM 4x+", byId[withShort.setupMatchId]!!.competitionShortName)
         assertEquals(null, byId[withoutShort.setupMatchId]!!.competitionShortName)
-    }
-
-    /**
-     * Die Gegenprobe zum Zuschnitt: Ein eigener Eintrag am Wettkampf ändert nichts mehr, die
-     * Läufe beider Wettkämpfe stehen in der Liste. Der Fall stützt sich noch auf die Spalte
-     * `competition.timing_system` und wird gegenstandslos, sobald sie fällt.
-     */
-    @Test
-    fun theEventTimingSystemAppliesToEveryCompetition() = testComprehension {
-        val (eventId, _) = !createTestEventWithAdmin()
-        !setEventTimingSystem(eventId, TimingSystem.INTERN)
-        val inheriting = !createTestMatchFixture(eventId)
-        val overriding = !createTestMatchFixture(eventId)
-        !CompetitionRepo.update(overriding.competitionId) {
-            timingSystem = TimingSystem.RACECLOCKER.name
-        }.orDie()
-
-        val list = (!TimingMatchService.getMatches(eventId)).data
-
-        assertEquals(
-            setOf(inheriting.setupMatchId, overriding.setupMatchId),
-            list.map { it.competitionSetupMatch }.toSet(),
-        )
     }
 
     @Test

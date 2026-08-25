@@ -67,18 +67,21 @@ class RaceClockerUrlNormalizationMigrationTest {
                     racesWithUrl(conn, "7c854955"),
                 )
 
-                // Zeiger auf das gelöschte Duplikat sind auf die Überlebende umgehängt. Die alten
-                // Spaltenpaare existieren am Ende der Kette nicht mehr: V202608111200 überträgt die
-                // Veranstaltungs-Vorgabe auf den Wettkampf, V202608111500 faltet die Paare auf EIN
-                // `competition.raceclocker_race` (coalesce, Läufe-Rennen gewinnt) und lässt die
-                // Veranstaltungs-Spalten ersatzlos fallen. Also steht hier der Endzustand: Der
-                // Wettkampf zeigt auf die überlebende www-Zeile - das umgehängte Läufe-Rennen
-                // gewinnt gegen das Zeitfahren-Rennen der Veranstaltung.
+                // Zeiger auf das gelöschte Duplikat sind auf die Überlebende umgehängt. Wo dieser
+                // Zeiger am Ende der Kette steht, hat sich zweimal verschoben: V202608111200
+                // überträgt die Veranstaltungs-Vorgabe auf den Wettkampf, V202608111500 faltet die
+                // Paare auf EIN `competition.raceclocker_race` (coalesce, Läufe-Rennen gewinnt),
+                // V202608242100 macht daraus eine Wettkampf-Zeile des Zeitnahmeprofil-Baums und
+                // V202608242110 lässt die Spalte fallen. Gefragt wird deshalb der Baum — die
+                // Aussage bleibt dieselbe: Der Wettkampf zeigt auf die überlebende www-Zeile, das
+                // umgehängte Läufe-Rennen gewinnt gegen das Zeitfahren-Rennen der Veranstaltung.
                 assertEquals(
                     wwwTwinId,
                     querySingleUuid(
                         conn,
-                        "select raceclocker_race from ready2race.competition where id = ?",
+                        "select raceclocker_race from ready2race.timing_profile_assignment " +
+                            "where competition = ? and competition_setup_round is null " +
+                            "and competition_setup_match is null",
                         competitionId,
                     ),
                 )

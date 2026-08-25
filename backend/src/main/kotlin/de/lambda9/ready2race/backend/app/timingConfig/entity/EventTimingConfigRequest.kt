@@ -9,8 +9,8 @@ import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
 
 /**
- * Zeitnahme-Voreinstellung der Veranstaltung. Jedes Feld optional wie beim Wettkampf
- * ([TimingConfigRequest]): die RaceClocker-Rennen entstehen erst kurz vor der Regatta.
+ * Zeitnahme-Einstellungen der Veranstaltung. System und Dateiformate bleiben optional: Sie werden
+ * beim Anlegen der Regatta noch nicht gewusst und dürfen deshalb leer bleiben.
  */
 data class EventTimingConfigRequest(
     val timingSystem: TimingSystem?,

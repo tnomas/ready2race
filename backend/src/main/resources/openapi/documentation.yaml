@@ -1875,62 +1875,6 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
-  /event/{eventId}/raceclocker-race/competition-assignments:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-    get:
-      operationId: getRaceClockerCompetitionAssignments
-      description: "The reverse view: every competition of the event with its explicit RaceClocker race choice (null = inherits the event default), for assigning competitions from the race side."
-      responses:
-        200:
-          description: Competition assignments
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CompetitionRaceAssignmentDto'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
-  /event/{eventId}/raceclocker-race/{raceId}/assignments:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-      - name: raceId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      operationId: setRaceClockerRaceAssignments
-      description: "Set which competitions use this race (reverse assignment). Checking a competition here moves it away from another race - the last click wins; unchecking a competition that pointed here falls back to inheriting the event default."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RaceClockerRaceAssignmentsRequest'
-      responses:
-        204:
-          $ref: '#/components/responses/204'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
   /event/{eventId}/raceclocker-race/{raceId}:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -2151,53 +2095,6 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
-  /event/{eventId}/competition/{competitionId}/timing-config:
-    parameters:
-      - $ref: '#/components/parameters/eventId'
-      - $ref: '#/components/parameters/competitionId'
-    get:
-      operationId: getTimingConfig
-      description: The timing configuration of this competition - timing system, RaceClocker results URLs and the column presets used for export and import.
-      responses:
-        200:
-          description: Timing configuration successfully retrieved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TimingConfigDto'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        500:
-          $ref: '#/components/responses/500'
-    put:
-      operationId: updateTimingConfig
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TimingConfigRequest'
-      responses:
-        204:
-          $ref: '#/components/responses/204'
-        400:
-          $ref: '#/components/responses/400'
-        401:
-          $ref: '#/components/responses/401'
-        403:
-          $ref: '#/components/responses/403'
-        404:
-          $ref: '#/components/responses/404'
-        422:
-          $ref: '#/components/responses/422'
-        500:
-          $ref: '#/components/responses/500'
   /event/{eventId}/competition/{competitionId}/roundProgression:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -10187,52 +10084,9 @@ paths:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
         '409':
-          description: This timing mode is still assigned to competitions or rounds.
+          description: This timing mode is still assigned somewhere in the timing profile tree.
       tags:
         - Timing
-  /event/{eventId}/timing/modeAssignments:
-    get:
-      operationId: getTimingModeAssignments
-      parameters:
-        - name: eventId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/uuid'
-      responses:
-        '200':
-          description: The request has succeeded.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TimingModeAssignmentDto'
-      tags:
-        - Timing
-    put:
-      operationId: upsertTimingModeAssignment
-      description: >-
-        Upsert over the natural key (competition, round): creates or replaces the assignment for
-        the combination; a null timingMode removes it (idempotent). A round entry overrides the
-        competition entry for exactly that round.
-      parameters:
-        - name: eventId
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/uuid'
-      responses:
-        '204':
-          description: 'There is no content to send for this request, but the headers may be useful. '
-      tags:
-        - Timing
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TimingModeAssignmentRequest'
   /event/{eventId}/timing/stations/{stationId}/share-link:
     post:
       operationId: createTimingStationShareLink
@@ -15994,40 +15848,6 @@ components:
 
 
 
-    TimingConfigDto:
-      type: object
-      properties:
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        race:
-          type: string
-          format: uuid
-          nullable: true
-          description: The one selected RaceClocker race of this competition - qualification and all other rounds alike.
-        startlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-        eventTimingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-          description: Event-wide default timing system; the competition inherits it while its own field is null.
-        eventStartlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-          description: Event-wide default start list export; inherited while the competition's own field is null.
-        eventResultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-          description: Event-wide default race results import; inherited while the competition's own field is null.
-
     RoundProgressionConfigDto:
       type: object
       required:
@@ -16054,9 +15874,11 @@ components:
     EventTimingConfigDto:
       type: object
       description: >
-        Event-wide timing defaults. Timing system and the file-format presets live here once and every
-        competition without its own values inherits them. The race selection is NOT here - it is
-        assigned per race on each competition (RaceClockerRaceAssignments), no event-wide default.
+        The event's timing settings. Timing system and the file-format presets live here once and
+        apply to EVERY competition - a per-competition deviation no longer exists (the competition
+        columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker
+        race or an internal timing mode - is not here either: that is the timing profile tree
+        (/event/{eventId}/timing-profile).
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -16108,11 +15930,6 @@ components:
             one-element sequence with offsetMillis 0, so no migration is needed.
           items:
             $ref: '#/components/schemas/ToneStepDto'
-        deviatingCompetitions:
-          type: array
-          description: The competitions that do not follow these defaults but set at least one of the three fields themselves.
-          items:
-            $ref: '#/components/schemas/CompetitionTimingDeviationDto'
       required:
         - autoPull
         - intervalActiveSeconds
@@ -16120,36 +15937,6 @@ components:
         - watchBeforeMinutes
         - watchAfterMinutes
         - timingPrecision
-
-    CompetitionTimingDeviationDto:
-      type: object
-      description: >
-        A competition that overrides the event-wide timing defaults. Only the inheritable fields are
-        listed - system, start list export and result import. The race selection is no deviation:
-        it is always assigned per competition, there is no event default to deviate from.
-      properties:
-        competitionId:
-          type: string
-          format: uuid
-        identifier:
-          type: string
-        name:
-          type: string
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        startlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
-      required:
-        - competitionId
-        - identifier
-        - name
 
     RaceClockerRaceDto:
       type: object
@@ -16177,45 +15964,13 @@ components:
         capturesLaps:
           type: boolean
 
-    CompetitionRaceAssignmentDto:
-      type: object
-      required: [competitionId, identifier, name]
-      properties:
-        competitionId:
-          type: string
-          format: uuid
-        identifier:
-          type: string
-        name:
-          type: string
-        race:
-          type: string
-          format: uuid
-          nullable: true
-          description: "The one selected race; null means no race is assigned"
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-          description: "The competition's own timing system; null means it inherits the event-wide default. Lets the event settings manage all competitions in one table."
-
-    RaceClockerRaceAssignmentsRequest:
-      type: object
-      required: [competitions]
-      properties:
-        competitions:
-          type: array
-          description: "Competitions that use this race for all of their rounds"
-          items:
-            type: string
-            format: uuid
-
     EventTimingConfigRequest:
       type: object
       description: >
-        The RaceClocker fields are optional, like the per-competition config. The five auto-pull fields
-        are not optional - the database always has a value for them, and null here would ambiguously
-        mean "leave unchanged". The race selection is not here - it is assigned per race on each
-        competition, no event-wide default.
+        Timing system and the two file-format presets stay optional - they are not known when the
+        regatta is created. The five auto-pull fields are not optional: the database always has a
+        value for them, and null here would ambiguously mean "leave unchanged". Which profile stops
+        a single match is not here - that is the timing profile tree.
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -16284,29 +16039,6 @@ components:
         times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`)
         and are never polled from an external provider.
 
-    TimingConfigRequest:
-      type: object
-      description: >
-        Every field is optional - the RaceClocker races only exist shortly before the regatta, so an
-        incomplete configuration must be storable. The race id must belong to this competition's
-        event; the service rejects a race from another event.
-      properties:
-        timingSystem:
-          $ref: '#/components/schemas/TimingSystem'
-          nullable: true
-        race:
-          type: string
-          format: uuid
-          nullable: true
-          description: The one selected RaceClocker race - qualification and all other rounds alike.
-        startlistConfig:
-          type: string
-          format: uuid
-          nullable: true
-        resultImportConfig:
-          type: string
-          format: uuid
-          nullable: true
     StartListConfigRequest:
       type: object
       description: At least one column must be specified, and at least one of colTeamRegistrationId / colTeamMatchId.
@@ -21368,43 +21100,6 @@ components:
           $ref: '#/components/schemas/uuid'
           nullable: true
         profile:
-          $ref: '#/components/schemas/uuid'
-          nullable: true
-
-    TimingModeAssignmentDto:
-      type: object
-      description: >-
-        One mode assignment. Without a round the mode applies to the whole competition; an entry
-        with a round overrides it for exactly that round.
-      required:
-        - id
-        - competition
-        - timingMode
-      properties:
-        id:
-          $ref: '#/components/schemas/uuid'
-        competition:
-          $ref: '#/components/schemas/uuid'
-        competitionSetupRound:
-          $ref: '#/components/schemas/uuid'
-          nullable: true
-        timingMode:
-          $ref: '#/components/schemas/uuid'
-
-    TimingModeAssignmentRequest:
-      type: object
-      description: >-
-        Upsert over the natural key (competition, round): creates or replaces the entry for the
-        combination; a null timingMode removes it (idempotent).
-      required:
-        - competition
-      properties:
-        competition:
-          $ref: '#/components/schemas/uuid'
-        competitionSetupRound:
-          $ref: '#/components/schemas/uuid'
-          nullable: true
-        timingMode:
           $ref: '#/components/schemas/uuid'
           nullable: true
 

@@ -19,6 +19,11 @@ import kotlin.test.assertFalse
  *
  * Wie [RaceClockerUrlNormalizationMigrationTest] mit eigenem Container: Der übliche Testcontainer
  * migriert immer bis zum Ende, und über einer leeren Datenbank gäbe es nichts zu koaleszieren.
+ *
+ * Angehalten wird hier zweimal — vor und NACH der Migration, um die es geht. Bis zum Ende zu
+ * migrieren ginge nicht mehr: V202608242110 lässt die vier Zeitnahme-Spalten des Wettkampfs fallen,
+ * und dann gäbe es das Ergebnis dieser Faltung nicht mehr zu lesen. Der Zwischenstand ist ohnehin
+ * die richtige Frage — geprüft wird diese eine Migration, nicht der Endzustand des Schemas.
  */
 class RaceClockerSingleRaceMigrationTest {
 
@@ -48,8 +53,9 @@ class RaceClockerSingleRaceMigrationTest {
 
             connect(postgres).use { seedLegacyState(it) }
 
-            // Jetzt der Rest, insbesondere V202608111500.
-            flyway(postgres).load().migrate()
+            // Jetzt bis einschließlich V202608111500 — der Stand, den diese Migration herstellt.
+            // Weiterhin ohne afterMigrate, aus demselben Grund wie oben.
+            flyway(postgres).target("202608111500").skipDefaultCallbacks(true).load().migrate()
 
             connect(postgres).use { conn ->
                 // Beide Rennen angewählt → das Läufe-Rennen gewinnt.

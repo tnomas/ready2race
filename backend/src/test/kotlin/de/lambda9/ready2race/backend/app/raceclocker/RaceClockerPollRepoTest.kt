@@ -138,11 +138,9 @@ class RaceClockerPollRepoTest {
      */
     private fun TestComprehensionScope<JEnv>.seed(
         eventTimingSystem: String? = TimingSystem.RACECLOCKER.name,
-        competitionTimingSystem: String? = null,
         raceResultsUrl: String? = raceUrl,
         withQualificationRound: Boolean = false,
         eventStartlistConfig: UUID? = null,
-        competitionStartlistConfig: UUID? = null,
         activated: Boolean = true,
         startedAt: LocalDateTime? = null,
         finishedAt: LocalDateTime? = null,
@@ -177,8 +175,6 @@ class RaceClockerPollRepoTest {
                 event = eventId,
                 createdAt = now,
                 updatedAt = now,
-                timingSystem = competitionTimingSystem,
-                startlistConfig = competitionStartlistConfig,
             )
         )
 
@@ -364,21 +360,6 @@ class RaceClockerPollRepoTest {
         assertEquals(null, (!RaceClockerPollRepo.getCandidates(seeded.eventId)).single().autoPausedAt)
     }
 
-    /**
-     * Das Zeitnahme-System gilt nur noch an der Veranstaltung: Zwei Zeitnahme-Softwares in einer
-     * Regatta gibt es nicht. Ein Wettkampf mit eigenem Eintrag ändert deshalb nichts mehr - vorher
-     * hätte dieser Wettkampf den Abruf für seine Läufe abgeschaltet.
-     *
-     * Der Fall stützt sich noch auf die Spalte `competition.timing_system`; er wird gegenstandslos,
-     * sobald sie fällt - dann erzwingt das Schema, was hier steht.
-     */
-    @Test
-    fun aCompetitionOverridingTheTimingSystemChangesNothing() = testComprehension {
-        val seeded = seed(competitionTimingSystem = TimingSystem.WEBSCORER.name)
-
-        assertEquals(listOf(seeded.matchId), (!RaceClockerPollRepo.getCandidates(seeded.eventId)).map { it.matchId })
-    }
-
     /** Ohne Zeitnahmesystem - der Zustand jeder Bestandsveranstaltung - gibt es nichts abzurufen. */
     @Test
     fun anEventWithoutATimingSystemHasNoCandidates() = testComprehension {
@@ -504,14 +485,13 @@ class RaceClockerPollRepoTest {
 
     /**
      * Das Startlisten-Preset gehört zur Veranstaltung: Alle Wettkämpfe exportieren dieselben
-     * Spalten. Jeder Lauf - Qualifikation wie Folgerunde - bekommt deshalb dasselbe Preset, und ein
-     * eigener Wert am Wettkampf ändert daran nichts mehr (auch dieser Fall wird gegenstandslos,
-     * sobald die Spalte fällt).
+     * Spalten. Jeder Lauf - Qualifikation wie Folgerunde - bekommt deshalb dasselbe Preset. Dass
+     * ein Wettkampf davon abweichen könnte, ist seit V202608242110 nicht mehr möglich; geprüft
+     * wird hier, was bleibt: dass die Abfrage das Preset der Veranstaltung wirklich findet.
      */
     @Test
     fun theStartListConfigComesFromTheEventAlone() = testComprehension {
         val eventConfig = insertStartlistConfig("Veranstaltungs-Preset")
-        val ownConfig = insertStartlistConfig("Eigenes Preset")
 
         val inheriting = seed(withQualificationRound = true, eventStartlistConfig = eventConfig)
         assertEquals(eventConfig, (!CompetitionMatchRepo.getStartListConfigTarget(inheriting.matchId))?.configId)
@@ -519,10 +499,6 @@ class RaceClockerPollRepoTest {
             eventConfig,
             (!CompetitionMatchRepo.getStartListConfigTarget(inheriting.qualificationMatchId!!))?.configId,
         )
-
-        // Der eigene Wert des Wettkampfs zählt nicht mehr.
-        val overriding = seed(eventStartlistConfig = eventConfig, competitionStartlistConfig = ownConfig)
-        assertEquals(eventConfig, (!CompetitionMatchRepo.getStartListConfigTarget(overriding.matchId))?.configId)
 
         // Nichts konfiguriert: null heißt "kein Preset", nicht "Lauf nicht gefunden".
         val unconfigured = seed()
