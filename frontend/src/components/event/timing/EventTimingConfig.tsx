@@ -463,19 +463,24 @@ const EventTimingConfig = () => {
                         </SubmitButton>
                     </Box>
 
-                    {/* Der eine Ort für „womit wird gestoppt": Veranstaltung, Wettkampf, Runde,
-                        Partie. Unterhalb des Speichern-Knopfs, weil jede Zeile dort sofort
-                        speichert — oberhalb sähe der Baum aus wie Teil des Formulars. Der `key`
-                        baut ihn neu auf, sobald sich seine Auswahl ändern kann: welche Profile es
-                        überhaupt gibt, hängt am GESPEICHERTEN Zeitnahme-System und an den Rennen
-                        bzw. Zeitnahmetypen darüber — nicht am Radio, das noch ungespeichert ist. */}
-                    <Divider />
-                    <TimingProfileTree
-                        key={`${lastSaved}:${racesReloaded}:${modesReloaded}`}
-                        eventId={eventId}
-                    />
                 </Stack>
             </FormContainer>
+
+            {/* Der eine Ort für „womit wird gestoppt": Veranstaltung, Wettkampf, Runde, Partie.
+                Bewusst AUSSERHALB des Formulars und seiner 720-Pixel-Spalte: Der Baum ist kein
+                Formularfeld — jede Zeile speichert für sich —, und in der schmalen Spalte blieben
+                der Beschriftung keine 250 Pixel, sodass jeder zweite Wettkampfname umbrach.
+
+                Der `key` baut ihn neu auf, sobald sich seine Auswahl ändern kann: welche Profile
+                es überhaupt gibt, hängt am GESPEICHERTEN Zeitnahme-System und an den Rennen bzw.
+                Zeitnahmetypen darüber — nicht am Radio, das noch ungespeichert ist. */}
+            <Divider sx={{my: 4, maxWidth: 1200}} />
+            <Box sx={{maxWidth: 1200}}>
+                <TimingProfileTree
+                    key={`${lastSaved}:${racesReloaded}:${modesReloaded}`}
+                    eventId={eventId}
+                />
+            </Box>
 
             <RaceClockerRaceDialog
                 eventId={eventId}

@@ -249,7 +249,8 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
         <Select
             size={'small'}
             displayEmpty
-            sx={{minWidth: 260}}
+            fullWidth
+            sx={{minWidth: 0}}
             value={own ?? INHERIT_VALUE}
             disabled={saving.has(key)}
             onChange={event => save(key, path, event.target.value)}>
@@ -264,7 +265,19 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
         </Select>
     )
 
-    /** Eine Zeile des Baums: Einrückung, Aufklapp-Pfeil (oder Platzhalter), Beschriftung, Select. */
+    /**
+     * Eine Zeile des Baums: Einrückung, Aufklapp-Pfeil (oder Platzhalter), Beschriftung, Select,
+     * Nachspann.
+     *
+     * Ein Raster mit festen Spalten, keine umbrechende Zeile: Die Auswahlfelder müssen
+     * untereinander stehen, sonst liest sich die Liste nicht als Baum, sondern als Haufen — und
+     * genau das passierte, solange die Beschriftung `flexGrow` hatte und die Zeile umbrechen
+     * durfte. Ein langer Wettkampfname schob das Feld dann in die nächste Zeile.
+     *
+     * Die Einrückung sitzt INNERHALB der ersten Spalte (Abstand am Pfeil), damit die Spaltenkante
+     * über alle vier Ebenen dieselbe bleibt. Zu lange Namen brechen in ihrer Zelle um, statt die
+     * Spalte zu verbreitern (`minWidth: 0` — ohne das ignoriert ein Grid-Kind seine Grenze).
+     */
     const row = (
         key: string,
         depth: number,
@@ -273,34 +286,63 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
         expandableId?: string,
         after?: ReactNode,
     ) => (
-        <Stack
+        <Box
             key={key}
-            direction={'row'}
-            spacing={1}
-            alignItems={'center'}
-            flexWrap={'wrap'}
-            sx={{pl: depth * 3}}>
-            {expandableId ? (
-                <IconButton
-                    size={'small'}
-                    className={'cursor-pointer'}
-                    aria-label={t('event.timing.profiles.toggle')}
-                    onClick={() => toggle(expandableId)}>
-                    {expanded.has(expandableId) ? (
-                        <ExpandMore fontSize={'small'} />
-                    ) : (
-                        <ChevronRight fontSize={'small'} />
-                    )}
-                </IconButton>
-            ) : (
-                <Box sx={{width: 30}} />
-            )}
-            <Typography variant={'body2'} sx={{flexGrow: 1, minWidth: 160}}>
-                {text}
-            </Typography>
-            {control}
-            {after}
-        </Stack>
+            sx={{
+                display: 'grid',
+                // Feste Breiten für Spalte 2 und 3, nicht `auto`: Jede Zeile ist ihr eigenes
+                // Raster, und `auto` misst je Zeile ihren eigenen Inhalt. Eine Zeile mit dem
+                // Zähler "N eigene Profile darunter" bekäme dann eine breitere dritte Spalte und
+                // ihr Auswahlfeld stünde weiter links als das der Nachbarzeile. Mit festen
+                // Breiten löst `1fr` in jeder Zeile denselben Wert auf — die Felder stehen
+                // untereinander, unabhängig von Namenslänge und Nachspann.
+                gridTemplateColumns: {
+                    xs: 'minmax(0, 1fr) 92px',
+                    sm: 'minmax(0, 1fr) 280px 180px',
+                },
+                columnGap: 1,
+                alignItems: 'center',
+                minHeight: 40,
+            }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    minWidth: 0,
+                    pl: depth * 3,
+                }}>
+                {expandableId ? (
+                    <IconButton
+                        size={'small'}
+                        className={'cursor-pointer'}
+                        aria-label={t('event.timing.profiles.toggle')}
+                        onClick={() => toggle(expandableId)}>
+                        {expanded.has(expandableId) ? (
+                            <ExpandMore fontSize={'small'} />
+                        ) : (
+                            <ChevronRight fontSize={'small'} />
+                        )}
+                    </IconButton>
+                ) : (
+                    <Box sx={{width: 30, flexShrink: 0}} />
+                )}
+                <Typography variant={'body2'} sx={{minWidth: 0}}>
+                    {text}
+                </Typography>
+            </Box>
+            <Box sx={{minWidth: 0, gridColumn: {xs: '1 / -1', sm: 'auto'}}}>{control}</Box>
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 1,
+                    minHeight: 34,
+                }}>
+                {after}
+            </Box>
+        </Box>
     )
 
     // Der Sammelexport der Startlisten gruppiert je Wettkampf und ist blind für Zuordnungen an
@@ -349,7 +391,7 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
                 </Box>
             )}
 
-            <Stack spacing={1}>
+            <Stack spacing={0}>
                 {!competitionId &&
                     row(
                         'root',
@@ -367,7 +409,7 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
                     const deviations = deviationCount(competition)
                     const key = `competition:${competition.competitionId}`
                     return (
-                        <Stack key={key} spacing={1}>
+                        <Stack key={key} spacing={0}>
                             {row(
                                 key,
                                 depth,
@@ -416,7 +458,7 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
                                 competition.rounds.map(round => {
                                     const roundKey = `round:${round.roundId}`
                                     return (
-                                        <Stack key={roundKey} spacing={1}>
+                                        <Stack key={roundKey} spacing={0}>
                                             {row(
                                                 roundKey,
                                                 depth + 1,
