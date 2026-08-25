@@ -4,7 +4,6 @@ import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.database.generated.tables.references.*
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
-import org.jooq.impl.DSL
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -44,17 +43,16 @@ data class TimingRoundRow(
  * Liest die Partien der INTERN gezeiteten Wettkämpfe einer Veranstaltung - der Zuschnitt der
  * Posten-Startliste.
  *
- * Der Filter ist dasselbe coalesce wie überall (Wettkampf-Wert gewinnt über den
- * Veranstaltungs-Wert, vgl. RaceClockerPollRepo): nur was auf INTERN steht, gehört den internen
- * Posten - RaceClocker-Wettkämpfe derselben Veranstaltung tauchen hier nie auf. Und nur
- * materialisierte Partien (inner join auf competition_match) zählen: eine Runde, deren Läufe noch
- * nicht angelegt sind, ist für die Posten schlicht noch nicht da (Anschluss an die Richtung von
- * "Scope timing boards to the matches that are actually expected").
+ * Der Filter ist derselbe wie überall (das Zeitnahme-System steht an der Veranstaltung, vgl.
+ * RaceClockerPollRepo): nur eine Veranstaltung auf INTERN gehört den internen Posten - eine
+ * RaceClocker-Veranstaltung taucht hier nie auf. Und nur materialisierte Partien (inner join auf
+ * competition_match) zählen: eine Runde, deren Läufe noch nicht angelegt sind, ist für die Posten
+ * schlicht noch nicht da (Anschluss an die Richtung von "Scope timing boards to the matches that
+ * are actually expected").
  */
 object TimingMatchRepo {
 
-    private val internSystem = DSL.coalesce(COMPETITION.TIMING_SYSTEM, EVENT.TIMING_SYSTEM)
-        .eq(TimingSystem.INTERN.name)
+    private val internSystem = EVENT.TIMING_SYSTEM.eq(TimingSystem.INTERN.name)
 
     fun getMatchesByEvent(eventId: UUID): JIO<List<TimingMatchRow>> = Jooq.query {
         select(

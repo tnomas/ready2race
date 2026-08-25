@@ -106,7 +106,6 @@ describe('automatischer Abruf', () => {
             watchBeforeMinutes: 20,
             watchAfterMinutes: 60,
             timingPrecision: 'ZEHNTEL',
-            deviatingCompetitions: [],
         })
 
         expect(form.autoPull).toBe(true)

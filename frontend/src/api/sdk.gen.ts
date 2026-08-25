@@ -210,12 +210,6 @@ import type {
     AddRaceClockerRaceData,
     AddRaceClockerRaceError,
     AddRaceClockerRaceResponse,
-    GetRaceClockerCompetitionAssignmentsData,
-    GetRaceClockerCompetitionAssignmentsError,
-    GetRaceClockerCompetitionAssignmentsResponse,
-    SetRaceClockerRaceAssignmentsData,
-    SetRaceClockerRaceAssignmentsError,
-    SetRaceClockerRaceAssignmentsResponse,
     UpdateRaceClockerRaceData,
     UpdateRaceClockerRaceError,
     UpdateRaceClockerRaceResponse,
@@ -228,15 +222,18 @@ import type {
     UpdateEventTimingConfigData,
     UpdateEventTimingConfigError,
     UpdateEventTimingConfigResponse,
+    GetTimingProfileTreeData,
+    GetTimingProfileTreeError,
+    GetTimingProfileTreeResponse,
+    UpsertTimingProfileAssignmentData,
+    UpsertTimingProfileAssignmentError,
+    UpsertTimingProfileAssignmentResponse,
+    ResetTimingProfileAssignmentsData,
+    ResetTimingProfileAssignmentsError,
+    ResetTimingProfileAssignmentsResponse,
     UpdateEventNoticeData,
     UpdateEventNoticeError,
     UpdateEventNoticeResponse,
-    GetTimingConfigData,
-    GetTimingConfigError,
-    GetTimingConfigResponse,
-    UpdateTimingConfigData,
-    UpdateTimingConfigError,
-    UpdateTimingConfigResponse,
     GetRoundProgressionConfigData,
     GetRoundProgressionConfigError,
     GetRoundProgressionConfigResponse,
@@ -1072,12 +1069,6 @@ import type {
     DeleteTimingModeData,
     DeleteTimingModeError,
     DeleteTimingModeResponse,
-    GetTimingModeAssignmentsData,
-    GetTimingModeAssignmentsError,
-    GetTimingModeAssignmentsResponse,
-    UpsertTimingModeAssignmentData,
-    UpsertTimingModeAssignmentError,
-    UpsertTimingModeAssignmentResponse,
     CreateTimingStationShareLinkData,
     CreateTimingStationShareLinkError,
     CreateTimingStationShareLinkResponse,
@@ -1977,38 +1968,6 @@ export const addRaceClockerRace = <ThrowOnError extends boolean = false>(
     })
 }
 
-/**
- * The reverse view: every competition of the event with its explicit RaceClocker race choice (null = inherits the event default), for assigning competitions from the race side.
- */
-export const getRaceClockerCompetitionAssignments = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetRaceClockerCompetitionAssignmentsData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).get<
-        GetRaceClockerCompetitionAssignmentsResponse,
-        GetRaceClockerCompetitionAssignmentsError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/raceclocker-race/competition-assignments',
-    })
-}
-
-/**
- * Set which competitions use this race (reverse assignment). Checking a competition here moves it away from another race - the last click wins; unchecking a competition that pointed here falls back to inheriting the event default.
- */
-export const setRaceClockerRaceAssignments = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<SetRaceClockerRaceAssignmentsData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).put<
-        SetRaceClockerRaceAssignmentsResponse,
-        SetRaceClockerRaceAssignmentsError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/raceclocker-race/{raceId}/assignments',
-    })
-}
-
 export const updateRaceClockerRace = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<UpdateRaceClockerRaceData, ThrowOnError>,
 ) => {
@@ -2065,6 +2024,54 @@ export const updateEventTimingConfig = <ThrowOnError extends boolean = false>(
 }
 
 /**
+ * The timing-profile tree of the event: root, competitions, rounds and matches, each level with its own profile (null means inherit) and the profile actually in effect there. The inheritance rule lives on the server only, so the UI stays a pure display.
+ */
+export const getTimingProfileTree = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingProfileTreeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingProfileTreeResponse,
+        GetTimingProfileTreeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/tree',
+    })
+}
+
+/**
+ * Upsert over the natural key (competition, round, match): creates or replaces the entry for that path; a null profile removes it and puts the level back on "inherit". All three path fields null address the root (the event itself).
+ */
+export const upsertTimingProfileAssignment = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpsertTimingProfileAssignmentData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpsertTimingProfileAssignmentResponse,
+        UpsertTimingProfileAssignmentError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignment',
+    })
+}
+
+/**
+ * Clears every level BELOW the given one, so all of them inherit again. Without the competition parameter that is the whole event except its root; with it, the rounds and matches of that competition (its own entry stays).
+ */
+export const resetTimingProfileAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResetTimingProfileAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        ResetTimingProfileAssignmentsResponse,
+        ResetTimingProfileAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing-profile/assignments',
+    })
+}
+
+/**
  * Sets or clears the event-wide notice banner (e.g. a weather warning) - both fields set means set, both null means clear. Deliberately a small dedicated endpoint instead of a field on the big event update, so the race-day action stays lightweight. The notice is read through EventDto and embedded in the polled public responses (my-event, board view, live dashboard, live-matches); caches and poll intervals mean a change takes a few seconds to show up on devices.
  */
 export const updateEventNotice = <ThrowOnError extends boolean = false>(
@@ -2077,35 +2084,6 @@ export const updateEventNotice = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/notice',
-    })
-}
-
-/**
- * The timing configuration of this competition - timing system, RaceClocker results URLs and the column presets used for export and import.
- */
-export const getTimingConfig = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetTimingConfigData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).get<
-        GetTimingConfigResponse,
-        GetTimingConfigError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/competition/{competitionId}/timing-config',
-    })
-}
-
-export const updateTimingConfig = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<UpdateTimingConfigData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).put<
-        UpdateTimingConfigResponse,
-        UpdateTimingConfigError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/competition/{competitionId}/timing-config',
     })
 }
 
@@ -5922,35 +5900,6 @@ export const deleteTimingMode = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/modes/{modeId}',
-    })
-}
-
-export const getTimingModeAssignments = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<GetTimingModeAssignmentsData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).get<
-        GetTimingModeAssignmentsResponse,
-        GetTimingModeAssignmentsError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/timing/modeAssignments',
-    })
-}
-
-/**
- * Upsert over the natural key (competition, round): creates or replaces the assignment for the combination; a null timingMode removes it (idempotent). A round entry overrides the competition entry for exactly that round.
- */
-export const upsertTimingModeAssignment = <ThrowOnError extends boolean = false>(
-    options: OptionsLegacyParser<UpsertTimingModeAssignmentData, ThrowOnError>,
-) => {
-    return (options?.client ?? client).put<
-        UpsertTimingModeAssignmentResponse,
-        UpsertTimingModeAssignmentError,
-        ThrowOnError
-    >({
-        ...options,
-        url: '/event/{eventId}/timing/modeAssignments',
     })
 }
 

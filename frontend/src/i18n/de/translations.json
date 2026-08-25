@@ -1351,64 +1351,15 @@
       },
       "timing": {
         "tabTitle": "Zeitnahme",
-        "system": "Zeitnahme-System",
-        "systems": {
-          "none": "nicht gesetzt",
-          "raceclocker": "RaceClocker",
-          "webscorer": "Webscorer",
-          "intern": "Interne Zeitnahme"
-        },
-        "eventDefaults": {
-          "title": "Vorgabe der Veranstaltung",
-          "unset": "nicht gesetzt",
-          "link": "Zeitnahme der Veranstaltung bearbeiten"
-        },
-        "override": {
-          "label": "Für diesen Wettkampf abweichend einstellen",
-          "hint": "Gilt für Zeitnahme-System und Dateiformate. Aus: der Wettkampf folgt der Veranstaltung und übernimmt jede spätere Änderung dort. An: er bekommt eigene Werte. Die Rennen-Zuordnung oben bleibt davon unberührt — sie gehört immer zum Wettkampf."
-        },
-        "raceSection": {
-          "title": "Rennen dieses Wettkampfs"
-        },
-        "presets": {
-          "title": "Dateiformate",
-          "hint": "Welche Spalten exportiert und importiert werden. Abweichend nur nötig, wenn dieser Wettkampf in ein anderes Rennen im Zeitnahme-System läuft."
-        },
-        "raceclockerHint": "RaceClocker-Rennen werden in den Einstellungen der Veranstaltung angelegt. Wählen Sie hier das eine Rennen dieses Wettkampfs — es gilt für die Qualifikation und alle übrigen Runden. Dieselbe Zuordnung lässt sich auch umgekehrt am Rennen anhaken.",
-        "startlist": "Startlisten Export",
-        "resultImport": "Rennergebnisse Import",
-        "importHint": "Die RaceClocker-Vorlagen exportieren ohne Kopfzeile, weil RaceClocker eine solche Zeile sonst als Teilnehmer importiert. Ordnen Sie die Spalten beim Import in RaceClocker deshalb nach ihrer Reihenfolge zu – insbesondere die interne Kennung auf \"Extra info\".",
-        "presetsHint": {
-          "1": "Startlisten Exports und Rennergebnisse Imports werden ",
-          "2": "in der Konfiguration",
-          "3": " angelegt und gelten für alle Veranstaltungen."
+        "inheritedHint": {
+          "1": "Zeitnahme-System und Dateiformate gelten für die ganze Veranstaltung und werden ",
+          "2": "in deren Einstellungen",
+          "3": " gepflegt. Hier wird nur zugeordnet, womit dieser Wettkampf gestoppt wird."
         },
         "incomplete": {
           "title": "Diese Zeitnahme ist noch nicht einsatzbereit",
           "startlist": "Es fehlt der Startlisten Export – ohne ihn lässt sich keine Startliste als CSV exportieren.",
-          "race": "Es ist kein Rennen angewählt – ohne eines lassen sich keine Ergebnisse aus RaceClocker holen.",
-          "link": "Zu den Zeitnahme-Einstellungen"
-        },
-        "saved": "Zeitnahme-Einstellungen gespeichert",
-        "invalid": "Bitte wählen Sie ein Rennen dieser Veranstaltung aus.",
-        "race": "RaceClocker-Rennen",
-        "modes": {
-          "title": "Zeitnahmetyp dieses Wettkampfs",
-          "hint": "Der Zeitnahmetyp bestimmt, wie der Startposten die Läufe dieses Wettkampfs startet — Einzelstart im Intervall oder Welle, mit welchem Countdown-Vorlauf. Runden ohne eigene Auswahl erben vom Wettkampf.",
-          "competitionWide": "Zeitnahmetyp (ganzer Wettkampf)",
-          "unset": "nicht gesetzt",
-          "unsetWarning": "Ohne Zeitnahmetyp kann der Startposten für diesen Wettkampf keine Startsequenz mit einem Griff erzeugen — die Läufe lassen sich dann nur von Hand einrichten.",
-          "inherit": "erbt vom Wettkampf",
-          "inherits": "erbt: {{mode}}",
-          "inheritsNothing": "erbt: nicht gesetzt — für diese Runde gilt kein Zeitnahmetyp",
-          "roundsHint": "Abweichung je Runde — leer heißt: die Runde erbt den Zeitnahmetyp des Wettkampfs.",
-          "saved": "Zeitnahmetyp-Zuordnung gespeichert",
-          "detailInterval": "Intervall {{seconds}} s",
-          "noModes": {
-            "1": "Für diese Veranstaltung sind noch keine Zeitnahmetypen angelegt. Sie werden ",
-            "2": "in den Zeitnahme-Einstellungen der Veranstaltung",
-            "3": " gepflegt."
-          }
+          "link": "Zu den Zeitnahme-Einstellungen der Veranstaltung"
         }
       },
       "places": {
@@ -1660,7 +1611,7 @@
     },
     "timing": {
       "title": "Zeitnahme",
-      "hint": "Gilt für alle Wettkämpfe dieser Veranstaltung. Ein einzelner Wettkampf kann in seinem Zeitnahme-Tab eigene Werte eintragen und weicht damit gezielt ab.",
+      "hint": "Gilt für alle Wettkämpfe dieser Veranstaltung: ein Zeitnahme-System und ein Satz Dateiformate. Womit die einzelnen Wettkämpfe, Runden und Partien gestoppt werden, wird darunter im Zeitnahmeprofil-Baum zugeordnet.",
       "system": "Zeitnahme-System",
       "systems": {
         "none": "nicht gesetzt",
@@ -1668,7 +1619,7 @@
         "webscorer": "Webscorer",
         "intern": "Interne Zeitnahme"
       },
-      "raceclockerHint": "RaceClocker-Rennen gehören zur Veranstaltung, nicht zum Wettkampf. Legen Sie hier jedes Rennen einmal an — etwa „Langstrecke“ und „Kurzstrecke“ — und haken Sie darunter je Rennen an, welche Wettkämpfe es nutzen. Jeder Wettkampf fährt alle seine Runden in einem Rennen.",
+      "raceclockerHint": "RaceClocker-Rennen gehören zur Veranstaltung, nicht zum Wettkampf. Legen Sie hier jedes Rennen einmal an — etwa „Langstrecke“ und „Kurzstrecke“ — und ordnen Sie im Zeitnahmeprofil-Baum darunter zu, welcher Wettkampf, welche Runde oder welche Partie in welchem Rennen gefahren wird.",
       "autoPull": {
         "enabled": "Ergebnisse automatisch abrufen",
         "hint": "Läuft ein Lauf, holt der Server die Ergebnisse im schnellen Takt. Bevorstehende Läufe werden im langsamen Takt beobachtet, um ihren Start zu erkennen; beendete Läufe gar nicht.",
@@ -1686,28 +1637,7 @@
       },
       "saved": "Zeitnahme-Voreinstellung gespeichert",
       "invalid": "Die Zeitnahme-Voreinstellung konnte nicht gespeichert werden.",
-      "deviations": {
-        "title": "Wettkämpfe mit eigener Zeitnahme",
-        "none": "Kein Wettkampf weicht ab — alle folgen dieser Voreinstellung.",
-        "system": "eigenes System",
-        "startlist": "eigener Startlisten Export",
-        "resultImport": "eigener Rennergebnisse Import"
-      },
-      "competitions": {
-        "title": "Wettkämpfe",
-        "hint": "Zeitnahme-System und Zeitnahmetyp direkt je Wettkampf zuweisen, ohne durch die Wettkämpfe zu klicken. Jede Änderung speichert sofort. „Erbt“ folgt der Voreinstellung oben; Abweichungen einzelner Runden werden weiterhin im Zeitnahme-Tab des Wettkampfs gepflegt.",
-        "competition": "Wettkampf",
-        "system": "Zeitnahme-System",
-        "mode": "Zeitnahmetyp",
-        "inherit": "Erbt ({{system}})",
-        "modeUnset": "keiner",
-        "noModes": "Mindestens ein Wettkampf nutzt die interne Zeitnahme, aber es sind noch keine Zeitnahmetypen angelegt. Die Verwaltung der Zeitnahmetypen erscheint oben, sobald als Zeitnahme-System „Interne Zeitnahme“ gewählt ist.",
-        "saved": "Zeitnahme-System des Wettkampfs gespeichert",
-        "modeSaved": "Zeitnahmetyp des Wettkampfs gespeichert",
-        "roundDeviations_one": "+ {{count}} Runden-Abweichung",
-        "roundDeviations_other": "+ {{count}} Runden-Abweichungen"
-      },
-      "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahme-Tab der Wettkämpfe zu.",
+      "internHint": "Die interne Zeitnahme läuft komplett in dieser App: Posten erfassen Zeitmarken, Startsequenzen takten die Starts, der Leitstand rechnet die Ergebnisse. Legen Sie hier die Zeitnahmetypen an und ordnen Sie sie im Zeitnahmeprofil-Baum darunter zu.",
       "precision": {
         "label": "Genauigkeit der offiziellen Zeiten",
         "hint": "Rohzeiten werden weiterhin millisekundengenau gespeichert; die Einstellung bestimmt, was als offizielle Zeit am Lauf steht und angezeigt wird (abgeschnitten, nie aufgerundet). Zehntel entspricht der Genauigkeit von Handzeitnahme. Feinere Stufen sind erst mit Zeitnahme-Hardware aussagekräftig — von Hand getippte Zeiten enthalten menschliche Reaktionszeit.",
@@ -1759,7 +1689,7 @@
       },
       "modes": {
         "title": "Zeitnahmetypen",
-        "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie je Wettkampf oder Runde im Zeitnahme-Tab des Wettkampfs.",
+        "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie im Zeitnahmeprofil-Baum darunter.",
         "none": "Noch keine Zeitnahmetypen angelegt.",
         "add": "Zeitnahmetyp anlegen",
         "edit": "Zeitnahmetyp bearbeiten",
@@ -1785,7 +1715,7 @@
         "saved": "Zeitnahmetyp gespeichert",
         "deleted": "Zeitnahmetyp gelöscht",
         "deleteConfirm": "Soll der Zeitnahmetyp „{{name}}“ wirklich gelöscht werden?",
-        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einem Wettkampf oder einer Runde zugeordnet. Entfernen Sie zuerst die Zuordnungen im Zeitnahme-Tab der Wettkämpfe.",
+        "deleteBlocked": "„{{name}}“ wird noch verwendet: Der Typ ist mindestens einer Ebene des Zeitnahmeprofil-Baums zugeordnet. Entfernen Sie zuerst die Zuordnungen im Baum darunter.",
         "tones": {
           "title": "Töne",
           "hint": "Die Pieps der Startsequenz, relativ zum Start des jeweiligen Boots bzw. der Welle (0 = Start). Sie erklingen auf dem Start-Board und dem Startbildschirm; verpasste Töne werden nie nachgeholt.",
@@ -1806,18 +1736,12 @@
         "capturesLaps": "Erfasst Rundenzeiten",
         "none": "Noch kein Rennen angelegt.",
         "deleteConfirm": "„{{name}}“ wirklich löschen?",
-        "deleteBlocked": "„{{name}}“ ist noch mindestens einem Wettkampf zugewiesen und wurde nicht gelöscht — hake die Zuordnung unten ab und versuche es erneut.",
+        "deleteBlocked": "„{{name}}“ ist noch mindestens einer Ebene zugewiesen und wurde nicht gelöscht — entferne die Zuordnung im Zeitnahmeprofil-Baum darunter und versuche es erneut.",
         "nameTaken": "Es gibt schon ein Rennen mit diesem Namen.",
         "urlTaken": "Es gibt schon ein Rennen mit dieser Adresse.",
         "invalidUrl": "Die Adresse muss auf raceclocker.com liegen.",
         "saved": "Rennen gespeichert.",
         "deleted": "Rennen gelöscht."
-      },
-      "assignments": {
-        "title": "Wettkämpfe je Rennen zuordnen",
-        "hint": "Umgekehrt zur Anwahl im Wettkampf: Hake hier je Rennen an, welche Wettkämpfe es nutzen. Ein Wettkampf hängt mit allen seinen Runden an genau einem Rennen — hakst du ihn hier an, wandert er von einem anderen hierher. Nicht angehakte Wettkämpfe haben kein Rennen.",
-        "competitions": "Gilt für",
-        "saved": "Zuordnung gespeichert."
       },
       "tones": {
         "play": "Ton anhören",
@@ -1835,6 +1759,29 @@
         "timeline": "Zeitleiste der Töne",
         "timelineSpan": "Gesamtlänge {{millis}} ms",
         "offsetAfterTriggerHelp": "Der Zeitpunkt zählt vorwärts ab der Auslösung: 0 heißt sofort, 400 heißt 400 Millisekunden später."
+      },
+      "profiles": {
+        "title": "Zeitnahmeprofile",
+        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird ein Wettkampfablauf neu gebaut, verlieren seine Partien ihre eigenen Profile.",
+        "matchLevelExportHint": "Der Startlisten-Sammelexport gruppiert je Wettkampf. Eine Partie mit eigenem Rennen erscheint dort unter dem Rennen ihres Wettkampfs — ihre Startliste muss einzeln exportiert werden.",
+        "noSystem": "Für dieses Zeitnahme-System gibt es keine Profile. Wählen Sie oben „RaceClocker“ oder „Interne Zeitnahme“.",
+        "noOptions": "Es ist noch kein Profil angelegt. Legen Sie oben ein Rennen bzw. einen Zeitnahmetyp an.",
+        "noCompetitions": "Diese Veranstaltung hat noch keine Wettkämpfe.",
+        "event": "Ganze Veranstaltung",
+        "unset": "nicht gesetzt",
+        "inherit": "Erbt ({{profile}})",
+        "inheritsNothing": "Erbt (nichts gesetzt)",
+        "fromEvent": "Von der Veranstaltung geerbt: {{profile}}.",
+        "fromEventLink": "Zeitnahme der Veranstaltung bearbeiten",
+        "toggle": "Auf- und zuklappen",
+        "saved": "Zeitnahmeprofil gespeichert",
+        "deviations_one": "{{count}} eigenes Profil darunter",
+        "deviations_other": "{{count}} eigene Profile darunter",
+        "resetAll": "Alles darunter auf Erben",
+        "resetCompetition": "Runden und Partien dieses Wettkampfs auf Erben",
+        "resetConfirmEvent": "Alle Zuordnungen der ganzen Veranstaltung werden entfernt. Danach erbt jeder Wettkampf, jede Runde und jede Partie wieder von oben. Fortfahren?",
+        "resetConfirmCompetition": "Alle Zuordnungen der Runden und Partien von {{identifier}} {{name}} werden entfernt. Danach erben sie wieder vom Wettkampf. Fortfahren?",
+        "reset": "Zuordnungen entfernt"
       }
     },
     "info": {

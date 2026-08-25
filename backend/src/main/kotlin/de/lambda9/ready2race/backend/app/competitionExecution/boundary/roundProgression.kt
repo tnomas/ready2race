@@ -11,7 +11,7 @@ import io.ktor.server.routing.*
 
 /**
  * Die Folgerunden-Automatik eines Wettkampfs — unterhalb der Wettkampf-Route zu mounten, nach dem
- * Vorbild von `timingConfig()`.
+ * Vorbild von `eventTimingConfig()`.
  */
 fun Route.roundProgression() {
     route("/roundProgression") {

@@ -9,6 +9,10 @@ import java.util.UUID
  * Zeitfenster steht in der Logik und nicht in der Abfrage, damit es prüfbar bleibt.
  *
  * [matchId] ist wie überall `competition_match.competition_setup_match`.
+ *
+ * Ein Kandidat trägt IMMER ein aufgelöstes Rennen: Er entsteht erst in
+ * [de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic.candidatesFor], und
+ * ein Lauf ohne auflösbares Rennen wird dort gar nicht erst einer.
  */
 data class RaceClockerPollCandidate(
     val matchId: UUID,

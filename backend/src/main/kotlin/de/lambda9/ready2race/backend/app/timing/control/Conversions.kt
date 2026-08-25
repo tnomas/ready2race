@@ -6,7 +6,6 @@ import de.lambda9.ready2race.backend.app.timing.entity.*
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.data.Timecode
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDeviceTokenRecord
-import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
@@ -258,13 +257,6 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
             updatedBy = userId,
         )
     }
-
-fun TimingModeAssignmentRecord.toDto(): TimingModeAssignmentDto = TimingModeAssignmentDto(
-    id = id,
-    competition = competition,
-    competitionSetupRound = competitionSetupRound,
-    timingMode = timingMode,
-)
 
 fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
     id = id,

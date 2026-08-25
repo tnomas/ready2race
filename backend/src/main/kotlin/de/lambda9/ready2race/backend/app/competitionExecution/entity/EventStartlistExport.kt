@@ -56,25 +56,23 @@ data class BulkStartlistMatch(
 )
 
 /**
- * Eine Zeile der Wettkampf-Abfrage des Sammelexports (getForBulkStartlistExport): Kennung,
- * Adresse und Kennung des angewählten RaceClocker-Rennens (beides null = keines angewählt).
- * Die Rennen-Kennung trägt den optionalen Filter „nur Wettkämpfe dieses Rennens" - seit dem
- * Ein-Rennen-Modell ist die Anwahl je Wettkampf eindeutig.
+ * Eine Zeile der Wettkampf-Abfrage des Sammelexports (getForBulkStartlistExport): Kennung, Kürzel
+ * und Name. Das Rennen steht nicht dabei - es hängt am Zeitnahmeprofil-Baum und wird im Dienst
+ * aufgelöst (eventStartlistPlan), der daraus Delta-Abgleich und Rennen-Filter speist.
  */
 data class BulkStartlistCompetitionRow(
     val competitionId: UUID,
     val identifier: String,
-    val raceUrl: String?,
-    val raceId: UUID?,
     /** Kürzel und Name - nur für Vorschau und Fehlermeldungen, der Export selbst braucht sie nicht. */
     val shortName: String?,
     val name: String?,
 )
 
 /**
- * Ein Wettkampf des Sammelexports: seine Kennung (Dateiname, Reihenfolge der ZIP-Einträge), das
- * angewählte RaceClocker-Rennen (Delta-Abgleich; null = keines angewählt) und die zu
- * exportierenden Läufe. Kürzel und Name tragen Vorschau und Fehlermeldungen.
+ * Ein Wettkampf des Sammelexports: seine Kennung (Dateiname, Reihenfolge der ZIP-Einträge), die
+ * Adresse seines aufgelösten RaceClocker-Rennens (Delta-Abgleich; null = auf Wettkampf-Ebene nicht
+ * auflösbar, siehe eventStartlistPlan) und die zu exportierenden Läufe. Kürzel und Name tragen
+ * Vorschau und Fehlermeldungen.
  */
 data class BulkStartlistCompetition(
     val competitionId: UUID,

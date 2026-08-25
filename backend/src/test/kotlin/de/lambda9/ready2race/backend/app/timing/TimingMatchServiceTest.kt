@@ -1,6 +1,5 @@
 package de.lambda9.ready2race.backend.app.timing
 
-import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
@@ -9,11 +8,12 @@ import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchProgress
-import de.lambda9.ready2race.backend.app.timing.entity.TimingModeAssignmentRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileService
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileAssignmentRequest
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.tailwind.core.KIO
@@ -40,11 +40,21 @@ class TimingMatchServiceTest {
             KIO.ok(Unit)
         }
 
-    private fun setCompetitionTimingSystem(competitionId: UUID, system: TimingSystem?): App<Any?, Unit> =
-        KIO.comprehension {
-            !CompetitionRepo.update(competitionId) { timingSystem = system?.name }.orDie()
-            KIO.ok(Unit)
-        }
+    private fun assignProfile(
+        eventId: UUID,
+        userId: UUID,
+        profile: UUID,
+        competition: UUID? = null,
+        round: UUID? = null,
+        match: UUID? = null,
+    ): App<Any?, Unit> = KIO.comprehension {
+        !TimingProfileService.upsertAssignment(
+            eventId,
+            userId,
+            TimingProfileAssignmentRequest(competition, round, match, profile),
+        )
+        KIO.ok(Unit)
+    }
 
     private fun setMatch(
         setupMatchId: UUID,
@@ -54,17 +64,25 @@ class TimingMatchServiceTest {
         KIO.ok(Unit)
     }
 
+    /**
+     * Der Zuschnitt hängt allein an der Veranstaltung: Ihre Wettkämpfe sind entweder alle intern
+     * gezeitet oder keiner. Ein Wettkampf konnte das früher überschreiben - zwei Zeitnahme-
+     * Softwares in einer Regatta gibt es aber nicht.
+     */
     @Test
-    fun onlyInternallyTimedCompetitionsAppear() = testComprehension {
-        val (eventId, _) = !createTestEventWithAdmin()
-        val internFixture = !createTestMatchFixture(eventId)
-        val externFixture = !createTestMatchFixture(eventId)
-        !setCompetitionTimingSystem(internFixture.competitionId, TimingSystem.INTERN)
-        !setCompetitionTimingSystem(externFixture.competitionId, TimingSystem.RACECLOCKER)
+    fun onlyInternallyTimedEventsAppear() = testComprehension {
+        val (internEventId, _) = !createTestEventWithAdmin()
+        val (externEventId, _) = !createTestEventWithAdmin()
+        !setEventTimingSystem(internEventId, TimingSystem.INTERN)
+        !setEventTimingSystem(externEventId, TimingSystem.RACECLOCKER)
+        val internFixture = !createTestMatchFixture(internEventId)
+        !createTestMatchFixture(externEventId)
 
-        val list = (!TimingMatchService.getMatches(eventId)).data
-
-        assertEquals(listOf(internFixture.setupMatchId), list.map { it.competitionSetupMatch })
+        assertEquals(
+            listOf(internFixture.setupMatchId),
+            (!TimingMatchService.getMatches(internEventId)).data.map { it.competitionSetupMatch },
+        )
+        assertEquals(emptyList(), (!TimingMatchService.getMatches(externEventId)).data)
     }
 
     // Der Kurzname des Wettkampfs (Kürzel, z. B. "CM 4x+") wandert mit in die Startliste - die
@@ -73,30 +91,15 @@ class TimingMatchServiceTest {
     @Test
     fun competitionShortNameIsCarried() = testComprehension {
         val (eventId, _) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
         val withShort = !createTestMatchFixture(eventId, shortName = "CM 4x+")
         val withoutShort = !createTestMatchFixture(eventId)
-        !setCompetitionTimingSystem(withShort.competitionId, TimingSystem.INTERN)
-        !setCompetitionTimingSystem(withoutShort.competitionId, TimingSystem.INTERN)
 
         val list = (!TimingMatchService.getMatches(eventId)).data
         val byId = list.associateBy { it.competitionSetupMatch }
 
         assertEquals("CM 4x+", byId[withShort.setupMatchId]!!.competitionShortName)
         assertEquals(null, byId[withoutShort.setupMatchId]!!.competitionShortName)
-    }
-
-    @Test
-    fun eventDefaultAppliesAndCompetitionValueWins() = testComprehension {
-        val (eventId, _) = !createTestEventWithAdmin()
-        val inheriting = !createTestMatchFixture(eventId)
-        val overriding = !createTestMatchFixture(eventId)
-        !setEventTimingSystem(eventId, TimingSystem.INTERN)
-        // Der Wettkampf-Wert gewinnt per coalesce: dieser Wettkampf ist trotz INTERN-Default extern.
-        !setCompetitionTimingSystem(overriding.competitionId, TimingSystem.RACECLOCKER)
-
-        val list = (!TimingMatchService.getMatches(eventId)).data
-
-        assertEquals(listOf(inheriting.setupMatchId), list.map { it.competitionSetupMatch })
     }
 
     @Test
@@ -139,21 +142,48 @@ class TimingMatchServiceTest {
             userId,
             eventId,
         )) as ApiResponse.Created).id
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, null, competitionMode),
-            userId,
-            eventId,
-        )
-        !TimingModeService.upsertModeAssignment(
-            TimingModeAssignmentRequest(fixture.competitionId, fixture.roundId, roundMode),
-            userId,
-            eventId,
-        )
+        !assignProfile(eventId, userId, competitionMode, competition = fixture.competitionId)
+        !assignProfile(eventId, userId, roundMode, competition = fixture.competitionId, round = fixture.roundId)
 
         val match = (!TimingMatchService.getMatches(eventId)).data.single()
 
         assertEquals(roundMode, match.timingMode?.id, "Der Runden-Eintrag schlägt den Wettkampf-Eintrag")
         assertEquals(30, match.timingMode?.intervalSeconds)
+    }
+
+    /**
+     * Die vierte Ebene am Posten: Eine Partie-Zuordnung schlägt die des Wettkampfs. Der Fall, für
+     * den sie gebaut wurde, ist ein Wettkampf, dessen Qualifikation ein Zeitfahren ist und dessen
+     * übrige Läufe im Wellenstart fahren.
+     */
+    @Test
+    fun aMatchAssignmentBeatsTheCompetition() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+        val competitionMode = ((!TimingModeService.addMode(
+            TimingModeRequest("Massenstart", false, TimingStartGrouping.WELLE, null, 10, null),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        val matchMode = ((!TimingModeService.addMode(
+            TimingModeRequest("Timetrial 30s", false, TimingStartGrouping.EINZEL, 30, 10, null),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        !assignProfile(eventId, userId, competitionMode, competition = fixture.competitionId)
+        !assignProfile(
+            eventId,
+            userId,
+            matchMode,
+            competition = fixture.competitionId,
+            round = fixture.roundId,
+            match = fixture.setupMatchId,
+        )
+
+        val match = (!TimingMatchService.getMatches(eventId)).data.single()
+
+        assertEquals(matchMode, match.timingMode?.id, "Der Partie-Eintrag schlägt den Wettkampf-Eintrag")
     }
 
     @Test

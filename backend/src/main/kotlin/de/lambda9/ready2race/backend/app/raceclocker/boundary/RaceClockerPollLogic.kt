@@ -1,6 +1,9 @@
 package de.lambda9.ready2race.backend.app.raceclocker.boundary
 
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollCandidate
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollMatch
 import java.time.LocalDateTime
 
 /**
@@ -20,6 +23,36 @@ object RaceClockerPollLogic {
     const val MIN_INTERVAL_SECONDS = 2
 
     enum class PollMode { ACTIVE, UPCOMING }
+
+    /**
+     * Die Kandidaten eines Takts: die Läufe der Abfrage, jeder mit seinem aufgelösten Rennen.
+     *
+     * Ein Lauf, für den sich kein Rennen auflösen lässt, fällt still heraus. Das ist genau die
+     * Wirkung, die früher der INNERE Join auf `raceclocker_race` in `getCandidates` hatte - nur
+     * steht sie jetzt hier, weil das Rennen an einer von vier Ebenen hängt und eine
+     * Ebenen-Auflösung nicht in eine where-Klausel gehört. Ohne sie liefe der Abruf für solche
+     * Läufe ins Leere und belastete den Takt mit Fehlern, die niemand beheben kann.
+     *
+     * [resolution] beantwortet die Frage nach dem Rennen für alle drei Wege gleich (siehe
+     * [RaceClockerRaceResolution]) - der Takt fragt sie mit dem vollen Pfad, bis hinunter zur Partie.
+     */
+    fun candidatesFor(
+        matches: List<RaceClockerPollMatch>,
+        resolution: RaceClockerRaceResolution,
+    ): List<RaceClockerPollCandidate> = matches.mapNotNull { match ->
+        val race = resolution.raceFor(match.competitionId, match.roundId, match.matchId)
+            ?: return@mapNotNull null
+
+        RaceClockerPollCandidate(
+            matchId = match.matchId,
+            competitionId = match.competitionId,
+            startTime = match.startTime,
+            activatedAt = match.activatedAt,
+            startedAt = match.startedAt,
+            autoPausedAt = match.autoPausedAt,
+            target = RaceClockerMatchTarget(waveName = match.waveName, race = race),
+        )
+    }
 
     fun intervalSeconds(configured: Int): Int = configured.coerceAtLeast(MIN_INTERVAL_SECONDS)
 

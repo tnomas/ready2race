@@ -3,6 +3,8 @@ package de.lambda9.ready2race.backend.app.timing.control
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingModeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_MODE
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
+import de.lambda9.tailwind.jooq.Jooq
 import java.util.UUID
 
 object TimingModeRepo {
@@ -19,6 +21,15 @@ object TimingModeRepo {
         EVENT.eq(eventId).and(NAME.eq(name)).let { cond ->
             excludingId?.let { cond.and(ID.ne(it)) } ?: cond
         }
+    }
+
+    /**
+     * Wie viele Zuordnungen noch auf diesen Zeitnahmetyp zeigen — die Löschsperre fragt das ab.
+     * Gezählt werden alle vier Ebenen des Zeitnahmeprofil-Baums, denn jede von ihnen bindet den
+     * Typ. Gegenstück zu `RaceClockerRaceRepo.countAssignments` auf derselben Tabelle.
+     */
+    fun countAssignments(modeId: UUID) = Jooq.query {
+        fetchCount(TIMING_PROFILE_ASSIGNMENT, TIMING_PROFILE_ASSIGNMENT.TIMING_MODE.eq(modeId))
     }
 
     fun update(id: UUID, f: TimingModeRecord.() -> Unit) = TIMING_MODE.update(f) { ID.eq(id) }

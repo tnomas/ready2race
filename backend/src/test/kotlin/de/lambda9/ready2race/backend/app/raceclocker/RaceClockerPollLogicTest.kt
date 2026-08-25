@@ -2,7 +2,11 @@ package de.lambda9.ready2race.backend.app.raceclocker
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic.PollMode
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerRaceResolution
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollMatch
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic.Assignment
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.UUID
@@ -13,9 +17,9 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * Die Entscheidungen des Abruf-Jobs, losgelöst von Datenbank und HTTP: wen er beobachtet, in
- * welchem Takt, wann der Takt fällig ist, wann ein Lauf als gestartet gilt und wann sich seit dem
- * letzten Abruf überhaupt etwas geändert hat.
+ * Die Entscheidungen des Abruf-Jobs, losgelöst von Datenbank und HTTP: welches Rennen für einen
+ * Lauf gilt, wen er beobachtet, in welchem Takt, wann der Takt fällig ist, wann ein Lauf als
+ * gestartet gilt und wann sich seit dem letzten Abruf überhaupt etwas geändert hat.
  */
 class RaceClockerPollLogicTest {
 
@@ -416,5 +420,99 @@ class RaceClockerPollLogicTest {
             RaceClockerPollLogic.fingerprint(listOf(first, second)),
             RaceClockerPollLogic.fingerprint(listOf(second, first)),
         )
+    }
+
+    // -- candidatesFor: welches Rennen für einen Lauf gilt ------------------------------------
+
+    private val competition = UUID.randomUUID()
+    private val otherCompetition = UUID.randomUUID()
+    private val round = UUID.randomUUID()
+    private val match = UUID.randomUUID()
+
+    private val shortCourse = RaceClockerRaceRef(UUID.randomUUID(), "Kurzstrecke", "https://raceclocker.com/kurz")
+    private val longCourse = RaceClockerRaceRef(UUID.randomUUID(), "Langstrecke", "https://raceclocker.com/lang")
+
+    /**
+     * Die Auflösung von Hand gebaut statt aus der Datenbank ([RaceClockerRaceResolution.forEvent]):
+     * Diese Fälle prüfen, was der Takt aus ihr macht, nicht das Lesen.
+     */
+    private fun resolution(vararg assignments: Assignment) =
+        RaceClockerRaceResolution(assignments.toList(), listOf(shortCourse, longCourse).associateBy { it.id })
+
+    private fun pollMatch(
+        matchId: UUID = match,
+        competitionId: UUID = competition,
+        roundId: UUID = round,
+    ) = RaceClockerPollMatch(
+        matchId = matchId,
+        competitionId = competitionId,
+        roundId = roundId,
+        startTime = now,
+        activatedAt = now,
+        startedAt = null,
+        autoPausedAt = null,
+        waveName = "10:00 | 1 JM4x | Lauf 1",
+    )
+
+    /** Ohne eigene Zuordnung erbt der Lauf das Rennen der Veranstaltung. */
+    @Test
+    fun `der Lauf erbt das Rennen der Veranstaltung`() {
+        val resolution = resolution(Assignment(null, null, null, shortCourse.id))
+
+        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution).single()
+
+        assertEquals(match, candidate.matchId)
+        assertEquals(shortCourse, candidate.target.race)
+        assertEquals("10:00 | 1 JM4x | Lauf 1", candidate.target.waveName)
+    }
+
+    /**
+     * Die speziellste Ebene gewinnt: Eine Partie-Zuordnung schlägt die des Wettkampfs. Der Fall,
+     * für den die Ebene gebaut wurde - ein Wettkampf, dessen Qualifikation auf einem anderen
+     * Rennen läuft als seine übrigen Läufe.
+     */
+    @Test
+    fun `die Partie-Zuordnung schlägt die des Wettkampfs`() {
+        val resolution = resolution(
+            Assignment(competition, null, null, shortCourse.id),
+            Assignment(competition, round, match, longCourse.id),
+        )
+
+        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution).single()
+
+        assertEquals(longCourse, candidate.target.race)
+    }
+
+    /**
+     * DIE Wirkung des früheren INNEREN Joins auf `raceclocker_race`: Ein Lauf, für den sich kein
+     * Rennen auflösen lässt, wird nicht abgerufen. Fiele sie weg, liefe jeder Takt für diesen Lauf
+     * ins Leere.
+     */
+    @Test
+    fun `ein Lauf ohne aufgelöstes Rennen fällt still heraus`() {
+        val fremd = resolution(Assignment(otherCompetition, null, null, shortCourse.id))
+
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), fremd))
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution()))
+    }
+
+    /** Zeigt die Zuordnung auf ein Rennen, das es nicht mehr gibt, gilt dasselbe. */
+    @Test
+    fun `eine Zuordnung auf ein unbekanntes Rennen zählt nicht`() {
+        val resolution = resolution(Assignment(null, null, null, UUID.randomUUID()))
+
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution))
+    }
+
+    /** Der eine Lauf ohne Rennen nimmt die übrigen nicht mit. */
+    @Test
+    fun `nur der Lauf ohne Rennen fällt heraus`() {
+        val withRace = pollMatch(matchId = UUID.randomUUID())
+        val withoutRace = pollMatch(matchId = UUID.randomUUID(), competitionId = otherCompetition)
+        val resolution = resolution(Assignment(competition, null, null, shortCourse.id))
+
+        val candidates = RaceClockerPollLogic.candidatesFor(listOf(withRace, withoutRace), resolution)
+
+        assertEquals(listOf(withRace.matchId), candidates.map { it.matchId })
     }
 }

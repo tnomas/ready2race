@@ -2,7 +2,6 @@ package de.lambda9.ready2race.backend.app.raceclocker.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
-import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerFeed
@@ -22,7 +21,6 @@ import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.getOrNull
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
-import de.lambda9.tailwind.core.extensions.kio.traverse
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -99,16 +97,15 @@ object RaceClockerRaceService {
     }
 
     /**
-     * Löschen entwertet die Anwahl, statt sie zu blockieren (`on delete set null` in der Migration).
-     * Ein Wettkampf, der auf das gelöschte Rennen zeigte, hat danach kein Rennen mehr — und ein
-     * Lauf ohne Rennen wird vom Abruf still übersprungen.
+     * Gelöscht wird nur ein Rennen, das niemand mehr benutzt: Erst die Zuordnungen abräumen, dann
+     * löschen.
      */
     fun deleteRace(eventId: UUID, raceId: UUID): App<ServiceError, ApiResponse.NoData> =
         KIO.comprehension {
-            // Der Fremdschlüssel steht auf SET NULL - ohne diese Sperre würde das Löschen
-            // zugewiesene Wettkämpfe stillschweigend von ihrer Zeitnahme trennen und der
-            // Abruf bliebe kommentarlos stehen. Erst die Zuordnung abhaken, dann löschen.
-            val assigned = !RaceClockerRaceRepo.countAssignedCompetitions(raceId).orDie()
+            // Der Fremdschlüssel des Zeitnahmeprofil-Baums steht auf RESTRICT - ohne diese
+            // Sperre bekäme das Regattabüro statt einer verständlichen Meldung einen rohen
+            // Constraint-Fehler zu sehen.
+            val assigned = !RaceClockerRaceRepo.countAssignments(raceId).orDie()
             if (assigned > 0) {
                 return@comprehension KIO.fail(RaceClockerRaceError.StillAssigned)
             }
@@ -116,53 +113,6 @@ object RaceClockerRaceService {
             if (deleted == 0) return@comprehension KIO.fail(RaceClockerRaceError.NotFound)
             noData
         }
-
-    /**
-     * Die umgekehrte Sicht: alle Wettkämpfe der Veranstaltung mit ihrer expliziten Anwahl. Die
-     * Oberfläche hakt daraus am Rennen die Wettkämpfe an.
-     */
-    fun getCompetitionAssignments(
-        eventId: UUID,
-    ): App<ServiceError, ApiResponse.ListDto<de.lambda9.ready2race.backend.app.raceclocker.entity.CompetitionRaceAssignmentDto>> =
-        KIO.comprehension {
-            val assignments = !RaceClockerRaceRepo.getCompetitionAssignments(eventId).orDie()
-            KIO.ok(ApiResponse.ListDto(assignments))
-        }
-
-    /**
-     * Setzt die Zuordnung EINES Rennens neu (umgedreht: am Rennen die Wettkämpfe anhaken). Die
-     * „verschieben"-Regel rechnet [RaceClockerAssignmentPlan]; hier steht nur das Schreiben.
-     */
-    fun setRaceAssignments(
-        eventId: UUID,
-        raceId: UUID,
-        userId: UUID,
-        competitions: List<UUID>,
-    ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
-        val belongs = !RaceClockerRaceRepo.belongsToEvent(raceId, eventId).orDie()
-        if (!belongs) return@comprehension KIO.fail(RaceClockerRaceError.NotFound)
-
-        val assignments = !RaceClockerRaceRepo.getCompetitionAssignments(eventId).orDie()
-        val known = assignments.map { it.competitionId }.toSet()
-
-        // Nur bekannte Wettkämpfe der Veranstaltung — ein untergeschobener Fremd-Id darf nichts setzen.
-        val changes = RaceClockerAssignmentPlan.changes(
-            raceId = raceId,
-            selected = competitions.filter { it in known }.toSet(),
-            current = assignments.associate { it.competitionId to it.race },
-        )
-
-        val now = LocalDateTime.now()
-        !changes.keys.toList().traverse { competitionId ->
-            CompetitionRepo.update(competitionId) {
-                raceclockerRace = changes[competitionId]
-                updatedBy = userId
-                updatedAt = now
-            }.orDie()
-        }
-
-        noData
-    }
 
     /** Name und Adresse sind je Veranstaltung eindeutig; beides fällt hier auf, nicht erst als 500er. */
     private fun ensureFree(

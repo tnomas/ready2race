@@ -1,4 +1,11 @@
-import {TimingFormSystem} from '@components/event/competition/timing/timingConfigForm.ts'
+import {TimingSystem} from '@api/types.gen.ts'
+
+/**
+ * Das Zeitnahme-System, wie die Durchführung es sieht: der Wert der Veranstaltung, oder 'NONE',
+ * solange keiner gesetzt ist. 'NONE' ist kein Backend-Wert (dort ist die Spalte schlicht null),
+ * sondern der Stellvertreter, mit dem sich hier ein Fall unterscheiden lässt.
+ */
+export type ExecutionTimingSystem = TimingSystem | 'NONE'
 
 export const MATCH_RESULT_OPTIONS = ['form', 'XLS', 'RACECLOCKER', 'RACECLOCKER_FILE'] as const
 export type MatchResultOption = (typeof MATCH_RESULT_OPTIONS)[number]
@@ -13,12 +20,10 @@ export type MatchResultOption = (typeof MATCH_RESULT_OPTIONS)[number]
  * `RACECLOCKER_FILE` ist der Notfallweg zum Live-Abruf (eine heruntergeladene Ergebnis-xlsx) und
  * gehört deshalb an dieselbe Bedingung wie `RACECLOCKER`.
  *
- * Erwartet wird das EFFEKTIVE System (`effectiveTimingSystem`), nicht die eigene Spalte des
- * Wettkampfs: Erbt er Webscorer von der Veranstaltung, hat er genauso wenig einen RaceClocker-Feed
- * wie einer, der es selbst eingetragen hat. Und es wäre ein eigener Begriff von „das
- * Zeitnahmesystem" neben dem seines Nachbarn in derselben Zeile.
+ * Erwartet wird das System der Veranstaltung: Es gilt für alle ihre Wettkämpfe, eine
+ * Übersteuerung je Wettkampf gibt es nicht mehr.
  */
-export const matchResultOptions = (timingSystem: TimingFormSystem): MatchResultOption[] =>
+export const matchResultOptions = (timingSystem: ExecutionTimingSystem): MatchResultOption[] =>
     timingSystem === 'WEBSCORER'
         ? MATCH_RESULT_OPTIONS.filter(o => o !== 'RACECLOCKER' && o !== 'RACECLOCKER_FILE')
         : [...MATCH_RESULT_OPTIONS]

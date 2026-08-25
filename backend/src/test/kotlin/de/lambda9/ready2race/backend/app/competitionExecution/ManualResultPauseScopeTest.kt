@@ -15,13 +15,14 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.Competiti
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionRegistrationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupMatchRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RaceclockerRaceRecord
-import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingProfileAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.RACECLOCKER_RACE
+import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
@@ -192,8 +193,8 @@ class ManualResultPauseScopeTest {
 
     /**
      * Macht die Veranstaltung des Seeds pollbar: Zeitnahmesystem und Automatik an der
-     * Veranstaltung, ein angewähltes Rennen am Wettkampf - dieselben Bedingungen, an denen
-     * `isAutoPullConfigured` und `getCandidates` hängen.
+     * Veranstaltung, dazu ein Rennen im Zeitnahmeprofil-Baum - dieselben Bedingungen, an denen
+     * `isAutoPullConfigured`, `getCandidates` und die Auflösung des Rennens hängen.
      */
     private fun TestComprehensionScope<JEnv>.makePollable(seeded: SeededClubChain) {
         val raceId = UUID.randomUUID()
@@ -213,7 +214,16 @@ class ManualResultPauseScopeTest {
             timingSystem = TimingSystem.RACECLOCKER.name
             raceclockerAutoPull = true
         }) { ID.eq(seeded.eventId) }
-        !COMPETITION.update({ raceclockerRace = raceId }) { ID.eq(seeded.competitionId) }
+        !TIMING_PROFILE_ASSIGNMENT.insert(
+            TimingProfileAssignmentRecord(
+                id = UUID.randomUUID(),
+                event = seeded.eventId,
+                competition = seeded.competitionId,
+                raceclockerRace = raceId,
+                createdAt = CHAIN_SEED_TIME,
+                updatedAt = CHAIN_SEED_TIME,
+            )
+        )
     }
 
     private fun TestComprehensionScope<JEnv>.matchRecord(matchId: UUID): CompetitionMatchRecord =
