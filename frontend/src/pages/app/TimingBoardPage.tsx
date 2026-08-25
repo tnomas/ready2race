@@ -962,7 +962,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             flexDirection: 'column',
                             gap: 1.5,
                         }}>
-                        {gateApplies && station !== undefined && (
+                        {gateApplies && (
                             // Nur wo die Sperre auch greift: Im Onetouch-Betrieb gibt es nichts zu
                             // schalten, am Startposten nichts zu sperren — dort erscheint hier
                             // weder Schalter noch Balken.

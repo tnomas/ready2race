@@ -19,6 +19,7 @@ import {useTranslation} from 'react-i18next'
 import {eventRoute} from '@routes'
 import {RequestResult} from '@hey-api/client-fetch'
 import {useFetch} from '@utils/hooks.ts'
+import {armedGateApplies} from '@utils/timing/armed.ts'
 
 type Form = {
     name: string
@@ -41,15 +42,17 @@ const defaultValues: Form = {
 }
 
 /**
- * An welchen Postentypen die Scharfschaltung überhaupt wirkt — dieselbe Regel wie `armedGateApplies`
- * in `armed.ts`, hier auf den Typ allein angewandt: Die Maske entscheidet über die Betriebsart,
- * bevor es eine gibt.
+ * Hat die Betriebsart an diesem Postentyp überhaupt eine Wirkung?
  *
- * START und ANZEIGE fehlen bewusst. Am Startposten greift die Sperre nicht (die Startsequenz gehört
- * ausdrücklich nicht dazu), ein ANZEIGE-Posten erfasst nie — eine Betriebsart, die dort nichts tut,
- * wäre nur irreführend.
+ * Genau die Frage, die `armedGateApplies` beantwortet — hier hypothetisch gestellt: Stünde der
+ * Posten auf ARMED, griffe die Sperre dann? Am Startposten nicht (die Startsequenz gehört
+ * ausdrücklich nicht dazu), an einem ANZEIGE-Posten auch nicht (er erfasst nie) — dort wäre eine
+ * Betriebsart, die nichts tut, nur irreführend, und die Maske bietet sie gar nicht erst an.
+ *
+ * Bewusst dieselbe Funktion und keine eigene Typliste: Wandert die Regel je, zieht die Maske mit,
+ * statt als dritte Stelle derselben Regel zurückzubleiben.
  */
-const CAPTURE_MODE_TYPES: TimingStationType[] = ['SPLIT', 'FINISH']
+const captureModeApplies = (type: TimingStationType): boolean => armedGateApplies(type, 'ARMED')
 
 const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => {
     const {t} = useTranslation()
@@ -94,7 +97,7 @@ const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => 
     const formContext = useForm<Form>()
 
     const type = useWatch({control: formContext.control, name: 'type'})
-    const captureModeApplies = CAPTURE_MODE_TYPES.includes(type)
+    const captureModeMatters = captureModeApplies(type)
 
     const captureModeOptions = [
         {id: 'ONETOUCH', label: t('timing.station.captureMode.ONETOUCH')},
@@ -142,7 +145,7 @@ const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => 
                     ist dieselbe Geste wie beim verknüpften Start-Posten eine Zeile höher, und ein
                     dauerhaft graues Feld mit Erklärung wäre in einer Maske mit vier Feldern mehr
                     Lärm als Auskunft. */}
-                {captureModeApplies && (
+                {captureModeMatters && (
                     <Stack spacing={1}>
                         <FormInputSelect
                             name={'captureMode'}
@@ -180,7 +183,7 @@ const mapFormToRequest = (formData: Form): TimingStationRequest => ({
     // Immer mitschicken: Ein fehlendes Feld heißt serverseitig „unverändert", die Maske ließe eine
     // Änderung also stillschweigend fallen. Wo die Betriebsart nicht gilt (START, ANZEIGE), steht
     // ONETOUCH — sonst bliebe nach einem Typwechsel ein unsichtbares ARMED am Posten hängen.
-    captureMode: CAPTURE_MODE_TYPES.includes(formData.type) ? formData.captureMode : 'ONETOUCH',
+    captureMode: captureModeApplies(formData.type) ? formData.captureMode : 'ONETOUCH',
 })
 
 const mapDtoToForm = (dto: TimingStationDto): Form => ({

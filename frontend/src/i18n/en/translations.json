@@ -3121,7 +3121,7 @@
       },
       "captureMode": {
         "label": "Capture mode",
-        "hint": "One-touch captures on every press, the way the station works today. „Arming“ requires the timekeeper on site to arm the station before a press captures a time with an assignment; the big capture button still banks a time without an assignment while disarmed. After the change the station is disarmed and has to be armed on site.",
+        "hint": "One-touch captures on every press, the way the station works today. \"Arming\" requires the timekeeper on site to arm the station before a press captures a time with an assignment; the big capture button still banks a time without an assignment while disarmed. After the change the station is disarmed and has to be armed on site.",
         "ONETOUCH": "One-touch — every press captures immediately",
         "ARMED": "Arming — the station is armed on site"
       },

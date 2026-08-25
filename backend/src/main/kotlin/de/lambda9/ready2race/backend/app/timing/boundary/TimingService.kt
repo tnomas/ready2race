@@ -76,7 +76,22 @@ object TimingService {
             // nicht kennt (heute jedes), würde einen ARMED-Posten sonst beim bloßen Umbenennen
             // still auf ONETOUCH zurückfallen lassen - ein Rückfall, der eine Sicherung ENTFERNT.
             // Der Zustand `armed` steht aus demselben Grund gar nicht erst im Request.
-            request.captureMode?.let { captureMode = it.name }
+            request.captureMode?.let {
+                captureMode = it.name
+                // Der WECHSEL nach ARMED lässt die Scharfschaltung fallen. Ohne das genügte ein
+                // Ausflug nach ONETOUCH und zurück, damit ein Posten sich still selbst scharf
+                // schaltet: `armed` läge im Onetouch-Betrieb brach, bliebe aber `true` stehen und
+                // wäre bei der Rückkehr sofort wieder wirksam - scharf geschaltet von niemandem,
+                // der vor Ort war. Das ist genau das, was die Scharfschaltung verhindern soll.
+                //
+                // Bewusst nur beim Wechsel, nicht bei jedem Setzen auf ARMED: Ein Speichern, das
+                // die Betriebsart bei ARMED belässt (Umbenennen, Sortieren, Verknüpfen), entschärfte
+                // sonst mitten im Lauf einen Posten, den der Zeitnehmer gerade selbst scharf
+                // geschaltet hat - die Leitung nähme ihm aus der Ferne die Erfassung weg.
+                if (it == TimingCaptureMode.ARMED && station.captureMode != TimingCaptureMode.ARMED.name) {
+                    armed = false
+                }
+            }
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()

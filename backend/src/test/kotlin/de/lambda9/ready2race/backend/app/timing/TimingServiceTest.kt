@@ -229,6 +229,85 @@ class TimingServiceTest {
         assertTrue(station.armed)
     }
 
+    /**
+     * Die Gegenrichtung zu [updateStationKeepsArmedStateAndCaptureMode] und der eigentliche Grund
+     * der Trennung: Stellt die Leitung einen Posten auf ARMED, steht er danach entschärft da.
+     *
+     * Der Ablauf hier ist der erreichbare Weg zum stillen Selbst-Scharfschalten: ARMED, vor Ort
+     * scharf, von der Leitung auf ONETOUCH (`armed` liegt brach) und später zurück auf ARMED. Ohne
+     * die Regel wäre der Posten mit der Rückkehr sofort wieder scharf, ohne dass jemand am Wasser
+     * gewesen wäre - und das Abzeichen im Leitstand meldete „scharf".
+     */
+    @Test
+    fun switchingBackToArmedLeavesTheStationDisarmed() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+
+        !TimingService.updateStation(
+            stationRequest(TimingCaptureMode.ARMED),
+            userId,
+            stationId,
+            eventId,
+        )
+        !TimingService.setStationArmed(stationId, eventId, armed = true)
+
+        // Der Ausflug: im Onetouch-Betrieb hat die Scharfschaltung keine Wirkung mehr...
+        !TimingService.updateStation(
+            stationRequest(TimingCaptureMode.ONETOUCH),
+            userId,
+            stationId,
+            eventId,
+        )
+        // ...und bei der Rückkehr darf sie nicht wieder auftauchen.
+        !TimingService.updateStation(
+            stationRequest(TimingCaptureMode.ARMED),
+            userId,
+            stationId,
+            eventId,
+        )
+
+        val station = !singleStation(eventId)
+        assertEquals(TimingCaptureMode.ARMED, station.captureMode)
+        assertFalse(station.armed, "ein auf ARMED gestellter Posten muss vor Ort scharf geschaltet werden")
+    }
+
+    /**
+     * Und die Kehrseite derselben Regel: Ein Speichern, das die Betriebsart bei ARMED BELÄSST,
+     * entschärft nicht. Sonst nähme ein Umbenennen mitten im Lauf dem Zeitnehmer die Erfassung weg,
+     * ohne dass jemand am Posten etwas gemerkt hätte.
+     */
+    @Test
+    fun savingAgainWithUnchangedArmedModeKeepsTheStationArmed() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+
+        !TimingService.updateStation(
+            stationRequest(TimingCaptureMode.ARMED),
+            userId,
+            stationId,
+            eventId,
+        )
+        !TimingService.setStationArmed(stationId, eventId, armed = true)
+
+        !TimingService.updateStation(
+            stationRequest(TimingCaptureMode.ARMED).copy(name = "Ziellinie"),
+            userId,
+            stationId,
+            eventId,
+        )
+
+        val station = !singleStation(eventId)
+        assertEquals("Ziellinie", station.name)
+        assertTrue(station.armed)
+    }
+
+    private fun stationRequest(captureMode: TimingCaptureMode) = TimingStationRequest(
+        name = "Ziel",
+        type = TimingStationType.FINISH,
+        sorting = 0,
+        captureMode = captureMode,
+    )
+
     private fun singleStation(eventId: java.util.UUID): App<ServiceError, TimingStationDto> =
         TimingService.getStations(eventId).map {
             (it as ApiResponse.ListDto<TimingStationDto>).data.single()
