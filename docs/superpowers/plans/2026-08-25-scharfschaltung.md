@@ -307,3 +307,123 @@ Die offenen Handtests aufschreiben:
 4. Halten schaltet scharf; ein kurzer Tipp tut nichts.
 5. Scharf: alles wie gewohnt, auch mehrere Boote schnell hintereinander.
 6. Der Leitstand zeigt den Wechsel ohne Neuladen.
+
+---
+
+## Task 4: Boote am Ton unterscheiden
+
+**Files:**
+- Create: `backend/src/main/resources/db/migration/V202608251310__capture_tone_per_boat.sql`
+- Modify: `app/timingConfig/entity/EventTimingConfigDto.kt`, `EventTimingConfigRequest.kt`,
+  `app/timingConfig/boundary/TimingConfigService.kt`,
+  `app/timing/entity/TimingSettingsDto.kt` und der Dienst, der sie auflöst
+- Modify: `backend/src/main/resources/openapi/documentation.yaml`
+- Create: `frontend/src/utils/timing/boatPitch.ts`, `boatPitch.test.ts`
+- Modify: `frontend/src/components/timing/useCaptureFlow.ts`,
+  `frontend/src/components/event/timing/EventTimingConfig.tsx`
+- Modify: `frontend/src/i18n/{de,en,da}/translations.json`
+
+**Interfaces:**
+- Produces: `boatPitch(base: number, position: number): number`
+
+**Warum das geht, und was es leistet**
+
+`1`–`6` und `A`–`F` sprechen dieselben **sechs** Positionen an (`boardFocus.ts:28-36`) — zwei
+Tastenreihen für dieselben Boote. Es braucht also sechs Tonhöhen, nicht zwölf. Gespielt wird der
+Erfassungston an genau **einer** Stelle (`useCaptureFlow.ts:137`), und die weiß bereits, ob ein
+Boot zugeordnet wurde.
+
+Ehrlich zur Wirkung: Sechs Tonhöhen sind **nicht absolut erkennbar** — niemand hört „das war Boot
+4". Zuverlässig hörbar ist das Relative: dass man ein *anderes* Boot getroffen hat als eben (das
+fängt den Doppeltipp), grob die Lage im Feld, und die Extreme (Boot 1 und 6 liegen eine Oktave
+auseinander). Formulier die Beschriftung in den Einstellungen entsprechend zurückhaltend; ein Text,
+der mehr verspricht, macht den Bediener unaufmerksam.
+
+- [ ] **Schritt 1: Migration**
+
+```sql
+set search_path to ready2race, pg_catalog, public;
+
+-- Ob der Erfassungston die Boote unterscheidet: Position 1 spielt den eingestellten Grundton, die
+-- uebrigen fuenf eine feste Leiter darueber. Vorgabe an -- der Nutzen (man hoert einen Doppeltipp
+-- auf dasselbe Boot) wiegt schwerer als die Gewoehnung, und abschalten ist zwei Klicks entfernt.
+alter table event
+    add column capture_tone_per_boat boolean not null default true;
+```
+
+- [ ] **Schritt 2: Die Leiter testen**
+
+`frontend/src/utils/timing/boatPitch.test.ts` — sieben Fälle, erst schreiben, rot laufen sehen:
+
+```ts
+import {describe, expect, it} from 'vitest'
+import {boatPitch} from './boatPitch.ts'
+
+describe('boatPitch', () => {
+    it('laesst Position 1 auf dem Grundton', () => {
+        expect(boatPitch(800, 1)).toBe(800)
+    })
+
+    it('legt Position 6 eine Oktave darueber', () => {
+        expect(boatPitch(800, 6)).toBe(1600)
+    })
+
+    // Pentatonisch: keine kleinen Sekunden, kein Tritonus. Zwei fast gleichzeitige Erfassungen
+    // ergeben dadurch einen Zusammenklang statt eines Schwebens -- und ein schwebender Ton am Ziel
+    // klingt wie ein Fehler, auch wenn keiner passiert ist.
+    it('folgt der pentatonischen Leiter', () => {
+        expect(boatPitch(800, 2)).toBe(900)
+        expect(boatPitch(800, 3)).toBe(1000)
+        expect(boatPitch(800, 4)).toBe(1200)
+        expect(boatPitch(800, 5)).toBe(Math.round(800 * (5 / 3)))
+    })
+
+    // Die Frequenzgrenze der Einstellungen ist 4000 Hz; ein hoch eingestellter Grundton staucht die
+    // Leiter oben, statt darueber hinauszuschiessen.
+    it('kappt an der oberen Grenze', () => {
+        expect(boatPitch(3000, 6)).toBe(4000)
+    })
+
+    // Eine Position ausserhalb der sechs ist ein Programmfehler, kein Tonfehler: Grundton spielen
+    // statt zu raten.
+    it('faellt bei unbekannter Position auf den Grundton zurueck', () => {
+        expect(boatPitch(800, 0)).toBe(800)
+        expect(boatPitch(800, 7)).toBe(800)
+    })
+})
+```
+
+- [ ] **Schritt 3: Die Leiter schreiben**
+
+Verhältnisse `[1, 9/8, 5/4, 3/2, 5/3, 2]`, Ergebnis gerundet, gekappt an der oberen Frequenzgrenze
+aus `TimingToneLimits` (im Frontend gibt es die Grenzen gespiegelt — such danach, statt 4000 von
+Hand hinzuschreiben).
+
+- [ ] **Schritt 4: Verdrahten**
+
+In `useCaptureFlow` beim Spielen: Ist ein Boot zugeordnet **und** der Schalter an, dann den
+Erfassungston mit `boatPitch(tone.frequencyHz, position)` spielen; sonst unverändert.
+
+**Der unzugeordnete Griff behält den Grundton** — damit bedeutet der Grundton „gebankt, noch ohne
+Boot". Das ist Information, die nichts kostet; schreib sie als Kommentar dazu.
+
+Die Position ist die Stelle des Bootes nach Startnummer, dieselbe, die `finishKeyTarget` benutzt —
+hol sie dort, statt eine zweite Zählung zu erfinden.
+
+- [ ] **Schritt 5: Der Schalter in den Einstellungen**
+
+Neben die Erfassungstöne in `EventTimingConfig.tsx`, mit einer **Hörprobe der sechs Stufen** —
+ohne sie stellt man blind ein. Der Hinweistext bleibt zurückhaltend (siehe oben).
+
+- [ ] **Schritt 6: Prüfen und committen**
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+cd backend && ./mvnw clean test -Ddatabase.url=jdbc:postgresql://localhost:7728/ready2race-build
+cd ../frontend && npm run build && npm run lint && npx vitest run
+```
+
+```bash
+git add -A
+git commit -m "Erfassungston unterscheidet die Boote"
+```
