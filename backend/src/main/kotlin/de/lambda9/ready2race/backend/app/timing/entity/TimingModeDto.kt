@@ -2,13 +2,16 @@ package de.lambda9.ready2race.backend.app.timing.entity
 
 import java.util.UUID
 
-/** Ein Zeitnahmetyp der Veranstaltung - die Vorlage dafür, wie ein Lauf gestartet und gemessen wird. */
+/**
+ * Ein Zeitnahmetyp der Veranstaltung - die Vorlage dafür, wie ein Lauf gestartet wird.
+ *
+ * Wie gemessen wird, steht nicht hier: Ob es Zwischenzeiten gibt, sagen die SPLIT-Posten am
+ * Wettkampf (`competition_timing_station`), nicht der Typ.
+ */
 data class TimingModeDto(
     val id: UUID,
     val event: UUID,
     val name: String,
-    /** Werden Rundenzeiten erwartet (SPLIT-Posten relevant)? */
-    val withLaps: Boolean,
     val startGrouping: TimingStartGrouping,
     /** Gesetzt: Starts folgen automatisch in diesem Abstand; null: jeder Start von Hand. */
     val intervalSeconds: Int?,

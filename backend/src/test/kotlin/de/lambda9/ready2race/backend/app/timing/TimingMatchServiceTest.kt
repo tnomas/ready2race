@@ -133,12 +133,12 @@ class TimingMatchServiceTest {
         !setEventTimingSystem(eventId, TimingSystem.INTERN)
         val fixture = !createTestMatchFixture(eventId)
         val competitionMode = ((!TimingModeService.addMode(
-            TimingModeRequest("Massenstart", false, TimingStartGrouping.WELLE, null, 10, null),
+            TimingModeRequest("Massenstart", TimingStartGrouping.WELLE, null, 10, null),
             userId,
             eventId,
         )) as ApiResponse.Created).id
         val roundMode = ((!TimingModeService.addMode(
-            TimingModeRequest("Timetrial 30s", false, TimingStartGrouping.EINZEL, 30, 10, null),
+            TimingModeRequest("Timetrial 30s", TimingStartGrouping.EINZEL, 30, 10, null),
             userId,
             eventId,
         )) as ApiResponse.Created).id
@@ -162,12 +162,12 @@ class TimingMatchServiceTest {
         !setEventTimingSystem(eventId, TimingSystem.INTERN)
         val fixture = !createTestMatchFixture(eventId)
         val competitionMode = ((!TimingModeService.addMode(
-            TimingModeRequest("Massenstart", false, TimingStartGrouping.WELLE, null, 10, null),
+            TimingModeRequest("Massenstart", TimingStartGrouping.WELLE, null, 10, null),
             userId,
             eventId,
         )) as ApiResponse.Created).id
         val matchMode = ((!TimingModeService.addMode(
-            TimingModeRequest("Timetrial 30s", false, TimingStartGrouping.EINZEL, 30, 10, null),
+            TimingModeRequest("Timetrial 30s", TimingStartGrouping.EINZEL, 30, 10, null),
             userId,
             eventId,
         )) as ApiResponse.Created).id

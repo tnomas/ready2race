@@ -170,7 +170,6 @@ export type ModeChipParts = {
     /** null = Start von Hand (kein automatisches Intervall). */
     intervalSeconds: number | null
     startGrouping: TimingStartGrouping
-    withLaps: boolean
 }
 
 /**
@@ -182,6 +181,5 @@ export function modeChipParts(mode: TimingModeDto): ModeChipParts {
         name: mode.name,
         intervalSeconds: mode.intervalSeconds ?? null,
         startGrouping: mode.startGrouping,
-        withLaps: mode.withLaps,
     }
 }

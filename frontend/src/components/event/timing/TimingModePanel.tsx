@@ -53,10 +53,7 @@ const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
                 ? t('event.timing.modes.describe.interval', {seconds: mode.intervalSeconds})
                 : t('event.timing.modes.describe.manualStart'),
             t('event.timing.modes.describe.leadIn', {seconds: mode.leadInSeconds}),
-            mode.withLaps ? t('event.timing.modes.describe.withLaps') : null,
-        ]
-            .filter(part => part !== null)
-            .join(' · ')
+        ].join(' · ')
 
     const removeMode = (mode: TimingModeDto) => {
         confirmAction(

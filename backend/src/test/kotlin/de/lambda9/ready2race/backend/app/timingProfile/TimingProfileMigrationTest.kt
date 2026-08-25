@@ -165,8 +165,8 @@ class TimingProfileMigrationTest {
         )
         exec(
             conn,
-            "insert into ready2race.timing_mode (id, event, name, with_laps, start_grouping, lead_in_seconds, created_at, updated_at) " +
-                "values (?, ?, 'Timetrial 30s', false, 'EINZEL', 10, now(), now())",
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Timetrial 30s', 'EINZEL', 10, now(), now())",
             modeId, eventId,
         )
         exec(conn, "insert into ready2race.competition (id, event, created_at, updated_at, raceclocker_race) values (?, ?, now(), now(), ?)", raceCompetitionId, eventId, raceId)
@@ -205,8 +205,8 @@ class TimingProfileMigrationTest {
         )
         exec(
             conn,
-            "insert into ready2race.timing_mode (id, event, name, with_laps, start_grouping, lead_in_seconds, created_at, updated_at) " +
-                "values (?, ?, 'Massenstart', false, 'WELLE', 10, now(), now())",
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Massenstart', 'WELLE', 10, now(), now())",
             raceWinsModeId, eventId,
         )
         exec(
@@ -236,8 +236,8 @@ class TimingProfileMigrationTest {
         )
         exec(
             conn,
-            "insert into ready2race.timing_mode (id, event, name, with_laps, start_grouping, lead_in_seconds, created_at, updated_at) " +
-                "values (?, ?, 'Timetrial 30s', false, 'EINZEL', 10, now(), now())",
+            "insert into ready2race.timing_mode (id, event, name, start_grouping, lead_in_seconds, created_at, updated_at) " +
+                "values (?, ?, 'Timetrial 30s', 'EINZEL', 10, now(), now())",
             modeWinsModeId, eventInternId,
         )
         exec(

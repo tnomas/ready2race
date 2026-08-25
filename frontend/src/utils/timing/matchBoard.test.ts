@@ -15,7 +15,6 @@ const mode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
     id: '00000000-0000-0000-0000-0000000000aa',
     event: eventId,
     name: 'Timetrial 30s',
-    withLaps: false,
     startGrouping: 'EINZEL',
     intervalSeconds: 30,
     leadInSeconds: 10,
@@ -286,7 +285,6 @@ describe('modeChipParts', () => {
             name: 'Timetrial',
             intervalSeconds: 30,
             startGrouping: 'EINZEL',
-            withLaps: false,
         })
     })
 

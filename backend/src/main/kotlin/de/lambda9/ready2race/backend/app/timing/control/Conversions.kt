@@ -231,7 +231,6 @@ fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
     id = id,
     event = event,
     name = name,
-    withLaps = withLaps ?: false,
     startGrouping = TimingStartGrouping.valueOf(startGrouping),
     intervalSeconds = intervalSeconds,
     // Not-null-Spalte mit Default; jOOQ typisiert sie dennoch nullable (bekanntes Muster, siehe
@@ -246,7 +245,6 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
             id = UUID.randomUUID(),
             event = eventId,
             name = name,
-            withLaps = withLaps,
             startGrouping = startGrouping.name,
             intervalSeconds = intervalSeconds,
             leadInSeconds = leadInSeconds,

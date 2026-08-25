@@ -1720,12 +1720,10 @@
         "leadInSeconds": "Nedtælling før start (sekunder)",
         "leadInHelp": "Nedtælling før den (første) start.",
         "invalidLeadIn": "Angiv venligst et antal sekunder på 0 eller mere.",
-        "withLaps": "Med omgangstider (mellemtidsposter)",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manuel start",
-          "leadIn": "nedtælling {{seconds}} s",
-          "withLaps": "med omgange"
+          "leadIn": "nedtælling {{seconds}} s"
         },
         "saved": "Tidtagningstype gemt",
         "deleted": "Tidtagningstype slettet",

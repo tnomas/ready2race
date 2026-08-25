@@ -21191,13 +21191,13 @@ components:
     TimingModeDto:
       type: object
       description: >-
-        A timing mode of the event - the template for how a match is started and measured
-        (e.g. "Timetrial 30s", "Wellenstart", "Massenstart").
+        A timing mode of the event - the template for how a match is started
+        (e.g. "Timetrial 30s", "Wellenstart", "Massenstart"). How a match is measured is not part
+        of it: whether there are splits follows from the competition's SPLIT stations.
       required:
         - id
         - event
         - name
-        - withLaps
         - startGrouping
         - leadInSeconds
       properties:
@@ -21207,9 +21207,6 @@ components:
           $ref: '#/components/schemas/uuid'
         name:
           type: string
-        withLaps:
-          type: boolean
-          description: Whether lap times (SPLIT stations) are expected for matches of this mode.
         startGrouping:
           $ref: '#/components/schemas/TimingStartGrouping'
         intervalSeconds:
@@ -21237,14 +21234,11 @@ components:
       type: object
       required:
         - name
-        - withLaps
         - startGrouping
         - leadInSeconds
       properties:
         name:
           type: string
-        withLaps:
-          type: boolean
         startGrouping:
           $ref: '#/components/schemas/TimingStartGrouping'
         intervalSeconds:

@@ -61,7 +61,6 @@ object TimingModeService {
 
         !TimingModeRepo.update(modeId) {
             name = request.name
-            withLaps = request.withLaps
             startGrouping = request.startGrouping.name
             intervalSeconds = request.intervalSeconds
             leadInSeconds = request.leadInSeconds

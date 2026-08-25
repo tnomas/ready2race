@@ -26,7 +26,6 @@ class TimingToneLimitsTest {
 
     private fun request(tonePlan: List<ToneStep>?) = TimingModeRequest(
         name = "Timetrial 30s",
-        withLaps = false,
         startGrouping = TimingStartGrouping.EINZEL,
         intervalSeconds = 30,
         leadInSeconds = 10,

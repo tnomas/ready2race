@@ -5,9 +5,7 @@ import {
     DialogContent,
     DialogTitle,
     Divider,
-    FormControlLabel,
     Stack,
-    Switch,
     TextField,
     ToggleButton,
     ToggleButtonGroup,
@@ -59,7 +57,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
     const [startGrouping, setStartGrouping] = useState<TimingStartGrouping>('EINZEL')
     const [intervalInput, setIntervalInput] = useState('')
     const [leadInInput, setLeadInInput] = useState('10')
-    const [withLaps, setWithLaps] = useState(false)
     const [toneRows, setToneRows] = useState<ToneRow[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [invalidField, setInvalidField] = useState<
@@ -72,7 +69,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         setStartGrouping(entity?.startGrouping ?? 'EINZEL')
         setIntervalInput(entity?.intervalSeconds != null ? String(entity.intervalSeconds) : '')
         setLeadInInput(String(entity?.leadInSeconds ?? 10))
-        setWithLaps(entity?.withLaps ?? false)
         // null/leer = eingebauter Standard: der Editor zeigt ihn als konkrete, bearbeitbare
         // Zeilen — beim Speichern wird ein unveränderter Standard wieder zu null normalisiert.
         setToneRows(
@@ -114,7 +110,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
 
         const body: TimingModeRequest = {
             name: trimmedName,
-            withLaps,
             startGrouping,
             intervalSeconds: intervalSeconds !== null ? Math.floor(intervalSeconds) : null,
             leadInSeconds: Math.floor(leadInSeconds),
@@ -206,15 +201,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         }
                         slotProps={{htmlInput: {min: 0}}}
                         onChange={event => setLeadInInput(event.target.value)}
-                    />
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={withLaps}
-                                onChange={(_, checked) => setWithLaps(checked)}
-                            />
-                        }
-                        label={t('event.timing.modes.withLaps')}
                     />
 
                     <Divider />

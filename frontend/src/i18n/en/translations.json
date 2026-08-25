@@ -1720,12 +1720,10 @@
         "leadInSeconds": "Countdown lead-in (seconds)",
         "leadInHelp": "Countdown before the (first) start.",
         "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
-        "withLaps": "With lap times (split stations)",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",
-          "leadIn": "lead-in {{seconds}} s",
-          "withLaps": "with laps"
+          "leadIn": "lead-in {{seconds}} s"
         },
         "saved": "Timing mode saved",
         "deleted": "Timing mode deleted",

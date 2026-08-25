@@ -1720,12 +1720,10 @@
         "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
         "leadInHelp": "Countdown vor dem (ersten) Start.",
         "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
-        "withLaps": "Mit Rundenzeiten (Zwischenzeit-Posten)",
         "describe": {
           "interval": "Intervall {{seconds}} s",
           "manualStart": "Start von Hand",
-          "leadIn": "Vorlauf {{seconds}} s",
-          "withLaps": "mit Runden"
+          "leadIn": "Vorlauf {{seconds}} s"
         },
         "saved": "Zeitnahmetyp gespeichert",
         "deleted": "Zeitnahmetyp gelöscht",

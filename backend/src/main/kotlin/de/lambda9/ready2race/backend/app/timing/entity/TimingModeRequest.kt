@@ -8,7 +8,6 @@ import de.lambda9.ready2race.backend.validation.validators.StringValidators.notB
 
 data class TimingModeRequest(
     val name: String,
-    val withLaps: Boolean,
     val startGrouping: TimingStartGrouping,
     val intervalSeconds: Int?,
     val leadInSeconds: Int,
@@ -29,7 +28,6 @@ data class TimingModeRequest(
         val example
             get() = TimingModeRequest(
                 name = "Timetrial 30s",
-                withLaps = false,
                 startGrouping = TimingStartGrouping.EINZEL,
                 intervalSeconds = 30,
                 leadInSeconds = 10,

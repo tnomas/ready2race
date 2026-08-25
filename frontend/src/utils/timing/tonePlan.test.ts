@@ -433,7 +433,6 @@ describe('tonePlanForSequence', () => {
                 id: 'mode1',
                 event: 'e1',
                 name: 'Timetrial',
-                withLaps: false,
                 startGrouping: 'EINZEL',
                 intervalSeconds: 30,
                 leadInSeconds: 10,

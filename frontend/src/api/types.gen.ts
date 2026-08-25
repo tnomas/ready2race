@@ -4251,16 +4251,12 @@ export type TimingMatchTeamDto = {
 }
 
 /**
- * A timing mode of the event - the template for how a match is started and measured (e.g. "Timetrial 30s", "Wellenstart", "Massenstart").
+ * A timing mode of the event - the template for how a match is started (e.g. "Timetrial 30s", "Wellenstart", "Massenstart"). How a match is measured is not part of it: whether there are splits follows from the competition's SPLIT stations.
  */
 export type TimingModeDto = {
     id: uuid
     event: uuid
     name: string
-    /**
-     * Whether lap times (SPLIT stations) are expected for matches of this mode.
-     */
-    withLaps: boolean
     startGrouping: TimingStartGrouping
     /**
      * Set: starts follow automatically at this fixed interval (time trial). Null: every start is triggered by hand.
@@ -4278,7 +4274,6 @@ export type TimingModeDto = {
 
 export type TimingModeRequest = {
     name: string
-    withLaps: boolean
     startGrouping: TimingStartGrouping
     intervalSeconds?: number | null
     leadInSeconds: number

@@ -58,7 +58,6 @@ class TimingModeServiceTest {
         intervalSeconds: Int? = 30,
     ) = TimingModeRequest(
         name = name,
-        withLaps = false,
         startGrouping = grouping,
         intervalSeconds = intervalSeconds,
         leadInSeconds = 10,
@@ -80,7 +79,6 @@ class TimingModeServiceTest {
         assertEquals(TimingStartGrouping.EINZEL, mode.startGrouping)
         assertEquals(30, mode.intervalSeconds)
         assertEquals(10, mode.leadInSeconds)
-        assertEquals(false, mode.withLaps)
         // Kein Plan gespeichert = eingebauter Standard: die Spalte bleibt null und kommt als
         // null zurück, damit künftige Standard-Änderungen unkonfigurierte Typen erreichen.
         assertNull(mode.tonePlan)

@@ -43,7 +43,6 @@ class TimingProfileServiceTest {
             val response = !TimingModeService.addMode(
                 TimingModeRequest(
                     name = name,
-                    withLaps = false,
                     startGrouping = TimingStartGrouping.EINZEL,
                     intervalSeconds = 30,
                     leadInSeconds = 10,
