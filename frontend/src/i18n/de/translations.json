@@ -2737,6 +2737,23 @@
       "description": "Beschreibung",
       "tableHint": "Können Wettkampf-Teams zugewiesen werden."
     },
+    "paceReference": {
+      "paceReference": "Bezugsgröße Tempo",
+      "paceReferences": "Bezugsgrößen Tempo",
+      "tableHint": "Legen fest, worauf sich die Tempo-Angabe eines Wettkampfs bezieht — im Rudern die Zeit pro 500 m, im Laufen die Zeit pro Kilometer, im Radsport Kilometer pro Stunde.",
+      "name": "Name",
+      "mode": {
+        "mode": "Art",
+        "TIME_PER_DISTANCE": "Zeit pro Strecke",
+        "DISTANCE_PER_TIME": "Strecke pro Stunde"
+      },
+      "referenceMeters": "Bezugsstrecke in Metern",
+      "label": "Beschriftung",
+      "preview": "zeigt: {{label}}",
+      "error": {
+        "nameTaken": "Es gibt bereits eine Bezugsgröße mit diesem Namen."
+      }
+    },
     "import": {
       "matchResult": {
         "config": "Rennergebnisse Import",

@@ -49,6 +49,7 @@ import StartListConfigPanel from '@components/startListConfig/StartListConfigPan
 import {a11yProps} from '@utils/helpers.ts'
 import RatingCategoryPanel from '@components/ratingCategory/RatingCategoryPanel.tsx'
 import MatchResultImportConfigPanel from '@components/matchResultImportConfig/MatchResultImportConfigPanel.tsx'
+import PaceReferencePanel from '@components/paceReference/PaceReferencePanel.tsx'
 import GlobalConfigurationsTab from '@components/configurations/GlobalConfigurationsTab.tsx'
 import WebDavExportImport from '@components/configurations/WebDavExportImport.tsx'
 import {readWebDavGlobal} from '@authorization/privileges.ts'
@@ -180,6 +181,7 @@ const ConfigurationPage = () => {
                     <CompetitionSetupTemplateDialog {...competitionSetupTemplateProps.dialog} />
                     <StartListConfigPanel />
                     <MatchResultImportConfigPanel />
+                    <PaceReferencePanel />
                 </Stack>
             </TabPanel>
             <TabPanel index={'event-elements'} activeTab={activeTab}>

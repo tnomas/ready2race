@@ -2737,6 +2737,23 @@
       "description": "Description",
       "tableHint": "Can be assigned to competition teams."
     },
+    "paceReference": {
+      "paceReference": "Pace reference",
+      "paceReferences": "Pace references",
+      "tableHint": "Define what the pace of a competition refers to — time per 500 m in rowing, time per kilometre in running, kilometres per hour in cycling.",
+      "name": "Name",
+      "mode": {
+        "mode": "Kind",
+        "TIME_PER_DISTANCE": "Time per distance",
+        "DISTANCE_PER_TIME": "Distance per hour"
+      },
+      "referenceMeters": "Reference distance in metres",
+      "label": "Label",
+      "preview": "shows: {{label}}",
+      "error": {
+        "nameTaken": "A pace reference with this name already exists."
+      }
+    },
     "import": {
       "matchResult": {
         "config": "Match result import configuration",

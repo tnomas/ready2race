@@ -763,6 +763,18 @@ import type {
     DeleteStartListConfigData,
     DeleteStartListConfigError,
     DeleteStartListConfigResponse,
+    AddPaceReferenceData,
+    AddPaceReferenceError,
+    AddPaceReferenceResponse,
+    GetPaceReferencesData,
+    GetPaceReferencesError,
+    GetPaceReferencesResponse,
+    UpdatePaceReferenceData,
+    UpdatePaceReferenceError,
+    UpdatePaceReferenceResponse,
+    DeletePaceReferenceData,
+    DeletePaceReferenceError,
+    DeletePaceReferenceResponse,
     GetUpcomingMatchesData,
     GetUpcomingMatchesError,
     GetUpcomingMatchesResponse,
@@ -4405,6 +4417,58 @@ export const deleteStartListConfig = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/startListConfig/{startListConfigId}',
+    })
+}
+
+export const addPaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddPaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddPaceReferenceResponse,
+        AddPaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference',
+    })
+}
+
+export const getPaceReferences = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<GetPaceReferencesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetPaceReferencesResponse,
+        GetPaceReferencesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference',
+    })
+}
+
+export const updatePaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdatePaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdatePaceReferenceResponse,
+        UpdatePaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference/{paceReferenceId}',
+    })
+}
+
+export const deletePaceReference = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeletePaceReferenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeletePaceReferenceResponse,
+        DeletePaceReferenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/pace-reference/{paceReferenceId}',
     })
 }
 

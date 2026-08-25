@@ -2710,6 +2710,23 @@
       "description": "Beskrivelse",
       "tableHint": "Kan tildeles konkurrencehold."
     },
+    "paceReference": {
+      "paceReference": "Temporeference",
+      "paceReferences": "Temporeferencer",
+      "tableHint": "Fastlægger, hvad en konkurrences tempoangivelse henviser til — tid pr. 500 m i roning, tid pr. kilometer i løb, kilometer i timen i cykling.",
+      "name": "Navn",
+      "mode": {
+        "mode": "Type",
+        "TIME_PER_DISTANCE": "Tid pr. distance",
+        "DISTANCE_PER_TIME": "Distance pr. time"
+      },
+      "referenceMeters": "Referencedistance i meter",
+      "label": "Betegnelse",
+      "preview": "viser: {{label}}",
+      "error": {
+        "nameTaken": "Der findes allerede en temporeference med dette navn."
+      }
+    },
     "import": {
       "matchResult": {
         "config": "Import af løbsresultater",

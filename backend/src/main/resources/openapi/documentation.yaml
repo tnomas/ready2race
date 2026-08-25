@@ -7009,6 +7009,116 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /pace-reference:
+    post:
+      operationId: addPaceReference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaceReferenceRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    get:
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      operationId: getPaceReferences
+      responses:
+        200:
+          description: Pace reference page successfully retrieved
+          content:
+            application/json:
+              schema:
+                type:
+                  object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaceReferenceDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /pace-reference/{paceReferenceId}:
+    parameters:
+      - in: path
+        name: paceReferenceId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updatePaceReference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaceReferenceRequest'
+      responses:
+        204:
+          description: Pace reference updated
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deletePaceReference
+      responses:
+        204:
+          description: Pace reference successfully deleted
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/info/upcoming-matches:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -11084,6 +11194,7 @@ components:
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED
+        - PACE_REFERENCE_NAME_TAKEN
         - SCHEDULE_SHIFT_WITHOUT_CHANGE
         - SCHEDULE_SHIFT_TARGET_INVALID
         - SCHEDULE_SHIFT_LEAVES_RACE_DAY
@@ -16038,6 +16149,46 @@ components:
         INTERN selects the built-in timing module (stations, time marks, start sequences, official
         times); such competitions appear in the station start list (`GET /event/{eventId}/timing/matches`)
         and are never polled from an external provider.
+
+    PaceReferenceMode:
+      type: string
+      description: How a sport expresses pace. TIME_PER_DISTANCE is "how long for n metres" (rowing, running), DISTANCE_PER_TIME is "how far in one hour" (cycling).
+      enum:
+        - TIME_PER_DISTANCE
+        - DISTANCE_PER_TIME
+
+    PaceReferenceRequest:
+      type: object
+      required:
+        - name
+        - mode
+        - referenceMeters
+      properties:
+        name:
+          type: string
+        mode:
+          $ref: '#/components/schemas/PaceReferenceMode'
+        referenceMeters:
+          type: integer
+          description: Reference distance in metres - the distance the pace is calculated on (500 in rowing) or the unit of the output (1000 = km/h). Must be greater than zero.
+
+    PaceReferenceDto:
+      type: object
+      required:
+        - id
+        - name
+        - mode
+        - referenceMeters
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        mode:
+          $ref: '#/components/schemas/PaceReferenceMode'
+        referenceMeters:
+          type: integer
 
     StartListConfigRequest:
       type: object

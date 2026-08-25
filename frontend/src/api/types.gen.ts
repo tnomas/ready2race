@@ -1541,6 +1541,7 @@ export type ErrorCode =
     | 'STARTLIST_CONFIG_NOT_CONFIGURED'
     | 'STARTLIST_MATCHES_WITHOUT_START_TIME'
     | 'RESULT_IMPORT_CONFIG_NOT_CONFIGURED'
+    | 'PACE_REFERENCE_NAME_TAKEN'
     | 'SCHEDULE_SHIFT_WITHOUT_CHANGE'
     | 'SCHEDULE_SHIFT_TARGET_INVALID'
     | 'SCHEDULE_SHIFT_LEAVES_RACE_DAY'
@@ -3013,6 +3014,27 @@ export type OwnPendingClubRepresentativeApprovalDto = {
     clubId: string
     clubName: string
     createdAt: string
+}
+
+export type PaceReferenceDto = {
+    id: string
+    name: string
+    mode: PaceReferenceMode
+    referenceMeters: number
+}
+
+/**
+ * How a sport expresses pace. TIME_PER_DISTANCE is "how long for n metres" (rowing, running), DISTANCE_PER_TIME is "how far in one hour" (cycling).
+ */
+export type PaceReferenceMode = 'TIME_PER_DISTANCE' | 'DISTANCE_PER_TIME'
+
+export type PaceReferenceRequest = {
+    name: string
+    mode: PaceReferenceMode
+    /**
+     * Reference distance in metres - the distance the pace is calculated on (500 in rowing) or the unit of the output (1000 = km/h). Must be greater than zero.
+     */
+    referenceMeters: number
 }
 
 export type Pagination = {
@@ -8378,6 +8400,63 @@ export type DeleteStartListConfigData = {
 export type DeleteStartListConfigResponse = void
 
 export type DeleteStartListConfigError = BadRequestError | ApiError
+
+export type AddPaceReferenceData = {
+    body: PaceReferenceRequest
+}
+
+export type AddPaceReferenceResponse = string
+
+export type AddPaceReferenceError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetPaceReferencesData = {
+    query?: {
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetPaceReferencesResponse = {
+    data: Array<PaceReferenceDto>
+    pagination: Pagination
+}
+
+export type GetPaceReferencesError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type UpdatePaceReferenceData = {
+    body: PaceReferenceRequest
+    path: {
+        paceReferenceId: string
+    }
+}
+
+export type UpdatePaceReferenceResponse = void
+
+export type UpdatePaceReferenceError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeletePaceReferenceData = {
+    path: {
+        paceReferenceId: string
+    }
+}
+
+export type DeletePaceReferenceResponse = void
+
+export type DeletePaceReferenceError = BadRequestError | ApiError
 
 export type GetUpcomingMatchesData = {
     path: {
