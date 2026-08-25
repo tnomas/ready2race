@@ -26,7 +26,7 @@ export type UseTimingMatchesResult = {
  * Nachrichten dienen als Auffrischungs-Trigger (siehe `bump`), dieselbe Entscheidung wie beim
  * Backend-Umbau dokumentiert.
  */
-export function useTimingMatches(eventId: string): UseTimingMatchesResult {
+export function useTimingMatches(eventId: string, stationId?: string): UseTimingMatchesResult {
     const [matches, setMatches] = useState<TimingMatchDto[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
@@ -37,7 +37,10 @@ export function useTimingMatches(eventId: string): UseTimingMatchesResult {
 
     const refetch = useCallback(() => {
         const epoch = ++epochRef.current
-        void getTimingMatches({path: {eventId}})
+        // Der Posten schneidet seine Liste selbst zu: Ein Zwischenzeit-Posten sieht nur die
+        // Wettkaempfe, auf deren Strecke er steht -- anderswo wuerde seine Marke gar keine
+        // Zwischenzeit (der Server entscheidet das, siehe TimingMatchService.getMatches).
+        void getTimingMatches({path: {eventId}, query: {station: stationId}})
             .then(({data, error: err}) => {
                 if (epoch !== epochRef.current) return
                 if (err !== undefined || data === undefined) {
@@ -55,7 +58,7 @@ export function useTimingMatches(eventId: string): UseTimingMatchesResult {
                 if (epoch !== epochRef.current) return
                 setLoading(false)
             })
-    }, [eventId])
+    }, [eventId, stationId])
 
     useEffect(() => {
         setMatches([])

@@ -10,6 +10,9 @@ import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchProgress
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
+import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationEntry
+import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationsRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileService
@@ -83,6 +86,82 @@ class TimingMatchServiceTest {
             (!TimingMatchService.getMatches(internEventId)).data.map { it.competitionSetupMatch },
         )
         assertEquals(emptyList(), (!TimingMatchService.getMatches(externEventId)).data)
+    }
+
+    /**
+     * Ein Zwischenzeit-Posten sieht nur die Wettkaempfe, auf deren Strecke er steht. Der Grund
+     * steckt nicht in der Bequemlichkeit, sondern in der Rechnung: Seine Marke wird nur dort eine
+     * Zwischenzeit, wo er mit einem Meter eingetragen ist -- anderswo erfasst er ins Leere.
+     */
+    @Test
+    fun splitStationSeesOnlyItsOwnCourse() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val onCourse = !createTestMatchFixture(eventId)
+        val elsewhere = !createTestMatchFixture(eventId)
+        val splitId = !addTestStation(eventId, userId, TimingStationType.SPLIT)
+
+        // Nur der eine Wettkampf traegt den Posten auf seiner Strecke.
+        !TimingService.setCompetitionStations(
+            eventId = eventId,
+            competitionId = onCourse.competitionId,
+            request = CompetitionTimingStationsRequest(
+                stations = listOf(CompetitionTimingStationEntry(splitId, 250)),
+            ),
+            userId = userId,
+        )
+
+        // Ohne Posten-Angabe bleibt die Liste vollstaendig - Leitstand und Startbildschirm.
+        assertEquals(
+            setOf(onCourse.setupMatchId, elsewhere.setupMatchId),
+            (!TimingMatchService.getMatches(eventId)).data.map { it.competitionSetupMatch }.toSet(),
+        )
+
+        assertEquals(
+            listOf(onCourse.setupMatchId),
+            (!TimingMatchService.getMatches(eventId, splitId)).data.map { it.competitionSetupMatch },
+        )
+    }
+
+    /**
+     * Start- und Zielposten werden NICHT zugeschnitten: Ihre Marken speisen die offizielle Zeit
+     * und funktionieren ohne jede Streckenzuordnung. Ein vergessener Eintrag darf am Renntag nicht
+     * die Zeitnahme lahmlegen.
+     */
+    @Test
+    fun startAndFinishStationsAreNeverNarrowed() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+        val startId = !addTestStation(eventId, userId, TimingStationType.START)
+        val finishId = !addTestStation(eventId, userId, TimingStationType.FINISH)
+
+        // Kein einziger Wettkampf hat Posten auf der Strecke eingetragen.
+        assertEquals(
+            listOf(fixture.setupMatchId),
+            (!TimingMatchService.getMatches(eventId, startId)).data.map { it.competitionSetupMatch },
+        )
+        assertEquals(
+            listOf(fixture.setupMatchId),
+            (!TimingMatchService.getMatches(eventId, finishId)).data.map { it.competitionSetupMatch },
+        )
+    }
+
+    /**
+     * Eine unbekannte Posten-Kennung schneidet bewusst NICHTS zu: Die Anzeige soll an einer
+     * unklaren Kennung nicht stumm verarmen, sondern sich verhalten wie ohne Angabe.
+     */
+    @Test
+    fun unknownStationNarrowsNothing() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+
+        assertEquals(
+            listOf(fixture.setupMatchId),
+            (!TimingMatchService.getMatches(eventId, UUID.randomUUID())).data
+                .map { it.competitionSetupMatch },
+        )
     }
 
     // Der Kurzname des Wettkampfs (Kürzel, z. B. "CM 4x+") wandert mit in die Startliste - die

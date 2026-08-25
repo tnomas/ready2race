@@ -5920,6 +5920,8 @@ export const getTimingTeams = <ThrowOnError extends boolean = false>(
 
 /**
  * The station start list: every materialized match of the event's internally timed competitions (coalesce of competition/event timing system = INTERN), in start order, each with its resolved timing mode, teams and derived progress. Readable with a session or with the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded unless the bye must race.
+ *
+ * Pass `station` to narrow the list to what that station can actually capture. This only takes effect for SPLIT stations: their marks become intermediate times solely for competitions that carry the station on their course, so showing the rest would invite a timekeeper to take times that go nowhere. START and FINISH stations are never narrowed -- their marks feed the official time regardless of any course assignment. An unknown station id narrows nothing.
  */
 export const getTimingMatches = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetTimingMatchesData, ThrowOnError>,

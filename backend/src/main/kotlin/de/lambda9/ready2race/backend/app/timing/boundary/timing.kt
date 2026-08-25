@@ -62,7 +62,10 @@ fun Route.timing() {
                     } else {
                         !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
                     }
-                    TimingMatchService.getMatches(eventId)
+                    // Der Posten schneidet seine eigene Liste zu (siehe getMatches); ohne
+                    // Parameter - Leitstand, Startbildschirm - bleibt sie vollstaendig.
+                    val stationId = !optionalQueryParam("station", uuid)
+                    TimingMatchService.getMatches(eventId, stationId)
                 }
             }
 

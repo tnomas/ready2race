@@ -3251,6 +3251,7 @@
       }
     },
     "board": {
+      "noCourseAssignment": "Dieser Posten steht bei keinem Wettkampf auf der Strecke — deshalb ist die Liste leer. Eine Zwischenzeit entsteht nur dort, wo der Posten im Zeitnahme-Tab des Wettkampfs mit seinem Meter eingetragen ist. Zeiten lassen sich weiterhin banken und später von Hand zuordnen.",
       "wsStatus": {
         "CONNECTING": "Verbindet…",
         "OPEN": "Verbunden",

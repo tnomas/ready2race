@@ -11,6 +11,8 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchPhase
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchProgress
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchTeamDto
+import de.lambda9.ready2race.backend.app.timing.control.CompetitionTimingStationRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingStationRepo
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
 import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
@@ -32,10 +34,42 @@ import java.util.UUID
  */
 object TimingMatchService {
 
+    /**
+     * Die Startliste eines Postens.
+     *
+     * [stationId] schneidet sie auf das zu, was dieser Posten wirklich erfassen kann — aber nur
+     * fuer ZWISCHENZEIT-Posten. Deren Marke wird nur dann eine Zwischenzeit, wenn der Posten beim
+     * Wettkampf auf der Strecke eingetragen ist (TimingSplitLogic verwirft alles andere); ein
+     * nicht eingetragener Posten erfasst also ins Leere. Ihm die uebrigen Wettkaempfe trotzdem zu
+     * zeigen, laedt einen Zeitnehmer dazu ein, Zeiten zu nehmen, die nirgends ankommen.
+     *
+     * Start- und Zielposten bleiben ungefiltert: Ihre Marken speisen die offizielle Zeit und
+     * funktionieren unabhaengig von jeder Streckenzuordnung. Ein vergessener Eintrag darf am
+     * Renntag nicht die Zeitnahme lahmlegen.
+     *
+     * Ohne [stationId] (Leitstand, Startbildschirm) bleibt alles wie bisher.
+     */
     fun getMatches(
         eventId: UUID,
+        stationId: UUID? = null,
     ): App<ServiceError, ApiResponse.ListDto<TimingMatchDto>> = KIO.comprehension {
-        val matches = !TimingMatchRepo.getMatchesByEvent(eventId).orDie()
+        // Nur wenn der Posten gefunden UND eine Zwischenzeit-Station ist, wird geschnitten. Ein
+        // unbekannter Posten fuehrt bewusst zu KEINEM Filter statt zu einer leeren Liste: Die
+        // Anzeige soll an einer unklaren Kennung nicht stumm verarmen.
+        val station = stationId?.let { !TimingStationRepo.get(it).orDie() }
+        val courseCompetitions = if (station?.type == TimingStationType.SPLIT.name) {
+            (!CompetitionTimingStationRepo.getByEvent(eventId).orDie())
+                .filterValues { rows -> rows.any { it.timingStation == stationId } }
+                .keys
+        } else {
+            null
+        }
+
+        val matches = (!TimingMatchRepo.getMatchesByEvent(eventId).orDie())
+            .let { all ->
+                if (courseCompetitions == null) all
+                else all.filter { it.competitionId in courseCompetitions }
+            }
         val teamRows = !TimingMatchRepo.getMatchTeamsByEvent(eventId).orDie()
         val rounds = !TimingMatchRepo.getRoundsByEvent(eventId).orDie()
         val marks = !TimingOfficialTimeRepo.getAssignedActiveMarks(eventId).orDie()

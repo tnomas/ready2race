@@ -10114,10 +10114,23 @@ paths:
         with its resolved timing mode, teams and derived progress. Readable with a session or with
         the X-Timing-Device-Token header, like the other board reads. Bye matches are excluded
         unless the bye must race.
+
+
+        Pass `station` to narrow the list to what that station can actually capture. This only
+        takes effect for SPLIT stations: their marks become intermediate times solely for
+        competitions that carry the station on their course, so showing the rest would invite a
+        timekeeper to take times that go nowhere. START and FINISH stations are never narrowed --
+        their marks feed the official time regardless of any course assignment. An unknown station
+        id narrows nothing.
       parameters:
         - name: eventId
           in: path
           required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: station
+          in: query
+          required: false
           schema:
             $ref: '#/components/schemas/uuid'
       responses:

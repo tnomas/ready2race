@@ -3224,6 +3224,7 @@
       }
     },
     "board": {
+      "noCourseAssignment": "Denne post står ikke på nogen konkurrences rute — derfor er listen tom. En mellemtid opstår kun, hvor posten er indtastet med sin afstand i konkurrencens tidtagningsfane. Tider kan stadig gemmes og tildeles manuelt senere.",
       "wsStatus": {
         "CONNECTING": "Forbinder…",
         "OPEN": "Forbundet",

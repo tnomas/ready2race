@@ -3251,6 +3251,7 @@
       }
     },
     "board": {
+      "noCourseAssignment": "This station is not on any competition's course, which is why the list is empty. An intermediate time is only created where the station is entered with its distance in the competition's timing tab. Times can still be banked and assigned by hand later.",
       "wsStatus": {
         "CONNECTING": "Connecting…",
         "OPEN": "Connected",

@@ -9826,6 +9826,9 @@ export type GetTimingMatchesData = {
     path: {
         eventId: uuid
     }
+    query?: {
+        station?: uuid
+    }
 }
 
 export type GetTimingMatchesResponse = Array<TimingMatchDto>

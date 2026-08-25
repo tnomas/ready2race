@@ -132,7 +132,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         error: matchesError,
         refetch: refetchMatches,
         bump: bumpMatches,
-    } = useTimingMatches(eventId)
+    } = useTimingMatches(eventId, stationId)
 
     // Fehlstart-Ton (Startposten): RUNNING→ABORTED der eigenen Sequenz und attemptRetracted der
     // gerade geführten Partie — Bedingungen in `falseStart.ts`. Auf Zielposten läuft der Hook
@@ -993,11 +993,24 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                         ) : (
                             // Ohne intern gezeitete Partien bleibt der Zwei-Schritt-Weg: Zeit
                             // banken, Team danach in der Zeitenliste zuordnen.
-                            <CaptureButton
-                                station={station}
-                                now={clock.now}
-                                onCapture={capture}
-                            />
+                            <Stack sx={{width: 1, minHeight: 0, flexGrow: 1}} spacing={1.5}>
+                                {/* Ein Zwischenzeit-Posten sieht nur die Wettkaempfe, auf deren
+                                    Strecke er steht. Steht er nirgends, ist die Liste leer -- und
+                                    ohne diesen Hinweis haelt ein Zeitnehmer den Bildschirm fuer
+                                    kaputt und erfasst weiter, obwohl seine Marke nirgends
+                                    ankaeme. Der Erfassungsknopf bleibt trotzdem: Zeit banken und
+                                    spaeter von Hand zuordnen geht nach wie vor. */}
+                                {station?.type === 'SPLIT' && !matchesLoading && (
+                                    <Alert severity={'info'} variant={'outlined'}>
+                                        {t('timing.board.noCourseAssignment')}
+                                    </Alert>
+                                )}
+                                <CaptureButton
+                                    station={station}
+                                    now={clock.now}
+                                    onCapture={capture}
+                                />
+                            </Stack>
                         )}
                     </Box>
                 </Box>
