@@ -13,15 +13,10 @@ import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic.PollMode
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerFeed
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerPollRepo
-import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerError
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollCandidate
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollEvent
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
-import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
-import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
-import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.calls.responses.ErrorCode
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.kio.CoroutineComprehensionScope
@@ -175,18 +170,11 @@ object RaceClockerPollService {
     ) {
         val matches = !RaceClockerPollRepo.getCandidates(event.eventId).orDie()
         // Das Rennen kommt aus dem Zeitnahmeprofil-Baum (Veranstaltung, Wettkampf, Runde, Partie -
-        // die speziellste Ebene gewinnt). Beide Abfragen sind winzig und stehen deshalb hinter der
-        // Frage, ob es überhaupt Läufe gibt: Der Takt läuft den ganzen Regattatag durch, auch wenn
-        // längst alles beendet ist.
+        // die speziellste Ebene gewinnt). Die beiden Abfragen dahinter sind winzig und stehen
+        // trotzdem hinter der Frage, ob es überhaupt Läufe gibt: Der Takt läuft den ganzen
+        // Regattatag durch, auch wenn längst alles beendet ist.
         val candidates = if (matches.isEmpty()) emptyList() else {
-            // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
-            // TimingProfileRepo.getAssignments.
-            val assignments = (!TimingProfileRepo.getAssignments(event.eventId, TimingProfileKind.RACE).orDie())
-                .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
-            val racesById = (!RaceClockerRaceRepo.getForEvent(event.eventId).orDie())
-                .associate { it.id to RaceClockerRaceRef(it.id, it.name, it.resultsUrl) }
-
-            RaceClockerPollLogic.candidatesFor(matches, assignments, racesById)
+            RaceClockerPollLogic.candidatesFor(matches, !RaceClockerRaceResolution.forEvent(event.eventId))
         }
         val watched = candidates.filter {
             RaceClockerPollLogic.isWatched(

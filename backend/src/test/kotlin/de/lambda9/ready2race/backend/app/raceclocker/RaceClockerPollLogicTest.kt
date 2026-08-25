@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.raceclocker
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic.PollMode
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerRaceResolution
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollMatch
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
@@ -431,7 +432,12 @@ class RaceClockerPollLogicTest {
     private val shortCourse = RaceClockerRaceRef(UUID.randomUUID(), "Kurzstrecke", "https://raceclocker.com/kurz")
     private val longCourse = RaceClockerRaceRef(UUID.randomUUID(), "Langstrecke", "https://raceclocker.com/lang")
 
-    private val racesById = listOf(shortCourse, longCourse).associateBy { it.id }
+    /**
+     * Die Auflösung von Hand gebaut statt aus der Datenbank ([RaceClockerRaceResolution.forEvent]):
+     * Diese Fälle prüfen, was der Takt aus ihr macht, nicht das Lesen.
+     */
+    private fun resolution(vararg assignments: Assignment) =
+        RaceClockerRaceResolution(assignments.toList(), listOf(shortCourse, longCourse).associateBy { it.id })
 
     private fun pollMatch(
         matchId: UUID = match,
@@ -451,9 +457,9 @@ class RaceClockerPollLogicTest {
     /** Ohne eigene Zuordnung erbt der Lauf das Rennen der Veranstaltung. */
     @Test
     fun `der Lauf erbt das Rennen der Veranstaltung`() {
-        val assignments = listOf(Assignment(null, null, null, shortCourse.id))
+        val resolution = resolution(Assignment(null, null, null, shortCourse.id))
 
-        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), assignments, racesById).single()
+        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution).single()
 
         assertEquals(match, candidate.matchId)
         assertEquals(shortCourse, candidate.target.race)
@@ -467,12 +473,12 @@ class RaceClockerPollLogicTest {
      */
     @Test
     fun `die Partie-Zuordnung schlägt die des Wettkampfs`() {
-        val assignments = listOf(
+        val resolution = resolution(
             Assignment(competition, null, null, shortCourse.id),
             Assignment(competition, round, match, longCourse.id),
         )
 
-        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), assignments, racesById).single()
+        val candidate = RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution).single()
 
         assertEquals(longCourse, candidate.target.race)
     }
@@ -484,18 +490,18 @@ class RaceClockerPollLogicTest {
      */
     @Test
     fun `ein Lauf ohne aufgelöstes Rennen fällt still heraus`() {
-        val assignments = listOf(Assignment(otherCompetition, null, null, shortCourse.id))
+        val fremd = resolution(Assignment(otherCompetition, null, null, shortCourse.id))
 
-        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), assignments, racesById))
-        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), emptyList(), racesById))
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), fremd))
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution()))
     }
 
     /** Zeigt die Zuordnung auf ein Rennen, das es nicht mehr gibt, gilt dasselbe. */
     @Test
     fun `eine Zuordnung auf ein unbekanntes Rennen zählt nicht`() {
-        val assignments = listOf(Assignment(null, null, null, UUID.randomUUID()))
+        val resolution = resolution(Assignment(null, null, null, UUID.randomUUID()))
 
-        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), assignments, racesById))
+        assertEquals(emptyList(), RaceClockerPollLogic.candidatesFor(listOf(pollMatch()), resolution))
     }
 
     /** Der eine Lauf ohne Rennen nimmt die übrigen nicht mit. */
@@ -503,9 +509,9 @@ class RaceClockerPollLogicTest {
     fun `nur der Lauf ohne Rennen fällt heraus`() {
         val withRace = pollMatch(matchId = UUID.randomUUID())
         val withoutRace = pollMatch(matchId = UUID.randomUUID(), competitionId = otherCompetition)
-        val assignments = listOf(Assignment(competition, null, null, shortCourse.id))
+        val resolution = resolution(Assignment(competition, null, null, shortCourse.id))
 
-        val candidates = RaceClockerPollLogic.candidatesFor(listOf(withRace, withoutRace), assignments, racesById)
+        val candidates = RaceClockerPollLogic.candidatesFor(listOf(withRace, withoutRace), resolution)
 
         assertEquals(listOf(withRace.matchId), candidates.map { it.matchId })
     }

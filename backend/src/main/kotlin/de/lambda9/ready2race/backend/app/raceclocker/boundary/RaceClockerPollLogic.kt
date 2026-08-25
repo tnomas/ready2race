@@ -4,10 +4,7 @@ import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarg
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollCandidate
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerPollMatch
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
-import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
 import java.time.LocalDateTime
-import java.util.UUID
 
 /**
  * Die Entscheidungen des automatischen RaceClocker-Abrufs, bewusst ohne Datenbank- und HTTP-Bezug —
@@ -36,17 +33,14 @@ object RaceClockerPollLogic {
      * Ebenen-Auflösung nicht in eine where-Klausel gehört. Ohne sie liefe der Abruf für solche
      * Läufe ins Leere und belastete den Takt mit Fehlern, die niemand beheben kann.
      *
-     * [racesById] fängt denselben Fall noch einmal ab: Zeigt eine Zuordnung auf ein Rennen, das es
-     * nicht (mehr) gibt, ist das Ergebnis dasselbe wie ohne Zuordnung.
+     * [resolution] beantwortet die Frage nach dem Rennen für alle drei Wege gleich (siehe
+     * [RaceClockerRaceResolution]) - der Takt fragt sie mit dem vollen Pfad, bis hinunter zur Partie.
      */
     fun candidatesFor(
         matches: List<RaceClockerPollMatch>,
-        assignments: Collection<TimingProfileResolveLogic.Assignment>,
-        racesById: Map<UUID, RaceClockerRaceRef>,
+        resolution: RaceClockerRaceResolution,
     ): List<RaceClockerPollCandidate> = matches.mapNotNull { match ->
-        val race = TimingProfileResolveLogic
-            .resolve(assignments, match.competitionId, match.roundId, match.matchId)
-            ?.let { racesById[it] }
+        val race = resolution.raceFor(match.competitionId, match.roundId, match.matchId)
             ?: return@mapNotNull null
 
         RaceClockerPollCandidate(

@@ -69,9 +69,10 @@ data class BulkStartlistCompetitionRow(
 )
 
 /**
- * Ein Wettkampf des Sammelexports: seine Kennung (Dateiname, Reihenfolge der ZIP-Einträge), das
- * angewählte RaceClocker-Rennen (Delta-Abgleich; null = keines angewählt) und die zu
- * exportierenden Läufe. Kürzel und Name tragen Vorschau und Fehlermeldungen.
+ * Ein Wettkampf des Sammelexports: seine Kennung (Dateiname, Reihenfolge der ZIP-Einträge), die
+ * Adresse seines aufgelösten RaceClocker-Rennens (Delta-Abgleich; null = auf Wettkampf-Ebene nicht
+ * auflösbar, siehe eventStartlistPlan) und die zu exportierenden Läufe. Kürzel und Name tragen
+ * Vorschau und Fehlermeldungen.
  */
 data class BulkStartlistCompetition(
     val competitionId: UUID,

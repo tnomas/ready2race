@@ -5,13 +5,9 @@ import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetu
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerRaceResolution
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerPollRepo
-import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
-import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
-import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
-import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionRecord
@@ -476,14 +472,12 @@ class RaceClockerPollRepoTest {
             matchId = seeded.matchId,
         )
 
-        // Der Weg des Jobs: Abfrage, Zuordnungen, Rennen - genau die Verdrahtung aus
-        // RaceClockerPollService.pollEvent.
-        val assignments = (!TimingProfileRepo.getAssignments(seeded.eventId, TimingProfileKind.RACE))
-            .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
-        val racesById = (!RaceClockerRaceRepo.getForEvent(seeded.eventId))
-            .associate { it.id to RaceClockerRaceRef(it.id, it.name, it.resultsUrl) }
+        // Der Weg des Jobs - dieselben zwei Aufrufe, die RaceClockerPollService.pollEvent macht.
         val fromJob = RaceClockerPollLogic
-            .candidatesFor(!RaceClockerPollRepo.getCandidates(seeded.eventId), assignments, racesById)
+            .candidatesFor(
+                !RaceClockerPollRepo.getCandidates(seeded.eventId),
+                !RaceClockerRaceResolution.forEvent(seeded.eventId),
+            )
             .associateBy { it.matchId }
 
         // Der Weg des Knopfes - dieselbe Funktion, die der Endpunkt aufruft.

@@ -39,15 +39,11 @@ import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLog
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerFeed
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerPollRepo
-import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
+import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerRaceResolution
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerResultsXls
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerError
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
 import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
-import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
-import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
-import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
-import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.calls.comprehension.CallComprehensionScope
 import de.lambda9.ready2race.backend.app.startListConfig.control.StartListConfigRepo
 import de.lambda9.ready2race.backend.app.startListConfig.entity.StartListConfigError
@@ -899,34 +895,29 @@ object CompetitionExecutionService {
     /**
      * Wo dieser Lauf in RaceClocker zu finden ist: Wellenname und aufgelöstes Rennen.
      *
-     * Die Auflösung ist dieselbe wie im automatischen Abruf ([RaceClockerPollLogic.candidatesFor]):
-     * Das Rennen hängt am Zeitnahmeprofil-Baum und gilt in der speziellsten gesetzten Ebene
-     * (Veranstaltung, Wettkampf, Runde, Partie). Beide Wege müssen dasselbe Rennen treffen - sonst
-     * schriebe der Abruf von Hand die Ergebnisse aus einem anderen Rennen als der Takt, und
-     * auffallen würde das am Renntag.
+     * Die Auflösung ist dieselbe wie im automatischen Abruf: beide fragen
+     * [RaceClockerRaceResolution] mit dem vollen Pfad, bis hinunter zur Partie. Beide Wege müssen
+     * dasselbe Rennen treffen - sonst schriebe der Abruf von Hand die Ergebnisse aus einem anderen
+     * Rennen als der Takt, und auffallen würde das am Renntag.
      *
      * Lässt sich keines auflösen, bleibt [RaceClockerMatchTarget.race] null: Der Knopf meldet
      * daraufhin [RaceClockerError.UrlMissing], der Datei-Weg braucht ohnehin nur den Wellennamen.
+     *
+     * Öffentlich, obwohl keine Route sie ruft: Der Test der beiden Wege muss genau das aufrufen
+     * können, was der Endpunkt aufruft - sonst prüfte er eine im Test nachgebaute Verdrahtung.
      */
     fun raceClockerTarget(eventId: UUID, matchId: UUID): App<ServiceError, RaceClockerMatchTarget> =
         KIO.comprehension {
             val row = !CompetitionMatchRepo.getForRaceClockerPull(matchId).orDie()
                 .onNullFail { CompetitionExecutionError.MatchNotFound }
+            val resolution = !RaceClockerRaceResolution.forEvent(eventId)
 
-            // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
-            // TimingProfileRepo.getAssignments.
-            val assignments = (!TimingProfileRepo.getAssignments(eventId, TimingProfileKind.RACE).orDie())
-                .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
-            val profile = TimingProfileResolveLogic
-                .resolve(assignments, row.competitionId, row.roundId, row.matchId)
-
-            val race = if (profile == null) null else {
-                (!RaceClockerRaceRepo.getForEvent(eventId).orDie())
-                    .firstOrNull { it.id == profile }
-                    ?.let { RaceClockerRaceRef(it.id, it.name, it.resultsUrl) }
-            }
-
-            KIO.ok(RaceClockerMatchTarget(waveName = row.waveName, race = race))
+            KIO.ok(
+                RaceClockerMatchTarget(
+                    waveName = row.waveName,
+                    race = resolution.raceFor(row.competitionId, row.roundId, row.matchId),
+                )
+            )
         }
 
     /**
@@ -2631,21 +2622,17 @@ object CompetitionExecutionService {
         val competitions = !CompetitionMatchRepo.getForBulkStartlistExport(eventId).orDie()
         val byeByMatch = !MatchByeService.byeByMatch(eventId)
 
-        // Das Rennen kommt aus dem Zeitnahmeprofil-Baum. Aufgelöst wird hier bewusst nur bis zur
-        // WETTKAMPF-Ebene (`resolve(..., competitionId, null, null)`): Der Sammelexport gruppiert je
-        // Wettkampf - eine Runden- oder Partie-Zuordnung hätte in einer Wettkampf-Zeile keinen Platz
-        // und bliebe in Dateiname, Delta-Abgleich und Rennen-Filter unsichtbar. Wer eine Partie auf
-        // ein anderes Rennen legt, exportiert ihre Startliste einzeln. Das ist eine Entscheidung,
-        // kein Versehen.
-        val assignments = (!TimingProfileRepo.getAssignments(eventId, TimingProfileKind.RACE).orDie())
-            .map { TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile) }
-        val racesById = (!RaceClockerRaceRepo.getForEvent(eventId).orDie()).associateBy { it.id }
+        val resolution = !RaceClockerRaceResolution.forEvent(eventId)
 
         competitions
             .map { row ->
-                row to TimingProfileResolveLogic
-                    .resolve(assignments, row.competitionId, null, null)
-                    ?.let { racesById[it] }
+                // Das Rennen kommt aus dem Zeitnahmeprofil-Baum. Gefragt wird hier bewusst nur die
+                // WETTKAMPF-Ebene (Runde und Partie bleiben null): Der Sammelexport gruppiert je
+                // Wettkampf - eine Runden- oder Partie-Zuordnung hätte in einer Wettkampf-Zeile
+                // keinen Platz und bliebe in Dateiname, Delta-Abgleich und Rennen-Filter
+                // unsichtbar. Wer eine Partie auf ein anderes Rennen legt, exportiert ihre
+                // Startliste einzeln. Das ist eine Entscheidung, kein Versehen.
+                row to resolution.raceFor(row.competitionId, null, null)
             }
             .filter { (_, race) -> raceclockerRaceId == null || race?.id == raceclockerRaceId }
             .traverse { (row, race) ->
