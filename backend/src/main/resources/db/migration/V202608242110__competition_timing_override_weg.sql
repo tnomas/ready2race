@@ -9,10 +9,13 @@ set search_path to ready2race, pg_catalog, public;
 -- Das Rennen zieht in den Zeitnahmeprofil-Baum um (V202608242100) und braucht seine Spalte
 -- nicht mehr.
 --
--- Datenverlust, bewusst: Die vier Spalten werden mit ihrem Inhalt verworfen, nicht nur
--- umgezogen. Ein Rollback dieser Migration holt die Werte nicht zurück, das kann nur ein
--- Dump von vorher. Vor dem Ausrollen auf einen produktiven Bestand einmal prüfen, was
--- betroffen ist:
+-- Datenverlust, bewusst: Drei der vier Spalten (timing_system, startlist_config,
+-- result_import_config) werden mit ihrem Inhalt verworfen, nicht nur umgezogen.
+-- raceclocker_race fällt hier nur noch als leere Hülle weg — ihr Inhalt ist schon in
+-- V202608242100 in den Zeitnahmeprofil-Baum umgezogen, siehe oben. Deshalb nennt die
+-- Prüf-Abfrage unten auch nur die drei Spalten mit echtem Verlust. Ein Rollback dieser
+-- Migration holt die verworfenen Werte nicht zurück, das kann nur ein Dump von vorher.
+-- Vor dem Ausrollen auf einen produktiven Bestand einmal prüfen, was betroffen ist:
 --
 --   select c.id, cp.identifier, c.timing_system, c.startlist_config, c.result_import_config
 --   from competition c join competition_properties cp on cp.competition = c.id
