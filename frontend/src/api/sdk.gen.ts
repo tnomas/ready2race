@@ -2151,7 +2151,7 @@ export const getCompetitionTimingStations = <ThrowOnError extends boolean = fals
 }
 
 /**
- * Replaces the WHOLE list of this competition: anything missing from the body is deleted, everything in it is created or moved to its new metre. An empty list clears the competition. Every station has to belong to the same event, and no station may appear twice.
+ * Replaces the WHOLE list of this competition: anything missing from the body is deleted, everything in it is created or moved to its new metre. An empty list clears the competition. 404 if the competition or one of the stations does not belong to this event, 409 if the same station is listed twice. Display stations (ANZEIGE) are rejected with 400: they never capture a time mark, so they cannot stand on the course.
  */
 export const setCompetitionTimingStations = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<SetCompetitionTimingStationsData, ThrowOnError>,

@@ -127,7 +127,8 @@ object TimingService {
      *
      * Zwei Prüfungen, die die Datenbank so nicht leisten kann: Der Wettkampf muss zu dieser
      * Veranstaltung gehören, und jeder Posten ebenfalls - der Fremdschlüssel kennt die
-     * Veranstaltung nicht und ließe den Posten einer fremden Regatta zu. Derselbe Posten zweimal
+     * Veranstaltung nicht und ließe den Posten einer fremden Regatta zu; und ein ANZEIGE-Posten
+     * gehört gar nicht auf die Strecke, weil er nie selbst erfasst. Derselbe Posten zweimal
      * wird abgewiesen, weil das Schreiben ihn sonst still auf den zuletzt genannten Meter setzte
      * (ein `on conflict do update` je Posten) — eine Liste mit einer Bedeutung, die niemand so
      * gemeint hat.
@@ -148,6 +149,14 @@ object TimingService {
         if (stationIds.isNotEmpty()) {
             val ofEvent = !TimingStationRepo.countOfEvent(eventId, stationIds).orDie()
             !KIO.failOn(ofEvent != stationIds.size) { CompetitionTimingStationError.StationNotFound }
+
+            // Eine Anzeige misst nichts - dieselbe Grenze wie bei der Zeitmarken-Erfassung
+            // (StationNotCapturing) und den Geräte-Tokens. Jede Zeile hier IST ein
+            // Zwischenzeit-Punkt; eine Anzeige darunter wäre eine Zwischenzeit, an der nie eine
+            // Marke ankommt.
+            val displays = !TimingStationRepo
+                .countOfEventByType(eventId, stationIds, TimingStationType.ANZEIGE).orDie()
+            !KIO.failOn(displays > 0) { CompetitionTimingStationError.StationNotCapturing }
         }
 
         !CompetitionTimingStationRepo.replaceForCompetition(competitionId, request.stations, userId).orDie()

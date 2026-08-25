@@ -35,7 +35,8 @@ const isValidMeters = (value: string) => /^\d+$/.test(value.trim())
  *
  * Der Posten selbst gehört der Veranstaltung — er ist eine Person mit einem Tablet und wird in
  * deren Einstellungen gepflegt. Nur der Meter gehört dem Wettkampf, weil derselbe Posten für die
- * Langstrecke bei 3000 m und für den Sprint bei 250 m steht.
+ * Langstrecke bei 3000 m und für den Sprint bei 250 m steht. Anzeige-Posten stehen nicht zur Wahl:
+ * Sie erfassen nie eine Zeit und haben auf der Strecke deshalb nichts verloren.
  *
  * Ein Speichern-Knopf für die ganze Liste und nicht je Zeile: Der Endpunkt ist ein PUT über die
  * ganze Liste (was fehlt, wird gelöscht), und die Oberfläche denkt genauso.
@@ -99,7 +100,10 @@ const CompetitionTimingStations = ({eventId, competitionId}: Props) => {
      * Reihenfolge kommt mit dem nächsten Laden.
      */
     const orderedStations: TimingStationDto[] = useMemo(() => {
-        const stations = stationsData ?? []
+        // Anzeige-Posten bleiben draußen: Sie erfassen nie selbst, jede Zeile hier ist aber ein
+        // Punkt, an dem eine Zwischenzeit entsteht. Der Dienst lehnt sie ab - angeboten wird also
+        // gar nicht erst, was hinterher zurückkäme.
+        const stations = (stationsData ?? []).filter(station => station.type !== 'ANZEIGE')
         const assignedOrder = (assignedData ?? []).map(station => station.timingStation)
         const assigned = assignedOrder
             .map(id => stations.find(station => station.id === id))

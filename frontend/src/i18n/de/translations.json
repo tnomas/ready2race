@@ -1368,7 +1368,7 @@
           "title": "Posten auf der Strecke",
           "hint": "Welche Zeitnahme-Posten dieser Wettkampf passiert und bei welchem Meter. Der Start steht bei 0, das Ziel bei der Gesamtdistanz. Die Reihenfolge der Zwischenzeiten ergibt sich aus dem Meter, nicht aus der Reihenfolge der Posten im Leitstand. Die Posten selbst werden in den Einstellungen der Veranstaltung gepflegt.",
           "distance": "Meter",
-          "noStations": "Für diese Veranstaltung sind noch keine Zeitnahme-Posten angelegt.",
+          "noStations": "Für diese Veranstaltung gibt es noch keine erfassenden Zeitnahme-Posten. Anzeige-Posten stehen nicht zur Wahl, sie erfassen keine Zeiten.",
           "saved": "Posten auf der Strecke gespeichert",
           "warning": {
             "missingDistance": "Für mindestens einen angehakten Posten fehlt der Meter.",

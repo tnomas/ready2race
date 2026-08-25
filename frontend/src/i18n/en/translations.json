@@ -1368,7 +1368,7 @@
           "title": "Stations on the course",
           "hint": "Which timing stations this competition passes and at which metre. The start is at 0, the finish at the total distance. Split times are ordered by the metre, not by the order of the stations in the control room. The stations themselves are maintained in the event settings.",
           "distance": "Metres",
-          "noStations": "This event has no timing stations yet.",
+          "noStations": "This event has no capturing timing stations yet. Display stations are not offered - they never capture a time.",
           "saved": "Stations on the course saved",
           "warning": {
             "missingDistance": "At least one selected station has no metre.",

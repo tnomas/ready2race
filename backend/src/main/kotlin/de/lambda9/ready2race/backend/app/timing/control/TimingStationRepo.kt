@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_STATION
@@ -34,6 +35,19 @@ object TimingStationRepo {
      */
     fun countOfEvent(eventId: UUID, ids: List<UUID>) = Jooq.query {
         fetchCount(TIMING_STATION, TIMING_STATION.EVENT.eq(eventId).and(TIMING_STATION.ID.`in`(ids)))
+    }
+
+    /**
+     * Wie viele der genannten Posten dieser Veranstaltung vom Typ [type] sind - gefragt wird
+     * danach, ob eine ANZEIGE darunter steckt, die auf der Strecke nichts verloren hat.
+     */
+    fun countOfEventByType(eventId: UUID, ids: List<UUID>, type: TimingStationType) = Jooq.query {
+        fetchCount(
+            TIMING_STATION,
+            TIMING_STATION.EVENT.eq(eventId)
+                .and(TIMING_STATION.ID.`in`(ids))
+                .and(TIMING_STATION.TYPE.eq(type.name)),
+        )
     }
 
     fun update(id: UUID, f: TimingStationRecord.() -> Unit) = TIMING_STATION.update(f) { ID.eq(id) }

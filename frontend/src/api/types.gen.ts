@@ -6081,7 +6081,6 @@ export type SetCompetitionTimingStationsResponse = void
 export type SetCompetitionTimingStationsError =
     | BadRequestError
     | ApiError
-    | unknown
     | UnprocessableEntityError
 
 export type PullMatchResultsFromRaceClockerData = {

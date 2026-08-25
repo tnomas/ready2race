@@ -20,8 +20,9 @@ object CompetitionTimingStationRepo {
     /**
      * Die Posten dieses Wettkampfs, nach DISTANZ sortiert — nicht nach `timing_station.sorting`:
      * Die Sortierung ordnet die Posten im Leitstand, die Distanz ordnet sie auf der Strecke. Zwei
-     * Posten auf demselben Meter sind erlaubt (die Oberfläche warnt davor); der Name entscheidet
-     * dann, damit die Reihenfolge überhaupt eine feste ist — er ist je Veranstaltung eindeutig.
+     * Posten auf demselben Meter sind erlaubt (die Oberfläche warnt davor); dann entscheidet
+     * `timing_station.sorting` — der Schlüssel, den der Leitstand ohnehin pflegt, statt einer
+     * beliebigen alphabetischen Reihenfolge.
      */
     fun getByCompetition(competitionId: UUID) = Jooq.query {
         select(
@@ -34,7 +35,7 @@ object CompetitionTimingStationRepo {
             .join(TIMING_STATION)
             .on(TIMING_STATION.ID.eq(COMPETITION_TIMING_STATION.TIMING_STATION))
             .where(COMPETITION_TIMING_STATION.COMPETITION.eq(competitionId))
-            .orderBy(COMPETITION_TIMING_STATION.DISTANCE_METERS, TIMING_STATION.NAME)
+            .orderBy(COMPETITION_TIMING_STATION.DISTANCE_METERS, TIMING_STATION.SORTING)
             .fetch {
                 StationRow(
                     // Im Schema not null; die Projektion verliert nur die Garantie.
