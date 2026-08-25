@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.validate
 import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.noDuplicates
 import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.notEmpty
+import de.lambda9.ready2race.backend.validation.validators.IntValidators.min
 import de.lambda9.ready2race.backend.validation.validators.StringValidators.notBlank
 import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.allOf
 import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.collection
@@ -25,6 +26,10 @@ data class CompetitionPropertiesRequest(
     val setupTemplate: UUID?, // Only relevant for add/edit template and add competition
     val challengeConfig: CompetitionChallengeConfigRequest?,
     val ratingCategoryRequired: Boolean,
+    /** Gesamtstrecke in Metern; nur für die Tempo-Anzeige gebraucht, Zwischenzeiten gibt es auch ohne. */
+    val distanceMeters: Int?,
+    /** Bezugsgröße aus dem Katalog, in der das Tempo ausgedrückt wird (im Rudern: Zeit pro 500 m). */
+    val paceReference: UUID?,
 ) : Validatable {
     override fun validate(): ValidationResult =
         ValidationResult.allOf(
@@ -32,6 +37,7 @@ data class CompetitionPropertiesRequest(
             this::name validate notBlank,
             this::shortName validate notBlank,
             this::description validate notBlank,
+            this::distanceMeters validate min(1),
             this::namedParticipants validate allOf(
                 collection,
                 noDuplicates(
@@ -63,6 +69,8 @@ data class CompetitionPropertiesRequest(
                 setupTemplate = UUID.randomUUID(),
                 challengeConfig = CompetitionChallengeConfigRequest.example,
                 ratingCategoryRequired = false,
+                distanceMeters = 2000,
+                paceReference = UUID.randomUUID(),
             )
     }
 }

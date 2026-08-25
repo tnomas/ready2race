@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.competitionProperties.entity.Competitio
 import de.lambda9.ready2race.backend.app.competitionSetupTemplate.control.CompetitionSetupTemplateRepo
 import de.lambda9.ready2race.backend.app.fee.control.FeeRepo
 import de.lambda9.ready2race.backend.app.namedParticipant.control.NamedParticipantRepo
+import de.lambda9.ready2race.backend.app.paceReference.control.PaceReferenceRepo
 import de.lambda9.ready2race.backend.database.generated.tables.CompetitionPropertiesChallengeConfig
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesChallengeConfigRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasFeeRecord
@@ -18,6 +19,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.Competiti
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.unit
+import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import java.util.*
 
@@ -65,6 +67,17 @@ object CompetitionPropertiesService {
                 .onFalseFail { CompetitionPropertiesError.CompetitionCategoryUnknown }
         }
 
+    private fun checkPaceReferenceExisting(
+        paceReference: UUID?
+    ): App<CompetitionPropertiesError, Unit> =
+        if (paceReference == null) {
+            unit
+        } else {
+            PaceReferenceRepo.get(paceReference).orDie()
+                .onNullFail { CompetitionPropertiesError.PaceReferenceUnknown }
+                .map { }
+        }
+
     fun checkCompetitionSetupTemplateExisting(
         competitionSetupTemplateId: UUID?
     ): App<CompetitionPropertiesError, Unit> = if (competitionSetupTemplateId == null) {
@@ -81,6 +94,7 @@ object CompetitionPropertiesService {
         !checkNamedParticipantsExisting(request.namedParticipants.map { it.namedParticipant })
         !checkFeesExisting(request.fees.map { it.fee })
         !checkCompetitionCategoryExisting(request.competitionCategory)
+        !checkPaceReferenceExisting(request.paceReference)
 
         unit
     }

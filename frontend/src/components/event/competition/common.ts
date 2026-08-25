@@ -43,6 +43,8 @@ export type CompetitionForm = {
     challengeConfirmationImage: boolean
     challengeStartAt: string
     challengeEndAt: string
+    distanceMeters: string
+    paceReference: AutocompleteOption
 }
 
 export const competitionFormDefaultValues: CompetitionForm = {
@@ -60,6 +62,8 @@ export const competitionFormDefaultValues: CompetitionForm = {
     challengeConfirmationImage: false,
     challengeStartAt: '',
     challengeEndAt: '',
+    distanceMeters: '',
+    paceReference: null,
 }
 
 export function mapCompetitionFormToCompetitionPropertiesRequest(
@@ -89,6 +93,10 @@ export function mapCompetitionFormToCompetitionPropertiesRequest(
         setupTemplate: !isChallengeEvent ? takeIfNotEmpty(formData.setupTemplate?.id) : undefined,
         lateRegistrationAllowed: formData.lateRegistrationAllowed,
         ratingCategoryRequired: formData.ratingCategoryRequired,
+        // Das Zahlenfeld ist ein Textfeld; leer heißt „keine Angabe", sonst ginge die Meterzahl
+        // als Zeichenkette an den Server.
+        distanceMeters: formData.distanceMeters ? Number(formData.distanceMeters) : undefined,
+        paceReference: takeIfNotEmpty(formData.paceReference?.id),
         challengeConfig: isChallengeEvent
             ? {
                   resultConfirmationImageRequired: formData.challengeConfirmationImage,
@@ -142,6 +150,13 @@ export function mapCompetitionPropertiesToCompetitionForm(
             : false,
         challengeStartAt: dto.challengeConfig ? dto.challengeConfig.startAt : '',
         challengeEndAt: dto.challengeConfig ? dto.challengeConfig.endAt : '',
+        distanceMeters: dto.distanceMeters?.toString() ?? '',
+        paceReference: dto.paceReference
+            ? {
+                  id: dto.paceReference.id,
+                  label: dto.paceReference.name,
+              }
+            : null,
     }
 }
 

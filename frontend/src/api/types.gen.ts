@@ -1041,6 +1041,11 @@ export type CompetitionPropertiesDto = {
     lateRegistrationAllowed: boolean
     challengeConfig?: CompetitionChallengeConfigDto
     ratingCategoryRequired: boolean
+    /**
+     * Total course length in metres. Only needed to derive pace between timing stations - split times work without it.
+     */
+    distanceMeters?: number
+    paceReference?: PaceReferenceDto
 }
 
 export type CompetitionPropertiesRequest = {
@@ -1059,6 +1064,11 @@ export type CompetitionPropertiesRequest = {
     setupTemplate?: string
     challengeConfig?: CompetitionChallengeConfigRequest
     ratingCategoryRequired: boolean
+    /**
+     * Total course length in metres. Only needed to derive pace between timing stations - split times work without it.
+     */
+    distanceMeters?: number
+    paceReference?: string
 }
 
 export type CompetitionRegistrationDto = {

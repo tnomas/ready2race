@@ -7,6 +7,8 @@ import de.lambda9.ready2race.backend.app.competitionCategory.entity.CompetitionC
 import de.lambda9.ready2race.backend.app.competitionProperties.control.toDto
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionChallengeConfigDto
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionPropertiesDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceMode
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionForClubViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPublicViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionViewRecord
@@ -52,7 +54,16 @@ fun CompetitionViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comprehens
                         endAt = challengeEndAt!!,
                     )
                 },
-                ratingCategoryRequired = ratingCategoryRequired!!
+                ratingCategoryRequired = ratingCategoryRequired!!,
+                distanceMeters = distanceMeters,
+                paceReference = if (paceReferenceId != null) {
+                    PaceReferenceDto(
+                        id = paceReferenceId!!,
+                        name = paceReferenceName!!,
+                        mode = PaceReferenceMode.valueOf(paceReferenceMode!!),
+                        referenceMeters = paceReferenceMeters!!,
+                    )
+                } else null,
             ),
             registrationCount = registrationsCount ?: 0
         )
@@ -95,7 +106,16 @@ fun CompetitionForClubViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.com
                         endAt = challengeEndAt!!,
                     )
                 },
-                ratingCategoryRequired = ratingCategoryRequired!!
+                ratingCategoryRequired = ratingCategoryRequired!!,
+                distanceMeters = distanceMeters,
+                paceReference = if (paceReferenceId != null) {
+                    PaceReferenceDto(
+                        id = paceReferenceId!!,
+                        name = paceReferenceName!!,
+                        mode = PaceReferenceMode.valueOf(paceReferenceMode!!),
+                        referenceMeters = paceReferenceMeters!!,
+                    )
+                } else null,
             ),
             registrationCount = registrationsCount ?: 0
         )
@@ -138,7 +158,16 @@ fun CompetitionPublicViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comp
                         endAt = challengeEndAt!!,
                     )
                 },
-                ratingCategoryRequired = ratingCategoryRequired!!
+                ratingCategoryRequired = ratingCategoryRequired!!,
+                distanceMeters = distanceMeters,
+                paceReference = if (paceReferenceId != null) {
+                    PaceReferenceDto(
+                        id = paceReferenceId!!,
+                        name = paceReferenceName!!,
+                        mode = PaceReferenceMode.valueOf(paceReferenceMode!!),
+                        referenceMeters = paceReferenceMeters!!,
+                    )
+                } else null,
             ),
             registrationCount = 0
         )

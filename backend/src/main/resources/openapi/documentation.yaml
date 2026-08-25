@@ -12531,6 +12531,11 @@ components:
           $ref: '#/components/schemas/CompetitionChallengeConfigDto'
         ratingCategoryRequired:
           type: boolean
+        distanceMeters:
+          type: integer
+          description: "Total course length in metres. Only needed to derive pace between timing stations - split times work without it."
+        paceReference:
+          $ref: '#/components/schemas/PaceReferenceDto'
 
 
     NamedParticipantForCompetitionDto:
@@ -12647,6 +12652,12 @@ components:
           $ref: '#/components/schemas/CompetitionChallengeConfigRequest'
         ratingCategoryRequired:
           type: boolean
+        distanceMeters:
+          type: integer
+          description: "Total course length in metres. Only needed to derive pace between timing stations - split times work without it."
+        paceReference:
+          type: string
+          format: uuid
 
 
     NamedParticipantForCompetitionRequestDto:
