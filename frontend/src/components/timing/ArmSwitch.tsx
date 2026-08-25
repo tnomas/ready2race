@@ -136,7 +136,18 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                 className="cursor-pointer"
                 // Halten heißt Zeigergesten: `onPointerUp` allein reicht nicht, der Finger rutscht
                 // vom Knopf (leave) oder das System nimmt den Druck weg (cancel).
-                onPointerDown={startHold}
+                //
+                // Bei Berührung fängt der Browser den Zeiger implizit auf dem Element ab; solange
+                // dieser Fang steht, kommt `pointerleave` erst beim Loslassen — ein abgerutschter
+                // Finger, der unten bleibt, schaltete nach einer Sekunde trotzdem. In der
+                // gefährlichen Richtung hieße das: unbeabsichtigtes Entschärfen. Also den Fang
+                // sofort lösen, dann meldet das Verlassen der Knopffläche wie am Zeigegerät.
+                onPointerDown={event => {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                        event.currentTarget.releasePointerCapture(event.pointerId)
+                    }
+                    startHold()
+                }}
                 onPointerUp={cancelHold}
                 onPointerLeave={cancelHold}
                 onPointerCancel={cancelHold}
@@ -157,9 +168,11 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                 }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     <Box sx={{position: 'relative', display: 'inline-flex'}}>
+                        {/* Während des Sendens läuft der Ring: Ein voller determinierter
+                            Ring läse sich als „fertig", obwohl gerade erst geschaltet wird. */}
                         <CircularProgress
-                            variant="determinate"
-                            value={busy ? 100 : progress}
+                            variant={busy ? 'indeterminate' : 'determinate'}
+                            value={progress}
                             size={52}
                             thickness={5}
                             sx={{color: armed ? 'warning.main' : 'success.main'}}

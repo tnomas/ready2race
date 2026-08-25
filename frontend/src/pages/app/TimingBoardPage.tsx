@@ -182,6 +182,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     }, [marks, sequenceState.sequence, bumpMatches])
 
     const station = stations.find(s => s.id === stationId)
+    const isStart = station?.type === 'START'
 
     // --- Scharfschaltung ------------------------------------------------------------------------
     //
@@ -200,7 +201,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     // kann man dann ohnehin nicht, der Knopf hängt am geladenen Posten).
     const captureMode = station?.captureMode ?? 'ONETOUCH'
     const armed = switchedArmed ?? station?.armed ?? false
-    const mayCaptureAssigned = captureAllowed(captureMode, armed)
+    // Die Sperre greift nur dort, wo es überhaupt eine Erfassung MIT Zuordnung gibt: am Ziel- und
+    // am Zwischenzeit-Posten, die das Boots-Raster tragen. Der Startposten hat weder Raster noch
+    // Boots-Tasten — dort bliebe genau ein Weg gesperrt, die Leertaste, und die ist auf diesem
+    // Bildschirm der Kurzweg zum manuellen Stempel (Fehlstart-Protokoll, siehe unten). Er verlöre
+    // also einen Bedienweg und gewänne keinen Schutz, und der Warnbalken widerspräche seinem
+    // eigenen Board. Die Startsequenz gehört laut Entwurf ohnehin nicht dazu.
+    const armedGateApplies = captureMode === 'ARMED' && !isStart
+    const mayCaptureAssigned = !armedGateApplies || captureAllowed(captureMode, armed)
     // Der Leertasten-Zuhörer registriert sich einmal; ohne Spiegel im Ref sähe er ewig den Zustand
     // vom ersten Rendern.
     const mayCaptureRef = useRef(mayCaptureAssigned)
@@ -234,7 +242,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     // Zeiten per Boots-Knopf oder Taste auf die fokussierte Partie. Der Fokus gehört der Seite,
     // weil Tagesablauf-Spalte und Arbeitsfläche denselben Zustand teilen — die Auflösung
     // (Vorrücken nach Start bzw. Zieleinlauf) übernimmt je Posten-Typ die passende reine Logik.
-    const isStart = station?.type === 'START'
+    // (`isStart` steht weiter oben, die Scharfschaltung braucht es schon dort.)
     const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(undefined)
     const focusedMatchId = isStart
         ? resolveStartSelection(matches, selectedMatchId)
@@ -786,6 +794,10 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             // Notausgang soll ein absichtlicher Griff sein, und der bleibt der große Knopf — der
             // wird nie gesperrt. Kein `preventDefault`, damit der Browser eine Taste, die hier
             // nichts mehr tut, wieder normal behandelt.
+            //
+            // Am Startposten greift das nicht (siehe `armedGateApplies`): Dort ist die Leertaste
+            // der Kurzweg zum manuellen Stempel und die einzige Taste überhaupt — sie zu sperren
+            // nähme einen Bedienweg, ohne eine Zuordnung zu verhindern, die es dort nicht gibt.
             if (!mayCaptureRef.current) return
 
             event.preventDefault()
@@ -949,9 +961,10 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             flexDirection: 'column',
                             gap: 1.5,
                         }}>
-                        {captureMode === 'ARMED' && station !== undefined && (
-                            // Nur im ARMED-Betrieb: Im Onetouch-Betrieb gibt es nichts zu schalten,
-                            // also erscheint hier weder Schalter noch Balken.
+                        {armedGateApplies && station !== undefined && (
+                            // Nur wo die Sperre auch greift: Im Onetouch-Betrieb gibt es nichts zu
+                            // schalten, am Startposten nichts zu sperren — dort erscheint hier
+                            // weder Schalter noch Balken.
                             <Stack spacing={1} sx={{flexShrink: 0}}>
                                 {!mayCaptureAssigned && (
                                     // Der Warnbalken. Er muss aus drei Metern lesbar sein — ein

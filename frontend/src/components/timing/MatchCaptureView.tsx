@@ -119,7 +119,9 @@ const MatchCaptureView = ({
     const [skippedMarks, setSkippedMarks] = useState<Set<string>>(new Set())
     const pending = pendingAssignmentMark(marks, skippedMarks)
     // Entschärft sind die Boots-Knöpfe tot — außer es wartet eine gebankte Zeit auf ihr Boot: Dann
-    // sind sie Zuordnungs-Ziele und keine Erfassungsknöpfe (siehe `handleBoat`).
+    // sind sie Zuordnungs-Ziele und keine Erfassungsknöpfe (siehe `handleBoat`). Achtung: Das gilt
+    // NUR für den Klick. Die Tasten bleiben in beiden Fällen gesperrt, deshalb hängen ihre Hinweise
+    // unten an `allowed` und nicht an dieser Flagge.
     const blocked = !allowed && pending === undefined
 
     // Die fokussierte Partie erscheint auch ohne Start in der Fläche (Zielzeiten ohne Start).
@@ -295,7 +297,12 @@ const MatchCaptureView = ({
                         // Fertig oder gesperrt sieht gleich aus: nicht anfassbar. Der Unterschied
                         // steht im Warnbalken darüber, nicht in sechzehn kleinen Knöpfen.
                         const dead = done || blocked
-                        const hint = isFocused && !touchOnly ? keyHint(position) : undefined
+                        // Der Hinweis hängt an `allowed`, NICHT an `dead`: Wartet entschärft eine
+                        // gebankte Zeit auf ihr Boot, lebt der Knopf als Zuordnungs-Ziel wieder auf
+                        // — die Tasten 1–6/A–F bleiben aber gesperrt. Ein „3/C" an einem Boot,
+                        // dessen Taste nichts tut, schickt den Bediener unter Zeitdruck ins Leere.
+                        const hint =
+                            isFocused && !touchOnly && allowed ? keyHint(position) : undefined
                         const official = officialTimes.get(team.competitionMatchTeam)
                         const officialLabel =
                             official === undefined
@@ -434,7 +441,7 @@ const MatchCaptureView = ({
                         time: formatMarkTime(pending.timestampMillis),
                     })}
                 </Alert>
-            ) : (
+            ) : allowed ? (
                 <Typography variant="caption" color="text.secondary" sx={{flexShrink: 0}}>
                     {touchOnly
                         ? t('timing.finish.hintTouch')
@@ -442,7 +449,7 @@ const MatchCaptureView = ({
                           ? `${t('timing.finish.hint')} ${t('timing.finish.focusHint')}`
                           : t('timing.finish.hint')}
                 </Typography>
-            )}
+            ) : null}
 
             <Box sx={{flexGrow: 1, minHeight: 0, overflowY: 'auto'}}>
                 <Stack spacing={2.5}>

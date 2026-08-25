@@ -12,7 +12,7 @@ describe('captureAllowed', () => {
     })
 
     // Der eine Fall, um den es geht.
-    it('sperrt im Armed-Betrieb, solange entschaerft', () => {
+    it('sperrt im Armed-Betrieb, solange entschärft', () => {
         expect(captureAllowed('ARMED', false)).toBe(false)
     })
 })

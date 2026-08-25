@@ -91,9 +91,13 @@ const CaptureButton = ({station, now, onCapture, compact, disarmed}: CaptureButt
                     <FlagIcon sx={{fontSize: compact ? {xs: 28, sm: 36} : {xs: 64, sm: 96}}} />
                     {/* Disarmed, the button stops announcing which station this is and says what it
                         still does: bank a time, assign it afterwards. That is the only thing left to
-                        do in that moment, so it is the only thing the button should say. */}
+                        do in that moment, so it is the only thing the button should say — and it
+                        gets a size up even in `compact`, because both finish-station surfaces are
+                        compact and that is exactly where the sentence has to be readable. */}
                     <Typography
-                        variant={compact ? 'h6' : disarmed === true ? 'h4' : 'h3'}
+                        variant={
+                            disarmed === true ? (compact ? 'h5' : 'h4') : compact ? 'h6' : 'h3'
+                        }
                         component="span"
                         textAlign="center">
                         {disarmed === true
