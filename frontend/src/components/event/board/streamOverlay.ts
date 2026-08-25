@@ -1,4 +1,5 @@
 import {AthleteBoardMatch, AthleteBoardResult, BoardElement, BoardViewDto} from '@api/types.gen.ts'
+import {lapRanksByTeam, paceWithUnit, segmentPace} from '@utils/timing/pace.ts'
 
 /**
  * Was das Livestream-Overlay einblendet. Genau EIN Lauf oder nichts — ein Lower-Third
@@ -32,6 +33,14 @@ export type StreamLapEntry = {
      * jüngere Nachricht: Dieses Boot war später an der Marke.
      */
     lapMillis: number | null
+    /**
+     * Tempo im Abschnitt bis zu dieser Marke, fertig mit Einheit („1:40/500 m"). Null, wenn der
+     * Wettkampf keine Bezugsgröße führt oder die Marke keine Distanz trägt - dann bleibt die
+     * Stelle im Band leer, statt eine Zahl zu erfinden.
+     */
+    pace: string | null
+    /** Rang dieses Bootes an dieser Marke; null, solange sich kein Rang bilden lässt. */
+    rank: number | null
 }
 
 /** Chroma-Voreinstellung des Stream-Overlays — reines Grün. */
@@ -58,18 +67,42 @@ export const latestResultOf = (view: Pick<BoardViewDto, 'slots' | 'lists'>) =>
  * geflacht, neueste zuerst. Runden ohne recordedAt gelten als älteste und landen hinten;
  * bei Gleichstand entscheidet stabil erst der Rundenname, dann die Startnummer.
  */
-export const lastLaps = (match: AthleteBoardMatch, limit = 3): StreamLapEntry[] => {
-    const entries: StreamLapEntry[] = match.teams.flatMap(team =>
-        (team.laps ?? []).map(lap => ({
-            startNumber: team.startNumber,
-            clubsShort: team.clubsShort ?? null,
-            clubsFull: team.clubsFull ?? null,
-            lapName: lap.name,
-            timeString: lap.timeString,
-            recordedAt: lap.recordedAt ?? null,
-            lapMillis: lap.lapMillis ?? null,
-        })),
+export const lastLaps = (
+    match: AthleteBoardMatch,
+    limit = 3,
+    decimalPoint = ',',
+): StreamLapEntry[] => {
+    const reference = match.paceReference
+    // Rang und Tempo einmal für den ganzen Lauf: Beides ist eine Aussage über das Feld bzw. über
+    // den Abschnitt VOR dieser Marke - aus einer einzelnen, flach gelegten Bandzeile wäre keins
+    // von beiden mehr zu gewinnen.
+    const ranks = lapRanksByTeam(
+        match.teams.map(team => ({teamId: `${team.startNumber}`, laps: team.laps})),
     )
+
+    const entries: StreamLapEntry[] = match.teams.flatMap(team => {
+        const paces = reference
+            ? segmentPace(team.laps ?? [], reference.mode, reference.referenceMeters, decimalPoint)
+            : []
+        const teamRanks = ranks.get(`${team.startNumber}`) ?? []
+        return (team.laps ?? []).map((lap, index) => {
+            const pace = paces[index] ?? null
+            return {
+                startNumber: team.startNumber,
+                clubsShort: team.clubsShort ?? null,
+                clubsFull: team.clubsFull ?? null,
+                lapName: lap.name,
+                timeString: lap.timeString,
+                recordedAt: lap.recordedAt ?? null,
+                lapMillis: lap.lapMillis ?? null,
+                pace:
+                    pace != null && reference
+                        ? paceWithUnit(pace, reference.mode, reference.referenceMeters)
+                        : null,
+                rank: teamRanks[index] ?? null,
+            }
+        })
+    })
 
     return entries
         .slice()
@@ -96,6 +129,8 @@ export const lastLaps = (match: AthleteBoardMatch, limit = 3): StreamLapEntry[] 
 export const streamOverlayContent = (
     view: Pick<BoardViewDto, 'slots' | 'lists'>,
     mode: BoardElement['streamMode'],
+    /** Dezimaltrennzeichen der Oberflächensprache — nur die Tempo-Zahlen im Rundenband nutzen es. */
+    decimalPoint = ',',
 ): StreamOverlayContent => {
     const running = slotAt(view.slots, 0)?.match
     const latestResult = latestResultOf(view)
@@ -118,7 +153,7 @@ export const streamOverlayContent = (
             return running ? {kind: 'clock', match: running} : null
         case 'LAPS': {
             if (!running) return null
-            const laps = lastLaps(running)
+            const laps = lastLaps(running, 3, decimalPoint)
             return laps.length > 0 ? {kind: 'laps', match: running, laps} : null
         }
         default:

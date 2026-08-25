@@ -126,7 +126,8 @@ object TimingSplitService {
 
         val toWrite = splits.filter { split ->
             val row = existingByPosition[split.position]
-            row == null || row.name != split.name || row.lapMillis != split.lapMillis
+            row == null || row.name != split.name || row.lapMillis != split.lapMillis ||
+                row.distanceMeters != split.distanceMeters
         }
         if (toWrite.isNotEmpty()) {
             !CompetitionMatchTeamLapRepo.upsert(
@@ -137,6 +138,11 @@ object TimingSplitService {
                         position = split.position,
                         name = split.name,
                         lapMillis = split.lapMillis,
+                        // Die Distanz wandert mit in die Zeile, statt später über den Posten
+                        // nachgeschlagen zu werden: Eine Postenzuordnung kann sich ändern,
+                        // nachdem die Zeit gelaufen ist - eine gespeicherte Zeit soll dann nicht
+                        // rückwirkend eine andere Distanz bekommen.
+                        distanceMeters = split.distanceMeters,
                         // Nur für die erstmalig angelegte Zeile wirksam - der Upsert lässt
                         // `created_at` einer bestehenden Zeile bewusst stehen.
                         createdAt = now,

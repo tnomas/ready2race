@@ -24,6 +24,7 @@ import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Die Übernahme der Streckenmarken in die Zwischenzeiten gegen echtes Postgres: Der Weg von der
@@ -189,6 +190,33 @@ class TimingSplitServiceTest {
     }
 
     /**
+     * Die Zwischenzeit trägt ihre Distanz selbst — sie ist die Grundlage des Tempos, das die
+     * Anzeige daraus rechnet. Und sie zieht mit, wenn die Strecke berichtigt wird: Sonst rechnete
+     * die Anzeige ihr Tempo weiter gegen den alten Meter.
+     */
+    @Test
+    fun `die Zwischenzeit trägt die Distanz ihres Postens und folgt ihrer Berichtigung`() =
+        testComprehension {
+            val (eventId, userId) = !createTestEventWithAdmin()
+            !setEventTimingSystem(eventId, TimingSystem.INTERN)
+            val fixture = !createTestMatchFixture(eventId)
+            val teamId = fixture.teamIds.single()
+
+            val startId = !addStation(eventId, userId, "Startturm", TimingStationType.START)
+            val bojeId = !addStation(eventId, userId, "Boje 1", TimingStationType.SPLIT)
+            !setStations(eventId, userId, fixture.competitionId, startId to 0, bojeId to 1000)
+
+            !addAssignedMark(eventId, userId, startId, teamId, 10_000)
+            !addAssignedMark(eventId, userId, bojeId, teamId, 100_000)
+            assertEquals(1000, (!lapsOf(teamId)).single().distanceMeters)
+
+            // Die Boje lag in Wahrheit 250 m weiter draußen.
+            !setStations(eventId, userId, fixture.competitionId, startId to 0, bojeId to 1250)
+
+            assertEquals(1250, (!lapsOf(teamId)).single().distanceMeters)
+        }
+
+    /**
      * Der Name des Postens IST die Beschriftung der Zwischenzeit. Wird er berichtigt, muss die
      * Berichtigung in die bereits geschriebenen Zeilen wandern — sonst trägt derselbe Punkt der
      * Strecke zwei Namen, je nachdem, wo man hinsieht.
@@ -301,5 +329,8 @@ class TimingSplitServiceTest {
         assertEquals(1, laps.size)
         assertEquals("Runde 1", laps.single().name)
         assertEquals(42_000L, laps.single().lapMillis)
+        // Die Rundenzeiten des Fremdsystems gehören keinem Posten der Strecke - sie tragen
+        // deshalb keine Distanz, und die Anzeige zeigt für sie kein Tempo.
+        assertNull(laps.single().distanceMeters)
     }
 }

@@ -14,6 +14,8 @@ import de.lambda9.ready2race.backend.app.eventInfo.control.toLiveMatchInfo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
 import de.lambda9.ready2race.backend.app.eventSchedule.boundary.EventScheduleLogic
 import de.lambda9.ready2race.backend.app.eventSchedule.control.EventScheduleRepo
+import de.lambda9.ready2race.backend.app.paceReference.control.PaceReferenceRepo
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.boundary.RatingCategoryRanking
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
@@ -118,7 +120,8 @@ object EventInfoService {
             )
         }
 
-        KIO.ok(ApiResponse.ListDto(!attachLaps(result, { it.matchId }, { it.teams }, { m, t -> m.copy(teams = t) }, { it.teamId }, { t, l -> t.copy(laps = l) })))
+        val withLaps = !attachLaps(result, { it.matchId }, { it.teams }, { m, t -> m.copy(teams = t) }, { it.teamId }, { t, l -> t.copy(laps = l) })
+        KIO.ok(ApiResponse.ListDto(!attachPaceReference(withLaps, { it.competitionId }, { m, p -> m.copy(paceReference = p) })))
     }
 
     fun getUpcomingCompetitionMatches(
@@ -370,7 +373,8 @@ object EventInfoService {
             )
         }
 
-        KIO.ok(ApiResponse.ListDto(!attachLaps(result, { it.matchId }, { it.teams }, { m, t -> m.copy(teams = t) }, { it.teamId }, { t, l -> t.copy(laps = l) })))
+        val withLaps = !attachLaps(result, { it.matchId }, { it.teams }, { m, t -> m.copy(teams = t) }, { it.teamId }, { t, l -> t.copy(laps = l) })
+        KIO.ok(ApiResponse.ListDto(!attachPaceReference(withLaps, { it.competitionId }, { m, p -> m.copy(paceReference = p) })))
     }
 
     /**
@@ -392,6 +396,25 @@ object EventInfoService {
         KIO.ok(matches.map { m ->
             withTeams(m, teamsOf(m).map { t -> withLaps(t, laps[matchId(m) to teamId(t)] ?: emptyList()) })
         })
+    }
+
+    /**
+     * Die Bezugsgröße des Wettkampfs an den Lauf hängen — eine Abfrage für alle sichtbaren Läufe,
+     * genau wie bei den Zwischenzeiten. Sie ist die Einheit des Tempos, das die Anzeige aus
+     * Distanz und Zeit selbst rechnet; ohne sie zeigt sie schlicht keins.
+     *
+     * Ein Board zeigt die Läufe mehrerer Wettkämpfe nebeneinander, deshalb gebündelt nach
+     * Wettkampf und nicht je Lauf einzeln. Führt kein sichtbarer Wettkampf eine Bezugsgröße,
+     * bleibt die Nutzlast unverändert (NON_NULL-Serialisierung).
+     */
+    private fun <M> attachPaceReference(
+        matches: List<M>,
+        competitionId: (M) -> UUID,
+        withPaceReference: (M, PaceReferenceDto?) -> M,
+    ): App<Nothing, List<M>> = KIO.comprehension {
+        val references = !PaceReferenceRepo.getByCompetitions(matches.map(competitionId).toSet()).orDie()
+        if (references.isEmpty()) return@comprehension KIO.ok(matches)
+        KIO.ok(matches.map { m -> withPaceReference(m, references[competitionId(m)]) })
     }
 
     /**

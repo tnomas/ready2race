@@ -36,6 +36,11 @@ object CompetitionMatchTeamLapRepo {
                     .doUpdate()
                     .set(NAME, record.name)
                     .set(LAP_MILLIS, record.lapMillis)
+                    // Die Distanz zieht mit nach: Wird die Strecke eines Wettkampfs korrigiert
+                    // (ein Posten bekommt einen anderen Meter, zwei Posten werden vertauscht),
+                    // muss die bestehende Zeile den neuen Meter tragen - sonst rechnete die
+                    // Anzeige ihr Tempo weiter gegen die alte Strecke.
+                    .set(DISTANCE_METERS, record.distanceMeters)
                     .execute()
             }
         }
@@ -73,6 +78,7 @@ object CompetitionMatchTeamLapRepo {
                 COMPETITION_MATCH_TEAM_LAP.NAME,
                 COMPETITION_MATCH_TEAM_LAP.LAP_MILLIS,
                 COMPETITION_MATCH_TEAM_LAP.CREATED_AT,
+                COMPETITION_MATCH_TEAM_LAP.DISTANCE_METERS,
             )
                 .from(COMPETITION_MATCH_TEAM_LAP)
                 .join(COMPETITION_MATCH_TEAM)
@@ -87,6 +93,7 @@ object CompetitionMatchTeamLapRepo {
                             r[COMPETITION_MATCH_TEAM_LAP.NAME]!!,
                             r[COMPETITION_MATCH_TEAM_LAP.LAP_MILLIS]!!,
                             r[COMPETITION_MATCH_TEAM_LAP.CREATED_AT],
+                            r[COMPETITION_MATCH_TEAM_LAP.DISTANCE_METERS],
                         ),
                     )
                 }

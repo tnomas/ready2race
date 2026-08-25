@@ -1,7 +1,10 @@
 import {ReactNode} from 'react'
+import {useTranslation} from 'react-i18next'
 import {Box, Stack, Typography} from '@mui/material'
-import {MatchTeamLapDto} from '@api/types.gen'
+import {MatchTeamLapDto, PaceReferenceDto} from '@api/types.gen'
 import {compactLapLabel, scaled} from './common'
+import {paceWithUnit, segmentPace} from '@utils/timing/pace.ts'
+import {formatPlaceOrdinal} from '@utils/placeOrdinal.ts'
 
 /**
  * Die Bootszeile der Athleten-Anzeige, geteilt von Lauf- und Ergebnis-Karte.
@@ -169,46 +172,106 @@ export const AthleteBoardBoatStatus = ({label, muted = false}: AthleteBoardBoatS
  *
  * Ohne Rundenzeiten rendert die Komponente nichts — keine leere Zeile, kein Versatz.
  */
-export const AthleteBoardLapTimes = ({laps}: {laps?: MatchTeamLapDto[] | null}) =>
-    laps && laps.length > 0 ? (
+export const AthleteBoardLapTimes = ({
+    laps,
+    ranks,
+    paceReference,
+}: {
+    laps?: MatchTeamLapDto[] | null
+    /**
+     * Der Rang dieses Bootes an jeder seiner Zwischenzeiten, stellengleich zu [laps]. Die Karte
+     * rechnet ihn einmal für den ganzen Lauf (lapRanksByStartNumber) — eine Bootszeile allein
+     * kann ihn gar nicht kennen, sie sieht die anderen Boote nicht.
+     */
+    ranks?: (number | null)[] | null
+    /** Die Bezugsgröße des Wettkampfs; ohne sie bleibt es bei den nackten Zwischenzeiten. */
+    paceReference?: PaceReferenceDto | null
+}) => {
+    const {t} = useTranslation()
+    // Das Tempo hängt an der Bezugsgröße und ist damit eine Darstellungsentscheidung — deshalb
+    // hier gerechnet und nicht am Server. Ohne Bezugsgröße oder ohne Distanz an der Marke bleibt
+    // die Stelle leer, statt eine Zahl zu erfinden.
+    const paces = paceReference
+        ? segmentPace(laps ?? [], paceReference.mode, paceReference.referenceMeters, t('decimal.point'))
+        : []
+
+    return laps && laps.length > 0 ? (
         <Stack
             direction="row"
             justifyContent="flex-end"
             flexWrap="wrap"
             columnGap={scaled('0.5rem', '0.8vw', '1.1rem')}
             sx={{maxWidth: '100%'}}>
-            {laps.map((lap, index) => (
-                <Stack
-                    key={index}
-                    direction="row"
-                    alignItems="baseline"
-                    gap={scaled('0.15rem', '0.25vw', '0.4rem')}>
-                    <Typography
-                        component="span"
-                        sx={{fontSize: scaled('0.65rem', '1.05vw', '1.4rem'), fontWeight: 600}}
-                        color="text.secondary">
-                        {compactLapLabel(lap.name)}
-                    </Typography>
-                    <Typography
-                        component="span"
-                        sx={{
-                            fontSize: scaled('0.8rem', '1.35vw', '1.9rem'),
-                            fontWeight: 700,
-                            lineHeight: 1.2,
-                            // Tabellenziffern + feste Mindestbreite: gleiche Spaltenkanten
-                            // über alle Boote, solange die Zeiten einstellig in Minuten
-                            // bleiben („0:05.0" = 6 Zeichen); längere Zeiten wachsen
-                            // rechtsbündig nach links, ohne die Nachbarn zu verschieben.
-                            fontVariantNumeric: 'tabular-nums',
-                            minWidth: '5.5ch',
-                            textAlign: 'right',
-                        }}>
-                        {lap.timeString}
-                    </Typography>
-                </Stack>
-            ))}
+            {laps.map((lap, index) => {
+                const rank = ranks?.[index] ?? null
+                const pace = paces[index] ?? null
+                return (
+                    <Stack
+                        key={index}
+                        direction="row"
+                        alignItems="baseline"
+                        gap={scaled('0.15rem', '0.25vw', '0.4rem')}>
+                        <Typography
+                            component="span"
+                            sx={{fontSize: scaled('0.65rem', '1.05vw', '1.4rem'), fontWeight: 600}}
+                            color="text.secondary">
+                            {compactLapLabel(lap.name)}
+                        </Typography>
+                        <Typography
+                            component="span"
+                            sx={{
+                                fontSize: scaled('0.8rem', '1.35vw', '1.9rem'),
+                                fontWeight: 700,
+                                lineHeight: 1.2,
+                                // Tabellenziffern + feste Mindestbreite: gleiche Spaltenkanten
+                                // über alle Boote, solange die Zeiten einstellig in Minuten
+                                // bleiben („0:05.0" = 6 Zeichen); längere Zeiten wachsen
+                                // rechtsbündig nach links, ohne die Nachbarn zu verschieben.
+                                fontVariantNumeric: 'tabular-nums',
+                                minWidth: '5.5ch',
+                                textAlign: 'right',
+                            }}>
+                            {lap.timeString}
+                        </Typography>
+                        {/* Rang an dieser Marke — als Ordnungszahl wie jeder andere Platz auf
+                            der Anzeigetafel, damit eine nackte Ziffer nicht als Startnummer
+                            gelesen wird. Klein und zurückgenommen: die gefahrene Zeit bleibt
+                            die Hauptsache. */}
+                        {rank !== null && (
+                            <Typography
+                                component="span"
+                                aria-label={t('event.info.athleteBoard.lapRank')}
+                                sx={{
+                                    fontSize: scaled('0.65rem', '1.05vw', '1.4rem'),
+                                    fontWeight: 600,
+                                }}
+                                color="text.secondary">
+                                {formatPlaceOrdinal(rank)}
+                            </Typography>
+                        )}
+                        {pace !== null && paceReference && (
+                            <Typography
+                                component="span"
+                                aria-label={t('event.info.athleteBoard.lapPace')}
+                                sx={{
+                                    fontSize: scaled('0.65rem', '1.05vw', '1.4rem'),
+                                    fontWeight: 600,
+                                    fontVariantNumeric: 'tabular-nums',
+                                }}
+                                color="text.secondary">
+                                {paceWithUnit(
+                                    pace,
+                                    paceReference.mode,
+                                    paceReference.referenceMeters,
+                                )}
+                            </Typography>
+                        )}
+                    </Stack>
+                )
+            })}
         </Stack>
     ) : null
+}
 
 /** Die kleine Zeile unter der Vereinskette: Crew im Lauf, Startnummer im Ergebnis. */
 export const AthleteBoardBoatSubline = ({children}: {children: ReactNode}) => (

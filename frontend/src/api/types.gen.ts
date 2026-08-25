@@ -214,6 +214,10 @@ export type AthleteBoardMatch = {
      * the bye of this match, same derivation as schedule and referee dashboard - public boards need it mainly for must-race byes, where a second line explains why the boat races alone and that its time runs out of competition
      */
     bye?: MatchByeDto | null
+    /**
+     * the competition's pace reference ('time per 500 m', 'km/h'). The display derives the per-segment pace itself from the lap distance and the elapsed time and only needs the unit from here; null when the competition has none
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type AthleteBoardParticipant = {
@@ -255,6 +259,10 @@ export type AthleteBoardResult = {
      */
     clarification?: boolean
     teams: Array<AthleteBoardResultTeam>
+    /**
+     * like AthleteBoardMatch.paceReference: the unit of the per-segment pace
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type AthleteBoardResultTeam = {
@@ -2354,6 +2362,10 @@ export type LatestMatchResultInfo = {
     timingProviderName?: string | null
     timingProviderUrl?: string | null
     teams: Array<MatchResultTeamInfo>
+    /**
+     * the competition's pace reference - the unit of the per-segment pace the display derives from the lap distances; null when the competition has none
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type LiveDashboardCrewMemberDto = {
@@ -2802,6 +2814,10 @@ export type MatchTeamLapDto = {
      * Elapsed time at this mark in milliseconds - a sorting aid for the lap band only, the display uses timeString. Marks arriving in the same poll share recordedAt; the higher time is then the more recent news.
      */
     lapMillis?: number | null
+    /**
+     * Where on the course this time was taken, in metres - the basis for the per-segment pace the display derives. Null for lap times from the external provider: their column names belong to no timing station, so there is no pace and the display leaves the spot empty instead of inventing a number.
+     */
+    distanceMeters?: number | null
 }
 
 /**
@@ -3836,6 +3852,10 @@ export type RunningMatchInfo = {
     matchName?: string | null
     executionOrder: number
     teams: Array<RunningMatchTeamInfo>
+    /**
+     * like LatestMatchResultInfo.paceReference: the unit of the per-segment pace
+     */
+    paceReference?: PaceReferenceDto | null
 }
 
 export type RunningMatchTeamInfo = {

@@ -2,6 +2,7 @@ import {Box, Stack, Typography, useTheme} from '@mui/material'
 import {BoardElement} from '@api/types.gen.ts'
 import FlipList from '../FlipList.tsx'
 import {StreamLapEntry} from '../streamOverlay.ts'
+import {formatPlaceOrdinal} from '@utils/placeOrdinal.ts'
 import {solidOr, streamNameForms} from './streamDisplay.ts'
 
 interface LapBandProps {
@@ -88,8 +89,19 @@ const LapBand = ({laps, element}: LapBandProps) => {
                                         ? (lap.clubsShort ?? lap.clubsFull)
                                         : (lap.clubsFull ?? lap.clubsShort)}
                                 </Typography>
+                                {/* Marke, Rang im Feld und Tempo im Abschnitt in EINER
+                                    Zweitzeile: Das Band ist zehn Prozent der Bildhöhe hoch, eine
+                                    weitere Zeile passt nicht hinein. Rang als Ordnungszahl wie
+                                    überall auf den Anzeigen, damit die Ziffer nicht als
+                                    Startnummer gelesen wird. */}
                                 <Typography variant="body2" noWrap>
-                                    {lap.lapName}
+                                    {[
+                                        lap.lapName,
+                                        lap.rank != null ? formatPlaceOrdinal(lap.rank) : null,
+                                        lap.pace,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
                                 </Typography>
                             </Box>
                             <Typography

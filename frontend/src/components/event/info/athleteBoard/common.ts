@@ -1,4 +1,6 @@
 import {TFunction} from 'i18next'
+import {MatchTeamLapDto} from '@api/types.gen'
+import {lapRanksByTeam} from '@utils/timing/pace.ts'
 
 export const formatClockTime = (value: string) =>
     new Date(value).toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'})
@@ -161,3 +163,16 @@ export const compactLapLabel = (name: string): string => {
  */
 export const scaled = (min: string, preferred: string, max: string): string =>
     `calc(var(--ab-scale, 1) * clamp(${min}, ${preferred}, ${max}))`
+
+/**
+ * Die Rangfolge an den Zwischenzeiten eines Laufs, aufgeschlüsselt nach Startnummer.
+ *
+ * Die Boote der öffentlichen Anzeigen tragen keine Kennung — die Startnummer ist je Lauf
+ * eindeutig (Index `starting_position_unique_in_match`) und ist damit der Schlüssel. Einmal je
+ * Karte gerechnet und dann an die Bootszeilen verteilt: Eine Zeile allein sieht die anderen
+ * Boote nicht und könnte den Rang gar nicht bilden.
+ */
+export const lapRanksByStartNumber = (
+    teams: {startNumber: number; laps?: MatchTeamLapDto[] | null}[],
+): Map<string, (number | null)[]> =>
+    lapRanksByTeam(teams.map(team => ({teamId: `${team.startNumber}`, laps: team.laps})))

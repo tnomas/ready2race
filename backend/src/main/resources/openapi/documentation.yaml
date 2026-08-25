@@ -15498,6 +15498,14 @@ components:
             Elapsed time at this mark in milliseconds - a sorting aid for the lap band only, the
             display uses timeString. Marks arriving in the same poll share recordedAt; the higher
             time is then the more recent news.
+        distanceMeters:
+          type: integer
+          nullable: true
+          description: >-
+            Where on the course this time was taken, in metres - the basis for the per-segment pace
+            the display derives. Null for lap times from the external provider: their column names
+            belong to no timing station, so there is no pace and the display leaves the spot empty
+            instead of inventing a number.
 
     UpdateCompetitionMatchRequest:
       type: object
@@ -16851,6 +16859,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MatchResultTeamInfo'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "the competition's pace reference - the unit of the per-segment pace the display derives from the lap distances; null when the competition has none"
 
     MatchResultTeamInfo:
       type: object
@@ -17095,6 +17108,11 @@ components:
             - $ref: '#/components/schemas/MatchByeDto'
           nullable: true
           description: "the bye of this match, same derivation as schedule and referee dashboard - public boards need it mainly for must-race byes, where a second line explains why the boat races alone and that its time runs out of competition"
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "the competition's pace reference ('time per 500 m', 'km/h'). The display derives the per-segment pace itself from the lap distance and the elapsed time and only needs the unit from here; null when the competition has none"
 
     AthleteBoardResultTeam:
       type: object
@@ -17216,6 +17234,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AthleteBoardResultTeam'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "like AthleteBoardMatch.paceReference: the unit of the per-segment pace"
 
     BoardMatchSlotDto:
       type: object
@@ -17840,6 +17863,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RunningMatchTeamInfo'
+        paceReference:
+          allOf:
+            - $ref: '#/components/schemas/PaceReferenceDto'
+          nullable: true
+          description: "like LatestMatchResultInfo.paceReference: the unit of the per-segment pace"
 
     LiveDashboardMatchState:
       type: string

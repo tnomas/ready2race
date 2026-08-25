@@ -231,6 +231,66 @@ describe('lastLaps', () => {
     it('leere Runden ergeben eine leere Liste', () => {
         expect(lastLaps(runningMatch([]))).toEqual([])
     })
+
+    it('trägt Tempo und Rang an jede Bandzeile', () => {
+        // Beides ist eine Aussage über den ganzen Lauf und muss deshalb HIER entstehen, wo die
+        // Boote noch beieinanderstehen — die flach gelegte Bandzeile kennt weder ihren Vorgänger
+        // noch die anderen Boote.
+        const m = {
+            matchName: 'VF1',
+            paceReference: {
+                id: 'p',
+                name: '500 m',
+                mode: 'TIME_PER_DISTANCE',
+                referenceMeters: 500,
+            },
+            teams: [
+                {
+                    startNumber: 1,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '1:40.0',
+                            recordedAt: '2026-08-25T10:00:00Z',
+                            lapMillis: 100_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+                {
+                    startNumber: 2,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '1:30.0',
+                            recordedAt: '2026-08-25T10:00:10Z',
+                            lapMillis: 90_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+            ],
+        } as unknown as AthleteBoardMatch
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, '1:30/500 m'],
+            [1, 2, '1:40/500 m'],
+        ])
+    })
+
+    it('ohne Bezugsgröße bleibt das Tempo leer, der Rang steht trotzdem', () => {
+        // Die Rundenzeiten aus dem Fremdsystem tragen keine Distanz — dort gibt es kein Tempo.
+        // Wer zuerst an der Marke war, lässt sich trotzdem sagen.
+        const m = runningMatch([
+            lap(1, 'Runde 1', '0:31.0', '2026-08-25T10:00:00Z', 31_000),
+            lap(2, 'Runde 1', '0:30.0', '2026-08-25T10:00:10Z', 30_000),
+        ])
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, null],
+            [1, 2, null],
+        ])
+    })
 })
 
 describe('streamOverlayContent CLOCK', () => {

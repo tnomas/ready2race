@@ -117,6 +117,7 @@ fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
                                                        else Timecode.BaseUnit.MINUTES,
                                             millisecondPrecision = Timecode.MillisecondPrecision.ONE,
                                         ).toString(),
+                                        distanceMeters = lap.distanceMeters,
                                     )
                                 },
                             )
@@ -254,7 +255,13 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
                         mixedTeamTerm = mixedTeamTerm,
                         laps = team.laps.orEmpty().filterNotNull()
                             .sortedBy { it.position }
-                            .map { lap -> MatchTeamLap(name = lap.name!!, lapMillis = lap.lapMillis!!) },
+                            .map { lap ->
+                                MatchTeamLap(
+                                    name = lap.name!!,
+                                    lapMillis = lap.lapMillis!!,
+                                    distanceMeters = lap.distanceMeters,
+                                )
+                            },
                     )
                 }
             )

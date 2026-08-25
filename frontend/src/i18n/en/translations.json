@@ -1841,7 +1841,9 @@
         "advancing_one": "1 boat advances → {{round}}",
         "advancingUnsized": "Next up: {{round}}",
         "birthYear": "b. {{year}}",
-        "registeringClub": "Entered by: {{club}}"
+        "registeringClub": "Entered by: {{club}}",
+        "lapRank": "Rank at this split",
+        "lapPace": "Segment pace"
       }
     },
     "match": {

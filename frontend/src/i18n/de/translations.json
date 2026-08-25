@@ -1841,7 +1841,9 @@
         "advancing_one": "Weiter kommt 1 Boot → {{round}}",
         "advancingUnsized": "Weiter geht es: {{round}}",
         "birthYear": "Jg. {{year}}",
-        "registeringClub": "Meldung: {{club}}"
+        "registeringClub": "Meldung: {{club}}",
+        "lapRank": "Rang an dieser Zwischenzeit",
+        "lapPace": "Tempo im Abschnitt"
       }
     },
     "match": {

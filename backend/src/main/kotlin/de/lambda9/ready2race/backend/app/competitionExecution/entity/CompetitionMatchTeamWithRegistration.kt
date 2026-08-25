@@ -41,4 +41,11 @@ data class CompetitionMatchTeamWithRegistration(
 data class MatchTeamLap(
     val name: String,
     val lapMillis: Long,
+    /**
+     * Die Stelle auf der Strecke, an der diese Zeit gefallen ist, in Metern. Die Zwischenzeit
+     * trägt sie selbst, statt sie über den Postennamen nachzuschlagen — der Name ist frei
+     * vergeben und änderbar. Null bei den Rundenzeiten aus dem Fremdsystem: Deren Spalten
+     * gehören keinem Posten, dort gibt es kein Tempo.
+     */
+    val distanceMeters: Int? = null,
 )

@@ -18,6 +18,7 @@ import {
     formatRemaining,
     formatShortDate,
     isSameDay,
+    lapRanksByStartNumber,
     scaled,
     sortRunningTeams,
 } from './common'
@@ -237,6 +238,11 @@ const AthleteBoardMatchCard = ({
     // umsortierte Liste ohne sichtbare Zeiten wäre vom Steg aus nicht zu deuten.
     const teams = showLiveResult ? sortRunningTeams(match.teams) : match.teams
 
+    // Der Rang an einer Zwischenzeit ist eine Aussage über den ganzen Lauf, nicht über ein Boot —
+    // deshalb einmal hier für alle Boote gerechnet, bewusst über match.teams statt über die
+    // sortierte Sicht: Der Rang hängt an den Zeiten, nicht an der Reihenfolge der Liste.
+    const lapRanks = lapRanksByStartNumber(match.teams)
+
     // Zieleinlauf komplett, aber der Schiedsrichter hat den Lauf noch nicht beendet: die Karte
     // sagt das ausdrücklich, denn in „Letztes Ergebnis" taucht der Lauf bewusst erst mit dem
     // Beenden auf (BoardService, confirmedOnly) — ohne den Hinweis sähe der volle Zieleinlauf
@@ -429,7 +435,11 @@ const AthleteBoardMatchCard = ({
                                         />
                                         {/* Rundenzeiten prominent unter der Zwischen-/Endzeit
                                             (12.08.2026) — vorher eine Crew-Subline links. */}
-                                        <AthleteBoardLapTimes laps={team.laps} />
+                                        <AthleteBoardLapTimes
+                                            laps={team.laps}
+                                            ranks={lapRanks.get(`${team.startNumber}`)}
+                                            paceReference={match.paceReference}
+                                        />
                                     </>
                                 ) : undefined
                             }>

@@ -1,10 +1,13 @@
 package de.lambda9.ready2race.backend.app.paceReference.control
 
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
+import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceMode
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceSort
 import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.exists
 import de.lambda9.ready2race.backend.database.generated.tables.PaceReference
 import de.lambda9.ready2race.backend.database.generated.tables.records.PaceReferenceRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.PACE_REFERENCE
 import de.lambda9.ready2race.backend.database.insertReturning
 import de.lambda9.ready2race.backend.database.metaSearch
@@ -56,4 +59,35 @@ object PaceReferenceRepo {
     fun update(id: UUID, f: PaceReferenceRecord.() -> Unit) = PACE_REFERENCE.update(f) { ID.eq(id) }
 
     fun delete(id: UUID) = PACE_REFERENCE.delete { ID.eq(id) }
+
+    /**
+     * Die Bezugsgröße mehrerer Wettkämpfe auf einen Schlag, gebündelt nach Wettkampf.
+     *
+     * Die öffentlichen Anzeigen zeigen die Läufe vieler Wettkämpfe nebeneinander; je Lauf einzeln
+     * nachzufragen wäre ein Schwarm von Abfragen an jedem Takt. Ein `join` statt `leftJoin`: Ein
+     * Wettkampf ohne gepflegte Bezugsgröße fehlt in der Karte, und die Anzeige zeigt dann kein
+     * Tempo - genau das ist gemeint.
+     */
+    fun getByCompetitions(competitionIds: Collection<UUID>): JIO<Map<UUID, PaceReferenceDto>> = Jooq.query {
+        select(
+            COMPETITION_PROPERTIES.COMPETITION,
+            PACE_REFERENCE.ID,
+            PACE_REFERENCE.NAME,
+            PACE_REFERENCE.MODE,
+            PACE_REFERENCE.REFERENCE_METERS,
+        )
+            .from(COMPETITION_PROPERTIES)
+            .join(PACE_REFERENCE)
+            .on(PACE_REFERENCE.ID.eq(COMPETITION_PROPERTIES.PACE_REFERENCE))
+            .where(COMPETITION_PROPERTIES.COMPETITION.`in`(competitionIds))
+            .fetch { r ->
+                r[COMPETITION_PROPERTIES.COMPETITION]!! to PaceReferenceDto(
+                    id = r[PACE_REFERENCE.ID]!!,
+                    name = r[PACE_REFERENCE.NAME]!!,
+                    mode = PaceReferenceMode.valueOf(r[PACE_REFERENCE.MODE]!!),
+                    referenceMeters = r[PACE_REFERENCE.REFERENCE_METERS]!!,
+                )
+            }
+            .toMap()
+    }
 }

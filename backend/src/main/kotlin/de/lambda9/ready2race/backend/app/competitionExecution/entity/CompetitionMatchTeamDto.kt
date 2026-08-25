@@ -47,6 +47,13 @@ data class MatchTeamLapDto(
      * der Marke war.
      */
     val lapMillis: Long? = null,
+    /**
+     * Die Stelle auf der Strecke in Metern, an der diese Zeit gefallen ist — die Grundlage des
+     * Tempos je Abschnitt, das die Anzeige daraus rechnet. Null bei den Rundenzeiten aus dem
+     * Fremdsystem: Deren Spaltennamen gehören keinem Posten der Strecke, dort gibt es kein
+     * Tempo, und die Anzeige lässt die Stelle leer statt eine Zahl zu erfinden.
+     */
+    val distanceMeters: Int? = null,
 )
 
 /**
@@ -55,7 +62,12 @@ data class MatchTeamLapDto(
  * mehrere Anzeigen (Durchführung, Schiedsrichter-Dashboard, Boards) dieselben Zwischenzeiten zeigen.
  * [recordedAt] bleibt für Aufrufer ohne Erfassungszeitpunkt weg (Default null, Quellkompatibilität).
  */
-fun matchTeamLapDto(name: String, lapMillis: Long, recordedAt: LocalDateTime? = null) = MatchTeamLapDto(
+fun matchTeamLapDto(
+    name: String,
+    lapMillis: Long,
+    recordedAt: LocalDateTime? = null,
+    distanceMeters: Int? = null,
+) = MatchTeamLapDto(
     name = name,
     timeString = Timecode(
         millis = lapMillis,
@@ -64,4 +76,5 @@ fun matchTeamLapDto(name: String, lapMillis: Long, recordedAt: LocalDateTime? = 
     ).toString(),
     recordedAt = recordedAt,
     lapMillis = lapMillis,
+    distanceMeters = distanceMeters,
 )
