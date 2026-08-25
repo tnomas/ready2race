@@ -163,12 +163,17 @@ export const AthleteBoardBoatStatus = ({label, muted = false}: AthleteBoardBoatS
  * von Lauf-, Ergebnis-Karte und Sprecher-Kachel. Bis zum 12.08.2026 hingen sie als
  * Crew-Subline links unter den Namen und waren aus Anzeigetafel-Entfernung unlesbar.
  *
- * Form: kompakt beschriftete Werte („R1 0:05.0  R2 0:16.9") auf einer Zeile. Jede Zeit
- * steht in einer Zelle fester Mindestbreite mit Tabellenziffern und rechtsbündigem Wert:
- * so teilen sich die Boote eines Laufs dieselben Spaltenkanten (die Runden kommen für
- * alle Boote aus denselben RaceClocker-Marken), und die Zeile bleibt auf der Anzeigetafel
- * tabellarisch ruhig statt je Boot anders zu flattern. Der Schriftgrad liegt bewusst
- * zwischen Crew-Subline und Gesamtzeit und läuft über scaled() mit der Dichte mit.
+ * Form: kompakt beschriftete Werte („R1 0:05.0  R2 0:16.9") auf einer Zeile. Die Zeit selbst
+ * steht in einer Zelle fester Mindestbreite mit Tabellenziffern und rechtsbündigem Wert und
+ * bleibt damit über alle Boote gleich breit. Der Schriftgrad liegt bewusst zwischen
+ * Crew-Subline und Gesamtzeit und läuft über scaled() mit der Dichte mit.
+ *
+ * Die durchgehende SPALTENKANTE über alle Boote gibt es seit dem 25.08.2026 nicht mehr: Rang
+ * („2nd") und Tempo („1:40/500 m") hängen hinter der Zeit und sind je Boot verschieden breit —
+ * ein Boot ohne Rang an einer Marke hat dort schlicht weniger stehen. Der feste Kasten um die
+ * Zeit bleibt trotzdem: Er hält wenigstens die ZAHLEN gleich groß und verhindert, dass eine
+ * längere Zeit die Nachbarn verschiebt. Wer die alte Tabellenruhe zurück will, müsste Rang und
+ * Tempo in eine eigene Zeile legen — das kostet auf der Anzeigetafel Höhe, die dort keiner hat.
  *
  * Ohne Rundenzeiten rendert die Komponente nichts — keine leere Zeile, kein Versatz.
  */
@@ -223,10 +228,12 @@ export const AthleteBoardLapTimes = ({
                                 fontSize: scaled('0.8rem', '1.35vw', '1.9rem'),
                                 fontWeight: 700,
                                 lineHeight: 1.2,
-                                // Tabellenziffern + feste Mindestbreite: gleiche Spaltenkanten
+                                // Tabellenziffern + feste Mindestbreite: gleich breite Zahlen
                                 // über alle Boote, solange die Zeiten einstellig in Minuten
                                 // bleiben („0:05.0" = 6 Zeichen); längere Zeiten wachsen
                                 // rechtsbündig nach links, ohne die Nachbarn zu verschieben.
+                                // Eine durchgehende Spaltenkante ergibt das nicht mehr — dahinter
+                                // stehen Rang und Tempo variabler Breite (siehe KDoc oben).
                                 fontVariantNumeric: 'tabular-nums',
                                 minWidth: '5.5ch',
                                 textAlign: 'right',

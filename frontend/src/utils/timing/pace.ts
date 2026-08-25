@@ -93,31 +93,74 @@ export type RankableTeam = {
 }
 
 /**
- * Die Rangfolge an der [position]-ten Zwischenzeit (ab 1), schnellstes Boot zuerst. Gleichstand
- * bekommt denselben Rang, der nächste Rang überspringt die Doppelbelegung ("1, 2, 2, 4") — die
- * Lesart jeder Ergebnisliste.
- *
- * Boote ohne Zwischenzeit an dieser Stelle fehlen in der Rückgabe. Sie bekommen keinen Rang,
- * weil sie ihn nicht verdient haben: Sie sind an der Marke (noch) nicht vorbeigekommen.
+ * Die Stellen der Strecke, an denen überhaupt gemessen wurde: die vorkommenden Distanzen aller
+ * Boote, aufsteigend und ohne Doppelte. Eine leere Liste heißt „keine Marke trägt eine Distanz" —
+ * das ist der Fall der Rundenzeiten aus dem Fremdsystem.
  */
-export const rankAtPosition = (
-    teams: RankableTeam[],
-    position: number,
-): {teamId: string; rank: number}[] => {
-    const entries = teams
-        .map(team => ({teamId: team.teamId, millis: (team.laps ?? [])[position - 1]?.lapMillis}))
-        .filter((entry): entry is {teamId: string; millis: number} => entry.millis != null)
-        .sort((a, b) => a.millis - b.millis)
+const courseDistances = (teams: RankableTeam[]): number[] => {
+    const meters = new Set<number>()
+    teams.forEach(team =>
+        (team.laps ?? []).forEach(lap => {
+            if (lap.distanceMeters != null) meters.add(lap.distanceMeters)
+        }),
+    )
+    return [...meters].sort((a, b) => a - b)
+}
+
+/**
+ * Aus (Boot, Zeit) eine Rangfolge machen: schnellstes zuerst, Gleichstand bekommt denselben Rang,
+ * der nächste Rang überspringt die Doppelbelegung ("1, 2, 2, 4") — die Lesart jeder Ergebnisliste.
+ */
+const rankEntries = (entries: {teamId: string; millis: number}[]) => {
+    const sorted = [...entries].sort((a, b) => a.millis - b.millis)
 
     let rank = 0
     let previousMillis: number | null = null
-    return entries.map((entry, index) => {
+    return sorted.map((entry, index) => {
         if (previousMillis === null || entry.millis !== previousMillis) {
             rank = index + 1
             previousMillis = entry.millis
         }
         return {teamId: entry.teamId, rank}
     })
+}
+
+/**
+ * Die Rangfolge an der [position]-ten Stelle der STRECKE (ab 1), schnellstes Boot zuerst.
+ *
+ * Verglichen wird über die Distanz, nicht über die Stelle in `laps`. Der Unterschied ist der
+ * Unterschied zwischen richtig und falsch: Das Backend zählt die Positionen je Boot lückenlos
+ * (`TimingSplitLogic.compute` zählt beim Verwerfen einer Marke nicht mit), eine verpasste Marke
+ * erzeugt also keine Lücke, sondern eine Verschiebung. Bei dem einen Boot, das der Posten an
+ * Boje 1 nicht erwischt hat, steht die 1000-m-Marke dann an Stelle 1 — und ein Vergleich nach der
+ * Stelle stellte seine 1000-m-Zeit neben lauter 500-m-Zeiten. Herausgekommen wäre eine
+ * Ordnungszahl, die nichts bedeutet, aber wie eine Platzierung aussieht.
+ *
+ * Nur wenn KEINE Marke eine Distanz trägt, entscheidet die Stelle: Die Spalten des Fremdsystems
+ * gehören keinem Posten, sind aber für alle Boote dieselben.
+ *
+ * Boote ohne Zwischenzeit an dieser Stelle fehlen in der Rückgabe. Sie bekommen keinen Rang, weil
+ * sie ihn nicht verdient haben: Sie sind an der Marke (noch) nicht vorbeigekommen.
+ */
+export const rankAtPosition = (
+    teams: RankableTeam[],
+    position: number,
+): {teamId: string; rank: number}[] => {
+    const course = courseDistances(teams)
+    const meters = course[position - 1]
+    // Eine Strecke ist bekannt, aber so weit reicht sie nicht — dann gibt es dort nichts zu ranken.
+    if (course.length > 0 && meters === undefined) return []
+
+    const entries = teams.flatMap(team => {
+        const laps = team.laps ?? []
+        const lap =
+            meters !== undefined
+                ? laps.find(entry => entry.distanceMeters === meters)
+                : laps[position - 1]
+        return lap?.lapMillis != null ? [{teamId: team.teamId, millis: lap.lapMillis}] : []
+    })
+
+    return rankEntries(entries)
 }
 
 /**
@@ -131,18 +174,42 @@ export const rankAtPosition = (
  * Ränge um eine Stelle, und die Anzeige hängte einen Rang an die falsche Marke.
  */
 export const lapRanksByTeam = (teams: RankableTeam[]): Map<string, (number | null)[]> => {
-    const positions = Math.max(0, ...teams.map(team => (team.laps ?? []).length))
+    const course = courseDistances(teams)
     const result = new Map<string, (number | null)[]>(teams.map(team => [team.teamId, []]))
 
-    for (let position = 1; position <= positions; position++) {
-        const byTeam = new Map(
-            rankAtPosition(teams, position).map(entry => [entry.teamId, entry.rank]),
-        )
-        teams.forEach(team => {
-            if ((team.laps ?? []).length < position) return
-            result.get(team.teamId)?.push(byTeam.get(team.teamId) ?? null)
-        })
+    if (course.length === 0) {
+        // Ohne jede Distanz entscheidet die Stelle — siehe [rankAtPosition].
+        const positions = Math.max(0, ...teams.map(team => (team.laps ?? []).length))
+        for (let position = 1; position <= positions; position++) {
+            const byTeam = new Map(
+                rankAtPosition(teams, position).map(entry => [entry.teamId, entry.rank]),
+            )
+            teams.forEach(team => {
+                if ((team.laps ?? []).length < position) return
+                result.get(team.teamId)?.push(byTeam.get(team.teamId) ?? null)
+            })
+        }
+        return result
     }
+
+    // Je Meter der Strecke einmal ranken, danach bekommt jede Marke den Rang IHRES Meters. So
+    // landet der Rang des Bootes, dem die erste Marke fehlt, an dessen tatsächlicher Marke.
+    const byMeters = new Map(
+        course.map((meters, index) => [
+            meters,
+            new Map(rankAtPosition(teams, index + 1).map(entry => [entry.teamId, entry.rank])),
+        ]),
+    )
+    teams.forEach(team => {
+        result.set(
+            team.teamId,
+            (team.laps ?? []).map(lap =>
+                lap.distanceMeters != null
+                    ? (byMeters.get(lap.distanceMeters)?.get(team.teamId) ?? null)
+                    : null,
+            ),
+        )
+    })
 
     return result
 }

@@ -40,6 +40,17 @@ object CompetitionMatchTeamLapRepo {
                     // (ein Posten bekommt einen anderen Meter, zwei Posten werden vertauscht),
                     // muss die bestehende Zeile den neuen Meter tragen - sonst rechnete die
                     // Anzeige ihr Tempo weiter gegen die alte Strecke.
+                    //
+                    // BEDINGUNGSLOS, und das hat eine Kehrseite: Der RaceClocker-Abruf
+                    // (CompetitionExecutionService.applyLapsFromFeed) schreibt hier null, ein
+                    // Treffer auf eine Zeile des Zeitnahme-Moduls löschte also deren Meter. Das
+                    // ist hingenommen, weil die beiden Schreiber sich ausschließen: Welcher von
+                    // ihnen die Tabelle anfassen darf, entscheidet event.timing_system, und die
+                    // Abfragen von TimingSplitRepo tragen den INTERN-Zuschnitt dafür in SQL.
+                    // Beide schrieben nur dann an dieselbe Zeile, wenn eine Veranstaltung ihr
+                    // Zeitnahme-System mitten im Betrieb wechselt - danach gehören die Zeiten
+                    // ohnehin dem neuen System. Ein `coalesce` hier wäre die falsche Antwort: Es
+                    // konservierte den Meter einer Messung, die gar nicht mehr gilt.
                     .set(DISTANCE_METERS, record.distanceMeters)
                     .execute()
             }

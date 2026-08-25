@@ -278,13 +278,63 @@ describe('lastLaps', () => {
         ])
     })
 
-    it('ohne Bezugsgröße bleibt das Tempo leer, der Rang steht trotzdem', () => {
-        // Die Rundenzeiten aus dem Fremdsystem tragen keine Distanz — dort gibt es kein Tempo.
-        // Wer zuerst an der Marke war, lässt sich trotzdem sagen.
-        const m = runningMatch([
-            lap(1, 'Runde 1', '0:31.0', '2026-08-25T10:00:00Z', 31_000),
-            lap(2, 'Runde 1', '0:30.0', '2026-08-25T10:00:10Z', 30_000),
+    it('ohne gepflegte Bezugsgröße bleibt das Tempo leer, der Rang steht trotzdem', () => {
+        // Distanzen sind da, aber der Wettkampf führt keine Bezugsgröße — dann fehlt die Einheit,
+        // in der das Tempo auszudrücken wäre. Wer zuerst an der Marke war, lässt sich trotzdem
+        // sagen.
+        const m = {
+            matchName: 'VF1',
+            teams: [
+                {
+                    startNumber: 1,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '0:31.0',
+                            recordedAt: '2026-08-25T10:00:00Z',
+                            lapMillis: 31_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+                {
+                    startNumber: 2,
+                    laps: [
+                        {
+                            name: 'Boje 1',
+                            timeString: '0:30.0',
+                            recordedAt: '2026-08-25T10:00:10Z',
+                            lapMillis: 30_000,
+                            distanceMeters: 500,
+                        },
+                    ],
+                },
+            ],
+        } as unknown as AthleteBoardMatch
+
+        expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
+            [2, 1, null],
+            [1, 2, null],
         ])
+    })
+
+    it('Rundenzeiten ohne Distanz bekommen kein Tempo, auch mit Bezugsgröße', () => {
+        // Der Fremdsystem-Fall: Die Spaltennamen gehören keinem Posten der Strecke, die Zeilen
+        // tragen deshalb keine Distanz. Eine am Wettkampf gepflegte Bezugsgröße ändert daran
+        // nichts — ohne Meter gibt es kein Tempo, und die Stelle bleibt leer.
+        const m = {
+            matchName: 'VF1',
+            paceReference: {
+                id: 'p',
+                name: '500 m',
+                mode: 'TIME_PER_DISTANCE',
+                referenceMeters: 500,
+            },
+            teams: [
+                lap(1, 'Runde 1', '0:31.0', '2026-08-25T10:00:00Z', 31_000),
+                lap(2, 'Runde 1', '0:30.0', '2026-08-25T10:00:10Z', 30_000),
+            ],
+        } as unknown as AthleteBoardMatch
 
         expect(lastLaps(m).map(l => [l.startNumber, l.rank, l.pace])).toEqual([
             [2, 1, null],
