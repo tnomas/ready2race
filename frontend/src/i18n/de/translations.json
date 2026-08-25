@@ -3286,6 +3286,17 @@
         }
       },
       "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
+      "armed": {
+        "blockedTitle": "Erfassung gesperrt — Posten entschärft",
+        "blockedHint": "Zum Erfassen den Schalter eine Sekunde halten. Notfalls die Zeit über den großen Knopf ohne Zuordnung banken und später zuordnen.",
+        "stateArmed": "Scharf — Erfassung frei",
+        "stateDisarmed": "Entschärft — keine Erfassung",
+        "holdHint": "Eine Sekunde halten",
+        "arm": "Scharf schalten",
+        "disarm": "Entschärfen",
+        "captureFallback": "Zeit ohne Zuordnung banken",
+        "error": "Schalten fehlgeschlagen"
+      },
       "capture": {
         "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
         "stationLoading": "Posten wird geladen…"

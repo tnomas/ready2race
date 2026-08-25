@@ -18,6 +18,14 @@ export type CaptureButtonProps = {
      * on a START station, rather than the sole capture surface.
      */
     compact?: boolean
+    /**
+     * The station is in ARMED mode and currently disarmed. This button is deliberately **not** disabled
+     * by that — it banks an *unassigned* mark and is the escape hatch for the one failure the whole
+     * safeguard could otherwise cause: a finish happens and nobody armed the station. It only changes
+     * its label to name that escape hatch, so an operator who presses without reading still did the
+     * right thing.
+     */
+    disarmed?: boolean
 }
 
 /**
@@ -30,6 +38,11 @@ export type CaptureButtonProps = {
  * the offline queue, its POST fails as retryable (401), and it is submitted for real once the operator
  * has logged in again. The board's `UNAUTHORIZED` banner is what tells them to do that.
  *
+ * A disarmed station (see `armed.ts`) is deliberately **not** a reason either. Everything else on the
+ * board that captures gets locked while the station is disarmed; this button never does. It is the
+ * escape hatch for a forgotten arming, and a safeguard that swallows a real finish time would be worse
+ * than no safeguard at all. Do not "lock it too, for consistency".
+ *
  * Capture fires on `onPointerDown`, not `onClick`: the timestamp must be taken as close as possible
  * to the physical press, not the release. The button therefore also swallows the follow-up
  * synthetic `click` (fired after pointerup for a mouse/touch tap, or by the browser's native
@@ -39,7 +52,7 @@ export type CaptureButtonProps = {
  * component is only the surface, so the button, the Space shortcut and the team grid all record marks
  * through exactly one implementation.
  */
-const CaptureButton = ({station, now, onCapture, compact}: CaptureButtonProps) => {
+const CaptureButton = ({station, now, onCapture, compact, disarmed}: CaptureButtonProps) => {
     const {t} = useTranslation()
 
     const clockNotSynced = now() === null
@@ -76,8 +89,18 @@ const CaptureButton = ({station, now, onCapture, compact}: CaptureButtonProps) =
                 }}>
                 <Stack alignItems="center" spacing={compact ? 1 : 2}>
                     <FlagIcon sx={{fontSize: compact ? {xs: 28, sm: 36} : {xs: 64, sm: 96}}} />
-                    <Typography variant={compact ? 'h6' : 'h3'} component="span" textAlign="center">
-                        {station !== undefined ? t(`timing.station.types.${station.type}`) : ''}
+                    {/* Disarmed, the button stops announcing which station this is and says what it
+                        still does: bank a time, assign it afterwards. That is the only thing left to
+                        do in that moment, so it is the only thing the button should say. */}
+                    <Typography
+                        variant={compact ? 'h6' : disarmed === true ? 'h4' : 'h3'}
+                        component="span"
+                        textAlign="center">
+                        {disarmed === true
+                            ? t('timing.board.armed.captureFallback')
+                            : station !== undefined
+                              ? t(`timing.station.types.${station.type}`)
+                              : ''}
                     </Typography>
                 </Stack>
             </ButtonBase>

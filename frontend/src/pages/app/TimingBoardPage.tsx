@@ -32,6 +32,7 @@ import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
 import MarkList from '@components/timing/MarkList.tsx'
 import MatchCaptureView from '@components/timing/MatchCaptureView.tsx'
+import ArmSwitch from '@components/timing/ArmSwitch.tsx'
 import DayScheduleColumn, {
     initialScheduleCollapsed,
     persistScheduleCollapsed,
@@ -49,6 +50,7 @@ import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
 import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
+import {captureAllowed} from '@utils/timing/armed.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
 import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
@@ -180,6 +182,29 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     }, [marks, sequenceState.sequence, bumpMatches])
 
     const station = stations.find(s => s.id === stationId)
+
+    // --- Scharfschaltung ------------------------------------------------------------------------
+    //
+    // Der Zustand gehört dem Server; `stationsChanged` lädt die Postenliste neu, sobald geschaltet
+    // wurde. Bis dieses Echo ankommt — oder falls die Verbindung gerade hängt — gilt der zuletzt vom
+    // Server BESTÄTIGTE eigene Schaltvorgang: Wer eben scharf geschaltet hat, muss sofort erfassen
+    // können und nicht auf eine Nachricht warten. Sobald die Liste denselben Wert liefert, fällt der
+    // Vorgriff wieder weg und der Server hat wieder allein das Wort.
+    const [switchedArmed, setSwitchedArmed] = useState<boolean | undefined>(undefined)
+    useEffect(() => {
+        if (switchedArmed !== undefined && station?.armed === switchedArmed) {
+            setSwitchedArmed(undefined)
+        }
+    }, [station?.armed, switchedArmed])
+    // Solange der Posten noch lädt, gilt ONETOUCH — im Zweifel erfassen, nicht verweigern (erfassen
+    // kann man dann ohnehin nicht, der Knopf hängt am geladenen Posten).
+    const captureMode = station?.captureMode ?? 'ONETOUCH'
+    const armed = switchedArmed ?? station?.armed ?? false
+    const mayCaptureAssigned = captureAllowed(captureMode, armed)
+    // Der Leertasten-Zuhörer registriert sich einmal; ohne Spiegel im Ref sähe er ewig den Zustand
+    // vom ersten Rendern.
+    const mayCaptureRef = useRef(mayCaptureAssigned)
+    mayCaptureRef.current = mayCaptureAssigned
 
     // Tab-Titel „<Postenname> · Ready2Race" — am Renntag sind mehrere Posten-Boards offen, ohne
     // Postennamen im Tab sind sie nicht auseinanderzuhalten. Der Hook stellt beim Verlassen den
@@ -754,6 +779,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             if (event.code !== 'Space' && event.key !== ' ') return
             if (event.repeat) return
             if (isTypingContext() || isSpaceOwnedByFocusedControl()) return
+            // Sperrstelle 3: Entschärft tut die Leertaste nichts. Sie bankt technisch OHNE
+            // Zuordnung, täte also dasselbe wie der große Knopf — die Regel folgt hier nicht der
+            // Wirkung, sondern der Unfallfläche: TASTEN sind das, was versehentlich getroffen wird.
+            // Ein Ärmel trifft eine Tastatur, nicht einen bestimmten Knopf auf dem Bildschirm. Der
+            // Notausgang soll ein absichtlicher Griff sein, und der bleibt der große Knopf — der
+            // wird nie gesperrt. Kein `preventDefault`, damit der Browser eine Taste, die hier
+            // nichts mehr tut, wieder normal behandelt.
+            if (!mayCaptureRef.current) return
 
             event.preventDefault()
             captureRef.current()
@@ -916,6 +949,41 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             flexDirection: 'column',
                             gap: 1.5,
                         }}>
+                        {captureMode === 'ARMED' && station !== undefined && (
+                            // Nur im ARMED-Betrieb: Im Onetouch-Betrieb gibt es nichts zu schalten,
+                            // also erscheint hier weder Schalter noch Balken.
+                            <Stack spacing={1} sx={{flexShrink: 0}}>
+                                {!mayCaptureAssigned && (
+                                    // Der Warnbalken. Er muss aus drei Metern lesbar sein — ein
+                                    // Zeitnehmer schaut aufs Wasser, nicht auf den Schirm — und er
+                                    // sagt beides: dass nicht erfasst wird UND was zu tun ist.
+                                    <Box
+                                        sx={{
+                                            bgcolor: 'warning.main',
+                                            color: 'warning.contrastText',
+                                            borderRadius: 2,
+                                            px: 2,
+                                            py: 1.5,
+                                            textAlign: 'center',
+                                        }}>
+                                        <Typography
+                                            variant="h4"
+                                            sx={{fontWeight: 800, lineHeight: 1.15}}>
+                                            {t('timing.board.armed.blockedTitle')}
+                                        </Typography>
+                                        <Typography variant="subtitle1" sx={{fontWeight: 600}}>
+                                            {t('timing.board.armed.blockedHint')}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                <ArmSwitch
+                                    eventId={eventId}
+                                    stationId={stationId}
+                                    armed={armed}
+                                    onSwitched={setSwitchedArmed}
+                                />
+                            </Stack>
+                        )}
                         {isStart ? (
                             <>
                                 <StartBoardPanel
@@ -940,6 +1008,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                         now={clock.now}
                                         onCapture={capture}
                                         compact
+                                        disarmed={!mayCaptureAssigned}
                                     />
                                 </Box>
                             </>
@@ -957,6 +1026,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                             now={clock.now}
                                             onCapture={capture}
                                             compact
+                                            disarmed={!mayCaptureAssigned}
                                         />
                                     </Box>
                                 )}
@@ -978,6 +1048,8 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     onFocus={setSelectedMatchId}
                                     officialTimes={officialTimesByTeam}
                                     precision={settings.precision}
+                                    captureMode={captureMode}
+                                    armed={armed}
                                 />
                                 {isPhone && (
                                     <Box sx={{flex: '0 0 18%', minHeight: 96, display: 'flex'}}>
@@ -986,6 +1058,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                             now={clock.now}
                                             onCapture={capture}
                                             compact
+                                            disarmed={!mayCaptureAssigned}
                                         />
                                     </Box>
                                 )}
@@ -1009,6 +1082,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     station={station}
                                     now={clock.now}
                                     onCapture={capture}
+                                    disarmed={!mayCaptureAssigned}
                                 />
                             </Stack>
                         )}

@@ -3286,6 +3286,17 @@
         }
       },
       "stateError": "Could not load data – retrying…",
+      "armed": {
+        "blockedTitle": "Capture locked — station disarmed",
+        "blockedHint": "Hold the switch for one second to capture. If in doubt, bank the time with the big button without an assignment and assign it later.",
+        "stateArmed": "Armed — capture enabled",
+        "stateDisarmed": "Disarmed — no capture",
+        "holdHint": "Hold for one second",
+        "arm": "Arm",
+        "disarm": "Disarm",
+        "captureFallback": "Bank time without an assignment",
+        "error": "Switching failed"
+      },
       "capture": {
         "clockNotSynced": "Clock not synced – capture unavailable",
         "stationLoading": "Loading station…"

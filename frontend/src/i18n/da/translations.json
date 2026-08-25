@@ -3259,6 +3259,17 @@
         }
       },
       "stateError": "Data kunne ikke indlæses – prøver igen…",
+      "armed": {
+        "blockedTitle": "Registrering spærret — posten er deaktiveret",
+        "blockedHint": "Hold kontakten nede i ét sekund for at registrere. I nødstilfælde kan tiden gemmes uden tilknytning med den store knap og tilknyttes senere.",
+        "stateArmed": "Aktiveret — registrering mulig",
+        "stateDisarmed": "Deaktiveret — ingen registrering",
+        "holdHint": "Hold nede i ét sekund",
+        "arm": "Aktivér",
+        "disarm": "Deaktivér",
+        "captureFallback": "Gem tid uden tilknytning",
+        "error": "Skift mislykkedes"
+      },
       "capture": {
         "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
         "stationLoading": "Indlæser post…"

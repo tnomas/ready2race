@@ -2,7 +2,12 @@ import {Alert, Box, Button, ButtonBase, Chip, CircularProgress, Stack, Typograph
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {OfficialTimeDto, TimingMatchDto, TimingPrecision} from '@api/types.gen.ts'
+import {
+    OfficialTimeDto,
+    TimingCaptureMode,
+    TimingMatchDto,
+    TimingPrecision,
+} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import {assignCapturedMark, CaptureFn} from '@components/timing/useCaptureFlow.ts'
@@ -14,6 +19,7 @@ import {boatReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {warningTextColor} from '@utils/warningText.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import {useTouchOnly} from '@utils/touch.ts'
+import {captureAllowed} from '@utils/timing/armed.ts'
 
 /** Uhrzeit einer Marke mit Zehntel — dieselbe Präzision wie in der Markenliste darunter. */
 function formatMarkTime(ms: number): string {
@@ -45,6 +51,10 @@ export type MatchCaptureViewProps = {
     officialTimes: Map<string, OfficialTimeDto>
     /** Genauigkeit der Veranstaltung — die Zeit am Boot zeigt genau die Stellen, die am Lauf stehen. */
     precision: TimingPrecision
+    /** Betriebsart des Postens: ONETOUCH löst wie bisher sofort aus, ARMED verlangt Scharfschalten. */
+    captureMode: TimingCaptureMode
+    /** Der Scharf-Zustand, wie ihn das Board gerade für gültig hält (siehe `armed.ts`). */
+    armed: boolean
 }
 
 /** Das Ziel eines Boots-Tipps: id plus „an diesem Posten schon fertig". */
@@ -70,6 +80,11 @@ function keyHint(position: number): string | undefined {
  *    nächste Boots-Druck (Tipp ODER Taste) hängt sie an dieses Boot.
  * 3. **Direkt aufs Boot tippen** — der Klick-Weg derselben Geste.
  *
+ * Im ARMED-Betrieb sind die Wege 1 und 3 gesperrt, solange der Posten entschärft ist (`armed.ts`):
+ * Beide erfassen MIT Zuordnung und hängen eine Falschzeit sofort an ein bestimmtes Boot. Weg 2
+ * bleibt offen — die große Fläche bankt ohne Zuordnung und ist der Notausgang für den vergessenen
+ * Scharfschalter; das Anhängen einer so gebankten Zeit an ihr Boot bleibt deshalb ebenfalls möglich.
+ *
  * Die offizielle Zeit eines Boots erscheint live am Knopf (aus `officialTimeChanged`) — der
  * Bediener sieht sofort, was am Lauf steht.
  */
@@ -87,6 +102,8 @@ const MatchCaptureView = ({
     onFocus,
     officialTimes,
     precision,
+    captureMode,
+    armed,
 }: MatchCaptureViewProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
@@ -94,9 +111,16 @@ const MatchCaptureView = ({
     // Tastatur-Sätze im Hilfetext entfallen dort — die Tasten-Listener bleiben (schaden nie).
     const touchOnly = useTouchOnly()
 
+    // Die eine Entscheidung, an drei Stellen dieser Datei gebraucht (Boots-Knöpfe, Boots-Tasten,
+    // totes Aussehen) — deshalb aus `armed.ts` und nicht dreimal von Hand.
+    const allowed = captureAllowed(captureMode, armed)
+
     /** Bewusst vertagte Zeiten (unbekanntes Boot) — sie drängen sich nicht mehr als Banner auf. */
     const [skippedMarks, setSkippedMarks] = useState<Set<string>>(new Set())
     const pending = pendingAssignmentMark(marks, skippedMarks)
+    // Entschärft sind die Boots-Knöpfe tot — außer es wartet eine gebankte Zeit auf ihr Boot: Dann
+    // sind sie Zuordnungs-Ziele und keine Erfassungsknöpfe (siehe `handleBoat`).
+    const blocked = !allowed && pending === undefined
 
     // Die fokussierte Partie erscheint auch ohne Start in der Fläche (Zielzeiten ohne Start).
     const {current, upcoming} = expectedFinishMatches(matches, focusedId)
@@ -117,10 +141,15 @@ const MatchCaptureView = ({
                 })
                 return
             }
+            // Sperrstelle 1: Entschärft ist genau DAS hier verboten — Zeit nehmen UND sofort an ein
+            // bestimmtes Boot hängen. Der Zuordnungs-Weg oben bleibt bewusst offen: Er erzeugt keine
+            // Zeit, sondern hängt eine bereits bewusst gebankte an ihr Boot — das ist die zweite
+            // Hälfte des Notausgangs und darf nicht mit ins Schloss fallen.
+            if (!allowed) return
             // Kein Stempel wartet: Zeit nehmen und sofort zuordnen, eine Geste.
             capture(team.id)
         },
-        [disabled, pending, applyLocalAssignment, eventId, capture, feedback, t],
+        [disabled, pending, allowed, applyLocalAssignment, eventId, capture, feedback, t],
     )
 
     // --- Tastatur: 1–6 / A–F auf die fokussierte Partie, Tab wechselt den Fokus ---------------
@@ -129,13 +158,21 @@ const MatchCaptureView = ({
     // oder Fokusänderung ab- und wieder angemeldet zu werden (dasselbe Muster wie zuvor im
     // Team-Raster). Der Zeitstempel entsteht im Moment des Drucks — deshalb keydown, nie keyup.
     const focusedMatch = matches.find(match => match.competitionSetupMatch === focusedId)
-    const handlersRef = useRef({focusedMatch, currentIds: [] as string[], focusedId, handleBoat, onFocus})
+    const handlersRef = useRef({
+        focusedMatch,
+        currentIds: [] as string[],
+        focusedId,
+        handleBoat,
+        onFocus,
+        allowed,
+    })
     handlersRef.current = {
         focusedMatch,
         currentIds: current.map(match => match.competitionSetupMatch),
         focusedId,
         handleBoat,
         onFocus,
+        allowed,
     }
 
     useEffect(() => {
@@ -145,8 +182,14 @@ const MatchCaptureView = ({
             if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return
             if (isTypingContext()) return
 
-            const {focusedMatch: match, currentIds, focusedId: focused, handleBoat: fire, onFocus: focusMatch} =
-                handlersRef.current
+            const {
+                focusedMatch: match,
+                currentIds,
+                focusedId: focused,
+                handleBoat: fire,
+                onFocus: focusMatch,
+                allowed: mayCapture,
+            } = handlersRef.current
 
             if (event.key === 'Tab') {
                 // Fokuswechsel bei mehreren laufenden Partien — mit Umbruch, Shift rückwärts.
@@ -159,6 +202,12 @@ const MatchCaptureView = ({
 
             const target = finishKeyTarget(match, event.key)
             if (target === undefined) return
+            // Sperrstelle 2: Entschärft treffen 1–6 und A–F nichts mehr — weder erfassend noch
+            // zuordnend. Genau diese Tasten sind die Unfallfläche, um die es geht: Sie hängen eine
+            // Zeit sofort an ein bestimmtes Boot, und ein Ärmel trifft eine Tastatur. Ohne
+            // `preventDefault`, damit der Browser eine Taste, die hier nichts mehr tut, wieder
+            // normal behandelt.
+            if (!mayCapture) return
             event.preventDefault()
             // Ein Boot im Ziel reagiert nicht auf seine Taste — `handleBoat` prüft das über die
             // Startlisten-Flagge, hier kommt zusätzlich der Live-Zustand dieses Postens dazu.
@@ -243,6 +292,9 @@ const MatchCaptureView = ({
                     {teams.map((team, position) => {
                         const done =
                             team.finished || finishedTeams.has(team.competitionMatchTeam)
+                        // Fertig oder gesperrt sieht gleich aus: nicht anfassbar. Der Unterschied
+                        // steht im Warnbalken darüber, nicht in sechzehn kleinen Knöpfen.
+                        const dead = done || blocked
                         const hint = isFocused && !touchOnly ? keyHint(position) : undefined
                         const official = officialTimes.get(team.competitionMatchTeam)
                         const officialLabel =
@@ -265,7 +317,7 @@ const MatchCaptureView = ({
                                     handleBoat({id: team.competitionMatchTeam, finished: done})
                                 }
                                 onClick={event => event.preventDefault()}
-                                disabled={done || disabled}
+                                disabled={dead || disabled}
                                 focusRipple
                                 sx={{
                                     borderRadius: 2,
@@ -278,13 +330,15 @@ const MatchCaptureView = ({
                                         pending !== undefined && !done
                                             ? 'info.main'
                                             : 'divider',
-                                    bgcolor: done
+                                    bgcolor: dead
                                         ? 'action.disabledBackground'
                                         : 'background.paper',
-                                    color: done ? 'text.disabled' : 'text.primary',
-                                    opacity: done ? 0.6 : 1,
+                                    color: dead ? 'text.disabled' : 'text.primary',
+                                    // Gesperrt noch blasser als „fertig": Aus drei Metern muss ein
+                                    // toter Knopf tot aussehen, nicht bloß etwas matter.
+                                    opacity: blocked && !done ? 0.4 : done ? 0.6 : 1,
                                     textAlign: 'left',
-                                    '&:active': done
+                                    '&:active': dead
                                         ? undefined
                                         : {bgcolor: 'action.selected'},
                                 }}>
@@ -293,7 +347,7 @@ const MatchCaptureView = ({
                                         <Typography variant="h6" sx={{fontWeight: 700}}>
                                             #{team.startNumber}
                                         </Typography>
-                                        {hint !== undefined && !done && (
+                                        {hint !== undefined && !dead && (
                                             <Box
                                                 component="span"
                                                 sx={{
@@ -332,7 +386,7 @@ const MatchCaptureView = ({
                                             sx={{
                                                 fontFamily: 'monospace',
                                                 fontVariantNumeric: 'tabular-nums',
-                                                color: done ? 'text.disabled' : 'success.main',
+                                                color: dead ? 'text.disabled' : 'success.main',
                                             }}>
                                             {officialLabel}
                                         </Typography>
@@ -343,7 +397,7 @@ const MatchCaptureView = ({
                                         <Typography
                                             variant="caption"
                                             sx={theme => ({
-                                                color: done
+                                                color: dead
                                                     ? 'text.disabled'
                                                     : warningTextColor(theme),
                                                 fontWeight: 600,
