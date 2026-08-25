@@ -1862,6 +1862,15 @@ object CompetitionExecutionService {
                 // Der Fremdschlüssel steht auf `on delete set null`; die Spalte wird unten trotzdem
                 // ausdrücklich geleert - dasselbe Muster wie in [resetRaceClockerResults].
                 !TimecodeRepo.delete(team.id).orDie()
+                // BEWUSST ohne Gegenmittel im Timing-Modul: Bei INTERN gezeiteten Veranstaltungen
+                // schreibt [TimingSplitService] die hier gelöschten Zwischenzeiten aus den Marken
+                // wieder her, sobald die nächste Neuberechnung läuft. Das ist gewollt, nicht
+                // übersehen. "Lauf zurücksetzen" räumt das ERGEBNIS ab, nicht die MESSUNG - die
+                // Marken bleiben aktiv und zugeordnet, und sie sind die Wahrheit. Wer die Messung
+                // verwerfen will, nimmt den Versuch zurück ([TimingService.retractMatchAttempt]);
+                // genau der fasst das Timing-Modul an. Wer nur die Wertung aufräumt, soll die
+                // gemessenen Zwischenzeiten behalten. (Für RaceClocker liegt der Fall anders -
+                // dort ist der Feed die Quelle, deshalb das Pausieren weiter unten.)
                 !CompetitionMatchTeamLapRepo.deleteByTeam(team.id).orDie()
 
                 !CompetitionMatchTeamRepo.update(team) {

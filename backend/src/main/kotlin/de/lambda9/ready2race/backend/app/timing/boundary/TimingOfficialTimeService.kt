@@ -501,9 +501,14 @@ object TimingOfficialTimeService {
         val affected = (candidates.keys + teams.orEmpty()).toList()
         val outcome = !recomputeAndApply(eventId, affected, userId)
         broadcastAsync(eventId, outcome.officialTimes)
+        // Der Endpunkt ist der "alles neu rechnen"-Knopf, und die Zwischenzeiten hängen an
+        // denselben Marken - er muss sie mitziehen können. Der Zuschnitt auf [teams] gilt für sie
+        // nicht: Die Zwischenzeiten werden ohnehin je Veranstaltung gerechnet, und ein Knopf, der
+        // eine Abweichung nur halb repariert, wäre schlimmer als keiner.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
         // Wie bei jeder Mutation: nur ein echter Schreibvorgang am Lauf entwertet die Caches der
         // öffentlichen Anzeigen - ein wiederholter Rechenlauf ohne Änderung bleibt still.
-        if (outcome.resultsWritten) {
+        if (outcome.resultsWritten || splitsChanged) {
             EventChangeMarker.bump(eventId)
         }
 

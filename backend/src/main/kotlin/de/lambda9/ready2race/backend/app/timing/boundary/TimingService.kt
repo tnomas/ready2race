@@ -76,6 +76,17 @@ object TimingService {
             updatedAt = LocalDateTime.now()
         }.orDie()
             .onNullFail { TimingError.StationNotFound }
+
+        // Der Name des Postens IST die Beschriftung seiner Zwischenzeiten - eine Umbenennung muss
+        // in die bereits geschriebenen Zeilen wandern, sonst trägt derselbe Punkt der Strecke zwei
+        // Namen, je nachdem wo man hinsieht. Und weil die öffentlichen Anzeigen genau diesen Namen
+        // zeigen, gehört der Bump dazu; hat sich nichts geändert (Posten ohne Zeiten, reine
+        // Sortier-Änderung), bleibt es still.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
+        if (splitsChanged) {
+            EventChangeMarker.bump(eventId)
+        }
+
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData
     }
@@ -160,6 +171,19 @@ object TimingService {
         }
 
         !CompetitionTimingStationRepo.replaceForCompetition(competitionId, request.stations, userId).orDie()
+
+        // Die Strecke hat sich geändert, also auch die Zwischenzeiten, die auf ihr liegen - und
+        // zwar SOFORT und nicht erst mit der nächsten Marke. Eine getauschte Reihenfolge zweier
+        // Posten ließe sonst Name und Zeit an der falschen Position stehen (angezeigt wird dann
+        // keine falsche Distanz, sondern eine vertauschte Strecke), ein nachgetragener Posten
+        // bekäme seine längst zugeordneten Marken nie - und beides gar nicht mehr, wenn die
+        // Korrektur nach der letzten Marke der Veranstaltung kommt. Genau dann korrigiert man
+        // eine Distanz aber typischerweise: abends beim Aufräumen der Ergebnisse.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
+        if (splitsChanged) {
+            EventChangeMarker.bump(eventId)
+        }
+
         noData
     }
 

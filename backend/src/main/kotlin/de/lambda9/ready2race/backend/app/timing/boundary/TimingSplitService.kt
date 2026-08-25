@@ -85,7 +85,11 @@ object TimingSplitService {
             }
             .groupBy { it.team }
 
-        val teams = (splitsByTeam.keys + teamsWithLaps).toList()
+        // Sortiert, und zwar aus einem einzigen Grund: Zwei gleichzeitige Zuordnungen schreiben
+        // an dieselben Boote. Ohne feste Reihenfolge (keine der beiden Leseabfragen hat ein
+        // `order by`) sperrten sie deren Lap-Zeilen in verschiedener Reihenfolge - die klassische
+        // Aufstellung für einen Deadlock.
+        val teams = (splitsByTeam.keys + teamsWithLaps).sorted()
         val existing = !CompetitionMatchTeamLapRepo.getByTeams(teams).orDie()
         val existingByTeam = existing.groupBy { it.competitionMatchTeam }
         val now = LocalDateTime.now()
