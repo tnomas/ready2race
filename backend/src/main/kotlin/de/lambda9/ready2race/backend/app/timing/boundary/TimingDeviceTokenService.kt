@@ -182,10 +182,14 @@ object TimingDeviceTokenService {
      * Für die Lese-Endpunkte der Zeitnahme (Zustand, Teams, Posten, aktive Sequenz) und den
      * WebSocket: ein geteilter Posten-Link (Erfassung oder Startbildschirm) trägt das Geräte-Token
      * in der URL, und die Boards lesen den Zustand der ganzen Veranstaltung — dieselbe
-     * Sichtbarkeit, die jede angemeldete Zeitnahme-Rolle hat. Schreibend bleibt das Token auf den
-     * Posten von [validate] beschränkt (Zeitmarken-POST); alle weiteren Mutationen verlangen
-     * weiterhin eine Nutzersitzung. Jede Ablehnung ist auch hier das eine
-     * [TimingError.DeviceTokenInvalid], ohne etwas über den präsentierten Wert zu verraten.
+     * Sichtbarkeit, die jede angemeldete Zeitnahme-Rolle hat.
+     *
+     * Nur für Lesewege. Schreibend bleibt jedes Token an seinen eigenen Posten gebunden: entweder
+     * schon hier über [validate] (Zeitmarken-POST, Scharfschaltung — beide kennen den Posten aus
+     * Körper bzw. Pfad), oder im Dienst, wo der Posten des Tokens erst gegen die Marke gehalten
+     * werden muss (`assignTimeMarkByDevice`). Alle weiteren Mutationen verlangen weiterhin eine
+     * Nutzersitzung. Jede Ablehnung ist auch hier das eine [TimingError.DeviceTokenInvalid], ohne
+     * etwas über den präsentierten Wert zu verraten.
      */
     fun validateForEvent(
         plainToken: String,

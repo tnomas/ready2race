@@ -137,7 +137,7 @@ class TimingServiceTest {
         val (eventId, userId) = !createTestEventWithAdmin()
         val stationId = !addTestStation(eventId, userId)
 
-        !TimingService.setStationArmed(stationId, eventId, armed = true, userId = userId)
+        !TimingService.setStationArmed(stationId, eventId, armed = true)
 
         assertTrue((!singleStation(eventId)).armed)
     }
@@ -147,8 +147,8 @@ class TimingServiceTest {
         val (eventId, userId) = !createTestEventWithAdmin()
         val stationId = !addTestStation(eventId, userId)
 
-        !TimingService.setStationArmed(stationId, eventId, armed = true, userId = userId)
-        !TimingService.setStationArmed(stationId, eventId, armed = false, userId = userId)
+        !TimingService.setStationArmed(stationId, eventId, armed = true)
+        !TimingService.setStationArmed(stationId, eventId, armed = false)
 
         assertFalse((!singleStation(eventId)).armed)
     }
@@ -165,7 +165,7 @@ class TimingServiceTest {
         val stationFromOtherEvent = !addTestStation(otherEventId, otherUserId)
 
         assertKIOFails(TimingError.EventMismatch) {
-            TimingService.setStationArmed(stationFromOtherEvent, eventId, armed = true, userId = userId)
+            TimingService.setStationArmed(stationFromOtherEvent, eventId, armed = true)
         }
     }
 
@@ -182,13 +182,51 @@ class TimingServiceTest {
         val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
 
         try {
-            !TimingService.setStationArmed(stationId, eventId, armed = true, userId = userId)
+            !TimingService.setStationArmed(stationId, eventId, armed = true)
 
             runBlocking { TimingBroadcasterTest.awaitSize(received, 1) }
             assertTrue(received.single().contains("stationsChanged"), "erwartet stationsChanged: $received")
         } finally {
             TimingBroadcaster.unsubscribe(subscription)
         }
+    }
+
+    /**
+     * Der wunde Punkt der Trennung: Ein Speichern der EINRICHTUNG (Umbenennen, Sortieren) darf
+     * weder den scharfen Posten entschärfen noch seine Betriebsart zurückfallen lassen. Das
+     * Formular kennt `captureMode` heute nicht und schickt es folglich nicht mit - genau dann
+     * greift „null heißt unverändert".
+     */
+    @Test
+    fun updateStationKeepsArmedStateAndCaptureMode() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+
+        !TimingService.updateStation(
+            TimingStationRequest(
+                name = "Ziel",
+                type = TimingStationType.FINISH,
+                sorting = 0,
+                captureMode = TimingCaptureMode.ARMED,
+            ),
+            userId,
+            stationId,
+            eventId,
+        )
+        !TimingService.setStationArmed(stationId, eventId, armed = true)
+
+        // Ein reines Umbenennen - ohne captureMode, wie es die Posten-Maske heute schickt.
+        !TimingService.updateStation(
+            TimingStationRequest(name = "Ziellinie", type = TimingStationType.FINISH, sorting = 1),
+            userId,
+            stationId,
+            eventId,
+        )
+
+        val station = !singleStation(eventId)
+        assertEquals("Ziellinie", station.name)
+        assertEquals(TimingCaptureMode.ARMED, station.captureMode)
+        assertTrue(station.armed)
     }
 
     private fun singleStation(eventId: java.util.UUID): App<ServiceError, TimingStationDto> =

@@ -34,8 +34,11 @@ fun Route.timing() {
         // Startbildschirm) tragen es in der URL und müssen den Veranstaltungszustand lesen
         // können, ohne dass jemand am Gerät angemeldet ist. Wie beim Zeitmarken-POST greift der
         // Token-Zweig nur ohne Sitzung - ein angemeldeter Nutzer nimmt exakt den bisherigen Weg.
-        // Schreibende Endpunkte (außer dem Zeitmarken-POST mit seiner Posten-Bindung) verlangen
-        // weiterhin eine Sitzung.
+        //
+        // Lesend genügt die Bindung an die Veranstaltung (`validateForEvent`). Schreibend gibt es
+        // genau drei Token-Wege - Zeitmarken-POST, Zuordnung, Scharfschaltung -, und jeder ist
+        // zusätzlich an den EIGENEN Posten des Tokens gebunden und weist ANZEIGE-Tokens ab; alles
+        // Übrige verlangt weiterhin eine Sitzung.
         get("/state") {
             call.respondComprehension {
                 val eventId = !pathParam("eventId", uuid)
@@ -201,32 +204,39 @@ fun Route.timing() {
                     }
                 }
 
-                // Die Scharfschaltung: derselbe Auth-Zweig wie die Posten-Startliste (/matches),
-                // aus demselben Grund - der Zeitnehmer am geteilten Tablet hat keine Anmeldung,
-                // nur den Posten-Link mit seinem Geräte-Token. Ohne diesen Zweig wäre die
-                // Sicherung genau dort nicht bedienbar, wo sie gebraucht wird. Wie überall greift
-                // er nur ohne Sitzung; ein angemeldeter Nutzer nimmt exakt den bisherigen Weg.
+                // Die Scharfschaltung: der Zeitnehmer am geteilten Tablet hat keine Anmeldung,
+                // nur den Posten-Link mit seinem Geräte-Token - ohne diesen Zweig wäre die
+                // Sicherung genau dort nicht bedienbar, wo sie gebraucht wird. Wie bei den
+                // anderen Token-Wegen greift er nur ohne Sitzung; ein angemeldeter Nutzer nimmt
+                // exakt den gewohnten Weg.
                 //
+                // Ein SCHREIBENDER Weg, also die enge Token-Prüfung der Zeitmarken und nicht die
+                // der Lesewege: `validate` bindet das Token an genau den Posten aus dem Pfad
+                // (hier einfacher als beim Zeitmarken-POST, wo er aus dem Körper kommt), den
+                // ANZEIGE-Fall weist der Dienst ab. Sonst entschärfte das Token des Zielpostens
+                // den Startposten - und ein Anzeige-Link, der nur lesen darf, wäre der
+                // Ausschalter für die Ziellinie.
+                //
+                // Mit Sitzung reichen die Zeitnahme-Rechte, ReadEventGlobal aber NICHT:
+                // Entschärfen sperrt jede zugeordnete Erfassung, das ist kein Lesevorgang.
                 // Anders als die Betriebsart (PUT auf den Posten, UPDATE EVENT) ist das Schalten
-                // Betrieb, keine Einrichtung. Dass ein Token nur seine eigene Veranstaltung
-                // schaltet, sichert validateForEvent, den fremden Posten darin der Dienst.
+                // Betrieb, keine Einrichtung - deshalb ein eigener Weg mit eigenen Rechten.
                 put("/armed") {
                     call.respondComprehension {
                         val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
                         val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
-                        val userId = if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
-                            !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
-                            null
+                        val hasSession = call.sessions.get<UserSession>()?.token != null
+
+                        if (deviceToken != null && !hasSession) {
+                            val token = !TimingDeviceTokenService.validate(deviceToken, eventId, stationId)
+                            val body = !receiveKIO(TimingStationArmedRequest.example)
+                            TimingService.setStationArmedByDevice(token, stationId, eventId, body.armed)
                         } else {
-                            (!authenticateAny(
-                                Privilege.UpdateAppTimingGlobal,
-                                Privilege.UpdateEventGlobal,
-                                Privilege.ReadEventGlobal,
-                            )).id!!
+                            !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                            val body = !receiveKIO(TimingStationArmedRequest.example)
+                            TimingService.setStationArmed(stationId, eventId, body.armed)
                         }
-                        val body = !receiveKIO(TimingStationArmedRequest.example)
-                        TimingService.setStationArmed(stationId, eventId, body.armed, userId)
                     }
                 }
             }

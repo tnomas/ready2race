@@ -5800,7 +5800,9 @@ export const deleteTimingStation = <ThrowOnError extends boolean = false>(
  *
  * Deliberately separate from `PUT /timing/stations/{stationId}`: the capture mode belongs to the organizers and is set once in the event settings, while this state is flipped by the timekeeper many times a day. Sharing one body would mean disarming overwrites the configuration.
  *
- * Readable and writable with a session or with the X-Timing-Device-Token header, like the board reads -- the timekeeper on a shared tablet has no login, only the station link. The token branch is only taken when the header is present AND no session exists, and the token is bound to its own event, so it can never arm a station of another event.
+ * Requires UpdateAppTimingGlobal or UpdateEventGlobal -- not ReadEventGlobal: disarming blocks every assigned capture, which is no read.
+ *
+ * Alternatively accepts an X-Timing-Device-Token header instead of a session -- the timekeeper on a shared tablet has no login, only the station link. The token branch is only taken when the header is present AND no session exists. Like the other writing token paths the token must be issued for exactly this station, and tokens of ANZEIGE stations are rejected; both answer 401 without saying which it was. A station only ever switches itself.
  */
 export const setTimingStationArmed = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<SetTimingStationArmedData, ThrowOnError>,

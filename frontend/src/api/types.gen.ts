@@ -4452,7 +4452,7 @@ export type TimingStationRequest = {
      */
     linkedStation?: uuid | null
     /**
-     * Defaults to ONETOUCH when omitted - today's behaviour. The state `armed` deliberately does not live here: it is flipped on its own route, and saving the setup must not reset it.
+     * Omit to leave the mode unchanged; on create it then becomes ONETOUCH - today's behaviour. Deliberately not defaulted on update: a form that does not know the field would otherwise let a mere rename drop an ARMED station back to ONETOUCH, a silent fallback that REMOVES a safeguard. The state `armed` does not live here at all: it is flipped on its own route.
      */
     captureMode?: TimingCaptureMode
 }

@@ -95,7 +95,8 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
             type = type.name,
             sorting = sorting,
             linkedStation = linkedStation,
-            captureMode = captureMode.name,
+            // null im Request heißt beim Anlegen schlicht: die Vorgabe.
+            captureMode = (captureMode ?: TimingCaptureMode.ONETOUCH).name,
             // Ein neuer Posten ist nie scharf - scharf schaltet ihn der Zeitnehmer, nicht das
             // Anlegen.
             armed = false,

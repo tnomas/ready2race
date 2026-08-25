@@ -72,9 +72,11 @@ object TimingService {
             type = request.type.name
             sorting = request.sorting
             linkedStation = request.linkedStation
-            // Nur die Betriebsart - der Zustand `armed` gehört dem Posten und bliebe sonst bei
-            // jedem Speichern der Einrichtung auf der Strecke liegen.
-            captureMode = request.captureMode.name
+            // Nur, wenn der Aufrufer die Betriebsart überhaupt nennt: ein Formular, das das Feld
+            // nicht kennt (heute jedes), würde einen ARMED-Posten sonst beim bloßen Umbenennen
+            // still auf ONETOUCH zurückfallen lassen - ein Rückfall, der eine Sicherung ENTFERNT.
+            // Der Zustand `armed` steht aus demselben Grund gar nicht erst im Request.
+            request.captureMode?.let { captureMode = it.name }
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -100,32 +102,52 @@ object TimingService {
      * Speichern der Einrichtung darf einen scharfen Posten nicht mit zurücksetzen, und ein
      * Entschärfen nicht die Konfiguration überschreiben.
      *
-     * [userId] ist null, wenn ein Geräte-Token schaltet - der Zeitnehmer am geteilten Tablet ist
-     * nirgends angemeldet. Die Zugehörigkeit zur Veranstaltung wird trotzdem geprüft wie bei
-     * [updateStation]: der Weg trägt kein Nutzerrecht, das einen fremden Posten fernhielte, die
-     * Veranstaltung aus dem Pfad ist die einzige Grenze.
+     * Rührt `updated_at`/`updated_by` bewusst NICHT an: das sind die Revisionsspalten der
+     * EINRICHTUNG. Ein Zustand, den der Zeitnehmer am Tag zwanzigmal kippt, hat dort nichts zu
+     * suchen - er überschriebe sonst nach dem ersten Schalten, wer den Posten eingerichtet hat.
      */
     fun setStationArmed(
         stationId: UUID,
         eventId: UUID,
         armed: Boolean,
-        userId: UUID?,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
         !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
 
         !TimingStationRepo.update(stationId) {
             this.armed = armed
-            // null, wenn ein Gerät geschaltet hat - dieselbe Aussage wie beim Hardware-Zeitstempel
-            // (createHardwareTimeMark): kein bekannter Nutzer, nicht der alte weiterhin.
-            updatedBy = userId
-            updatedAt = LocalDateTime.now()
         }.orDie()
             .onNullFail { TimingError.StationNotFound }
 
         // Der Leitstand und die übrigen Bildschirme sollen sehen, dass der Posten jetzt scharf ist
         // - dieselbe Nachricht wie bei jeder anderen Änderung an den Posten.
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
+        noData
+    }
+
+    /**
+     * Scharfschaltung vom geteilten Posten-Gerät: der Zeitnehmer am Tablet ist nirgends angemeldet
+     * und weist sich mit dem Geräte-Token aus. Der Spielraum ist bewusst enger als mit Sitzung -
+     * dasselbe Muster wie bei [assignTimeMarkByDevice]: nur der EIGENE Posten (das Token des
+     * Zielpostens legt nie den Startposten stumm), und Tokens von ANZEIGE-Posten schalten gar
+     * nichts - sie hängen an Athleten- und Schiedsrichter-Bildschirmen und dürfen ausschließlich
+     * lesen. Beides antwortet als [TimingError.DeviceTokenInvalid], ohne zu verraten, woran es lag.
+     *
+     * Warum das hier zählt: Entschärfen sperrt jede zugeordnete Erfassung. Ein Token, das einen
+     * fremden Posten entschärfen könnte, wäre ein Ausschalter für die Ziellinie.
+     */
+    fun setStationArmedByDevice(
+        deviceToken: TimingDeviceTokenRecord,
+        stationId: UUID,
+        eventId: UUID,
+        armed: Boolean,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        !KIO.failOn(deviceToken.station != stationId) { TimingError.DeviceTokenInvalid }
+
+        val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.DeviceTokenInvalid }
+        !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.DeviceTokenInvalid }
+
+        !setStationArmed(stationId, eventId, armed)
         noData
     }
 

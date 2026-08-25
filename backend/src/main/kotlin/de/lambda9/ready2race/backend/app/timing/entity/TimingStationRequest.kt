@@ -16,12 +16,18 @@ data class TimingStationRequest(
      */
     val linkedStation: java.util.UUID? = null,
     /**
-     * Die Betriebsart des Postens. Vorgabe [TimingCaptureMode.ONETOUCH] - das heutige Verhalten;
-     * ein Posten, der ungefragt auf ARMED spränge, stünde am nächsten Renntag vor einem toten
-     * Knopf. Der Zustand `armed` steht bewusst NICHT hier: den schaltet der Zeitnehmer am Tag über
-     * seinen eigenen Weg, und ein Speichern der Einrichtung dürfte ihn nicht mit zurücksetzen.
+     * Die Betriebsart des Postens. `null` heißt „unverändert lassen"; beim Anlegen wird daraus
+     * [TimingCaptureMode.ONETOUCH] - das heutige Verhalten, denn ein Posten, der ungefragt auf
+     * ARMED spränge, stünde am nächsten Renntag vor einem toten Knopf.
+     *
+     * Kein harter Vorgabewert, weil die Richtung zählt: ein Formular, das das Feld (noch) nicht
+     * kennt, würde einen ARMED-Posten beim bloßen Umbenennen sonst still auf ONETOUCH
+     * zurückfallen lassen - ein stiller Rückfall, der eine Sicherung ENTFERNT.
+     *
+     * Der Zustand `armed` steht bewusst gar nicht hier: den schaltet der Zeitnehmer am Tag über
+     * seinen eigenen Weg.
      */
-    val captureMode: TimingCaptureMode = TimingCaptureMode.ONETOUCH,
+    val captureMode: TimingCaptureMode? = null,
 ) : Validatable {
     override fun validate(): ValidationResult = ValidationResult.allOf(
         this::name validate notBlank,

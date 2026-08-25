@@ -9873,10 +9873,16 @@ paths:
         configuration.
 
 
-        Readable and writable with a session or with the X-Timing-Device-Token header, like the
-        board reads -- the timekeeper on a shared tablet has no login, only the station link. The
-        token branch is only taken when the header is present AND no session exists, and the token
-        is bound to its own event, so it can never arm a station of another event.
+        Requires UpdateAppTimingGlobal or UpdateEventGlobal -- not ReadEventGlobal: disarming
+        blocks every assigned capture, which is no read.
+
+
+        Alternatively accepts an X-Timing-Device-Token header instead of a session -- the
+        timekeeper on a shared tablet has no login, only the station link. The token branch is
+        only taken when the header is present AND no session exists. Like the other writing token
+        paths the token must be issued for exactly this station, and tokens of ANZEIGE stations
+        are rejected; both answer 401 without saying which it was. A station only ever switches
+        itself.
       parameters:
         - name: eventId
           in: path
@@ -20596,9 +20602,11 @@ components:
         captureMode:
           $ref: '#/components/schemas/TimingCaptureMode'
           description: >-
-            Defaults to ONETOUCH when omitted - today's behaviour. The state `armed` deliberately
-            does not live here: it is flipped on its own route, and saving the setup must not reset
-            it.
+            Omit to leave the mode unchanged; on create it then becomes ONETOUCH - today's
+            behaviour. Deliberately not defaulted on update: a form that does not know the field
+            would otherwise let a mere rename drop an ARMED station back to ONETOUCH, a silent
+            fallback that REMOVES a safeguard. The state `armed` does not live here at all: it is
+            flipped on its own route.
 
     TimingStationArmedRequest:
       type: object
