@@ -416,10 +416,13 @@ object TimingOfficialTimeService {
         val rows = !TimingOfficialTimeRepo.getByEvent(eventId).orDie()
         val teams = (markTimes.keys + rows.map { it.competitionMatchTeam }).toList()
         val written = !recomputeApplyAndBroadcast(eventId, teams, userId)
+        // Der Nachzug gilt für die Veranstaltung, also auch für ihre Zwischenzeiten - sie hängen
+        // an denselben Marken.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
         // Hat der Nachzug Ergebnisse an die Läufe geschrieben, müssen die öffentlichen Anzeigen
         // sie sofort sehen - EIN Bump für den ganzen Nachzug, nicht einer je Team. Ohne
         // Schreibvorgang (nichts aufgelaufen) bleibt es still.
-        if (written) {
+        if (written || splitsChanged) {
             EventChangeMarker.bump(eventId)
         }
         KIO.ok(Unit)

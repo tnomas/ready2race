@@ -272,7 +272,10 @@ object TimingService {
         // Ergebnis wirklich vom Lauf geräumt, erfahren die öffentlichen Anzeigen davon über den
         // einen Bump - eine Rücknahme ohne Rückschreibung (z.B. fremdes Ergebnis) bleibt still.
         val written = !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(assignedTeam), userId)
-        if (written) {
+        // War es eine Streckenmarke, ändert die Rücknahme keine offizielle Zeit, wohl aber die
+        // Zwischenzeiten des Bootes - dieselbe Echtzeit-Übernahme, nur für die Marken dazwischen.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
+        if (written || splitsChanged) {
             EventChangeMarker.bump(eventId)
         }
         broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(timeMarkId))
@@ -305,6 +308,8 @@ object TimingService {
         }.orDie()
             .onNullFail { TimingError.TimeMarkNotFound }
         val written = !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(assignedTeam), userId)
+        // Mit einer wiederhergestellten Streckenmarke lebt auch ihre Zwischenzeit wieder auf.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
 
         // Die Reaktivierung ist das Gegenstück zur Versuchs-Rücknahme - lebt mit ihr auch eine
         // zugeordnete Startmarke wieder auf, bekommt die Partie ihren Ist-Start zurück (nur wenn
@@ -317,7 +322,7 @@ object TimingService {
 
         // Wiederhergestelltes Ergebnis und wiederauflebender Ist-Start derselben Mutation sind
         // für die öffentlichen Anzeigen EINE Änderung - ein gemeinsamer Bump statt zweier.
-        if (written || stamped) {
+        if (written || stamped || splitsChanged) {
             EventChangeMarker.bump(eventId)
         }
 
@@ -376,6 +381,11 @@ object TimingService {
             rows.forEach { broadcastAsync(eventId, TimingWsMessage.TimeMarkRetracted(it.timeMarkId)) }
         }
 
+        // Mit dem Versuch gehen auch die Zwischenzeiten seiner Boote: Die Bündel-Rücknahme nimmt
+        // ausdrücklich auch die Rundenmarken zurück, ihre übernommenen Zeilen dürfen einen
+        // verworfenen Versuch nicht überleben.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
+
         // Auch ohne aktive Marken prüfen (alle Marken können schon einzeln zurückgenommen sein):
         // Der eigene Ist-Start-Stempel gehört bei der Versuchs-Rücknahme in jedem Fall zurück.
         val retractedStart = !TimingMatchStampService.retractStartOfAttempt(eventId, setupMatchId, userId)
@@ -383,7 +393,7 @@ object TimingService {
         // Abgeräumte Ergebnisse und der zurückgenommene Laufzustand derselben Rücknahme sind für
         // die öffentlichen Anzeigen EINE Änderung - ein gemeinsamer Bump; ganz ohne Schreibvorgang
         // (Doppelklick auf den Menüpunkt) bleibt es still.
-        if (written || retractedStart) {
+        if (written || retractedStart || splitsChanged) {
             EventChangeMarker.bump(eventId)
             // Fehlstart-Signal an die Boards: EINE Nachricht je Rücknahme (nicht je Marke), nur
             // wenn wirklich etwas zurückging - der harmlose Doppelklick bleibt auch hier still.
@@ -485,6 +495,9 @@ object TimingService {
         // assignment that follows is what can change a team's official time. Neuberechnung und
         // Rückschreibung laufen sofort mit (Echtzeit-Übernahme), im selben Request.
         val written = !TimingOfficialTimeService.recomputeApplyAndBroadcast(eventId, listOfNotNull(previousTeam, team), userId)
+        // Genau hier entsteht die Zwischenzeit: Eine Streckenmarke wird zur Zeit eines Bootes,
+        // sobald sie zugeordnet ist - und verliert sie wieder, wenn die Zuordnung gelöst wird.
+        val splitsChanged = !TimingSplitService.recomputeEvent(eventId, userId)
 
         // Verschafft die Zuordnung der Partie ihre erste aktive Startmarke, ist das ihr Ist-Start
         // (started_at = früheste Markenzeit, TimingMatchStampService) - der Zielposten-Weg "Zeit
@@ -500,7 +513,7 @@ object TimingService {
         // Der Bump entwertet die Caches der öffentlichen Anzeigen nur, wenn diese Zuordnung
         // wirklich etwas verändert hat - Ergebnis am Lauf und/oder Ist-Start-Stempel zählen als
         // EINE Änderung (ein gemeinsamer Bump); ein bloßes Umhängen ohne Folgen bleibt still.
-        if (written || stamped) {
+        if (written || stamped || splitsChanged) {
             EventChangeMarker.bump(eventId)
         }
 

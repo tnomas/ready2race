@@ -424,6 +424,14 @@ object TimingSequenceService {
             sequence.createdBy,
         )
 
+        // Die gefeuerte Startmarke ist der Bezugspunkt aller Zwischenzeiten ihres Bootes - hat ein
+        // verworfener Versuch noch welche stehen lassen, räumt die Übernahme sie hier ab. Ihr
+        // Rückgabewert wird bewusst verworfen: Der EventChangeMarker-Bump darf in dieser
+        // Scheduler-Transaktion nicht laufen (siehe oben), und die Anzeigen holen die Zeilen
+        // spätestens mit dem nächsten Bump - vor dem Start hat ohnehin kein Boot eine
+        // Zwischenzeit.
+        !TimingSplitService.recomputeEvent(sequence.event, sequence.createdBy)
+
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,

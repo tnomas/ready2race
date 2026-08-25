@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
 import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationEntry
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_TIMING_STATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_STATION
 import de.lambda9.tailwind.jooq.Jooq
@@ -45,6 +46,39 @@ object CompetitionTimingStationRepo {
                     distanceMeters = it[COMPETITION_TIMING_STATION.DISTANCE_METERS]!!,
                 )
             }
+    }
+
+    /**
+     * Dieselben Zeilen für ALLE Wettkämpfe einer Veranstaltung, gebündelt nach Wettkampf — der
+     * Zuschnitt, den die Zwischenzeiten brauchen: Sie werden für die ganze Veranstaltung in einem
+     * Zug gerechnet, und eine Abfrage je Wettkampf wäre bei einer Regatta mit dutzenden
+     * Wettkämpfen ein Schwarm von Abfragen an jeder einzelnen Marke.
+     *
+     * Reihenfolge und Tiebreak wie in [getByCompetition]; die Gruppierung erhält sie je Wettkampf.
+     */
+    fun getByEvent(eventId: UUID) = Jooq.query {
+        select(
+            COMPETITION_TIMING_STATION.COMPETITION,
+            COMPETITION_TIMING_STATION.TIMING_STATION,
+            TIMING_STATION.NAME,
+            TIMING_STATION.TYPE,
+            COMPETITION_TIMING_STATION.DISTANCE_METERS,
+        )
+            .from(COMPETITION_TIMING_STATION)
+            .join(TIMING_STATION)
+            .on(TIMING_STATION.ID.eq(COMPETITION_TIMING_STATION.TIMING_STATION))
+            .join(COMPETITION).on(COMPETITION.ID.eq(COMPETITION_TIMING_STATION.COMPETITION))
+            .where(COMPETITION.EVENT.eq(eventId))
+            .orderBy(COMPETITION_TIMING_STATION.DISTANCE_METERS, TIMING_STATION.SORTING)
+            .fetch {
+                it[COMPETITION_TIMING_STATION.COMPETITION]!! to StationRow(
+                    timingStation = it[COMPETITION_TIMING_STATION.TIMING_STATION]!!,
+                    name = it[TIMING_STATION.NAME]!!,
+                    type = it[TIMING_STATION.TYPE]!!,
+                    distanceMeters = it[COMPETITION_TIMING_STATION.DISTANCE_METERS]!!,
+                )
+            }
+            .groupBy({ it.first }, { it.second })
     }
 
     /**
