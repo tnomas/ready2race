@@ -1,4 +1,4 @@
-import {ReactNode, useState} from 'react'
+import {ReactNode, useRef, useState} from 'react'
 import {
     Alert,
     Box,
@@ -22,7 +22,17 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import Throbber from '@components/Throbber.tsx'
 import InlineLink from '@components/InlineLink.tsx'
-import {deviationCount, optionLabel, profileLabel, toggleExpanded} from './timingProfileTree.ts'
+import {
+    awaitReload,
+    deviationCount,
+    lockRow,
+    optionLabel,
+    profileLabel,
+    releaseCovered,
+    SavingRows,
+    toggleExpanded,
+    unlockRow,
+} from './timingProfileTree.ts'
 
 type Props = {
     eventId: string
@@ -56,57 +66,70 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
 
+    /**
+     * Der Stempel der Ladung, die gerade gilt — zugleich der Auslöser fürs Neuladen. 0 ist der
+     * erste Abruf, der noch keinen Schreibvorgang einschließt.
+     */
     const [reloaded, setReloaded] = useState(0)
     /** Alles zugeklappt: die Wettkampfliste ist die erste Ebene, tiefer geht nur, wer hinschaut. */
     const [expanded, setExpanded] = useState<Set<string>>(new Set())
-    /** Zeilen, deren Speichern gerade läuft — sperrt nur das Select der einen Zeile. */
-    const [saving, setSaving] = useState<Set<string>>(new Set())
+    /**
+     * Zeilen, deren Speichern gerade läuft, je mit dem Stempel des Baums, auf den sie warten —
+     * sperrt nur das Select der einen Zeile. Der Lebenszyklus steht als reine Logik in
+     * `timingProfileTree.ts`.
+     */
+    const [saving, setSaving] = useState<SavingRows>(new Map())
+    /**
+     * Die Quelle der Stempel: streng steigend und in einem Ref, damit zwei Zeilen, die im selben
+     * Rendervorgang fertig werden, nie denselben Stempel ziehen. Ein Zeitstempel taugte dafür
+     * nicht — zwei Schreibvorgänge in derselben Millisekunde ergäben denselben Wert, und dann
+     * bliebe `reloaded` sogar unverändert und der zweite Baum würde nie geholt.
+     */
+    const stampRef = useRef(0)
 
     const {data: tree, pending} = useFetch(
         signal => getTimingProfileTree({signal, path: {eventId}}),
         {
             onResponse: ({error}) => {
                 if (error) feedback.error(t('common.error.unexpected'))
-                // Erst mit dem neuen Baum fallen die Zeilensperren. Gäbe man sie schon frei,
-                // sobald der PUT durch ist, stünde die Zeile zwischen Erfolgsmeldung und
-                // neuem Baum entsperrt mit ihrem ALTEN Wert da — bei vielen Wettkämpfen ein
-                // spürbares Fenster, das zum zweiten Klick einlädt.
-                // Identität nur wechseln, wenn wirklich etwas gesperrt war — sonst löste jeder
-                // Abruf einen zusätzlichen Rendervorgang aus.
-                setSaving(prev => (prev.size === 0 ? prev : new Set()))
+                // Erst mit dem neuen Baum fallen die Zeilensperren — sonst stünde die Zeile
+                // zwischen Erfolgsmeldung und neuem Baum entsperrt mit ihrem ALTEN Wert da.
+                //
+                // `reloaded` ist hier der Stempel GENAU DIESER Ladung, nicht der neueste:
+                // useFetch hält im Effekt die Options des Renders fest, in dem die Ladung
+                // gestartet wurde. Deshalb löst eine Antwort nur die Zeilen, die sie auch
+                // enthält — eine Zeile, die erst danach geschrieben hat, bleibt gesperrt, bis
+                // ihr eigener Baum kommt. Auch eine Fehlerantwort löst, sonst bliebe die Zeile
+                // für immer gesperrt.
+                setSaving(prev => releaseCovered(prev, reloaded))
             },
             deps: [eventId, reloaded],
         },
     )
 
     /**
-     * Sperrt eine Zeile und gibt sie im Fehlerfall sofort wieder frei. Nach einem erfolgreichen
-     * Schreiben bleibt sie gesperrt: dann räumt das Neuladen oben auf.
+     * Schreibt eine Zeile und lädt danach den ganzen Baum neu. Die Sperre fällt im Fehlerfall
+     * sofort, nach Erfolg erst mit dem Baum, der diesen Schreibvorgang enthält.
      */
-    const lock = (key: string) => setSaving(prev => new Set(prev).add(key))
-    const unlock = (key: string) =>
-        setSaving(prev => {
-            const next = new Set(prev)
-            next.delete(key)
-            return next
-        })
-
-    /** Schreibt eine Zeile und lädt danach den ganzen Baum neu; hält die Sperre bis dahin. */
     const write = (key: string, request: () => Promise<{error?: unknown}>, success: string) => {
-        lock(key)
+        setSaving(prev => lockRow(prev, key))
         void (async () => {
             try {
                 const {error} = await request()
                 if (error) {
                     feedback.error(t('common.error.unexpected'))
-                    unlock(key)
+                    setSaving(prev => unlockRow(prev, key))
                 } else {
                     feedback.success(success)
-                    setReloaded(Date.now())
+                    // Erst den Stempel ziehen, dann anfordern: Die Zeile wartet damit genau auf
+                    // die Ladung, die ihr Schreiben enthält, und nicht auf irgendeine.
+                    const stamp = ++stampRef.current
+                    setSaving(prev => awaitReload(prev, key, stamp))
+                    setReloaded(stamp)
                 }
             } catch {
                 feedback.error(t('common.error.unexpected'))
-                unlock(key)
+                setSaving(prev => unlockRow(prev, key))
             }
         })()
     }

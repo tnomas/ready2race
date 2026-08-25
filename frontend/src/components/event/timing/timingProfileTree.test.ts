@@ -1,6 +1,16 @@
 import {describe, expect, it} from 'vitest'
 import {TimingProfileCompetitionDto, TimingProfileOptionDto} from '@api/types.gen.ts'
-import {deviationCount, optionLabel, profileLabel, toggleExpanded} from './timingProfileTree.ts'
+import {
+    awaitReload,
+    deviationCount,
+    lockRow,
+    optionLabel,
+    profileLabel,
+    releaseCovered,
+    toggleExpanded,
+    unlockRow,
+    WRITE_IN_FLIGHT,
+} from './timingProfileTree.ts'
 
 const optionen: TimingProfileOptionDto[] = [
     {id: 'a', name: 'Timetrial 30s', detail: 'Intervall 30 s'},
@@ -87,5 +97,57 @@ describe('toggleExpanded', () => {
         const vorher = new Set(['c1'])
         toggleExpanded(vorher, 'r1')
         expect([...vorher]).toEqual(['c1'])
+    })
+})
+
+/**
+ * Der Sperr-Lebenszyklus. Die vier Fälle, die eine Zeile durchlaufen kann — der letzte ist der,
+ * an dem die erste Fassung brach: Sie löste bei jeder Baum-Antwort ALLE Sperren.
+ */
+describe('Sperr-Lebenszyklus', () => {
+    it('Fall 1 — der Schreibvorgang scheitert: die Zeile wird sofort gelöst', () => {
+        const gesperrt = lockRow(new Map(), 'A')
+        expect(gesperrt.get('A')).toBe(WRITE_IN_FLIGHT)
+        expect([...unlockRow(gesperrt, 'A')]).toEqual([])
+    })
+
+    it('Fall 2 — Schreiben und Laden gelingen: der eigene Baum löst die Zeile', () => {
+        const rows = awaitReload(lockRow(new Map(), 'A'), 'A', 1)
+        expect(rows.get('A')).toBe(1)
+        expect([...releaseCovered(rows, 1)]).toEqual([])
+    })
+
+    it('Fall 3 — eine Ladung fällt aus: die nächste löst die übersprungene Zeile mit', () => {
+        // Scheitert oder verfällt der Baum mit Stempel 1, bleibt A gesperrt — bis irgendein
+        // späterer Baum kommt. Keine Zeile bleibt dauerhaft gesperrt.
+        let rows = awaitReload(lockRow(new Map(), 'A'), 'A', 1)
+        rows = awaitReload(lockRow(rows, 'B'), 'B', 2)
+        expect([...releaseCovered(rows, 2)]).toEqual([])
+    })
+
+    it('Fall 4 — zwei Zeilen überlappen: der Baum löst nur, was er enthält', () => {
+        // A ist geschrieben und wartet auf Baum 1; B schreibt noch. Baum 1 kennt B nicht.
+        const rows = lockRow(awaitReload(lockRow(new Map(), 'A'), 'A', 1), 'B')
+        expect([...releaseCovered(rows, 1)]).toEqual([['B', WRITE_IN_FLIGHT]])
+    })
+
+    it('Fall 4b — eine Zeile, die auf einen späteren Baum wartet, bleibt gesperrt', () => {
+        let rows = awaitReload(lockRow(new Map(), 'A'), 'A', 1)
+        rows = awaitReload(lockRow(rows, 'B'), 'B', 2)
+        expect([...releaseCovered(rows, 1)]).toEqual([['B', 2]])
+    })
+
+    // Ohne diese Regel löste jeder Abruf einen zusätzlichen Rendervorgang aus.
+    it('gibt dieselbe Instanz zurück, wenn nichts zu lösen ist', () => {
+        const rows = lockRow(new Map(), 'A')
+        expect(releaseCovered(rows, 5)).toBe(rows)
+    })
+
+    it('lässt die übergebene Karte unangetastet', () => {
+        const vorher = awaitReload(new Map(), 'A', 1)
+        releaseCovered(vorher, 1)
+        unlockRow(vorher, 'A')
+        lockRow(vorher, 'B')
+        expect([...vorher]).toEqual([['A', 1]])
     })
 })
