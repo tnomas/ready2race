@@ -1359,7 +1359,7 @@
         "incomplete": {
           "title": "Diese Zeitnahme ist noch nicht einsatzbereit",
           "startlist": "Es fehlt der Startlisten Export – ohne ihn lässt sich keine Startliste als CSV exportieren.",
-          "link": "Zu den Zeitnahme-Einstellungen"
+          "link": "Zu den Zeitnahme-Einstellungen der Veranstaltung"
         }
       },
       "places": {

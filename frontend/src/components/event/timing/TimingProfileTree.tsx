@@ -67,24 +67,46 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
         {
             onResponse: ({error}) => {
                 if (error) feedback.error(t('common.error.unexpected'))
+                // Erst mit dem neuen Baum fallen die Zeilensperren. Gäbe man sie schon frei,
+                // sobald der PUT durch ist, stünde die Zeile zwischen Erfolgsmeldung und
+                // neuem Baum entsperrt mit ihrem ALTEN Wert da — bei vielen Wettkämpfen ein
+                // spürbares Fenster, das zum zweiten Klick einlädt.
+                // Identität nur wechseln, wenn wirklich etwas gesperrt war — sonst löste jeder
+                // Abruf einen zusätzlichen Rendervorgang aus.
+                setSaving(prev => (prev.size === 0 ? prev : new Set()))
             },
             deps: [eventId, reloaded],
         },
     )
 
-    const withSaving = (key: string, work: () => Promise<void>) => {
-        setSaving(prev => new Set(prev).add(key))
+    /**
+     * Sperrt eine Zeile und gibt sie im Fehlerfall sofort wieder frei. Nach einem erfolgreichen
+     * Schreiben bleibt sie gesperrt: dann räumt das Neuladen oben auf.
+     */
+    const lock = (key: string) => setSaving(prev => new Set(prev).add(key))
+    const unlock = (key: string) =>
+        setSaving(prev => {
+            const next = new Set(prev)
+            next.delete(key)
+            return next
+        })
+
+    /** Schreibt eine Zeile und lädt danach den ganzen Baum neu; hält die Sperre bis dahin. */
+    const write = (key: string, request: () => Promise<{error?: unknown}>, success: string) => {
+        lock(key)
         void (async () => {
             try {
-                await work()
+                const {error} = await request()
+                if (error) {
+                    feedback.error(t('common.error.unexpected'))
+                    unlock(key)
+                } else {
+                    feedback.success(success)
+                    setReloaded(Date.now())
+                }
             } catch {
                 feedback.error(t('common.error.unexpected'))
-            } finally {
-                setSaving(prev => {
-                    const next = new Set(prev)
-                    next.delete(key)
-                    return next
-                })
+                unlock(key)
             }
         })()
     }
@@ -94,36 +116,30 @@ const TimingProfileTree = ({eventId, competitionId}: Props) => {
         path: Omit<TimingProfileAssignmentRequest, 'profile'>,
         value: string,
     ) =>
-        withSaving(key, async () => {
-            const {error} = await upsertTimingProfileAssignment({
-                path: {eventId},
-                // Leer heißt: den Eintrag abräumen — die Ebene erbt danach wieder.
-                body: {...path, profile: value === INHERIT_VALUE ? null : value},
-            })
-            if (error) {
-                feedback.error(t('common.error.unexpected'))
-            } else {
-                feedback.success(t('event.timing.profiles.saved'))
-                setReloaded(Date.now())
-            }
-        })
+        write(
+            key,
+            () =>
+                upsertTimingProfileAssignment({
+                    path: {eventId},
+                    // Leer heißt: den Eintrag abräumen — die Ebene erbt danach wieder.
+                    body: {...path, profile: value === INHERIT_VALUE ? null : value},
+                }),
+            t('event.timing.profiles.saved'),
+        )
 
     /** Räumt alles UNTERHALB der Ebene ab; die Ebene selbst behält ihren Wert. */
     const reset = (competition?: string) =>
         confirmAction(
             () =>
-                withSaving('reset', async () => {
-                    const {error} = await resetTimingProfileAssignments({
-                        path: {eventId},
-                        query: competition ? {competition} : {},
-                    })
-                    if (error) {
-                        feedback.error(t('common.error.unexpected'))
-                    } else {
-                        feedback.success(t('event.timing.profiles.reset'))
-                        setReloaded(Date.now())
-                    }
-                }),
+                write(
+                    'reset',
+                    () =>
+                        resetTimingProfileAssignments({
+                            path: {eventId},
+                            query: competition ? {competition} : {},
+                        }),
+                    t('event.timing.profiles.reset'),
+                ),
             {content: t('event.timing.profiles.resetConfirm')},
         )
 

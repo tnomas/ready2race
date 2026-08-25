@@ -1359,7 +1359,7 @@
         "incomplete": {
           "title": "This timing setup is not ready for use yet",
           "startlist": "The start list export is missing – without it, no start list can be exported as CSV.",
-          "link": "Go to the timing settings"
+          "link": "Go to the event's timing settings"
         }
       },
       "places": {

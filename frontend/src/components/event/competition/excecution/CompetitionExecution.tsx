@@ -1050,12 +1050,12 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                             {t(`event.competition.timing.incomplete.${warning}`)}
                         </Typography>
                     ))}
-                    {/* Absolut statt relativ zur Wettkampf-Route: eingebettet im Zeitplan-Tab
-                        (Veranstaltungs-Modus) gibt es kein `from`, das hier passen würde. */}
-                    <InlineLink
-                        to={'/event/$eventId/competition/$competitionId'}
-                        params={{eventId, competitionId}}
-                        search={{tab: 'timing'}}>
+                    {/* Das Startlisten-Format sitzt an der Veranstaltung, nicht am Wettkampf —
+                        der Zeitnahme-Tab des Wettkampfs ordnet nur noch Profile zu. Der einzige
+                        Zweck dieser Warnung ist der Weg zur Abhilfe, also muss sie dorthin
+                        zeigen, wo das Format wirklich steht. Absolut statt relativ: eingebettet
+                        im Zeitplan-Tab gibt es kein `from`, das hier passen würde. */}
+                    <InlineLink to={'/event/$eventId'} params={{eventId}} search={{tab: 'settings'}}>
                         <Trans i18nKey={'event.competition.timing.incomplete.link'} />
                     </InlineLink>
                 </Alert>

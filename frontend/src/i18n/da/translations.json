@@ -1359,7 +1359,7 @@
         "incomplete": {
           "title": "Denne tidtagning er endnu ikke klar til brug",
           "startlist": "Startlistepresettet mangler – uden det kan der ikke eksporteres en startliste som CSV.",
-          "link": "Gå til tidtagningsindstillingerne"
+          "link": "Gå til stævnets tidtagningsindstillinger"
         }
       },
       "places": {
