@@ -13,6 +13,15 @@ data class TimingModeRequest(
     val leadInSeconds: Int,
     /** null = eingebauter Standardplan; Grenzen siehe [TimingToneLimits]. */
     val tonePlan: List<ToneStep>?,
+    /**
+     * Fehlstart-Auslöser am Startposten erlaubt? Vorgabe `true` - der Rückruf ist der Normalfall.
+     * Abgeschaltet wird er dort, wo er fachlich falsch wäre (Timetrial: Strafzeit statt Rückruf);
+     * siehe [TimingModeDto.falseStartEnabled].
+     *
+     * Mit Vorgabewert, damit ältere Aufrufer (und die Beispiel-Bodies der Doku) das Feld weglassen
+     * dürfen und dabei genau das bekommen, was die Datenbank als Default schreibt.
+     */
+    val falseStartEnabled: Boolean = true,
 ) : Validatable {
 
     override fun validate(): ValidationResult = ValidationResult.allOf(

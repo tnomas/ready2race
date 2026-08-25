@@ -26,6 +26,7 @@ import {
     deviceSessionForStation,
     writeDeviceSession,
 } from './utils/timing/deviceSession.ts'
+import {writeBoardDeviceToken} from './utils/board/deviceToken.ts'
 import UsersPage from './pages/user/UsersPage.tsx'
 import UserPage from './pages/user/UserPage.tsx'
 import RolesPage from './pages/user/RolesPage.tsx'
@@ -752,8 +753,9 @@ export const challengeRoute = createRoute({
     component: () => <ChallengePage />,
 })
 
-// Öffentliche Route ohne App-Layout: fest montierte Athletenbildschirme und
-// Athleten-Handys brauchen weder Kopfleiste noch Seitenleiste noch Anmeldung.
+// Route ohne App-Layout: fest montierte Athletenbildschirme und Athleten-Handys brauchen weder
+// Kopfleiste noch Seitenleiste. Die Inhalte selbst sind nicht mehr frei zugänglich — beide
+// Board-Endpunkte verlangen entweder eine Sitzung (READ BOARD/READ EVENT) oder ein Board-Token.
 // Bestands-URL der alten Athleten-Anzeige — leitet auf das erste Board um.
 export const athleteBoardRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -761,11 +763,37 @@ export const athleteBoardRoute = createRoute({
     component: () => <AthleteBoardPage />,
 })
 
-// Die Anzeige eines konkreten Boards, ebenfalls öffentlich und ohne App-Layout.
+// Die Anzeige eines konkreten Boards, ebenfalls ohne App-Layout.
+//
+// Wie Erfassung und Startbildschirm der Zeitnahme nimmt sie zusätzlich zur Nutzersitzung ein
+// Geräte-Token aus der Adresse an (`?token=…`, erzeugt vom „Link teilen" der Board-Verwaltung):
+// ein montierter Bildschirm und eine OBS-Browserquelle können sich nicht anmelden. Das Token wird
+// beim ersten Aufruf abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt, damit
+// es nicht in Verlauf oder Screenshots hängen bleibt. Anders als dort liegt es je Board (siehe
+// `utils/board/deviceToken.ts`): ein Anzeigegerät zeigt der Reihe nach mehrere Boards.
+//
+// Es bleibt bei `validateTimingTokenSearch` — das Board-Token stammt aus derselben Tabelle und
+// reist im selben Query-Parameter; eine zweite, identische Prüffunktion wäre nur ein zweiter Ort,
+// an dem der leere Token-String vergessen werden kann.
 export const boardDisplayRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'board/$eventId/$boardId',
+    validateSearch: validateTimingTokenSearch,
     component: () => <BoardDisplayPage />,
+    beforeLoad: ({params, search}) => {
+        if (search.token !== undefined) {
+            writeBoardDeviceToken(params.eventId, params.boardId, search.token)
+            throw redirect({
+                to: '/board/$eventId/$boardId',
+                params,
+                search: {},
+                replace: true,
+            })
+        }
+        // Bewusst KEIN checkAuth: Die Seite darf auch ohne Sitzung und ohne Token geöffnet werden.
+        // Ob es reicht, entscheidet der Server — und die Seite zeigt den 401 als Klartext an, statt
+        // den Bildschirm auf die Anmeldung zu werfen, vor der am Regattatag niemand steht.
+    },
 })
 
 const routeTree = rootRoute.addChildren([

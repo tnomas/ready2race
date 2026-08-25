@@ -4,12 +4,14 @@ import {
     mapDtoToEventTimingForm,
     mapEventTimingFormToRequest,
 } from './eventTimingConfigForm.ts'
+import {DEFAULT_START_DISPLAY} from '@utils/timing/startDisplay.ts'
 
 describe('mapDtoToEventTimingForm', () => {
     it('setzt ein fehlendes Zeitnahme-System auf NONE', () => {
         expect(
             mapDtoToEventTimingForm({
                 autoPull: false,
+                showManualCapture: false,
                 intervalActiveSeconds: 5,
                 intervalUpcomingSeconds: 60,
                 watchBeforeMinutes: 15,
@@ -23,6 +25,7 @@ describe('mapDtoToEventTimingForm', () => {
         const form = mapDtoToEventTimingForm({
             timingSystem: 'RACECLOCKER',
             autoPull: false,
+            showManualCapture: false,
             intervalActiveSeconds: 5,
             intervalUpcomingSeconds: 60,
             watchBeforeMinutes: 15,
@@ -37,6 +40,7 @@ describe('mapDtoToEventTimingForm', () => {
         const form = mapDtoToEventTimingForm({
             timingSystem: 'INTERN',
             autoPull: false,
+            showManualCapture: false,
             intervalActiveSeconds: 5,
             intervalUpcomingSeconds: 60,
             watchBeforeMinutes: 15,
@@ -101,6 +105,7 @@ describe('automatischer Abruf', () => {
             startlistConfig: null,
             resultImportConfig: null,
             autoPull: true,
+            showManualCapture: false,
             intervalActiveSeconds: 3,
             intervalUpcomingSeconds: 90,
             watchBeforeMinutes: 20,
@@ -120,6 +125,7 @@ describe('automatischer Abruf', () => {
             ...emptyEventTimingForm,
             timingSystem: 'RACECLOCKER',
             autoPull: true,
+            showManualCapture: false,
             intervalActiveSeconds: 3,
             intervalUpcomingSeconds: 90,
             watchBeforeMinutes: 20,
@@ -139,6 +145,7 @@ describe('automatischer Abruf', () => {
             ...emptyEventTimingForm,
             timingSystem: 'WEBSCORER',
             autoPull: true,
+            showManualCapture: false,
         })
 
         expect(request.autoPull).toBe(false)
@@ -162,5 +169,76 @@ describe('Genauigkeit', () => {
 
     it('startet mit der Server-Vorgabe ZEHNTEL', () => {
         expect(emptyEventTimingForm.timingPrecision).toBe('ZEHNTEL')
+    })
+})
+
+describe('Startbildschirm und manueller Stempel', () => {
+    // Der Stempel ist der Grund fuer die ganze Einstellung: Ohne sie stehen im Start-Board zwei
+    // gruene "Start"-Flaechen uebereinander. Die Vorgabe muss deshalb "verborgen" sein.
+    it('startet mit verborgenem Stempel', () => {
+        expect(emptyEventTimingForm.showManualCapture).toBe(false)
+    })
+
+    it('schickt den Stempel-Schalter bei jedem System mit', () => {
+        for (const timingSystem of ['NONE', 'RACECLOCKER', 'WEBSCORER', 'INTERN'] as const) {
+            const request = mapEventTimingFormToRequest({
+                ...emptyEventTimingForm,
+                timingSystem,
+                showManualCapture: true,
+            })
+            expect(request.showManualCapture).toBe(true)
+        }
+    })
+
+    // null vom Server heisst "noch nichts gespeichert" - das Formular zeigt dann die eingebauten
+    // Vorgaben, damit die Schalter das wiedergeben, was der Bildschirm tatsaechlich anzeigt.
+    it('fuellt einen fehlenden Anzeige-Block mit den Vorgaben', () => {
+        const form = mapDtoToEventTimingForm({
+            timingSystem: 'INTERN',
+            autoPull: false,
+            showManualCapture: false,
+            intervalActiveSeconds: 5,
+            intervalUpcomingSeconds: 60,
+            watchBeforeMinutes: 15,
+            watchAfterMinutes: 120,
+            timingPrecision: 'ZEHNTEL',
+        })
+
+        expect(form.startDisplay).toEqual(DEFAULT_START_DISPLAY)
+    })
+
+    // ... und zurueck wird daraus wieder null. Sonst friere ein blosses Oeffnen-und-Speichern die
+    // heutigen Vorgaben ein, und eine spaetere Aenderung des Standards erreichte diese Regatta
+    // nicht mehr.
+    it('speichert einen unangetasteten Anzeige-Block wieder als null', () => {
+        const request = mapEventTimingFormToRequest({
+            ...emptyEventTimingForm,
+            timingSystem: 'INTERN',
+        })
+
+        expect(request.startDisplay).toBeNull()
+    })
+
+    it('speichert einen geaenderten Anzeige-Block als eigenen Wert', () => {
+        const request = mapEventTimingFormToRequest({
+            ...emptyEventTimingForm,
+            timingSystem: 'INTERN',
+            startDisplay: {...DEFAULT_START_DISPLAY, showAthleteNames: true, listScale: 1.5},
+        })
+
+        expect(request.startDisplay?.showAthleteNames).toBe(true)
+        expect(request.startDisplay?.listScale).toBe(1.5)
+    })
+
+    // 0 folgende Boote heisst "nur das aktuelle Boot" und ist eine bewusste Ansage - es darf
+    // nicht als "nichts eingestellt" durchfallen und wieder zu null werden.
+    it('behaelt null folgende Boote als eigenen Wert', () => {
+        const request = mapEventTimingFormToRequest({
+            ...emptyEventTimingForm,
+            timingSystem: 'INTERN',
+            startDisplay: {...DEFAULT_START_DISPLAY, followingCount: 0},
+        })
+
+        expect(request.startDisplay?.followingCount).toBe(0)
     })
 })

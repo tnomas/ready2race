@@ -22,6 +22,17 @@ export interface PolledState<T> {
     // Fehler, weil dabei gar kein Abruf stattfindet.
     loadFailed: boolean
     /**
+     * true, wenn der Server den Abruf mit 401/403 abgelehnt hat (fehlende Sitzung, fehlendes,
+     * fremdes oder widerrufenes Geräte-Token).
+     *
+     * Bewusst getrennt von `loadFailed`: Ein fehlendes Recht ist kein Netzproblem und heilt auch
+     * nicht von selbst — die Anzeige braucht dafür einen anderen Satz („nicht freigegeben") als
+     * für „Backend antwortet nicht". Wie beim 404 hält der Takt danach an: gegen eine Ablehnung
+     * weiterzutakten ändert nichts und hämmert nur den Server; die Meldung bleibt stehen, bis
+     * jemand die Seite mit gültigem Link neu lädt.
+     */
+    unauthorized: boolean
+    /**
      * true, sobald der letzte gute Stand drei Takte alt ist UND ein Abruf fehlgeschlagen ist.
      *
      * Bewusst hier und nicht beim Rendern der Anzeige ausgerechnet: Die Bedingung enthält die
@@ -44,6 +55,17 @@ export type PolledEndpointOptions = {
      * reinen Takt.
      */
     pushEventId?: string
+    /**
+     * Ein Push-Kanal, den der AUFRUFER selbst hält und der ihm den vollständigen Stand liefert —
+     * konkret der Board-Kanal (`useBoardViewSocket`), der die fertige Ansicht schickt und
+     * deshalb gar kein Nachladen auslöst. Nachladen kann dieser Hook dafür nichts tun; was er
+     * beitragen muss, ist die andere Hälfte: solange der fremde Kanal steht, streckt sich der
+     * Takt genauso wie beim Veranstaltungs-Kanal (`stretchedPollMs`), und der Abruf bleibt als
+     * Sicherheitsnetz für stumm gestorbene Verbindungen erhalten.
+     *
+     * Beide Quellen ODER-verknüpft: es genügt EIN stehender Kanal, um den Takt zu strecken.
+     */
+    externalPushConnected?: boolean
 }
 
 /**
@@ -75,6 +97,7 @@ export const usePolledEndpoint = <T>(
     const [data, setData] = useState<T | null>(null)
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
     const [notFound, setNotFound] = useState(false)
+    const [unauthorized, setUnauthorized] = useState(false)
     const [initialLoad, setInitialLoad] = useState(true)
     const [loadFailed, setLoadFailed] = useState(false)
     const [stale, setStale] = useState(false)
@@ -141,8 +164,15 @@ export const usePolledEndpoint = <T>(
                 setLoadFailed(false)
                 stopPolling = true
                 stopPollingRef.current = true
+            } else if (result.response.status === 401 || result.response.status === 403) {
+                // Siehe `unauthorized` oben: eigene Meldung, und der Takt hält an.
+                setUnauthorized(true)
+                setLoadFailed(false)
+                stopPolling = true
+                stopPollingRef.current = true
             } else if (result.data) {
                 setNotFound(false)
+                setUnauthorized(false)
                 setLoadFailed(false)
                 setData(result.data)
                 setLastUpdated(new Date())
@@ -193,8 +223,12 @@ export const usePolledEndpoint = <T>(
         void runLoadRef.current()
     })
 
+    // Der eigene Kanal ODER ein vom Aufrufer gehaltener (siehe `externalPushConnected`): für den
+    // Takt zählt nur, dass überhaupt einer steht.
+    const anyPushConnected = pushConnected || (options.externalPushConnected ?? false)
+
     useEffect(() => {
-        pushConnectedRef.current = pushConnected
+        pushConnectedRef.current = anyPushConnected
         // Ein bereits gestellter Wecker läuft noch im alten Takt — umstellen, ohne einen Abruf
         // auszulösen. Läuft gerade ein Abruf (kein Wecker), stellt dessen Abschluss den nächsten
         // Wecker ohnehin mit dem neuen Takt.
@@ -204,12 +238,14 @@ export const usePolledEndpoint = <T>(
                 void runLoadRef.current()
             }, effectiveIntervalMs())
         }
-    }, [pushConnected])
+    }, [anyPushConnected])
 
     useEffect(() => {
         // Andere Abhängigkeiten heißen: andere Daten. Eine Warnung, die zum vorigen Stand
-        // gehörte, darf nicht über den Wechsel hinweg stehen bleiben.
+        // gehörte, darf nicht über den Wechsel hinweg stehen bleiben — die Ablehnung des vorigen
+        // Boards sagt nichts über die Rechte am nächsten.
         setStale(false)
+        setUnauthorized(false)
         stopPollingRef.current = false
         staleWatchRef.current = createStaleWatch({
             onStale: value => {
@@ -237,5 +273,5 @@ export const usePolledEndpoint = <T>(
         }
     }, [runLoad])
 
-    return {data, lastUpdated, notFound, initialLoad, loadFailed, stale}
+    return {data, lastUpdated, notFound, unauthorized, initialLoad, loadFailed, stale}
 }

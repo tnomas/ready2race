@@ -22,9 +22,16 @@ import java.util.UUID
  *
  * WO ein Typ gilt, steht hier nicht mehr: Der Geltungsbereich ist eine Zeile des
  * Zeitnahmeprofil-Baums ([TimingProfileService]), der Rennen und Zeitnahmetypen gleich behandelt
- * und über vier Ebenen vererbt. Bewusst KEINE Websocket-Broadcasts: Typen sind Konfiguration, die
- * vor dem Renntag gepflegt wird - die Posten-Boards bekommen den aufgelösten Typ über die
- * Startliste (`TimingMatchService`), nicht über einen eigenen Kanal.
+ * und über vier Ebenen vererbt. Die Posten-Boards bekommen den aufgelösten Typ über die Startliste
+ * ([TimingMatchService]) und nicht über einen eigenen Kanal - es gibt deshalb bewusst keine eigene
+ * Nachricht "Typ geändert".
+ *
+ * Was es seit dem 24.08.2026 gibt: ein [TimingMatchService.broadcastMatchesChanged] nach jedem
+ * Schreiben, das den WIRKSAMEN Typ einer Partie verschiebt. Die Annahme "Typen sind Konfiguration,
+ * die vor dem Renntag gepflegt wird" hielt am Steg nicht: wird ein vergessener Typ mitten am
+ * Renntag nachgetragen, standen die offenen Boards bis zum nächsten Neuladen weiter ohne
+ * Startablauf da. Die Nachricht ist ein reiner Auslöser - die Boards holen die Startliste, und
+ * damit den aufgelösten Typ, wie bisher selbst.
  */
 object TimingModeService {
 
@@ -65,9 +72,14 @@ object TimingModeService {
             intervalSeconds = request.intervalSeconds
             leadInSeconds = request.leadInSeconds
             tonePlan = request.tonePlan?.toJsonb()
+            falseStartEnabled = request.falseStartEnabled
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.ModeNotFound }
+
+        // Der Typ steckt aufgelöst in jeder Partie der Startliste (Taktung, Gruppierung, Tonfolge) -
+        // ein geänderter Typ ändert also den Startablauf jedes Laufs, für den er gilt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 

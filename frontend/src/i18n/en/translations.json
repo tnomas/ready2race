@@ -1737,7 +1737,9 @@
           "presetDefault": "Default (5…1−start)",
           "previewHint": "The preview plays the tones in compressed time: pauses longer than 2 seconds are shortened, the rhythm of the final seconds stays real.",
           "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
-        }
+        },
+        "falseStartEnabled": "Allow false-start recall",
+        "falseStartEnabledHelp": "On: the start station can recall matches of this mode — the start sequence is aborted, the attempt retracted, and the athlete displays flash red. Off for time trials: there a false start is answered with a time penalty instead of calling the field back."
       },
       "races": {
         "title": "RaceClocker races",
@@ -1795,6 +1797,27 @@
         "resetConfirmEvent": "All assignments of the whole event will be removed. Afterwards every competition, round and match inherits from above again. Continue?",
         "resetConfirmCompetition": "All assignments of the rounds and matches of {{identifier}} {{name}} will be removed. Afterwards they inherit from the competition again. Continue?",
         "reset": "Assignments removed"
+      },
+      "manualCapture": {
+        "title": "Manual capture at the start station",
+        "label": "Show the manual capture button on the start board",
+        "hint": "Hidden by default: otherwise the start board shows two green areas stacked on top of each other — the big sequence start button and the manual capture button below it, both green, both labelled \"Start\". On the water that is an open mix-up, and an accidental capture writes a start mark nobody asked for. Turn it on if you start without a start sequence."
+      },
+      "startDisplay": {
+        "title": "Start display",
+        "hint": "The athlete screen at the start: what is shown for each boat and how large. A 27\" screen on the pontoon needs different type sizes than a tablet in the boat, and one regatta calls out start numbers while the next calls out boat names. Changes reach every connected screen immediately — no reload needed.",
+        "showPosition": "Running number in front of the boat",
+        "showStartNumber": "Start number",
+        "showTeamName": "Boat name",
+        "showClubName": "Club",
+        "showAthleteNames": "Athlete names",
+        "clockScale": "Clock size (factor)",
+        "countdownScale": "Countdown size (factor)",
+        "listScale": "Boat list size (factor)",
+        "followingCount": "Following boats in the list",
+        "scaleHint": "The sizes are factors on the built-in display: 1 leaves everything as it is, 2 doubles it, 0.5 halves it. Allowed range is 0.5 to 3. For the following boats, 0 means \"only the current boat\".",
+        "scaleInvalid": "Please enter a factor between 0.5 and 3.",
+        "followingInvalid": "Please enter a number between 0 and 20."
       }
     },
     "info": {
@@ -2447,6 +2470,32 @@
         "showCountdown": "Clock/countdown",
         "upcomingListTitle": "Upcoming matches",
         "inMinutes": "in {{time}}"
+      },
+      "share": {
+        "action": "Share link",
+        "title": "Share board “{{name}}”",
+        "description": "The link carries this board’s device access: the screen (wall-mounted display, OBS browser source, phone) needs no login. The same board always returns the same link — until it is withdrawn here.",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "revokeHint": "The link stays retrievable here at any time. It is valid for this one board only — a second board on the same screen needs its own link.",
+        "error": "The link could not be created.",
+        "again": "Create new link",
+        "revoke": {
+          "action": "Withdraw link",
+          "success": "Link withdrawn",
+          "error": "The link could not be withdrawn.",
+          "done": "The link has been withdrawn and is invalid. “Create new link” issues a new one — QR codes already handed out do not become valid again.",
+          "confirm": {
+            "title": "Withdraw link?",
+            "content": "The shared link for “{{name}}” becomes invalid immediately; screens that loaded it will show nothing on their next refresh. Sharing again creates a NEW link — the old QR code will no longer work."
+          }
+        }
+      },
+      "display": {
+        "unauthorized": {
+          "title": "This display is not shared",
+          "hint": "Request a link with a token, or log in. The link is available in the event’s board administration under “Share link”."
+        }
       }
     },
     "betrieb": {
@@ -3185,7 +3234,8 @@
       "startSelected": "Start: {{match}}",
       "error": {
         "start": "The start sequence could not be started.",
-        "restart": "The start could not be retracted."
+        "restart": "The start could not be retracted.",
+        "falseStart": "The false start could not be triggered."
       },
       "mode": {
         "interval": "every {{seconds}} s",
@@ -3210,7 +3260,15 @@
         "keep": "Keep as is"
       },
       "restartDone": "Attempt retracted — the match can be started again",
-      "startFocused": "Start: {{match}}"
+      "startFocused": "Start: {{match}}",
+      "falseStart": "False start — recall race",
+      "falseStartDone": "False start triggered — the race has been recalled",
+      "falseStartConfirm": {
+        "title": "Trigger false start?",
+        "content": "{{match}} will be recalled: the running start sequence is aborted, the whole attempt is retracted (start marks AND any finish times already captured), and the athlete displays flash red with \"Fehlstart\". No time penalty is applied — that is the referee’s call.",
+        "ok": "Trigger false start",
+        "keep": "Let it run"
+      }
     },
     "sequence": {
       "mode": {
@@ -3250,10 +3308,24 @@
         "create": "Could not create sequence",
         "start": "Could not start sequence",
         "abort": "Abort failed",
-        "skip": "Skip failed"
+        "skip": "Skip failed",
+        "pause": "Pause failed",
+        "resume": "Resume failed",
+        "rewind": "Undo failed"
       },
       "bar": {
         "started": "{{started}}/{{total}} started"
+      },
+      "pause": "Pause sequence",
+      "resume": "Resume",
+      "rewind": "Undo last start",
+      "paused": {
+        "title": "Sequence paused",
+        "next": "Up next: {{team}}"
+      },
+      "rewindConfirm": {
+        "title": "Undo the last start?",
+        "content": "{{team}} goes back to pending and will be started again when the sequence resumes. Its start time is retracted."
       }
     },
     "board": {
@@ -3530,7 +3602,13 @@
       "aborted": "Start sequence aborted",
       "next": "On the start",
       "following": "Up next",
-      "notStart": "This station is not a start station — the start display shows nothing here."
+      "notStart": "This station is not a start station — the start display shows nothing here.",
+      "paused": "Start sequence paused",
+      "pausedHint": "It continues as soon as the sequence is resumed.",
+      "upcoming": "Next race",
+      "upcomingFirst": "First to start",
+      "falseStart": "False start",
+      "falseStartHint": "Race recalled — please return to the start and await instructions."
     },
     "schedule": {
       "title": "Day schedule",
@@ -3542,6 +3620,9 @@
         "STARTED": "started",
         "FINISHED": "finished",
         "finishProgress": "{{finished}}/{{total}} finished"
+      },
+      "day": {
+        "withoutTime": "no start time"
       }
     },
     "marks": {

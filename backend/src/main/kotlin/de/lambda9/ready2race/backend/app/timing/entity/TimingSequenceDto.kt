@@ -11,5 +11,11 @@ data class TimingSequenceDto(
     val leadInMillis: Long,
     val state: SequenceState,
     val startedAtMillis: Long?,
+    /**
+     * Beginn der laufenden Pause (Server-Epoch-Millis), oder `null`, wenn die Sequenz gerade
+     * nicht angehalten ist. Nur bei [SequenceState.PAUSED] gesetzt - Boards und Startbildschirm
+     * können daraus anzeigen, wie lange schon gewartet wird, ohne selbst mitzuzählen.
+     */
+    val pausedAtMillis: Long?,
     val entries: List<TimingSequenceEntryDto>,
 )

@@ -13,17 +13,25 @@ import {boardDisplayRoute} from '@routes'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
 /**
- * Die öffentliche Anzeige eines Boards — Nachfolgerin der Athleten-Board-Seite. Ohne
- * Anmeldung und ohne Bedienelemente außer Vollbild: ein fest montierter Bildschirm hat
- * keine Maus, und auf dem Telefon ist eine Seite, die nur zeigt, schneller verstanden.
- * Vollbild läuft über die Fullscreen-API des Browsers (Taste f oder der Knopf, der
- * sich nach ein paar Sekunden versteckt).
+ * Die Anzeige eines Boards — Nachfolgerin der Athleten-Board-Seite. Ohne Bedienelemente außer
+ * Vollbild: ein fest montierter Bildschirm hat keine Maus, und auf dem Telefon ist eine Seite,
+ * die nur zeigt, schneller verstanden. Vollbild läuft über die Fullscreen-API des Browsers
+ * (Taste f oder der Knopf, der sich nach ein paar Sekunden versteckt).
+ *
+ * Der Inhalt ist nicht mehr frei zugänglich: Der Server verlangt entweder eine Sitzung mit READ
+ * BOARD/READ EVENT oder ein Board-Geräte-Token (aus dem geteilten Link, siehe
+ * `utils/board/deviceToken.ts`). Fehlt beides, ist der Ausgang ein 401 — und der darf auf einem
+ * montierten Bildschirm nicht als weiße Fläche enden, vor der jemand ratlos steht, sondern muss
+ * in Klartext sagen, was zu tun ist.
  */
 const BoardDisplayPage = () => {
     const {t} = useTranslation()
     const {eventId, boardId} = boardDisplayRoute.useParams()
 
-    const {data, notFound, initialLoad, loadFailed, stale} = useBoardViewData(eventId, boardId)
+    const {data, notFound, unauthorized, initialLoad, loadFailed, stale} = useBoardViewData(
+        eventId,
+        boardId,
+    )
     useDocumentTitle(data?.eventName)
     const now = useServerClock(data?.serverTime)
 
@@ -65,6 +73,31 @@ const BoardDisplayPage = () => {
         },
         [],
     )
+
+    // Weder Sitzung noch (gültiges) Token: der Bildschirm sagt selbst, was fehlt. Bewusst vor
+    // allen anderen Zweigen — `data` bleibt hier für immer leer, und „keine Läufe" oder ein
+    // ewiger Ladekringel wären an dieser Stelle die falsche Auskunft.
+    if (unauthorized) {
+        return (
+            <Box
+                sx={{
+                    display: 'flex',
+                    height: '100dvh',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                }}>
+                <Stack spacing={1} alignItems="center" sx={{maxWidth: 700, textAlign: 'center'}}>
+                    <Typography variant="h5" color="text.secondary">
+                        {t('event.boards.display.unauthorized.title')}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        {t('event.boards.display.unauthorized.hint')}
+                    </Typography>
+                </Stack>
+            </Box>
+        )
+    }
 
     if (notFound) {
         return (

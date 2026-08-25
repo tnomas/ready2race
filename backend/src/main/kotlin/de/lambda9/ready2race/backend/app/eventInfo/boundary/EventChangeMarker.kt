@@ -41,10 +41,20 @@ object EventChangeMarker {
      * und ein Push vor dem Commit ließe sie den alten Stand lesen und (mit dem neuen
      * Markerstand versehen) bis zum TTL-Ablauf im Cache festhalten. Das Inkrement selbst
      * bleibt bewusst sofort wirksam — ein zu früh entwerteter Cache kostet nur einen Abruf.
+     *
+     * Aus derselben Quelle speist sich der Board-Kanal ([BoardViewBroadcaster]), der die
+     * fertige Ansicht schickt statt nur den Fingerzeig. Er hängt bewusst hier und nicht an
+     * eigenen Auslösern quer durch den Code: „was diese Anzeigen speist" ist genau die Menge
+     * der Schreibpfade, die schon [bump] rufen — ein zweites, parallel gepflegtes Verzeichnis
+     * davon würde unweigerlich auseinanderlaufen. Der Aufruf kostet nichts, wenn niemand
+     * zusieht (ohne Abonnenten kehrt er sofort zurück), und rechnet nie im Request-Thread.
      */
     fun bump(eventId: UUID) {
         val stand = counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
-        AfterCommit.register { EventChangeBroadcaster.broadcast(eventId, stand) }
+        AfterCommit.register {
+            EventChangeBroadcaster.broadcast(eventId, stand)
+            BoardViewBroadcaster.broadcast(eventId)
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState} from 'react'
 import {getTimingSettings} from '@api/sdk.gen.ts'
 import {TimingSettingsDto} from '@api/types.gen.ts'
 import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from '@utils/timing/tonePlan.ts'
+import {DEFAULT_START_DISPLAY} from '@utils/timing/startDisplay.ts'
 
 export type UseTimingSettingsResult = {
     /**
@@ -24,8 +25,14 @@ export type UseTimingSettingsResult = {
 }
 
 /**
- * Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450
- * und (Erfassungstöne, V202608211470) den eingebauten Standardton aus `tonePlan.ts`.
+ * Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450,
+ * (Erfassungstöne, V202608211470) den eingebauten Standardton aus `tonePlan.ts` und
+ * (Anzeige, V202608242000) den Standard-Anzeigeblock aus `startDisplay.ts`.
+ *
+ * Die Anzeige-Felder gehören von Anfang an dazu: Der Startbildschirm zeichnet mit diesem Stand,
+ * bevor der erste Fetch zurück ist. Fehlten sie hier, liefe er für einen Wimpernschlag gegen
+ * `undefined` — auf einem Bildschirm am Steg heißt das ein sichtbares Aufflackern, und genau das
+ * soll die Vorbelegung verhindern.
  */
 const DEFAULT_SETTINGS: TimingSettingsDto = {
     autoApply: true,
@@ -33,6 +40,10 @@ const DEFAULT_SETTINGS: TimingSettingsDto = {
     finishTone: DEFAULT_CAPTURE_TONE,
     splitTone: DEFAULT_CAPTURE_TONE,
     falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
+    // Der manuelle Stempel am START-Posten ist standardmäßig verborgen: er stünde sonst als
+    // zweite grüne „Start"-Fläche direkt unter dem Sequenz-Knopf.
+    showManualCapture: false,
+    startDisplay: {...DEFAULT_START_DISPLAY},
 }
 
 /**

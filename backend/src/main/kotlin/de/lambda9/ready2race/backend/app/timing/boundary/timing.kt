@@ -85,6 +85,20 @@ fun Route.timing() {
                     TimingService.retractMatchAttempt(matchId, eventId, user.id!!)
                 }
             }
+
+            // Der ausdrückliche Fehlstart („Rückruf"): bricht die laufenden Startsequenzen der
+            // Partie ab, nimmt den Versuch zurück und meldet den Rückruf zusätzlich als eigenes
+            // Signal an die Anzeigen (TimingService.falseStart). Genau dieselben Rechte wie die
+            // Versuchs-Rücknahme, weil er genau das mit tut - nur mit Nutzersitzung, nie per
+            // Geräte-Token. Abgelehnt, wenn der Zeitnahmetyp der Partie den Rückruf abschaltet.
+            post("/{matchId}/falseStart") {
+                call.respondComprehension {
+                    val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val matchId = !pathParam("matchId", uuid)
+                    TimingService.falseStart(matchId, eventId, user.id!!)
+                }
+            }
         }
 
         get("/teams") {
@@ -376,6 +390,36 @@ fun Route.timing() {
                         val eventId = !pathParam("eventId", uuid)
                         val sequenceId = !pathParam("sequenceId", uuid)
                         TimingSequenceService.abortSequence(sequenceId, user.id!!, eventId)
+                    }
+                }
+
+                // Anhalten, Zurücksetzen, Fortsetzen: die drei Griffe der Kulanz-Entscheidung am
+                // Start (zu spät angekommenes Boot) - dieselben Rechte wie das Abbrechen, denn es
+                // ist derselbe Eingriff in dieselbe laufende Sequenz, nur schonender.
+                post("/pause") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val sequenceId = !pathParam("sequenceId", uuid)
+                        TimingSequenceService.pauseSequence(sequenceId, user.id!!, eventId)
+                    }
+                }
+
+                post("/resume") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val sequenceId = !pathParam("sequenceId", uuid)
+                        TimingSequenceService.resumeSequence(sequenceId, user.id!!, eventId)
+                    }
+                }
+
+                post("/rewind") {
+                    call.respondComprehension {
+                        val user = !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val sequenceId = !pathParam("sequenceId", uuid)
+                        TimingSequenceService.rewindSequence(sequenceId, user.id!!, eventId)
                     }
                 }
 

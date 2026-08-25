@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.raceclocker.control.RaceClockerRaceRepo
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingStartOrderLogic
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
@@ -116,6 +117,11 @@ object TimingProfileService {
             userId = userId,
         ).orDie()
 
+        // Gesetzt, umgehängt oder abgeräumt - in allen drei Fällen lösen die Partien unterhalb
+        // dieser Ebene ihr Profil ab jetzt anders auf. Auch der Abräum-Fall meldet: eine Partie,
+        // die ihren Startablauf verliert, ist am Startposten genauso eine Änderung wie eine, die
+        // einen bekommt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 
@@ -143,6 +149,9 @@ object TimingProfileService {
 
         !TimingProfileRepo.deleteBelow(eventId, competitionId).orDie()
 
+        // Abgeräumt heißt geerbt statt eigen - der wirksame Typ ganzer Wettkämpfe kann dabei
+        // kippen. Dieselbe Meldung wie beim Setzen.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 

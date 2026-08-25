@@ -1,6 +1,16 @@
 import {describe, expect, test} from 'vitest'
-import {TimingSequenceDto, TimingSequenceEntryDto} from '@api/types.gen.ts'
-import {deriveStartDisplay, sortedEntries, splitRunningEntries} from './sequenceDisplay.ts'
+import {
+    TimingMatchDto,
+    TimingMatchTeamDto,
+    TimingSequenceDto,
+    TimingSequenceEntryDto,
+} from '@api/types.gen.ts'
+import {
+    deriveStartDisplay,
+    nextMatchAnnouncement,
+    sortedEntries,
+    splitRunningEntries,
+} from './sequenceDisplay.ts'
 
 const entry = (overrides: Partial<TimingSequenceEntryDto>): TimingSequenceEntryDto => ({
     id: overrides.id ?? crypto.randomUUID(),
@@ -140,5 +150,121 @@ describe('deriveStartDisplay', () => {
         if (aborted.kind === 'SETTLED') {
             expect(aborted.state).toBe('ABORTED')
         }
+    })
+})
+
+const matchTeam = (
+    startNumber: number,
+    overrides: Partial<TimingMatchTeamDto> = {},
+): TimingMatchTeamDto => ({
+    competitionMatchTeam: `team-${startNumber}`,
+    startNumber,
+    started: false,
+    finished: false,
+    ...overrides,
+})
+
+const match = (
+    id: string,
+    phase: TimingMatchDto['phase'],
+    progress: TimingMatchDto['progress'],
+    overrides: Partial<TimingMatchDto> = {},
+): TimingMatchDto => ({
+    competitionSetupMatch: id,
+    competition: 'competition',
+    round: 'round',
+    phase,
+    progress,
+    teams: [matchTeam(1), matchTeam(2)],
+    ...overrides,
+})
+
+describe('deriveStartDisplay (PAUSED)', () => {
+    test('PAUSED zeigt den naechsten Eintrag, die Folgenden und den Pausenbeginn', () => {
+        const seq = sequence({
+            state: 'PAUSED',
+            pausedAtMillis: 5_000,
+            entries: [
+                entry({id: 'started', position: 0, status: 'STARTED'}),
+                entry({id: 'next', position: 1, status: 'PENDING', plannedStartMillis: 9_000}),
+                entry({id: 'later', position: 2, status: 'PENDING'}),
+            ],
+        })
+
+        const view = deriveStartDisplay(seq)
+
+        expect(view.kind).toBe('PAUSED')
+        if (view.kind === 'PAUSED') {
+            expect(view.next?.id).toBe('next')
+            expect(view.following.map(e => e.id)).toEqual(['later'])
+            expect(view.settled.map(e => e.id)).toEqual(['started'])
+            expect(view.pausedAtMillis).toBe(5_000)
+        }
+    })
+
+    test('PAUSED ohne PENDING-Rest bleibt PAUSED, aber ohne naechsten Eintrag', () => {
+        const view = deriveStartDisplay(
+            sequence({state: 'PAUSED', entries: [entry({position: 0, status: 'STARTED'})]}),
+        )
+
+        expect(view.kind).toBe('PAUSED')
+        if (view.kind === 'PAUSED') expect(view.next).toBeUndefined()
+    })
+})
+
+describe('nextMatchAnnouncement', () => {
+    test('bevorzugt den aufgerufenen, noch nicht gestarteten Lauf', () => {
+        const result = nextMatchAnnouncement([
+            match('done', 'DONE', 'FINISHED'),
+            match('called', 'ACTIVE', 'OPEN'),
+            match('later', 'OPEN', 'OPEN'),
+        ])
+
+        expect(result?.match.competitionSetupMatch).toBe('called')
+        expect(result?.inPreparation).toBe(true)
+    })
+
+    test('ein aufgerufener Lauf, der schon startet, zaehlt nicht mehr als Ankuendigung', () => {
+        const result = nextMatchAnnouncement([
+            match('running', 'ACTIVE', 'STARTING'),
+            match('later', 'OPEN', 'OPEN'),
+        ])
+
+        expect(result?.match.competitionSetupMatch).toBe('later')
+        // Notnagel, damit der Bildschirm nicht leer steht - aber nicht "in Vorbereitung", und
+        // deshalb darf er die Zusammenfassung des eben gefahrenen Laufs nicht wegdruecken.
+        expect(result?.inPreparation).toBe(false)
+    })
+
+    test('ohne offene Partie gibt es keine Ankuendigung', () => {
+        expect(nextMatchAnnouncement([match('done', 'DONE', 'FINISHED')])).toBeUndefined()
+        expect(nextMatchAnnouncement([])).toBeUndefined()
+    })
+
+    test('erstes Boot = kleinste Startnummer der noch nicht gestarteten Boote', () => {
+        const result = nextMatchAnnouncement([
+            match('called', 'ACTIVE', 'OPEN', {
+                teams: [matchTeam(3), matchTeam(1, {started: true}), matchTeam(2)],
+            }),
+        ])
+
+        expect(result?.firstTeam?.startNumber).toBe(2)
+    })
+
+    test('sind alle Boote schon unterwegs, zaehlt wieder das ganze Feld', () => {
+        const result = nextMatchAnnouncement([
+            match('called', 'ACTIVE', 'OPEN', {
+                teams: [matchTeam(2, {started: true}), matchTeam(1, {started: true})],
+            }),
+        ])
+
+        expect(result?.firstTeam?.startNumber).toBe(1)
+    })
+
+    test('eine Partie ohne Boote kuendigt sich ohne erstes Boot an', () => {
+        const result = nextMatchAnnouncement([match('called', 'ACTIVE', 'OPEN', {teams: []})])
+
+        expect(result?.match.competitionSetupMatch).toBe('called')
+        expect(result?.firstTeam).toBeUndefined()
     })
 })

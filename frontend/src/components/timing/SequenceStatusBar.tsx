@@ -1,5 +1,7 @@
-import {Alert, Button, Paper, Stack, Typography} from '@mui/material'
+import {Alert, Button, Paper, Stack, Typography, alpha} from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
+import UndoIcon from '@mui/icons-material/Undo'
 import CancelIcon from '@mui/icons-material/Cancel'
 import SkipNextIcon from '@mui/icons-material/SkipNext'
 import {useMemo} from 'react'
@@ -19,6 +21,16 @@ export type SequenceStatusBarProps = {
     tonePlan?: readonly ToneStep[]
     busy: boolean
     onStart: () => void
+    /** Laufende Sequenz anhalten (nur im Zustand RUNNING angeboten). */
+    onPause: () => void
+    /** Angehaltene Sequenz weiterlaufen lassen (nur im Zustand PAUSED angeboten). */
+    onResume: () => void
+    /**
+     * Aus der Pause heraus den letzten Start zurücknehmen. `undefined`, wenn es keinen
+     * gestarteten Eintrag gibt — dann bliebe nur ein 409 vom Server übrig, also zeigt die Leiste
+     * den Knopf gar nicht erst.
+     */
+    onRewind: (() => void) | undefined
     onAbort: () => void
     onSkip: (entryId: string, teamLabel: string) => void
     /** Terminale Zusammenfassung (DONE/ABORTED) wegklicken. */
@@ -41,6 +53,9 @@ const SequenceStatusBar = ({
     tonePlan,
     busy,
     onStart,
+    onPause,
+    onResume,
+    onRewind,
     onAbort,
     onSkip,
     onDismiss,
@@ -68,12 +83,29 @@ const SequenceStatusBar = ({
 
     const startedCount = sequence.entries.filter(entry => entry.status === 'STARTED').length
     const total = sequence.entries.length
+    const paused = sequence.state === 'PAUSED'
 
     return (
         <Paper
             data-sequence-panel=""
             variant="outlined"
-            sx={{flexShrink: 0, px: 1.5, py: 0.75}}>
+            /* Pausiert muss man auf zwei Meter Abstand sehen: kräftig orange umrandet und
+               hinterlegt statt der neutralen Umrandung. Der Bediener steht am Wasser und darf
+               nicht raten, ob die Kette gerade weiterläuft. */
+            sx={{
+                flexShrink: 0,
+                px: 1.5,
+                py: 0.75,
+                ...(paused
+                    ? {
+                          borderColor: 'warning.main',
+                          borderWidth: 2,
+                          // Getönt statt vollflächig orange: die Schrift bleibt der normale
+                          // Vordergrund und damit in jedem Farbschema lesbar.
+                          bgcolor: theme => alpha(theme.palette.warning.main, 0.18),
+                      }
+                    : {}),
+            }}>
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                 {sequence.state === 'ARMED' ? (
                     <>
@@ -89,6 +121,46 @@ const SequenceStatusBar = ({
                             onClick={onStart}>
                             {t('timing.sequence.armed.start')}
                         </Button>
+                    </>
+                ) : paused ? (
+                    /* Pausiert: KEIN Countdown. Er zählte gegen einen Zeitpunkt, der beim
+                       Fortsetzen ohnehin nach hinten rückt — eine weiterlaufende Ziffer wäre also
+                       schlicht gelogen. Stattdessen die Ansage, wer als Nächstes dran ist, und
+                       die beiden Wege aus der Pause heraus. */
+                    <>
+                        <Typography variant="body2" sx={{fontWeight: 700}}>
+                            {t('timing.sequence.paused.title')}
+                        </Typography>
+                        <Typography variant="body1" noWrap sx={{fontWeight: 600, minWidth: 0}}>
+                            {split.next !== undefined
+                                ? t('timing.sequence.paused.next', {
+                                      team: label(split.next.competitionMatchTeam),
+                                  })
+                                : t('timing.sequence.running.finishing')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{flexShrink: 0}}>
+                            {t('timing.sequence.bar.started', {started: startedCount, total})}
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="contained"
+                            color="warning"
+                            startIcon={<PlayArrowIcon />}
+                            disabled={busy}
+                            sx={touchTargetSx}
+                            onClick={onResume}>
+                            {t('timing.sequence.resume')}
+                        </Button>
+                        {onRewind !== undefined && (
+                            <Button
+                                size="small"
+                                startIcon={<UndoIcon />}
+                                disabled={busy}
+                                sx={touchTargetSx}
+                                onClick={onRewind}>
+                                {t('timing.sequence.rewind')}
+                            </Button>
+                        )}
                     </>
                 ) : (
                     <>
@@ -133,6 +205,18 @@ const SequenceStatusBar = ({
                                 {t('timing.sequence.entry.skip')}
                             </Button>
                         )}
+                        {/* Anhalten steht bewusst NEBEN dem Überspringen und nicht beim
+                            Abbrechen: es ist der schonende Griff, den der Posten im Zweifel
+                            zuerst nehmen soll. */}
+                        <Button
+                            size="small"
+                            color="warning"
+                            startIcon={<PauseIcon />}
+                            disabled={busy}
+                            sx={touchTargetSx}
+                            onClick={onPause}>
+                            {t('timing.sequence.pause')}
+                        </Button>
                     </>
                 )}
                 <Stack sx={{flexGrow: 1}} />

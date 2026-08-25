@@ -32,4 +32,20 @@ data class TimingSettingsDto(
      * gespeicherter Wert kommt als einelementige Folge an.
      */
     val falseStartTone: List<ToneStep>,
+    /**
+     * Ob das Erfassungs-Board am START-Posten den manuellen Stempel (CaptureButton) zeigt.
+     * Vorgabe `false`: Am Startposten stünden sonst zwei grüne Flächen untereinander - der große
+     * Sequenz-Startknopf und darunter der Stempel -, beide grün, beide „Start". Am Wasser ist das
+     * eine Verwechslungsfalle, und ein versehentlicher Stempel setzt eine Startmarke, die niemand
+     * bestellt hat. Wer spontan ohne Sequenz startet, schaltet ihn in den Zeitnahme-Einstellungen
+     * der Veranstaltung ein; die Boards folgen live (settingsChanged).
+     */
+    val showManualCapture: Boolean,
+    /**
+     * Was der Startbildschirm zeigt und wie groß - bereits AUFGELÖST wie die Töne: unkonfiguriert
+     * liefert der Server die eingebauten Vorgaben ([TimingStartDisplayLimits.DEFAULT]), die
+     * Anzeige nimmt einfach, was hier steht, und kennt kein „nicht gesetzt". Gepflegt über die
+     * Zeitnahme-Einstellungen der Veranstaltung (EventTimingConfigRequest).
+     */
+    val startDisplay: StartDisplaySettings,
 )

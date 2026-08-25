@@ -16,6 +16,7 @@ import {
     Delete as DeleteIcon,
     Edit as EditIcon,
     OpenInNew as OpenInNewIcon,
+    QrCode2 as QrCode2Icon,
 } from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
 import {useFeedback, useFetch} from '@utils/hooks'
@@ -26,6 +27,7 @@ import BaseDialog from '@components/BaseDialog'
 import {createBoard, deleteBoard, getBoards, updateBoard} from '@api/sdk.gen'
 import {BoardDto, BoardRequest} from '@api/types.gen'
 import BoardEditor from './BoardEditor'
+import BoardShareDialog from './BoardShareDialog'
 
 interface BoardsPanelProps {
     eventId: string
@@ -50,11 +52,15 @@ const BoardsPanel = ({eventId}: BoardsPanelProps) => {
     const [reloadKey, setReloadKey] = useState(0)
     const [editorOpen, setEditorOpen] = useState(false)
     const [editingBoard, setEditingBoard] = useState<BoardDto | null>(null)
+    const [sharingBoard, setSharingBoard] = useState<BoardDto | null>(null)
 
     const {data: boards} = useFetch(signal => getBoards({signal, path: {eventId}}), {
         deps: [eventId, reloadKey],
     })
 
+    // Die nackte Adresse der Anzeige, OHNE Token: Sie trägt nur, wo eine Sitzung mit READ
+    // BOARD/READ EVENT im Browser liegt (also hier am Verwaltungsrechner). Für ein Gerät ohne
+    // Anmeldung führt der Weg über „Link teilen" — deshalb steht der Knopf daneben.
     const publicUrl = (board: BoardDto) =>
         `${window.location.origin}/board/${eventId}/${board.id}`
 
@@ -197,6 +203,17 @@ const BoardsPanel = ({eventId}: BoardsPanelProps) => {
                                     <ContentCopyIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
+                            {/* Der Weg für Geräte ohne Anmeldung. Am Ändern-Recht, nicht am
+                                Lese-Recht: der Endpunkt stellt ein Geräte-Token aus und verlangt
+                                UPDATE BOARD/UPDATE EVENT — eine reine Leserolle liefe hier in den
+                                403 des Servers. */}
+                            {canEdit && (
+                                <Tooltip title={t('event.boards.share.action')}>
+                                    <IconButton size="small" onClick={() => setSharingBoard(board)}>
+                                        <QrCode2Icon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
                             <Box sx={{flex: 1}} />
                             {canEdit && (
                                 <>
@@ -238,6 +255,18 @@ const BoardsPanel = ({eventId}: BoardsPanelProps) => {
                     }}
                 />
             </BaseDialog>
+
+            {/* Bewusst erst beim Öffnen gemountet (statt dauerhaft mit open={…}): Der Dialog holt
+                seinen Link auf der Öffnen-Flanke, und ein pro Board vorgehaltener Dialog würde
+                beim ersten Öffnen den Stand eines vorher gewählten Boards zeigen. */}
+            {sharingBoard !== null && (
+                <BoardShareDialog
+                    open
+                    onClose={() => setSharingBoard(null)}
+                    eventId={eventId}
+                    board={sharingBoard}
+                />
+            )}
         </Box>
     )
 }

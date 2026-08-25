@@ -2,6 +2,8 @@ package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.StartDisplaySettings
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStartDisplayLimits
 import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.validation.Validatable
@@ -49,6 +51,20 @@ data class EventTimingConfigRequest(
      * entsteht aber nicht mehr neu.
      */
     val falseStartTone: List<ToneStep>?,
+    /**
+     * Ob das START-Board den manuellen Stempel zeigt. Wie Takte und Genauigkeit NICHT optional:
+     * die Spalte hat eine Vorgabe (`false`, Migration V202608242000), und `null` hieße hier
+     * "unverändert lassen" - eine Bedeutung, die das Formular nicht braucht und die beim
+     * Ausschalten gefährlich wäre (der Schalter wäre dann nicht abschaltbar).
+     */
+    val showManualCapture: Boolean,
+    /**
+     * Der Anzeige-Block des Startbildschirms, gleiche PUT-Semantik wie die Töne: `null` heißt
+     * "eingebaute Vorgaben" ([TimingStartDisplayLimits.DEFAULT]) und räumt einen eigenen Wert
+     * wieder ab ("Standard wiederherstellen"). Teilweise gesetzt gibt es nicht - entweder der
+     * ganze Block oder gar keiner, siehe [StartDisplaySettings].
+     */
+    val startDisplay: StartDisplaySettings?,
 ) : Validatable {
 
     override fun validate(): ValidationResult =
@@ -60,6 +76,7 @@ data class EventTimingConfigRequest(
             TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
             TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
             TimingToneLimits.validateToneSequence(falseStartTone, "falseStartTone"),
+            TimingStartDisplayLimits.validate(startDisplay, "startDisplay"),
         )
 
     companion object {
@@ -97,6 +114,8 @@ data class EventTimingConfigRequest(
                 finishTone = null,
                 splitTone = null,
                 falseStartTone = null,
+                showManualCapture = false,
+                startDisplay = null,
             )
     }
 }

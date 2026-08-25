@@ -895,6 +895,9 @@ import type {
     DeleteBoardData,
     DeleteBoardError,
     DeleteBoardResponse,
+    CreateBoardShareLinkData,
+    CreateBoardShareLinkError,
+    CreateBoardShareLinkResponse,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -1078,6 +1081,9 @@ import type {
     RetractMatchAttemptData,
     RetractMatchAttemptError,
     RetractMatchAttemptResponse,
+    FalseStartMatchData,
+    FalseStartMatchError,
+    FalseStartMatchResponse,
     GetTimingModesData,
     GetTimingModesError,
     GetTimingModesResponse,
@@ -1105,6 +1111,15 @@ import type {
     SkipTimingSequenceEntryData,
     SkipTimingSequenceEntryError,
     SkipTimingSequenceEntryResponse,
+    PauseTimingSequenceData,
+    PauseTimingSequenceError,
+    PauseTimingSequenceResponse,
+    ResumeTimingSequenceData,
+    ResumeTimingSequenceError,
+    ResumeTimingSequenceResponse,
+    RewindTimingSequenceData,
+    RewindTimingSequenceError,
+    RewindTimingSequenceResponse,
     StartTimingSequenceData,
     StartTimingSequenceError,
     StartTimingSequenceResponse,
@@ -4585,7 +4600,7 @@ export const getPublicProgram = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Public list of the event's boards (id and name only); carries the redirect of the legacy athlete board url
+ * Short list of the event's boards (id and name only); carries the redirect of the legacy athlete board url. No longer public: needs either a session with READ BOARD or READ EVENT, or a board device token in the X-Timing-Device-Token header. Any board token OF THIS EVENT is accepted here, because a shared screen has to find its own board before it knows its id; the contents stay behind the per-board endpoint. A timing station token is rejected.
  */
 export const getPublicBoards = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetPublicBoardsData, ThrowOnError>,
@@ -4601,7 +4616,7 @@ export const getPublicBoards = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Everything one board needs in a single response: resolved configuration, timeline slots and lists
+ * Everything one board needs in a single response: resolved configuration, timeline slots and lists. No longer public: needs either a session with READ BOARD or READ EVENT, or a device token issued for EXACTLY THIS board in the X-Timing-Device-Token header (see createBoardShareLink). A token of another board, a timing station token and a revoked token are all answered alike with 401.
  */
 export const getBoardView = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetBoardViewData, ThrowOnError>,
@@ -5069,6 +5084,22 @@ export const deleteBoard = <ThrowOnError extends boolean = false>(
     return (options?.client ?? client).delete<DeleteBoardResponse, DeleteBoardError, ThrowOnError>({
         ...options,
         url: '/event/{eventId}/boards/{boardId}',
+    })
+}
+
+/**
+ * Issues a device token for the board automatically and returns the finished link (root-relative path plus token) - the way a wall-mounted screen or an OBS source gets at a board it cannot log in for. Mirrors createTimingStationShareLink down to the rule: reuse instead of inflation, so as long as an automatically issued, unrevoked token exists for the board, every call returns the SAME link; revoking it (deleteTimingDeviceToken, same table) makes the next call issue a fresh one. Requires a session with UPDATE BOARD or UPDATE EVENT - the same rights as the rest of the board administration.
+ */
+export const createBoardShareLink = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateBoardShareLinkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateBoardShareLinkResponse,
+        CreateBoardShareLinkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/boards/{boardId}/share-link',
     })
 }
 
@@ -5977,6 +6008,22 @@ export const retractMatchAttempt = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * The explicit false start ("recall") of a match, triggered from the start station's capture board. Mechanically it composes the two existing paths: the active start sequences holding boats of this match are aborted first (so the chain cannot fire further start marks while the old ones are being retracted), then the whole attempt is retracted exactly like retractMatchAttempt does. What is new is the intent, carried by an own websocket message `{ type: "falseStart", competitionSetupMatch: uuid }` on the timing channel, so athlete displays can flash red and show "Fehlstart". The `attemptRetracted` message of the retraction is still emitted unchanged - it also fires for silent clean-up and is therefore not a usable signal for a display at the water. Rejected with 409 when the timing mode resolved for the match does not allow a false start (or the match has no mode at all): rowing time trials answer a false start with a time penalty instead of a recall. No penalty is applied automatically - awarding one is a referee decision (penaltyMillis on the official time). Requires a user session; device tokens cannot trigger a false start.
+ */
+export const falseStartMatch = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<FalseStartMatchData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        FalseStartMatchResponse,
+        FalseStartMatchError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/matches/{matchId}/falseStart',
+    })
+}
+
 export const getTimingModes = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetTimingModesData, ThrowOnError>,
 ) => {
@@ -6100,6 +6147,57 @@ export const skipTimingSequenceEntry = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip',
+    })
+}
+
+/**
+ * Hält eine laufende Sequenz an, ohne sie zu verwerfen - der Kulanz-Griff am Start, wenn ein Boot unverschuldet zu spät kommt. Nur aus RUNNING, sonst 409.
+ *
+ */
+export const pauseTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<PauseTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        PauseTimingSequenceResponse,
+        PauseTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/pause',
+    })
+}
+
+/**
+ * Setzt eine angehaltene Sequenz fort. Die geplanten Startzeiten aller noch anstehenden Einträge rücken um die Pausendauer nach hinten, das Intervall zwischen den Booten bleibt gleich. Nur aus PAUSED, sonst 409.
+ *
+ */
+export const resumeTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ResumeTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        ResumeTimingSequenceResponse,
+        ResumeTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/resume',
+    })
+}
+
+/**
+ * Setzt aus der Pause heraus den letzten Schritt zurück: der zuletzt GESTARTETE Eintrag wird wieder zu einem anstehenden Start, seine Startmarke geht zurück (RETRACTED). Nur aus PAUSED und nur, wenn es überhaupt einen gestarteten Eintrag gibt, sonst 409.
+ *
+ */
+export const rewindTimingSequence = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<RewindTimingSequenceData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        RewindTimingSequenceResponse,
+        RewindTimingSequenceError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/sequences/{sequenceId}/rewind',
     })
 }
 

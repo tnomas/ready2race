@@ -47,13 +47,14 @@ import {unlockAudio} from '@utils/timing/feedback.ts'
 import {useFalseStartTone} from '@utils/timing/useFalseStartTone.ts'
 import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
+import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
 import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
 import {armedGateApplies, captureAllowed} from '@utils/timing/armed.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
-import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
+import {createTimeMark, falseStartMatch, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
     classifyStatus,
@@ -123,11 +124,13 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
         useTimingSettings(eventId)
 
-    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Es
-    // gibt keine eigene WebSocket-Nachricht dafür — Marken-, Zuordnungs- und Sequenz-Nachrichten
-    // dienen als entprellte Auffrischungs-Trigger (siehe Effekt unten). VOR dem Board-State
-    // aufgerufen, weil der Fehlstart-Hook darunter die Startliste braucht und sein Callback in
-    // den Board-State hineingereicht wird.
+    // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Zwei
+    // Auffrischungswege, beide entprellt über denselben `bump`: `matchesChanged` meldet, dass die
+    // Partienmenge selbst eine andere ist (neuer Lauf, gelöschte Runde, verschobener Slot,
+    // nachgetragener Zeitnahmetyp), Marken-, Zuordnungs- und Sequenz-Nachrichten melden nur den
+    // Fortschritt an bestehenden Partien (siehe Effekt unten). VOR dem Board-State aufgerufen,
+    // weil der Fehlstart-Hook darunter die Startliste braucht und sein Callback in den
+    // Board-State hineingereicht wird.
     const {
         matches,
         loading: matchesLoading,
@@ -162,6 +165,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         applyOfficialTimes,
         applySettingsChanged,
         onAttemptRetracted,
+        bumpMatches,
     )
 
     // Teams for the assignment dialog: loaded once per board mount (not re-fetched on every
@@ -586,8 +590,13 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     // nicht nur an der laufenden Sequenz — „auch nach Start" ist die Anforderung. Beide Wege
     // bestätigen mit eindeutigen Knopftexten: nie zweimal „Abbrechen" in einem Dialog.
     const {sequence} = sequenceState
+    // PAUSED gehört dazu: angehalten heißt unterbrochen, nicht beendet — die Sequenz belegt ihren
+    // Posten weiter und deckt weiterhin die Partien ab, die in ihr stehen.
     const sequenceLive =
-        sequence !== undefined && (sequence.state === 'ARMED' || sequence.state === 'RUNNING')
+        sequence !== undefined &&
+        (sequence.state === 'ARMED' ||
+            sequence.state === 'RUNNING' ||
+            sequence.state === 'PAUSED')
 
     /** Läuft/steht die Sequenz dieses Postens für Teams genau dieser Partie? */
     const sequenceCoversMatch = useCallback(
@@ -618,6 +627,50 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             },
         )
     }, [confirmAction, sequenceState, feedback, t])
+
+    // Anhalten und Fortsetzen sind beide folgenlos umkehrbar (die Kette bleibt vollständig
+    // stehen) — deshalb ohne Rückfrage, ein Griff genügt. Das ist der ganze Punkt der Funktion:
+    // wenn ein Boot unverschuldet zu spät kommt, muss das Anhalten schneller gehen als das
+    // Nachdenken über einen Bestätigungsdialog.
+    const handlePauseSequence = useCallback(() => {
+        void sequenceState.pause().then(ok => {
+            if (!ok) feedback.error(t('timing.sequence.error.pause'))
+        })
+    }, [sequenceState, feedback, t])
+
+    const handleResumeSequence = useCallback(() => {
+        void sequenceState.resume().then(ok => {
+            if (!ok) feedback.error(t('timing.sequence.error.resume'))
+        })
+    }, [sequenceState, feedback, t])
+
+    // Das Zurücksetzen dagegen nimmt eine bereits gefeuerte Startmarke zurück — es greift also in
+    // die Ergebnisse ein und wird wie das Überspringen bestätigt, mit dem Boot im Text, damit der
+    // Posten sieht, wessen Start er gerade zurückholt.
+    const handleRewindSequence = useCallback(() => {
+        const lastStarted = [...(sequence?.entries ?? [])]
+            .filter(entry => entry.status === 'STARTED')
+            .sort((a, b) => a.position - b.position)
+            .pop()
+        if (lastStarted === undefined) return
+        const team = teams.find(
+            candidate => candidate.competitionMatchTeam === lastStarted.competitionMatchTeam,
+        )
+        confirmAction(
+            () => {
+                void sequenceState.rewind().then(ok => {
+                    if (!ok) feedback.error(t('timing.sequence.error.rewind'))
+                })
+            },
+            {
+                title: t('timing.sequence.rewindConfirm.title'),
+                content: t('timing.sequence.rewindConfirm.content', {
+                    team: teamLabel(team, lastStarted.competitionMatchTeam),
+                }),
+                okText: t('timing.sequence.rewind'),
+            },
+        )
+    }, [confirmAction, sequence, sequenceState, teams, feedback, t])
 
     // Überspringen ist unumkehrbar und sitzt neben dem Countdown auf einem Touchscreen — deshalb
     // immer mit Bestätigung, die das Team nennt (unverändert vom bisherigen Panel übernommen).
@@ -688,6 +741,69 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
         [confirmAction, sequenceCoversMatch, sequenceState, eventId, feedback, t],
     )
 
+    /**
+     * Darf für diese Partie ein Fehlstart ausgelöst werden?
+     *
+     * Zwei Bedingungen, beide bewusst: Nur am START-Posten — der Rückruf ist eine Startgeste, und
+     * der Startbildschirm selbst bleibt bedienelementfrei, deshalb sitzt der Knopf hier am
+     * Erfassungsboard. Und nur, wenn der wirksame Zeitnahmetyp der Partie ihn erlaubt: Timetrials
+     * im Rudersport ahnden einen Fehlstart mit Strafzeit statt mit Rückruf, dort wäre der Knopf
+     * schlicht falsch. `=== true` statt eines Wahrheitswert-Tests, weil eine Partie ganz ohne
+     * aufgelösten Typ (`timingMode` fehlt) ebenfalls keinen Rückruf bekommt — der Server lehnt
+     * beide Fälle gleich ab.
+     */
+    const falseStartAllowed = useCallback(
+        (match: TimingMatchDto) => isStart && match.timingMode?.falseStartEnabled === true,
+        [isStart],
+    )
+
+    /**
+     * Der Fehlstart-Rückruf: bricht serverseitig die laufende Startsequenz der Partie ab, nimmt
+     * den Versuch zurück und meldet den Rückruf zusätzlich als eigenes Signal an die Anzeigen
+     * (die daraufhin rot blinken). Ein Aufruf, kein Klickpfad — die Reihenfolge (erst abbrechen,
+     * dann zurücknehmen) gehört auf den Server, sonst könnte ein halber Rückruf entstehen, wenn
+     * das Board zwischendurch die Verbindung verliert.
+     *
+     * Immer mit Bestätigung, die den Lauf beim Namen nennt: der Knopf sitzt am Startposten neben
+     * der Erfassung, auf einem Touchscreen, und ein versehentlicher Rückruf holt ein ganzes Feld
+     * zurück. Eindeutige Knopftexte statt zweimal „Abbrechen“ — dieselbe Regel wie beim
+     * Sequenz-Abbruch.
+     */
+    const handleFalseStart = useCallback(
+        (match: TimingMatchDto) => {
+            confirmAction(
+                () => {
+                    void (async () => {
+                        try {
+                            const {error} = await falseStartMatch({
+                                path: {eventId, matchId: match.competitionSetupMatch},
+                            })
+                            if (error !== undefined) {
+                                feedback.error(t('timing.matches.error.falseStart'))
+                                return
+                            }
+                            // Sequenz-Abbruch, Rücknahme und Rückruf-Signal ziehen über die
+                            // WebSocket-Echos nach — hier bleibt nur die Rückmeldung an den
+                            // Posten, dass der Rückruf raus ist.
+                            feedback.success(t('timing.matches.falseStartDone'))
+                        } catch {
+                            feedback.error(t('timing.matches.error.falseStart'))
+                        }
+                    })()
+                },
+                {
+                    title: t('timing.matches.falseStartConfirm.title'),
+                    content: t('timing.matches.falseStartConfirm.content', {
+                        match: matchTitle(match),
+                    }),
+                    okText: t('timing.matches.falseStartConfirm.ok'),
+                    cancelText: t('timing.matches.falseStartConfirm.keep'),
+                },
+            )
+        },
+        [confirmAction, eventId, feedback, t],
+    )
+
     const [matchMenu, setMatchMenu] = useState<{
         match: TimingMatchDto
         anchor: HTMLElement
@@ -701,8 +817,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     /** Ob das Partie-Menü etwas anzubieten hat (sonst erscheint gar kein Menü-Knopf). */
     const matchMenuAvailable = useCallback(
         (match: TimingMatchDto) =>
-            sequenceCoversMatch(match) || match.teams.some(team => team.started),
-        [sequenceCoversMatch],
+            sequenceCoversMatch(match) ||
+            match.teams.some(team => team.started) ||
+            // Der Rückruf hängt an keinem Fortschritt: er ist gerade dann gefragt, wenn noch
+            // nichts passiert ist (Boot zu früh los, bevor die erste Marke fiel).
+            falseStartAllowed(match),
+        [sequenceCoversMatch, falseStartAllowed],
     )
 
     // --- Dead-letter recovery ------------------------------------------------------------------
@@ -1011,20 +1131,34 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     focusedMatch={focusedMatch}
                                     onOpenMenu={openMatchMenu}
                                     menuAvailable={matchMenuAvailable}
+                                    onPause={handlePauseSequence}
+                                    onResume={handleResumeSequence}
+                                    onRewind={handleRewindSequence}
                                     onAbort={handleAbortSequence}
                                     onSkip={handleSkipEntry}
                                 />
-                                {/* Der manuelle Stempel bleibt als kompakter Zweitweg: eine Zeit
-                                    ohne Boot banken (Fehlstart-Protokoll, Sonderfälle). */}
-                                <Box sx={{flex: '0 0 12vh', minHeight: 72, display: 'flex'}}>
-                                    <CaptureButton
-                                        station={station}
-                                        now={clock.now}
-                                        onCapture={capture}
-                                        compact
-                                        disarmed={!mayCaptureAssigned}
-                                    />
-                                </Box>
+                                {/* Der manuelle Stempel als kompakter Zweitweg: eine Zeit ohne
+                                    Boot banken (Fehlstart-Protokoll, Sonderfälle). Nur auf
+                                    Wunsch der Veranstaltung (`showManualCapture`, Vorgabe aus):
+                                    sonst stehen hier zwei grüne Flächen übereinander — der große
+                                    Sequenz-Knopf und darunter derselbe Farbton mit „Start" —,
+                                    und am Wasser ist das eine offene Verwechslung. Ein
+                                    versehentlicher Stempel schreibt eine Startmarke, die niemand
+                                    bestellt hat. Veranstaltungen, die ohne Sequenz starten,
+                                    schalten ihn in den Zeitnahme-Einstellungen ein; das Board
+                                    folgt live über `settingsChanged`. Eingeblendet unterliegt er
+                                    derselben Scharfschaltung wie jede andere Erfassung. */}
+                                {settings.showManualCapture && (
+                                    <Box sx={{flex: '0 0 12vh', minHeight: 72, display: 'flex'}}>
+                                        <CaptureButton
+                                            station={station}
+                                            now={clock.now}
+                                            onCapture={capture}
+                                            compact
+                                            disarmed={!mayCaptureAssigned}
+                                        />
+                                    </Box>
+                                )}
                             </>
                         ) : matchesAvailable || matchesLoading ? (
                             // Die eine Zielposten-Ansicht: die große Erfassungsfläche (Zeit ohne
@@ -1191,6 +1325,19 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             handleRestartMatch(matchMenu.match)
                         }}>
                         {t('timing.matches.restart')}
+                    </MenuItem>
+                )}
+                {/* Der Fehlstart steht bewusst unten und farblich abgesetzt: er ist die
+                    folgenreichste Geste des Menüs (Sequenz weg, Versuch weg, Anzeigen rot) und
+                    darf nicht als Nachbar des Abbruchs versehentlich getroffen werden. */}
+                {matchMenu !== null && falseStartAllowed(matchMenu.match) && (
+                    <MenuItem
+                        onClick={() => {
+                            closeMatchMenu()
+                            handleFalseStart(matchMenu.match)
+                        }}
+                        sx={{color: 'error.main', fontWeight: 600}}>
+                        {t('timing.matches.falseStart')}
                     </MenuItem>
                 )}
             </Menu>

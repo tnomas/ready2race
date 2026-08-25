@@ -35,6 +35,9 @@ export type StartBoardPanelProps = {
     onOpenMenu: (match: TimingMatchDto, anchor: HTMLElement) => void
     /** Ob das Menü für die fokussierte Partie etwas anzubieten hat. */
     menuAvailable: (match: TimingMatchDto) => boolean
+    onPause: () => void
+    onResume: () => void
+    onRewind: () => void
     onAbort: () => void
     onSkip: (entryId: string, teamLabel: string) => void
 }
@@ -59,6 +62,9 @@ const StartBoardPanel = ({
     focusedMatch,
     onOpenMenu,
     menuAvailable,
+    onPause,
+    onResume,
+    onRewind,
     onAbort,
     onSkip,
 }: StartBoardPanelProps) => {
@@ -97,8 +103,13 @@ const StartBoardPanel = ({
     }
 
     const startableTeams = focusedMatch?.teams.filter(team => !team.started).length ?? 0
+    // PAUSED zählt mit: die Sequenz ist nur angehalten, nicht beendet — sie belegt ihren Posten
+    // weiter, also darf der große Startknopf auch währenddessen keine zweite Partie loslassen.
     const sequenceLive =
-        sequence !== undefined && (sequence.state === 'ARMED' || sequence.state === 'RUNNING')
+        sequence !== undefined &&
+        (sequence.state === 'ARMED' ||
+            sequence.state === 'RUNNING' ||
+            sequence.state === 'PAUSED')
     const startDisabled =
         busy ||
         sequenceLive ||
@@ -173,6 +184,16 @@ const StartBoardPanel = ({
                     tonePlan={tonePlanForSequence(matches, sequence)}
                     busy={busy}
                     onStart={handleSequenceStart}
+                    onPause={onPause}
+                    onResume={onResume}
+                    // Ohne gestarteten Eintrag hätte das Zurücksetzen nichts zurückzunehmen —
+                    // der Server antwortete mit 409, also bietet die Leiste den Knopf erst gar
+                    // nicht an.
+                    onRewind={
+                        sequence.entries.some(entry => entry.status === 'STARTED')
+                            ? onRewind
+                            : undefined
+                    }
                     onAbort={onAbort}
                     onSkip={onSkip}
                     onDismiss={reset}

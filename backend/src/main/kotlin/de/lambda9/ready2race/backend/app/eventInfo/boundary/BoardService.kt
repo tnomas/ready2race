@@ -16,6 +16,7 @@ import de.lambda9.ready2race.backend.app.eventInfo.control.toRecord
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
 import de.lambda9.ready2race.backend.app.eventSchedule.control.EventScheduleRepo
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchByeService
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
@@ -103,6 +104,22 @@ object BoardService {
                 // Ein montierter Bildschirm soll die neue Konfiguration mit dem nächsten
                 // Poll sehen, nicht erst nach Ablauf des Zwischenspeichers.
                 boardViewCache.remove(boardId)
+                // Und die verbundenen Anzeigen sollen sie sofort sehen. Der einzige Auslöser
+                // des Board-Kanals außerhalb von [EventChangeMarker.bump] — und zwar mit Grund:
+                // eine Konfigurationsänderung betrifft genau EIN Board und zählt den
+                // Änderungsmarker der Veranstaltung bewusst nicht hoch (sonst entwertete jedes
+                // Speichern im Editor die Zwischenspeicher aller Anzeigen). Ohne diese Zeile
+                // hinge der Editor am gestreckten Sicherheitstakt: bis zu zwei Minuten, bis die
+                // Wand zeigt, was man gerade gespeichert hat.
+                AfterCommit.register {
+                    // Noch einmal räumen, jetzt NACH dem Commit: ein Abruf, der in das Fenster
+                    // zwischen der Zeile oben und dem Commit fiel, hätte den Eintrag mit der
+                    // ALTEN Konfiguration neu gefüllt. Beim Marker-Weg trägt der hochgezählte
+                    // Stand diese Sicherung; hier gibt es keinen, weil die Konfiguration ihn
+                    // bewusst nicht anfasst — also von Hand. Ein zweites Räumen kostet nichts.
+                    boardViewCache.remove(boardId)
+                    BoardViewBroadcaster.broadcastBoard(boardId)
+                }
                 KIO.ok(ApiResponse.NoData)
             }
         }

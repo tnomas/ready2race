@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
+import de.lambda9.ready2race.backend.app.timing.entity.StartDisplaySettings
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import java.util.UUID
 
@@ -46,4 +47,18 @@ data class EventTimingConfigDto(
      * `JSONB?.toToneSequence()`).
      */
     val falseStartTone: List<ToneStep>?,
+    /**
+     * Ob das Erfassungs-Board am START-Posten den manuellen Stempel zeigt. Nie null: die Spalte
+     * hat eine Vorgabe (`false`, Migration V202608242000) - der Stempel ist standardmäßig
+     * verborgen, weil er sonst als zweite grüne „Start"-Fläche direkt unter dem Sequenz-Knopf
+     * stünde.
+     */
+    val showManualCapture: Boolean,
+    /**
+     * Anzeige-Block des Startbildschirms (was gezeigt wird, wie groß, wie viele folgende Boote).
+     * Wie die Töne unaufgelöst: null heißt „eingebaute Vorgaben"
+     * ([TimingStartDisplayLimits.DEFAULT]) - das Formular braucht den Unterschied für „Standard
+     * wiederherstellen"; aufgelöst liefert erst GET /timing/settings.
+     */
+    val startDisplay: StartDisplaySettings?,
 )

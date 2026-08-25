@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.plugins
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardViewBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
@@ -40,6 +41,8 @@ private const val TIMING_WS_PATH = "/api/ws/event/{eventId}/timing"
 
 private const val EVENT_CHANGE_WS_PATH = "/api/ws/event/{eventId}/info"
 
+private const val BOARD_VIEW_WS_PATH = "/api/ws/event/{eventId}/board/{boardId}"
+
 fun Application.configureSockets(env: JEnv) {
     install(WebSockets) {
         pingPeriod = 15.seconds
@@ -65,6 +68,21 @@ fun Application.configureSockets(env: JEnv) {
         // etwas geändert" samt Zählerstand, nie Nutzdaten.
         webSocket(EVENT_CHANGE_WS_PATH) {
             eventChangeSocket()
+        }
+
+        // Der Board-Kanal: schickt die FERTIGE Ansicht (BoardViewDto), nicht bloß einen
+        // Fingerzeig. Deshalb ist er - anders als der Veranstaltungs-Kanal darüber - kein
+        // öffentlicher Kanal: er trägt dieselbe Nutzlast wie GET /event/{eventId}/info/board/
+        // {boardId} und muss folglich dieselbe Tür haben. Authentifiziert wird wie in der
+        // Zeitnahme, samt Token-Slot des Subprotokolls für Browser (siehe timingSocket).
+        webSocket(BOARD_VIEW_WS_PATH, protocol = TIMING_WS_SUBPROTOCOL) {
+            boardViewSocket(env)
+        }
+
+        // Fallback für Nicht-Browser-Clients, die den X-Api-Session-Header senden können und
+        // deshalb kein Subprotokoll anbieten müssen.
+        webSocket(BOARD_VIEW_WS_PATH) {
+            boardViewSocket(env)
         }
     }
 }
@@ -94,6 +112,92 @@ private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
         incoming.consumeEach { }
     } finally {
         EventChangeBroadcaster.unsubscribe(subscription)
+    }
+}
+
+/**
+ * Der Push-Kanal EINER Anzeige: liefert beim Verbinden und nach jeder Änderung die komplette
+ * Board-Ansicht, damit die Anzeige nichts nachladen muss (das ist der Punkt - ein
+ * Livestream-Overlay soll im selben Moment umspringen wie das Bild).
+ *
+ * Zwei Wege hinein, exakt die des HTTP-Zwillings (eventInfo.kt):
+ *   * eine Sitzung mit READ BOARD oder READ EVENT - wer die Anzeige sehen darf, darf sie auch
+ *     gepusht bekommen;
+ *   * ein Board-Geräte-Token für GENAU DIESES Board. Ein Bildschirm an der Hallenwand und eine
+ *     OBS-Quelle können sich nicht anmelden; sie tragen den geteilten Link.
+ * Browser können beim Handshake keine eigenen Header setzen, deshalb reist das Token wie in der
+ * Zeitnahme im zweiten Eintrag des Subprotokolls (`new WebSocket(url, ["r2r", token])`).
+ */
+private suspend fun DefaultWebSocketServerSession.boardViewSocket(env: JEnv) {
+    val rawEventId = call.parameters["eventId"]
+    val rawBoardId = call.parameters["boardId"]
+    val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    val boardId = rawBoardId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    if (eventId == null || boardId == null) {
+        // Wie oben: die Pfadparameter sind client-kontrolliert und könnten per CR/LF Logzeilen
+        // fälschen - vor dem Loggen entschärfen.
+        val sanitized = "${rawEventId?.replace(Regex("[\r\n]"), "")}/${rawBoardId?.replace(Regex("[\r\n]"), "")}"
+        logger.info { "Rejecting board ws handshake: invalid ids '$sanitized'" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid ids"))
+        return
+    }
+
+    val token = call.sessions.get<UserSession>()?.token ?: call.subprotocolToken()
+    if (token == null) {
+        logger.info { "Rejecting board ws handshake for board $boardId: no token provided" }
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+        return
+    }
+
+    val sessionAuthorized = authenticateAnyWithToken(
+        token,
+        Privilege.ReadBoardGlobal,
+        Privilege.ReadEventGlobal,
+    ).unsafeRunSync(env).fold(
+        onSuccess = { true },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Rejecting board ws handshake for board $boardId: authentication failed" }
+            false
+        },
+    )
+
+    // Wie in der Zeitnahme greift der Token-Zweig nur OHNE gültige Sitzung. Der Zuschnitt ist hier
+    // eng: validateForBoard lässt ausschließlich ein Token DIESES Boards durch - ein Token der
+    // Nachbaranzeige und ein Posten-Token fallen mit derselben Antwort heraus.
+    val authorized = sessionAuthorized || TimingDeviceTokenService.validateForBoard(token, eventId, boardId)
+        .unsafeRunSync(env).fold(
+            onSuccess = { true },
+            onError = { error ->
+                logger.info { "Rejecting board ws handshake for board $boardId: $error" }
+                false
+            },
+            onDefect = { defect ->
+                logger.warn(defect) { "Rejecting board ws handshake for board $boardId: device token check failed" }
+                false
+            },
+        )
+    if (!authorized) {
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+        return
+    }
+
+    // Der volle Stand sofort beim Verbinden: damit ist ein Client nach einem Funkloch allein durch
+    // den Reconnect wieder aktuell und braucht keinen HTTP-Nachschlag. Lässt sich die Ansicht
+    // gerade nicht bauen (unbekanntes Board, Datenbank hakt), bleibt die Verbindung trotzdem
+    // stehen - die Anzeige hat ihren Sicherheitstakt, und der beantwortet ein unbekanntes Board
+    // ohnehin sauberer (404) als ein geschlossener Socket.
+    BoardViewBroadcaster.currentView(env, eventId, boardId)?.let { send(Frame.Text(it)) }
+
+    val subscription = BoardViewBroadcaster.subscribe(env, eventId, boardId) { json ->
+        send(Frame.Text(json))
+    }
+    try {
+        // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
+        // Ktor-Pings aus configureSockets).
+        incoming.consumeEach { }
+    } finally {
+        BoardViewBroadcaster.unsubscribe(subscription)
     }
 }
 

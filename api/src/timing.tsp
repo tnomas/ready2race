@@ -29,9 +29,27 @@ namespace Ready2Race;
  *     distinguish "no assignment" from a field that was never sent.
  *   - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
  *     `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ *   - `{ type: "matchesChanged" }` - the set of matches the stations are expected to time changed:
+ *     a match was created (round generation, automatic follow-up rounds), dropped (round deleted,
+ *     bye), or moved (schedule slot, start time, start numbers), or the timing mode resolved for a
+ *     match is now a different one. Like `stationsChanged` a pure trigger without a body; refetch
+ *     `GET /event/{eventId}/timing/matches`. Clients should debounce - one round generation emits a
+ *     single message, but a schedule shift and the round it completes can arrive back to back.
  *   - `{ type: "sequenceChanged", sequence: TimingSequenceDto }` - a start sequence (see below) was
  *     created, started, aborted, had an entry fire or get skipped, or completed. Boards watching
  *     that sequence's station should replace their local copy with `sequence`.
+ *   - `{ type: "falseStart", competitionSetupMatch: uuid }` - an EXPLICIT false start (recall) was
+ *     triggered for that match from the start station's capture board
+ *     (`POST /event/{eventId}/timing/matches/{matchId}/falseStart`). Athlete displays showing the
+ *     match should flash red and show "Fehlstart". Deliberately its own message next to
+ *     `attemptRetracted`: that one also fires for silent clean-up ("retract start and restart"
+ *     after a botched capture), which must not make a display at the water flash. A false start
+ *     emits both, so boards that hang their mark lists and their false-start tone on
+ *     `attemptRetracted` keep working unchanged. Emitted even when nothing had to be retracted
+ *     (a recall before the first mark) - that is exactly when it matters most. Whether the
+ *     trigger is offered at all depends on `TimingModeDto.falseStartEnabled` of the match's
+ *     resolved timing mode; the route rejects it with 409 when the mode has it switched off
+ *     (rowing time trials answer a false start with a time penalty instead of a recall).
  * - The channel is receive-only: clients should ignore any data they send on it and rely on the
  *   server's ping/pong keepalive.
  * - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
@@ -113,6 +131,11 @@ enum SequenceMode {
 enum SequenceState {
   ARMED;
   RUNNING;
+
+  // Angehalten: die Sequenz feuert nichts, bleibt aber die aktive Sequenz ihres Postens und
+  // belegt ihn weiter. Nur aus RUNNING erreichbar; von hier aus geht es fortsetzen, zurücksetzen
+  // oder abbrechen.
+  PAUSED;
   DONE;
   ABORTED;
 }
@@ -149,6 +172,11 @@ model TimingSequenceDto {
   leadInMillis: int64;
   state: SequenceState;
   startedAtMillis?: int64;
+
+  // Beginn der laufenden Pause (Server-Epoch-Millis); nur bei state PAUSED gesetzt. Die bereits
+  // aufgelaufene Pausendauer steckt dagegen schon in plannedStartMillis - eine Pause verschiebt
+  // die ganze Kette um ihre Dauer nach hinten, der Abstand zwischen zwei Booten bleibt gleich.
+  pausedAtMillis?: int64;
   entries: TimingSequenceEntryDto[];
 }
 
@@ -291,6 +319,45 @@ model TimingDeviceTokenRequest {
   station: uuid;
 }
 
+// What the start display (the athlete screen at the start) shows and how large it shows it.
+// Until 24.08.2026 this was hard-wired to start number plus club, with the position number
+// duplicated on top - which does not carry on the water: a 27" screen on the pontoon needs
+// different type sizes than a tablet in the boat, and what identifies a boat differs from regatta
+// to regatta. Stored as ONE jsonb object on the event; absent there means "the defaults below".
+// No field is nullable - the fallback is the whole block, not a single field. Limits are enforced
+// by the service, not the database: the three scales 0.5..3.0, `followingCount` 0..20.
+//
+// The block reaches boards through the event's timing settings (`GET /timing/settings`, readable
+// with a device token) and is pushed live on every change via the `settingsChanged` websocket
+// message; it is written through the event timing config. Neither of those two carries a model in
+// this spec - they only exist in the hand-maintained backend OpenAPI document, from which the
+// frontend generates - so this model stands here on its own for now.
+model StartDisplaySettingsDto {
+  // The running number in front of a boat (1st, 2nd, 3rd ...). Default false - the screen used to
+  // show the position twice, once as a number in the row and once through the order of the list
+  // itself. Events with single starts at fixed intervals turn it on.
+  showPosition: boolean;
+  // Start number of the boat - the usual identifier on the water, default true.
+  showStartNumber: boolean;
+  // Boat/team name, default true - it is what the announcer calls out.
+  showTeamName: boolean;
+  // Club(s) of the boat, default true; for composite crews the whole club chain.
+  showClubName: boolean;
+  // Names of the rowers, default false: an eight is eight lines per boat, which leaves nothing
+  // readable on a screen that lists several boats at once.
+  showAthleteNames: boolean;
+  // Size of the clock in the header as a factor on the built-in size (1.0 = unchanged). A factor
+  // rather than a point size because the display already scales relative to the screen width.
+  clockScale: float64;
+  // Size of the countdown, same factor semantics as `clockScale`.
+  countdownScale: float64;
+  // Size of the boat list, same factor semantics as `clockScale`.
+  listScale: float64;
+  // How many of the FOLLOWING boats are listed below the one currently being started. 0 is a
+  // legitimate value and means "only the current boat" - the tidiest display for a small screen.
+  followingCount: int32;
+}
+
 // ==========================================================================
 // Routes - event-scoped
 // ==========================================================================
@@ -307,7 +374,7 @@ model TimingDeviceTokenRequest {
 //   exists; a logged-in user's request always takes the ordinary privilege-checked path.
 // DELETE /timeMarks/retracted: require UpdateEventGlobal
 // GET /sequences/active: require UpdateAppTimingGlobal OR UpdateEventGlobal OR ReadEventGlobal (or device token, see above)
-// POST /sequences, POST /sequences/{id}/start|abort, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
+// POST /sequences, POST /sequences/{id}/start|abort|pause|resume|rewind, POST /sequences/{id}/entries/{id}/skip: require UpdateAppTimingGlobal OR UpdateEventGlobal
 // GET /officialTimes: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /officialTimes/compute, PUT /officialTimes/{id}, POST /officialTimes/push: require UpdateEventGlobal
 // GET /deviceTokens, POST /deviceTokens, DELETE /deviceTokens/{id}: require UpdateEventGlobal
@@ -414,6 +481,37 @@ interface TimingRoutes {
   @route("/sequences/{sequenceId}/abort")
   @operationId("abortTimingSequence")
   abortTimingSequence(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+  ): void;
+
+  // Anhalten statt abbrechen: der Kulanz-Griff am Start, wenn ein Boot unverschuldet zu spät
+  // kommt. Nur aus RUNNING, sonst 409.
+  @post
+  @route("/sequences/{sequenceId}/pause")
+  @operationId("pauseTimingSequence")
+  pauseTimingSequence(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+  ): void;
+
+  // Fortsetzen: die geplanten Startzeiten aller noch anstehenden Einträge rücken um die
+  // Pausendauer nach hinten, das Intervall zwischen den Booten bleibt gleich. Nur aus PAUSED.
+  @post
+  @route("/sequences/{sequenceId}/resume")
+  @operationId("resumeTimingSequence")
+  resumeTimingSequence(
+    @path eventId: uuid,
+    @path sequenceId: uuid,
+  ): void;
+
+  // Einen Schritt zurück: der zuletzt GESTARTETE Eintrag wird wieder zu einem anstehenden Start
+  // und seine Startmarke geht zurück (RETRACTED). Nur aus PAUSED und nur, wenn es überhaupt einen
+  // gestarteten Eintrag gibt - sonst 409.
+  @post
+  @route("/sequences/{sequenceId}/rewind")
+  @operationId("rewindTimingSequence")
+  rewindTimingSequence(
     @path eventId: uuid,
     @path sequenceId: uuid,
   ): void;

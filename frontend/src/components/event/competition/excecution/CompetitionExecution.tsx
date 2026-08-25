@@ -92,6 +92,8 @@ import {
     refreshIntervalMs,
     syncStatus,
 } from '@components/event/competition/excecution/autoRefresh.ts'
+import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
+import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 import {
     CompetitionScopeProps,
     useCompetitionScope,
@@ -244,7 +246,50 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     // Schiedsrichter wieder auf die Liste schaut. Beim Öffnen kostet es einen Abruf; der bringt
     // die frischesten Daten in den Dialog und ist damit keiner zu viel.
     const anyDialogOpen = resultsDialogOpen || editMatchDialogOpen || resultImportMatch !== null
-    const autoReloadInterval = refreshIntervalMs(autoRefresh, anyDialogOpen)
+    const workingIntervalMs = refreshIntervalMs(autoRefresh, anyDialogOpen)
+
+    /**
+     * Neueste `reloadProgress`-Fassung für den Push-Kanal. Nötig, weil sich die beiden bedingen:
+     * der Takt unten braucht `pushConnected`, der Kanal braucht das Neuladen — und das entsteht
+     * erst im `useFetch` darunter. Die Ref bricht den Kreis, ohne die Reihenfolge zu verbiegen.
+     */
+    const reloadProgressRef = useRef<() => void>(() => {})
+
+    /**
+     * Die Durchführungsseite hängt am Veranstaltungs-Kanal, nicht nur am Takt. Am Renntag schreiben
+     * Schiedsrichter-Dashboard, Zeitnahme und Kette an denselben Läufen; bis hierher kam das erst
+     * mit dem nächsten Takt an — bei 60 Sekunden eine Minute, in der zwei Leute verschiedene Stände
+     * sehen. Der Push löst genau dasselbe Neuladen aus wie der Takt (`reloadProgress`), nichts
+     * anderes: der ETag-Weg darunter bleibt unangetastet, ein unveränderter Stand kommt weiterhin
+     * als 304 und die Seite rührt sich nicht. Genau diese Ruhe hält Scrollposition und aufgeklappte
+     * Runden — ein Push, der ins Leere lädt, kostet also nichts.
+     *
+     * Zwei Fälle liefern bewusst NICHT aus:
+     * - Offener Dialog: dieselbe Begründung wie beim Takt (die Liste unter der Eingabe darf sich
+     *   nicht verschieben). Nachgeladen wird beim Schließen — dafür braucht es hier nichts
+     *   Eigenes: `workingIntervalMs` wechselt dabei von `undefined` auf den Takt, und weil der
+     *   Wert in den `deps` des Abrufs steht, holt das Schließen den Stand ohnehin sofort nach.
+     * - Abgleich ausgeschaltet: „nicht automatisch nachladen" ist eine Ansage der Veranstaltung
+     *   (`event.execution_auto_refresh`) über die Seite, nicht über einen Übertragungsweg. Ein
+     *   Push, der die abgeschaltete Automatik hintenherum wieder einschaltet, wäre eine
+     *   Überraschung.
+     */
+    const {connected: pushConnected} = useEventChangeSocket(eventId, () => {
+        if (!autoRefresh.enabled || anyDialogOpen) {
+            return
+        }
+        reloadProgressRef.current()
+    })
+
+    // Solange der Kanal steht, ist der Takt nur noch das Sicherheitsnetz gegen stumm gestorbene
+    // Verbindungen (Proxy hält die Leitung, der Server hat den Abonnenten verloren) — er wird
+    // gestreckt statt abgeschaltet. Fällt der Kanal aus, gilt unverändert der eingestellte Takt;
+    // ohne Socket wird die Seite also nie schlechter als vorher. `undefined` (aus, oder Dialog
+    // offen) bleibt `undefined` — das ist die Aussage „keinen Wecker stellen", kein Zahlenwert.
+    const autoReloadInterval =
+        workingIntervalMs === undefined
+            ? undefined
+            : stretchedPollMs(workingIntervalMs, pushConnected)
 
     const {pending: progressDtoPending, reload: reloadProgress} = useFetch(
         signal =>
@@ -297,6 +342,12 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             deps: [eventId, competitionId, reloadData, autoReloadInterval],
         },
     )
+
+    // Die Ref des Push-Kanals nachziehen (siehe oben) — depless, damit sie in jedem Render die
+    // aktuelle Fassung trägt.
+    useEffect(() => {
+        reloadProgressRef.current = reloadProgress
+    })
 
     // Zurück im Netz: nicht bis zum nächsten Takt warten. Der Browser meldet das selbst, und beim
     // Abgleich im Minutentakt ist das der Unterschied zwischen "sofort" und "irgendwann".

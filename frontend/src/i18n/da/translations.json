@@ -1737,7 +1737,9 @@
           "presetDefault": "Standard (5…1−start)",
           "previewHint": "Forhåndsvisningen afspiller tonerne i komprimeret tid: pauser over 2 sekunder forkortes, rytmen i de sidste sekunder forbliver ægte.",
           "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
-        }
+        },
+        "falseStartEnabled": "Tillad tilbagekaldelse ved tyvstart",
+        "falseStartEnabledHelp": "Til: Startposten kan kalde løb af denne type tilbage — startsekvensen afbrydes, forsøget trækkes tilbage, og atletdisplayene blinker rødt. Fra ved enkeltstart (timetrial): dér straffes en tyvstart med strafftid i stedet for en tilbagekaldelse af feltet."
       },
       "races": {
         "title": "RaceClocker-løb",
@@ -1795,6 +1797,27 @@
         "resetConfirmEvent": "Alle tildelinger for hele arrangementet fjernes. Derefter arver hver konkurrence, runde og heat igen ovenfra. Fortsæt?",
         "resetConfirmCompetition": "Alle tildelinger for runderne og heats i {{identifier}} {{name}} fjernes. Derefter arver de igen fra konkurrencen. Fortsæt?",
         "reset": "Tildelinger fjernet"
+      },
+      "manualCapture": {
+        "title": "Manuel registrering ved startposten",
+        "label": "Vis den manuelle registreringsknap på start-boardet",
+        "hint": "Skjult som standard: ellers står der to grønne flader over hinanden på start-boardet — den store sekvens-startknap og den manuelle registreringsknap nedenunder, begge grønne, begge med teksten „Start\". På vandet er det en oplagt forveksling, og et utilsigtet tryk sætter et startmærke, ingen har bedt om. Slå den til, hvis der startes uden startsekvens."
+      },
+      "startDisplay": {
+        "title": "Startskærm",
+        "hint": "Atletskærmen ved starten: hvad der vises for hver båd, og hvor stort. En 27\" skærm på broen kræver andre skriftstørrelser end en tablet i båden, og ét stævne råber startnumre op, mens det næste råber bådnavne op. Ændringer når hver tilsluttet skærm med det samme — uden genindlæsning.",
+        "showPosition": "Løbenummer foran båden",
+        "showStartNumber": "Startnummer",
+        "showTeamName": "Bådnavn",
+        "showClubName": "Klub",
+        "showAthleteNames": "Navne på roerne",
+        "clockScale": "Urets størrelse (faktor)",
+        "countdownScale": "Nedtællingens størrelse (faktor)",
+        "listScale": "Bådlistens størrelse (faktor)",
+        "followingCount": "Følgende både på listen",
+        "scaleHint": "Størrelserne er faktorer på den indbyggede visning: 1 lader alt være som hidtil, 2 fordobler, 0,5 halverer. Tilladt er 0,5 til 3. For de følgende både betyder 0 „kun den aktuelle båd\".",
+        "scaleInvalid": "Angiv venligst en faktor mellem 0,5 og 3.",
+        "followingInvalid": "Angiv venligst et antal mellem 0 og 20."
       }
     },
     "info": {
@@ -2427,6 +2450,32 @@
         "showCountdown": "Ur/nedtælling",
         "upcomingListTitle": "Næste løb",
         "inMinutes": "om {{time}}"
+      },
+      "share": {
+        "action": "Del link",
+        "title": "Del boardet “{{name}}”",
+        "description": "Linket bærer dette boards enhedsadgang: skærmen (fastmonteret visning, OBS-browserkilde, telefon) behøver intet login. Samme board giver altid samme link — indtil det trækkes tilbage her.",
+        "copy": "Kopiér link",
+        "copied": "Link kopieret",
+        "revokeHint": "Linket kan altid hentes her igen. Det gælder kun for dette ene board — et andet board på samme skærm kræver sit eget link.",
+        "error": "Linket kunne ikke oprettes.",
+        "again": "Opret nyt link",
+        "revoke": {
+          "action": "Træk link tilbage",
+          "success": "Link trukket tilbage",
+          "error": "Linket kunne ikke trækkes tilbage.",
+          "done": "Linket er trukket tilbage og ugyldigt. “Opret nyt link” udsteder et nyt — allerede uddelte QR-koder bliver ikke gyldige igen.",
+          "confirm": {
+            "title": "Træk link tilbage?",
+            "content": "Det delte link til “{{name}}” bliver ugyldigt med det samme; skærme, der har indlæst det, viser intet ved næste opdatering. En ny deling opretter et NYT link — den gamle QR-kode virker ikke længere."
+          }
+        }
+      },
+      "display": {
+        "unauthorized": {
+          "title": "Denne visning er ikke frigivet",
+          "hint": "Bed om et link med token, eller log ind. Linket findes i stævnets board-administration under “Del link”."
+        }
       }
     },
     "betrieb": {
@@ -3158,7 +3207,8 @@
       "startSelected": "Start: {{match}}",
       "error": {
         "start": "Startsekvensen kunne ikke startes.",
-        "restart": "Starten kunne ikke trækkes tilbage."
+        "restart": "Starten kunne ikke trækkes tilbage.",
+        "falseStart": "Tyvstarten kunne ikke udløses."
       },
       "mode": {
         "interval": "hvert {{seconds}} s",
@@ -3183,7 +3233,15 @@
         "keep": "Ændr intet"
       },
       "restartDone": "Forsøget trukket tilbage — løbet kan startes igen",
-      "startFocused": "Start: {{match}}"
+      "startFocused": "Start: {{match}}",
+      "falseStart": "Tyvstart — kald løbet tilbage",
+      "falseStartDone": "Tyvstart udløst — løbet er kaldt tilbage",
+      "falseStartConfirm": {
+        "title": "Udløs tyvstart?",
+        "content": "{{match}} kaldes tilbage: Den kørende startsekvens afbrydes, hele forsøget trækkes tilbage (startmærker OG allerede registrerede måltider), og atletdisplayene blinker rødt med „Fehlstart“. Der gives ingen strafttid — det afgør dommeren.",
+        "ok": "Udløs tyvstart",
+        "keep": "Lad det køre videre"
+      }
     },
     "sequence": {
       "mode": {
@@ -3223,10 +3281,24 @@
         "create": "Sekvens kunne ikke oprettes",
         "start": "Sekvens kunne ikke startes",
         "abort": "Afbrydelse mislykkedes",
-        "skip": "Spring over mislykkedes"
+        "skip": "Spring over mislykkedes",
+        "pause": "Pause mislykkedes",
+        "resume": "Fortsæt mislykkedes",
+        "rewind": "Fortryd mislykkedes"
       },
       "bar": {
         "started": "{{started}}/{{total}} startet"
+      },
+      "pause": "Sæt sekvens på pause",
+      "resume": "Fortsæt",
+      "rewind": "Fortryd seneste start",
+      "paused": {
+        "title": "Sekvens sat på pause",
+        "next": "Næste: {{team}}"
+      },
+      "rewindConfirm": {
+        "title": "Fortryd seneste start?",
+        "content": "{{team}} bliver afventende igen og startes på ny, når sekvensen fortsætter. Starttiden trækkes tilbage."
       }
     },
     "board": {
@@ -3503,7 +3575,13 @@
       "aborted": "Startsekvens afbrudt",
       "next": "Ved starten",
       "following": "Derefter",
-      "notStart": "Denne post er ikke en startpost — startskærmen viser intet her."
+      "notStart": "Denne post er ikke en startpost — startskærmen viser intet her.",
+      "paused": "Startsekvens sat på pause",
+      "pausedHint": "Det fortsætter, så snart sekvensen genoptages.",
+      "upcoming": "Næste løb",
+      "upcomingFirst": "Først til start",
+      "falseStart": "Tyvstart",
+      "falseStartHint": "Løbet er kaldt tilbage — vend tilbage til starten og afvent besked."
     },
     "schedule": {
       "title": "Dagsprogram",
@@ -3515,6 +3593,9 @@
         "STARTED": "startet",
         "FINISHED": "færdig",
         "finishProgress": "{{finished}}/{{total}} i mål"
+      },
+      "day": {
+        "withoutTime": "uden starttid"
       }
     },
     "marks": {

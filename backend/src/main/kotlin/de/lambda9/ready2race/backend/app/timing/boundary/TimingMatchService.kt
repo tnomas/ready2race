@@ -19,6 +19,7 @@ import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
 import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import java.util.UUID
 
@@ -33,6 +34,27 @@ import java.util.UUID
  * verdrahtet sie nur mit den Zeilen aus der Datenbank.
  */
 object TimingMatchService {
+
+    /**
+     * Meldet allen Zeitnahme-Boards der Veranstaltung, dass diese Startliste neu zu holen ist -
+     * [TimingWsMessage.MatchesChanged], ein Auslöser ohne Rumpf.
+     *
+     * Liegt hier und nicht bei den Schreibern, weil die Nachricht genau EINE Sicht betrifft: die
+     * dieses Service. Wer die Partienmenge ändert (Zeitplan, Rundenerzeugung, Freilos,
+     * Typ-Zuordnung), ruft diese eine Zeile auf und muss weder den Broadcaster noch die
+     * Commit-Regel kennen.
+     *
+     * Wie überall im Zeitnahme-Kanal erst NACH dem Commit: ein Board, das die Nachricht sofort
+     * beantwortet, holte sonst über eine andere Verbindung den Stand VOR dem Schreiben - und ein
+     * Rollback hätte eine Nachricht über eine Änderung erzeugt, die es nie gab. `AfterCommit`
+     * puffert bis `respondKIO` committet hat und feuert für Nicht-HTTP-Aufrufer (Jobs, Tests)
+     * unmittelbar.
+     */
+    fun broadcastMatchesChanged(eventId: UUID) {
+        AfterCommit.register {
+            TimingBroadcaster.broadcast(eventId, TimingWsMessage.MatchesChanged)
+        }
+    }
 
     /**
      * Die Startliste eines Postens.

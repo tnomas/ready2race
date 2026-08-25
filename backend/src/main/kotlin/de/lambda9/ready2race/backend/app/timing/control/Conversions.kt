@@ -71,6 +71,23 @@ fun CaptureTone.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(thi
 fun JSONB?.toCaptureTone(): CaptureTone? =
     this?.let { toneMapper.readValue<CaptureTone>(it.data()) }
 
+/**
+ * Der Anzeige-Block des Startbildschirms aus seiner jsonb-Spalte (`event.timing_start_display`).
+ *
+ * Derselbe Mapper wie bei den Tönen: Es ist wieder eine Kotlin-Datenklasse, die der nackte
+ * ObjectMapper nicht konstruieren könnte. null (Spalte nicht gesetzt) bleibt null und heißt
+ * „eingebaute Vorgaben" - aufgelöst wird erst dort, wo die Boards bedient werden
+ * (TimingOfficialTimeService.eventSettings), damit das Formular den Unterschied zwischen
+ * „Standard" und „eigener Wert" weiterhin sieht.
+ *
+ * Anders als bei der Fehlstart-Folge gibt es hier keinen Alt-Bestand zu erkennen: die Spalte ist
+ * am 24.08.2026 leer entstanden, jede gespeicherte Zeile hat von Anfang an diese Gestalt.
+ */
+fun StartDisplaySettings.toJsonb(): JSONB = JSONB.jsonb(toneMapper.writeValueAsString(this))
+
+fun JSONB?.toStartDisplaySettings(): StartDisplaySettings? =
+    this?.let { toneMapper.readValue<StartDisplaySettings>(it.data()) }
+
 fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
     TimingStationDto(
         id = id,
@@ -122,6 +139,7 @@ fun sequenceDto(
         leadInMillis = record.leadInMillis!!,
         state = SequenceState.valueOf(record.state!!),
         startedAtMillis = record.startedAtMillis,
+        pausedAtMillis = record.pausedAtMillis,
         entries = entries.sortedBy { it.position }.map { entry ->
             TimingSequenceEntryDto(
                 id = entry.id,
@@ -142,13 +160,23 @@ fun sequenceDto(
  * during that window, so the first entry only fires once it has elapsed. MASS fires everything at
  * the same instant after the lead-in; INTERVAL gives every position its own slot on top of that,
  * which is why a SKIPPED entry does not shift the ones behind it - its slot simply passes empty.
+ *
+ * Dazu kommt die aufgelaufene Pausendauer (`pause_shift_millis`): Wurde die Sequenz zwischendurch
+ * angehalten, rückt die GANZE Kette um genau diese Summe nach hinten. Das ist der Grund, warum
+ * die Verschiebung hier draufgerechnet und nicht in `started_at_millis` hineinaddiert wird - der
+ * Startzeitpunkt bleibt der Startzeitpunkt, und weil die Verschiebung für alle Positionen
+ * dieselbe ist, bleibt der Abstand zwischen zwei Booten unverändert.
  */
 fun plannedStartMillis(record: TimingStartSequenceRecord, position: Int): Long? {
     val startedAt = record.startedAtMillis ?: return null
     val leadIn = record.leadInMillis ?: 0L
+    // Not-null-Spalte mit Default; der jOOQ-Generator typisiert sie dennoch nullable (bekanntes
+    // Muster, siehe leadInSeconds oben) - 0 ist hier zugleich der Datenbank-Default und die
+    // richtige Bedeutung: nie pausiert, also nichts zu verschieben.
+    val pauseShift = record.pauseShiftMillis ?: 0L
     return when (SequenceMode.valueOf(record.mode)) {
-        SequenceMode.MASS -> startedAt + leadIn
-        SequenceMode.INTERVAL -> startedAt + leadIn + position * (record.intervalMillis ?: 0L)
+        SequenceMode.MASS -> startedAt + leadIn + pauseShift
+        SequenceMode.INTERVAL -> startedAt + leadIn + pauseShift + position * (record.intervalMillis ?: 0L)
     }
 }
 
@@ -246,6 +274,10 @@ fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
     // EventTimingConfigDto) - der Datenbank-Default ist die einzig richtige Rückfalllinie.
     leadInSeconds = leadInSeconds ?: 10,
     tonePlan = tonePlan.toTonePlan(),
+    // Wie leadInSeconds eine not-null-Spalte mit Default, die jOOQ dennoch nullable typisiert.
+    // Der Rückfall ist deshalb genau der Datenbank-Default (V202608242020): Fehlstart erlaubt -
+    // ein Typ, dessen Spalte wider Erwarten leer ist, verliert den Rückruf nicht stillschweigend.
+    falseStartEnabled = falseStartEnabled ?: true,
 )
 
 fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
@@ -258,6 +290,7 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
             intervalSeconds = intervalSeconds,
             leadInSeconds = leadInSeconds,
             tonePlan = tonePlan?.toJsonb(),
+            falseStartEnabled = falseStartEnabled,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,
@@ -265,10 +298,21 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
         )
     }
 
+/**
+ * Der Geräte-Reiter der Zeitnahme — und der zeigt ausschließlich POSTEN-Tokens.
+ *
+ * Seit Migration V202608250900 trägt dieselbe Tabelle auch Board-Tokens; dort ist station null
+ * und board gesetzt (genau eines von beiden, per Check-Constraint). Diese Konvertierung wird
+ * deshalb nur auf Posten-Tokens angewandt: [de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService.list]
+ * holt sie über [TimingDeviceTokenRepo.getStationTokensByEvent] (`station is not null`), und die
+ * Ausstell- wie die Posten-Share-Link-Antwort bauen ihren Record selbst mit gesetztem Posten.
+ * Das `!!` trägt also die Abfrage, nicht die Hoffnung — Board-Tokens bekommen mit
+ * [de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto] ihre eigene Antwort.
+ */
 fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto(
     id = id,
     event = event,
-    station = station,
+    station = station!!,
     name = name,
     revoked = revoked ?: false,
     // Die Spalte ist zugleich das Kennzeichen (siehe Migration V202608211420): Klartext

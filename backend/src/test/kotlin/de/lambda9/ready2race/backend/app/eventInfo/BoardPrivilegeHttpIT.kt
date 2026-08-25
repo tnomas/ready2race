@@ -247,20 +247,87 @@ class BoardPrivilegeHttpIT {
     }
 
     /**
-     * Die Anzeige selbst bleibt öffentlich - der montierte Bildschirm meldet sich nie an. Das
-     * neue Recht darf daran nichts geändert haben.
+     * Die Anzeige selbst hängt weiter unter /info, verlangt seit dem 25.08.2026 aber eine
+     * Authentifizierung - vorher war sie offen für jeden, der die Adresse kannte.
+     *
+     * Hier steht die SITZUNGS-Hälfte der neuen Regel: dieselben Leserechte, die auch die
+     * Verwaltung öffnen. Der montierte Bildschirm, der sich nie anmeldet, nimmt stattdessen den
+     * Geräte-Token-Zweig ([BoardDeviceTokenAuthTest]).
      */
     @Test
-    fun theBoardItselfStaysPublic() = testApplicationComprehension {
+    fun theBoardNeedsASessionOrADeviceToken() = testApplicationComprehension {
         val seeded = seedClubChain()
         val session = login("admin", "admin")
         val boardId = createBoard(seeded, session)
 
-        // Die Anzeige hängt unter dem öffentlichen /info-Zweig, nicht unter der Verwaltung.
-        val response = client.get("/api/event/${seeded.eventId}/info/board/$boardId")
+        // Ohne alles: zu.
+        val anonymous = client.get("/api/event/${seeded.eventId}/info/board/$boardId")
+        assertEquals(HttpStatusCode.Unauthorized, anonymous.status, anonymous.bodyAsText())
+
+        val response = client.get("/api/event/${seeded.eventId}/info/board/$boardId") {
+            header("X-Api-Session", session)
+        }
 
         assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
         // Die Anzeige trägt keinen Namen, sondern die Kennung des Boards und seine Konfiguration.
         assertTrue(response.bodyAsText().contains(boardId), response.bodyAsText())
+    }
+
+    /**
+     * Der Teilen-Knopf gehört zur Verwaltung: wer eine Anzeige bauen darf, darf sie auch an einen
+     * Bildschirm hängen - und wer gar nichts darf, bekommt kein Credential ausgestellt.
+     *
+     * Über die Route geprüft, weil hier die Rechteentscheidung fällt; dass derselbe Klick
+     * denselben Link liefert, steht im [BoardShareLinkTest].
+     */
+    @Test
+    fun theBoardUpdateRightCarriesTheShareLink() = testApplicationComprehension {
+        val seeded = seedClubChain()
+        val adminSession = login("admin", "admin")
+        val boardId = createBoard(seeded, adminSession)
+
+        val password = "einPasswortFuerDenTest"
+        val allowed = login(
+            seedUser(password, listOf(Privilege.ReadBoardGlobal, Privilege.UpdateBoardGlobal)),
+            password,
+        )
+        val share = client.post("${boardsBase(seeded)}/$boardId/share-link") {
+            header("X-Api-Session", allowed)
+        }
+        assertEquals(HttpStatusCode.OK, share.status, share.bodyAsText())
+        assertTrue(
+            share.bodyAsText().contains("/board/${seeded.eventId}/$boardId?token="),
+            share.bodyAsText(),
+        )
+
+        val refused = login(seedUser(password, emptyList()), password)
+        val denied = client.post("${boardsBase(seeded)}/$boardId/share-link") {
+            header("X-Api-Session", refused)
+        }
+        assertEquals(HttpStatusCode.Forbidden, denied.status, denied.bodyAsText())
+    }
+
+    /**
+     * Und das Board-Leserecht allein reicht dafür - wer Anzeigen pflegen darf, muss sie ansehen
+     * können, ohne zusätzlich READ EVENT zu bekommen.
+     */
+    @Test
+    fun theBoardReadRightAloneOpensTheDisplay() = testApplicationComprehension {
+        val seeded = seedClubChain()
+        val adminSession = login("admin", "admin")
+        val boardId = createBoard(seeded, adminSession)
+
+        val password = "einPasswortFuerDenTest"
+        val session = login(seedUser(password, listOf(Privilege.ReadBoardGlobal)), password)
+
+        val response = client.get("/api/event/${seeded.eventId}/info/board/$boardId") {
+            header("X-Api-Session", session)
+        }
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+
+        val list = client.get("/api/event/${seeded.eventId}/info/boards") {
+            header("X-Api-Session", session)
+        }
+        assertEquals(HttpStatusCode.OK, list.status, list.bodyAsText())
     }
 }

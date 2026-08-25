@@ -3,6 +3,9 @@ import {
     abortTimingSequence,
     createTimingSequence,
     getActiveTimingSequence,
+    pauseTimingSequence,
+    resumeTimingSequence,
+    rewindTimingSequence,
     skipTimingSequenceEntry,
     startTimingSequence,
 } from '@api/sdk.gen.ts'
@@ -15,7 +18,7 @@ export type UseSequenceResult = {
     sequence: TimingSequenceDto | undefined
     loading: boolean
     error: boolean
-    /** True while a create/start/abort/skip request is in flight. */
+    /** True while a create/start/pause/resume/rewind/abort/skip request is in flight. */
     busy: boolean
     refetch: () => void
     /** Feed a `sequenceChanged` websocket message in — pass this to `useTimingBoardState`. */
@@ -29,6 +32,24 @@ export type UseSequenceResult = {
      */
     createAndStart: (request: CreateSequenceRequest) => Promise<boolean>
     start: () => Promise<boolean>
+    /**
+     * Die laufende Sequenz anhalten — der Kulanz-Griff am Start, wenn ein Boot unverschuldet zu
+     * spät kommt. Anders als `abort` bleibt die Kette samt ihrer Reihenfolge stehen; es wird nur
+     * nichts mehr gefeuert, bis `resume` kommt.
+     */
+    pause: () => Promise<boolean>
+    /**
+     * Weiterlaufen lassen. Der Server schiebt dabei die geplanten Startzeiten aller noch
+     * anstehenden Einträge um die Pausendauer nach hinten — das Intervall zwischen den Booten
+     * bleibt also, wie es war.
+     */
+    resume: () => Promise<boolean>
+    /**
+     * Aus der Pause heraus einen Schritt zurück: der zuletzt GESTARTETE Eintrag steht wieder an,
+     * seine Startmarke wird zurückgenommen. Genau das ist die Kulanz — das Boot bekommt seinen
+     * Start neu, statt dass die ganze Sequenz verworfen wird.
+     */
+    rewind: () => Promise<boolean>
     abort: () => Promise<boolean>
     skip: (entryId: string) => Promise<boolean>
     /** Clear the local sequence so the setup form reappears (the "Neue Sequenz" action). */
@@ -46,11 +67,12 @@ export type UseSequenceResult = {
  *
  * `refetch` (GET active) only ever finds ARMED/RUNNING sequences by design — a DONE/ABORTED sequence
  * is no longer "active". So `create` (whose response is just an id) refetches to load the full ARMED
- * dto, but `start`/`abort`/`skip` deliberately do *not* refetch on success: an abort right after a
+ * dto, but `start`/`pause`/`resume`/`rewind`/`abort`/`skip` deliberately do *not* refetch on success: an abort right after a
  * refetch would immediately "lose" the ABORTED summary (refetch would find nothing active and the
  * panel would jump straight back to the setup form). Those three rely entirely on the
  * `sequenceChanged` broadcast — which the backend sends for every mutation — to deliver the
- * terminal-state dto.
+ * terminal-state dto. (Eine pausierte Sequenz fände der Refetch zwar durchaus — PAUSED zählt
+ * serverseitig als aktiv —, aber der Broadcast ist schneller und trägt dieselbe Wahrheit.)
  *
  * **Refetch / live-feed race.** Same shape as `useTimingBoardState`'s, and guarded the same way:
  *
@@ -211,6 +233,55 @@ export function useSequence(
         }
     }, [eventId, sequence])
 
+    // Anhalten, Fortsetzen und Zurücksetzen folgen exakt dem Muster von `start`/`abort`: kein
+    // Refetch bei Erfolg, weil der Server für jede Zustandsänderung ein `sequenceChanged` sendet
+    // und `applySequenceChanged` das neuere Bild ohnehin gewinnen lässt. Ein zusätzlicher GET
+    // würde hier nur ein älteres Bild nachreichen.
+    const pause = useCallback(async () => {
+        if (sequence === undefined) return false
+        setBusy(true)
+        try {
+            const {error: err} = await pauseTimingSequence({
+                path: {eventId, sequenceId: sequence.id},
+            })
+            return err === undefined
+        } catch {
+            return false
+        } finally {
+            setBusy(false)
+        }
+    }, [eventId, sequence])
+
+    const resume = useCallback(async () => {
+        if (sequence === undefined) return false
+        setBusy(true)
+        try {
+            const {error: err} = await resumeTimingSequence({
+                path: {eventId, sequenceId: sequence.id},
+            })
+            return err === undefined
+        } catch {
+            return false
+        } finally {
+            setBusy(false)
+        }
+    }, [eventId, sequence])
+
+    const rewind = useCallback(async () => {
+        if (sequence === undefined) return false
+        setBusy(true)
+        try {
+            const {error: err} = await rewindTimingSequence({
+                path: {eventId, sequenceId: sequence.id},
+            })
+            return err === undefined
+        } catch {
+            return false
+        } finally {
+            setBusy(false)
+        }
+    }, [eventId, sequence])
+
     const abort = useCallback(async () => {
         if (sequence === undefined) return false
         setBusy(true)
@@ -263,6 +334,9 @@ export function useSequence(
         create,
         createAndStart,
         start,
+        pause,
+        resume,
+        rewind,
         abort,
         skip,
         reset,

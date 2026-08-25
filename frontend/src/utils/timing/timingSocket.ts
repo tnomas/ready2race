@@ -16,6 +16,11 @@ export type TimingWsMessage =
 	| { type: 'timeMarkReactivated'; id: string }
 	| { type: 'assignmentChanged'; timeMark: string; competitionMatchTeam: string | null }
 	| { type: 'stationsChanged' }
+	// Die Partienmenge der Posten-Startliste hat sich geändert: ein Lauf ist dazugekommen,
+	// weggefallen oder verschoben worden, oder sein Zeitnahmetyp löst sich anders auf. Reiner
+	// Auslöser ohne Rumpf wie stationsChanged — die Startliste ist eine gerechnete Sicht, die
+	// sich die Boards über `GET /timing/matches` holen.
+	| { type: 'matchesChanged' }
 	| { type: 'sequenceChanged'; sequence: TimingSequenceDto }
 	| { type: 'officialTimeChanged'; officialTimes: OfficialTimeDto[] }
 	| { type: 'timesDeleted'; timeMarks: string[] }
@@ -24,6 +29,13 @@ export type TimingWsMessage =
 	// Boards, zusätzlich zu den einzelnen timeMarkRetracted-Echos (die feuern auch bei der
 	// harmlosen Einzelmarken-Korrektur und taugen deshalb nicht als Auslöser).
 	| { type: 'attemptRetracted'; competitionSetupMatch: string; competitionMatchTeams: string[] }
+	// Der AUSDRÜCKLICHE Fehlstart (Rückruf) einer Partie — vom Startposten ausgelöst. Bewusst
+	// eine eigene Nachricht neben `attemptRetracted`: die feuert auch beim stillen Aufräumen
+	// („Start zurücknehmen und neu starten" nach einer verpatzten Erfassung), und ein Aufräumen
+	// darf die Athletenanzeige am Steg nicht rot blinken lassen. Ein Fehlstart schickt beide, die
+	// bestehenden Verbraucher von `attemptRetracted` merken davon also nichts. Trägt nur die
+	// Partie — die Anzeige beantwortet damit „bin ich gemeint?", und das ist eine Partie-Frage.
+	| { type: 'falseStart'; competitionSetupMatch: string }
 
 const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkCreated',
@@ -31,11 +43,13 @@ const KNOWN_TYPES = new Set<TimingWsMessage['type']>([
 	'timeMarkReactivated',
 	'assignmentChanged',
 	'stationsChanged',
+	'matchesChanged',
 	'sequenceChanged',
 	'officialTimeChanged',
 	'timesDeleted',
 	'settingsChanged',
 	'attemptRetracted',
+	'falseStart',
 ])
 
 /**

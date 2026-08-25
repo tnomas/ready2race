@@ -79,7 +79,10 @@ export function isAttemptRetractionFalseStart(
     const match = matches.find(
         candidate => candidate.competitionSetupMatch === info.competitionSetupMatch,
     )
-    return match !== undefined && match.teams.some(team => sequenceTeams.has(team.competitionMatchTeam))
+    return (
+        match !== undefined &&
+        match.teams.some(team => sequenceTeams.has(team.competitionMatchTeam))
+    )
 }
 
 /**
@@ -102,4 +105,39 @@ export function shouldPlayFalseStart(
     suppressMillis: number,
 ): boolean {
     return lastPlayedAtMillis === null || nowMillis - lastPlayedAtMillis >= suppressMillis
+}
+
+/**
+ * Fehlstart-Geste 3 (seit 24.08.2026): der AUSDRÜCKLICHE Rückruf über den Fehlstart-Knopf des
+ * Start-Boards, der als eigene `falseStart`-Nachricht ankommt. Anders als die beiden älteren
+ * Gesten ist er kein Nebeneffekt, sondern eine Ansage — deshalb hängt an ihm nicht nur der Ton,
+ * sondern das rote Blinken der Athletenanzeige.
+ *
+ * Die Nachricht trägt nur die Partie, keine Teams. Betroffen ist die Anzeige, wenn
+ *
+ * - die gerade geführte Sequenz Boote dieser Partie startet (der Regelfall: der Rückruf gilt dem
+ *   Lauf, der auf dem Schirm steht), ODER
+ * - die Anzeige diese Partie gerade ANKÜNDIGT. Der Rückruf kann den Bruchteil einer Sekunde nach
+ *   dem Abbruch eintreffen, wenn die Sequenz schon weg ist und die Ankündigung des nächsten Laufs
+ *   steht — dann darf der Bildschirm nicht schweigen, während am Steg zurückgerufen wird.
+ *
+ * Trifft weder das eine noch das andere zu, bleibt die Anzeige ruhig: ein Rückruf in einem anderen
+ * Startbereich geht sie nichts an.
+ */
+export function isFalseStartOnDisplay(
+    competitionSetupMatch: string,
+    matches: readonly TimingMatchDto[],
+    sequence: TimingSequenceDto | undefined,
+    announcedMatch: string | undefined,
+): boolean {
+    if (announcedMatch === competitionSetupMatch) return true
+    if (sequence === undefined) return false
+    const sequenceTeams = new Set(sequence.entries.map(entry => entry.competitionMatchTeam))
+    const match = matches.find(
+        candidate => candidate.competitionSetupMatch === competitionSetupMatch,
+    )
+    return (
+        match !== undefined &&
+        match.teams.some(team => sequenceTeams.has(team.competitionMatchTeam))
+    )
 }

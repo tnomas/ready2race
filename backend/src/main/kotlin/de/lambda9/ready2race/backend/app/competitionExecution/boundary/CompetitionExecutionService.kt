@@ -56,6 +56,7 @@ import de.lambda9.ready2race.backend.app.substitution.control.toParticipantForEx
 import de.lambda9.ready2race.backend.app.substitution.entity.ParticipantForExecutionDto
 import de.lambda9.ready2race.backend.app.timecode.control.TimecodeRepo
 import de.lambda9.ready2race.backend.app.timecode.control.toRecord
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.calls.responses.noDataResponse
@@ -406,6 +407,12 @@ object CompetitionExecutionService {
         // Neue Läufe erscheinen im Block „nächste Läufe" der öffentlichen Anzeigen.
         EventChangeMarker.bump(eventId)
 
+        // … und in der Startliste der Zeitnahme-Posten. Das ist der wichtigste der Auslöser: eine
+        // Folgerunde entsteht am Renntag mitten im Betrieb (von Hand oder durch die Automatik in
+        // AutoRoundProgressionService, die genau hier hereinläuft), und die offenen Boards am Steg
+        // sahen ihre neuen Läufe bis dahin erst nach einem Neuladen.
+        TimingMatchService.broadcastMatchesChanged(eventId)
+
         noData
     }
 
@@ -687,6 +694,10 @@ object CompetitionExecutionService {
 
         // Bahnentausch und Startzeit stehen auf den öffentlichen Anzeigen.
         EventChangeMarker.bump(eventId)
+
+        // Beides steht auch in der Posten-Startliste: die Startzeit bestimmt dort die Reihenfolge
+        // (TimingStartOrderLogic), die Startnummern die Zeilen, die der Posten abhakt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
 
         noData
     }
@@ -2028,8 +2039,12 @@ object CompetitionExecutionService {
         if (deleted < 1) {
             KIO.fail(CompetitionExecutionError.RoundNotFound)
         } else {
-            // Die gelöschten Läufe verschwinden aus „nächste Läufe" der Anzeigen.
+            // Die gelöschten Läufe verschwinden aus „nächste Läufe" der Anzeigen …
             EventChangeMarker.bump(eventId)
+            // … und aus der Posten-Startliste. Ein Board, das eine gelöschte Runde weiter anzeigt,
+            // ist gefährlicher als eines, dem ein neuer Lauf fehlt: der Startposten ruft sonst
+            // Boote auf, die es nicht mehr gibt.
+            TimingMatchService.broadcastMatchesChanged(eventId)
             noData
         }
     }
@@ -3235,6 +3250,11 @@ object CompetitionExecutionService {
 
         // Freilos-Zustand und automatischer Platz stehen in der Freilos-Anzeige der Boards.
         EventChangeMarker.bump(eventId)
+
+        // Für die Zeitnahme ist das keine Nuance, sondern das Erscheinen bzw. Verschwinden einer
+        // ganzen Partie: TimingMatchRepo blendet Freilose aus, „muss gefahren werden" holt sie
+        // zurück in die Startliste.
+        TimingMatchService.broadcastMatchesChanged(eventId)
 
         noData
     }

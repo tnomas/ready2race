@@ -2,6 +2,7 @@ import {Box, Chip, Stack, Typography} from '@mui/material'
 import {useEffect, useRef} from 'react'
 import {useTranslation} from 'react-i18next'
 import {ClockQuality} from '@utils/timing/serverClock.ts'
+import {scaledFontSize} from '@utils/timing/startDisplayRender.ts'
 import {TimingWsStatus} from '@utils/timing/useTimingWebSocket.ts'
 
 type WsChipColor = 'success' | 'warning' | 'error' | 'default'
@@ -37,6 +38,15 @@ export type BoardHeaderProps = {
     wsStatus: TimingWsStatus
     clockQuality: ClockQuality
     now: () => number | null
+    /**
+     * Faktor auf die Größe der Uhr (1 = eingebaute Größe). Optional mit Vorgabe 1, weil dieselbe
+     * Kopfzeile über den Erfassungsboards und dem Leitstand sitzt: dort gibt es keine
+     * Anzeige-Einstellungen, und dort darf sich durch diese Prop nichts ändern. Einstellbar ist
+     * die Größe nur auf dem Startbildschirm (Zeitnahme) — die Athleten am Steg lesen hier die
+     * offizielle, servergeankerte Uhrzeit ab, und wie groß die sein muss, hängt am Bildschirm und
+     * am Abstand, aus dem man darauf schaut.
+     */
+    clockScale?: number
 }
 
 /**
@@ -48,7 +58,13 @@ export type BoardHeaderProps = {
  * second. `now` is read through a ref updated every render so the loop itself only needs to start
  * once and is cancelled on unmount.
  */
-const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProps) => {
+const BoardHeader = ({
+    stationName,
+    wsStatus,
+    clockQuality,
+    now,
+    clockScale = 1,
+}: BoardHeaderProps) => {
     const {t} = useTranslation()
     const clockRef = useRef<HTMLSpanElement | null>(null)
     const nowRef = useRef(now)
@@ -96,8 +112,14 @@ const BoardHeader = ({stationName, wsStatus, clockQuality, now}: BoardHeaderProp
                         fontFamily: 'monospace',
                         fontVariantNumeric: 'tabular-nums',
                         // Auf Telefon-Breite etwas kleiner als das Theme-h3 (1.5rem), damit
-                        // Name, Uhr und Status-Chips höchstens zweizeilig bleiben.
-                        fontSize: {xs: '1.25rem', sm: '1.5rem'},
+                        // Name, Uhr und Status-Chips höchstens zweizeilig bleiben. Beide Stufen
+                        // gehen durch denselben Faktor, damit die Vergrößerung die
+                        // Bildschirmabhängigkeit erhält statt sie zu ersetzen; bei Faktor 1 kommen
+                        // exakt diese beiden Werte unverändert heraus.
+                        fontSize: {
+                            xs: scaledFontSize('1.25rem', clockScale),
+                            sm: scaledFontSize('1.5rem', clockScale),
+                        },
                     }}
                     variant="h3">
                     {CLOCK_PLACEHOLDER}
