@@ -352,7 +352,13 @@ Migrationen fremder Worktrees. Migrationsnummer `V202608242100`; im Nachbar-Work
 - **Der Poll-Umbau ist die heikelste Stelle.** Der innere Join war die stille Sicherung „ohne
   Rennen kein Abruf". Die Kotlin-Auflösung muss dieselbe Wirkung haben, sonst laufen Abrufe ins
   Leere und belasten den Takt.
-- **Partien-Zuordnungen überleben eine Änderung des Wettkampfablaufs nicht.** Wird eine Runde
-  neu gebaut, verschwinden ihre `competition_setup_match`-Zeilen und mit ihnen (per
-  `on delete cascade`) die Zuordnungen. Das ist richtig so, muss aber im Hinweistext des Baums
-  stehen.
+- **Partien-Zuordnungen überleben das Neuerzeugen einer Runde in der Durchführung.**
+  *Korrektur vom 25.08.2026 — hier stand vorher das Gegenteil, und das war falsch.* Die Zuordnung
+  hängt an `competition_setup_match`, also am **Ablauf**. `CompetitionExecutionService.deleteCurrentRound`
+  löscht dagegen `competition_match`, also die **Durchführung**; die Setup-Partien behalten ihre
+  Kennungen, und die Zuordnungen finden ihre Läufe nach dem Neuerzeugen wieder.
+
+  Sie sterben ausschließlich, wenn jemand den Wettkampfablauf selbst umbaut (Reiter
+  „Wettbewerbsablauf"): Dort verschwindet die Setup-Partie wirklich, und mit ihr per
+  `on delete cascade` ihre Zuordnung. Das ist richtig so — die Partie, auf die sie zeigte, gibt es
+  danach nicht mehr. Genau diese Unterscheidung gehört in den Hinweistext des Baums.

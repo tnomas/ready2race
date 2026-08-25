@@ -10,6 +10,8 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileService
 import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileAssignmentRequest
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileError
 import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
@@ -93,6 +95,49 @@ class TimingProfileServiceTest {
             profile = profile,
         ),
     )
+
+    /**
+     * Eine in der Durchführung neu erzeugte Runde behält die Profile ihrer Partien.
+     *
+     * Der Grund ist die Ebene, an der die Zuordnung hängt: `competition_setup_match` ist der
+     * ABLAUF, `competition_match` die DURCHFÜHRUNG. `deleteCurrentRound` löscht nur letztere --
+     * die Setup-Partien behalten ihre Kennungen, und die Zuordnung findet ihren Lauf wieder.
+     *
+     * Der Test löscht deshalb genau die Durchführungs-Zeile und prüft, dass die Zuordnung steht.
+     * Ohne ihn wäre das Verhalten Zufall: Ein `on delete cascade` eine Ebene tiefer würde es
+     * stillschweigend kippen, und gemerkt hätte man es erst am Renntag an einem Lauf, der plötzlich
+     * ohne Zeitnahmetyp dasteht.
+     */
+    @Test
+    fun `eine neu erzeugte Runde behält die Profile ihrer Partien`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val fixture = !createTestMatchFixture(eventId)
+        val modeId = !addMode(eventId, userId, "Timetrial 30s")
+
+        !upsert(
+            eventId,
+            userId,
+            competition = fixture.competitionId,
+            round = fixture.roundId,
+            match = fixture.setupMatchId,
+            profile = modeId,
+        )
+
+        // Genau das, was das Löschen einer Runde in der Durchführung tut: die
+        // Durchführungs-Zeile geht, die Setup-Partie bleibt.
+        val geloescht = !COMPETITION_MATCH.delete { COMPETITION_SETUP_MATCH.eq(fixture.setupMatchId) }.orDie()
+        // Ohne diese Zusicherung bewiese der Test nichts: Haette die Fixture gar keine
+        // Durchfuehrungs-Zeile, waere das Loeschen ein Nichts und die Zuordnung trivial am Leben.
+        assertEquals(1, geloescht)
+
+        val match = (!TimingProfileService.getTree(eventId)).dto
+            .competitions.single()
+            .rounds.single()
+            .matches.single()
+        assertEquals(modeId, match.ownProfile)
+        assertEquals(modeId, match.effectiveProfile)
+    }
 
     @Test
     fun `setzt und räumt eine Wettkampf-Zuordnung ab`() = testComprehension {

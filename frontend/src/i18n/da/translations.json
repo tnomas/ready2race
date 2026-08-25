@@ -1775,7 +1775,7 @@
       },
       "profiles": {
         "title": "Tidtagningsprofiler",
-        "hint": "En tidtagningsprofil er det, der tages tid med: løbet ved RaceClocker, tidtagningstypen ved intern tidtagning. Den arves nedad fra stævnet — konkurrence, runde og heat kan afvige, og det mest specifikke niveau, der er sat, gælder. Hver ændring gemmes med det samme. Bygges en konkurrences opsætning om, mister dens heats deres egne profiler.",
+        "hint": "En tidtagningsprofil er det, der tages tid med: løbet ved RaceClocker, tidtagningstypen ved intern tidtagning. Den arves nedad fra stævnet — konkurrence, runde og heat kan afvige, og det mest specifikke niveau, der er sat, gælder. Hver ændring gemmes med det samme. Ombygges selve konkurrenceforløbet, mister dets heats deres egne profiler — en runde, der genskabes under afviklingen, beholder dem.",
         "matchLevelExportHint": "Sameksporten af startlister grupperer pr. konkurrence. Et heat med sit eget løb optræder der under konkurrencens løb — dets startliste skal eksporteres for sig.",
         "noSystem": "Der findes ingen profiler for dette tidtagningssystem. Vælg „RaceClocker“ eller „Intern tidtagning“ ovenfor.",
         "noOptions": "Der er endnu ikke oprettet en profil. Opret et løb eller en tidtagningstype ovenfor.",

@@ -1775,7 +1775,7 @@
       },
       "profiles": {
         "title": "Timing profiles",
-        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. When a competition setup is rebuilt, its matches lose their own profiles.",
+        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. Rebuilding the competition setup itself makes its matches lose their own profiles \u2014 a round regenerated during execution keeps them.",
         "matchLevelExportHint": "The bulk start list export groups by competition. A match with a race of its own appears there under its competition's race — its start list has to be exported on its own.",
         "noSystem": "There are no profiles for this timing system. Select “RaceClocker” or “Internal timing” above.",
         "noOptions": "No profile has been created yet. Create a race or a timing mode above.",

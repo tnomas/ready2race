@@ -1775,7 +1775,7 @@
       },
       "profiles": {
         "title": "Zeitnahmeprofile",
-        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird ein Wettkampfablauf neu gebaut, verlieren seine Partien ihre eigenen Profile.",
+        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird der Wettkampfablauf selbst umgebaut, verlieren seine Partien ihre eigenen Profile \u2014 eine in der Durchf\u00fchrung neu erzeugte Runde beh\u00e4lt sie dagegen.",
         "matchLevelExportHint": "Der Startlisten-Sammelexport gruppiert je Wettkampf. Eine Partie mit eigenem Rennen erscheint dort unter dem Rennen ihres Wettkampfs — ihre Startliste muss einzeln exportiert werden.",
         "noSystem": "Für dieses Zeitnahme-System gibt es keine Profile. Wählen Sie oben „RaceClocker“ oder „Interne Zeitnahme“.",
         "noOptions": "Es ist noch kein Profil angelegt. Legen Sie oben ein Rennen bzw. einen Zeitnahmetyp an.",
