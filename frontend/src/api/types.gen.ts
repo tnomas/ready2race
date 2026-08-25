@@ -4157,6 +4157,11 @@ export type TimingAutoApplyRequest = {
     enabled: boolean
 }
 
+/**
+ * How a station reacts to a press. ONETOUCH captures immediately - right at the finish line, where every press is intended. ARMED requires the station to be armed first: out on the course the device lies around for minutes between two boats, and a sleeve over the keyboard would otherwise pin a time on a boat that nobody took.
+ */
+export type TimingCaptureMode = 'ONETOUCH' | 'ARMED'
+
 export type TimingDeviceTokenDto = {
     id: uuid
     event: uuid
@@ -4417,6 +4422,10 @@ export type TimingStateDto = {
     timeMarks: Array<TimeMarkDto>
 }
 
+export type TimingStationArmedRequest = {
+    armed: boolean
+}
+
 export type TimingStationDto = {
     id: uuid
     event: uuid
@@ -4427,6 +4436,11 @@ export type TimingStationDto = {
      * Only set on ANZEIGE stations: the START station this display mirrors; null = every start sequence of the event.
      */
     linkedStation?: uuid | null
+    captureMode: TimingCaptureMode
+    /**
+     * Whether the station is currently armed. Only meaningful while `captureMode` is ARMED; flipped through `PUT /timing/stations/{stationId}/armed`, never through the station body.
+     */
+    armed: boolean
 }
 
 export type TimingStationRequest = {
@@ -4437,6 +4451,10 @@ export type TimingStationRequest = {
      * Only allowed for type ANZEIGE, and must reference a START station of the same event.
      */
     linkedStation?: uuid | null
+    /**
+     * Defaults to ONETOUCH when omitted - today's behaviour. The state `armed` deliberately does not live here: it is flipped on its own route, and saving the setup must not reset it.
+     */
+    captureMode?: TimingCaptureMode
 }
 
 /**
@@ -4462,8 +4480,8 @@ export type TimingStationRequest = {
  * - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
  * `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
  * distinguish "no assignment" from a field that was never sent.
- * - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
- * `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+ * - `{ type: "stationsChanged" }` - stations were added, edited, removed, armed, or
+ * disarmed; refetch `GET /event/{eventId}/timing/stations` (or `/timing/state`).
  * - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
  * a whole attempt was retracted ("retract start", one message per retraction in addition to
  * the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
@@ -9717,6 +9735,18 @@ export type DeleteTimingStationData = {
 export type DeleteTimingStationResponse = void
 
 export type DeleteTimingStationError = unknown
+
+export type SetTimingStationArmedData = {
+    body: TimingStationArmedRequest
+    path: {
+        eventId: uuid
+        stationId: uuid
+    }
+}
+
+export type SetTimingStationArmedResponse = void
+
+export type SetTimingStationArmedError = unknown
 
 export type CreateTimeMarkData = {
     body: CreateTimeMarkRequest

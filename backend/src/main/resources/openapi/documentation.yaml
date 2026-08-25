@@ -9859,6 +9859,46 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
       tags:
         - Timing
+  /event/{eventId}/timing/stations/{stationId}/armed:
+    put:
+      operationId: setTimingStationArmed
+      description: >-
+        Arms or disarms the station. Only meaningful while its `captureMode` is ARMED: in
+        ONETOUCH mode every press captures and this state lies idle.
+
+
+        Deliberately separate from `PUT /timing/stations/{stationId}`: the capture mode belongs to
+        the organizers and is set once in the event settings, while this state is flipped by the
+        timekeeper many times a day. Sharing one body would mean disarming overwrites the
+        configuration.
+
+
+        Readable and writable with a session or with the X-Timing-Device-Token header, like the
+        board reads -- the timekeeper on a shared tablet has no login, only the station link. The
+        token branch is only taken when the header is present AND no session exists, and the token
+        is bound to its own event, so it can never arm a station of another event.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: stationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationArmedRequest'
   /event/{eventId}/timing/timeMarks:
     post:
       operationId: createTimeMark
@@ -20473,8 +20513,8 @@ components:
         - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
         `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
         distinguish "no assignment" from a field that was never sent.
-        - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
-        `GET /event/{eventId}/timing/stations` (or `/timing/state`).
+        - `{ type: "stationsChanged" }` - stations were added, edited, removed, armed, or
+        disarmed; refetch `GET /event/{eventId}/timing/stations` (or `/timing/state`).
         - `{ type: "attemptRetracted", competitionSetupMatch: uuid, competitionMatchTeams: uuid[] }` -
         a whole attempt was retracted ("retract start", one message per retraction in addition to
         the per-mark `timeMarkRetracted` echoes). Start boards play the configured false-start
@@ -20486,6 +20526,17 @@ components:
         - On (re)connect, clients should always fetch `GET /event/{eventId}/timing/state` first and
         only then start applying incoming messages, to cover updates missed while disconnected.
 
+    TimingCaptureMode:
+      type: string
+      enum:
+        - ONETOUCH
+        - ARMED
+      description: >-
+        How a station reacts to a press. ONETOUCH captures immediately - right at the finish line,
+        where every press is intended. ARMED requires the station to be armed first: out on the
+        course the device lies around for minutes between two boats, and a sleeve over the keyboard
+        would otherwise pin a time on a boat that nobody took.
+
     TimingStationDto:
       type: object
       required:
@@ -20494,6 +20545,8 @@ components:
         - name
         - type
         - sorting
+        - captureMode
+        - armed
       properties:
         id:
           $ref: '#/components/schemas/uuid'
@@ -20512,6 +20565,14 @@ components:
           description: >-
             Only set on ANZEIGE stations: the START station this display mirrors; null = every
             start sequence of the event.
+        captureMode:
+          $ref: '#/components/schemas/TimingCaptureMode'
+        armed:
+          type: boolean
+          description: >-
+            Whether the station is currently armed. Only meaningful while `captureMode` is ARMED;
+            flipped through `PUT /timing/stations/{stationId}/armed`, never through the station
+            body.
 
     TimingStationRequest:
       type: object
@@ -20532,6 +20593,20 @@ components:
           nullable: true
           description: >-
             Only allowed for type ANZEIGE, and must reference a START station of the same event.
+        captureMode:
+          $ref: '#/components/schemas/TimingCaptureMode'
+          description: >-
+            Defaults to ONETOUCH when omitted - today's behaviour. The state `armed` deliberately
+            does not live here: it is flipped on its own route, and saving the setup must not reset
+            it.
+
+    TimingStationArmedRequest:
+      type: object
+      required:
+        - armed
+      properties:
+        armed:
+          type: boolean
 
     CompetitionTimingStationDto:
       type: object

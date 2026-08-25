@@ -72,6 +72,9 @@ object TimingService {
             type = request.type.name
             sorting = request.sorting
             linkedStation = request.linkedStation
+            // Nur die Betriebsart - der Zustand `armed` gehört dem Posten und bliebe sonst bei
+            // jedem Speichern der Einrichtung auf der Strecke liegen.
+            captureMode = request.captureMode.name
             updatedBy = userId
             updatedAt = LocalDateTime.now()
         }.orDie()
@@ -87,6 +90,41 @@ object TimingService {
             EventChangeMarker.bump(eventId)
         }
 
+        broadcastAsync(station.event, TimingWsMessage.StationsChanged)
+        noData
+    }
+
+    /**
+     * Schaltet einen Posten scharf oder entschärft ihn wieder - die Geste des Zeitnehmers am Tag,
+     * nicht die der Regattaleitung. Deshalb liegt sie neben der Betriebsart und nicht in ihr: ein
+     * Speichern der Einrichtung darf einen scharfen Posten nicht mit zurücksetzen, und ein
+     * Entschärfen nicht die Konfiguration überschreiben.
+     *
+     * [userId] ist null, wenn ein Geräte-Token schaltet - der Zeitnehmer am geteilten Tablet ist
+     * nirgends angemeldet. Die Zugehörigkeit zur Veranstaltung wird trotzdem geprüft wie bei
+     * [updateStation]: der Weg trägt kein Nutzerrecht, das einen fremden Posten fernhielte, die
+     * Veranstaltung aus dem Pfad ist die einzige Grenze.
+     */
+    fun setStationArmed(
+        stationId: UUID,
+        eventId: UUID,
+        armed: Boolean,
+        userId: UUID?,
+    ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
+        val station = !TimingStationRepo.get(stationId).orDie().onNullFail { TimingError.StationNotFound }
+        !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+
+        !TimingStationRepo.update(stationId) {
+            this.armed = armed
+            // null, wenn ein Gerät geschaltet hat - dieselbe Aussage wie beim Hardware-Zeitstempel
+            // (createHardwareTimeMark): kein bekannter Nutzer, nicht der alte weiterhin.
+            updatedBy = userId
+            updatedAt = LocalDateTime.now()
+        }.orDie()
+            .onNullFail { TimingError.StationNotFound }
+
+        // Der Leitstand und die übrigen Bildschirme sollen sehen, dass der Posten jetzt scharf ist
+        // - dieselbe Nachricht wie bei jeder anderen Änderung an den Posten.
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData
     }

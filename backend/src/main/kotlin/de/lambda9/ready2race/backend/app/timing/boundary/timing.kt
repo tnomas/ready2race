@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingAutoApplyRequest
 import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStationArmedRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -197,6 +198,35 @@ fun Route.timing() {
                         val eventId = !pathParam("eventId", uuid)
                         val stationId = !pathParam("stationId", uuid)
                         TimingService.deleteStation(stationId, eventId)
+                    }
+                }
+
+                // Die Scharfschaltung: derselbe Auth-Zweig wie die Posten-Startliste (/matches),
+                // aus demselben Grund - der Zeitnehmer am geteilten Tablet hat keine Anmeldung,
+                // nur den Posten-Link mit seinem Geräte-Token. Ohne diesen Zweig wäre die
+                // Sicherung genau dort nicht bedienbar, wo sie gebraucht wird. Wie überall greift
+                // er nur ohne Sitzung; ein angemeldeter Nutzer nimmt exakt den bisherigen Weg.
+                //
+                // Anders als die Betriebsart (PUT auf den Posten, UPDATE EVENT) ist das Schalten
+                // Betrieb, keine Einrichtung. Dass ein Token nur seine eigene Veranstaltung
+                // schaltet, sichert validateForEvent, den fremden Posten darin der Dienst.
+                put("/armed") {
+                    call.respondComprehension {
+                        val eventId = !pathParam("eventId", uuid)
+                        val stationId = !pathParam("stationId", uuid)
+                        val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
+                        val userId = if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
+                            !TimingDeviceTokenService.validateForEvent(deviceToken, eventId)
+                            null
+                        } else {
+                            (!authenticateAny(
+                                Privilege.UpdateAppTimingGlobal,
+                                Privilege.UpdateEventGlobal,
+                                Privilege.ReadEventGlobal,
+                            )).id!!
+                        }
+                        val body = !receiveKIO(TimingStationArmedRequest.example)
+                        TimingService.setStationArmed(stationId, eventId, body.armed, userId)
                     }
                 }
             }

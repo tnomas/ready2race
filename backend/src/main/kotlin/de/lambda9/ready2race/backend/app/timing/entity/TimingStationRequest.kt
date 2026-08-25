@@ -15,6 +15,13 @@ data class TimingStationRequest(
      * und auf einen START-Posten derselben Veranstaltung zeigt, prüft der Service.
      */
     val linkedStation: java.util.UUID? = null,
+    /**
+     * Die Betriebsart des Postens. Vorgabe [TimingCaptureMode.ONETOUCH] - das heutige Verhalten;
+     * ein Posten, der ungefragt auf ARMED spränge, stünde am nächsten Renntag vor einem toten
+     * Knopf. Der Zustand `armed` steht bewusst NICHT hier: den schaltet der Zeitnehmer am Tag über
+     * seinen eigenen Weg, und ein Speichern der Einrichtung dürfte ihn nicht mit zurücksetzen.
+     */
+    val captureMode: TimingCaptureMode = TimingCaptureMode.ONETOUCH,
 ) : Validatable {
     override fun validate(): ValidationResult = ValidationResult.allOf(
         this::name validate notBlank,
@@ -26,6 +33,7 @@ data class TimingStationRequest(
             type = TimingStationType.FINISH,
             sorting = 0,
             linkedStation = null,
+            captureMode = TimingCaptureMode.ONETOUCH,
         )
     }
 }

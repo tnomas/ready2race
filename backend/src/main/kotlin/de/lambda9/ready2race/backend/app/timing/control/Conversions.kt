@@ -79,6 +79,10 @@ fun TimingStationRecord.toDto(): App<Nothing, TimingStationDto> = KIO.ok(
         type = TimingStationType.valueOf(type),
         sorting = sorting,
         linkedStation = linkedStation,
+        // Beide Spalten sind not null mit Vorgabe (V202608251300); nullable ist nur der Typ, den
+        // der jOOQ-Generator vergibt.
+        captureMode = TimingCaptureMode.valueOf(captureMode!!),
+        armed = armed!!,
     )
 )
 
@@ -91,6 +95,10 @@ fun TimingStationRequest.toRecord(userId: UUID, eventId: UUID): App<Nothing, Tim
             type = type.name,
             sorting = sorting,
             linkedStation = linkedStation,
+            captureMode = captureMode.name,
+            // Ein neuer Posten ist nie scharf - scharf schaltet ihn der Zeitnehmer, nicht das
+            // Anlegen.
+            armed = false,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,

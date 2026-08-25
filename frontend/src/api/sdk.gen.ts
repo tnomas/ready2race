@@ -1046,6 +1046,9 @@ import type {
     DeleteTimingStationData,
     DeleteTimingStationError,
     DeleteTimingStationResponse,
+    SetTimingStationArmedData,
+    SetTimingStationArmedError,
+    SetTimingStationArmedResponse,
     CreateTimeMarkData,
     CreateTimeMarkError,
     CreateTimeMarkResponse,
@@ -5789,6 +5792,26 @@ export const deleteTimingStation = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/stations/{stationId}',
+    })
+}
+
+/**
+ * Arms or disarms the station. Only meaningful while its `captureMode` is ARMED: in ONETOUCH mode every press captures and this state lies idle.
+ *
+ * Deliberately separate from `PUT /timing/stations/{stationId}`: the capture mode belongs to the organizers and is set once in the event settings, while this state is flipped by the timekeeper many times a day. Sharing one body would mean disarming overwrites the configuration.
+ *
+ * Readable and writable with a session or with the X-Timing-Device-Token header, like the board reads -- the timekeeper on a shared tablet has no login, only the station link. The token branch is only taken when the header is present AND no session exists, and the token is bound to its own event, so it can never arm a station of another event.
+ */
+export const setTimingStationArmed = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetTimingStationArmedData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetTimingStationArmedResponse,
+        SetTimingStationArmedError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/stations/{stationId}/armed',
     })
 }
 
