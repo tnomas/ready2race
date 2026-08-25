@@ -48,6 +48,14 @@ import {
 } from '@components/timing/leitstand/overviewData.ts'
 import {stationBoardUrl} from '@utils/timing/stationLink.ts'
 import StationBoardLink from '@components/timing/StationBoardLink.tsx'
+import {StationArmedBadge, stationArmedBadge} from '@utils/timing/armed.ts'
+
+/** Die Farbe des Scharf-Abzeichens: nur „entschärft" soll ins Auge springen. */
+const ARMED_BADGE_COLOR: Record<StationArmedBadge, 'success' | 'warning' | 'default'> = {
+    ARMED: 'success',
+    DISARMED: 'warning',
+    ONETOUCH: 'default',
+}
 
 /** Mehr als eine Handvoll Läufe hilft niemandem - ältere stehen im Ergebnisse-Reiter. */
 const RECENT_MATCH_LIMIT = 8
@@ -250,6 +258,10 @@ const LeitstandOverviewTab = ({
                         const lastMark = latestMarkByStation.get(station.id)
                         const sequence = sequences.get(station.id)
                         const line = sequence !== undefined ? sequenceLine(sequence) : null
+                        // Read-only, mit Absicht: Wer am Wasser steht, weiß als Einziger, ob gleich
+                        // ein Boot kommt. Der Gewinn ist die Vorwarnung — die Leitung sieht vor dem
+                        // Rennen, dass Boje 1 noch entschärft ist, und kann anrufen.
+                        const badge = stationArmedBadge(station)
                         return (
                             <Paper
                                 key={station.id}
@@ -285,6 +297,27 @@ const LeitstandOverviewTab = ({
                                             label={t(`timing.station.types.${station.type}`)}
                                         />
                                     </Stack>
+                                    {badge !== null && (
+                                        <Tooltip
+                                            title={t(
+                                                `timing.leitstand.overview.stations.armed.hint.${badge}`,
+                                            )}>
+                                            <Chip
+                                                size="small"
+                                                // Gefüllt nur beim entschärften Posten: Genau der
+                                                // eine Zustand soll im Streifen ins Auge springen,
+                                                // die beiden unbedenklichen bleiben ruhig.
+                                                variant={
+                                                    badge === 'DISARMED' ? 'filled' : 'outlined'
+                                                }
+                                                color={ARMED_BADGE_COLOR[badge]}
+                                                sx={{alignSelf: 'flex-start'}}
+                                                label={t(
+                                                    `timing.leitstand.overview.stations.armed.${badge}`,
+                                                )}
+                                            />
+                                        </Tooltip>
+                                    )}
                                     <Typography variant="caption" color="text.secondary">
                                         {lastMark !== undefined
                                             ? t('timing.leitstand.overview.stations.lastMark', {

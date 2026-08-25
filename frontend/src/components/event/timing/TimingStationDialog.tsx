@@ -1,5 +1,12 @@
 import {BaseEntityDialogProps} from '@utils/types.ts'
-import {ApiError, TimingStationDto, TimingStationRequest, TimingStationType, uuid} from '@api/types.gen.ts'
+import {
+    ApiError,
+    TimingCaptureMode,
+    TimingStationDto,
+    TimingStationRequest,
+    TimingStationType,
+    uuid,
+} from '@api/types.gen.ts'
 import EntityDialog from '@components/EntityDialog.tsx'
 import {createTimingStation, getTimingStations, updateTimingStation} from '@api/sdk.gen.ts'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
@@ -19,6 +26,8 @@ type Form = {
     sorting: number
     /** Nur für ANZEIGE: der gespiegelte START-Posten; '' = jede Startsequenz der Veranstaltung. */
     linkedStation: string
+    /** Betriebsart der Erfassung; nur bei SPLIT und FINISH von Bedeutung (siehe `armed.ts`). */
+    captureMode: TimingCaptureMode
 }
 
 const defaultValues: Form = {
@@ -26,7 +35,21 @@ const defaultValues: Form = {
     type: 'START',
     sorting: 0,
     linkedStation: '',
+    // ONETOUCH ist die Vorgabe, und das ist keine Geschmacksfrage: Ein neu angelegter Posten, der
+    // ungefragt scharf geschaltet werden müsste, wäre am Renntag ein Ausfall.
+    captureMode: 'ONETOUCH',
 }
+
+/**
+ * An welchen Postentypen die Scharfschaltung überhaupt wirkt — dieselbe Regel wie `armedGateApplies`
+ * in `armed.ts`, hier auf den Typ allein angewandt: Die Maske entscheidet über die Betriebsart,
+ * bevor es eine gibt.
+ *
+ * START und ANZEIGE fehlen bewusst. Am Startposten greift die Sperre nicht (die Startsequenz gehört
+ * ausdrücklich nicht dazu), ein ANZEIGE-Posten erfasst nie — eine Betriebsart, die dort nichts tut,
+ * wäre nur irreführend.
+ */
+const CAPTURE_MODE_TYPES: TimingStationType[] = ['SPLIT', 'FINISH']
 
 const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => {
     const {t} = useTranslation()
@@ -71,6 +94,12 @@ const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => 
     const formContext = useForm<Form>()
 
     const type = useWatch({control: formContext.control, name: 'type'})
+    const captureModeApplies = CAPTURE_MODE_TYPES.includes(type)
+
+    const captureModeOptions = [
+        {id: 'ONETOUCH', label: t('timing.station.captureMode.ONETOUCH')},
+        {id: 'ARMED', label: t('timing.station.captureMode.ARMED')},
+    ]
 
     const onOpen = useCallback(() => {
         formContext.reset(props.entity ? mapDtoToForm(props.entity) : defaultValues)
@@ -108,6 +137,25 @@ const TimingStationDialog = (props: BaseEntityDialogProps<TimingStationDto>) => 
                         </Typography>
                     </Stack>
                 )}
+                {/* Die Betriebsart der Erfassung. Ausgeblendet statt gesperrt, wo sie nichts tut:
+                    Der Typ steht direkt darüber, das Feld erscheint und verschwindet mit ihm — das
+                    ist dieselbe Geste wie beim verknüpften Start-Posten eine Zeile höher, und ein
+                    dauerhaft graues Feld mit Erklärung wäre in einer Maske mit vier Feldern mehr
+                    Lärm als Auskunft. */}
+                {captureModeApplies && (
+                    <Stack spacing={1}>
+                        <FormInputSelect
+                            name={'captureMode'}
+                            label={t('timing.station.captureMode.label')}
+                            options={captureModeOptions}
+                            required
+                            fullWidth
+                        />
+                        <Typography variant={'caption'} color={'text.secondary'}>
+                            {t('timing.station.captureMode.hint')}
+                        </Typography>
+                    </Stack>
+                )}
                 <FormInputNumber
                     name={'sorting'}
                     label={t('timing.station.sorting')}
@@ -129,6 +177,10 @@ const mapFormToRequest = (formData: Form): TimingStationRequest => ({
         formData.type === 'ANZEIGE' && formData.linkedStation !== ''
             ? formData.linkedStation
             : null,
+    // Immer mitschicken: Ein fehlendes Feld heißt serverseitig „unverändert", die Maske ließe eine
+    // Änderung also stillschweigend fallen. Wo die Betriebsart nicht gilt (START, ANZEIGE), steht
+    // ONETOUCH — sonst bliebe nach einem Typwechsel ein unsichtbares ARMED am Posten hängen.
+    captureMode: CAPTURE_MODE_TYPES.includes(formData.type) ? formData.captureMode : 'ONETOUCH',
 })
 
 const mapDtoToForm = (dto: TimingStationDto): Form => ({
@@ -136,6 +188,7 @@ const mapDtoToForm = (dto: TimingStationDto): Form => ({
     type: dto.type,
     sorting: dto.sorting,
     linkedStation: dto.linkedStation ?? '',
+    captureMode: dto.captureMode,
 })
 
 export default TimingStationDialog

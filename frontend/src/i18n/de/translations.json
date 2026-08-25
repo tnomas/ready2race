@@ -3119,6 +3119,12 @@
         "all": "Alle Startsequenzen der Veranstaltung",
         "hint": "Die Anzeige zeigt die Startsequenzen dieses Start-Postens (Countdown, wer ist dran, wer folgt). Ohne Verknüpfung zeigt sie die jeweils zuletzt aktive Startsequenz der Veranstaltung."
       },
+      "captureMode": {
+        "label": "Betriebsart der Erfassung",
+        "hint": "Onetouch erfasst bei jedem Druck sofort — so arbeitet der Posten bisher. „Scharfschalten“ verlangt, dass der Zeitnehmer vor Ort den Posten scharf schaltet, bevor ein Druck eine Zeit mit Zuordnung erfasst; der große Erfassungsknopf bankt auch entschärft weiterhin eine Zeit ohne Zuordnung. Nach dem Umstellen steht der Posten entschärft da und muss vor Ort scharf geschaltet werden.",
+        "ONETOUCH": "Onetouch — jeder Druck erfasst sofort",
+        "ARMED": "Scharfschalten — der Posten schaltet sich vor Ort scharf"
+      },
       "error": {
         "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
       },
@@ -3487,6 +3493,16 @@
         },
         "stations": {
           "empty": "Es gibt noch keine Posten",
+          "armed": {
+            "ARMED": "scharf",
+            "DISARMED": "entschärft",
+            "ONETOUCH": "Onetouch",
+            "hint": {
+              "ARMED": "Der Posten ist scharf geschaltet und erfasst.",
+              "DISARMED": "Der Posten ist entschärft: Boots-Knöpfe und Tasten erfassen nichts. Nur der Zeitnehmer vor Ort kann scharf schalten — vor dem Rennen anrufen.",
+              "ONETOUCH": "Onetouch: Jeder Druck erfasst sofort, es gibt nichts scharf zu schalten."
+            }
+          },
           "lastMark": "Letzter Eingang {{time}}",
           "noMarks": "Noch kein Eingang",
           "shareLink": "Geräte-Link ausgestellt",

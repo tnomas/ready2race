@@ -3092,6 +3092,12 @@
         "all": "Alle stævnets startsekvenser",
         "hint": "Skærmen spejler denne startposts startsekvenser (nedtælling, hvem der er på, hvem der følger). Uden tilknytning viser den stævnets senest aktive startsekvens."
       },
+      "captureMode": {
+        "label": "Registreringstilstand",
+        "hint": "Onetouch registrerer ved hvert tryk, sådan som posten arbejder i dag. „Aktivering“ kræver, at tidtageren på stedet aktiverer posten, før et tryk registrerer en tid med tilknytning; den store knap gemmer fortsat en tid uden tilknytning, også når posten er deaktiveret. Efter skiftet står posten deaktiveret og skal aktiveres på stedet.",
+        "ONETOUCH": "Onetouch — hvert tryk registrerer straks",
+        "ARMED": "Aktivering — posten aktiveres på stedet"
+      },
       "error": {
         "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
       },
@@ -3460,6 +3466,16 @@
         },
         "stations": {
           "empty": "Der er endnu ingen poster",
+          "armed": {
+            "ARMED": "aktiveret",
+            "DISARMED": "deaktiveret",
+            "ONETOUCH": "Onetouch",
+            "hint": {
+              "ARMED": "Posten er aktiveret og registrerer.",
+              "DISARMED": "Posten er deaktiveret: bådknapper og taster registrerer intet. Kun tidtageren på stedet kan aktivere den — ring inden løbet.",
+              "ONETOUCH": "Onetouch: hvert tryk registrerer straks, der er intet at aktivere."
+            }
+          },
           "lastMark": "Seneste registrering {{time}}",
           "noMarks": "Endnu ingen registreringer",
           "shareLink": "Enhedslink udstedt",

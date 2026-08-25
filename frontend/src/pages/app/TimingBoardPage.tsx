@@ -50,7 +50,7 @@ import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
 import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
-import {captureAllowed} from '@utils/timing/armed.ts'
+import {armedGateApplies, captureAllowed} from '@utils/timing/armed.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
 import {createTimeMark, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
@@ -202,13 +202,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const captureMode = station?.captureMode ?? 'ONETOUCH'
     const armed = switchedArmed ?? station?.armed ?? false
     // Die Sperre greift nur dort, wo es überhaupt eine Erfassung MIT Zuordnung gibt: am Ziel- und
-    // am Zwischenzeit-Posten, die das Boots-Raster tragen. Der Startposten hat weder Raster noch
-    // Boots-Tasten — dort bliebe genau ein Weg gesperrt, die Leertaste, und die ist auf diesem
-    // Bildschirm der Kurzweg zum manuellen Stempel (Fehlstart-Protokoll, siehe unten). Er verlöre
-    // also einen Bedienweg und gewänne keinen Schutz, und der Warnbalken widerspräche seinem
-    // eigenen Board. Die Startsequenz gehört laut Entwurf ohnehin nicht dazu.
-    const armedGateApplies = captureMode === 'ARMED' && !isStart
-    const mayCaptureAssigned = !armedGateApplies || captureAllowed(captureMode, armed)
+    // am Zwischenzeit-Posten, die das Boots-Raster tragen (die Begründung je Typ steht bei
+    // `armedGateApplies`). Die Bedingung selbst liegt in `armed.ts`, weil der Leitstand sie für
+    // sein Abzeichen ebenfalls braucht: Liefen die beiden auseinander, meldete er dort eine Sperre,
+    // die es auf diesem Bildschirm gar nicht gibt.
+    //
+    // Solange der Posten noch lädt, greift sie nicht — im Zweifel erfassen, nicht verweigern.
+    const gateApplies = station !== undefined && armedGateApplies(station.type, captureMode)
+    const mayCaptureAssigned = !gateApplies || captureAllowed(captureMode, armed)
     // Der Leertasten-Zuhörer registriert sich einmal; ohne Spiegel im Ref sähe er ewig den Zustand
     // vom ersten Rendern.
     const mayCaptureRef = useRef(mayCaptureAssigned)
@@ -795,7 +796,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
             // wird nie gesperrt. Kein `preventDefault`, damit der Browser eine Taste, die hier
             // nichts mehr tut, wieder normal behandelt.
             //
-            // Am Startposten greift das nicht (siehe `armedGateApplies`): Dort ist die Leertaste
+            // Am Startposten greift das nicht (siehe `gateApplies`): Dort ist die Leertaste
             // der Kurzweg zum manuellen Stempel und die einzige Taste überhaupt — sie zu sperren
             // nähme einen Bedienweg, ohne eine Zuordnung zu verhindern, die es dort nicht gibt.
             if (!mayCaptureRef.current) return
@@ -961,7 +962,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                             flexDirection: 'column',
                             gap: 1.5,
                         }}>
-                        {armedGateApplies && station !== undefined && (
+                        {gateApplies && station !== undefined && (
                             // Nur wo die Sperre auch greift: Im Onetouch-Betrieb gibt es nichts zu
                             // schalten, am Startposten nichts zu sperren — dort erscheint hier
                             // weder Schalter noch Balken.
