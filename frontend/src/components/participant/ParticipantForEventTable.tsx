@@ -118,9 +118,23 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
         () => [
             {
                 field: 'clubName',
+                headerName: t('club.registrant'),
+                flex: 1,
+                minWidth: 100,
+            },
+            {
+                // Der Verein der Person, nicht der ihres Melders: Seit eine Meldung Personen
+                // fremder Vereine enthalten darf, sind das zwei verschiedene Spalten. Nicht
+                // sortierbar, weil die Liste serverseitig sortiert und diese Spalte dort keine
+                // Sortierstelle hat.
+                field: 'wornClubName',
                 headerName: t('club.club'),
                 flex: 1,
                 minWidth: 100,
+                sortable: false,
+                renderCell: ({row}: {row: ParticipantForEventDto}) => (
+                    <Typography>{row.wornClubName ?? '-'}</Typography>
+                ),
             },
             {
                 field: 'firstname',

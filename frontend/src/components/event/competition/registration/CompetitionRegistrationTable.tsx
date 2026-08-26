@@ -177,7 +177,7 @@ const CompetitionRegistrationTable = ({
                                                 {np.namedParticipantName}
                                             </TableCell>
                                             <TableCell sx={{width: '26%'}}>
-                                                {participant.externalClubName ??
+                                                {participant.wornClubName ??
                                                     participant.clubName}
                                             </TableCell>
                                         </TableRow>

@@ -1,8 +1,10 @@
 package de.lambda9.ready2race.backend.app.club.boundary
 
+import java.util.UUID
+
 /**
- * Die Vereine eines Bootes als fertige Zeile - der Baustein, der
- * `singletonOrFallback(clubs, mixedTeamTerm)` ablöst.
+ * Die Vereine eines Bootes als fertige Zeile - der Baustein, der die verstreuten
+ * `singletonOrFallback(clubs, mixedTeamTerm)`-Aufrufe abgelöst hat.
  *
  * Der Grund: bisher bekam jedes vereinsgemischte Boot dieselbe Zeile "Renngemeinschaft". Im
  * Produktivstand der CRF 2026 sind das 42 von 100 Meldungen - mehrere Boote desselben Laufs waren
@@ -69,21 +71,46 @@ data class ClubComposition(
         }
 
         /**
-         * Die Vereinszeile eines Bootes auf Papier - Urkunde wie Siegerehrungsbogen.
+         * Die Vereinszeile eines Bootes in voller Länge - Urkunde und Siegerehrungsbogen, seit dem
+         * 26.08.2026 auch Meldeansicht, Startliste, Ergebnisse und die Durchführungs-Ansichten.
          *
          * [clubsWorn] ist die Crew in Bootsreihenfolge, je Person das Ergebnis von [clubWorn].
          * Trägt niemand einen Verein, tritt [registeringClubName] ein: der meldende Verein ist
          * zwar reine Verwaltung, aber besser als eine leere Zeile.
          *
-         * Gedruckt wird in voller Länge und ohne jede Kürzung - auch ohne heuristische (deshalb
-         * [ClubShortNameSettings.none], ohne jede gepflegte Kurzform und ohne Regel). Die Urkunde
-         * geht in die Hand des Ruderers und hängt danach im Bootshaus, da hat "RC Nürtingen"
-         * nichts verloren; der Siegerehrungsbogen wird vorgelesen, und die Kurzform spricht sich
-         * schlechter als der ausgeschriebene Name. Aus demselben Grund lädt keiner der beiden die
-         * Einstellungen überhaupt. Bis zum 09.08.2026 stand auf der Urkunde bei gemischter Crew
-         * das pauschale "Renngemeinschaft".
+         * Ohne jede Kürzung - auch ohne heuristische (deshalb [ClubShortNameSettings.none], ohne
+         * gepflegte Kurzform und ohne Regel), und deshalb lädt keiner dieser Aufrufer die
+         * Einstellungen überhaupt. Die Urkunde geht in die Hand des Ruderers und hängt danach im
+         * Bootshaus, da hat "RC Nürtingen" nichts verloren; der Siegerehrungsbogen wird
+         * vorgelesen, und die Kurzform spricht sich schlechter als der ausgeschriebene Name; die
+         * Listen der Geschäftsstelle sind Papier oder eine breite Tabelle, keine Bootskarte am
+         * Steg. Gekürzt wird nur dort, wo die Breite es erzwingt - Schiedsrichter-Board und
+         * Athleten-Anzeige, die dafür [of] mit den geladenen Einstellungen rufen.
+         *
+         * Bis zum 09.08.2026 stand auf der Urkunde bei gemischter Crew das pauschale
+         * "Renngemeinschaft", in den übrigen Anzeigen bis zum 26.08.2026.
          */
-        fun printedLine(clubsWorn: List<String?>, registeringClubName: String): String =
+        fun fullLine(clubsWorn: List<String?>, registeringClubName: String): String =
             of(clubsWorn, ClubShortNameSettings.none).full.ifEmpty { registeringClubName }
+
+        /**
+         * Die Crew in Bootsreihenfolge - die Reihenfolge, in der [of] ihre Vereine aneinanderreiht.
+         *
+         * Dieselbe Ordnung wie in `CompetitionMatchTeamRepo`: Rolle, dann Nachname, dann die
+         * Kennung als letzte Entscheidung. Sie steht hier, weil die Anzeigen ihre Crew aus
+         * verschiedenen Quellen bekommen - die einen aus einer sortierten Abfrage, die anderen aus
+         * einem `array_agg`, das Postgres in beliebiger Reihenfolge zurückgibt. Ohne die gemeinsame
+         * Regel stünde derselbe Verein je nach Liste an anderer Stelle der Kette, und niemand
+         * könnte zwei Ausdrucke desselben Bootes nebeneinanderlegen.
+         *
+         * Die Kennung ist nicht Zierrat: Zwei Ruderer gleichen Namens in derselben Rolle wären
+         * sonst untereinander unsortiert, und die Kette wechselte von Abruf zu Abruf.
+         */
+        fun <T> inBoatOrder(
+            crew: List<T>,
+            role: (T) -> String,
+            lastName: (T) -> String,
+            id: (T) -> UUID,
+        ): List<T> = crew.sortedWith(compareBy(role, lastName, id))
     }
 }

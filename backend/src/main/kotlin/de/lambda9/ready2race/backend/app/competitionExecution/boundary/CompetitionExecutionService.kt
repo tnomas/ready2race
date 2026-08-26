@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.competition.control.toDto
 import de.lambda9.ready2race.backend.app.competition.entity.CompetitionError
 import de.lambda9.ready2race.backend.app.competition.entity.EventDataForCompetitionResultsData
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.competitionDeregistration.control.CompetitionDeregistrationRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.*
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
@@ -75,7 +76,6 @@ import de.lambda9.ready2race.backend.pdf.FontStyle
 import de.lambda9.ready2race.backend.pdf.Padding
 import de.lambda9.ready2race.backend.pdf.PageTemplate
 import de.lambda9.ready2race.backend.pdf.document
-import de.lambda9.ready2race.backend.singletonOrFallback
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.timecodePattern
 import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.noDuplicates
@@ -460,7 +460,7 @@ object CompetitionExecutionService {
 
             sortedRounds.filter { it.matches.isNotEmpty() }.traverse { round ->
                 round.copy(matches = round.matches.map { match -> match.copy(teams = match.teams.filter { !it.out }) })
-                    .toCompetitionRoundDto(event.mixedTeamTerm, lastScanByParticipant, byeByMatch)
+                    .toCompetitionRoundDto(lastScanByParticipant, byeByMatch)
             }.map {
                 ApiResponse.ETagged(
                     CompetitionExecutionProgressDto(
@@ -2403,6 +2403,7 @@ object CompetitionExecutionService {
                     competitionRegistrationName = p.first.competitionRegistrationName,
                     external = p.first.external,
                     externalClubName = p.first.externalClubName,
+                    ownClubName = p.first.ownClubName,
                 )
             }
 
@@ -3234,9 +3235,11 @@ object CompetitionExecutionService {
                 if (teamsData.any { it.matchName != null }) {
                     column("Partie") { matchName ?: "" }
                 }
-                column("Team") { singletonOrFallback(team.participants.map { it.externalClubName }.toSet(), team.mixedTeamTerm)?: team.clubName }
+                // "Team" ist die Vereinskette der Crew, "Anmelder" der meldende Verein - bis zum
+                // 26.08.2026 stand in "Team" bei gemischter Crew das pauschale `mixedTeamTerm`.
+                column("Team") { ClubComposition.fullLine(team.participants.map { it.wornClubName }, team.clubName) }
                 column("Anmelder") { team.clubName + if (team.teamNumber != null) " | ${team.teamNumber}" else "" }
-                column("Teammitglieder"){ team.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.externalClubName?:team.clubName})" }}
+                column("Teammitglieder"){ team.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.wornClubName ?: team.clubName})" }}
 
             }
             out.toByteArray()
@@ -3367,7 +3370,7 @@ object CompetitionExecutionService {
                         ) {
                             text(
                                 fontStyle = FontStyle.BOLD
-                            ) { team.actualClubName ?: team.registeringClubName }
+                            ) { team.actualClubName }
                             block(
                                 padding = Padding(left = 5f),
                             ) {
@@ -3417,8 +3420,9 @@ object CompetitionExecutionService {
                             column(0.1f)
                             column(0.3f)
 
+                            // Bootsreihenfolge, wie die Vereinskette darüber - siehe
+                            // ClubComposition.inBoatOrder.
                             team.participants
-                                .sortedBy { it.role }
                                 .forEachIndexed { idx, member ->
                                     row(
                                         color = if (idx % 2 == 1) Color(230, 230, 230) else null,
@@ -3439,7 +3443,7 @@ object CompetitionExecutionService {
                                             text { member.year.toString() }
                                         }
                                         cell {
-                                            text { member.externalClubName ?: team.registeringClubName }
+                                            text { member.wornClubName ?: team.registeringClubName }
                                         }
                                     }
                                 }
@@ -3506,7 +3510,7 @@ object CompetitionExecutionService {
                 optionalColumn(config.colParticipantRole) { participants.map { p -> p.role }.toSet().joinToString(",") }
                 optionalColumn(config.colParticipantClub) {
                     participants.map {
-                        it.externalClubName ?: registeringClubName
+                        it.wornClubName ?: registeringClubName
                     }.toSet().joinToString(",")
                 }
 
@@ -3515,7 +3519,7 @@ object CompetitionExecutionService {
                 optionalColumn(config.colTeamName) { teamName ?: "" }
                 optionalColumn(config.colTeamStartNumber) { startNumber.toString() }
                 optionalColumn(config.colTeamRatingCategory) { ratingCategory?.name ?: "" }
-                optionalColumn(config.colTeamClub) { actualClubName ?: registeringClubName }
+                optionalColumn(config.colTeamClub) { actualClubName }
 
                 // Die Wellen-Name-Formatierung (Startzeit + Wettkampf + Name) MUSS mit
                 // CompetitionMatchRepo.getForRaceClockerPull übereinstimmen (siehe WaveName) - sonst

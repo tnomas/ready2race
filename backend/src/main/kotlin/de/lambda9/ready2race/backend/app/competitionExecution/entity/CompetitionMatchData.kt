@@ -1,7 +1,7 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.entity
 
 import de.lambda9.ready2race.backend.app.App
-import de.lambda9.ready2race.backend.singletonOrFallback
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.substitution.control.toParticipantForExecutionDto
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
@@ -39,8 +39,13 @@ data class CompetitionMatchData(
          */
         val matchTeamId: UUID,
         val startNumber: Int,
+        /** Der meldende Verein - reine Verwaltung, siehe [actualClubName]. */
         val registeringClubName: String,
-        val actualClubName: String?,
+        /**
+         * Die Vereine, die die Crew trägt, als Kette in Bootsreihenfolge; bei einem reinen
+         * Vereinsboot schlicht dieser eine Verein. Ersatzweise der meldende Verein.
+         */
+        val actualClubName: String,
         val teamName: String?,
         val ratingCategory: CompetitionMatchTeamRatingCategory?,
         val participants: List<CompetitionMatchParticipant>,
@@ -59,6 +64,8 @@ data class CompetitionMatchData(
         val year: Int,
         val gender: Gender,
         val externalClubName: String?,
+        /** Der Verein, den diese Person trägt - ihr eigener, bei Gastruderern der Freitext. */
+        val wornClubName: String?,
     )
 
     companion object {
@@ -69,7 +76,7 @@ data class CompetitionMatchData(
         fun fromPersisted(
             persisted: StartlistViewRecord,
         ): App<Nothing, CompetitionMatchData> = persisted.teams!!.toList().traverse {
-            it!!.toData(persisted.mixedTeamTerm)
+            it!!.toData()
         }.map { teams ->
             CompetitionMatchData(
                 matchName = persisted.name,
@@ -87,7 +94,7 @@ data class CompetitionMatchData(
             )
         }
 
-        private fun StartlistTeamRecord.toData(mixedTeamTerm: String?): App<Nothing, CompetitionMatchTeam> = KIO.comprehension {
+        private fun StartlistTeamRecord.toData(): App<Nothing, CompetitionMatchTeam> = KIO.comprehension {
 
             val participantsWithData = participants!!.filterNotNull().map{
                 !it.toParticipantForExecutionDto(
@@ -102,7 +109,14 @@ data class CompetitionMatchData(
                 teamParticipants = participantsWithData,
                 substitutionsForRegistration = substitutions!!.filterNotNull(),
             ).map { list ->
-                list.map { p ->
+                // Die View liefert die Crew aus einem `array_agg`, und die Ummeldungen hängen ihre
+                // Ersatzleute hinten an - beides ohne Ordnung. Erst hier steht das Boot.
+                ClubComposition.inBoatOrder(
+                    list,
+                    role = { it.namedParticipantName },
+                    lastName = { it.lastName },
+                    id = { it.id },
+                ).map { p ->
                     CompetitionMatchParticipant(
                         role = p.namedParticipantName,
                         firstname = p.firstName,
@@ -110,13 +124,20 @@ data class CompetitionMatchData(
                         year = p.year,
                         gender = p.gender,
                         externalClubName = p.externalClubName,
+                        wornClubName = ClubComposition.clubWorn(p.external, p.externalClubName, p.ownClubName),
                     )
                 }
             }
 
-            val clubs = actuallyParticipatingParticipants.map { it.externalClubName }.toSet()
-
-            val actualClubName = singletonOrFallback(clubs, mixedTeamTerm)
+            // Bis zum 26.08.2026 stand hier bei gemischter Crew das pauschale `mixedTeamTerm`
+            // ("Renngemeinschaft") - und nur dann, wenn die Crew GASTRUDERER verschiedener Vereine
+            // enthielt: Die alte Ableitung sah ausschließlich `external_club_name`. Eine Meldung
+            // aus mehreren gepflegten Vereinen (V202608142000) trug dort überall null, galt damit
+            // als eindeutig und stand am Ende unter dem meldenden Verein.
+            val actualClubName = ClubComposition.fullLine(
+                actuallyParticipatingParticipants.map { it.wornClubName },
+                clubName!!,
+            )
 
             KIO.ok(
                 CompetitionMatchTeam(

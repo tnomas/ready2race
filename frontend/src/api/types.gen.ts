@@ -954,8 +954,14 @@ export type CompetitionMatchTeamDto = {
     registrationId: string
     teamNumber: number
     clubId: string
+    /**
+     * the registering club - administration only, see actualClubName
+     */
     clubName: string
-    actualClubName?: string
+    /**
+     * the clubs the crew wears, chained in boat order; a single club for a plain club boat, the registering club when nobody carries one
+     */
+    actualClubName: string
     namedParticipants: Array<CompetitionTeamNamedParticipantDto>
     name?: string
     startNumber: number
@@ -1272,8 +1278,14 @@ export type CompetitionTeamPlaceDto = {
     teamNumber: number
     teamName?: string
     clubId: string
+    /**
+     * the registering club - administration only, see actualClubName
+     */
     clubName: string
-    actualClubName?: string
+    /**
+     * the clubs the crew wears, chained in boat order; a single club for a plain club boat, the registering club when nobody carries one
+     */
+    actualClubName: string
     namedParticipants: Array<CompetitionTeamNamedParticipantDto>
     /**
      * the competition-wide place from the round logic; still the one printed on the certificate
@@ -2922,6 +2934,10 @@ export type ParticipantForCompetitionRegistrationTeam = {
     gender: Gender
     external: boolean
     externalClubName?: string
+    /**
+     * the club this person wears: their own, or the free-text club of a guest rower. Not the club that registered the team
+     */
+    wornClubName?: string | null
     qrCodeId?: string
     participantRequirementsChecked: Array<CheckedParticipantRequirement>
     currentStatus?: ParticipantScanType
@@ -2931,8 +2947,18 @@ export type ParticipantForCompetitionRegistrationTeam = {
 
 export type ParticipantForEventDto = {
     id: string
+    /**
+     * the club that registered this person for the event - the one the invoice follows
+     */
     clubId: string
+    /**
+     * name of the registering club, not of the person's own club - see wornClubName
+     */
     clubName: string
+    /**
+     * the club this person wears: their own, or the free-text club of a guest rower. Since cross-club registration this differs from clubName
+     */
+    wornClubName?: string | null
     firstname: string
     lastname: string
     year?: number | null

@@ -486,10 +486,16 @@ from participant_requirement pr
          join participant_has_requirement_for_event phrfe on pr.id = phrfe.participant_requirement
 ;
 
+-- club_id/club_name sind der MELDENDE Verein (`event_registration.club`) - die View beantwortet
+-- "wen hat dieser Verein gemeldet", und daran haengt die Rechnung. own_club_name ist daneben der
+-- eigene Verein der PERSON: Seit eine Meldung Personen fremder Vereine enthalten darf
+-- (V202608142000) sind das zwei verschiedene Dinge, und ohne die zweite Spalte stuende die
+-- Teilnehmerliste einer Veranstaltung geschlossen unter dem meldenden Verein.
 create view participant_for_event as
 select er.event                                                                                                        as event_id,
        c.id                                                                                                            as club_id,
        c.name                                                                                                          as club_name,
+       pc.name                                                                                                         as own_club_name,
        p.id                                                                                                            as id,
        p.firstname,
        p.lastname,
@@ -520,10 +526,11 @@ from event_registration er
          join competition_registration cr on er.id = cr.event_registration
          join competition_registration_named_participant crnp on cr.id = crnp.competition_registration
          join participant p on crnp.participant = p.id
+         left join club pc on p.club = pc.id
          left join checked_participant_requirement cpr on p.id = cpr.participant and er.event = cpr.event
          left join qr_codes qc on qc.participant = p.id and qc.event = er.event
-group by er.event, c.id, c.name, p.id, p.firstname, p.lastname, p.year, p.gender, p.external, p.external_club_name,
-         qc.id, p.email
+group by er.event, c.id, c.name, pc.name, p.id, p.firstname, p.lastname, p.year, p.gender, p.external,
+         p.external_club_name, qc.id, p.email
 order by c.name, p.firstname, p.lastname;
 
 create view event_public_view as
@@ -928,22 +935,27 @@ from competition_match cm
 group by cm.competition_setup_match, ess.skipped_at, cmtwr.mixed_team_term
 ;
 
+-- club_name ist der MELDENDE Verein der Mannschaft (cr.club) - die Ummeldung gehoert zu einer
+-- Meldung, und die Oberfläche benennt die Mannschaft damit. Der eigene Verein der eingewechselten
+-- PERSON steht daneben in participant_in_club_name: nur er gehoert in die Vereinskette des Bootes
+-- (ClubComposition), denn eine Ummeldung aus einem anderen Verein aendert die Kette.
 create view substitution_view as
 select s.id,
        s.reason,
        s.order_for_round,
        s.inherited_from,
-       np.id      as named_participant_id,
-       np.name    as named_participant_name,
-       csr.id     as competition_setup_round_id,
-       csr.name   as competition_setup_round_name,
-       cr.id      as competition_registration_id,
-       cr.name    as competition_registration_name,
-       c.id       as club_id,
-       c.name     as club_name,
-       p_out      as participant_out,
-       p_in       as participant_in,
-       comp.event as event_id
+       np.id           as named_participant_id,
+       np.name         as named_participant_name,
+       csr.id          as competition_setup_round_id,
+       csr.name        as competition_setup_round_name,
+       cr.id           as competition_registration_id,
+       cr.name         as competition_registration_name,
+       c.id            as club_id,
+       c.name          as club_name,
+       p_out           as participant_out,
+       p_in            as participant_in,
+       p_in_club.name  as participant_in_club_name,
+       comp.event      as event_id
 from substitution s
          left join named_participant np on s.named_participant = np.id
          left join competition_setup_round csr on s.competition_setup_round = csr.id
@@ -952,6 +964,7 @@ from substitution s
          left join club c on c.id = cr.club
          join participant p_out on s.participant_out = p_out.id
          join participant p_in on s.participant_in = p_in.id
+         left join club p_in_club on p_in.club = p_in_club.id
 ;
 
 create view competition_setup_round_with_matches as
@@ -1152,6 +1165,11 @@ select pt.id,
 from participant_tracking pt
          left join app_user au on pt.scanned_by = au.id;
 
+-- club_name ist der eigene Verein der PERSON, nicht der meldende Verein der Mannschaft (der steht
+-- eine Ebene hoeher in competition_registration_team). Dieselbe Spalte fuehrt
+-- registered_competition_team_participant seit dem 09.08.2026; die Meldungs-Tabelle und die
+-- Startliste brauchen sie, seit eine Meldung Personen fremder Vereine enthalten darf
+-- (V202608142000) - ohne sie stuende an jeder Person der Verein, der sie gemeldet hat.
 create view competition_registration_team_participant as
 select crnp.competition_registration                                               as competition_registration_id,
        p.id                                                                        as participant_id,
@@ -1161,6 +1179,7 @@ select crnp.competition_registration                                            
        p.gender,
        p.external,
        p.external_club_name,
+       pc.name                                                                     as club_name,
        np.id                                                                       as role_id,
        np.name                                                                     as role,
        qc.qr_code_id                                                               as qr_code,
@@ -1169,13 +1188,14 @@ select crnp.competition_registration                                            
 from competition_registration_named_participant crnp
          left join named_participant np on crnp.named_participant = np.id
          left join participant p on crnp.participant = p.id
+         left join club pc on p.club = pc.id
          left join competition_registration cr on crnp.competition_registration = cr.id
          left join competition c on cr.competition = c.id
          left join participant_tracking_for_team_participant pt on p.id = pt.participant_id and c.event = pt.event_id
          left join qr_codes qc on qc.participant = p.id and qc.event = c.event
          left join checked_participant_requirement cpr on p.id = cpr.participant and c.event = cpr.event
 group by crnp.competition_registration, p.id, p.firstname, p.lastname, p.year, p.gender, p.external,
-         p.external_club_name, np.id, np.name, qc.qr_code_id
+         p.external_club_name, pc.name, np.id, np.name, qc.qr_code_id
 ;
 
 create view competition_registration_team as

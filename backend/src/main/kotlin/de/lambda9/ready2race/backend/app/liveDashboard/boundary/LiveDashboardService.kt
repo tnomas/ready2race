@@ -1076,6 +1076,7 @@ object LiveDashboardService {
                     competitionRegistrationName = teamName,
                     external = row[PARTICIPANT.EXTERNAL],
                     externalClubName = row[PARTICIPANT.EXTERNAL_CLUB_NAME],
+                    ownClubName = row.get("participant_club_name", String::class.java),
                 )
             }
         }.distinctBy { it.id to it.namedParticipantId }

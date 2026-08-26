@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.entity
 
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
 import java.util.UUID
 
@@ -19,4 +20,12 @@ data class CompetitionMatchTeamParticipant(
      * als Freitext in [externalClubName]. Ausdrücklich nicht der meldende Verein der Mannschaft.
      */
     val clubName: String?,
-)
+) {
+
+    /**
+     * Der Verein, den diese Person *trägt* - die eine Größe, aus der jede Vereinszeile gebaut wird.
+     * Abgeleitet statt gespeichert, damit die drei Anzeigen dieses Wegs (Rundenansicht, Plätze,
+     * Plätze-CSV) die Regel nicht je einzeln buchstabieren.
+     */
+    val wornClubName: String? get() = ClubComposition.clubWorn(external, externalClubName, clubName)
+}

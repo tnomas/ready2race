@@ -180,7 +180,7 @@ const CompetitionPlaces = () => {
                                             </Box>
                                             <Box>
                                                 <Typography textAlign={'right'}>
-                                                    {team.actualClubName ?? team.clubName}
+                                                    {team.actualClubName}
                                                 </Typography>
                                                 <Typography
                                                     color={'textSecondary'}

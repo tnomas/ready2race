@@ -29,7 +29,6 @@ data class CompetitionMatchTeamWithRegistration(
      * die Sortierstelle zum Anordnen der Abschnitte.
      */
     val ratingCategory: RatingCategoryRef?,
-    val mixedTeamTerm: String?,
     /**
      * Zwischenzeiten aus RaceClocker, in Feed-Reihenfolge. Jede Marke trägt den frei vergebenen
      * Spaltennamen des Zeitnehmers und die kumulierte Fahrzeit seit dem gemessenen Start.

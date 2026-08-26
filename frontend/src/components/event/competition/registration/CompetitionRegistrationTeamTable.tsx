@@ -417,7 +417,7 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                                                 {np.namedParticipantName}
                                             </TableCell>
                                             <TableCell sx={{width: '10%'}}>
-                                                {participant.externalClubName ?? row.clubName}
+                                                {participant.wornClubName ?? row.clubName}
                                             </TableCell>
                                             <TableCell sx={{width: '15%'}}>
                                                 {participant.qrCodeId ? (

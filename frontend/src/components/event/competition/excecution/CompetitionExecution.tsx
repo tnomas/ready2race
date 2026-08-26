@@ -1233,8 +1233,7 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                                                                 </TableCell>
                                                                 <TableCell width="34%">
                                                                     <Typography>
-                                                                        {team.actualClubName ??
-                                                                            team.clubName}
+                                                                        {team.actualClubName}
                                                                     </Typography>
                                                                     <Typography
                                                                         color={'textSecondary'}
@@ -1554,8 +1553,7 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                                                             </TableCell>
                                                             <TableCell width="75%">
                                                                 <Typography>
-                                                                    {team.actualClubName ??
-                                                                        team.clubName}
+                                                                    {team.actualClubName}
                                                                 </Typography>
                                                                 <Typography
                                                                     color={'textSecondary'}

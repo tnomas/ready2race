@@ -69,8 +69,8 @@ object AwardCeremonyLogic {
         }
 
         // Dieselbe Regel wie auf der Urkunde, deshalb an einer Stelle: volle Namen, keine
-        // Kurzformen, ersatzweise der meldende Verein. Begründung bei ClubComposition.printedLine.
-        val clubLine = ClubComposition.printedLine(worn, candidate.registeringClubName)
+        // Kurzformen, ersatzweise der meldende Verein. Begründung bei ClubComposition.fullLine.
+        val clubLine = ClubComposition.fullLine(worn, candidate.registeringClubName)
 
         // Vergleich über den Namensschlüssel, nicht über die Zeichenkette: zwei Schreibvarianten
         // desselben Vereins ("Rostocker Ruderclub" / "...von 1885 e.V.") fasst ClubComposition zu

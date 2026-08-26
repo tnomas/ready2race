@@ -111,7 +111,8 @@ ist die Crew in Bootsreihenfolge, Ausgabe:
   statt eine leere Stelle in die Kette zu setzen
 
 `event.mixed_team_term` bleibt bestehen und wird weiterhin von Startlisten, Ergebnissen und der
-Meldeansicht verwendet — nur die drei umgestellten Anzeigen zeigen ihn nicht mehr.
+Meldeansicht verwendet — nur die drei umgestellten Anzeigen zeigen ihn nicht mehr. *Seit dem
+26.08.2026 hat er gar keinen Leser mehr; siehe „Offen" im Nachzug-Entwurf.*
 
 ## Anzeigen
 
@@ -287,7 +288,9 @@ Entscheidungsfunktion: fehlt die Crew im Datensatz, rendert die Karte Stufe 2.
 ## Nicht in diesem Entwurf
 
 - Startlisten (Spalte „Team", Aushang/CSV) und Ergebnisausgabe — als möglicher Nachzug im Laufe
-  der Woche vorgemerkt
+  der Woche vorgemerkt. *Nachgetragen am 26.08.2026 samt Meldeansicht und Durchführung, siehe
+  `2026-08-26-vereinskette-in-listen-design.md`; dabei kam heraus, dass die dort belassene
+  Ableitung ein vereinsgemischtes Boot ohne Gastruderer gar nicht erkannte.*
 - ein frei eingegebener Mannschaftsname je Meldung. `competition_registration.name` bleibt, was es
   ist: der automatische `#1`/`#2`-Zähler, den `CompetitionRegistrationService` beim Anlegen und
   Löschen neu vergibt

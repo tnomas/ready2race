@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.participant.control
 
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.participant.entity.ParticipantClubDto
 import de.lambda9.ready2race.backend.app.participant.entity.ParticipantDto
@@ -97,6 +98,11 @@ fun SubstitutionViewRecord.participantInToParticipantForEventDto(
         id = participantIn!!.id,
         clubId = clubId!!,
         clubName = clubName!!,
+        wornClubName = ClubComposition.clubWorn(
+            participantIn!!.external,
+            participantIn!!.externalClubName,
+            participantInClubName,
+        ),
         firstname = participantIn!!.firstname,
         lastname = participantIn!!.lastname,
         year = participantIn!!.year,
@@ -118,6 +124,7 @@ fun ParticipantForEventRecord.toDto(
         id = id!!,
         clubId = clubId!!,
         clubName = clubName!!,
+        wornClubName = ClubComposition.clubWorn(external, externalClubName, ownClubName),
         firstname = firstname!!,
         lastname = lastname!!,
         year = year!!,

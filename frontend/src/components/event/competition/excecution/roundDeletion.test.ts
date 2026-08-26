@@ -11,6 +11,7 @@ const team = (overrides: Partial<CompetitionMatchTeamDto> = {}): CompetitionMatc
     teamNumber: 1,
     clubId: crypto.randomUUID(),
     clubName: 'Ruderclub Musterstadt',
+    actualClubName: 'Ruderclub Musterstadt',
     namedParticipants: [],
     startNumber: 1,
     deregistered: false,
