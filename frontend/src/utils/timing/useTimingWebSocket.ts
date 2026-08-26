@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { buildTimingWsUrl, parseTimingWsMessage, TimingWsMessage } from './timingSocket'
-import { readSessionToken } from '@contexts/user/sessionToken.ts'
-import { deviceSessionForEvent } from './deviceSession.ts'
+import { isInAppSurface, timingSocketTokens } from './socketTokens.ts'
 
 export type TimingWsStatus = 'CONNECTING' | 'OPEN' | 'RECONNECTING' | 'UNAUTHORIZED'
 
@@ -22,6 +21,13 @@ const AUTH_FAILURE_CLOSE_CODE = 1008
  * the board must keep looking rather than staying broken until someone reloads it.
  */
 const UNAUTHORIZED_RETRY_MILLIS = 30000
+/**
+ * Pause vor dem Versuch mit dem NÄCHSTEN Token derselben Runde (siehe `timingSocketTokens`). Kurz
+ * gehalten, weil hier nichts zu warten ist: Der Server hat gerade Token A abgewiesen, Token B ist
+ * eine andere Sitzung und kann sofort durchgehen. Die Runde ist durch die Zahl der abgelegten
+ * Tokens begrenzt — danach greift die langsame Kadenz oben, es entsteht also keine Schleife.
+ */
+const ALTERNATE_TOKEN_RETRY_MILLIS = 250
 
 function backoffMillis(attempt: number): number {
 	const capped = Math.min(BASE_BACKOFF_MILLIS * 2 ** attempt, MAX_BACKOFF_MILLIS)
@@ -42,14 +48,20 @@ function backoffMillis(attempt: number): number {
  * from that, both handled the same way — a bare `onopen` is never trusted on its own:
  * 1) the reconnect `attempt` counter is only reset once a connection has stayed open for
  *    `STABLE_CONNECTION_MILLIS` (a bare `onopen` never resets it), and
- * 2) `onopen` fired by a connection attempt that was armed while `'UNAUTHORIZED'` does not set the
- *    status to `'OPEN'` or call `onConnect` either — both are deferred to the stable-timer firing.
+ * 2) `onopen` fired by a connection attempt that was armed while `'UNAUTHORIZED'` (oder mit dem
+ *    Ersatztoken einer laufenden Runde) does not set the status to `'OPEN'` or call `onConnect`
+ *    either — both are deferred to the stable-timer firing.
  *    Without that, every 30s retry would flash `'OPEN'` (clearing the banner and firing `onConnect`,
  *    which refetches and drains the offline queue against a session that is about to be rejected
  *    again) for the instant between the upgrade and the 1008 close.
- * A close with code 1008 switches the status to `'UNAUTHORIZED'` and drops to a slow fixed retry
- * every `UNAUTHORIZED_RETRY_MILLIS` instead of the normal backoff. The same slow retry covers "no
- * session token at all" (no socket is created, status goes straight to `'UNAUTHORIZED'`).
+ *
+ * Ein 1008 heißt „dieser Token nicht", nicht „diese Person nicht": In einem Browserprofil können
+ * mehrere Tokens liegen (Helfersitzung, Verwaltungssitzung, Geräte-Token). Abgewiesen wird deshalb
+ * erst der Token, dann die Runde — `timingSocketTokens` liefert die Reihenfolge, der abgewiesene
+ * Token wandert in `rejectedTokens`, und solange ein ungetesteter übrig ist, geht es nach
+ * `ALTERNATE_TOKEN_RETRY_MILLIS` mit dem nächsten weiter. Erst wenn die Runde durch ist, schaltet
+ * der Status auf `'UNAUTHORIZED'` und die langsame feste Kadenz von `UNAUTHORIZED_RETRY_MILLIS`
+ * greift; dieselbe Kadenz deckt „gar kein Token da" ab (es wird kein Socket gebaut).
  *
  * The unauthorized state is explicitly **not** terminal. Sessions expire on a quiet station (the
  * board's only steady traffic is unauthenticated), and a re-login happening in the same tab must
@@ -83,10 +95,25 @@ export function useTimingWebSocket(
 		let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 		let stableTimer: ReturnType<typeof setTimeout> | null = null
 		let attempt = 0
-		// Set by `armUnauthorizedRetry`, cleared only once a connection armed by that path survives
-		// `STABLE_CONNECTION_MILLIS` (see `onopen` below). Not a dependency-tracked ref: like `attempt`,
-		// it lives for the lifetime of this effect run and is shared by every `connect()` call it makes.
-		let wasUnauthorized = false
+		// Gesetzt von `armUnauthorizedRetry` und `armAlternateTokenRetry`, geräumt erst, wenn eine so
+		// aufgesetzte Verbindung `STABLE_CONNECTION_MILLIS` übersteht (siehe `onopen` unten). Kein
+		// dependency-tracked Ref: wie `attempt` lebt es für diesen Effektlauf und gehört allen
+		// `connect()`-Aufrufen darin.
+		let deferOpenUntilStable = false
+		// Die in DIESER Runde bereits abgewiesenen Tokens. Eine Runde endet, wenn entweder eine
+		// Verbindung trägt (alles geräumt) oder alle abgelegten Tokens durch sind — dann wartet
+		// `armUnauthorizedRetry` und beginnt von vorn. Ohne das Gedächtnis würde der Wechsel zwischen
+		// zwei toten Tokens den Server im Viertelsekundentakt anklopfen.
+		let rejectedTokens = new Set<string>()
+
+		/**
+		 * Der nächste ungetestete Token. Die Ablage wird bei JEDEM Versuch neu gelesen, damit eine
+		 * Anmeldung in einer anderen Ansicht desselben Tabs den Kanal ohne Neuladen zurückholt.
+		 */
+		const nextToken = (): string | null =>
+			timingSocketTokens(eventId, isInAppSurface()).find(
+				token => !rejectedTokens.has(token),
+			) ?? null
 
 		const clearStableTimer = () => {
 			if (stableTimer !== null) {
@@ -97,7 +124,7 @@ export function useTimingWebSocket(
 
 		const armReconnectTimer = () => {
 			// Non-auth failures: clear the flag since this path means failure is unrelated to auth
-			wasUnauthorized = false
+			deferOpenUntilStable = false
 			setStatus('RECONNECTING')
 			const delay = backoffMillis(attempt)
 			attempt += 1
@@ -111,24 +138,32 @@ export function useTimingWebSocket(
 		 * connection failure should still start from the normal fast retry.
 		 */
 		const armUnauthorizedRetry = () => {
-			wasUnauthorized = true
+			deferOpenUntilStable = true
+			// Alle abgelegten Tokens sind durch: neue Runde nach der Wartezeit, sonst bliebe der
+			// Kanal auch nach einer frischen Anmeldung auf den verbrannten Tokens sitzen.
+			rejectedTokens = new Set()
 			setStatus('UNAUTHORIZED')
 			reconnectTimer = setTimeout(connect, UNAUTHORIZED_RETRY_MILLIS)
+		}
+
+		/**
+		 * Der Server hat einen Token abgewiesen, aber es liegt noch ein anderer im Profil (typisch:
+		 * eine tote Helfersitzung neben der lebenden Verwaltungssitzung). Kein Fall für das rote
+		 * Banner — hier ist nur die Auswahl schiefgegangen, nicht die Anmeldung.
+		 */
+		const armAlternateTokenRetry = () => {
+			deferOpenUntilStable = true
+			setStatus('RECONNECTING')
+			reconnectTimer = setTimeout(connect, ALTERNATE_TOKEN_RETRY_MILLIS)
 		}
 
 		const connect = () => {
 			if (disposedRef.current) return
 
-			// Sitzungstoken aus der localStorage-Ablage (beide Oberflächen; der frühere direkte
-			// sessionStorage-Zugriff las nur noch den Legacy-Schlüssel, den die Migration in
-			// sessionToken.ts längst wegräumt). Ohne Sitzung darf der Token-Slot des Subprotokolls
-			// auch das Geräte-Token eines geteilten Posten-Links tragen - der Server prüft beide
-			// Deutungen (Sockets.kt).
-			const token =
-				readSessionToken(true) ??
-				readSessionToken(false) ??
-				deviceSessionForEvent(eventId)?.token ??
-				null
+			// Der Token für den Slot des Subprotokolls: die Sitzung der eigenen Oberfläche zuerst,
+			// dann die der anderen, zuletzt das Geräte-Token eines geteilten Posten-Links - der
+			// Server prüft alle Deutungen (Sockets.kt). Reihenfolge und Begründung: socketTokens.ts.
+			const token = nextToken()
 			if (token === null) {
 				armUnauthorizedRetry()
 				return
@@ -180,7 +215,7 @@ export function useTimingWebSocket(
 				// again) for the instant before that close arrives. Both are deferred to the
 				// stable-timer callback below, which only fires once the connection has actually stayed
 				// open for a while.
-				if (!wasUnauthorized) {
+				if (!deferOpenUntilStable) {
 					setStatus('OPEN')
 					handlersRef.current.onConnect()
 				}
@@ -192,10 +227,14 @@ export function useTimingWebSocket(
 				stableTimer = setTimeout(() => {
 					attempt = 0
 					stableTimer = null
+					// Die Verbindung trägt: Runde beendet, abgewiesene Tokens vergessen. Ein späterer
+					// Abriss beginnt wieder mit dem Token der eigenen Oberfläche - der kann inzwischen
+					// der richtige sein.
+					rejectedTokens = new Set()
 					// The deferred half of the unauthorized case above: this connection has now stayed
 					// open long enough to prove the 1008 isn't coming, so it's a genuine recovery.
-					if (wasUnauthorized) {
-						wasUnauthorized = false
+					if (deferOpenUntilStable) {
+						deferOpenUntilStable = false
 						setStatus('OPEN')
 						handlersRef.current.onConnect()
 					}
@@ -217,7 +256,14 @@ export function useTimingWebSocket(
 					reconnectScheduled = true
 					clearStableTimer()
 					cleanupSocket()
-					armUnauthorizedRetry()
+					// Genau DIESER Token ist abgewiesen - liegt noch ein anderer im Profil, ist er
+					// dran, bevor das rote Banner erscheint.
+					rejectedTokens.add(token)
+					if (nextToken() !== null) {
+						armAlternateTokenRetry()
+					} else {
+						armUnauthorizedRetry()
+					}
 					return
 				}
 				scheduleReconnect()

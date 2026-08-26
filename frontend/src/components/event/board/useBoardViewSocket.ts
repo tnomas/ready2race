@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from 'react'
 import Config from '../../../Config'
 import {BoardViewDto} from '@api/types.gen'
-import {readSessionToken} from '@contexts/user/sessionToken.ts'
 import {buildBoardViewWsUrl, parseBoardViewMessage} from './boardViewPush.ts'
 import {boardDeviceToken} from '@utils/board/deviceToken.ts'
+import {isInAppSurface, socketTokens} from '@utils/timing/socketTokens.ts'
 
 const BASE_BACKOFF_MILLIS = 1000
 const MAX_BACKOFF_MILLIS = 10000
@@ -18,6 +18,12 @@ const AUTH_FAILURE_CLOSE_CODE = 1008
  * einem montierten Bildschirm die schlechteste aller Antworten.
  */
 const UNAUTHORIZED_RETRY_MILLIS = 30000
+/**
+ * Pause vor dem Versuch mit dem NÄCHSTEN Ausweis derselben Runde (siehe [socketTokens]). Kurz, weil
+ * hier nichts zu warten ist: Der Server hat gerade einen Token abgewiesen, der nächste ist ein
+ * anderer und kann sofort durchgehen. Die Runde ist durch die Zahl der abgelegten Tokens begrenzt.
+ */
+const ALTERNATE_TOKEN_RETRY_MILLIS = 250
 
 const backoffMillis = (attempt: number): number => {
     const capped = Math.min(BASE_BACKOFF_MILLIS * 2 ** attempt, MAX_BACKOFF_MILLIS)
@@ -92,9 +98,24 @@ export const useBoardViewSocket = (
         let attempt = 0
         // Ein Stand, der im Hintergrund ankam — beim Zurückkehren einmal anwenden.
         let pendingWhileHidden: BoardViewDto | null = null
-        // Gesetzt von [armUnauthorizedRetry], zurückgenommen erst, wenn eine daraufhin
-        // aufgebaute Verbindung STABLE_CONNECTION_MILLIS übersteht (siehe onopen).
-        let wasUnauthorized = false
+        // Gesetzt von [armUnauthorizedRetry] und [armAlternateTokenRetry], zurückgenommen erst,
+        // wenn eine daraufhin aufgebaute Verbindung STABLE_CONNECTION_MILLIS übersteht (siehe
+        // onopen).
+        let deferConnectedUntilStable = false
+        // Die in DIESER Runde abgewiesenen Ausweise. Geräumt, sobald eine Verbindung trägt oder die
+        // Runde durch ist — ohne das Gedächtnis würde der Wechsel zwischen zwei toten Tokens den
+        // Server im Viertelsekundentakt anklopfen.
+        let rejectedTokens = new Set<string>()
+
+        /**
+         * Der nächste ungetestete Ausweis: die Sitzung der eigenen Oberfläche, dann die der anderen,
+         * zuletzt das Geräte-Token DIESES Boards. Bei jedem Versuch frisch gelesen, damit eine
+         * Anmeldung im selben Tab die Anzeige ohne Neuladen zurückholt.
+         */
+        const nextToken = (): string | null =>
+            socketTokens(isInAppSurface(), boardDeviceToken(eventId, boardId)).find(
+                token => !rejectedTokens.has(token),
+            ) ?? null
 
         const clearStableTimer = () => {
             if (stableTimer !== null) {
@@ -106,13 +127,9 @@ export const useBoardViewSocket = (
         const connect = () => {
             if (disposed) return
 
-            // Sitzungstoken beider Oberflächen, sonst das Geräte-Token des geteilten
-            // Anzeigen-Links. Reihenfolge wie beim Zeitnahme-Kanal: eine echte Sitzung sticht,
-            // das Geräte-Token trägt die Bildschirme ohne Anmeldung.
-            const token =
-                readSessionToken(true) ??
-                readSessionToken(false) ??
-                boardDeviceToken(eventId, boardId)
+            // Reihenfolge wie beim Zeitnahme-Kanal: eine echte Sitzung sticht, das Geräte-Token
+            // trägt die Bildschirme ohne Anmeldung (Begründung in socketTokens.ts).
+            const token = nextToken()
             if (token === null) {
                 // Ohne Ausweis gar nicht erst klopfen — aber weiter hinsehen: der geteilte
                 // Anzeigen-Link legt sein Token erst beim ersten Aufruf ab, und eine Anmeldung
@@ -164,7 +181,14 @@ export const useBoardViewSocket = (
                 // durch schnelles Wiederholen behebt: ein widerrufenes Geräte-Token bleibt
                 // widerrufen. Deshalb der langsame Takt statt des Backoffs.
                 if (event?.code === AUTH_FAILURE_CLOSE_CODE) {
-                    armUnauthorizedRetry()
+                    // Abgewiesen ist DIESER Ausweis, nicht zwingend das Gerät: liegt noch ein
+                    // anderer im Profil, ist er dran, bevor die Anzeige auf den Takt zurückfällt.
+                    rejectedTokens.add(token)
+                    if (nextToken() !== null) {
+                        armAlternateTokenRetry()
+                    } else {
+                        armUnauthorizedRetry()
+                    }
                 } else {
                     armReconnectTimer()
                 }
@@ -176,16 +200,18 @@ export const useBoardViewSocket = (
                 // kommen: die 1008 folgt erst danach, und ein kurzes „verbunden" würde den
                 // Poll-Takt strecken (siehe usePolledEndpoint) — ausgerechnet dann, wenn die
                 // Anzeige nur noch den Takt hat.
-                if (!wasUnauthorized) setConnected(true)
+                if (!deferConnectedUntilStable) setConnected(true)
                 // Kein Nachladen: der erste Rahmen des Servers IST der volle Stand.
                 clearStableTimer()
                 stableTimer = setTimeout(() => {
                     attempt = 0
                     stableTimer = null
-                    if (wasUnauthorized) {
+                    // Die Verbindung trägt: Runde beendet, abgewiesene Ausweise vergessen.
+                    rejectedTokens = new Set()
+                    if (deferConnectedUntilStable) {
                         // Die Verbindung hat gehalten, die 1008 kam nicht: die Anzeige ist
                         // zurück.
-                        wasUnauthorized = false
+                        deferConnectedUntilStable = false
                         if (!disposed) setConnected(true)
                     }
                 }, STABLE_CONNECTION_MILLIS)
@@ -209,7 +235,7 @@ export const useBoardViewSocket = (
 
         const armReconnectTimer = () => {
             // Ein gewöhnlicher Verbindungsfehler sagt nichts über den Ausweis aus.
-            wasUnauthorized = false
+            deferConnectedUntilStable = false
             const delay = backoffMillis(attempt)
             attempt += 1
             reconnectTimer = setTimeout(connect, delay)
@@ -221,9 +247,22 @@ export const useBoardViewSocket = (
          * schnellen Takt beginnen.
          */
         const armUnauthorizedRetry = () => {
-            wasUnauthorized = true
+            deferConnectedUntilStable = true
+            // Alle Ausweise sind durch: neue Runde nach der Wartezeit, sonst bliebe die Anzeige
+            // auch nach einer frischen Anmeldung auf den verbrannten Tokens sitzen.
+            rejectedTokens = new Set()
             setConnected(false)
             reconnectTimer = setTimeout(connect, UNAUTHORIZED_RETRY_MILLIS)
+        }
+
+        /**
+         * Der Server hat einen Ausweis abgewiesen, aber es liegt noch ein anderer im Profil
+         * (typisch: eine tote Helfersitzung neben der lebenden Verwaltungssitzung). Kein Grund, die
+         * Anzeige schon auf den Takt zurückfallen zu lassen — erst kommt der nächste Ausweis dran.
+         */
+        const armAlternateTokenRetry = () => {
+            deferConnectedUntilStable = true
+            reconnectTimer = setTimeout(connect, ALTERNATE_TOKEN_RETRY_MILLIS)
         }
 
         const onVisibilityChange = () => {

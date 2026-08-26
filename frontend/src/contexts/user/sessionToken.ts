@@ -44,7 +44,7 @@ type StoredToken = {
     lastUsedAt: number
 }
 
-const browserStores = (): TokenStores => ({local: localStorage, session: sessionStorage})
+export const browserStores = (): TokenStores => ({local: localStorage, session: sessionStorage})
 
 const tokenKey = (isInApp: boolean): string => (isInApp ? APP_KEY : ADMIN_KEY)
 
