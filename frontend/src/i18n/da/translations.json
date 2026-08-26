@@ -79,6 +79,7 @@
       "secondsShort": "s",
       "optional": "Valgfrit",
       "required": "Udfyld venligst dette felt.",
+      "tooLong": "Brug højst {{max}} tegn.",
       "requiredCheck": "Dette skal accepteres for at fortsætte.",
       "selectFile": "Vælg fil",
       "select": {
@@ -925,7 +926,9 @@
           },
           "deregistered": "Afmeldt",
           "reason": "Begrundelse"
-        }
+        },
+        "displayName": "Holdets navn",
+        "displayNameHint": "Valgfrit. For eksempel \"RG Eckernförde/Kappeln\". Er feltet tomt, viser alle visninger besætningens klubber."
       },
       "setup": {
         "setup": "Konkurrenceforløb",

@@ -181,6 +181,15 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                 minWidth: 200,
             },
             {
+                // Der frei vergebene Mannschaftsname. Nicht sortierbar, weil die Liste
+                // serverseitig sortiert und diese Spalte dort keine Sortierstelle hat.
+                field: 'displayName',
+                headerName: t('event.competition.registration.displayName'),
+                minWidth: 180,
+                sortable: false,
+                valueGetter: value => value ?? '-',
+            },
+            {
                 field: 'name',
                 headerName: t('entity.name'),
                 valueGetter: value => value ?? '-',

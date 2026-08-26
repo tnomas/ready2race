@@ -42,6 +42,7 @@ class PerMatchPlacesTest {
             penaltySeconds = null,
             penaltyNote = null,
             ratingCategory = category,
+            displayName = null,
         )
 
     /** Finale A (weighting 1) und Finale B (weighting 2) mit je zwei Booten. */

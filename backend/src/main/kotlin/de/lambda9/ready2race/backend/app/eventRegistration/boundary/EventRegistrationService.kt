@@ -590,7 +590,10 @@ object EventRegistrationService {
                         now,
                         userId,
                         isLate = type == OpenForRegistrationType.LATE,
-                        ratingCategory = teamDto.ratingCategory
+                        ratingCategory = teamDto.ratingCategory,
+                        // Wie in CompetitionRegistrationService.displayNameOf: getrimmt, leer als
+                        // null - die Meldemaske schickt ein unausgefülltes Feld als "".
+                        displayName = teamDto.displayName?.trim()?.takeIf { it.isNotEmpty() },
                     )
                 ).orDie()
 

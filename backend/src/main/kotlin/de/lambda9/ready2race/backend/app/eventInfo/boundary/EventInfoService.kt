@@ -506,6 +506,10 @@ object EventInfoService {
      * Die Vereinskette einer Mannschaft aus den Zeilen ihrer Crew - in Bootsreihenfolge, wie die
      * Abfrage sie liefert. Erwartet die Spalten der drei Anzeige-Abfragen in
      * [CompetitionMatchTeamRepo] (inkl. des zweiten, aliasierten CLUB-Joins auf die Person).
+     *
+     * Der von Hand vergebene Mannschaftsname steht in jeder Zeile derselben Mannschaft; genommen
+     * wird die erste. Trägt die Meldung einen, tritt er an die Stelle der Kette - in voller wie in
+     * kurzer Schreibweise, siehe [ClubComposition.of].
      */
     private fun clubComposition(
         records: List<Record>,
@@ -519,6 +523,7 @@ object EventInfoService {
             )
         },
         clubShortNames,
+        records.firstOrNull()?.get(COMPETITION_REGISTRATION.DISPLAY_NAME),
     )
 
     /**

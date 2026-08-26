@@ -732,6 +732,8 @@ select cr.id,
        c.id                                                                      as club_id,
        c.name                                                                    as club_name,
        cr.name                                                                   as team_name,
+       -- Der frei vergebene Mannschaftsname; leer heisst "es gilt die Vereinskette".
+       cr.display_name,
        cr.team_number,
        cr.is_late,
        rc                                                                        as rating_category,
@@ -903,6 +905,7 @@ select cmt.id,
        cr.club                                                                 as club_id,
        c.name                                                                  as club_name,
        cr.name                                                                 as registration_name,
+       cr.display_name,
        cr.team_number,
        coalesce(array_agg(rctp) filter (where rctp.team_id is not null), '{}') as participants,
        (cd.competition_registration is not null)                               as deregistered,
@@ -933,8 +936,8 @@ from competition_match_team cmt
          left join event e on er.event = e.id
          left join event_rating_category erc on erc.event = er.event and erc.rating_category = rc.id
 group by cmt.id, cmt.competition_match, cmt.start_number, cmt.place, tc, cmt.competition_registration, cr.club, c.name,
-         cr.name, cr.team_number, cd.competition_registration, cd.reason, rc.id, erc.sort_order, e.mixed_team_term,
-         cmt.penalty_seconds, cmt.penalty_note
+         cr.name, cr.display_name, cr.team_number, cd.competition_registration, cd.reason, rc.id, erc.sort_order,
+         e.mixed_team_term, cmt.penalty_seconds, cmt.penalty_note
 ;
 
 -- started_at/finished_at/skipped kommen mit, damit die Durchführungsseite denselben Lauf-Zustand
@@ -1083,6 +1086,7 @@ select cmt.competition_match,
        cmt.start_number,
        cr.id                                                                            as team_id,
        cr.name                                                                          as team_name,
+       cr.display_name,
        c.id                                                                             as club_id,
        c.name                                                                           as club_name,
        rc                                                                               as rating_Category,
@@ -1250,6 +1254,7 @@ select cr.id                       as competition_registration_id,
        cl.id                       as club_id,
        cl.name                     as club_name,
        cr.name                     as team_name,
+       cr.display_name,
        coalesce(array_agg(distinct crtp) filter ( where crtp.competition_registration_id is not null ),
                 '{}')              as participants,
        coalesce(array_agg(distinct sv) filter (where sv.id is not null),
@@ -1265,7 +1270,7 @@ from competition_registration cr
          left join competition_deregistration cd on cr.id = cd.competition_registration
          left join rating_category rc on cr.rating_category = rc.id
 group by cr.id, cr.competition, cp.identifier, cp.name, cp.check_in_out_required, co.event, cl.id, cl.name, cr.name,
-         cd, rc.id;
+         cr.display_name, cd, rc.id;
 
 
 create view participant_qr_assignment_view as

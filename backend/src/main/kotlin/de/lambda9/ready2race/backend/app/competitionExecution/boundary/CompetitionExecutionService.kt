@@ -3324,7 +3324,13 @@ object CompetitionExecutionService {
                 }
                 // "Team" ist die Vereinskette der Crew, "Anmelder" der meldende Verein - bis zum
                 // 26.08.2026 stand in "Team" bei gemischter Crew das pauschale `mixedTeamTerm`.
-                column("Team") { ClubComposition.fullLine(team.participants.map { it.wornClubName }, team.clubName) }
+                column("Team") {
+                    ClubComposition.fullLine(
+                        team.participants.map { it.wornClubName },
+                        team.clubName,
+                        team.displayName,
+                    )
+                }
                 column("Anmelder") { team.clubName + if (team.teamNumber != null) " | ${team.teamNumber}" else "" }
                 column("Teammitglieder"){ team.participants.joinToString(", ") { "${it.firstName} ${it.lastName} [${it.namedParticipantName}] (${it.wornClubName ?: team.clubName})" }}
 

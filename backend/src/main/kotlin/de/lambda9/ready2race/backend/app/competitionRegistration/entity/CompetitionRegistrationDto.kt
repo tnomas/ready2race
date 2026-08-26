@@ -7,7 +7,13 @@ import java.util.*
 
 data class CompetitionRegistrationDto(
     val id: UUID,
+    /** Der automatische Zähler ("#1", "#2"), nicht der Name der Mannschaft - siehe [displayName]. */
     val name: String?,
+    /**
+     * Der von Hand vergebene Mannschaftsname, leer bei den allermeisten Meldungen. Er schlägt in
+     * jeder Anzeige die Vereinskette.
+     */
+    val displayName: String?,
     val clubId: UUID,
     val clubName: String,
     val optionalFees: List<CompetitionRegistrationFeeDto>,

@@ -57,6 +57,7 @@ class AwardCeremonyLogicTest {
         ratingCategory: RatingCategoryRef? = null,
         registeringClubName: String = "Ruderclub Nürtingen",
         teamName: String? = "RCN I",
+        displayName: String? = null,
         time: String? = "4:12,7",
         penaltySeconds: Int? = null,
         penaltyNote: String? = null,
@@ -71,6 +72,7 @@ class AwardCeremonyLogicTest {
         ratingCategory = ratingCategory,
         registeringClubName = registeringClubName,
         teamName = teamName,
+        displayName = displayName,
         time = time,
         penaltySeconds = penaltySeconds,
         penaltyNote = penaltyNote,
@@ -293,6 +295,31 @@ class AwardCeremonyLogicTest {
         )
 
         assertEquals("Ruderclub Nürtingen / RG Hansa Kiel", team.clubLine)
+        assertEquals("Ruderclub Nürtingen", team.registeringClub)
+        assertEquals(listOf("Ruderclub Nürtingen", "RG Hansa Kiel"), team.athletes.map { it.club })
+    }
+
+    /**
+     * Der vergebene Mannschaftsname wird vorgelesen, nicht die Kette: Wer eine Renngemeinschaft
+     * unter ihrem Namen ausschreibt, will sie auch unter ihm geehrt hören. Die Vereine der Crew
+     * stehen weiterhin je Person auf dem Bogen - der Name benennt das Boot, er verschweigt nicht,
+     * wer darin sitzt.
+     */
+    @Test
+    fun aGivenTeamNameIsWhatTheAnnouncerReads() {
+        val team = AwardCeremonyLogic.team(
+            candidate(
+                1,
+                registeringClubName = "Ruderclub Nürtingen",
+                displayName = "RG Nürtingen/Kiel",
+                participants = listOf(
+                    rower(firstName = "Anna", ownClubName = "Ruderclub Nürtingen"),
+                    rower(firstName = "Bernd", ownClubName = "RG Hansa Kiel"),
+                ),
+            )
+        )
+
+        assertEquals("RG Nürtingen/Kiel", team.clubLine)
         assertEquals("Ruderclub Nürtingen", team.registeringClub)
         assertEquals(listOf("Ruderclub Nürtingen", "RG Hansa Kiel"), team.athletes.map { it.club })
     }

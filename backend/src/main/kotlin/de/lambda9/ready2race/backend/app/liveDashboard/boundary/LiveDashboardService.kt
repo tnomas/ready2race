@@ -175,8 +175,13 @@ object LiveDashboardService {
 
                 // Die Kette entsteht aus der Crew, die wirklich startet - nach den Ummeldungen.
                 // Genau das ist der Fall, der im Betrieb weh tut: kommt die Ersatzperson aus einem
-                // anderen Verein, steht das ab sofort auf der Karte.
-                val clubs = ClubComposition.of(participants.map { it.clubName }, clubShortNames)
+                // anderen Verein, steht das ab sofort auf der Karte. Trägt die Meldung einen von
+                // Hand vergebenen Mannschaftsnamen, steht stattdessen der auf beiden Stufen.
+                val clubs = ClubComposition.of(
+                    participants.map { it.clubName },
+                    clubShortNames,
+                    first.get(COMPETITION_REGISTRATION.DISPLAY_NAME),
+                )
 
                 KIO.ok(
                     LiveDashboardTeamDto(

@@ -40,6 +40,13 @@ data class ClubComposition(
             if (external == true) externalClubName else ownClubName
 
         /**
+         * Der von Hand vergebene Mannschaftsname, sofern die Meldung einen trägt
+         * (`competition_registration.display_name`) - leer und nur aus Leerzeichen bestehend ist
+         * dasselbe wie "keiner".
+         */
+        private fun given(displayName: String?): String? = displayName?.trim()?.takeIf { it.isNotEmpty() }
+
+        /**
          * [clubNames] ist die Crew in Bootsreihenfolge - je Person der Verein, den sie *trägt*
          * (`participant.external_club_name` bei Gastruderern, sonst der Name ihres eigenen
          * Vereins), nicht der meldende Verein. [settings] trägt die gepflegten Kurzformen und die
@@ -48,8 +55,20 @@ data class ClubComposition(
          *
          * Bei genau einem Verein steht schlicht dieser Verein da, ohne Trennzeichen - für die
          * reinen Vereinsboote ändert sich damit nichts.
+         *
+         * [displayName] schlägt die Kette, und zwar in beiden Schreibweisen: Eine Renngemeinschaft
+         * führt einen Namen ("RG Eckernförde/Kappeln"), unter dem sie ausgeschrieben, aufgerufen
+         * und geehrt wird; der ist bereits kurz und wird deshalb auch dort nicht gekürzt, wo die
+         * Kette es würde. Wer ihn vergibt, hat sich etwas dabei gedacht - die Anzeige denkt nicht
+         * daran vorbei.
          */
-        fun of(clubNames: List<String?>, settings: ClubShortNameSettings): ClubComposition {
+        fun of(
+            clubNames: List<String?>,
+            settings: ClubShortNameSettings,
+            displayName: String? = null,
+        ): ClubComposition {
+            given(displayName)?.let { return ClubComposition(full = it, short = it) }
+
             val named = clubNames
                 .mapNotNull { it?.trim()?.takeIf { name -> name.isNotEmpty() } }
                 // "N.N." steht in den echten Meldedaten für "Platz noch offen". Ein Platzhalter
@@ -89,9 +108,15 @@ data class ClubComposition(
          *
          * Bis zum 09.08.2026 stand auf der Urkunde bei gemischter Crew das pauschale
          * "Renngemeinschaft", in den übrigen Anzeigen bis zum 26.08.2026.
+         *
+         * [displayName] schlägt auch hier die Kette - siehe [of]. Die Rückfallkette lautet damit
+         * durchgehend: vergebener Name, sonst die Vereine der Crew, sonst der meldende Verein.
          */
-        fun fullLine(clubsWorn: List<String?>, registeringClubName: String): String =
-            of(clubsWorn, ClubShortNameSettings.none).full.ifEmpty { registeringClubName }
+        fun fullLine(
+            clubsWorn: List<String?>,
+            registeringClubName: String,
+            displayName: String? = null,
+        ): String = of(clubsWorn, ClubShortNameSettings.none, displayName).full.ifEmpty { registeringClubName }
 
         /**
          * Die Crew in Bootsreihenfolge - die Reihenfolge, in der [of] ihre Vereine aneinanderreiht.

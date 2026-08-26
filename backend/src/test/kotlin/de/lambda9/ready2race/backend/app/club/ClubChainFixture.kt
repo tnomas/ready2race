@@ -34,6 +34,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.NAMED_
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
+import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -230,6 +231,23 @@ fun TestComprehensionScope<JEnv>.seedClubChain(): SeededClubChain {
         registeringClubId = registeringClubId,
         crew = crew,
     )
+}
+
+/**
+ * Der frei vergebene Mannschaftsname, unter dem eine Renngemeinschaft ausgeschrieben und geehrt
+ * wird. Er schlägt in jeder Anzeige die Vereinskette - die Zusagen dazu stehen bei den Anzeigen
+ * selbst, hier steht nur, wie er an die Meldung kommt.
+ */
+const val TEAM_DISPLAY_NAME = "RG Nord"
+
+/** Gibt der gemeldeten Mannschaft einen Namen - wie es die Meldemaske täte. */
+fun TestComprehensionScope<JEnv>.nameTheTeam(registrationId: UUID, displayName: String = TEAM_DISPLAY_NAME) {
+    !Jooq.query {
+        update(COMPETITION_REGISTRATION)
+            .set(COMPETITION_REGISTRATION.DISPLAY_NAME, displayName)
+            .where(COMPETITION_REGISTRATION.ID.eq(registrationId))
+            .execute()
+    }
 }
 
 const val CROSS_CLUB_A = "Ruderverein Eckernförde"

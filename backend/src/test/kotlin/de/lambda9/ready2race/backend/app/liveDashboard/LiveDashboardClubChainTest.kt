@@ -11,6 +11,8 @@ import de.lambda9.ready2race.backend.app.club.NUERTINGEN
 import de.lambda9.ready2race.backend.app.club.REGISTERING_CLUB
 import de.lambda9.ready2race.backend.app.club.ROSTOCK
 import de.lambda9.ready2race.backend.app.club.SeededClubChain
+import de.lambda9.ready2race.backend.app.club.TEAM_DISPLAY_NAME
+import de.lambda9.ready2race.backend.app.club.nameTheTeam
 import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.club.boundary.ClubNameKey
 import de.lambda9.ready2race.backend.app.club.control.ClubShortNameRepo
@@ -87,6 +89,25 @@ class LiveDashboardClubChainTest {
         assertFalse(team.clubsFull.contains("Kieler"), "meldender Verein in der Kette: ${team.clubsFull}")
         assertFalse(team.clubsShort.contains("Kiel EK"), "meldender Verein in der Kurzkette: ${team.clubsShort}")
         assertFalse(team.clubsShort.contains("Renngemeinschaft"))
+    }
+
+    /**
+     * Trägt die Meldung einen Namen, steht er auf beiden Stufen der Karte statt der Kette. Beide
+     * ist der Punkt: Die Stufe hängt an der Kartenbreite, und dasselbe Boot darf auf dem Telefon
+     * nicht anders heißen als am Laptop.
+     */
+    @Test
+    fun aGivenTeamNameReplacesTheChainOnBothSteps() = testComprehension {
+        val seeded = seedClubChain()
+        maintainShortNames()
+        nameTheTeam(seeded.registrationId)
+
+        val team = boardTeam(seeded.eventId)
+
+        assertEquals(TEAM_DISPLAY_NAME, team.clubsFull)
+        assertEquals(TEAM_DISPLAY_NAME, team.clubsShort)
+        // Der meldende Verein bleibt im Datensatz, wie er es auch ohne Namen tut.
+        assertEquals(REGISTERING_CLUB, team.clubName)
     }
 
     /**

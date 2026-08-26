@@ -18,7 +18,11 @@ import {
     EventRegistrationParticipantFormData,
 } from '../../pages/eventRegistration/EventRegistrationCreatePage.tsx'
 import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
+import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {useEventRegistration} from '@contexts/eventRegistration/EventRegistrationContext.ts'
+
+/** Muss zu CompetitionRegistrationTeamUpsertDto.MAX_DISPLAY_NAME_LENGTH passen. */
+const DISPLAY_NAME_MAX_LENGTH = 80
 
 const TeamInput = (props: {
     competition: EventRegistrationCompetitionDto
@@ -93,6 +97,25 @@ const TeamInput = (props: {
     return (
         <Paper sx={{p: {xs: 1, sm: 2}}} elevation={2}>
             <Stack rowGap={2}>
+                {/*
+                  Der Mannschaftsname steht vor der Crew, weil er die Mannschaft benennt und nicht
+                  ihre Besetzung beschreibt. Leer lassen ist der Normalfall - dann zeigt jede
+                  Anzeige die Vereine der Crew.
+                */}
+                <Box sx={{maxWidth: {xs: '100%', sm: 400}}}>
+                    <FormInputText
+                        name={`competitionRegistrations.${props.competitionIndex}.teams.${props.teamIndex}.displayName`}
+                        label={t('event.competition.registration.displayName')}
+                        disabled={props.locked}
+                        helperText={t('event.competition.registration.displayNameHint')}
+                        rules={{
+                            maxLength: {
+                                value: DISPLAY_NAME_MAX_LENGTH,
+                                message: t('common.form.tooLong', {max: DISPLAY_NAME_MAX_LENGTH}),
+                            },
+                        }}
+                    />
+                </Box>
                 <Stack spacing={2}>
                     {props.competition.namedParticipant?.map(
                         (namedParticipant, namedParticipantIndex) => (

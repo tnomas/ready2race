@@ -35,6 +35,7 @@ import {currentlyInTimespan} from '@utils/helpers.ts'
 import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
 import {ResultInputTeamInfo} from '@components/event/competition/registration/ChallengeResultDialog.tsx'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
+import {FormInputText} from '@components/form/input/FormInputText.tsx'
 
 // TODO: validate/sanitize basepath (also in routes.tsx)
 const basepath = document.getElementById('ready2race-root')!.dataset.basepath
@@ -63,8 +64,12 @@ type CompetitionRegistrationForm = {
     namedParticipants?: Array<CompetitionRegistrationNamedParticipantUpsertDto>
     asRegistrationType: RegistrationType
     ratingCategory: string
+    displayName?: string
     includeResult: boolean
 }
+
+/** Muss zu CompetitionRegistrationTeamUpsertDto.MAX_DISPLAY_NAME_LENGTH passen. */
+const DISPLAY_NAME_MAX_LENGTH = 80
 
 const CompetitionRegistrationDialog = ({
     competition,
@@ -346,12 +351,22 @@ const CompetitionRegistrationDialog = ({
         clubId: user.loggedIn ? user.clubId : undefined,
         asRegistrationType: adminLatePossible ? 'LATE' : 'REGULAR',
         ratingCategory: competition.properties.ratingCategoryRequired ? '' : 'none',
+        displayName: '',
         includeResult: directResultPossible,
     }
 
     const optionalFees = useMemo(
         () => competition.properties.fees?.filter(f => !f.required) ?? [],
         [competition.id],
+    )
+
+    // Ein Mannschaftsname hat nur dort einen Sinn, wo mehr als eine Person im Boot sitzt: Ein
+    // Einer fährt unter dem Verein seines Ruderers, und eine Renngemeinschaft aus einer Person
+    // gibt es nicht. Eine Handvoll Rollen je Wettkampf - das rechnet sich billiger, als es zu
+    // merken.
+    const seatsInBoat = competition.properties.namedParticipants.reduce(
+        (sum, np) => sum + np.countMales + np.countFemales + np.countNonBinary + np.countMixed,
+        0,
     )
 
     const onOpen = useCallback(() => {
@@ -396,6 +411,21 @@ const CompetitionRegistrationDialog = ({
                             label={t('event.competition.registration.ratingCategory')}
                             options={ratingCategoryOptions ?? []}
                             required
+                        />
+                    )}
+                    {seatsInBoat > 1 && (
+                        <FormInputText
+                            name={'displayName'}
+                            label={t('event.competition.registration.displayName')}
+                            helperText={t('event.competition.registration.displayNameHint')}
+                            rules={{
+                                maxLength: {
+                                    value: DISPLAY_NAME_MAX_LENGTH,
+                                    message: t('common.form.tooLong', {
+                                        max: DISPLAY_NAME_MAX_LENGTH,
+                                    }),
+                                },
+                            }}
                         />
                     )}
                 </Stack>
@@ -505,6 +535,8 @@ function mapFormToRequest(
         optionalFees: formData.optionalFees,
         namedParticipants: formData.namedParticipants,
         ratingCategory: formData.ratingCategory !== 'none' ? formData.ratingCategory : undefined,
+        // Ein leeres Feld heißt "kein Name" - als "" nähme der Server es als Namen an.
+        displayName: takeIfNotEmpty(formData.displayName),
         callbackUrl: location.origin + (basepath ? `/${basepath}` : '') + '/challenge/',
     }
 }
@@ -520,6 +552,7 @@ function mapDtoToForm(dto: CompetitionRegistrationDto): CompetitionRegistrationF
         })),
         asRegistrationType: dto.isLate ? 'LATE' : 'REGULAR',
         ratingCategory: dto.ratingCategory ? dto.ratingCategory.id : 'none',
+        displayName: dto.displayName ?? '',
         includeResult: false,
     }
 }

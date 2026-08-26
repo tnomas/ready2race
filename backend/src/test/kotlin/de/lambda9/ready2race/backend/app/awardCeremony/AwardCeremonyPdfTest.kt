@@ -67,6 +67,7 @@ class AwardCeremonyPdfTest {
         roundName = roundName,
         matchName = matchName,
         matchTime = null,
+        displayName = null,
         participants = participants,
     )
 

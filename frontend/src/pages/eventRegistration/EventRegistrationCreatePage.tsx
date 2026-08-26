@@ -10,6 +10,7 @@ import {
     getEventRegistrationTemplate,
 } from '../../api'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useTranslation} from 'react-i18next'
 import {eventRegisterRoute} from '@routes'
 import {Result} from '@components/Result.tsx'
@@ -72,6 +73,9 @@ const formDataToRequest = (formData: EventRegistrationFormData): EventRegistrati
                     optionalFees: t.optionalFees,
                     namedParticipants: t.namedParticipants,
                     ratingCategory: t.ratingCategory !== 'none' ? t.ratingCategory : undefined,
+                    // Ein nicht ausgefülltes Feld schickt "" - der Server nähme das als Name an
+                    // und prüfte es gegen notBlank.
+                    displayName: takeIfNotEmpty(t.displayName ?? undefined),
                 }
                 return team
             }),

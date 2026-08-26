@@ -84,6 +84,7 @@ data class EventRegistrationResultData(
                             actualClubName = ClubComposition.fullLine(
                                 crew.map { ClubComposition.clubWorn(it.external, it.externalClubName, it.clubName) },
                                 team.clubName!!,
+                                team.displayName,
                             ),
                             ratingCategory = team.ratingCategory?.let {
                                 RatingCategoryRegistrationData(

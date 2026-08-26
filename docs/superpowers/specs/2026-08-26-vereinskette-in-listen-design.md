@@ -52,8 +52,10 @@ in denen eine *Person* unter dem falschen Verein stand:
 | Teilnehmerliste der Veranstaltung | — | eigene Spalte neben dem Melder |
 
 Gekürzt wird in keiner davon: `ClubComposition.fullLine` (vormals `printedLine`), volle
-Vereinsnamen, ` / ` als Trenner. Die Kurzform-Stufen bleiben dem Schiedsrichter-Board und der
-Athleten-Anzeige vorbehalten, wo die Kartenbreite sie erzwingt.
+Vereinsnamen, ` / ` als Trenner. *Seit `2026-08-26-mannschaftsname-design.md` tritt an die Stelle
+der Kette ein von Hand vergebener Mannschaftsname, wenn die Meldung einen trägt.* Die
+Kurzform-Stufen bleiben dem Schiedsrichter-Board und der Athleten-Anzeige vorbehalten, wo die
+Kartenbreite sie erzwingt.
 
 Der meldende Verein verschwindet nicht — er steht in jeder dieser Listen weiterhin als
 „gemeldet von" darunter. Anders als auf der Urkunde: dort hat er nichts verloren.

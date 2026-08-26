@@ -113,6 +113,51 @@ class ClubChainInListsTest {
     }
 
     /**
+     * Trägt die Meldung einen Namen, steht in allen vier Anzeigen er statt der Kette - und zwar
+     * ohne dass die Vereine der Crew darunter verschwänden: Die Mannschaftstabelle nennt sie
+     * weiter je Person, nur die Zeile des Bootes wechselt.
+     */
+    @Test
+    fun aGivenTeamNameReplacesTheChainInEveryList() = testComprehension {
+        val seeded = seedClubChain()
+        nameTheTeam(seeded.registrationId)
+
+        val report = pdfText(
+            EventRegistrationService.buildPdf(
+                data = EventRegistrationResultData.fromPersisted(
+                    !EventRegistrationRepo.getRegistrationResult(seeded.eventId).orDie().map { it!! }
+                ),
+                template = null,
+            )
+        )
+        val startList = pdfText(
+            (!CompetitionExecutionService.getStartList(
+                matchId = seeded.matchId,
+                startListType = StartListFileType.PDF,
+                startTimeRequired = false,
+            )).bytes
+        )
+        val results = pdfText((!ResultsService.generateResultsDocument(seeded.eventId)).bytes)
+        val roundTeam = (!CompetitionExecutionService.getProgress(seeded.eventId, seeded.competitionId))
+            .dto.rounds.single().matches.single().teams.single()
+
+        assertEquals(TEAM_DISPLAY_NAME, roundTeam.actualClubName)
+
+        listOf("Meldeergebnis" to report, "Startliste" to startList, "Ergebnisse" to results)
+            .forEach { (label, rendered) ->
+                val text = rendered.replace(whitespace, " ")
+                assertTrue(text.contains(TEAM_DISPLAY_NAME), "$label ohne den Mannschaftsnamen: $text")
+                assertFalse(
+                    text.contains(EXPECTED_FULL),
+                    "$label zeigt neben dem Namen noch die Kette: $text",
+                )
+                // Die Crew behält ihre Vereine: Der Name benennt das Boot, er verschweigt nicht,
+                // wer darin sitzt.
+                assertRowCarriesClub(rendered, "Albers", MAINZ)
+            }
+    }
+
+    /**
      * Die fünf Vereine der gemischten Mannschaft, vollständig und in Bootsreihenfolge - und keine
      * Spur mehr von dem pauschalen Begriff, der bis zum 26.08.2026 an ihrer Stelle stand.
      *

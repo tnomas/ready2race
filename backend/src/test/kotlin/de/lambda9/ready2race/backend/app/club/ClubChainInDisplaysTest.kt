@@ -150,6 +150,44 @@ class ClubChainInDisplaysTest {
     }
 
     /**
+     * Trägt die Meldung einen Namen, steht er auf der Athleten-Anzeige und auf der Urkunde statt
+     * der Kette - auf der Anzeige in beiden Schreibweisen, auf der Urkunde ungekürzt wie die
+     * Kette, an deren Stelle er tritt.
+     */
+    @Test
+    fun aGivenTeamNameReplacesTheChainOnBoardAndCertificate() = testComprehension {
+        val seeded = seedClubChain()
+        seedRowingAbbreviations()
+        nameTheTeam(seeded.registrationId)
+        assignAwardCertificateTemplate()
+
+        val board = (!BoardService.createBoard(seeded.eventId, BoardRequest.example)).dto
+        val view = (!BoardService.getBoardView(seeded.eventId, board.id)).dto
+        val team = view.slots.single { it.offset == 0 }.match!!.teams.single()
+
+        assertEquals(TEAM_DISPLAY_NAME, team.clubsFull)
+        assertEquals(TEAM_DISPLAY_NAME, team.clubsShort)
+
+        val certificate = !AwardCertificateService.downloadForCompetition(
+            eventId = seeded.eventId,
+            competitionId = seeded.competitionId,
+            options = AwardCertificateOptions(
+                maxPlace = 3,
+                mode = AwardCertificateMode.PER_TEAM,
+                withBackground = false,
+                printRatingCategory = false,
+            ),
+            format = AwardCertificateService.Format.PDF,
+        )
+
+        val text = pdfText(certificate.bytes).replace(Regex("""\s+"""), " ")
+        assertTrue(text.contains(TEAM_DISPLAY_NAME), "Urkunde ohne den Mannschaftsnamen: $text")
+        EXPECTED_CLUBS.forEach {
+            assertFalse(text.contains(it), "Urkunde zeigt neben dem Namen noch die Kette: $text")
+        }
+    }
+
+    /**
      * Dieselbe Urkunde als DOCX. Der DOCX-Renderer legt jede Zeile in einen eigenen Rahmen; bis der
      * Umbruch für beide Formate an einer Stelle entstand, brach hier Word nach eigenen Maßen um und
      * mitten durch Vereinsnamen, während das PDF gar nicht umbrach. Deshalb steht der Fall auch für

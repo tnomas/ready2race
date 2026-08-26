@@ -140,6 +140,7 @@ object AwardCertificateService {
                                 ClubComposition.clubWorn(it.external, it.externalClubName, it.clubName)
                             },
                             team.clubName,
+                            team.displayName,
                         )
 
                         AwardCertificateTeam(
