@@ -1702,6 +1702,43 @@
         "presetShortShortLong": "Kort-kort-lang (standard)",
         "invalid": "Kontrollér de markerede toner: tidspunkt 0–60000 ms efter udløsning, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, mindst én og højst 30 toner."
       },
+      "toneSets": {
+        "title": "Tonesæt",
+        "hint": "Navngivne lydskabeloner for stævnet — for eksempel \"Højt til vandet\" og \"Stille til hallen\". Ét sæt bærer alle fire toner; en tidtagningstype vælger et sæt eller arver standardsættet. Vil du ændre tonerne for alle typer, ændrer du derfor ét sæt i stedet for hver enkelt type.",
+        "none": "Endnu ingen tonesæt oprettet. Uden sæt afspiller alle poster de indbyggede toner.",
+        "add": "Opret tonesæt",
+        "edit": "Rediger tonesæt",
+        "name": "Navn",
+        "nameHelp": "Et navn, der beskriver lyden — \"Højt til vandet\", \"Stille til hallen\".",
+        "isDefault": "Stævnets standardsæt",
+        "isDefaultHelp": "Tidtagningstyper uden eget valg arver standardsættet. Bliver dette sæt standard, afgiver det hidtidige standardsæt markeringen.",
+        "isDefaultFirstHelp": "Det første tonesæt i et stævne bliver altid standard — ellers ville ingen arve det.",
+        "isDefaultLockedHelp": "Standarden gives videre, den fravælges ikke: markér et andet sæt som standard på listen, så afgiver dette sæt markeringen.",
+        "defaultChip": "Standard",
+        "makeDefault": "Brug som standard",
+        "defaultSet": "\"{{name}}\" er nu standardsættet.",
+        "deleteConfirm": "Skal tonesættet \"{{name}}\" virkelig slettes? Tidtagningstyper, der peger på det, falder tilbage til standardsættet.",
+        "deleteDefaultBlocked": "Standardsættet kan kun slettes som det sidste tonesæt — gør først et andet sæt til standard.",
+        "deleteBlocked": "\"{{name}}\" blev ikke slettet: Det er standardsættet, og der findes stadig andre sæt.",
+        "deleted": "Tonesæt slettet.",
+        "saved": "Tonesæt gemt.",
+        "nameTaken": "Der findes allerede et tonesæt med dette navn.",
+        "tonePerBoat": "Toneskala pr. båd",
+        "tonePerBoatHelp": "Til: Måltonen lyder forskelligt højt alt efter den ramte position — position 1 på den indstillede måltone, de øvrige fem trinvist derover op til oktaven. Seks tonehøjder kan ikke genkendes absolut; ingen hører \"det var båd 4\". Hørbart er, at man har ramt en anden båd end lige før — det fanger dobbelttrykket — og groft hvor i feltet den ligger.",
+        "tonePerBoatAudition": "Hør de seks trin",
+        "tones": {
+          "sequence": "Startsekvens",
+          "split": "Mellemtone",
+          "falseStart": "Tyvstart",
+          "finish": "Måltone"
+        },
+        "describe": {
+          "allDefault": "Alle toner som standard",
+          "own": "Egne: {{tones}}",
+          "tonePerBoatOn": "Toneskala pr. båd",
+          "tonePerBoatOff": "Én tone for alle både"
+        }
+      },
       "modes": {
         "title": "Tidtagningstyper",
         "hint": "Skabelonerne, som startposterne afleder deres startsekvenser fra — for eksempel \"Enkeltstart 30s\" (enkeltstart hvert 30. sekund) eller \"Bølge\" (alle både i et løb sammen). De tildeles i tidtagningsprofil-træet nedenfor.",

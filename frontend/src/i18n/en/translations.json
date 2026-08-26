@@ -1702,6 +1702,43 @@
         "presetShortShortLong": "Short-short-long (default)",
         "invalid": "Please check the highlighted tones: time 0–60000 ms after the trigger, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at least one and at most 30 tones."
       },
+      "toneSets": {
+        "title": "Tone sets",
+        "hint": "Named sound templates of the event — for example \"Loud for the water\" and \"Quiet for the hall\". One set carries all four tones; a timing mode picks a set or inherits the default set. Changing the tones of every mode therefore means changing one set instead of every single mode.",
+        "none": "No tone sets created yet. Without a set every station plays the built-in tones.",
+        "add": "Add tone set",
+        "edit": "Edit tone set",
+        "name": "Name",
+        "nameHelp": "A name that describes the sound — \"Loud for the water\", \"Quiet for the hall\".",
+        "isDefault": "Default set of the event",
+        "isDefaultHelp": "Timing modes without a pick of their own inherit the default set. Making this set the default takes the mark off the previous one.",
+        "isDefaultFirstHelp": "The first tone set of an event always becomes the default — otherwise nobody would inherit it.",
+        "isDefaultLockedHelp": "The default is handed on, not switched off: mark another set as the default in the list, then this one gives up the mark.",
+        "defaultChip": "Default",
+        "makeDefault": "Use as default",
+        "defaultSet": "\"{{name}}\" is now the default set.",
+        "deleteConfirm": "Really delete the tone set \"{{name}}\"? Timing modes pointing at it fall back to the default set.",
+        "deleteDefaultBlocked": "The default set can only be deleted as the last tone set — make another set the default first.",
+        "deleteBlocked": "\"{{name}}\" was not deleted: it is the default set, and other sets still exist.",
+        "deleted": "Tone set deleted.",
+        "saved": "Tone set saved.",
+        "nameTaken": "A tone set with this name already exists.",
+        "tonePerBoat": "Pitch per boat",
+        "tonePerBoatHelp": "On: the finish tone sounds at a different pitch depending on the position hit — position 1 on the configured finish tone, the other five stepped above it up to the octave. Six pitches are not absolutely recognisable; nobody hears \"that was boat 4\". What is audible is that you hit a different boat than a moment ago — that catches the double tap — and roughly where in the field it sits.",
+        "tonePerBoatAudition": "Play the six steps",
+        "tones": {
+          "sequence": "Start sequence",
+          "split": "Split tone",
+          "falseStart": "False start",
+          "finish": "Finish tone"
+        },
+        "describe": {
+          "allDefault": "All tones at default",
+          "own": "Own: {{tones}}",
+          "tonePerBoatOn": "Pitch per boat",
+          "tonePerBoatOff": "One tone for all boats"
+        }
+      },
       "modes": {
         "title": "Timing modes",
         "hint": "The templates the start stations derive their start sequences from — for example \"Time trial 30s\" (individual starts every 30 seconds) or \"Wave\" (all boats of a race together). They are assigned in the timing profile tree below.",

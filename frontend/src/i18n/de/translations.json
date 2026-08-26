@@ -1702,6 +1702,43 @@
         "presetShortShortLong": "Kurz-kurz-lang (Standard)",
         "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–60000 ms nach Auslösung, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, mindestens ein und höchstens 30 Töne."
       },
+      "toneSets": {
+        "title": "Ton-Sätze",
+        "hint": "Benannte Klang-Vorlagen der Veranstaltung — zum Beispiel „Laut fürs Wasser“ und „Leise für die Halle“. Ein Satz trägt alle vier Töne; ein Zeitnahmetyp wählt einen Satz oder erbt den Vorgabesatz. Wer die Töne aller Typen ändern will, ändert damit einen Satz statt jedes einzelnen Typs.",
+        "none": "Noch keine Ton-Sätze angelegt. Ohne Satz spielen alle Posten die eingebauten Töne.",
+        "add": "Ton-Satz anlegen",
+        "edit": "Ton-Satz bearbeiten",
+        "name": "Name",
+        "nameHelp": "Ein Name, der den Klang beschreibt — „Laut fürs Wasser“, „Leise für die Halle“.",
+        "isDefault": "Vorgabesatz der Veranstaltung",
+        "isDefaultHelp": "Zeitnahmetypen ohne eigene Wahl erben den Vorgabesatz. Wird dieser Satz zur Vorgabe, gibt der bisherige Vorgabesatz die Markierung ab.",
+        "isDefaultFirstHelp": "Der erste Ton-Satz einer Veranstaltung wird immer die Vorgabe — sonst erbte ihn niemand.",
+        "isDefaultLockedHelp": "Die Vorgabe wird weitergegeben, nicht abgewählt: Markieren Sie in der Liste einen anderen Satz als Vorgabe, dann gibt dieser hier die Markierung ab.",
+        "defaultChip": "Vorgabe",
+        "makeDefault": "Als Vorgabe verwenden",
+        "defaultSet": "„{{name}}“ ist jetzt der Vorgabesatz.",
+        "deleteConfirm": "Soll der Ton-Satz „{{name}}“ wirklich gelöscht werden? Zeitnahmetypen, die auf ihn zeigen, fallen auf den Vorgabesatz zurück.",
+        "deleteDefaultBlocked": "Der Vorgabesatz kann nur als letzter Ton-Satz gelöscht werden — machen Sie zuerst einen anderen Satz zur Vorgabe.",
+        "deleteBlocked": "„{{name}}“ wurde nicht gelöscht: Es ist der Vorgabesatz, und es gibt noch andere Sätze.",
+        "deleted": "Ton-Satz gelöscht.",
+        "saved": "Ton-Satz gespeichert.",
+        "nameTaken": "Es gibt schon einen Ton-Satz mit diesem Namen.",
+        "tonePerBoat": "Tonleiter je Boot",
+        "tonePerBoatHelp": "An: Der Zielton klingt je nach getroffener Position unterschiedlich hoch — Position 1 auf dem eingestellten Zielton, die übrigen fünf gestuft darüber bis zur Oktave. Sechs Tonhöhen sind nicht absolut erkennbar; niemand hört „das war Boot 4“. Hörbar ist, dass man ein anderes Boot getroffen hat als eben — das fängt den Doppeltipp — und grob die Lage im Feld.",
+        "tonePerBoatAudition": "Die sechs Stufen anhören",
+        "tones": {
+          "sequence": "Startsequenz",
+          "split": "Zwischenton",
+          "falseStart": "Fehlstart",
+          "finish": "Zielton"
+        },
+        "describe": {
+          "allDefault": "Alle Töne im Standard",
+          "own": "Eigen: {{tones}}",
+          "tonePerBoatOn": "Tonleiter je Boot",
+          "tonePerBoatOff": "Ein Ton für alle Boote"
+        }
+      },
       "modes": {
         "title": "Zeitnahmetypen",
         "hint": "Die Vorlagen, nach denen die Startposten ihre Startsequenzen erzeugen — zum Beispiel „Timetrial 30s“ (Einzelstart alle 30 Sekunden) oder „Welle“ (alle Boote eines Laufs zusammen). Zugeordnet werden sie im Zeitnahmeprofil-Baum darunter.",

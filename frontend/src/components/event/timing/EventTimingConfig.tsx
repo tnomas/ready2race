@@ -24,6 +24,7 @@ import {
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
 import TimingProfileTree from './TimingProfileTree.tsx'
+import ToneSetPanel from './ToneSetPanel.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
@@ -364,6 +365,12 @@ const EventTimingConfig = () => {
                                     />
                                 </Stack>
                             </Box>
+                            {/* Die Ton-Sätze der Veranstaltung: die benannten Klang-Vorlagen,
+                                aus denen die Zeitnahmetypen darunter wählen. Sie stehen vor den
+                                Typen, weil ein Typ auf einen Satz zeigt und nicht umgekehrt — und
+                                als EIN Abschnitt statt der drei Ton-Editoren, die hier bis zum
+                                26.08.2026 dauerhaft offen standen. */}
+                            <ToneSetPanel eventId={eventId} />
                             <TimingModePanel
                                 eventId={eventId}
                                 onChanged={() => setModesReloaded(Date.now())}
