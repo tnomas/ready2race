@@ -4396,9 +4396,9 @@ export type TimingModeDto = {
      */
     leadInSeconds: number
     /**
-     * Tone plan of the start sequence, ascending by offset. Null means the built-in default plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound unconfigured modes always had.
+     * Tone plan of the start sequence, ascending by offset. Null means the built-in default plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound unconfigured modes always had. RESOLVED, not the mode's own value: since 2026-08-26 the plan lives in the tone set, so this is the plan of the mode's own tone set, or of the event's default set when the mode inherits. Read-only - write it through PUT /timing/tone-sets/{toneSetId}, which is why TimingModeRequest has no tonePlan.
      */
-    tonePlan?: Array<ToneStepDto> | null
+    readonly tonePlan?: Array<ToneStepDto> | null
 }
 
 export type TimingModeRequest = {
@@ -4680,7 +4680,7 @@ export type TimingTeamDto = {
 }
 
 /**
- * A named set of the four tones of a timing ("Laut fuers Wasser", "Leise fuer die Halle") - the template any number of timing modes share. It belongs to the event because you set a sound up ONCE and then want it to apply to every race that should sound the same: changing the volume of all modes means changing one set instead of seven modes. All four tone fields are UNRESOLVED: null means "built-in default", exactly as it did on the event and the mode, so the form can still tell "default" from "own value".
+ * A named set of the four tones of a timing ("Laut fürs Wasser", "Leise für die Halle") - the template any number of timing modes share. It belongs to the event because you set a sound up ONCE and then want it to apply to every race that should sound the same: changing the volume of all modes means changing one set instead of seven modes. All four tone fields are UNRESOLVED: null means "built-in default", exactly as it did on the event and the mode, so the form can still tell "default" from "own value".
  */
 export type TimingToneSetDto = {
     id: uuid

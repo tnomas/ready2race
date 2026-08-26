@@ -10345,6 +10345,12 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '400':
+          description: >-
+            The requested tone set belongs to another event - a mode must not play the tones of a
+            foreign regatta.
+        '404':
+          description: The requested tone set does not exist.
         '409':
           description: A timing mode with this name already exists for this event.
       tags:
@@ -10372,6 +10378,11 @@ paths:
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: >-
+            The mode or the requested tone set belongs to another event.
+        '404':
+          description: The mode or the requested tone set does not exist.
         '409':
           description: A timing mode with this name already exists for this event.
       tags:
@@ -21814,10 +21825,14 @@ components:
         tonePlan:
           type: array
           nullable: true
+          readOnly: true
           description: >-
             Tone plan of the start sequence, ascending by offset. Null means the built-in default
             plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound
-            unconfigured modes always had.
+            unconfigured modes always had. RESOLVED, not the mode's own value: since 2026-08-26
+            the plan lives in the tone set, so this is the plan of the mode's own tone set, or of
+            the event's default set when the mode inherits. Read-only - write it through
+            PUT /timing/tone-sets/{toneSetId}, which is why TimingModeRequest has no tonePlan.
           items:
             $ref: '#/components/schemas/ToneStepDto'
 
@@ -21878,7 +21893,7 @@ components:
     TimingToneSetDto:
       type: object
       description: >-
-        A named set of the four tones of a timing ("Laut fuers Wasser", "Leise fuer die Halle") -
+        A named set of the four tones of a timing ("Laut fürs Wasser", "Leise für die Halle") -
         the template any number of timing modes share. It belongs to the event because you set a
         sound up ONCE and then want it to apply to every race that should sound the same: changing
         the volume of all modes means changing one set instead of seven modes. All four tone fields

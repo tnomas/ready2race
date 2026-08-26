@@ -46,14 +46,23 @@ alter table timing_mode
 -- heute am TYP hängt und die übrigen drei Töne an der VERANSTALTUNG -- ein einziger Satz je
 -- Veranstaltung könnte verschiedene Tonpläne nicht abbilden. Deshalb drei Schritte:
 
--- 1) Je Veranstaltung MIT Zeitnahmetypen ein Vorgabesatz "Standard": die drei Veranstaltungs-Töne
---    unverändert, kein eigener Startplan (null = eingebauter Standardplan, genau die heutige
---    Bedeutung eines Typs ohne tone_plan). Veranstaltungen ohne Zeitnahmetypen bekommen bewusst
---    keinen Satz -- sie hätten nichts, was ihn hört, und leerer Ballast in der Verwaltungsliste
---    ist schlechter als nichts. tone_per_boat bleibt auf dem Spaltenstandard: Die Tonleiter je
---    Boot liest heute noch niemand, sie wird erst mit ihrer eigenen Aufgabe hörbar.
+-- 1) Ein Vorgabesatz "Standard" je Veranstaltung, die Zeitnahmetypen ODER eigene Töne hat: die
+--    drei Veranstaltungs-Töne unverändert, kein eigener Startplan (null = eingebauter
+--    Standardplan, genau die heutige Bedeutung eines Typs ohne tone_plan).
+--
+--    Warum auch OHNE Typen: Die drei Ton-Spalten der Veranstaltung wirken heute unabhängig davon,
+--    ob es Zeitnahmetypen gibt -- GET /timing/settings liefert Ziel- und Zwischenton an jedes
+--    Board. Eine Regatta mit eigenem Zielton und ohne Typen ist also konfiguriert, und sie verlöre
+--    ihre Töne ersatzlos, sobald die drei Spalten fallen. Die Zusicherung gilt für jede Regatta,
+--    nicht nur für die mit Typen. Wirklich leer bleiben nur Veranstaltungen ohne Typen UND ohne
+--    eigene Töne -- dort gäbe es nichts zu bewahren, und ein leerer Satz wäre nur Ballast in der
+--    Verwaltungsliste.
+--
+--    tone_per_boat ausdrücklich auf false: Der Spaltenstandard true ist für NEUE Sätze richtig,
+--    für den Bestand wäre er ein Klangwechsel. Heute gibt es keine Tonleiter je Boot; sobald sie
+--    gebaut wird, dürfen bestehende Sätze davon nicht ungefragt umgeschaltet werden.
 insert into timing_tone_set (id, event, name, is_default, sequence_tone_plan, split_tone,
-                             false_start_tone, finish_tone, created_at, updated_at)
+                             false_start_tone, finish_tone, tone_per_boat, created_at, updated_at)
 select gen_random_uuid(),
        e.id,
        'Standard',
@@ -62,10 +71,12 @@ select gen_random_uuid(),
        e.timing_split_tone,
        e.timing_false_start_tone,
        e.timing_finish_tone,
+       false,
        now(),
        now()
 from event e
-where exists (select 1 from timing_mode m where m.event = e.id);
+where exists (select 1 from timing_mode m where m.event = e.id)
+   or num_nonnulls(e.timing_split_tone, e.timing_false_start_tone, e.timing_finish_tone) > 0;
 
 -- 2) Für JEDEN Typ mit eigenem tone_plan ein weiterer Satz, benannt nach dem Typ, mit dessen
 --    Tonplan und denselben drei Veranstaltungs-Tönen.
@@ -74,8 +85,8 @@ where exists (select 1 from timing_mode m where m.event = e.id);
 --    Weg zurück (und ohne eine zweite Kopie des Namens-Ausdrucks unten) zum gerade angelegten
 --    Satz. Zwei Tabellen sind zwei Schlüsselräume, dieselbe uuid kollidiert nirgends.
 insert into timing_tone_set (id, event, name, is_default, sequence_tone_plan, split_tone,
-                             false_start_tone, finish_tone, created_at, created_by, updated_at,
-                             updated_by)
+                             false_start_tone, finish_tone, tone_per_boat, created_at, created_by,
+                             updated_at, updated_by)
 select m.id,
        m.event,
        -- Namenskollision: Der Name des Typs ist je Veranstaltung eindeutig (unique (event, name)
@@ -97,6 +108,9 @@ select m.id,
        e.timing_split_tone,
        e.timing_false_start_tone,
        e.timing_finish_tone,
+       -- Wie beim Vorgabesatz: false für den Bestand, damit die Tonleiter je Boot niemanden
+       -- ungefragt umschaltet.
+       false,
        m.created_at,
        m.created_by,
        m.updated_at,

@@ -34,8 +34,18 @@ import java.util.UUID
  * geht nur als letzter Satz). Ohne Vorgabe fiele jeder erbende Typ still auf die eingebauten Töne
  * zurück, und eine Regatta klänge anders, ohne dass jemand einen Ton verstellt hätte.
  *
- * Kein Broadcast an die Boards: Die Töne erreichen die Posten über die Startliste und die
- * Einstellungen, nicht über einen eigenen Kanal.
+ * Nach jedem Schreiben ein [TimingMatchService.broadcastMatchesChanged]. Die Töne erreichen die
+ * Posten zwar über die Startliste und nicht über einen eigenen Kanal - aber die Boards holen die
+ * Startliste AUF AUSLÖSER HIN. Ohne die Nachricht spielte ein offenes Startposten-Board bis zum
+ * nächsten Neuladen den alten Countdown. Es ist dieselbe Lehre, die [TimingModeService] seit dem
+ * 24.08.2026 festhält: Die Annahme „das ist Konfiguration, die vor dem Renntag gepflegt wird"
+ * hielt am Steg nicht. Ein PUT auf den Vorgabesatz verschiebt den aufgelösten Tonplan JEDER
+ * erbenden Partie, ein DELETE über `on delete set null` ebenso.
+ *
+ * Beim Anlegen braucht es die Nachricht nicht: Ein frischer Satz ist der Vorgabesatz nur, wenn er
+ * der erste der Veranstaltung ist - und dann gab es vorher keinen, den ein Board schon gehört
+ * hätte. Übernimmt er die Vorgabe von einem bestehenden Satz, verschiebt das sehr wohl den
+ * geerbten Klang, weshalb auch [addToneSet] in genau diesem Fall sendet.
  */
 object TimingToneSetService {
 
@@ -60,6 +70,8 @@ object TimingToneSetService {
         // neuen - beides in derselben Transaktion, siehe TimingToneSetRepo.setDefault.
         if (request.isDefault && !isFirst) {
             !TimingToneSetRepo.setDefault(eventId, id, userId, LocalDateTime.now()).orDie()
+            // Die Vorgabe ist gewandert - jede erbende Partie hört ab jetzt einen anderen Satz.
+            TimingMatchService.broadcastMatchesChanged(eventId)
         }
         KIO.ok(ApiResponse.Created(id))
     }
@@ -116,6 +128,10 @@ object TimingToneSetService {
         if (request.isDefault && !isDefault) {
             !TimingToneSetRepo.setDefault(eventId, toneSetId, userId, LocalDateTime.now()).orDie()
         }
+
+        // Immer, nicht nur beim Vorgabe-Wechsel: Schon ein geänderter Ton in diesem Satz verschiebt
+        // den Klang jeder Partie, deren Typ auf ihn zeigt oder ihn erbt.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 
@@ -133,6 +149,10 @@ object TimingToneSetService {
         !KIO.failOn((toneSet.isDefault ?: false) && existing > 1) { TimingError.ToneSetDefaultRequired }
 
         !TimingToneSetRepo.delete(toneSetId).orDie()
+
+        // Die Typen, die auf ihn zeigten, sind soeben auf die Vorgabe zurückgefallen - für sie
+        // klingt der Countdown ab jetzt anders.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         noData
     }
 }

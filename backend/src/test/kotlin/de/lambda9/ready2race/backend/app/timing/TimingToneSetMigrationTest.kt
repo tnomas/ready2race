@@ -8,6 +8,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -41,8 +42,20 @@ class TimingToneSetMigrationTest {
     /** Zeitnahmetyp OHNE eigenen Tonplan — bleibt auf null und erbt „Standard". */
     private val modeWithoutPlanId = UUID.randomUUID()
 
-    /** Veranstaltung ganz ohne Zeitnahmetypen — sie bekommt keinen Satz. */
-    private val eventWithoutModesId = UUID.randomUUID()
+    /**
+     * Veranstaltung ohne Zeitnahmetypen, aber MIT eigenen Tönen — sie bekommt trotzdem einen
+     * Vorgabesatz. Ihre drei Töne wirken heute unabhängig von Typen (GET /timing/settings), sie
+     * verlöre sie also ersatzlos, wenn die Spalten fallen.
+     */
+    private val eventTonesOnlyId = UUID.randomUUID()
+
+    /** Veranstaltung ohne Typen UND ohne eigene Töne — hier gibt es nichts zu bewahren. */
+    private val eventEmptyId = UUID.randomUUID()
+
+    /** Zwei Typen mit DEMSELBEN Tonplan — jeder bekommt seinen eigenen Satz. */
+    private val eventSamePlanId = UUID.randomUUID()
+    private val samePlanFirstId = UUID.randomUUID()
+    private val samePlanSecondId = UUID.randomUUID()
 
     /** Veranstaltung, deren Zeitnahmetyp selbst „Standard" heißt — die Namenskollision. */
     private val eventCollisionId = UUID.randomUUID()
@@ -103,10 +116,21 @@ class TimingToneSetMigrationTest {
                 assertNull(queryString(conn, "select sequence_tone_plan::text from ready2race.timing_tone_set where id = ?", defaultSetId))
                 assertTrue(carriesEventTones(conn, defaultSetId))
 
-                // Fall 3: Eine Veranstaltung ohne Zeitnahmetypen bekommt keinen Satz.
+                // Fall 3: Eine Veranstaltung OHNE Zeitnahmetypen, aber mit eigenen Tönen bekommt
+                // trotzdem ihren Vorgabesatz — und der trägt genau ihre Töne. Ohne ihn verlöre
+                // gerade diese Regatta ihren Zielton, sobald die Veranstaltungs-Spalten fallen.
+                assertEquals(
+                    1,
+                    count(conn, "select count(*) from ready2race.timing_tone_set where event = ?", eventTonesOnlyId),
+                )
+                val tonesOnlySetId = defaultSetOf(conn, eventTonesOnlyId)
+                assertNotNull(tonesOnlySetId)
+                assertTrue(carriesEventTones(conn, tonesOnlySetId))
+
+                // Erst ohne Typen UND ohne Töne bleibt es leer — dort gäbe es nichts zu bewahren.
                 assertEquals(
                     0,
-                    count(conn, "select count(*) from ready2race.timing_tone_set where event = ?", eventWithoutModesId),
+                    count(conn, "select count(*) from ready2race.timing_tone_set where event = ?", eventEmptyId),
                 )
 
                 // Fall 4: Genau ein Vorgabesatz je Veranstaltung — über den ganzen Bestand.
@@ -148,18 +172,46 @@ class TimingToneSetMigrationTest {
                     ),
                 )
 
+                // Zwei Typen mit DEMSELBEN Tonplan: Der Plan ist kein Schlüssel — jeder Typ
+                // bekommt seinen eigenen, nach ihm benannten Satz, und beide tragen den Plan.
+                // Ein Satz für beide wäre bequem und würde beim ersten Umstellen eines der beiden
+                // Typen still auch den anderen umstellen.
+                assertEquals(
+                    3,
+                    count(conn, "select count(*) from ready2race.timing_tone_set where event = ?", eventSamePlanId),
+                )
+                val ersterSatz = queryUuid(conn, "select tone_set from ready2race.timing_mode where id = ?", samePlanFirstId)
+                val zweiterSatz = queryUuid(conn, "select tone_set from ready2race.timing_mode where id = ?", samePlanSecondId)
+                assertNotNull(ersterSatz)
+                assertNotNull(zweiterSatz)
+                assertNotEquals(ersterSatz, zweiterSatz)
+                assertEquals("Vorlauf", queryString(conn, "select name from ready2race.timing_tone_set where id = ?", ersterSatz))
+                assertEquals("Endlauf", queryString(conn, "select name from ready2race.timing_tone_set where id = ?", zweiterSatz))
+                assertEquals(storedPlan, queryString(conn, "select sequence_tone_plan::text from ready2race.timing_tone_set where id = ?", ersterSatz))
+                assertEquals(storedPlan, queryString(conn, "select sequence_tone_plan::text from ready2race.timing_tone_set where id = ?", zweiterSatz))
+
+                // Die Tonleiter je Boot ist für den GANZEN Bestand aus: Der Spaltenstandard `true`
+                // ist für neue Sätze richtig, für migrierte wäre er ein Klangwechsel — heute gibt
+                // es keine Tonleiter je Boot, und die Migration darf keine einführen.
+                assertEquals(
+                    0,
+                    count(conn, "select count(*) from ready2race.timing_tone_set where tone_per_boat"),
+                )
+
                 // Der Tonplan am Typ ist wirklich fort — und die neuen Spalten stehen mit ihren
                 // Vorgaben da, damit kein bestehender Typ ohne Startsequenz oder ohne Tasten
-                // dasteht.
+                // dasteht. Gezählt wird eventweise: Eine Zählung über die ganze Datenbank ginge
+                // auch dann auf, wenn ein Typ dieser Veranstaltung fehlte und einer woanders
+                // dazukäme.
                 assertFalse(columnExists(conn, "timing_mode", "tone_plan"))
-                // Alle vier gesäten Typen - kein bestehender Typ steht ohne Startsequenz oder
-                // ohne Tasten da.
                 assertEquals(
-                    4,
+                    2,
                     count(
                         conn,
-                        "select count(*) from ready2race.timing_mode where start_sequence_enabled " +
-                            "and boat_keys_primary = '123456' and boat_keys_secondary = 'ABCDEF'",
+                        "select count(*) from ready2race.timing_mode where event = ? " +
+                            "and start_sequence_enabled and boat_keys_primary = '123456' " +
+                            "and boat_keys_secondary = 'ABCDEF'",
+                        eventId,
                     ),
                 )
             }
@@ -180,9 +232,16 @@ class TimingToneSetMigrationTest {
         insertMode(conn, modeWithPlanId, eventId, "Wellenstart", tonePlan)
         insertMode(conn, modeWithoutPlanId, eventId, "Massenstart", null)
 
-        // Eine Veranstaltung ohne Zeitnahmetypen — bewusst MIT eigenen Tönen, damit sich nicht
-        // aus Versehen an leeren Spalten entscheidet, dass hier kein Satz entsteht.
-        insertEvent(conn, eventWithoutModesId, "Regatta ohne Zeitnahmetypen", splitTone, falseStartTone, finishTone)
+        // Ohne Zeitnahmetypen, aber mit eigenen Tönen: Der Satz muss trotzdem entstehen.
+        insertEvent(conn, eventTonesOnlyId, "Regatta ohne Zeitnahmetypen", splitTone, falseStartTone, finishTone)
+
+        // Weder Typen noch Töne: Hier ist ein Satz nur Ballast.
+        insertEvent(conn, eventEmptyId, "Regatta ohne alles", null, null, null)
+
+        // Zwei Typen, EIN Tonplan: Der Plan ist kein Schlüssel, jeder Typ bekommt seinen Satz.
+        insertEvent(conn, eventSamePlanId, "Regatta mit zwei gleichen Plänen", splitTone, falseStartTone, finishTone)
+        insertMode(conn, samePlanFirstId, eventSamePlanId, "Vorlauf", tonePlan)
+        insertMode(conn, samePlanSecondId, eventSamePlanId, "Endlauf", tonePlan)
 
         insertEvent(conn, eventCollisionId, "Regatta mit Namenskollision", splitTone, falseStartTone, finishTone)
         insertMode(conn, collidingModeId, eventCollisionId, "Standard", tonePlan)
