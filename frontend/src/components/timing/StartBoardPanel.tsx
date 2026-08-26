@@ -81,6 +81,10 @@ const StartBoardPanel = ({
 
     const handleStart = useCallback(() => {
         if (focusedMatch === undefined || focusedMatch.timingMode == null) return
+        // Zweite Sperrstelle neben dem gesperrten Knopf: Dies ist der EINZIGE Weg, eine Sequenz zu
+        // erzeugen — er soll die Regel selbst tragen und nicht darauf bauen, dass oben jemand das
+        // `disabled` richtig gesetzt hat.
+        if (!focusedMatch.timingMode.startSequenceEnabled) return
         void createAndStart(
             sequenceRequestFromMode(stationId, focusedMatch.timingMode, focusedMatch.teams),
         ).then(ok => {
@@ -110,11 +114,17 @@ const StartBoardPanel = ({
         (sequence.state === 'ARMED' ||
             sequence.state === 'RUNNING' ||
             sequence.state === 'PAUSED')
+    // Startet die App Läufe dieses Typs überhaupt? Nicht jeder Lauf bekommt eine Sequenz: Wird am
+    // Steg von Hand losgeschickt, gibt es kein Countdown-Fenster — und ein Board, das trotzdem
+    // eines anbietet, lädt zum falschen Griff ein. Der manuelle Stempel bleibt der Weg; er hängt
+    // an `showManualCapture` und nicht an dieser Sperre.
+    const sequenceOffByMode = focusedMatch?.timingMode?.startSequenceEnabled === false
     const startDisabled =
         busy ||
         sequenceLive ||
         focusedMatch === undefined ||
         focusedMatch.timingMode == null ||
+        sequenceOffByMode ||
         startableTeams === 0
 
     return (
@@ -165,8 +175,18 @@ const StartBoardPanel = ({
                     {t('timing.matches.noModeHint')}
                 </Alert>
             )}
+            {/* Kein Mangel, sondern die Absicht des Zeitnahmetyps — deshalb ein Hinweis und keine
+                Warnung. Er nennt den Typ beim Namen, damit klar ist, WO das eingestellt ist. */}
+            {sequenceOffByMode && focusedMatch?.timingMode != null && (
+                <Alert severity="info" sx={{flexShrink: 0}}>
+                    {t('timing.matches.noStartSequenceHint', {
+                        mode: focusedMatch.timingMode.name,
+                    })}
+                </Alert>
+            )}
             {focusedMatch !== undefined &&
                 focusedMatch.timingMode != null &&
+                !sequenceOffByMode &&
                 startableTeams === 0 && (
                     <Alert severity="warning" sx={{flexShrink: 0}}>
                         {t('timing.matches.noTeamsLeft')}

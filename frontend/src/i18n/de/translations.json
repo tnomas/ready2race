@@ -3281,6 +3281,7 @@
       "boats_other": "{{count}} Boote",
       "noMode": "kein Zeitnahmetyp",
       "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
+      "noStartSequenceHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Die Startzeit kommt über den Stempel, nicht über eine Sequenz.",
       "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
       "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
       "start": "Startsequenz starten",

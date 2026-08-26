@@ -161,11 +161,11 @@ describe('boatKeyHint', () => {
 
 describe('boatKeyRows', () => {
     it('nennt beide Reihen im Hilfesatz', () => {
-        expect(boatKeyRows(DEFAULT_BOAT_KEYS)).toBe('123456 / ABCDEF')
+        expect(boatKeyRows(DEFAULT_BOAT_KEYS)).toBe('1 2 3 4 5 6 / A B C D E F')
     })
 
     it('nennt ohne zweite Reihe nur die erste', () => {
-        expect(boatKeyRows({primary: 'qwe', secondary: null})).toBe('qwe')
+        expect(boatKeyRows({primary: 'qwe', secondary: null})).toBe('q w e')
     })
 })
 

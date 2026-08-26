@@ -257,35 +257,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                             {t('event.timing.modes.startGrouping.help')}
                         </Typography>
                     </Stack>
-                    <TextField
-                        type="number"
-                        label={t('event.timing.modes.intervalSeconds')}
-                        value={intervalInput}
-                        error={invalidField === 'interval'}
-                        helperText={
-                            invalidField === 'interval'
-                                ? t('event.timing.modes.invalidInterval')
-                                : t('event.timing.modes.intervalHelp')
-                        }
-                        slotProps={{htmlInput: {min: 1}}}
-                        onChange={event => setIntervalInput(event.target.value)}
-                    />
-                    <TextField
-                        type="number"
-                        label={t('event.timing.modes.leadInSeconds')}
-                        value={leadInInput}
-                        error={invalidField === 'leadIn'}
-                        helperText={
-                            invalidField === 'leadIn'
-                                ? t('event.timing.modes.invalidLeadIn')
-                                : t('event.timing.modes.leadInHelp')
-                        }
-                        slotProps={{htmlInput: {min: 0}}}
-                        onChange={event => setLeadInInput(event.target.value)}
-                    />
                     {/* Startsequenz: Nicht jeder Lauf wird von der App gestartet. Aus heißt, dass
-                        das Start-Board für diesen Typ gar kein Countdown-Fenster anbietet — und
-                        die beiden Felder darüber dann ins Leere zeigen. */}
+                        das Start-Board für diesen Typ gar kein Countdown-Fenster anbietet — der
+                        Schalter steht deshalb VOR den beiden Feldern, die er sperrt. */}
                     <Stack spacing={0.5}>
                         <FormControlLabel
                             control={
@@ -301,6 +275,38 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                             {t('event.timing.modes.startSequenceEnabledHelp')}
                         </Typography>
                     </Stack>
+                    {/* Intervall und Vorlauf beschreiben die Startsequenz — startet die App den
+                        Lauf nicht, wirken sie nirgends. Gesperrt statt versteckt: Die Werte
+                        bleiben lesbar und kommen beim Wiedereinschalten zurück, und die Zeile in
+                        der Typen-Liste lässt sie aus demselben Grund weg. */}
+                    <TextField
+                        type="number"
+                        label={t('event.timing.modes.intervalSeconds')}
+                        value={intervalInput}
+                        disabled={!startSequenceEnabled}
+                        error={invalidField === 'interval'}
+                        helperText={
+                            invalidField === 'interval'
+                                ? t('event.timing.modes.invalidInterval')
+                                : t('event.timing.modes.intervalHelp')
+                        }
+                        slotProps={{htmlInput: {min: 1}}}
+                        onChange={event => setIntervalInput(event.target.value)}
+                    />
+                    <TextField
+                        type="number"
+                        label={t('event.timing.modes.leadInSeconds')}
+                        value={leadInInput}
+                        disabled={!startSequenceEnabled}
+                        error={invalidField === 'leadIn'}
+                        helperText={
+                            invalidField === 'leadIn'
+                                ? t('event.timing.modes.invalidLeadIn')
+                                : t('event.timing.modes.leadInHelp')
+                        }
+                        slotProps={{htmlInput: {min: 0}}}
+                        onChange={event => setLeadInInput(event.target.value)}
+                    />
                     {/* Fehlstart-Rückruf: der Schalter entscheidet, ob das Erfassungsboard des
                         START-Postens den Fehlstart überhaupt anbietet — und der Server lehnt ihn
                         ohne ihn auch ab. Was ein Fehlstart für die WERTUNG bedeutet, steht

@@ -3254,6 +3254,7 @@
       "boats_other": "{{count}} både",
       "noMode": "ingen tidtagningstype",
       "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
+      "noStartSequenceHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Starttidspunktet kommer fra det manuelle stempel, ikke fra en sekvens.",
       "noTeamsLeft": "Alle både i dette løb er allerede startet.",
       "allStarted": "Alle løb er startet — intet står åbent.",
       "start": "Start startsekvens",

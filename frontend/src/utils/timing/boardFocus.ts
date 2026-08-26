@@ -56,12 +56,18 @@ export function boatKeyHint(keys: BoatKeyLayout, position: number): string | und
 }
 
 /**
- * Die Reihen für den Fließtext des Hilfesatzes: „123456 / ABCDEF", ohne zweite Reihe nur „123456".
- * Auch dieser Satz nannte bis zum 26.08.2026 fest verdrahtete Bereiche und würde sonst Tasten
- * versprechen, die dieser Lauf gar nicht kennt.
+ * Die Reihen für den Fließtext des Hilfesatzes: „1 2 3 4 5 6 / A B C D E F", ohne zweite Reihe nur
+ * die erste. Auch dieser Satz nannte bis zum 26.08.2026 fest verdrahtete Bereiche und würde sonst
+ * Tasten versprechen, die dieser Lauf gar nicht kennt.
+ *
+ * Die Zeichen stehen mit Abstand: „Taste 123456" liest sich als EINE sechsstellige Taste, „Taste
+ * 1 2 3 4 5 6" als die Liste, die es ist.
  */
 export function boatKeyRows(keys: BoatKeyLayout): string {
-    return keys.secondary == null ? keys.primary : `${keys.primary} / ${keys.secondary}`
+    const row = (value: string) => [...value].join(' ')
+    return keys.secondary == null
+        ? row(keys.primary)
+        : `${row(keys.primary)} / ${row(keys.secondary)}`
 }
 
 /** Die Position, die eine Taste in dieser Belegung trifft — die erste Reihe hat Vorrang. */

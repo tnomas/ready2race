@@ -3281,6 +3281,7 @@
       "boats_other": "{{count}} boats",
       "noMode": "no timing mode",
       "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
+      "noStartSequenceHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The start time comes from the manual stamp, not from a sequence.",
       "noTeamsLeft": "Every boat of this race has already started.",
       "allStarted": "All races have been started — nothing left open.",
       "start": "Start sequence",
