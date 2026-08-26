@@ -47,6 +47,16 @@ sealed interface TimingError : ServiceError {
      */
     data object FalseStartDisabled : TimingError
 
+    /**
+     * Startsequenz auf einem Lauf, dessen Zeitnahmetyp sie abschaltet. Wie [FalseStartDisabled]
+     * ein Konflikt und kein 400: Der Aufruf ist wohlgeformt, die Partie gibt es - sie wird an
+     * dieser Stelle nur nicht von der App gestartet (Startrichter am Steg).
+     *
+     * Nur der abgeschaltete Typ kommt hier an. Ist gar kein Typ herleitbar, wird DURCHGELASSEN -
+     * die Begründung steht bei der Prüfung selbst (TimingSequenceService).
+     */
+    data object StartSequenceDisabled : TimingError
+
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
         StationHasTimeMarks -> ApiError(
@@ -122,6 +132,10 @@ sealed interface TimingError : ServiceError {
         FalseStartDisabled -> ApiError(
             HttpStatusCode.Conflict,
             message = "The timing mode of this match does not allow a false start"
+        )
+        StartSequenceDisabled -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "The timing mode of this match does not allow the app to start it"
         )
     }
 }

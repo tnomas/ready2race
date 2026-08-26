@@ -10556,6 +10556,18 @@ paths:
   /event/{eventId}/timing/sequences:
     post:
       operationId: createTimingSequence
+      description: >-
+        Arms a server-driven start sequence for the given teams on a START station. Rejected with
+        409 when the timing mode resolved for the match of those teams switches the app-driven
+        start off (startSequenceEnabled false): such a match is started by a starter at the jetty,
+        and a board handing out a countdown window invites the wrong action. The start board hides
+        its button already, but that is an operating aid - boards are device-token clients and may
+        run on a start list that predates the change, so the rule is enforced here as well, exactly
+        like the false-start switch of the same mode. When NO mode can be resolved for the request
+        (no teams, the match not in the boards' start list, or no mode assigned in the timing
+        profile tree) the sequence is allowed: the column's default is "start sequence on", so
+        nobody has forbidden anything, and a lock that locks when in doubt would stop races at the
+        regatta that were never configured to stop.
       parameters:
         - name: eventId
           in: path
@@ -10569,6 +10581,8 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '409':
+          description: The timing mode of this match does not allow the app to start it.
         '500':
           description: Server error
           content:

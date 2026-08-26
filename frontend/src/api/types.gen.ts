@@ -10229,6 +10229,7 @@ export type CreateTimingSequenceData = {
 export type CreateTimingSequenceResponse = uuid
 
 export type CreateTimingSequenceError =
+    | unknown
     | {
           status: 500
           message: string
