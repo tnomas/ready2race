@@ -1859,6 +1859,9 @@
       "startDisplay": {
         "title": "Startskærm",
         "hint": "Atletskærmen ved starten: hvad der vises for hver båd, og hvor stort. En 27\" skærm på broen kræver andre skriftstørrelser end en tablet i båden, og ét stævne råber startnumre op, mens det næste råber bådnavne op. Ændringer når hver tilsluttet skærm med det samme — uden genindlæsning.",
+        "moved": "Hvad startskærmen viser, indstilles på skærmen selv: tandhjulet nederst til højre åbner de samme kontakter og størrelser. Den, der ændrer dem der, ser virkningen bag dialogen med det samme. De gemmes fortsat her på arrangementet og gælder for hver tilsluttet skærm.",
+        "open": "Visningsindstillinger",
+        "saved": "Visningsindstillinger gemt",
         "showPosition": "Løbenummer foran båden",
         "showStartNumber": "Startnummer",
         "showTeamName": "Bådnavn",

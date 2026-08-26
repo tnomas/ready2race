@@ -15,12 +15,6 @@ import {
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
 import {RaceClockerRaceDto} from '@api/types.gen.ts'
-import {
-    START_DISPLAY_FOLLOWING_MAX,
-    START_DISPLAY_FOLLOWING_MIN,
-    START_DISPLAY_SCALE_MAX,
-    START_DISPLAY_SCALE_MIN,
-} from '@utils/timing/startDisplay.ts'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
 import TimingProfileTree from './TimingProfileTree.tsx'
@@ -55,23 +49,6 @@ const EventTimingConfig = () => {
     const [submitting, setSubmitting] = useState(false)
 
     const formContext = useForm<EventTimingForm>({defaultValues: emptyEventTimingForm})
-
-    // Die drei Skalen des Startbildschirms teilen sich Regeln und Umwandlung — dieselbe Grenze,
-    // dieselbe Meldung, dieselbe Komma-Behandlung. Einmal hier statt dreimal im Baum.
-    const scaleRules = {
-        required: t('common.form.required'),
-        min: {value: START_DISPLAY_SCALE_MIN, message: t('event.timing.startDisplay.scaleInvalid')},
-        max: {value: START_DISPLAY_SCALE_MAX, message: t('event.timing.startDisplay.scaleInvalid')},
-    }
-    // Deutsche Tastaturen tippen „1,5"; Number() macht daraus NaN, und NaN käme als null im
-    // Request an — der Bediener sähe „Unerwarteter Fehler" statt eines Hinweises am Feld. Ein
-    // geleertes Feld ergibt weiterhin null, damit die required-Regel greift.
-    const scaleTransform = {
-        output: (value: {target: {value: string}}) => {
-            const raw = value.target.value.replace(',', '.')
-            return raw !== '' ? Number(raw) : null
-        },
-    }
 
     const {data: startListConfigs, pending: startListConfigsPending} = useFetch(
         signal => getStartListConfigs({signal}),
@@ -268,102 +245,22 @@ const EventTimingConfig = () => {
                                     <Trans i18nKey={'event.timing.manualCapture.hint'} />
                                 </Typography>
                             </Box>
-                            {/* Der Startbildschirm (Athleten-Anzeige am Start): WAS dort steht und
-                                WIE GROSS. Bewusst ein eigener beschrifteter Abschnitt — es ist der
-                                einzige Block hier, der einen zweiten, physisch anderswo stehenden
-                                Bildschirm beschreibt. Die Skalen sind Faktoren auf die eingebaute
-                                Größe (kein Punktwert): die Anzeige rechnet ohnehin relativ zur
-                                Bildschirmbreite, eine feste Punktzahl wäre auf jedem zweiten Gerät
-                                falsch. Grenzen erzwingt der Server, hier stehen sie nur, damit der
-                                Fehler am Feld erscheint statt erst beim Speichern. */}
+                            {/* Der Startbildschirm (Athleten-Anzeige am Start): Die Schalter und
+                                Größenfaktoren standen bis zum 26.08.2026 hier und verstopften den
+                                Blick auf alles andere. Bedient werden sie jetzt auf dem
+                                Bildschirm selbst — dieselben Felder, derselbe Endpunkt, nur der
+                                Ort. Der Satz bleibt trotzdem stehen: Wer sie hier gewohnt war,
+                                soll nicht suchen müssen. Gespeichert wird der Block weiterhin an
+                                der Veranstaltung; das Formular trägt ihn unsichtbar mit (siehe
+                                `EventTimingForm.startDisplay`), damit ein Speichern hier die
+                                Anzeige-Einstellungen nicht wegwirft. */}
                             <Box>
                                 <Typography variant={'subtitle2'} gutterBottom>
                                     <Trans i18nKey={'event.timing.startDisplay.title'} />
                                 </Typography>
-                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
-                                    <Trans i18nKey={'event.timing.startDisplay.hint'} />
+                                <Typography variant={'body2'} color={'text.secondary'}>
+                                    <Trans i18nKey={'event.timing.startDisplay.moved'} />
                                 </Typography>
-                                <Stack spacing={1}>
-                                    <FormInputSwitch
-                                        name={'startDisplay.showPosition'}
-                                        label={t('event.timing.startDisplay.showPosition')}
-                                        horizontal
-                                    />
-                                    <FormInputSwitch
-                                        name={'startDisplay.showStartNumber'}
-                                        label={t('event.timing.startDisplay.showStartNumber')}
-                                        horizontal
-                                    />
-                                    <FormInputSwitch
-                                        name={'startDisplay.showTeamName'}
-                                        label={t('event.timing.startDisplay.showTeamName')}
-                                        horizontal
-                                    />
-                                    <FormInputSwitch
-                                        name={'startDisplay.showClubName'}
-                                        label={t('event.timing.startDisplay.showClubName')}
-                                        horizontal
-                                    />
-                                    <FormInputSwitch
-                                        name={'startDisplay.showAthleteNames'}
-                                        label={t('event.timing.startDisplay.showAthleteNames')}
-                                        horizontal
-                                    />
-                                </Stack>
-                                <Typography variant={'body2'} color={'text.secondary'} sx={{mt: 3}}>
-                                    <Trans i18nKey={'event.timing.startDisplay.scaleHint'} />
-                                </Typography>
-                                {/* Dieselbe transform-Regel wie bei den Abruf-Takten: ein geleertes
-                                    Feld ergäbe sonst NaN und schickte einen 422er los statt eines
-                                    Hinweises am Feld. Zusätzlich wird das Dezimalkomma auf einen
-                                    Punkt gedreht — deutsche Tastaturen tippen „1,5", und Number()
-                                    macht daraus sonst NaN. */}
-                                <Stack spacing={4} sx={{mt: 2}}>
-                                    <FormInputNumber
-                                        name={'startDisplay.clockScale'}
-                                        label={t('event.timing.startDisplay.clockScale')}
-                                        rules={scaleRules}
-                                        transform={scaleTransform}
-                                    />
-                                    <FormInputNumber
-                                        name={'startDisplay.countdownScale'}
-                                        label={t('event.timing.startDisplay.countdownScale')}
-                                        rules={scaleRules}
-                                        transform={scaleTransform}
-                                    />
-                                    <FormInputNumber
-                                        name={'startDisplay.listScale'}
-                                        label={t('event.timing.startDisplay.listScale')}
-                                        rules={scaleRules}
-                                        transform={scaleTransform}
-                                    />
-                                    <FormInputNumber
-                                        name={'startDisplay.followingCount'}
-                                        label={t('event.timing.startDisplay.followingCount')}
-                                        integer
-                                        rules={{
-                                            required: t('common.form.required'),
-                                            min: {
-                                                value: START_DISPLAY_FOLLOWING_MIN,
-                                                message: t(
-                                                    'event.timing.startDisplay.followingInvalid',
-                                                ),
-                                            },
-                                            max: {
-                                                value: START_DISPLAY_FOLLOWING_MAX,
-                                                message: t(
-                                                    'event.timing.startDisplay.followingInvalid',
-                                                ),
-                                            },
-                                        }}
-                                        transform={{
-                                            output: value =>
-                                                value.target.value !== ''
-                                                    ? Number(value.target.value)
-                                                    : null,
-                                        }}
-                                    />
-                                </Stack>
                             </Box>
                             {/* Die Ton-Sätze der Veranstaltung: die benannten Klang-Vorlagen,
                                 aus denen die Zeitnahmetypen darunter wählen. Sie stehen vor den

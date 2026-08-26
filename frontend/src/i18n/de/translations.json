@@ -1859,6 +1859,9 @@
       "startDisplay": {
         "title": "Startbildschirm",
         "hint": "Die Athleten-Anzeige am Start: Was zu jedem Boot angezeigt wird und wie groß. Ein 27-Zöller am Steg trägt andere Schriftgrößen als ein Tablet im Boot, und die eine Regatta ruft Startnummern aus, die nächste Bootsnamen. Änderungen erreichen jeden angeschlossenen Bildschirm sofort — ohne Neuladen.",
+        "moved": "Was der Startbildschirm anzeigt, wird auf dem Bildschirm selbst eingestellt: Das Zahnrad unten rechts in der Ecke öffnet dieselben Schalter und Größen. Wer sie dort umlegt, sieht dahinter sofort, was er tut. Gespeichert werden sie weiterhin hier an der Veranstaltung und gelten für jeden angeschlossenen Bildschirm.",
+        "open": "Anzeige-Einstellungen",
+        "saved": "Anzeige-Einstellungen gespeichert",
         "showPosition": "Laufende Nummer vor dem Boot",
         "showStartNumber": "Startnummer",
         "showTeamName": "Bootsname",

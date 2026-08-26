@@ -45,10 +45,15 @@ export type EventTimingForm = {
     showManualCapture: boolean
     /**
      * Der Anzeige-Block des Startbildschirms — im Formular IMMER vollständig (nie null), auch wenn
-     * die Veranstaltung noch nichts gespeichert hat: Schalter und Zahlenfelder brauchen einen
-     * konkreten Anfangswert, sonst stünden sie beim ersten Öffnen leer. Ob daraus beim Speichern
-     * ein eigener Wert oder wieder `null` („Standard") wird, entscheidet erst
-     * [mapEventTimingFormToRequest].
+     * die Veranstaltung noch nichts gespeichert hat: sonst stünde beim Zurückschreiben ein leerer
+     * Block. Ob daraus beim Speichern ein eigener Wert oder wieder `null` („Standard") wird,
+     * entscheidet erst [mapEventTimingFormToRequest].
+     *
+     * Seit dem 26.08.2026 wird er hier nicht mehr BEARBEITET, sondern nur MITGEFÜHRT: Die Felder
+     * sitzen am Zahnrad des Startbildschirms selbst (StartDisplaySettingsDialog). Er bleibt
+     * trotzdem Teil dieses Formulars, weil der Endpunkt die ganze Zeitnahme-Konfiguration in
+     * einem Stück schreibt — ohne ihn würde jedes Speichern der Veranstaltungs-Einstellungen die
+     * Anzeige-Einstellungen auf die Vorgaben zurücksetzen.
      */
     startDisplay: StartDisplaySettingsDto
 }

@@ -1859,6 +1859,9 @@
       "startDisplay": {
         "title": "Start display",
         "hint": "The athlete screen at the start: what is shown for each boat and how large. A 27\" screen on the pontoon needs different type sizes than a tablet in the boat, and one regatta calls out start numbers while the next calls out boat names. Changes reach every connected screen immediately — no reload needed.",
+        "moved": "What the start display shows is set on the screen itself: the gear in the bottom right corner opens the same switches and sizes. Whoever flips them there sees the effect behind the dialog immediately. They are still stored here on the event and apply to every connected screen.",
+        "open": "Display settings",
+        "saved": "Display settings saved",
         "showPosition": "Running number in front of the boat",
         "showStartNumber": "Start number",
         "showTeamName": "Boat name",
