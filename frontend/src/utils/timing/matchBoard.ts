@@ -14,6 +14,20 @@ import {BoardMark} from '@components/timing/useTimingBoardState.ts'
  */
 
 /**
+ * Startet die App Läufe dieses Zeitnahmetyps NICHT? Nicht jeder Lauf bekommt eine Sequenz: Wird
+ * am Steg von Hand losgeschickt, gibt es kein Countdown-Fenster — und ein Board, das trotzdem
+ * eines anbietet, lädt zum falschen Griff ein. Der manuelle Stempel bleibt der Weg.
+ *
+ * Ohne Zeitnahmetyp (null/undefined) ist die Antwort ausdrücklich `false`, also KEINE Sperre —
+ * dieselbe Randentscheidung wie serverseitig in `TimingSequenceService.ensureStartSequenceAllowed`:
+ * Die Vorgabe der Spalte ist „Startsequenz an", eine Partie ohne Typ hat also nie jemand gesperrt.
+ * Eine Sperre, die im Zweifel sperrt, hielte am Renntag Läufe an, die niemand gesperrt hat.
+ */
+export function startSequenceOffByMode(mode: TimingModeDto | null | undefined): boolean {
+    return mode != null && !mode.startSequenceEnabled
+}
+
+/**
  * Die Startsequenz-Anfrage aus dem aufgelösten Zeitnahmetyp einer Partie ableiten:
  * `intervalSeconds != null` heißt Zeitfahren → INTERVAL-Sequenz mit dem Intervall in
  * Millisekunden, sonst MASS (ein Start von Hand für alle). Der Countdown-Vorlauf des Typs wird
@@ -22,12 +36,19 @@ import {BoardMark} from '@components/timing/useTimingBoardState.ts'
  * Bereits gestartete Boote (Nachzügler-Fall: die erste Sequenz wurde abgebrochen, ein Teil der
  * Partie ist schon auf dem Wasser) werden weggelassen — sie erneut in den Countdown zu stellen,
  * erzeugte eine zweite Startmarke für ein Boot, das längst unterwegs ist.
+ *
+ * Ein Typ mit abgeschalteter Startsequenz ([startSequenceOffByMode]) liefert `undefined`: Diese
+ * Funktion ist der einzige Weg, aus einem Zeitnahmetyp eine Sequenz-Anfrage zu machen, also trägt
+ * sie die Regel selbst und baut nicht darauf, dass der Aufrufer seinen Knopf richtig gesperrt hat.
+ * Die Zusicherung steht trotzdem auf dem Server (409) — ein Board ist ein Geräte-Token-Klient und
+ * läuft womöglich mit einer Startliste weiter, die den umgestellten Typ noch nicht kennt.
  */
 export function sequenceRequestFromMode(
     stationId: string,
     mode: TimingModeDto,
     teams: TimingMatchTeamDto[],
-): CreateSequenceRequest {
+): CreateSequenceRequest | undefined {
+    if (startSequenceOffByMode(mode)) return undefined
     const interval = mode.intervalSeconds ?? null
     return {
         station: stationId,

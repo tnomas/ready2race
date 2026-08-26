@@ -1,5 +1,10 @@
 import {describe, expect, it} from 'vitest'
-import {TimingMatchDto, TimingMatchTeamDto, TimingModeDto} from '@api/types.gen.ts'
+import {
+    CreateSequenceRequest,
+    TimingMatchDto,
+    TimingMatchTeamDto,
+    TimingModeDto,
+} from '@api/types.gen.ts'
 import {
     compactScheduleTitle,
     expectedFinishMatches,
@@ -7,6 +12,7 @@ import {
     pendingAssignmentMark,
     resolveStartSelection,
     sequenceRequestFromMode,
+    startSequenceOffByMode,
 } from './matchBoard.ts'
 import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
 
@@ -49,6 +55,21 @@ const team = (
     ...overrides,
 })
 
+/**
+ * Die Anfrage der Fälle, die eine erwarten: `sequenceRequestFromMode` liefert seit dem
+ * Startsequenz-Schalter `undefined`, wenn der Typ die Sequenz abschaltet — die übrigen Prüfungen
+ * sollen daran nicht vorbeilaufen, sondern scheitern.
+ */
+const requireRequest = (
+    stationId: string,
+    timingMode: TimingModeDto,
+    teams: TimingMatchTeamDto[],
+): CreateSequenceRequest => {
+    const request = sequenceRequestFromMode(stationId, timingMode, teams)
+    if (request === undefined) throw new Error('erwartete eine Sequenz-Anfrage')
+    return request
+}
+
 const match = (
     id: string,
     progress: TimingMatchDto['progress'],
@@ -67,30 +88,27 @@ describe('sequenceRequestFromMode', () => {
     const station = '00000000-0000-0000-0000-0000000000f1'
 
     it('leitet aus einem Intervall-Typ eine INTERVAL-Sequenz mit Millisekunden ab', () => {
-        const request = sequenceRequestFromMode(station, mode({intervalSeconds: 30}), [
-            team(1),
-            team(2),
-        ])
+        const request = requireRequest(station, mode({intervalSeconds: 30}), [team(1), team(2)])
 
         expect(request.mode).toBe('INTERVAL')
         expect(request.intervalMillis).toBe(30000)
     })
 
     it('leitet aus einem Typ ohne Intervall (Start von Hand) eine MASS-Sequenz ab', () => {
-        const request = sequenceRequestFromMode(station, mode({intervalSeconds: null}), [team(1)])
+        const request = requireRequest(station, mode({intervalSeconds: null}), [team(1)])
 
         expect(request.mode).toBe('MASS')
         expect(request.intervalMillis).toBeUndefined()
     })
 
     it('übersetzt den Countdown-Vorlauf in Millisekunden', () => {
-        const request = sequenceRequestFromMode(station, mode({leadInSeconds: 45}), [team(1)])
+        const request = requireRequest(station, mode({leadInSeconds: 45}), [team(1)])
 
         expect(request.leadInMillis).toBe(45000)
     })
 
     it('ordnet die Teams nach Startnummer, egal wie sie geliefert wurden', () => {
-        const request = sequenceRequestFromMode(station, mode(), [team(3), team(1), team(2)])
+        const request = requireRequest(station, mode(), [team(3), team(1), team(2)])
 
         expect(request.teams).toEqual([
             team(1).competitionMatchTeam,
@@ -100,7 +118,7 @@ describe('sequenceRequestFromMode', () => {
     })
 
     it('trägt den Posten in die Anfrage ein', () => {
-        const request = sequenceRequestFromMode(station, mode(), [team(1)])
+        const request = requireRequest(station, mode(), [team(1)])
 
         expect(request.station).toBe(station)
     })
@@ -108,12 +126,39 @@ describe('sequenceRequestFromMode', () => {
     it('lässt Teams weg, die bereits gestartet sind', () => {
         // Nachzügler-Fall: eine Partie wurde teilweise gestartet (Sequenz abgebrochen), der
         // zweite Griff darf die schon gestarteten Boote nicht erneut in den Countdown stellen.
-        const request = sequenceRequestFromMode(station, mode(), [
-            team(1, {started: true}),
-            team(2),
-        ])
+        const request = requireRequest(station, mode(), [team(1, {started: true}), team(2)])
 
         expect(request.teams).toEqual([team(2).competitionMatchTeam])
+    })
+
+    it('liefert für einen Typ ohne Startsequenz gar keine Anfrage', () => {
+        // Der Schalter am Zeitnahmetyp: Diese Läufe werden am Steg von Hand losgeschickt, ein
+        // Countdown-Fenster gibt es für sie nicht. Die Regel sitzt hier, weil dies der einzige Weg
+        // ist, aus einem Typ eine Sequenz-Anfrage zu machen — der gesperrte Knopf des Start-Boards
+        // ist Bedienhilfe, nicht die Regel.
+        expect(
+            sequenceRequestFromMode(station, mode({startSequenceEnabled: false}), [
+                team(1),
+                team(2),
+            ]),
+        ).toBeUndefined()
+    })
+})
+
+describe('startSequenceOffByMode', () => {
+    it('sperrt einen Typ, der die Startsequenz abschaltet', () => {
+        expect(startSequenceOffByMode(mode({startSequenceEnabled: false}))).toBe(true)
+    })
+
+    it('lässt einen Typ mit eingeschalteter Startsequenz durch', () => {
+        expect(startSequenceOffByMode(mode({startSequenceEnabled: true}))).toBe(false)
+    })
+
+    it('sperrt ohne Zeitnahmetyp nicht', () => {
+        // Kein Typ heißt nicht „gesperrt": Die Vorgabe ist „Startsequenz an", also hat niemand
+        // etwas verboten — dieselbe Randentscheidung wie auf dem Server.
+        expect(startSequenceOffByMode(null)).toBe(false)
+        expect(startSequenceOffByMode(undefined)).toBe(false)
     })
 })
 

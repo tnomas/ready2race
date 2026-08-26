@@ -13,7 +13,7 @@ import {useTranslation} from 'react-i18next'
 import {TimingMatchDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
-import {sequenceRequestFromMode} from '@utils/timing/matchBoard.ts'
+import {sequenceRequestFromMode, startSequenceOffByMode} from '@utils/timing/matchBoard.ts'
 import {tonePlanForSequence} from '@utils/timing/tonePlan.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
@@ -89,13 +89,16 @@ const StartBoardPanel = ({
 
     const handleStart = useCallback(() => {
         if (focusedMatch === undefined || focusedMatch.timingMode == null) return
-        // Zweite Sperrstelle neben dem gesperrten Knopf: Dies ist der EINZIGE Weg, eine Sequenz zu
-        // erzeugen — er soll die Regel selbst tragen und nicht darauf bauen, dass oben jemand das
-        // `disabled` richtig gesetzt hat.
-        if (!focusedMatch.timingMode.startSequenceEnabled) return
-        void createAndStart(
-            sequenceRequestFromMode(stationId, focusedMatch.timingMode, focusedMatch.teams),
-        ).then(ok => {
+        // Zweite Sperrstelle neben dem gesperrten Knopf: Die Anfrage-Ableitung trägt die Regel
+        // selbst und liefert für einen Typ ohne Startsequenz nichts — dieser Griff baut also nicht
+        // darauf, dass oben jemand das `disabled` richtig gesetzt hat.
+        const request = sequenceRequestFromMode(
+            stationId,
+            focusedMatch.timingMode,
+            focusedMatch.teams,
+        )
+        if (request === undefined) return
+        void createAndStart(request).then(ok => {
             if (!ok) feedback.error(t('timing.matches.error.start'))
         })
     }, [focusedMatch, createAndStart, stationId, feedback, t])
@@ -122,13 +125,12 @@ const StartBoardPanel = ({
         (sequence.state === 'ARMED' ||
             sequence.state === 'RUNNING' ||
             sequence.state === 'PAUSED')
-    // Startet die App Läufe dieses Typs überhaupt? Nicht jeder Lauf bekommt eine Sequenz: Wird am
-    // Steg von Hand losgeschickt, gibt es kein Countdown-Fenster — und ein Board, das trotzdem
-    // eines anbietet, lädt zum falschen Griff ein. Der manuelle Stempel bleibt der Weg; er hängt
-    // an `showManualCapture` und nicht an dieser Sperre — und dessen Vorgabe ist AUS. Deshalb
-    // nimmt der Hinweis unten `manualCaptureVisible` dazu, statt den Stempel als gegeben
-    // anzunehmen.
-    const sequenceOffByMode = focusedMatch?.timingMode?.startSequenceEnabled === false
+    // Startet die App Läufe dieses Typs überhaupt? Dieselbe Regel, die auch die Anfrage-Ableitung
+    // anwendet (siehe `startSequenceOffByMode`) — hier für den gesperrten Knopf und den Hinweis.
+    // Der manuelle Stempel bleibt der Weg; er hängt an `showManualCapture` und nicht an dieser
+    // Sperre — und dessen Vorgabe ist AUS. Deshalb nimmt der Hinweis unten `manualCaptureVisible`
+    // dazu, statt den Stempel als gegeben anzunehmen.
+    const sequenceOffByMode = startSequenceOffByMode(focusedMatch?.timingMode)
     const startDisabled =
         busy ||
         sequenceLive ||
