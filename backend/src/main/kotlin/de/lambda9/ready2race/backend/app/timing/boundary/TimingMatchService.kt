@@ -106,7 +106,13 @@ object TimingMatchService {
         // TimingProfileRepo.getAssignments.
         val assignments = !TimingProfileRepo.getAssignments(eventId, TimingProfileKind.MODE).orDie()
 
-        val modeById = modes.associateBy { it.id }
+        // Je Zeitnahmetyp EINMAL aufgelöst, nicht je Partie: Die Auflösung hängt allein am Typ
+        // (sein Satz, sonst der Vorgabesatz) und wäre für jede seiner Partien Zeichen für Zeichen
+        // dieselbe. Je Partie gerechnet parste Jackson die vier jsonb-Felder erneut - bei 200
+        // Partien rund 800 Läufe je Abruf, und genau diesen Abruf pollt jedes Board im Takt.
+        val modeDtoById = modes.associate { mode ->
+            mode.id to mode.toDto(TimingToneResolveLogic.resolve(toneSets, mode.toneSet))
+        }
         val assignmentRows = assignments.map {
             TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile)
         }
@@ -180,11 +186,7 @@ object TimingMatchService {
                 // übrige Läufe im Wellenstart fahren.
                 timingMode = TimingProfileResolveLogic
                     .resolve(assignmentRows, match.competitionId, match.roundId, match.setupMatchId)
-                    ?.let { modeId ->
-                        modeById[modeId]?.let { mode ->
-                            mode.toDto(TimingToneResolveLogic.resolve(toneSets, mode.toneSet))
-                        }
-                    },
+                    ?.let { modeId -> modeDtoById[modeId] },
                 teams = teams,
             )
         }

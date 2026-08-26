@@ -17,22 +17,6 @@ data class TimingSettingsDto(
     val autoApply: Boolean,
     val precision: TimingPrecision,
     /**
-     * Erfassungstöne der Posten (FINISH/SPLIT), bereits aufgelöst: unkonfiguriert liefert der
-     * Server den eingebauten Standard ([TimingToneLimits.DEFAULT_CAPTURE_TONE]) - die Boards
-     * spielen einfach, was hier steht. Gepflegt über die Zeitnahme-Einstellungen der
-     * Veranstaltung (EventTimingConfigRequest), live gepusht via settingsChanged.
-     */
-    val finishTone: CaptureTone,
-    val splitTone: CaptureTone,
-    /**
-     * Fehlstart-FOLGE der Startposten, ebenfalls aufgelöst (unkonfiguriert =
-     * [TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]). Start-Board und Startbildschirm spielen
-     * sie GANZ - Ton für Ton mit den Zeitpunkten der Folge - bei Versuchs-Rücknahme oder Abbruch
-     * einer laufenden Sequenz der gerade geführten Partie. Nie leer: ein noch als Einzelton
-     * gespeicherter Wert kommt als einelementige Folge an.
-     */
-    val falseStartTone: List<ToneStep>,
-    /**
      * Ob das Erfassungs-Board am START-Posten den manuellen Stempel (CaptureButton) zeigt.
      * Vorgabe `false`: Am Startposten stünden sonst zwei grüne Flächen untereinander - der große
      * Sequenz-Startknopf und darunter der Stempel -, beide grün, beide „Start". Am Wasser ist das
@@ -42,10 +26,11 @@ data class TimingSettingsDto(
      */
     val showManualCapture: Boolean,
     /**
-     * Was der Startbildschirm zeigt und wie groß - bereits AUFGELÖST wie die Töne: unkonfiguriert
-     * liefert der Server die eingebauten Vorgaben ([TimingStartDisplayLimits.DEFAULT]), die
-     * Anzeige nimmt einfach, was hier steht, und kennt kein „nicht gesetzt". Gepflegt über die
-     * Zeitnahme-Einstellungen der Veranstaltung (EventTimingConfigRequest).
+     * Was der Startbildschirm zeigt und wie groß - bereits AUFGELÖST wie der Ton-Satz darunter:
+     * unkonfiguriert liefert der Server die eingebauten Vorgaben
+     * ([TimingStartDisplayLimits.DEFAULT]), die Anzeige nimmt einfach, was hier steht, und kennt
+     * kein „nicht gesetzt". Gepflegt über die Zeitnahme-Einstellungen der Veranstaltung
+     * (EventTimingConfigRequest).
      */
     val startDisplay: StartDisplaySettings,
     /**
@@ -60,8 +45,9 @@ data class TimingSettingsDto(
      *
      * Deshalb steht er hier und nicht bei den Partien: Er gilt auch dann, wenn die Startliste
      * leer ist, der Posten gar keine Partie führt oder die Veranstaltung keine Zeitnahmetypen
-     * kennt. [finishTone], [splitTone] und [falseStartTone] daneben sind der Alt-Weg der
-     * Veranstaltungs-Spalten; sie fallen, sobald das Frontend hier liest.
+     * kennt. Seit dem 26.08.2026 ist er der EINZIGE Ton-Weg dieses Endpunkts: die drei
+     * Einzelfelder daneben waren der Alt-Weg der Veranstaltungs-Spalten und sind mit ihnen
+     * gefallen (V202608261210).
      */
     val defaultToneSet: ResolvedToneSet,
 )

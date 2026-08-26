@@ -26,8 +26,8 @@ export type UseTimingSettingsResult = {
 
 /**
  * Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450,
- * (Erfassungstöne, V202608211470) den eingebauten Standardton aus `tonePlan.ts` und
- * (Anzeige, V202608242000) den Standard-Anzeigeblock aus `startDisplay.ts`.
+ * (Töne) den eingebauten Standardton aus `tonePlan.ts` und (Anzeige, V202608242000) den
+ * Standard-Anzeigeblock aus `startDisplay.ts`.
  *
  * Die Anzeige-Felder gehören von Anfang an dazu: Der Startbildschirm zeichnet mit diesem Stand,
  * bevor der erste Fetch zurück ist. Fehlten sie hier, liefe er für einen Wimpernschlag gegen
@@ -37,9 +37,6 @@ export type UseTimingSettingsResult = {
 const DEFAULT_SETTINGS: TimingSettingsDto = {
     autoApply: true,
     precision: 'ZEHNTEL',
-    finishTone: DEFAULT_CAPTURE_TONE,
-    splitTone: DEFAULT_CAPTURE_TONE,
-    falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
     // Der manuelle Stempel am START-Posten ist standardmäßig verborgen: er stünde sonst als
     // zweite grüne „Start"-Fläche direkt unter dem Sequenz-Knopf.
     showManualCapture: false,

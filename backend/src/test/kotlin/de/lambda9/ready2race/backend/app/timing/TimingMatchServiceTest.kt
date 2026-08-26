@@ -5,11 +5,14 @@ import de.lambda9.ready2race.backend.app.competitionExecution.control.Competitio
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingModeService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingToneSetService
+import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchProgress
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneSetRequest
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationEntry
 import de.lambda9.ready2race.backend.app.timing.entity.CompetitionTimingStationsRequest
@@ -263,6 +266,66 @@ class TimingMatchServiceTest {
         val match = (!TimingMatchService.getMatches(eventId)).data.single()
 
         assertEquals(matchMode, match.timingMode?.id, "Der Partie-Eintrag schlägt den Wettkampf-Eintrag")
+    }
+
+    /**
+     * Jede Partie trägt die Töne IHRES Zeitnahmetyps - das ist der Grund, warum die Töne
+     * überhaupt an der Partie hängen: Ein Zeitfahren muss nicht klingen wie ein Massenstart.
+     *
+     * Der Test hält zugleich die Sparmaßnahme fest, mit der der Dienst das erreicht: Aufgelöst
+     * wird EINMAL je Zeitnahmetyp statt je Partie - die Auflösung hängt allein am Typ (sein Satz,
+     * sonst der Vorgabesatz), sie wäre für jede seiner Partien dieselbe. Deshalb zwei Partien mit
+     * verschiedenen Typen: eine am eigenen Satz, eine am geerbten Vorgabesatz. Verwechselte die
+     * einmalige Auflösung die Typen, fiele es genau hier auf.
+     */
+    @Test
+    fun everyMatchCarriesTheTonesOfItsOwnMode() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !setEventTimingSystem(eventId, TimingSystem.INTERN)
+        val leise = !createTestMatchFixture(eventId, identifier = "1")
+        val laut = !createTestMatchFixture(eventId, identifier = "2")
+
+        // Der Vorgabesatz der Veranstaltung (der erste Satz wird ungefragt die Vorgabe) und ein
+        // zweiter, lauterer daneben.
+        val leiserZielton = CaptureTone(frequencyHz = 500, durationMillis = 80)
+        val lauterZielton = CaptureTone(frequencyHz = 1200, durationMillis = 400)
+        !TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Leise für die Halle", finishTone = leiserZielton),
+            userId,
+            eventId,
+        )
+        val lauterSatz = ((!TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Laut fürs Wasser", finishTone = lauterZielton),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+
+        val erbenderTyp = ((!TimingModeService.addMode(
+            TimingModeRequest("Massenstart", TimingStartGrouping.WELLE, null, 10),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        val lauterTyp = ((!TimingModeService.addMode(
+            TimingModeRequest("Timetrial 30s", TimingStartGrouping.EINZEL, 30, 10, toneSet = lauterSatz),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        !assignProfile(eventId, userId, erbenderTyp, competition = leise.competitionId)
+        !assignProfile(eventId, userId, lauterTyp, competition = laut.competitionId)
+
+        val matches = (!TimingMatchService.getMatches(eventId)).data
+            .associateBy { it.competitionSetupMatch }
+
+        // Der Typ ohne eigene Wahl erbt den Vorgabesatz ...
+        assertEquals(
+            leiserZielton,
+            matches.getValue(leise.setupMatchId).timingMode?.resolvedToneSet?.finishTone,
+        )
+        // ... der Typ mit eigener Wahl klingt nach SEINEM Satz, in derselben Antwort.
+        assertEquals(
+            lauterZielton,
+            matches.getValue(laut.setupMatchId).timingMode?.resolvedToneSet?.finishTone,
+        )
     }
 
     @Test

@@ -28,8 +28,15 @@ import kotlin.test.assertTrue
  * nichts zu überführen.
  *
  * Migriert wird bis zum Ende, mit den Standard-Callbacks — dadurch läuft auch `afterMigrate.sql`.
- * Das ist Absicht: Führte irgendeine Sicht `timing_mode.tone_plan`, scheiterte das Ablegen der
- * Spalte genau hier, statt erst auf einer echten Datenbank.
+ * Das ist Absicht: Führte irgendeine Sicht `timing_mode.tone_plan` oder eine der drei
+ * Veranstaltungs-Ton-Spalten, scheiterte das Ablegen genau hier, statt erst auf einer echten
+ * Datenbank.
+ *
+ * Der Lauf hält deshalb ZWISCHEN den beiden Migrationen an: Nach V202608261200 stehen die
+ * Ton-Sätze schon, die drei Veranstaltungs-Spalten aber noch — nur dort lässt sich beides
+ * NEBENEINANDER vergleichen und damit belegen, dass V202608261210 (das Ablegen der Spalten) keinen
+ * Ton mitnimmt. Danach läuft die Migration zu Ende, und die weiteren Prüfungen kommen ohne die
+ * Spalten aus, weil es sie dann nicht mehr gibt.
  */
 class TimingToneSetMigrationTest {
 
@@ -87,6 +94,52 @@ class TimingToneSetMigrationTest {
             }
             assertNotNull(storedPlan)
 
+            // Halt zwischen den beiden Migrationen: Die Sätze stehen, die drei
+            // Veranstaltungs-Spalten auch — der einzige Moment, in dem sich beides vergleichen
+            // lässt.
+            flyway(postgres).target("202608261200").skipDefaultCallbacks(true).load().migrate()
+
+            val storedEventTones = connect(postgres).use { conn ->
+                // DIE Zusicherung, an der alles hängt: Kein Ton geht verloren, wenn die drei
+                // Spalten fallen. Nicht an den erwarteten Fällen geprüft, sondern über den GANZEN
+                // Bestand — jeder Satz trägt die drei Töne SEINER Veranstaltung, Zeichen für
+                // Zeichen. Wäre auch nur einer abgewichen, dürfte V202608261210 nicht laufen.
+                assertEquals(
+                    0,
+                    count(
+                        conn,
+                        "select count(*) from ready2race.timing_tone_set s " +
+                            "join ready2race.event e on e.id = s.event " +
+                            "where s.split_tone is distinct from e.timing_split_tone " +
+                            "or s.false_start_tone is distinct from e.timing_false_start_tone " +
+                            "or s.finish_tone is distinct from e.timing_finish_tone",
+                    ),
+                    "jeder Ton-Satz muss die drei Töne seiner Veranstaltung tragen",
+                )
+                // Die Gegenprobe: Jede Veranstaltung, die überhaupt einen eigenen Ton gesetzt
+                // hat, hat auch einen Satz, der ihn trägt. Ohne sie ginge der Ton einer Regatta
+                // ganz ohne Satz still verloren.
+                assertEquals(
+                    0,
+                    count(
+                        conn,
+                        "select count(*) from ready2race.event e " +
+                            "where num_nonnulls(e.timing_split_tone, e.timing_false_start_tone, " +
+                            "e.timing_finish_tone) > 0 " +
+                            "and not exists (select 1 from ready2race.timing_tone_set s where s.event = e.id)",
+                    ),
+                    "jede Veranstaltung mit eigenem Ton braucht einen Satz",
+                )
+                // Die drei Werte festhalten, solange die Spalten noch da sind: Nach dem Ablegen
+                // vergleichen die Fälle unten gegen DIESEN Stand statt gegen die Spalten.
+                Triple(
+                    queryString(conn, "select timing_split_tone::text from ready2race.event where id = ?", eventId),
+                    queryString(conn, "select timing_false_start_tone::text from ready2race.event where id = ?", eventId),
+                    queryString(conn, "select timing_finish_tone::text from ready2race.event where id = ?", eventId),
+                )
+            }
+            assertNotNull(storedEventTones.first)
+
             flyway(postgres).load().migrate()
 
             connect(postgres).use { conn ->
@@ -106,7 +159,7 @@ class TimingToneSetMigrationTest {
                 assertFalse(queryBoolean(conn, "select is_default from ready2race.timing_tone_set where id = ?", ownSetId))
                 // Und er trägt dieselben drei Veranstaltungs-Töne wie der Vorgabesatz: der Typ
                 // klingt an Zwischenzeit, Fehlstart und Ziel weiter wie die ganze Regatta.
-                assertTrue(carriesEventTones(conn, ownSetId))
+                assertTrue(carriesEventTones(conn, ownSetId, storedEventTones))
 
                 // Fall 2: Der Vorgabesatz trägt die drei Töne der Veranstaltung unverändert und
                 // hat keinen eigenen Startplan — genau die heutige Bedeutung „eingebauter Plan".
@@ -114,7 +167,7 @@ class TimingToneSetMigrationTest {
                 assertNotNull(defaultSetId)
                 assertEquals("Standard", queryString(conn, "select name from ready2race.timing_tone_set where id = ?", defaultSetId))
                 assertNull(queryString(conn, "select sequence_tone_plan::text from ready2race.timing_tone_set where id = ?", defaultSetId))
-                assertTrue(carriesEventTones(conn, defaultSetId))
+                assertTrue(carriesEventTones(conn, defaultSetId, storedEventTones))
 
                 // Fall 3: Eine Veranstaltung OHNE Zeitnahmetypen, aber mit eigenen Tönen bekommt
                 // trotzdem ihren Vorgabesatz — und der trägt genau ihre Töne. Ohne ihn verlöre
@@ -125,7 +178,7 @@ class TimingToneSetMigrationTest {
                 )
                 val tonesOnlySetId = defaultSetOf(conn, eventTonesOnlyId)
                 assertNotNull(tonesOnlySetId)
-                assertTrue(carriesEventTones(conn, tonesOnlySetId))
+                assertTrue(carriesEventTones(conn, tonesOnlySetId, storedEventTones))
 
                 // Erst ohne Typen UND ohne Töne bleibt es leer — dort gäbe es nichts zu bewahren.
                 assertEquals(
@@ -204,6 +257,11 @@ class TimingToneSetMigrationTest {
                 // auch dann auf, wenn ein Typ dieser Veranstaltung fehlte und einer woanders
                 // dazukäme.
                 assertFalse(columnExists(conn, "timing_mode", "tone_plan"))
+                // Und die drei Veranstaltungs-Spalten sind mit V202608261210 ebenfalls fort — ihr
+                // Inhalt steht seit dem Halt oben nachweislich in den Sätzen.
+                assertFalse(columnExists(conn, "event", "timing_split_tone"))
+                assertFalse(columnExists(conn, "event", "timing_false_start_tone"))
+                assertFalse(columnExists(conn, "event", "timing_finish_tone"))
                 assertEquals(
                     2,
                     count(
@@ -272,15 +330,22 @@ class TimingToneSetMigrationTest {
         id, event, name, tonePlan,
     )
 
-    /** Trägt der Satz die drei Töne SEINER Veranstaltung Zeichen für Zeichen? */
-    private fun carriesEventTones(conn: Connection, setId: UUID): Boolean = count(
-        conn,
-        "select count(*) from ready2race.timing_tone_set s join ready2race.event e on e.id = s.event " +
-            "where s.id = ? and s.split_tone is not distinct from e.timing_split_tone " +
-            "and s.false_start_tone is not distinct from e.timing_false_start_tone " +
-            "and s.finish_tone is not distinct from e.timing_finish_tone",
-        setId,
-    ) == 1
+    /**
+     * Trägt der Satz die drei Töne der Veranstaltung Zeichen für Zeichen?
+     *
+     * Verglichen wird gegen [tones] — den Stand, der VOR dem Ablegen der drei Spalten festgehalten
+     * wurde. Ein Verbund auf `event` ginge nicht mehr: Die Spalten sind mit V202608261210
+     * gefallen, und genau das ist ja der Punkt.
+     */
+    private fun carriesEventTones(conn: Connection, setId: UUID, tones: Triple<String?, String?, String?>): Boolean =
+        count(
+            conn,
+            "select count(*) from ready2race.timing_tone_set " +
+                "where id = ? and split_tone::text is not distinct from ?::text " +
+                "and false_start_tone::text is not distinct from ?::text " +
+                "and finish_tone::text is not distinct from ?::text",
+            setId, tones.first, tones.second, tones.third,
+        ) == 1
 
     private fun defaultSetOf(conn: Connection, event: UUID): UUID? =
         queryUuid(conn, "select id from ready2race.timing_tone_set where event = ? and is_default", event)

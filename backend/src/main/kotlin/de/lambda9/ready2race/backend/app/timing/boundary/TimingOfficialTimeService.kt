@@ -66,11 +66,6 @@ object TimingOfficialTimeService {
     private data class EventTimingSettings(
         val autoApply: Boolean,
         val precision: TimingPrecision,
-        /** Erfassungstöne (FINISH/SPLIT), bereits auf den Standard aufgelöst - siehe [toDto]. */
-        val finishTone: CaptureTone,
-        val splitTone: CaptureTone,
-        /** Fehlstart-FOLGE, ebenfalls aufgelöst - nie leer. */
-        val falseStartTone: List<ToneStep>,
         /** Zeigt das START-Board den manuellen Stempel? Vorgabe der Spalte ist `false`. */
         val showManualCapture: Boolean,
         /** Anzeige-Block des Startbildschirms, aufgelöst - siehe [toDto]. */
@@ -82,9 +77,6 @@ object TimingOfficialTimeService {
         fun toDto() = TimingSettingsDto(
             autoApply = autoApply,
             precision = precision,
-            finishTone = finishTone,
-            splitTone = splitTone,
-            falseStartTone = falseStartTone,
             showManualCapture = showManualCapture,
             startDisplay = startDisplay,
             defaultToneSet = defaultToneSet,
@@ -467,22 +459,12 @@ object TimingOfficialTimeService {
                 // Muster, siehe EventTimingConfigDto) - der Datenbank-Default ist die Rückfalllinie.
                 precision = event?.timingPrecision?.let { TimingPrecision.valueOf(it) }
                     ?: TimingPrecision.ZEHNTEL,
-                // null = unkonfiguriert: die Boards bekommen immer einen spielbaren Ton, deshalb
-                // wird der eingebaute Standard bereits hier aufgelöst statt in jedem Client.
-                finishTone = event?.timingFinishTone.toCaptureTone()
-                    ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
-                splitTone = event?.timingSplitTone.toCaptureTone()
-                    ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
-                // Ein noch als Einzelton (jsonb-Objekt) gespeicherter Wert wird hier bereits zur
-                // einelementigen Folge - die Boards kennen nur noch Folgen.
-                falseStartTone = event?.timingFalseStartTone.toToneSequence()
-                    ?: TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE,
                 // Spalte ist NOT NULL mit Vorgabe `false` (Migration V202608242000); jOOQ
                 // typisiert sie dennoch nullable - dieselbe Rückfalllinie wie beim Schalter oben.
                 showManualCapture = event?.timingShowManualCapture ?: false,
                 // null = unkonfiguriert: der Startbildschirm bekommt immer einen vollständigen
                 // Anzeige-Block, deshalb werden die eingebauten Vorgaben schon hier aufgelöst
-                // statt in jedem Client - genau wie bei den Tönen.
+                // statt in jedem Client - genau wie beim Vorgabesatz darunter.
                 startDisplay = event?.timingStartDisplay.toStartDisplaySettings()
                     ?: TimingStartDisplayLimits.DEFAULT,
                 // Kein Vorgabesatz (Veranstaltung ohne Sätze) heißt: die eingebauten Töne. Damit

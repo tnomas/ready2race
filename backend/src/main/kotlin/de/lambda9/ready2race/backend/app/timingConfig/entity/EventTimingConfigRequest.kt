@@ -1,11 +1,8 @@
 package de.lambda9.ready2race.backend.app.timingConfig.entity
 
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollLogic
-import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.StartDisplaySettings
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartDisplayLimits
-import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
-import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import java.util.UUID
@@ -13,6 +10,10 @@ import java.util.UUID
 /**
  * Zeitnahme-Einstellungen der Veranstaltung. System und Dateiformate bleiben optional: Sie werden
  * beim Anlegen der Regatta noch nicht gewusst und dürfen deshalb leer bleiben.
+ *
+ * Die Töne sind hier nicht mehr dabei: Zwischen-, Fehlstart- und Zielton gehören zum Zeitnahmetyp
+ * und werden seit dem 26.08.2026 über die Ton-Sätze der Veranstaltung gepflegt
+ * (`TimingToneSetService`), nicht mehr über dieses Formular.
  */
 data class EventTimingConfigRequest(
     val timingSystem: TimingSystem?,
@@ -37,21 +38,6 @@ data class EventTimingConfigRequest(
      */
     val timingPrecision: TimingPrecision,
     /**
-     * Erfassungstöne der Posten (FINISH/SPLIT). Anders als Takte und Genauigkeit optional MIT
-     * Bedeutung: `null` heisst "eingebauter Standard" und räumt einen eigenen Wert wieder ab
-     * ("Standard wiederherstellen") - PUT-Semantik wie beim OfficialTimeOverrideRequest.
-     */
-    val finishTone: CaptureTone?,
-    val splitTone: CaptureTone?,
-    /**
-     * Fehlstart-FOLGE der Startposten, gleiche PUT-Semantik wie die Erfassungstöne: `null` heisst
-     * "eingebaute Standardfolge" (kurz-kurz-lang, siehe
-     * [TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE]) und räumt einen eigenen Wert wieder ab.
-     * Geschrieben wird immer die Liste - der frühere Einzelton-Wert bleibt lesbar (Conversions),
-     * entsteht aber nicht mehr neu.
-     */
-    val falseStartTone: List<ToneStep>?,
-    /**
      * Ob das START-Board den manuellen Stempel zeigt. Wie Takte und Genauigkeit NICHT optional:
      * die Spalte hat eine Vorgabe (`false`, Migration V202608242000), und `null` hieße hier
      * "unverändert lassen" - eine Bedeutung, die das Formular nicht braucht und die beim
@@ -59,10 +45,10 @@ data class EventTimingConfigRequest(
      */
     val showManualCapture: Boolean,
     /**
-     * Der Anzeige-Block des Startbildschirms, gleiche PUT-Semantik wie die Töne: `null` heißt
-     * "eingebaute Vorgaben" ([TimingStartDisplayLimits.DEFAULT]) und räumt einen eigenen Wert
-     * wieder ab ("Standard wiederherstellen"). Teilweise gesetzt gibt es nicht - entweder der
-     * ganze Block oder gar keiner, siehe [StartDisplaySettings].
+     * Der Anzeige-Block des Startbildschirms mit PUT-Semantik: `null` heißt "eingebaute Vorgaben"
+     * ([TimingStartDisplayLimits.DEFAULT]) und räumt einen eigenen Wert wieder ab ("Standard
+     * wiederherstellen"). Teilweise gesetzt gibt es nicht - entweder der ganze Block oder gar
+     * keiner, siehe [StartDisplaySettings].
      */
     val startDisplay: StartDisplaySettings?,
 ) : Validatable {
@@ -73,9 +59,6 @@ data class EventTimingConfigRequest(
             validateInterval(intervalUpcomingSeconds, "intervalUpcomingSeconds"),
             validateMinutes(watchBeforeMinutes, "watchBeforeMinutes"),
             validateMinutes(watchAfterMinutes, "watchAfterMinutes"),
-            TimingToneLimits.validateCaptureTone(finishTone, "finishTone"),
-            TimingToneLimits.validateCaptureTone(splitTone, "splitTone"),
-            TimingToneLimits.validateToneSequence(falseStartTone, "falseStartTone"),
             TimingStartDisplayLimits.validate(startDisplay, "startDisplay"),
         )
 
@@ -111,9 +94,6 @@ data class EventTimingConfigRequest(
                 watchBeforeMinutes = 15,
                 watchAfterMinutes = 120,
                 timingPrecision = TimingPrecision.ZEHNTEL,
-                finishTone = null,
-                splitTone = null,
-                falseStartTone = null,
                 showManualCapture = false,
                 startDisplay = null,
             )

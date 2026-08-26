@@ -118,7 +118,7 @@ export const mapEventTimingFormToRequest = (form: EventTimingForm): EventTimingC
         // eingebauten Vorgaben HÄNGEN statt sie einzufrieren: Wird der Standard später einmal
         // verändert (etwa weil sich am Wasser zeigt, dass fünf folgende Boote zu viele sind),
         // folgen alle Regatten, die nie etwas eingestellt haben, automatisch mit. Genau dieselbe
-        // Überlegung wie bei den Tönen.
+        // Überlegung wie bei den Tönen im Ton-Satz.
         startDisplay: isDefaultStartDisplay(form.startDisplay) ? null : form.startDisplay,
     }
 }

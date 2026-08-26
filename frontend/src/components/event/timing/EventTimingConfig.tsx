@@ -14,15 +14,13 @@ import {
     getStartListConfigs,
     updateEventTimingConfig,
 } from '@api/sdk.gen.ts'
-import {CaptureToneDto, RaceClockerRaceDto, ToneStepDto} from '@api/types.gen.ts'
+import {RaceClockerRaceDto} from '@api/types.gen.ts'
 import {
     START_DISPLAY_FOLLOWING_MAX,
     START_DISPLAY_FOLLOWING_MIN,
     START_DISPLAY_SCALE_MAX,
     START_DISPLAY_SCALE_MIN,
 } from '@utils/timing/startDisplay.ts'
-import CaptureToneEditor from './CaptureToneEditor.tsx'
-import FalseStartToneEditor from './FalseStartToneEditor.tsx'
 import RaceClockerRaceDialog from './RaceClockerRaceDialog.tsx'
 import TimingModePanel from './TimingModePanel.tsx'
 import TimingProfileTree from './TimingProfileTree.tsx'
@@ -146,23 +144,12 @@ const EventTimingConfig = () => {
     /** Angelegte oder gelöschte Zeitnahmetypen; der Baum darunter wählt aus genau dieser Liste. */
     const [modesReloaded, setModesReloaded] = useState(0)
 
-    // Erfassungstöne der Posten (FINISH/SPLIT) und der Fehlstart-Ton: außerhalb des
-    // react-hook-form-Formulars, weil ihr Editor (Strings beim Tippen, Vorschau,
-    // Standard-Normalisierung auf null) ein eigener kontrollierter Baustein ist; gespeichert
-    // werden sie mit demselben Submit.
-    const [finishTone, setFinishTone] = useState<CaptureToneDto | null>(null)
-    const [splitTone, setSplitTone] = useState<CaptureToneDto | null>(null)
-    const [falseStartTone, setFalseStartTone] = useState<ToneStepDto[] | null>(null)
-
     useFetch(signal => getEventTimingConfig({signal, path: {eventId}}), {
         onResponse: ({data, error}) => {
             if (error) {
                 feedback.error(t('common.error.unexpected'))
             } else if (data) {
                 formContext.reset(mapDtoToEventTimingForm(data))
-                setFinishTone(data.finishTone ?? null)
-                setSplitTone(data.splitTone ?? null)
-                setFalseStartTone(data.falseStartTone ?? null)
             }
         },
         deps: [eventId, lastSaved],
@@ -187,9 +174,7 @@ const EventTimingConfig = () => {
                     setSubmitting(true)
                     const {error} = await updateEventTimingConfig({
                         path: {eventId},
-                        // Die Töne reisen immer mit (wie die Genauigkeit): ein Systemwechsel
-                        // soll die eingestellten Töne nicht verlieren.
-                        body: {...mapEventTimingFormToRequest(data), finishTone, splitTone, falseStartTone},
+                        body: mapEventTimingFormToRequest(data),
                     })
                     setSubmitting(false)
 
@@ -262,48 +247,6 @@ const EventTimingConfig = () => {
                                     </Typography>
                                 )}
                             </Box>
-                            {/* Bestätigungstöne beim Erfassen, je Postentyp getrennt — die
-                                Boards bekommen den Stand über GET /timing/settings und live
-                                via settingsChanged; die Countdown-Töne der STARTPOSTEN hängen
-                                dagegen am Zeitnahmetyp (Dialog unten). */}
-                            <Box>
-                                <Typography variant={'subtitle2'} gutterBottom>
-                                    <Trans i18nKey={'event.timing.captureTones.title'} />
-                                </Typography>
-                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
-                                    <Trans i18nKey={'event.timing.captureTones.hint'} />
-                                </Typography>
-                                <Stack spacing={2}>
-                                    <CaptureToneEditor
-                                        label={t('event.timing.captureTones.finish')}
-                                        value={finishTone}
-                                        onChange={setFinishTone}
-                                    />
-                                    <CaptureToneEditor
-                                        label={t('event.timing.captureTones.split')}
-                                        value={splitTone}
-                                        onChange={setSplitTone}
-                                    />
-                                </Stack>
-                            </Box>
-                            {/* Der Fehlstart-Rückruf: eigenständig neben den Erfassungstönen und
-                                anders als sie eine FOLGE von Tönen (Zeitpunkte vorwärts ab der
-                                Auslösung). Start-Board und Startbildschirm spielen sie ganz, bei
-                                Versuchs-Rücknahme oder Abbruch einer laufenden Sequenz der gerade
-                                geführten Partie — ausgeliefert wie die Erfassungstöne über
-                                GET /timing/settings und live via settingsChanged. */}
-                            <Box>
-                                <Typography variant={'subtitle2'} gutterBottom>
-                                    <Trans i18nKey={'event.timing.falseStartTone.title'} />
-                                </Typography>
-                                <Typography variant={'body2'} color={'text.secondary'} sx={{mb: 2}}>
-                                    <Trans i18nKey={'event.timing.falseStartTone.hint'} />
-                                </Typography>
-                                <FalseStartToneEditor
-                                    value={falseStartTone}
-                                    onChange={setFalseStartTone}
-                                />
-                            </Box>
                             {/* Der manuelle Stempel am START-Posten. Vorgabe: verborgen — sonst
                                 stehen im Start-Board zwei grüne Flächen untereinander, der große
                                 Sequenz-Startknopf und darunter der Stempel, beide grün, beide
@@ -325,14 +268,13 @@ const EventTimingConfig = () => {
                                 </Typography>
                             </Box>
                             {/* Der Startbildschirm (Athleten-Anzeige am Start): WAS dort steht und
-                                WIE GROSS. Bewusst ein eigener beschrifteter Abschnitt und nicht in
-                                die Töne einsortiert — es ist der einzige Block hier, der einen
-                                zweiten, physisch anderswo stehenden Bildschirm beschreibt. Die
-                                Skalen sind Faktoren auf die eingebaute Größe (kein Punktwert): die
-                                Anzeige rechnet ohnehin relativ zur Bildschirmbreite, eine feste
-                                Punktzahl wäre auf jedem zweiten Gerät falsch. Grenzen erzwingt der
-                                Server, hier stehen sie nur, damit der Fehler am Feld erscheint
-                                statt erst beim Speichern. */}
+                                WIE GROSS. Bewusst ein eigener beschrifteter Abschnitt — es ist der
+                                einzige Block hier, der einen zweiten, physisch anderswo stehenden
+                                Bildschirm beschreibt. Die Skalen sind Faktoren auf die eingebaute
+                                Größe (kein Punktwert): die Anzeige rechnet ohnehin relativ zur
+                                Bildschirmbreite, eine feste Punktzahl wäre auf jedem zweiten Gerät
+                                falsch. Grenzen erzwingt der Server, hier stehen sie nur, damit der
+                                Fehler am Feld erscheint statt erst beim Speichern. */}
                             <Box>
                                 <Typography variant={'subtitle2'} gutterBottom>
                                     <Trans i18nKey={'event.timing.startDisplay.title'} />
