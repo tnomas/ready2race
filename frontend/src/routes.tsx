@@ -51,6 +51,10 @@ import AppLoginPage from './pages/app/AppLoginPage.tsx'
 import ForbiddenPage from './pages/app/ForbiddenPage.tsx'
 import AppFunctionSelectPage from './pages/app/AppFunctionSelectPage.tsx'
 import AppDashboardPage from './pages/app/AppDashboardPage.tsx'
+import TimingEventsPage from './pages/app/TimingEventsPage.tsx'
+import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
+import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
+import TimingLeitstandPage from './pages/app/TimingLeitstandPage.tsx'
 import EventRegistrationPage from './pages/eventRegistration/EventRegistrationPage.tsx'
 import InvoicesPage from './pages/InvoicePage.tsx'
 import ResultsPage from './pages/results/ResultsPage.tsx'
@@ -389,7 +393,6 @@ export const clubsIndexRoute = createRoute({
     validateSearch: validateTabSearch<ClubTab>,
 })
 
-
 export const administrationRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'administration',
@@ -471,6 +474,57 @@ export const appDashboardRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'dashboard',
     component: () => <AppDashboardPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+// Die Zeitnahme hängt unter /app: Erfassungsbretter laufen auf denselben Helfer-Telefonen wie der
+// Scanner, mit derselben Sitzung (session.app) und demselben App-Layout. Der Einstieg ist die
+// Veranstaltungsauswahl, danach die Postenauswahl - deshalb keine eigene Auswahlseite außerhalb.
+export const timingRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'timing',
+})
+
+export const timingEventsIndexRoute = createRoute({
+    getParentRoute: () => timingRoute,
+    path: '/',
+    component: () => <TimingEventsPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+export const timingEventRoute = createRoute({
+    getParentRoute: () => timingRoute,
+    path: '$eventId',
+})
+
+export const timingStationSelectIndexRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: '/',
+    component: () => <TimingStationSelectPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+// Declared before `timingStationRoute` and matched ahead of it: `leitstand` is a static segment, so
+// it must win over the sibling `$stationId` param route.
+export const timingLeitstandRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: 'leitstand',
+    component: () => <TimingLeitstandPage />,
+    beforeLoad: ({context}) => {
+        checkAuthApp(context)
+    },
+})
+
+export const timingStationRoute = createRoute({
+    getParentRoute: () => timingEventRoute,
+    path: '$stationId',
+    component: () => <TimingBoardPage />,
     beforeLoad: ({context}) => {
         checkAuthApp(context)
     },
@@ -598,6 +652,14 @@ const routeTree = rootRoute.addChildren([
         appFunctionSelectRoute,
         appDashboardRoute,
         appForbiddenRoute,
+        timingRoute.addChildren([
+            timingEventsIndexRoute,
+            timingEventRoute.addChildren([
+                timingStationSelectIndexRoute,
+                timingLeitstandRoute,
+                timingStationRoute,
+            ]),
+        ]),
     ]),
     resultsRoute.addChildren([resultsIndexRoute, resultsQRCodeRoute, resultsEventRoute]),
     speakerRoute.addChildren([speakerIndexRoute, speakerEventRoute]),

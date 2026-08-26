@@ -95,6 +95,7 @@ import {liveDashboardErrorKey} from '@components/event/liveDashboard/liveDashboa
 import {readCachedRead, writeCachedRead} from '@pwa/readCache.ts'
 import {describeStale} from '@components/event/liveDashboard/staleState.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {useEventInvalidation} from '@utils/timing/useEventInvalidation.ts'
 
 /** The dashboard payload carries no server clock of its own (unlike the athlete board), so the
  * now-marker ticks off the local clock every 30s - plenty for a position on a day-long axis. */
@@ -325,6 +326,13 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             },
         },
     )
+
+    // PORT-T6: Diese Seite ist ausschließlich hinter Anmeldung erreichbar (siehe
+    // eventLiveDashboardRoute in routes.tsx, checkAuth mit readLiveDashboardGlobal), es gibt also
+    // immer einen Sitzungstoken - anders als beim Speaker-Board oder den Board-Anzeigen ist hier
+    // keine Abfrage auf einen vorhandenen Token nötig. Ein Push löst denselben Reload aus, den
+    // auch der reguläre Takt oben nutzt; der Poll-Takt selbst bleibt unverändert als Ausfallebene.
+    useEventInvalidation(eventId, dashboardData.reload)
 
     /**
      * Ob RaceClocker den Start dieser Veranstaltung ohnehin selbst meldet — daran hängt allein der

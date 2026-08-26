@@ -41,6 +41,14 @@ export const updateAppCatererGlobal: Privilege = {
     scope: 'GLOBAL',
 }
 
+// Die Zeitnahme-Funktion der Helfer-App: Erfassungsbretter und Leitstand. Eigenes Recht, damit
+// Zeitnehmer weder die Veranstaltung bearbeiten noch das Live-Dashboard sehen müssen.
+export const updateAppTimingGlobal: Privilege = {
+    action: 'UPDATE',
+    resource: 'APP_TIMING',
+    scope: 'GLOBAL',
+}
+
 export const createRegistrationGlobal: Privilege = {
     action: 'CREATE',
     resource: 'REGISTRATION',

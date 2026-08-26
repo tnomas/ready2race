@@ -7,6 +7,7 @@ import {
     updateAppCompetitionCheckGlobal,
     updateAppEventRequirementGlobal,
     updateAppQrManagementGlobal,
+    updateAppTimingGlobal,
 } from '@authorization/privileges.ts'
 
 export const getUserAppRights = (user: User): AppFunction[] => {
@@ -50,6 +51,7 @@ export type AppEntryLabelKey =
     | 'app.functionSelect.functions.eventRequirement'
     | 'app.functionSelect.functions.caterer'
     | 'app.functionSelect.functions.liveDashboard'
+    | 'app.functionSelect.functions.timing'
 
 /**
  * Ein Eintrag der Funktionsauswahl. Scanner-Funktionen tragen ihre `AppFunction`; das
@@ -85,6 +87,18 @@ export const appEntries = (user: User): AppEntry[] => {
             key: 'LIVE_DASHBOARD',
             labelKey: 'app.functionSelect.functions.liveDashboard',
             target: 'APP_Dashboard',
+            appFunction: null,
+        })
+    }
+
+    // Die Zeitnahme ist wie das Dashboard keine Scanner-Funktion: Sie hat einen eigenen
+    // Einstieg (Veranstaltung, dann Posten) und bekommt deshalb `appFunction: null` - der
+    // Scanner soll nichts gesetzt bekommen, womit er nichts anfangen kann.
+    if (user.checkPrivilege(updateAppTimingGlobal)) {
+        entries.push({
+            key: 'APP_TIMING',
+            labelKey: 'app.functionSelect.functions.timing',
+            target: 'APP_Timing',
             appFunction: null,
         })
     }

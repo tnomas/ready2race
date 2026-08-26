@@ -41,6 +41,10 @@ export type FormSetupRound = {
     isQualification: boolean
     // Per-participant-count overrides for match name / execution order (only deviations are stored).
     matchNamings: Array<CompetitionSetupMatchNamingDto>
+    // Race type of this round (a timing race type of the event), '' when none is assigned. It rides
+    // along in the setup body because unlocked rounds are re-created with fresh ids on every save -
+    // an assignment kept elsewhere by round id would not survive the next edit.
+    timingRaceType: string
 }
 export type FormSetupMatch = {
     teams: string // String because it's easier to work with '' as an empty field instead of undefined
@@ -129,6 +133,7 @@ export function mapFormRoundsToDtoRounds(
         placesOption: round.placesOption,
         places: round.placesOption === 'CUSTOM' ? round.places : undefined,
         isQualification: round.isQualification,
+        timingRaceType: takeIfNotEmpty(round.timingRaceType) ?? null,
         // Only persist actual deviations (a name or an execution order set)
         matchNamings: round.matchNamings.filter(
             n => (n.name !== null && n.name !== undefined && n.name !== '') || n.executionOrder != null,
@@ -201,6 +206,7 @@ function mapDtoRoundsToFormRounds(
         isGroupRound: round.groups !== undefined,
         isQualification: round.isQualification,
         matchNamings: round.matchNamings ?? [],
+        timingRaceType: round.timingRaceType ?? '',
         // If at least one match/group has an offset, useStartTimeOffsets is set to true
         useStartTimeOffsets:
             (round.matches?.filter(m => m.startTimeOffset !== undefined).length ?? 0) > 0 ||

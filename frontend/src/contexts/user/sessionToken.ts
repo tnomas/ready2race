@@ -98,6 +98,17 @@ export const readSessionToken = (
     return stored.token
 }
 
+/**
+ * Ob irgendein Sitzungstoken (Helfer-App oder Verwaltung) für dieses Browserprofil hinterlegt
+ * ist — ohne den Token selbst preiszugeben. Genutzt von öffentlichen Seiten (Speaker-Board,
+ * Board-Anzeigen, siehe `useEventInvalidation.ts`), die einmal beim Einhängen entscheiden, ob sich
+ * der WS-Kanal überhaupt lohnt: Der verlangt einen Token, den eine rein anonyme Anzeige nie hat.
+ */
+export const hasAnySessionToken = (
+    now: number = Date.now(),
+    stores: TokenStores = browserStores(),
+): boolean => readSessionToken(true, now, stores) !== null || readSessionToken(false, now, stores) !== null
+
 export const writeSessionToken = (
     token: string,
     isInApp: boolean,

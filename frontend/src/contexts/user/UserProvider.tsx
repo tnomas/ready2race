@@ -233,6 +233,7 @@ const UserProvider = ({children}: PropsWithChildren) => {
             login: setAuth,
             checkPrivilege: () => false,
             getPrivilegeScope: () => undefined,
+            token: userData.token,
         } satisfies AnonymousUser
     } else {
         const checkPrivilege = (privilege: Privilege): boolean =>
@@ -266,6 +267,7 @@ const UserProvider = ({children}: PropsWithChildren) => {
             logout,
             checkPrivilege,
             getPrivilegeScope,
+            token: userData.token,
         } satisfies AuthenticatedUser
     }
 

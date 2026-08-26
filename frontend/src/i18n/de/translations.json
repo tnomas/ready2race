@@ -957,7 +957,9 @@
               "roundOf32": "SF"
             }
           },
-          "remove": "Runde entfernen"
+          "remove": "Runde entfernen",
+          "timingRaceType": "Renntyp",
+          "timingRaceTypeNone": "Kein Renntyp"
         },
         "naming": {
           "title": "Benennung je Teilnehmerzahl",
@@ -1619,7 +1621,8 @@
       "settings": "Einstellungen",
       "actions": "Aktionen",
       "organisation": "Organisation",
-      "invoices": "Rechnungen"
+      "invoices": "Rechnungen",
+      "posten": "Posten"
     },
     "notice": {
       "title": "Globaler Hinweis",
@@ -2895,7 +2898,8 @@
         "competitionCheck": "Wettkampf-Check",
         "eventRequirement": "Bedingungen prüfen",
         "caterer": "Verpflegung",
-        "liveDashboard": "Schiedsrichter-Dashboard"
+        "liveDashboard": "Schiedsrichter-Dashboard",
+        "timing": "Zeitnahme"
       },
       "switchEvent": "Event wechseln"
     },
@@ -3417,6 +3421,341 @@
       "refresh": "Aktualisierung",
       "turnaround": "Wechselzeit-Warnung",
       "resetAll": "Alles zurücksetzen"
+    }
+  },
+  "timing": {
+    "title": "Zeitnahme",
+    "selectEvent": "Veranstaltung wählen",
+    "selectStation": "Posten wählen",
+    "sections": {
+      "timing": "Zeitnahme",
+      "other": "Weitere Posten"
+    },
+    "station": {
+      "tabTitle": "Posten",
+      "name": "Name",
+      "type": "Typ",
+      "sorting": "Reihenfolge",
+      "add": "Posten hinzufügen",
+      "edit": "Posten bearbeiten",
+      "types": {
+        "START": "Start",
+        "SPLIT": "Zwischenzeit",
+        "FINISH": "Ziel"
+      },
+      "error": {
+        "hasTimeMarks": "Der Posten hat bereits erfasste Zeiten und kann nicht gelöscht werden"
+      }
+    },
+    "assign": {
+      "title": "Team zuordnen",
+      "searchLabel": "Team suchen (Startnummer oder Name)",
+      "assign": "Zuordnen",
+      "edit": "Zuordnung bearbeiten",
+      "detach": "Zuordnung lösen",
+      "loadError": "Teams konnten nicht geladen werden",
+      "error": "Zuordnung fehlgeschlagen"
+    },
+    "mark": {
+      "retractError": "Rückgängig machen fehlgeschlagen"
+    },
+    "sequence": {
+      "mode": {
+        "MASS": "Massenstart",
+        "INTERVAL": "Einzelstart"
+      },
+      "setup": {
+        "title": "Sequenz einrichten",
+        "intervalSeconds": "Abstand (Sekunden)",
+        "leadInSeconds": "Vorlauf (Sekunden)",
+        "leadInHelp": "Zeit vom Start der Sequenz bis zum ersten Start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} von {{total}} ausgewählt",
+        "orderHint": "Startreihenfolge folgt der Startnummer",
+        "armButton": "Sequenz scharf stellen"
+      },
+      "armed": {
+        "title": "Sequenz scharf",
+        "start": "Sequenz starten"
+      },
+      "running": {
+        "finishing": "Wird abgeschlossen…",
+        "following": "Weitere Teams",
+        "overdue": "läuft…"
+      },
+      "summary": {
+        "titleDone": "Sequenz abgeschlossen",
+        "titleAborted": "Sequenz abgebrochen",
+        "reset": "Neue Sequenz"
+      },
+      "entry": {
+        "skip": "Überspringen",
+        "skipped": "Übersprungen",
+        "skipConfirm": {
+          "title": "Team überspringen?",
+          "content": "{{team}} wird nicht gestartet. Das kann nicht rückgängig gemacht werden."
+        }
+      },
+      "abort": "Abbrechen",
+      "abortConfirm": {
+        "title": "Sequenz wirklich abbrechen?",
+        "content": "Ausstehende Starts werden nicht mehr ausgelöst."
+      },
+      "loadError": "Sequenz konnte nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "error": {
+        "create": "Sequenz konnte nicht angelegt werden",
+        "start": "Sequenz konnte nicht gestartet werden",
+        "abort": "Abbrechen fehlgeschlagen",
+        "skip": "Überspringen fehlgeschlagen",
+        "invalidInterval": "Abstand muss mindestens 1 Sekunde betragen",
+        "invalidLeadIn": "Vorlauf muss zwischen {{min}} und {{max}} Sekunden liegen",
+        "noTeams": "Mindestens ein Team auswählen"
+      }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Verbindet…",
+        "OPEN": "Verbunden",
+        "RECONNECTING": "Wird wiederhergestellt…",
+        "UNAUTHORIZED": "Nicht autorisiert"
+      },
+      "clockQuality": {
+        "SYNCING": "Synchronisiere…",
+        "OK": "Synchron",
+        "DEGRADED": "Beeinträchtigt"
+      },
+      "banner": {
+        "reconnecting": "Verbindung wird wiederhergestellt…",
+        "unauthorized": "Sitzung abgelaufen, bitte neu anmelden",
+        "clockDegraded": "Uhrsynchronisierung beeinträchtigt – Zeiten könnten ungenau sein",
+        "queuedMarks_one": "{{count}} Zeit noch nicht übertragen",
+        "queuedMarks_other": "{{count}} Zeiten noch nicht übertragen",
+        "deadMarks_one": "{{count}} Zeit konnte endgültig nicht übertragen werden",
+        "deadMarks_other": "{{count}} Zeiten konnten endgültig nicht übertragen werden",
+        "bufferFailed": "Zeit konnte nicht gepuffert werden – bei einem Neuladen geht sie verloren"
+      },
+      "deadDialog": {
+        "open": "Anzeigen",
+        "title": "Nicht übertragene Zeiten",
+        "description": "Diese Zeiten wurden vom Server abgelehnt. Sie können erneut übertragen oder endgültig verworfen werden.",
+        "item": "Posten {{station}} · Status {{status}}",
+        "requeue": "Erneut versuchen",
+        "discard": "Endgültig verwerfen",
+        "discardConfirm": {
+          "title": "Zeiten endgültig verwerfen?",
+          "content": "Die Zeiten werden gelöscht und können nicht wiederhergestellt werden."
+        }
+      },
+      "stateError": "Daten konnten nicht geladen werden – versuche erneut…",
+      "capture": {
+        "clockNotSynced": "Uhr nicht synchronisiert – Erfassung nicht möglich",
+        "stationLoading": "Posten wird geladen…"
+      },
+      "mark": {
+        "pending": "wird übertragen",
+        "failed": "fehlgeschlagen",
+        "undo": "Rückgängig machen"
+      },
+      "teams": {
+        "viewTwoStep": "Zwei-Schritt",
+        "viewTeams": "Teams",
+        "arm": "Scharfstellen",
+        "armHint": "Teams antippen, um sie auf eine Taste zu legen",
+        "armedFull": "Es können höchstens {{count}} Teams gleichzeitig scharfgestellt werden",
+        "unarm": "Scharfstellung aufheben",
+        "hint": "Tasten 1–9: Startnummer · Leertaste: Zeit ohne Zuordnung",
+        "empty": "Keine Teams für dieses Event vorhanden"
+      }
+    },
+    "leitstand": {
+      "title": "Leitstand",
+      "entryHint": "Alle Posten",
+      "tab": {
+        "times": "Zeiten",
+        "results": "Ergebnisse",
+        "devices": "Geräte"
+      },
+      "marks": {
+        "stationFilter": "Posten",
+        "allStations": "Alle Posten",
+        "unassignedOnly": "Nur unzugeordnete",
+        "count_one": "{{count}} Zeit",
+        "count_other": "{{count}} Zeiten",
+        "unassigned": "nicht zugeordnet",
+        "empty": "Keine Zeiten erfasst",
+        "column": {
+          "station": "Posten",
+          "time": "Zeit",
+          "status": "Status",
+          "source": "Quelle",
+          "team": "Team",
+          "actions": "Aktionen"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "RETRACTED": "Zurückgenommen"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Gelöschte Zeiten endgültig entfernen",
+          "hint_one": "{{count}} zurückgenommene Zeit",
+          "hint_other": "{{count}} zurückgenommene Zeiten",
+          "confirm": {
+            "title": "Zeiten endgültig entfernen?",
+            "contentAll_one": "{{count}} zurückgenommene Zeit wird endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentAll_other": "{{count}} zurückgenommene Zeiten werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentStation_one": "{{count}} zurückgenommene Zeit am Posten {{station}} wird endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+            "contentStation_other": "{{count}} zurückgenommene Zeiten am Posten {{station}} werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden."
+          },
+          "success_one": "{{count}} Zeit entfernt",
+          "success_other": "{{count}} Zeiten entfernt",
+          "error": "Zeiten konnten nicht entfernt werden"
+        }
+      },
+      "results": {
+        "loadError": "Ergebnisse konnten nicht geladen werden",
+        "empty": "Keine Ergebnisse vorhanden",
+        "hint": "Gemessene Zeiten, Strafzeiten und Status dieser Veranstaltung. Vollständige manuelle Korrekturen erfolgen in der Wettkampfdurchführung.",
+        "selectedCount_one": "{{count}} Zeile ausgewählt",
+        "selectedCount_other": "{{count}} Zeilen ausgewählt",
+        "pushableCount_one": "{{count}} Ergebnis übertragbar",
+        "pushableCount_other": "{{count}} Ergebnisse übertragbar",
+        "penaltyValue": "+{{seconds}} s",
+        "notPushed": "nicht übernommen",
+        "isPushed": "übernommen",
+        "frozen": "Festgeschrieben",
+        "frozenHint": "Platzierung bereits erfasst – Übernahme nur mit „Trotzdem übernehmen“",
+        "column": {
+          "team": "Startnr. / Team",
+          "start": "Startzeit",
+          "finish": "Zielzeit",
+          "measured": "Gemessen",
+          "penalty": "Strafzeit",
+          "status": "Status",
+          "computed": "Endzeit",
+          "pushed": "Übernommen",
+          "actions": "Aktionen"
+        },
+        "status": {
+          "NONE": "Kein Status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "skipReason": {
+          "NO_MARKS": "Keine Zeiten erfasst",
+          "NO_START_MARK": "Keine Startzeit",
+          "NO_FINISH_MARK": "Keine Zielzeit",
+          "NEGATIVE_DURATION": "Zielzeit liegt vor der Startzeit",
+          "RESULT_FROZEN": "Ergebnis bereits festgeschrieben",
+          "STATUS_SET": "Status gesetzt – keine Zeit nötig"
+        },
+        "conflictReason": {
+          "RESULT_FROZEN": "Ergebnis bereits festgeschrieben",
+          "NO_FINAL_TIME": "Weder Zeit noch Status vorhanden",
+          "WRONG_TIMING_SYSTEM": "Wettkampf wird nicht mit dieser Zeitnahme gemessen"
+        },
+        "push": {
+          "selected": "Auswahl übernehmen",
+          "all": "Alle übernehmen",
+          "error": "Übernahme fehlgeschlagen",
+          "nothing": "Keine übertragbaren Ergebnisse vorhanden",
+          "success_one": "{{count}} Ergebnis übernommen",
+          "success_other": "{{count}} Ergebnisse übernommen",
+          "force": "Trotzdem übernehmen",
+          "confirmAll": {
+            "title": "Alle Ergebnisse übernehmen?",
+            "content": "Alle übertragbaren Ergebnisse dieser Veranstaltung werden in die Ergebnisse geschrieben."
+          },
+          "forceConfirm": {
+            "title": "Ergebnisse überschreiben?",
+            "content_one": "Für {{count}} Team ist das Ergebnis bereits festgeschrieben. Die Zeit wird trotzdem überschrieben; die Platzierung muss danach im Wettkampf neu gespeichert werden.",
+            "content_other": "Für {{count}} Teams ist das Ergebnis bereits festgeschrieben. Die Zeiten werden trotzdem überschrieben; die Platzierungen müssen danach im Wettkampf neu gespeichert werden."
+          },
+          "skippedTitle": "Nicht übernommen",
+          "skippedDescription": "Diese Teams wurden ausgelassen:",
+          "conflictTitle": "Übernahme nicht möglich",
+          "conflictDescription": "Es wurde nichts übernommen. Konflikte:"
+        },
+        "entry": {
+          "action": "Strafzeit / Status",
+          "title": "Strafzeit und Status",
+          "penaltySeconds": "Strafzeit (Sekunden)",
+          "penaltyHelp": "Wird zur gemessenen Zeit addiert; leer bedeutet keine Strafzeit",
+          "penaltyNote": "Begründung",
+          "penaltyNoteHelp": "Erscheint zusammen mit der Strafzeit in den Ergebnissen",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ ersetzen jede gemessene Zeit",
+          "force": "Festgeschriebenes Ergebnis überschreiben",
+          "forceHint": "Für dieses Team ist bereits eine Platzierung erfasst. Ohne diesen Schalter lehnt der Server die Änderung ab.",
+          "forceRequiredHint": "Für dieses Ergebnis ist doch bereits eine Platzierung festgeschrieben. Schalter oben aktivieren und erneut speichern, um sie zu überschreiben.",
+          "invalidSeconds": "Bitte eine Zahl in Sekunden eingeben",
+          "error": "Speichern fehlgeschlagen",
+          "success": "Gespeichert"
+        },
+        "execution": {
+          "link": "Wettkämpfe der Veranstaltung öffnen",
+          "hint": "Vollständige manuelle Zeit- und Platzierungskorrekturen erfolgen in der Wettkampfdurchführung."
+        }
+      },
+      "devices": {
+        "loadError": "Geräte-Token konnten nicht geladen werden",
+        "noStations": "Es gibt noch keine Posten – Token können erst danach ausgestellt werden",
+        "empty": "Keine Geräte-Token vorhanden",
+        "column": {
+          "name": "Name",
+          "station": "Posten",
+          "created": "Erstellt",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Aktiv",
+          "REVOKED": "Widerrufen"
+        },
+        "issue": {
+          "action": "Token ausstellen",
+          "title": "Geräte-Token ausstellen",
+          "error": "Token konnte nicht ausgestellt werden",
+          "onceWarning": "Dieser Token wird nur einmal angezeigt. Jetzt kopieren und sicher hinterlegen.",
+          "copy": "Token kopieren",
+          "copied": "Token kopiert",
+          "copyError": "Token konnte nicht kopiert werden",
+          "usageHint": "Das Gerät sendet den Token im Header X-Timing-Device-Token.",
+          "done": "Fertig"
+        },
+        "revoke": {
+          "action": "Widerrufen",
+          "error": "Widerrufen fehlgeschlagen",
+          "success": "Token widerrufen",
+          "confirm": {
+            "title": "Token widerrufen?",
+            "content": "Das Gerät „{{name}}“ kann danach keine Zeiten mehr senden."
+          }
+        }
+      }
+    },
+    "raceType": {
+      "title": "Renntypen",
+      "entityName": "Renntyp",
+      "name": "Name",
+      "add": "Renntyp hinzufügen",
+      "edit": "Renntyp bearbeiten",
+      "timed": "Mit Zeitnahme",
+      "timedYes": "Ja",
+      "timedNo": "Nein",
+      "untimedHint": "Der Lauf wird gefahren, aber nicht gemessen. Das Startbrett bietet dafür keine Zeiterfassung an.",
+      "startMode": "Startart",
+      "interval": "Abstand",
+      "leadIn": "Vorlauf",
+      "intervalSeconds": "Abstand (Sekunden)",
+      "leadInSeconds": "Vorlauf (Sekunden)",
+      "presetOptional": "Leer lassen, wenn der Starter das vor Ort entscheidet",
+      "sorting": "Reihenfolge",
+      "prefilled": "Vorbelegt aus dem Renntyp „{{name}}“. Änderungen bleiben möglich.",
+      "untimedRun": "Keine Zeitnahme für diesen Lauf ({{name}})."
     }
   }
 }

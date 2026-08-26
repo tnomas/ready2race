@@ -9851,6 +9851,854 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/timing/state:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingState
+      description: >-
+        The current snapshot of live timing for this event: every station and every time mark
+        (active and retracted alike - retracted marks are never removed from this snapshot, only
+        physically deleted by deleteRetractedTimeMarks).
+
+
+        In addition to this and the other routes below, timing state changes are pushed over a
+        websocket channel:
+
+
+        - Path: `/api/ws/event/{eventId}/timing` (note the `/api/ws` prefix - this channel lives
+        outside the regular `/api` REST routes documented in this file).
+
+        - Auth: browsers cannot set custom headers on a websocket handshake, so the session token
+        is passed as the second entry of the `Sec-WebSocket-Protocol` header - connect with
+        `new WebSocket(url, ["r2r", sessionToken])`. Non-browser clients may instead send the usual
+        session header/cookie and omit the subprotocol.
+
+        - Messages are JSON objects discriminated by a `type` field, mirroring the backend's
+        `TimingWsMessage`:
+
+          - `{ type: "timeMarkCreated", mark: TimeMarkDto }`
+
+          - `{ type: "timeMarkRetracted", id: uuid }`
+
+          - `{ type: "assignmentChanged", timeMark: uuid, competitionMatchTeam: uuid | null }` -
+          `competitionMatchTeam` is always present, even when `null` (a detach), so clients can
+          distinguish "no assignment" from a field that was never sent.
+
+          - `{ type: "stationsChanged" }` - stations were added, edited, or removed; refetch
+          `GET /event/{eventId}/timing/stations` (or this state endpoint).
+
+          - `{ type: "sequenceChanged", sequence: TimingSequenceDto }` - a start sequence was
+          created, started, aborted, had an entry fire or get skipped, or completed. Boards
+          watching that sequence's station should replace their local copy with `sequence`.
+
+          - `{ type: "timesDeleted", timeMarks: uuid[] }` - the ids `deleteRetractedTimeMarks`
+          physically removed; drop them from any local copy of the state.
+
+          - `{ type: "resultChanged", results: TimingResultDto[] }` - one or more result rows
+          changed (a penalty/status was entered, or a push wrote a result). Carries the full rows
+          rather than ids so a result table can replace them directly.
+
+        - The channel is receive-only: clients should ignore any data they send on it and rely on
+        the server's ping/pong keepalive.
+
+        - On (re)connect, clients should always fetch this endpoint first and only then start
+        applying incoming messages, to cover updates missed while disconnected.
+      responses:
+        200:
+          description: Timing state successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingStateDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/teams:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingTeams
+      description: Every competition match team of the event, flattened with display fields (crew names, club, competition/match) for timing boards to assign time marks to.
+      responses:
+        200:
+          description: Timing teams successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingTeamDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/stations:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingStations
+      responses:
+        200:
+          description: Timing stations successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingStationDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: createTimingStation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/stations/{stationId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: stationId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateTimingStation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingStationRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteTimingStation
+      description: Fails if the station has already captured time marks (retract/delete those first).
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/raceTypes:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingRaceTypes
+      description: >-
+        The reusable race types of this event ("Zeitfahren", "Finale Massenstart", "Show-Lauf"). A race
+        type answers how a run is started and whether it is measured at all; competition setup rounds
+        point at one of them (see `CompetitionSetupRoundDto.timingRaceType`).
+      responses:
+        200:
+          description: Timing race types successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingRaceTypeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: createTimingRaceType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingRaceTypeRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/raceTypes/current:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: stationId
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCurrentTimingRaceType
+      description: >-
+        The race type that applies to the work this station's board is about to do: the race type of the
+        earliest un-started, unfinished match of the event whose round declares one, restricted to
+        competitions timed with this application. `raceType` is null when nothing applies - that is a
+        200, not a 404, so a polling board can tell "nothing assigned" from "request failed". The
+        station is validated against the event but does not narrow the search; stations are not tied to
+        rounds, so what happens next is an event-level question.
+      responses:
+        200:
+          description: Current timing race type successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentRaceTypeDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/raceTypes/{raceTypeId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: raceTypeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateTimingRaceType
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingRaceTypeRequest'
+    delete:
+      operationId: deleteTimingRaceType
+      description: >-
+        Rounds that used the race type keep existing and simply lose their preset (the assignment is
+        cleared). A race type is a convenience, never a structural part of a setup.
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/timeMarks:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    post:
+      operationId: createTimeMark
+      description: >-
+        Captures a time mark at a station. `id` is client-generated: capturing the same id twice
+        (e.g. an app retrying after a dropped response) is idempotent and creates only one time
+        mark.
+
+
+        Accepts either a normal session (privilege UpdateAppTimingGlobal or UpdateEventGlobal), OR
+        an `X-Timing-Device-Token` header identifying a hardware timing device that cannot hold a
+        session. That branch is only taken when the header is present AND no session exists - a
+        logged-in user's request always takes the ordinary privilege-checked path regardless of
+        the header. A device token binds the capture to its own station: it can never write marks
+        for a different station than the one it was issued for. Marks captured this way are
+        recorded with `source: "HARDWARE"` and no `createdBy`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimeMarkRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/timeMarks/retracted:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    delete:
+      operationId: deleteRetractedTimeMarks
+      description: >-
+        The only path that ever hard-deletes a time mark ("Zeiten löschen"): retracted marks of
+        the event, or of one station when `station` is given. ACTIVE marks are never touched -
+        retracting a mark first is the deliberate step that makes it deletable.
+      parameters:
+        - name: station
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Retracted time marks successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletedTimeMarksDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/retract:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: timeMarkId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: retractTimeMark
+      description: Soft-delete - the mark stays in the state (and in history) with status RETRACTED. Use deleteRetractedTimeMarks afterwards to physically remove it.
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/timeMarks/{timeMarkId}/assignment:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: timeMarkId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: assignTimeMark
+      description: Omit `competitionMatchTeam` (or send `null`) to detach the time mark from any team.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTimeMarkRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/results:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getTimingResults
+      description: >-
+        One row per competition match team that has assigned marks, or that already carries
+        result data (a penalty, a status, or a pushed time) - nothing is stored twice: the
+        measured part is recomputed from the marks on every read, and only the judged part
+        (penalty, DNS/DNF/DSQ) is persisted. Sorted by computed final time, then finish time,
+        then team id.
+      responses:
+        200:
+          description: Timing results successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingResultDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/results/compute-push:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    post:
+      operationId: pushTimingResults
+      description: >-
+        Copies computed results into the results flow (writes `timecode`, or `failed` +
+        `failedReason` for a DNS/DNF/DSQ status). Two shapes: with `teams` given, every named team
+        must be pushable, or the whole call fails; with `teams` omitted, every pushable team of
+        the event is pushed and the rest is reported as `skipped`. In both shapes a team whose
+        result is already frozen (a place entered, places calculated, or a referee's own
+        failed-flag) is a hard conflict that fails the whole call unless `force` is set - and
+        `force` only overrides that freeze, it never makes a team without a final time pushable.
+        A forced push replaces the timecode snapshot but never recalculates places; a referee must
+        re-save the match afterwards for the place to reflect the pushed time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushTimingResultsRequest'
+      responses:
+        200:
+          description: Timing results successfully pushed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingResultPushResultDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/results/{competitionMatchTeamId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: competitionMatchTeamId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setTimingResult
+      description: >-
+        Writes the judged part of one team's result: penalty and/or a DNS/DNF/DSQ status. PUT
+        semantics - every field is replaced: an absent `penaltySeconds` clears the penalty, an
+        absent `penaltyNote` clears the note, and an absent (or NONE) `resultStatus` clears the
+        status. Setting a status other than NONE also drops any previously pushed timecode - a
+        status supersedes every measured time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingResultEntryRequest'
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/sequences:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    post:
+      operationId: createTimingSequence
+      description: Requires a timing station of type START that has no other armed or running sequence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSequenceRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/sequences/active:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getActiveTimingSequence
+      description: >-
+        The sequence a station's board should show right now: the one that is ARMED/RUNNING, or -
+        if there is none - the most recently finished (DONE/ABORTED) one, as long as it finished
+        within the last 10 minutes. This lets a client that reconnects (or missed the terminal
+        websocket broadcast) right after a sequence completes still render the outcome of a run
+        that just ended, instead of seeing nothing at all. A station without an armed or running
+        sequence and without a recent terminal one returns `sequence: null` - the normal case, not
+        a missing resource.
+      parameters:
+        - name: stationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Active timing sequence successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveSequenceDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/sequences/{sequenceId}/start:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sequenceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: startTimingSequence
+      description: >-
+        Only valid from state ARMED. The server's clock becomes the record: every board derives
+        its countdown from the started instant plus its own measured clock offset (see
+        getServerTime), so nobody counts down against their local time.
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/sequences/{sequenceId}/abort:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sequenceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: abortTimingSequence
+      description: Only valid while the sequence is active (ARMED or RUNNING). Leaves already-fired entries (and their marks) alone; only pending ones are called off.
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/sequences/{sequenceId}/entries/{entryId}/skip:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sequenceId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: skipTimingSequenceEntry
+      description: Only valid for a PENDING entry of an active sequence. If this was the last pending entry of an ARMED sequence, the sequence is resolved to ABORTED (a RUNNING sequence's completion is instead picked up by the scheduler).
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/deviceTokens:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: listTimingDeviceTokens
+      responses:
+        200:
+          description: Timing device tokens successfully retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingDeviceTokenDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: issueTimingDeviceToken
+      description: The response's plaintext `token` is the only moment it exists outside the device - only its hash is stored, so a lost token cannot be recovered and has to be revoked and reissued.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingDeviceTokenRequest'
+      responses:
+        200:
+          description: Timing device token successfully issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingDeviceTokenIssuedDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/timing/deviceTokens/{tokenId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: tokenId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: revokeTimingDeviceToken
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /timing/serverTime:
+    post:
+      operationId: getServerTime
+      description: >-
+        Used by clients to measure and correct their local clock's offset against the server
+        before capturing time marks (or rendering a sequence countdown). Deliberately
+        unauthenticated - it is safe to expose and needs to be reachable before a session even
+        exists.
+      responses:
+        200:
+          description: Server time successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTimeResponse'
+        500:
+          $ref: '#/components/responses/500'
+
+
 components:
 
   parameters:
@@ -10065,6 +10913,7 @@ components:
         - APP_QR_MANAGEMENT
         - APP_COMPETITION_CHECK
         - APP_CATERER
+        - APP_TIMING
         - ADMINISTRATION
         - WEB_DAV
         - RESULT
@@ -12033,6 +12882,15 @@ components:
           description: >-
             Read-only. False when the round has already been created during execution and therefore must not be
             changed. Ignored on incoming update requests.
+        timingRaceType:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Race type of this round (a timing race type of the same event), or null when the round has none. It
+            travels in this DTO rather than in an endpoint of its own because every round that is not yet locked is
+            deleted and re-created with a fresh id on each save. Ignored for setup templates, which belong to no
+            event. An id that is not a race type of this event answers 404.
         matches:
           type: array
           items:
@@ -19323,3 +20181,529 @@ components:
           nullable: true
           items:
             $ref: '#/components/schemas/AwardCeremonyKeyRequest'
+
+    # ==========================================================================
+    # Timing
+    # ==========================================================================
+
+    TimingStationType:
+      type: string
+      enum:
+        - START
+        - SPLIT
+        - FINISH
+
+    TimingStationDto:
+      type: object
+      required: [id, event, name, type, sorting]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        sorting:
+          type: integer
+
+    TimingStationRequest:
+      type: object
+      required: [name, type, sorting]
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/TimingStationType'
+        sorting:
+          type: integer
+
+    TimingRaceTypeDto:
+      type: object
+      required: [id, event, name, timed, startMode, sorting]
+      description: >-
+        A reusable race type of an event. It answers the two questions a timekeeper would otherwise
+        have to be told for every heat: is this run measured at all, and how is it started.
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        name:
+          type: string
+        timed:
+          type: boolean
+          description: False for runs that are held but not measured - boards then offer no capture at all.
+        startMode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Cadence preset for INTERVAL; null means the operator still picks one. Always null for MASS.
+        leadInMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: Countdown preset; null means the sequence keeps its own default.
+        sorting:
+          type: integer
+
+    TimingRaceTypeRequest:
+      type: object
+      required: [name, timed, startMode, sorting]
+      properties:
+        name:
+          type: string
+        timed:
+          type: boolean
+        startMode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Optional even for INTERVAL ("Einzelstart, Abstand entscheidet der Starter" is a legitimate
+            preset). When given, must be at least 1000. Dropped for MASS.
+        leadInMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: When given, must be between 3000 and 600000 - the same bounds a sequence enforces.
+        sorting:
+          type: integer
+
+    CurrentRaceTypeDto:
+      type: object
+      required: [raceType]
+      description: >-
+        What a station's board should assume for the work it is about to do. Wrapped so that "no race
+        type applies" stays a 200 with an explicit null.
+      properties:
+        raceType:
+          allOf:
+            - $ref: '#/components/schemas/TimingRaceTypeDto'
+          nullable: true
+
+    TimeMarkDto:
+      type: object
+      required: [id, event, station, timestampMillis, source, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        station:
+          type: string
+          format: uuid
+        timestampMillis:
+          type: integer
+          format: int64
+        source:
+          type: string
+          description: "\"APP_USER\" | \"HARDWARE\""
+        status:
+          type: string
+          description: "\"ACTIVE\" | \"RETRACTED\" - retracted marks stay in the state, never deleted"
+        createdBy:
+          type: string
+          format: uuid
+          nullable: true
+        assignedTeam:
+          type: string
+          format: uuid
+          nullable: true
+          description: The competition match team this mark has been assigned to, if any.
+
+    CreateTimeMarkRequest:
+      type: object
+      required: [id, station, timestampMillis]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Client-generated - capturing the same id twice is idempotent and creates only one time mark.
+        station:
+          type: string
+          format: uuid
+        timestampMillis:
+          type: integer
+          format: int64
+
+    AssignTimeMarkRequest:
+      type: object
+      properties:
+        competitionMatchTeam:
+          type: string
+          format: uuid
+          nullable: true
+          description: Omit or set to null to detach the time mark from any team.
+
+    TimingStateDto:
+      type: object
+      required: [stations, timeMarks]
+      properties:
+        stations:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingStationDto'
+        timeMarks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeMarkDto'
+
+    TimingTeamDto:
+      type: object
+      required: [competitionMatchTeam, participantNames]
+      properties:
+        competitionMatchTeam:
+          type: string
+          format: uuid
+        startNumber:
+          type: integer
+          nullable: true
+        teamName:
+          type: string
+          nullable: true
+        clubName:
+          type: string
+          nullable: true
+        participantNames:
+          type: array
+          items:
+            type: string
+        competitionName:
+          type: string
+          nullable: true
+        matchName:
+          type: string
+          nullable: true
+
+    ServerTimeResponse:
+      type: object
+      required: [serverTimeMillis]
+      properties:
+        serverTimeMillis:
+          type: integer
+          format: int64
+
+    DeletedTimeMarksDto:
+      type: object
+      required: [timeMarks]
+      properties:
+        timeMarks:
+          type: array
+          description: The ids the explicit "delete times" action physically removed.
+          items:
+            type: string
+            format: uuid
+
+    SequenceMode:
+      type: string
+      enum:
+        - MASS
+        - INTERVAL
+
+    SequenceState:
+      type: string
+      enum:
+        - ARMED
+        - RUNNING
+        - DONE
+        - ABORTED
+
+    SequenceEntryStatus:
+      type: string
+      enum:
+        - PENDING
+        - STARTED
+        - SKIPPED
+
+    TimingSequenceEntryDto:
+      type: object
+      required: [id, competitionMatchTeam, position, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        competitionMatchTeam:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        status:
+          $ref: '#/components/schemas/SequenceEntryStatus'
+        plannedStartMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: Wall-clock instant (server epoch millis) this entry is scheduled to fire at, or null while the sequence has not been started yet.
+        timeMark:
+          type: string
+          format: uuid
+          nullable: true
+
+    TimingSequenceDto:
+      type: object
+      required: [id, event, station, mode, leadInMillis, state, entries]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        station:
+          type: string
+          format: uuid
+        mode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: Only ever set for mode INTERVAL.
+        leadInMillis:
+          type: integer
+          format: int64
+          description: Countdown before the first entry fires, in milliseconds, counted from startedAtMillis. Gives clients room to run a countdown (with beeps) before anything actually starts.
+        state:
+          $ref: '#/components/schemas/SequenceState'
+        startedAtMillis:
+          type: integer
+          format: int64
+          nullable: true
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingSequenceEntryDto'
+
+    CreateSequenceRequest:
+      type: object
+      required: [station, mode, teams]
+      properties:
+        station:
+          type: string
+          format: uuid
+        mode:
+          $ref: '#/components/schemas/SequenceMode'
+        intervalMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: Required (and must be >= 1000) for mode INTERVAL; ignored for MASS.
+        teams:
+          type: array
+          description: Ordered - index in this list becomes the entry position and therefore the start slot.
+          items:
+            type: string
+            format: uuid
+        leadInMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: >-
+            Countdown before the first entry fires, in milliseconds. When absent, defaults to
+            intervalMillis for mode INTERVAL (one full cadence) or 10000 for MASS. When given, must
+            be between 3000 and 600000.
+
+    ActiveSequenceDto:
+      type: object
+      description: >-
+        A station without an armed or running sequence is the normal case (the board then shows
+        its setup form), not a missing resource - hence `sequence` being absent rather than a 404.
+      properties:
+        sequence:
+          $ref: '#/components/schemas/TimingSequenceDto'
+          nullable: true
+
+    TimingDeviceTokenDto:
+      type: object
+      required: [id, event, station, name, revoked, createdAt]
+      description: Metadata of a hardware device token. Deliberately carries neither the token nor its hash.
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        station:
+          type: string
+          format: uuid
+        name:
+          type: string
+        revoked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    TimingDeviceTokenIssuedDto:
+      type: object
+      required: [deviceToken, token]
+      description: Response of an issue call - the only moment the plaintext token exists outside the device. Only its hash is stored, so a lost token cannot be recovered - it has to be revoked and reissued.
+      properties:
+        deviceToken:
+          $ref: '#/components/schemas/TimingDeviceTokenDto'
+        token:
+          type: string
+
+    TimingDeviceTokenRequest:
+      type: object
+      required: [name, station]
+      properties:
+        name:
+          type: string
+        station:
+          type: string
+          format: uuid
+
+    TimingResultStatus:
+      type: string
+      enum:
+        - NONE
+        - DNS
+        - DNF
+        - DSQ
+
+    TimingResultSkipReason:
+      type: string
+      description: >-
+        Why a team has no computable final time, or why "push everything" left it out.
+        RESULT_FROZEN and STATUS_SET only occur in a push-all response: a place-frozen or
+        status-frozen team is left out of the batch instead of failing it.
+      enum:
+        - NO_MARKS
+        - NO_START_MARK
+        - NO_FINISH_MARK
+        - NEGATIVE_DURATION
+        - RESULT_FROZEN
+        - STATUS_SET
+
+    TimingResultDto:
+      type: object
+      required: [competitionMatchTeam, event, competitionMatch, resultStatus, pushed, frozen]
+      description: >-
+        One row of the Leitstand's result table. Nothing here is stored: startMillis/finishMillis
+        are resolved live from the team's currently assigned, non-retracted marks, and
+        computedFinalMillis is derived from them plus the penalty - `(finish - start) +
+        penaltySeconds * 1000`, null whenever skipReason says why it cannot be formed or whenever
+        resultStatus is not NONE (a status supersedes any time).
+      properties:
+        competitionMatchTeam:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        competitionMatch:
+          type: string
+          format: uuid
+        startMillis:
+          type: integer
+          format: int64
+          nullable: true
+        finishMillis:
+          type: integer
+          format: int64
+          nullable: true
+        measuredMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: "`finish - start`, before the penalty is added - what the marks alone say."
+        penaltySeconds:
+          type: integer
+          nullable: true
+        penaltyNote:
+          type: string
+          nullable: true
+        resultStatus:
+          $ref: '#/components/schemas/TimingResultStatus'
+        computedFinalMillis:
+          type: integer
+          format: int64
+          nullable: true
+        skipReason:
+          $ref: '#/components/schemas/TimingResultSkipReason'
+          nullable: true
+        pushed:
+          type: boolean
+          description: Whether the results flow already carries what a push would write.
+        frozen:
+          type: boolean
+          description: "`placesCalculated || place != null || failed` - a push needs `force` past this."
+
+    TimingResultSkipDto:
+      type: object
+      required: [competitionMatchTeam, reason]
+      properties:
+        competitionMatchTeam:
+          type: string
+          format: uuid
+        reason:
+          $ref: '#/components/schemas/TimingResultSkipReason'
+
+    TimingResultEntryRequest:
+      type: object
+      description: >-
+        The judged part of a result: a penalty and/or a DNS/DNF/DSQ. PUT semantics - every field
+        is replaced. An absent penaltySeconds clears the penalty, an absent penaltyNote clears the
+        note, and an absent (or NONE) resultStatus clears the status.
+      properties:
+        penaltySeconds:
+          type: integer
+          nullable: true
+        penaltyNote:
+          type: string
+          nullable: true
+        resultStatus:
+          $ref: '#/components/schemas/TimingResultStatus'
+          nullable: true
+        force:
+          type: boolean
+          description: >-
+            Overrides the freeze on a team whose place is already recorded (place set, or places
+            calculated); without it such a team answers 409. A `failed` flag alone never freezes
+            the entry - this endpoint is the way to change or clear a status.
+
+    PushTimingResultsRequest:
+      type: object
+      description: >-
+        Which teams' computed results to write into the results flow. With teams given, every
+        named team must be pushable, or the whole call fails. With teams omitted, every pushable
+        team of the event is pushed and the rest is reported as skipped. force only overrides an
+        already-frozen result; it never makes a team without a final time pushable.
+      properties:
+        teams:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        force:
+          type: boolean
+
+    TimingResultPushResultDto:
+      type: object
+      required: [pushed, skipped]
+      description: Outcome of a push - what was written, and every team that was left out with the reason.
+      properties:
+        pushed:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingResultDto'
+        skipped:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimingResultSkipDto'

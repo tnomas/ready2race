@@ -58,6 +58,7 @@ import {
     updateEventGlobal,
 } from '@authorization/privileges.ts'
 import TabSelectionContainer from '@components/tab/TabSelectionContainer.tsx'
+import TimingStationPanel from '@components/event/timing/TimingStationPanel.tsx'
 import InlineLink from '@components/InlineLink.tsx'
 import TaskTable from '@components/event/task/TaskTable.tsx'
 import TaskDialog from '@components/event/task/TaskDialog.tsx'
@@ -82,6 +83,7 @@ import EventRegistrations from '@components/event/competition/registration/Event
 import ManageRunningMatchesDialog from '@components/event/match/ManageRunningMatchesDialog.tsx'
 import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategoriesForEvent.tsx'
 import EventTimingConfig from '@components/event/timing/EventTimingConfig.tsx'
+import TimingRaceTypePanel from '@components/event/timing/TimingRaceTypePanel.tsx'
 import EventExecutionSettings from '@components/event/EventExecutionSettings.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
@@ -97,6 +99,7 @@ const EVENT_TABS = [
     'participants',
     'registrations',
     'organization',
+    'posten',
     'schedule',
     'settings',
     'invoices',
@@ -270,6 +273,12 @@ const EventPage = () => {
                                         {...tabProps('organization')}
                                     />
                                 )}
+                            {/* Die Zeitnahme-Posten der Veranstaltung: Verwaltung neben der
+                                Organisation, weil ein Posten eine Einrichtung des Renntags ist -
+                                die Erfassung selbst läuft in der Helfer-App unter /app/timing. */}
+                            {user.checkPrivilege(updateEventGlobal) && (
+                                <Tab label={t('event.tabs.posten')} {...tabProps('posten')} />
+                            )}
                             {user.checkPrivilege(readEventGlobal) && (
                                 <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
                             )}
@@ -534,6 +543,9 @@ const EventPage = () => {
                                 <Shiftplan/>
                             </Stack>
                         </TabPanel>
+                        <TabPanel index={'posten'} activeTab={activeTab}>
+                            <TimingStationPanel />
+                        </TabPanel>
                         <TabPanel index={'schedule'} activeTab={activeTab}>
                             <EventSchedule event={data}/>
                         </TabPanel>
@@ -545,6 +557,10 @@ const EventPage = () => {
                                     die Veranstaltung ändert und kein Geräte-Schalter ist. */}
                                 <EventExecutionSettings event={data} reloadEvent={reload}/>
                                 <EventTimingConfig />
+                                {/* Renntypen stehen direkt neben den Zeitnahme-Vorgaben: sie sind
+                                    dieselbe Ebene (Veranstaltung), und eine Runde des Wettkampf-
+                                    Setups verweist auf einen von ihnen. */}
+                                <TimingRaceTypePanel />
                                 <DocumentTable
                                     {...documentAdministrationProps.table}
                                     title={t('event.document.documents')}

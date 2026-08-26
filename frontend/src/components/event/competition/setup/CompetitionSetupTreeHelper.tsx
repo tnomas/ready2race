@@ -158,6 +158,7 @@ const CompetitionSetupTreeHelper = ({resetSetupForm, currentFormData, portalCont
                 statisticEvaluations: undefined,
                 isQualification: false,
                 matchNamings: [],
+                timingRaceType: '',
                 useDefaultSeeding: matchForPlaceThree ? roundIndex !== roundCount - 1 : true,
                 placesOption:
                     roundIndex === roundCount - 1

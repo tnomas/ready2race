@@ -17,6 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import SportsScoreIcon from '@mui/icons-material/SportsScore'
+import TimerIcon from '@mui/icons-material/Timer'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {AppEntry, appEntries} from '@components/qrApp/common.ts'
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
@@ -30,6 +31,7 @@ const ENTRY_ICONS: Record<string, typeof QrCodeIcon> = {
     APP_EVENT_REQUIREMENT: AssignmentIcon,
     APP_CATERER: RestaurantIcon,
     LIVE_DASHBOARD: SportsScoreIcon,
+    APP_TIMING: TimerIcon,
 }
 
 const AppFunctionSelectPage = () => {

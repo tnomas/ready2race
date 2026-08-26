@@ -957,7 +957,9 @@
               "roundOf32": "SF"
             }
           },
-          "remove": "Fjern runde"
+          "remove": "Fjern runde",
+          "timingRaceType": "Løbstype",
+          "timingRaceTypeNone": "Ingen løbstype"
         },
         "naming": {
           "title": "Navngivning pr. deltagerantal",
@@ -1619,7 +1621,8 @@
       "settings": "Indstillinger",
       "actions": "Handlinger",
       "organisation": "Organisation",
-      "invoices": "Fakturaer"
+      "invoices": "Fakturaer",
+      "posten": "Poster"
     },
     "notice": {
       "title": "Global meddelelse",
@@ -2868,7 +2871,8 @@
         "competitionCheck": "Konkurrence-check",
         "eventRequirement": "Kontrollér betingelser",
         "caterer": "Forplejning",
-        "liveDashboard": "Dommerpanel"
+        "liveDashboard": "Dommerpanel",
+        "timing": "Tidtagning"
       },
       "switchEvent": "Skift arrangement"
     },
@@ -3390,6 +3394,341 @@
       "refresh": "Opdatering",
       "turnaround": "Skiftetids-advarsel",
       "resetAll": "Nulstil alt"
+    }
+  },
+  "timing": {
+    "title": "Tidtagning",
+    "selectEvent": "Vælg arrangement",
+    "selectStation": "Vælg post",
+    "sections": {
+      "timing": "Tidtagning",
+      "other": "Andre poster"
+    },
+    "station": {
+      "tabTitle": "Poster",
+      "name": "Navn",
+      "type": "Type",
+      "sorting": "Sortering",
+      "add": "Tilføj post",
+      "edit": "Rediger post",
+      "types": {
+        "START": "Start",
+        "SPLIT": "Mellemtid",
+        "FINISH": "Mål"
+      },
+      "error": {
+        "hasTimeMarks": "Posten har allerede registrerede tider og kan ikke slettes"
+      }
+    },
+    "assign": {
+      "title": "Tildel hold",
+      "searchLabel": "Søg hold (startnummer eller navn)",
+      "assign": "Tildel",
+      "edit": "Rediger tildeling",
+      "detach": "Fjern tildeling",
+      "loadError": "Hold kunne ikke indlæses",
+      "error": "Tildeling mislykkedes"
+    },
+    "mark": {
+      "retractError": "Fortryd mislykkedes"
+    },
+    "sequence": {
+      "mode": {
+        "MASS": "Massestart",
+        "INTERVAL": "Intervalstart"
+      },
+      "setup": {
+        "title": "Opsæt sekvens",
+        "intervalSeconds": "Interval (sekunder)",
+        "leadInSeconds": "Optakt (sekunder)",
+        "leadInHelp": "Tid fra sekvensen startes til første start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} af {{total}} valgt",
+        "orderHint": "Startrækkefølgen følger startnummeret",
+        "armButton": "Klargør sekvens"
+      },
+      "armed": {
+        "title": "Sekvens klargjort",
+        "start": "Start sekvens"
+      },
+      "running": {
+        "finishing": "Afsluttes…",
+        "following": "Følgende hold",
+        "overdue": "i gang…"
+      },
+      "summary": {
+        "titleDone": "Sekvens afsluttet",
+        "titleAborted": "Sekvens afbrudt",
+        "reset": "Ny sekvens"
+      },
+      "entry": {
+        "skip": "Spring over",
+        "skipped": "Sprunget over",
+        "skipConfirm": {
+          "title": "Spring hold over?",
+          "content": "{{team}} bliver ikke startet. Det kan ikke fortrydes."
+        }
+      },
+      "abort": "Afbryd",
+      "abortConfirm": {
+        "title": "Afbryd sekvens?",
+        "content": "Afventende starter udløses ikke længere."
+      },
+      "loadError": "Sekvens kunne ikke indlæses",
+      "retry": "Prøv igen",
+      "error": {
+        "create": "Sekvens kunne ikke oprettes",
+        "start": "Sekvens kunne ikke startes",
+        "abort": "Afbrydelse mislykkedes",
+        "skip": "Spring over mislykkedes",
+        "invalidInterval": "Interval skal være mindst 1 sekund",
+        "invalidLeadIn": "Optakt skal være mellem {{min}} og {{max}} sekunder",
+        "noTeams": "Vælg mindst ét hold"
+      }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Forbinder…",
+        "OPEN": "Forbundet",
+        "RECONNECTING": "Genopretter forbindelse…",
+        "UNAUTHORIZED": "Ikke autoriseret"
+      },
+      "clockQuality": {
+        "SYNCING": "Synkroniserer…",
+        "OK": "Synkroniseret",
+        "DEGRADED": "Forringet"
+      },
+      "banner": {
+        "reconnecting": "Genopretter forbindelse…",
+        "unauthorized": "Sessionen er udløbet, log venligst ind igen",
+        "clockDegraded": "Ursynkronisering forringet – tider kan være unøjagtige",
+        "queuedMarks_one": "{{count}} tid endnu ikke overført",
+        "queuedMarks_other": "{{count}} tider endnu ikke overført",
+        "deadMarks_one": "{{count}} tid kunne endeligt ikke overføres",
+        "deadMarks_other": "{{count}} tider kunne endeligt ikke overføres",
+        "bufferFailed": "Tiden kunne ikke bufres – den mistes ved genindlæsning"
+      },
+      "deadDialog": {
+        "open": "Vis",
+        "title": "Ikke overførte tider",
+        "description": "Disse tider blev afvist af serveren. Du kan overføre dem igen eller forkaste dem endeligt.",
+        "item": "Post {{station}} · status {{status}}",
+        "requeue": "Prøv igen",
+        "discard": "Forkast endeligt",
+        "discardConfirm": {
+          "title": "Forkast tider endeligt?",
+          "content": "Tiderne slettes og kan ikke gendannes."
+        }
+      },
+      "stateError": "Data kunne ikke indlæses – prøver igen…",
+      "capture": {
+        "clockNotSynced": "Ur ikke synkroniseret – registrering ikke mulig",
+        "stationLoading": "Indlæser post…"
+      },
+      "mark": {
+        "pending": "sender",
+        "failed": "mislykkedes",
+        "undo": "Fortryd"
+      },
+      "teams": {
+        "viewTwoStep": "To trin",
+        "viewTeams": "Hold",
+        "arm": "Klargør",
+        "armHint": "Tryk på hold for at lægge dem på en tast",
+        "armedFull": "Højst {{count}} hold kan klargøres samtidig",
+        "unarm": "Fjern klargøring",
+        "hint": "Tasterne 1–9: startnummer · Mellemrum: tid uden tildeling",
+        "empty": "Ingen hold til dette event"
+      }
+    },
+    "leitstand": {
+      "title": "Kontrolpult",
+      "entryHint": "Alle poster",
+      "tab": {
+        "times": "Tider",
+        "results": "Resultater",
+        "devices": "Enheder"
+      },
+      "marks": {
+        "stationFilter": "Post",
+        "allStations": "Alle poster",
+        "unassignedOnly": "Kun ikke-tilknyttede",
+        "count_one": "{{count}} tid",
+        "count_other": "{{count}} tider",
+        "unassigned": "ikke tilknyttet",
+        "empty": "Ingen tider registreret",
+        "column": {
+          "station": "Post",
+          "time": "Tid",
+          "status": "Status",
+          "source": "Kilde",
+          "team": "Hold",
+          "actions": "Handlinger"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "RETRACTED": "Tilbagetrukket"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Fjern tilbagetrukne tider permanent",
+          "hint_one": "{{count}} tilbagetrukket tid",
+          "hint_other": "{{count}} tilbagetrukne tider",
+          "confirm": {
+            "title": "Fjern tider permanent?",
+            "contentAll_one": "{{count}} tilbagetrukket tid slettes permanent. Det kan ikke fortrydes.",
+            "contentAll_other": "{{count}} tilbagetrukne tider slettes permanent. Det kan ikke fortrydes.",
+            "contentStation_one": "{{count}} tilbagetrukket tid på posten {{station}} slettes permanent. Det kan ikke fortrydes.",
+            "contentStation_other": "{{count}} tilbagetrukne tider på posten {{station}} slettes permanent. Det kan ikke fortrydes."
+          },
+          "success_one": "{{count}} tid fjernet",
+          "success_other": "{{count}} tider fjernet",
+          "error": "Tiderne kunne ikke fjernes"
+        }
+      },
+      "results": {
+        "loadError": "Resultater kunne ikke indlæses",
+        "empty": "Ingen resultater endnu",
+        "hint": "Målte tider, strafsekunder og status for dette arrangement. Fuldstændige manuelle rettelser foretages i konkurrenceafviklingen.",
+        "selectedCount_one": "{{count}} række valgt",
+        "selectedCount_other": "{{count}} rækker valgt",
+        "pushableCount_one": "{{count}} resultat kan overføres",
+        "pushableCount_other": "{{count}} resultater kan overføres",
+        "penaltyValue": "+{{seconds}} s",
+        "notPushed": "ikke overført",
+        "isPushed": "overført",
+        "frozen": "Fastlåst",
+        "frozenHint": "Der er allerede registreret en placering – overførsel kræver „Overfør alligevel“",
+        "column": {
+          "team": "Startnr. / hold",
+          "start": "Starttid",
+          "finish": "Måltid",
+          "measured": "Målt",
+          "penalty": "Strafsekunder",
+          "status": "Status",
+          "computed": "Sluttid",
+          "pushed": "Overført",
+          "actions": "Handlinger"
+        },
+        "status": {
+          "NONE": "Ingen status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "skipReason": {
+          "NO_MARKS": "Ingen tider registreret",
+          "NO_START_MARK": "Ingen starttid",
+          "NO_FINISH_MARK": "Ingen måltid",
+          "NEGATIVE_DURATION": "Måltiden ligger før starttiden",
+          "RESULT_FROZEN": "Resultatet er allerede fastlåst",
+          "STATUS_SET": "Status sat – ingen tid nødvendig"
+        },
+        "conflictReason": {
+          "RESULT_FROZEN": "Resultatet er allerede fastlåst",
+          "NO_FINAL_TIME": "Hverken tid eller status",
+          "WRONG_TIMING_SYSTEM": "Konkurrencen tidtages ikke med dette system"
+        },
+        "push": {
+          "selected": "Overfør valgte",
+          "all": "Overfør alle",
+          "error": "Overførsel mislykkedes",
+          "nothing": "Der er intet at overføre",
+          "success_one": "{{count}} resultat overført",
+          "success_other": "{{count}} resultater overført",
+          "force": "Overfør alligevel",
+          "confirmAll": {
+            "title": "Overfør alle resultater?",
+            "content": "Alle overførbare resultater for dette arrangement skrives ind i resultaterne."
+          },
+          "forceConfirm": {
+            "title": "Overskriv resultater?",
+            "content_one": "{{count}} holds resultat er allerede fastlåst. Tiden overskrives alligevel; placeringen skal derefter gemmes igen i konkurrencen.",
+            "content_other": "{{count}} holds resultater er allerede fastlåst. Tiderne overskrives alligevel; placeringerne skal derefter gemmes igen i konkurrencen."
+          },
+          "skippedTitle": "Ikke overført",
+          "skippedDescription": "Disse hold blev udeladt:",
+          "conflictTitle": "Overførsel ikke mulig",
+          "conflictDescription": "Der blev ikke skrevet noget. Konflikter:"
+        },
+        "entry": {
+          "action": "Strafsekunder / status",
+          "title": "Strafsekunder og status",
+          "penaltySeconds": "Strafsekunder",
+          "penaltyHelp": "Lægges til den målte tid; tomt betyder ingen straf",
+          "penaltyNote": "Begrundelse",
+          "penaltyNoteHelp": "Vises sammen med strafsekunderne i resultaterne",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ erstatter enhver målt tid",
+          "force": "Overskriv et fastlåst resultat",
+          "forceHint": "Der er allerede registreret en placering for dette hold. Uden denne kontakt afviser serveren ændringen.",
+          "forceRequiredHint": "Dette resultat er alligevel allerede fastlåst. Aktiver kontakten ovenfor, og gem igen for at overskrive det.",
+          "invalidSeconds": "Indtast venligst et antal sekunder",
+          "error": "Lagring mislykkedes",
+          "success": "Gemt"
+        },
+        "execution": {
+          "link": "Åbn arrangementets konkurrencer",
+          "hint": "Fuldstændige manuelle tids- og placeringsrettelser foretages i konkurrenceafviklingen."
+        }
+      },
+      "devices": {
+        "loadError": "Enhedstokens kunne ikke indlæses",
+        "noStations": "Der findes endnu ingen poster – tokens kan først udstedes derefter",
+        "empty": "Ingen enhedstokens",
+        "column": {
+          "name": "Navn",
+          "station": "Post",
+          "created": "Oprettet",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Aktiv",
+          "REVOKED": "Tilbagekaldt"
+        },
+        "issue": {
+          "action": "Udsted token",
+          "title": "Udsted enhedstoken",
+          "error": "Token kunne ikke udstedes",
+          "onceWarning": "Dette token vises kun én gang. Kopiér det nu og gem det sikkert.",
+          "copy": "Kopiér token",
+          "copied": "Token kopieret",
+          "copyError": "Token kunne ikke kopieres",
+          "usageHint": "Enheden sender tokenet i headeren X-Timing-Device-Token.",
+          "done": "Færdig"
+        },
+        "revoke": {
+          "action": "Tilbagekald",
+          "error": "Tilbagekaldelsen mislykkedes",
+          "success": "Token tilbagekaldt",
+          "confirm": {
+            "title": "Tilbagekald token?",
+            "content": "Enheden “{{name}}” kan derefter ikke længere sende tider."
+          }
+        }
+      }
+    },
+    "raceType": {
+      "title": "Løbstyper",
+      "entityName": "Løbstype",
+      "name": "Navn",
+      "add": "Tilføj løbstype",
+      "edit": "Rediger løbstype",
+      "timed": "Med tidtagning",
+      "timedYes": "Ja",
+      "timedNo": "Nej",
+      "untimedHint": "Løbet afvikles, men måles ikke. Startbrættet tilbyder ingen tidtagning for det.",
+      "startMode": "Starttype",
+      "interval": "Interval",
+      "leadIn": "Optakt",
+      "intervalSeconds": "Interval (sekunder)",
+      "leadInSeconds": "Optakt (sekunder)",
+      "presetOptional": "Lad stå tomt, hvis starteren beslutter det på stedet",
+      "sorting": "Rækkefølge",
+      "prefilled": "Forudfyldt fra løbstypen \"{{name}}\". Du kan stadig ændre det.",
+      "untimedRun": "Ingen tidtagning for dette løb ({{name}})."
     }
   }
 }

@@ -31,6 +31,7 @@ import de.lambda9.ready2race.backend.app.raceclocker.boundary.raceClockerRace
 import de.lambda9.ready2race.backend.app.ratingcategory.boundary.RatingCategoryService
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoriesToEventRequest
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryOrderRequest
+import de.lambda9.ready2race.backend.app.timing.boundary.timing
 import de.lambda9.ready2race.backend.app.workShift.boundary.workShift
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -89,6 +90,7 @@ fun Route.event() {
         route("/{eventId}") {
 
             eventDay()
+            timing()
             competition()
             eventRegistration()
             eventDocument()

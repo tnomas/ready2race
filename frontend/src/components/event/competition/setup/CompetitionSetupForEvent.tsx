@@ -2,7 +2,7 @@ import {competitionRoute, eventRoute} from '@routes'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useState} from 'react'
 import {useForm} from 'react-hook-form-mui'
-import {getCompetitionSetup, updateCompetitionSetup} from '@api/sdk.gen.ts'
+import {getCompetitionSetup, getTimingRaceTypes, updateCompetitionSetup} from '@api/sdk.gen.ts'
 import {
     CompetitionSetupForm,
     mapCompetitionSetupDtoToForm,
@@ -23,6 +23,16 @@ const CompetitionSetupForEvent = () => {
     const [reloadData, setReloadData] = useState(false)
 
     const formContext = useForm<CompetitionSetupForm>()
+
+    // The race types a round may be assigned to. The leading empty entry is what "no race type" looks
+    // like in a select - without it a round could never be un-assigned again.
+    const {data: raceTypes} = useFetch(signal => getTimingRaceTypes({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
+    const raceTypeOptions = [
+        {id: '', label: t('event.competition.setup.round.timingRaceTypeNone')},
+        ...(raceTypes?.map(raceType => ({id: raceType.id, label: raceType.name})) ?? []),
+    ]
 
     useFetch(
         signal =>
@@ -65,6 +75,7 @@ const CompetitionSetupForEvent = () => {
             handleFormSubmission={true}
             handleSubmit={handleSubmit}
             submitting={submitting}
+            raceTypeOptions={raceTypeOptions}
         />
     )
 }

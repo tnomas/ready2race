@@ -24,6 +24,9 @@ type Props = {
     handleSubmit?: (formData: CompetitionSetupForm) => Promise<void> // if needsContainersWrapper === true
     submitting?: boolean // if needsContainersWrapper === true
     treeHelperPortalContainer?: RefObject<HTMLDivElement> // needsContainersWrapper === false
+    // Selectable race types of the event. Undefined in the setup-template editor, which has no event
+    // and therefore no race types - the per-round select is then not rendered at all.
+    raceTypeOptions?: Array<{id: string; label: string}>
 }
 const CompetitionSetup = ({formContext, ...props}: Props) => {
     const {t} = useTranslation()
@@ -230,6 +233,7 @@ const CompetitionSetup = ({formContext, ...props}: Props) => {
                                     value: allowRoundUpdates,
                                     set: setAllowRoundUpdates,
                                 }}
+                                raceTypeOptions={props.raceTypeOptions}
                                 bracketMatchupSeedings={
                                     bracketRoundIndices.includes(roundIndex)
                                         ? bracketSeedings[bracketRoundIndices.indexOf(roundIndex)]

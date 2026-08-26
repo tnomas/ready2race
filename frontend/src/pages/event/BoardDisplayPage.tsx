@@ -11,6 +11,8 @@ import {useBoardViewData} from '@components/event/board/useBoardViewData'
 import {useServerClock} from '@components/event/info/athleteBoard/useServerClock'
 import {boardDisplayRoute} from '@routes'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {EventInvalidationBridge} from '@utils/timing/useEventInvalidation.ts'
+import {hasAnySessionToken} from '@contexts/user/sessionToken.ts'
 
 const STALE_AFTER_MISSED_INTERVALS = 2
 
@@ -25,12 +27,20 @@ const BoardDisplayPage = () => {
     const {t} = useTranslation()
     const {eventId, boardId} = boardDisplayRoute.useParams()
 
-    const {data, lastUpdated, notFound, initialLoad, loadFailed} = useBoardViewData(
+    const {data, lastUpdated, notFound, initialLoad, loadFailed, reload} = useBoardViewData(
         eventId,
         boardId,
     )
     useDocumentTitle(data?.eventName)
     const now = useServerClock(data?.serverTime)
+
+    // PORT-T6: Diese Seite ist öffentlich, ohne Anmeldung (siehe boardDisplayRoute in routes.tsx) -
+    // anders als das LiveDashboard gibt es hier also nicht garantiert einen Sitzungstoken (den der
+    // WS-Kanal verlangt). Einmal beim Einhängen geprüft, nicht laufend beobachtet: Öffnet Personal
+    // die Anzeige angemeldet im selben Browserprofil, bekommt sie sofortige Updates; ein rein
+    // anonym montierter Bildschirm bleibt bei reinem Polling, ohne je einen Verbindungsversuch zu
+    // starten (siehe EventInvalidationBridge / useEventInvalidation.ts).
+    const [hasSessionToken] = useState(hasAnySessionToken)
 
     const [fullscreen, setFullscreen] = useState(false)
     const [showControls, setShowControls] = useState(true)
@@ -147,7 +157,14 @@ const BoardDisplayPage = () => {
     // Keying stehen bleiben — eine Maus, die den Knopf ausblenden könnte, gibt es dort nie.
     // Also nur das Overlay selbst, ohne jede Umrandung dieser Seite.
     if (hasStreamOverlay(data.config.tiles)) {
-        return <BoardRenderer view={data} now={now} />
+        return (
+            <>
+                {/* Rendert nichts (siehe EventInvalidationBridge) - unschädlich auch hier, wo
+                    sonst buchstäblich nichts außer dem Overlay stehen darf. */}
+                {hasSessionToken && <EventInvalidationBridge eventId={eventId} onInvalidate={reload} />}
+                <BoardRenderer view={data} now={now} />
+            </>
+        )
     }
 
     return (
@@ -162,6 +179,7 @@ const BoardDisplayPage = () => {
                 display: 'grid',
                 gridTemplateRows: showHeader ? 'auto minmax(0, 1fr)' : 'minmax(0, 1fr)',
             }}>
+            {hasSessionToken && <EventInvalidationBridge eventId={eventId} onInvalidate={reload} />}
             {/* Der Kopf der alten Bühne: Veranstaltungsname links, Serveruhr rechts,
                 darunter die "Stand"-Zeile. Je Board abschaltbar (showHeader). */}
             {showHeader && (

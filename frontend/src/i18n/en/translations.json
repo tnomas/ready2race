@@ -957,7 +957,9 @@
               "roundOf32": "R32"
             }
           },
-          "remove": "Remove round"
+          "remove": "Remove round",
+          "timingRaceType": "Race type",
+          "timingRaceTypeNone": "No race type"
         },
         "naming": {
           "title": "Naming per participant count",
@@ -1619,7 +1621,8 @@
       "settings": "Settings",
       "actions": "Actions",
       "organisation": "Organisation",
-      "invoices": "Invoices"
+      "invoices": "Invoices",
+      "posten": "Stations"
     },
     "notice": {
       "title": "Global notice",
@@ -2895,7 +2898,8 @@
         "competitionCheck": "Competition Check",
         "eventRequirement": "Event Requirements",
         "caterer": "Catering",
-        "liveDashboard": "Referee dashboard"
+        "liveDashboard": "Referee dashboard",
+        "timing": "Timing"
       },
       "switchEvent": "Switch Event"
     },
@@ -3417,6 +3421,341 @@
       "refresh": "Refresh",
       "turnaround": "Turnaround warning",
       "resetAll": "Reset everything"
+    }
+  },
+  "timing": {
+    "title": "Timing",
+    "selectEvent": "Select event",
+    "selectStation": "Select station",
+    "sections": {
+      "timing": "Timing",
+      "other": "Other stations"
+    },
+    "station": {
+      "tabTitle": "Stations",
+      "name": "Name",
+      "type": "Type",
+      "sorting": "Order",
+      "add": "Add station",
+      "edit": "Edit station",
+      "types": {
+        "START": "Start",
+        "SPLIT": "Split",
+        "FINISH": "Finish"
+      },
+      "error": {
+        "hasTimeMarks": "The station already has captured times and cannot be deleted"
+      }
+    },
+    "assign": {
+      "title": "Assign team",
+      "searchLabel": "Search team (start number or name)",
+      "assign": "Assign",
+      "edit": "Edit assignment",
+      "detach": "Detach assignment",
+      "loadError": "Teams could not be loaded",
+      "error": "Assignment failed"
+    },
+    "mark": {
+      "retractError": "Undo failed"
+    },
+    "sequence": {
+      "mode": {
+        "MASS": "Mass start",
+        "INTERVAL": "Interval start"
+      },
+      "setup": {
+        "title": "Set up sequence",
+        "intervalSeconds": "Interval (seconds)",
+        "leadInSeconds": "Lead-in (seconds)",
+        "leadInHelp": "Time from starting the sequence to the first start ({{min}}–{{max}} s)",
+        "selectedCount": "{{selected}} of {{total}} selected",
+        "orderHint": "Start order follows the start number",
+        "armButton": "Arm sequence"
+      },
+      "armed": {
+        "title": "Sequence armed",
+        "start": "Start sequence"
+      },
+      "running": {
+        "finishing": "Finishing…",
+        "following": "Following teams",
+        "overdue": "running…"
+      },
+      "summary": {
+        "titleDone": "Sequence completed",
+        "titleAborted": "Sequence aborted",
+        "reset": "New sequence"
+      },
+      "entry": {
+        "skip": "Skip",
+        "skipped": "Skipped",
+        "skipConfirm": {
+          "title": "Skip team?",
+          "content": "{{team}} will not be started. This cannot be undone."
+        }
+      },
+      "abort": "Abort",
+      "abortConfirm": {
+        "title": "Really abort the sequence?",
+        "content": "Pending starts will no longer be fired."
+      },
+      "loadError": "Sequence could not be loaded",
+      "retry": "Try again",
+      "error": {
+        "create": "Sequence could not be created",
+        "start": "Sequence could not be started",
+        "abort": "Aborting failed",
+        "skip": "Skipping failed",
+        "invalidInterval": "The interval must be at least 1 second",
+        "invalidLeadIn": "The lead-in must be between {{min}} and {{max}} seconds",
+        "noTeams": "Select at least one team"
+      }
+    },
+    "board": {
+      "wsStatus": {
+        "CONNECTING": "Connecting…",
+        "OPEN": "Connected",
+        "RECONNECTING": "Reconnecting…",
+        "UNAUTHORIZED": "Not authorized"
+      },
+      "clockQuality": {
+        "SYNCING": "Syncing…",
+        "OK": "In sync",
+        "DEGRADED": "Degraded"
+      },
+      "banner": {
+        "reconnecting": "Reconnecting…",
+        "unauthorized": "Session expired, please log in again",
+        "clockDegraded": "Clock sync degraded – times may be inaccurate",
+        "queuedMarks_one": "{{count}} time not submitted yet",
+        "queuedMarks_other": "{{count}} times not submitted yet",
+        "deadMarks_one": "{{count}} time could not be submitted at all",
+        "deadMarks_other": "{{count}} times could not be submitted at all",
+        "bufferFailed": "The time could not be buffered – it is lost on a reload"
+      },
+      "deadDialog": {
+        "open": "Show",
+        "title": "Unsubmitted times",
+        "description": "These times were rejected by the server. You can submit them again or discard them for good.",
+        "item": "Station {{station}} · status {{status}}",
+        "requeue": "Try again",
+        "discard": "Discard for good",
+        "discardConfirm": {
+          "title": "Discard times for good?",
+          "content": "The times are deleted and cannot be recovered."
+        }
+      },
+      "stateError": "Data could not be loaded – retrying…",
+      "capture": {
+        "clockNotSynced": "Clock not synced – capturing is not possible",
+        "stationLoading": "Loading station…"
+      },
+      "mark": {
+        "pending": "submitting",
+        "failed": "failed",
+        "undo": "Undo"
+      },
+      "teams": {
+        "viewTwoStep": "Two-step",
+        "viewTeams": "Teams",
+        "arm": "Arm",
+        "armHint": "Tap teams to put them on a key",
+        "armedFull": "At most {{count}} teams can be armed at the same time",
+        "unarm": "Disarm",
+        "hint": "Keys 1–9: start number · Space: time without an assignment",
+        "empty": "No teams for this event"
+      }
+    },
+    "leitstand": {
+      "title": "Control desk",
+      "entryHint": "All stations",
+      "tab": {
+        "times": "Times",
+        "results": "Results",
+        "devices": "Devices"
+      },
+      "marks": {
+        "stationFilter": "Station",
+        "allStations": "All stations",
+        "unassignedOnly": "Unassigned only",
+        "count_one": "{{count}} time",
+        "count_other": "{{count}} times",
+        "unassigned": "unassigned",
+        "empty": "No times captured",
+        "column": {
+          "station": "Station",
+          "time": "Time",
+          "status": "Status",
+          "source": "Source",
+          "team": "Team",
+          "actions": "Actions"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "RETRACTED": "Retracted"
+        },
+        "source": {
+          "APP_USER": "App",
+          "HARDWARE": "Hardware"
+        },
+        "delete": {
+          "action": "Remove retracted times for good",
+          "hint_one": "{{count}} retracted time",
+          "hint_other": "{{count}} retracted times",
+          "confirm": {
+            "title": "Remove times for good?",
+            "contentAll_one": "{{count}} retracted time will be deleted for good. This cannot be undone.",
+            "contentAll_other": "{{count}} retracted times will be deleted for good. This cannot be undone.",
+            "contentStation_one": "{{count}} retracted time at station {{station}} will be deleted for good. This cannot be undone.",
+            "contentStation_other": "{{count}} retracted times at station {{station}} will be deleted for good. This cannot be undone."
+          },
+          "success_one": "{{count}} time removed",
+          "success_other": "{{count}} times removed",
+          "error": "The times could not be removed"
+        }
+      },
+      "devices": {
+        "loadError": "Device tokens could not be loaded",
+        "noStations": "There are no stations yet – tokens can only be issued afterwards",
+        "empty": "No device tokens",
+        "column": {
+          "name": "Name",
+          "station": "Station",
+          "created": "Created",
+          "state": "Status"
+        },
+        "state": {
+          "ACTIVE": "Active",
+          "REVOKED": "Revoked"
+        },
+        "issue": {
+          "action": "Issue token",
+          "title": "Issue device token",
+          "error": "The token could not be issued",
+          "onceWarning": "This token is shown only once. Copy it now and store it safely.",
+          "copy": "Copy token",
+          "copied": "Token copied",
+          "copyError": "The token could not be copied",
+          "usageHint": "The device sends the token in the X-Timing-Device-Token header.",
+          "done": "Done"
+        },
+        "revoke": {
+          "action": "Revoke",
+          "error": "Revoking failed",
+          "success": "Token revoked",
+          "confirm": {
+            "title": "Revoke token?",
+            "content": "The device \"{{name}}\" can no longer send times afterwards."
+          }
+        }
+      },
+      "results": {
+        "loadError": "Results could not be loaded",
+        "empty": "No results yet",
+        "hint": "Measured times, penalties and statuses of this event. Full manual corrections are made in the competition execution view.",
+        "selectedCount_one": "{{count}} row selected",
+        "selectedCount_other": "{{count}} rows selected",
+        "pushableCount_one": "{{count}} result can be pushed",
+        "pushableCount_other": "{{count}} results can be pushed",
+        "penaltyValue": "+{{seconds}} s",
+        "notPushed": "not pushed",
+        "isPushed": "pushed",
+        "frozen": "Frozen",
+        "frozenHint": "A place has already been recorded – pushing requires \"Push anyway\"",
+        "column": {
+          "team": "Start no. / team",
+          "start": "Start time",
+          "finish": "Finish time",
+          "measured": "Measured",
+          "penalty": "Penalty",
+          "status": "Status",
+          "computed": "Final time",
+          "pushed": "Pushed",
+          "actions": "Actions"
+        },
+        "status": {
+          "NONE": "No status",
+          "DNS": "DNS",
+          "DNF": "DNF",
+          "DSQ": "DSQ"
+        },
+        "skipReason": {
+          "NO_MARKS": "No times captured",
+          "NO_START_MARK": "No start time",
+          "NO_FINISH_MARK": "No finish time",
+          "NEGATIVE_DURATION": "Finish time is before the start time",
+          "RESULT_FROZEN": "Result already frozen",
+          "STATUS_SET": "Status set – no time needed"
+        },
+        "conflictReason": {
+          "RESULT_FROZEN": "Result already frozen",
+          "NO_FINAL_TIME": "Neither a time nor a status",
+          "WRONG_TIMING_SYSTEM": "This competition is not timed with this timing system"
+        },
+        "push": {
+          "selected": "Push selection",
+          "all": "Push all",
+          "error": "Push failed",
+          "nothing": "Nothing to push",
+          "success_one": "{{count}} result pushed",
+          "success_other": "{{count}} results pushed",
+          "force": "Push anyway",
+          "confirmAll": {
+            "title": "Push all results?",
+            "content": "Every pushable result of this event will be written into the results flow."
+          },
+          "forceConfirm": {
+            "title": "Overwrite results?",
+            "content_one": "{{count}} team's result is already frozen. Its time will be overwritten anyway; the place has to be saved again in the competition afterwards.",
+            "content_other": "{{count}} teams' results are already frozen. Their times will be overwritten anyway; the places have to be saved again in the competition afterwards."
+          },
+          "skippedTitle": "Not pushed",
+          "skippedDescription": "These teams were left out:",
+          "conflictTitle": "Push not possible",
+          "conflictDescription": "Nothing was written. Conflicts:"
+        },
+        "entry": {
+          "action": "Penalty / status",
+          "title": "Penalty and status",
+          "penaltySeconds": "Penalty (seconds)",
+          "penaltyHelp": "Added to the measured time; empty means no penalty",
+          "penaltyNote": "Note",
+          "penaltyNoteHelp": "Shown together with the penalty in the results",
+          "status": "Status",
+          "statusHelp": "DNS/DNF/DSQ supersede any measured time",
+          "force": "Overwrite a frozen result",
+          "forceHint": "A place has already been recorded for this team. Without this switch the server rejects the change.",
+          "forceRequiredHint": "This result is already frozen after all. Enable the switch above and save again to overwrite it.",
+          "invalidSeconds": "Please enter a number of seconds",
+          "error": "Saving failed",
+          "success": "Saved"
+        },
+        "execution": {
+          "link": "Open the event's competitions",
+          "hint": "Full manual time and place corrections are made in the competition execution view."
+        }
+      }
+    },
+    "raceType": {
+      "title": "Race types",
+      "entityName": "Race type",
+      "name": "Name",
+      "add": "Add race type",
+      "edit": "Edit race type",
+      "timed": "Timed",
+      "timedYes": "Yes",
+      "timedNo": "No",
+      "untimedHint": "The run is held but not measured. The start board offers no time capture for it.",
+      "startMode": "Start mode",
+      "interval": "Interval",
+      "leadIn": "Lead-in",
+      "intervalSeconds": "Interval (seconds)",
+      "leadInSeconds": "Lead-in (seconds)",
+      "presetOptional": "Leave empty if the starter decides on site",
+      "sorting": "Order",
+      "prefilled": "Prefilled from race type \"{{name}}\". You can still change it.",
+      "untimedRun": "No timing for this run ({{name}})."
     }
   }
 }
