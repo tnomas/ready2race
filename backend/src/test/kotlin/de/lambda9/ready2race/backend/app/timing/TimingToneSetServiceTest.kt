@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingToneSetService
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
@@ -8,6 +9,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.testing.testComprehension
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -107,6 +109,65 @@ class TimingToneSetServiceTest {
         val zweiterId = ((!addToneSet(request(name = "Leise"), userId, eventId)) as ApiResponse.Created).id
 
         assertKIOSucceeds<ApiResponse.NoData> { TimingToneSetService.deleteToneSet(zweiterId, eventId) }
+    }
+
+    /**
+     * Der ERSTE Ton-Satz einer Veranstaltung, gleich mit eigenem Startplan angelegt: Er wird
+     * ungefragt Vorgabesatz, und damit lösen ab diesem Moment alle Typen ohne eigene Wahl gegen
+     * ihn auf statt gegen den eingebauten Plan. Das ist hörbar - ein offenes Startposten-Board
+     * spielte ohne die Nachricht bis zum nächsten Neuladen den alten Countdown.
+     *
+     * Der Fall stand ursprünglich als Ausnahme im Dienst („vorher gab es keinen Satz, den ein
+     * Board schon gehört hätte") - er übersieht, dass vorher der eingebaute Standard galt. Dieser
+     * Test hält die Korrektur fest.
+     */
+    @Test
+    fun `schon der erste Satz benachrichtigt die Boards`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val received = TimingBroadcasterTest.concurrentList()
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+
+        try {
+            !addToneSet(
+                TimingToneSetRequest(
+                    name = "Laut fürs Wasser",
+                    sequenceTonePlan = listOf(
+                        ToneStep(offsetMillis = 0, frequencyHz = 900, durationMillis = 400),
+                    ),
+                ),
+                userId,
+                eventId,
+            )
+
+            runBlocking { TimingBroadcasterTest.awaitSize(received, 1) }
+            assertTrue(received.single().contains("matchesChanged"), "erwartet matchesChanged: $received")
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
+    }
+
+    /** Ändern und Löschen ebenso - beide verschieben den geerbten Klang. */
+    @Test
+    fun `Ändern und Löschen benachrichtigen die Boards`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        !addToneSet(request(name = "Laut"), userId, eventId)
+        val zweiterId = ((!addToneSet(request(name = "Leise"), userId, eventId)) as ApiResponse.Created).id
+
+        val received = TimingBroadcasterTest.concurrentList()
+        val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
+
+        try {
+            !TimingToneSetService.updateToneSet(request(name = "Leiser"), userId, zweiterId, eventId)
+            runBlocking { TimingBroadcasterTest.awaitSize(received, 1) }
+
+            !TimingToneSetService.deleteToneSet(zweiterId, eventId)
+            runBlocking { TimingBroadcasterTest.awaitSize(received, 2) }
+
+            assertEquals(2, received.size)
+            assertTrue(received.all { it.contains("matchesChanged") }, "erwartet matchesChanged: $received")
+        } finally {
+            TimingBroadcaster.unsubscribe(subscription)
+        }
     }
 
     @Test

@@ -42,10 +42,13 @@ import java.util.UUID
  * hielt am Steg nicht. Ein PUT auf den Vorgabesatz verschiebt den aufgelösten Tonplan JEDER
  * erbenden Partie, ein DELETE über `on delete set null` ebenso.
  *
- * Beim Anlegen braucht es die Nachricht nicht: Ein frischer Satz ist der Vorgabesatz nur, wenn er
- * der erste der Veranstaltung ist - und dann gab es vorher keinen, den ein Board schon gehört
- * hätte. Übernimmt er die Vorgabe von einem bestehenden Satz, verschiebt das sehr wohl den
- * geerbten Klang, weshalb auch [addToneSet] in genau diesem Fall sendet.
+ * Auch beim ANLEGEN, und zwar ohne Ausnahme. Der Gedanke „ein frischer Satz war vorher nicht da,
+ * also hat ihn auch niemand gehört" trägt nicht: Vorher galt der EINGEBAUTE Standard, und der ist
+ * sehr wohl etwas, das ein Board gehört hat. Ist der erste Satz einer Veranstaltung gleich mit
+ * einem eigenen `sequenceTonePlan` angelegt, lösen ab diesem Moment ALLE Typen mit
+ * `tone_set = null` gegen ihn auf statt gegen den eingebauten Plan
+ * ([TimingToneSetLogic.effectiveSet]) - hörbar, und ohne die Nachricht bis zum nächsten Neuladen
+ * unbemerkt.
  */
 object TimingToneSetService {
 
@@ -70,9 +73,13 @@ object TimingToneSetService {
         // neuen - beides in derselben Transaktion, siehe TimingToneSetRepo.setDefault.
         if (request.isDefault && !isFirst) {
             !TimingToneSetRepo.setDefault(eventId, id, userId, LocalDateTime.now()).orDie()
-            // Die Vorgabe ist gewandert - jede erbende Partie hört ab jetzt einen anderen Satz.
-            TimingMatchService.broadcastMatchesChanged(eventId)
         }
+
+        // Ohne Ausnahme, auch für den ersten Satz - Begründung am Klassenkopf. Der Fall, den eine
+        // Ausnahme verlöre: der ERSTE Satz einer Veranstaltung, gleich mit eigenem Startplan
+        // angelegt. Er wird ungefragt Vorgabesatz, und damit hören ihn sofort alle Typen, die
+        // vorher den eingebauten Plan spielten.
+        TimingMatchService.broadcastMatchesChanged(eventId)
         KIO.ok(ApiResponse.Created(id))
     }
 
