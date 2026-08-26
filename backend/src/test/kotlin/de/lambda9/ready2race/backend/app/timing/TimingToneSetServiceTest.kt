@@ -1,9 +1,11 @@
 package de.lambda9.ready2race.backend.app.timing
 
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingToneSetService
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
 import de.lambda9.ready2race.backend.app.timing.entity.TimingToneSetRequest
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
@@ -139,8 +141,18 @@ class TimingToneSetServiceTest {
                 eventId,
             )
 
-            runBlocking { TimingBroadcasterTest.awaitSize(received, 1) }
-            assertTrue(received.single().contains("matchesChanged"), "erwartet matchesChanged: $received")
+            // ZWEI Nachrichten: die Startliste trägt die Töne der PARTIEN, und der Vorgabesatz
+            // in GET /timing/settings trägt den Rückfall des großen Erfassungsknopfs - der
+            // gehört zu keiner Partie und bekäme über matchesChanged nichts mit.
+            runBlocking { TimingBroadcasterTest.awaitSize(received, 2) }
+            assertTrue(
+                received.any { it.contains("matchesChanged") },
+                "erwartet matchesChanged: $received",
+            )
+            assertTrue(
+                received.any { it.contains("settingsChanged") },
+                "erwartet settingsChanged: $received",
+            )
         } finally {
             TimingBroadcaster.unsubscribe(subscription)
         }
@@ -157,14 +169,17 @@ class TimingToneSetServiceTest {
         val subscription = TimingBroadcaster.subscribe(eventId) { received.add(it) }
 
         try {
+            // Je Schreibvorgang zwei Nachrichten - matchesChanged für die Töne der Partien,
+            // settingsChanged für den Vorgabesatz (siehe den Test darüber).
             !TimingToneSetService.updateToneSet(request(name = "Leiser"), userId, zweiterId, eventId)
-            runBlocking { TimingBroadcasterTest.awaitSize(received, 1) }
-
-            !TimingToneSetService.deleteToneSet(zweiterId, eventId)
             runBlocking { TimingBroadcasterTest.awaitSize(received, 2) }
 
-            assertEquals(2, received.size)
-            assertTrue(received.all { it.contains("matchesChanged") }, "erwartet matchesChanged: $received")
+            !TimingToneSetService.deleteToneSet(zweiterId, eventId)
+            runBlocking { TimingBroadcasterTest.awaitSize(received, 4) }
+
+            assertEquals(4, received.size)
+            assertEquals(2, received.count { it.contains("matchesChanged") }, "erwartet zwei matchesChanged: $received")
+            assertEquals(2, received.count { it.contains("settingsChanged") }, "erwartet zwei settingsChanged: $received")
         } finally {
             TimingBroadcaster.unsubscribe(subscription)
         }
@@ -251,4 +266,51 @@ class TimingToneSetServiceTest {
             }
             assertKIOFails(TimingError.EventMismatch) { TimingToneSetService.deleteToneSet(id, otherEventId) }
         }
+
+    /**
+     * DER NOTAUSGANG. Der große Erfassungsknopf bankt eine Zeit OHNE Zuordnung - sie gehört zu
+     * keiner Partie und damit zu keinem Zeitnahmetyp. Sein Ton kommt deshalb nicht über die
+     * Startliste, sondern über den aufgelösten Vorgabesatz in GET /timing/settings. Bliebe der
+     * aus, verstummte genau der Griff, der im Ernstfall zählt.
+     */
+    @Test
+    fun `GET timing settings liefert den aufgelösten Vorgabesatz`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+
+        // Zuerst ohne jeden Satz: Auch eine Veranstaltung, in der niemand je einen Ton-Satz
+        // angelegt hat, muss einen spielbaren Ton bekommen.
+        val ohneSätze = (!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet
+        assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, ohneSätze.finishTone)
+        assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, ohneSätze.splitTone)
+        assertEquals(TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE, ohneSätze.falseStartTone)
+        assertNull(ohneSätze.sequenceTonePlan)
+        assertTrue(ohneSätze.tonePerBoat)
+
+        val eigenerZielton = CaptureTone(frequencyHz = 990, durationMillis = 200)
+        !addToneSet(
+            TimingToneSetRequest(name = "Laut fürs Wasser", finishTone = eigenerZielton, tonePerBoat = false),
+            userId,
+            eventId,
+        )
+        // Der erste Satz wird ungefragt die Vorgabe - ab jetzt bestätigt der Knopf mit SEINEM Ton.
+        val mitVorgabe = (!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet
+        assertEquals(eigenerZielton, mitVorgabe.finishTone)
+        assertFalse(mitVorgabe.tonePerBoat)
+        // Der Zwischenton blieb im Satz leer: eingebauter Standard, nicht der Zielton daneben.
+        assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, mitVorgabe.splitTone)
+
+        // Ein ZWEITER Satz, der nicht die Vorgabe ist, ändert am Knopf nichts.
+        !addToneSet(
+            TimingToneSetRequest(
+                name = "Leise für die Halle",
+                finishTone = CaptureTone(frequencyHz = 440, durationMillis = 80),
+            ),
+            userId,
+            eventId,
+        )
+        assertEquals(
+            eigenerZielton,
+            (!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet.finishTone,
+        )
+    }
 }

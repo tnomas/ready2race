@@ -49,6 +49,12 @@ import java.util.UUID
  * `tone_set = null` gegen ihn auf statt gegen den eingebauten Plan
  * ([TimingToneSetLogic.effectiveSet]) - hörbar, und ohne die Nachricht bis zum nächsten Neuladen
  * unbemerkt.
+ *
+ * Dazu ein [TimingOfficialTimeService.broadcastSettingsAsync]. Die Startliste deckt die Töne der
+ * PARTIEN ab, aber nicht den Rückfall des großen Erfassungsknopfs: Der bankt eine Zeit ohne
+ * Zuordnung und liest deshalb den aufgelösten Vorgabesatz aus GET /timing/settings
+ * (`TimingSettingsDto.defaultToneSet`). Wer den Vorgabesatz ändert, ändert genau diesen Ton -
+ * ohne die Nachricht bestätigte der Knopf am offenen Board bis zum Neuladen mit dem alten Klang.
  */
 object TimingToneSetService {
 
@@ -80,6 +86,7 @@ object TimingToneSetService {
         // angelegt. Er wird ungefragt Vorgabesatz, und damit hören ihn sofort alle Typen, die
         // vorher den eingebauten Plan spielten.
         TimingMatchService.broadcastMatchesChanged(eventId)
+        !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         KIO.ok(ApiResponse.Created(id))
     }
 
@@ -139,6 +146,7 @@ object TimingToneSetService {
         // Immer, nicht nur beim Vorgabe-Wechsel: Schon ein geänderter Ton in diesem Satz verschiebt
         // den Klang jeder Partie, deren Typ auf ihn zeigt oder ihn erbt.
         TimingMatchService.broadcastMatchesChanged(eventId)
+        !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         noData
     }
 
@@ -160,6 +168,7 @@ object TimingToneSetService {
         // Die Typen, die auf ihn zeigten, sind soeben auf die Vorgabe zurückgefallen - für sie
         // klingt der Countdown ab jetzt anders.
         TimingMatchService.broadcastMatchesChanged(eventId)
+        !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         noData
     }
 }

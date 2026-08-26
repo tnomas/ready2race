@@ -38,3 +38,37 @@ data class TimingToneSetDto(
      */
     val tonePerBoat: Boolean,
 )
+
+/**
+ * Die Töne, die ein Board WIRKLICH spielt - das Ergebnis der Auflösung
+ * ([de.lambda9.ready2race.backend.app.timing.boundary.TimingToneResolveLogic]) und damit das
+ * Gegenstück zu [TimingToneSetDto]: dort steht, was jemand eingestellt hat, hier, was daraus
+ * klingt.
+ *
+ * Warum aufgelöst über den Draht und nicht im Board: Ein Board soll spielen, was ankommt, und
+ * keine Vererbungskette nachbauen. Die Kette („Satz des Typs → Vorgabesatz der Veranstaltung →
+ * eingebauter Standard") gibt es genau einmal, im Backend, und sie ist einzeln getestet.
+ *
+ * Reist an zwei Stellen mit: an jeder Partie (`TimingMatchDto.timingMode.resolvedToneSet` - der
+ * Posten spielt die Töne des Laufs, den er gerade führt) und als Vorgabesatz der Veranstaltung
+ * (`TimingSettingsDto.defaultToneSet`) für alles, was zu keiner Partie gehört - der große
+ * Erfassungsknopf bankt eine Zeit OHNE Zuordnung, und der muss klingen.
+ */
+data class ResolvedToneSet(
+    /**
+     * Der Startsequenz-Tonplan - als EINZIGER der vier weiterhin nullable, und das mit Absicht:
+     * Sein eingebauter Standard ist der Countdown der Boards selbst (T−5…T−1 Tick, T−0 Startton;
+     * `DEFAULT_START_TONE_PLAN` in `tonePlan.ts`), und den hat das Backend nie gekannt. Ihn hier
+     * zu erfinden hieße, denselben Klang an zwei Stellen zu pflegen - null sagt schlicht
+     * „unverändert wie immer".
+     */
+    val sequenceTonePlan: List<ToneStep>?,
+    /** Bestätigungston am SPLIT-Posten, nie null. */
+    val splitTone: CaptureTone,
+    /** Fehlstart-FOLGE, nie null und nie leer. */
+    val falseStartTone: List<ToneStep>,
+    /** Bestätigungston am FINISH-Posten, nie null. */
+    val finishTone: CaptureTone,
+    /** Siehe [TimingToneSetDto.tonePerBoat]; ohne Satz gilt der Datenbank-Default (an). */
+    val tonePerBoat: Boolean,
+)

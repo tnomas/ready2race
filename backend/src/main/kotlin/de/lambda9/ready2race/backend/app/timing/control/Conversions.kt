@@ -266,11 +266,11 @@ fun officialTimecode(effectiveMillis: Long, precision: TimingPrecision): Timecod
 }
 
 /**
- * [sequenceTonePlan] kommt von außen, weil der Plan seit dem 26.08.2026 nicht mehr am Typ hängt,
+ * [resolvedToneSet] kommt von außen, weil die Töne seit dem 26.08.2026 nicht mehr am Typ hängen,
  * sondern in seinem Ton-Satz - aufgelöst wird das eine Ebene höher
- * (`TimingToneSetLogic.sequenceTonePlan`), damit diese Konvertierung ohne zweite Abfrage auskommt.
+ * (`TimingToneResolveLogic.resolve`), damit diese Konvertierung ohne zweite Abfrage auskommt.
  */
-fun TimingModeRecord.toDto(sequenceTonePlan: List<ToneStep>?): TimingModeDto = TimingModeDto(
+fun TimingModeRecord.toDto(resolvedToneSet: ResolvedToneSet): TimingModeDto = TimingModeDto(
     id = id,
     event = event,
     name = name,
@@ -286,7 +286,7 @@ fun TimingModeRecord.toDto(sequenceTonePlan: List<ToneStep>?): TimingModeDto = T
     startSequenceEnabled = startSequenceEnabled ?: true,
     boatKeysPrimary = boatKeysPrimary ?: TimingBoatKeys.DEFAULT_PRIMARY,
     boatKeysSecondary = boatKeysSecondary,
-    tonePlan = sequenceTonePlan,
+    resolvedToneSet = resolvedToneSet,
     // Wie leadInSeconds eine not-null-Spalte mit Default, die jOOQ dennoch nullable typisiert.
     // Der Rückfall ist deshalb genau der Datenbank-Default (V202608242020): Fehlstart erlaubt -
     // ein Typ, dessen Spalte wider Erwarten leer ist, verliert den Rückruf nicht stillschweigend.

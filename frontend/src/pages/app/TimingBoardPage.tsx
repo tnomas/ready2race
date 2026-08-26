@@ -141,11 +141,12 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
 
     // Fehlstart-Ton (Startposten): RUNNING→ABORTED der eigenen Sequenz und attemptRetracted der
     // gerade geführten Partie — Bedingungen in `falseStart.ts`. Auf Zielposten läuft der Hook
-    // faktisch leer, weil `useSequence` dort nie eine Sequenz führt.
+    // faktisch leer, weil `useSequence` dort nie eine Sequenz führt. Die FOLGE holt der Hook
+    // selbst aus dem Zeitnahmetyp der geführten Partie; hier steht nur der Rückfall.
     const {onAttemptRetracted} = useFalseStartTone(
         sequenceState.sequence,
         matches,
-        settings.falseStartTone,
+        settings.defaultToneSet.falseStartTone,
     )
 
     const {
@@ -557,6 +558,18 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     )
 
     /**
+     * Die Töne, mit denen dieses Board bestätigt: die des Zeitnahmetyps der geführten Partie, sonst
+     * der aufgelöste Vorgabesatz der Veranstaltung (live via settingsChanged).
+     *
+     * Der Rückfall ist kein Beiwerk, sondern der NOTAUSGANG: Der große Erfassungsknopf bankt eine
+     * Zeit OHNE Zuordnung, und eine Zeit ohne Zuordnung gehört zu keiner Partie und damit zu keinem
+     * Zeitnahmetyp. Auch wenn die Startliste leer ist, alle Läufe durch sind oder der Posten gerade
+     * keine Partie führt, muss der Knopf klingen — Stille an der Ziellinie liest sich als Fehler,
+     * nicht als Einstellung.
+     */
+    const captureTones = focusedMatch?.timingMode?.resolvedToneSet ?? settings.defaultToneSet
+
+    /**
      * The board's single capture flow, shared by the big two-step button, the Space shortcut and the
      * team grid's taps/keys — see `useCaptureFlow` for the write-ahead protocol. Owning it here (rather
      * than inside each surface) is what keeps "one physical press, one mark" true no matter which
@@ -565,13 +578,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const capture = useCaptureFlow({
         eventId,
         station,
-        // Erfassungston je Postentyp aus den Zeitnahme-Einstellungen (live via settingsChanged).
-        // Andere Postentypen (START-Handmarken) behalten den eingebauten Standardton.
+        // Erfassungston je Postentyp, seit dem 26.08.2026 aus dem Ton-Satz der GEFÜHRTEN PARTIE:
+        // Die Töne gehören zum Zeitnahmetyp, ein Zeitfahren darf anders klingen als ein
+        // Massenstart. Andere Postentypen (START-Handmarken) behalten den eingebauten Standardton.
         captureTone:
             station?.type === 'FINISH'
-                ? settings.finishTone
+                ? captureTones.finishTone
                 : station?.type === 'SPLIT'
-                  ? settings.splitTone
+                  ? captureTones.splitTone
                   : undefined,
         now: clock.now,
         applyLocalMark,

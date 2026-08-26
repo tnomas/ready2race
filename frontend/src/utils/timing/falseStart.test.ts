@@ -1,12 +1,13 @@
 import {describe, expect, test} from 'vitest'
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
 import {
+    falseStartToneForSequence,
     isAttemptRetractionFalseStart,
     isSequenceAbortFalseStart,
     falseStartSuppressMillis,
     shouldPlayFalseStart,
 } from './falseStart.ts'
-import {DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
+import {DEFAULT_FALSE_START_SEQUENCE, ToneStep} from './tonePlan.ts'
 
 const sequence = (id: string, state: string, teamIds: string[]): TimingSequenceDto =>
     ({
@@ -24,9 +25,13 @@ const sequence = (id: string, state: string, teamIds: string[]): TimingSequenceD
         })),
     }) as unknown as TimingSequenceDto
 
-const match = (id: string, teamIds: string[]): TimingMatchDto =>
+const match = (id: string, teamIds: string[], falseStartTone?: ToneStep[]): TimingMatchDto =>
     ({
         competitionSetupMatch: id,
+        timingMode:
+            falseStartTone === undefined
+                ? undefined
+                : {id: 'mode1', name: 'Zeitfahren', resolvedToneSet: {falseStartTone}},
         teams: teamIds.map(teamId => ({
             competitionMatchTeam: teamId,
             startNumber: 1,
@@ -120,5 +125,39 @@ describe('Entprellung', () => {
         expect(shouldPlayFalseStart(10_000, 12_999, 3000)).toBe(false)
         // Ein echter zweiter Fehlstart nach abgeklungenem Ton spielt wieder.
         expect(shouldPlayFalseStart(10_000, 13_000, 3000)).toBe(true)
+    })
+})
+
+describe('falseStartToneForSequence', () => {
+    const eigene: ToneStep[] = [{offsetMillis: 0, frequencyHz: 300, durationMillis: 400}]
+    const vorgabe: ToneStep[] = [{offsetMillis: 0, frequencyHz: 250, durationMillis: 500}]
+
+    test('die Folge der geführten Partie gewinnt gegen den Vorgabesatz', () => {
+        const matches = [match('m1', ['t1'], eigene), match('m2', ['t2'])]
+        expect(falseStartToneForSequence(matches, sequence('seq1', 'RUNNING', ['t1']), vorgabe)).toEqual(
+            eigene,
+        )
+    })
+
+    test('eine Partie ohne Zeitnahmetyp fällt auf den Vorgabesatz zurück', () => {
+        const matches = [match('m2', ['t2'])]
+        expect(falseStartToneForSequence(matches, sequence('seq1', 'RUNNING', ['t2']), vorgabe)).toEqual(
+            vorgabe,
+        )
+    })
+
+    // Der Notausgang-Fall auf der Startseite: keine geführte Sequenz, kein Treffer in der
+    // Startliste — der Rückruf bleibt trotzdem hörbar.
+    test('ohne Sequenz und ohne Treffer gilt der Vorgabesatz', () => {
+        expect(falseStartToneForSequence([], undefined, vorgabe)).toEqual(vorgabe)
+        expect(
+            falseStartToneForSequence([], sequence('seq1', 'RUNNING', ['t9']), vorgabe),
+        ).toEqual(vorgabe)
+    })
+
+    test('der eingebaute Standard kommt durch, wenn er als Vorgabe hereingereicht wird', () => {
+        expect(
+            falseStartToneForSequence([], undefined, [...DEFAULT_FALSE_START_SEQUENCE]),
+        ).toEqual(DEFAULT_FALSE_START_SEQUENCE)
     })
 })

@@ -84,7 +84,7 @@ class TimingModeServiceTest {
         // auch da nichts zu erben: null heißt weiterhin "eingebauter Standardplan", damit
         // künftige Standard-Änderungen unkonfigurierte Typen erreichen.
         assertNull(mode.toneSet)
-        assertNull(mode.tonePlan)
+        assertNull(mode.resolvedToneSet.sequenceTonePlan)
         // Die Vorgaben der neuen Spalten kommen unverändert zurück - ein Typ, der nie angefasst
         // wurde, startet weiter über die App und trifft die Boote auf 1-6 bzw. A-F.
         assertTrue(mode.startSequenceEnabled)
@@ -121,14 +121,14 @@ class TimingModeServiceTest {
         !TimingModeService.addMode(request(name = "Eigen").copy(toneSet = eigenerSatz), userId, eventId)
 
         val modes = (!TimingModeService.getModes(eventId)).data.associateBy { it.name }
-        assertEquals(vorgabePlan, modes.getValue("Erbt").tonePlan)
-        assertEquals(eigenerPlan, modes.getValue("Eigen").tonePlan)
+        assertEquals(vorgabePlan, modes.getValue("Erbt").resolvedToneSet.sequenceTonePlan)
+        assertEquals(eigenerPlan, modes.getValue("Eigen").resolvedToneSet.sequenceTonePlan)
 
         // Und der Wechsel wirkt: derselbe Typ, andere Wahl, anderer Plan.
         !TimingModeService.updateMode(request(name = "Erbt").copy(toneSet = eigenerSatz), userId, erbend, eventId)
         assertEquals(
             eigenerPlan,
-            (!TimingModeService.getModes(eventId)).data.single { it.name == "Erbt" }.tonePlan,
+            (!TimingModeService.getModes(eventId)).data.single { it.name == "Erbt" }.resolvedToneSet.sequenceTonePlan,
         )
     }
 
@@ -154,13 +154,16 @@ class TimingModeServiceTest {
             eventId,
         )) as ApiResponse.Created).id
         !TimingModeService.addMode(request().copy(toneSet = eigenerSatz), userId, eventId)
-        assertEquals(eigenerPlan, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
+        assertEquals(
+            eigenerPlan,
+            (!TimingModeService.getModes(eventId)).data.single().resolvedToneSet.sequenceTonePlan,
+        )
 
         !TimingToneSetService.deleteToneSet(eigenerSatz, eventId)
 
         val mode = (!TimingModeService.getModes(eventId)).data.single()
         assertNull(mode.toneSet)
-        assertEquals(vorgabePlan, mode.tonePlan)
+        assertEquals(vorgabePlan, mode.resolvedToneSet.sequenceTonePlan)
     }
 
     /** Ein Ton-Satz einer FREMDEN Veranstaltung ist keine gültige Wahl. */

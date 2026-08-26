@@ -98,9 +98,9 @@ object TimingMatchService {
         val marks = !TimingOfficialTimeRepo.getAssignedActiveMarks(eventId).orDie()
         val teamsInActiveSequences = (!TimingSequenceEntryRepo.getTeamsInActiveSequences(eventId).orDie()).toSet()
         val modes = !TimingModeRepo.getByEvent(eventId).orDie()
-        // Die Ton-Sätze der Veranstaltung: Der Startsequenz-Tonplan hängt seit dem 26.08.2026
-        // nicht mehr am Typ, sondern an seinem Satz - der Posten braucht ihn aber weiterhin mit
-        // der Partie, sonst schwiege sein Countdown.
+        // Die Ton-Sätze der Veranstaltung: Die Töne hängen seit dem 26.08.2026 nicht mehr am Typ,
+        // sondern an seinem Satz - der Posten braucht sie aber weiterhin MIT der Partie, denn er
+        // spielt die Töne des Laufs, den er gerade führt, und ohne sie schwiege sein Countdown.
         val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
         // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
         // TimingProfileRepo.getAssignments.
@@ -182,7 +182,7 @@ object TimingMatchService {
                     .resolve(assignmentRows, match.competitionId, match.roundId, match.setupMatchId)
                     ?.let { modeId ->
                         modeById[modeId]?.let { mode ->
-                            mode.toDto(TimingToneSetLogic.sequenceTonePlan(toneSets, mode.toneSet))
+                            mode.toDto(TimingToneResolveLogic.resolve(toneSets, mode.toneSet))
                         }
                     },
                 teams = teams,

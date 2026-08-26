@@ -48,4 +48,20 @@ data class TimingSettingsDto(
      * Zeitnahme-Einstellungen der Veranstaltung (EventTimingConfigRequest).
      */
     val startDisplay: StartDisplaySettings,
+    /**
+     * Der aufgelöste VORGABESATZ der Veranstaltung - der Rückfall für alles, was zu keiner Partie
+     * gehört.
+     *
+     * Seit dem 26.08.2026 reisen die Töne mit der Partie (`TimingMatchDto.timingMode`), weil sie
+     * zum Zeitnahmetyp gehören und ein Zeitfahren nicht klingen muss wie ein Massenstart. Genau
+     * ein Griff hat aber keine Partie: der große Erfassungsknopf, der eine Zeit OHNE Zuordnung
+     * bankt. Ohne diesen Rückfall bliebe er stumm - und Stille an der Ziellinie liest sich wie
+     * ein Fehler, nicht wie eine Einstellung.
+     *
+     * Deshalb steht er hier und nicht bei den Partien: Er gilt auch dann, wenn die Startliste
+     * leer ist, der Posten gar keine Partie führt oder die Veranstaltung keine Zeitnahmetypen
+     * kennt. [finishTone], [splitTone] und [falseStartTone] daneben sind der Alt-Weg der
+     * Veranstaltungs-Spalten; sie fallen, sobald das Frontend hier liest.
+     */
+    val defaultToneSet: ResolvedToneSet,
 )

@@ -44,6 +44,18 @@ const DEFAULT_SETTINGS: TimingSettingsDto = {
     // zweite grüne „Start"-Fläche direkt unter dem Sequenz-Knopf.
     showManualCapture: false,
     startDisplay: {...DEFAULT_START_DISPLAY},
+    // Der Rückfall der Töne für alles, was zu keiner Partie gehört — allen voran der große
+    // Erfassungsknopf, der eine Zeit OHNE Zuordnung bankt. Er muss auch in diesem Wimpernschlag
+    // vor dem ersten Fetch klingen, deshalb stehen hier die eingebauten Standardtöne und nicht
+    // etwa nichts: Ein stummer Knopf liest sich am Wasser als Fehler.
+    defaultToneSet: {
+        // null heißt „eingebauter Countdown" — den kennen nur die Boards (DEFAULT_START_TONE_PLAN).
+        sequenceTonePlan: null,
+        finishTone: DEFAULT_CAPTURE_TONE,
+        splitTone: DEFAULT_CAPTURE_TONE,
+        falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
+        tonePerBoat: true,
+    },
 }
 
 /**

@@ -8,6 +8,7 @@ import {
     resolveStartSelection,
     sequenceRequestFromMode,
 } from './matchBoard.ts'
+import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
 
 const eventId = '00000000-0000-0000-0000-00000000000e'
 
@@ -24,6 +25,15 @@ const mode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
     // Vorgaben wie in der Datenbank: Die App startet den Lauf, und die Boote hängen an 1-6.
     startSequenceEnabled: true,
     boatKeysPrimary: '123456',
+    // Der aufgelöste Ton-Satz reist seit dem 26.08.2026 an jedem Typ mit; hier die eingebauten
+    // Standardtöne, wie sie eine Veranstaltung ohne eigene Sätze bekommt.
+    resolvedToneSet: {
+        sequenceTonePlan: null,
+        splitTone: {...DEFAULT_CAPTURE_TONE},
+        falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
+        finishTone: {...DEFAULT_CAPTURE_TONE},
+        tonePerBoat: true,
+    },
     ...overrides,
 })
 

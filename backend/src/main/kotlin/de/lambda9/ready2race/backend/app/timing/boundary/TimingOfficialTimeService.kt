@@ -75,6 +75,8 @@ object TimingOfficialTimeService {
         val showManualCapture: Boolean,
         /** Anzeige-Block des Startbildschirms, aufgelöst - siehe [toDto]. */
         val startDisplay: StartDisplaySettings,
+        /** Der aufgelöste Vorgabesatz der Ton-Sätze - siehe [TimingSettingsDto.defaultToneSet]. */
+        val defaultToneSet: ResolvedToneSet,
     ) {
         /** Die eine Stelle, die aus dem internen Stand die Board-Sicht baut (GET + Broadcast). */
         fun toDto() = TimingSettingsDto(
@@ -85,6 +87,7 @@ object TimingOfficialTimeService {
             falseStartTone = falseStartTone,
             showManualCapture = showManualCapture,
             startDisplay = startDisplay,
+            defaultToneSet = defaultToneSet,
         )
     }
 
@@ -450,8 +453,14 @@ object TimingOfficialTimeService {
         KIO.ok(Unit)
     }
 
-    private fun eventSettings(eventId: UUID): App<Nothing, EventTimingSettings> =
-        EventRepo.get(eventId).orDie().map { event ->
+    private fun eventSettings(eventId: UUID): App<Nothing, EventTimingSettings> = KIO.comprehension {
+        val event = !EventRepo.get(eventId).orDie()
+        // Zweite Abfrage, weil der Rückfall des großen Erfassungsknopfs im VORGABESATZ steht und
+        // nicht mehr an der Veranstaltung. Sie gehört hierher und nicht in den Aufrufer: Diese
+        // Stelle baut die Board-Sicht sowohl für GET /timing/settings als auch für den
+        // settingsChanged-Broadcast - eine zweite Baustelle wären zwei Stände, die auseinanderlaufen.
+        val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
+        KIO.ok(
             EventTimingSettings(
                 autoApply = event?.timingAutoApply ?: true,
                 // Spalte ist NOT NULL mit Default; jOOQ typisiert sie dennoch nullable (bekanntes
@@ -476,8 +485,12 @@ object TimingOfficialTimeService {
                 // statt in jedem Client - genau wie bei den Tönen.
                 startDisplay = event?.timingStartDisplay.toStartDisplaySettings()
                     ?: TimingStartDisplayLimits.DEFAULT,
+                // Kein Vorgabesatz (Veranstaltung ohne Sätze) heißt: die eingebauten Töne. Damit
+                // klingt der Knopf auch dort, wo nie jemand einen Satz angelegt hat.
+                defaultToneSet = TimingToneResolveLogic.resolveDefault(toneSets),
             )
-        }
+        )
+    }
 
     // ------------------------------------------------------------------ Berechnung (Endpunkt)
 

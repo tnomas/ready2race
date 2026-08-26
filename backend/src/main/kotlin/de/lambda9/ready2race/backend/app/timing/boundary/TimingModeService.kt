@@ -52,13 +52,13 @@ object TimingModeService {
         eventId: UUID,
     ): App<ServiceError, ApiResponse.ListDto<TimingModeDto>> = KIO.comprehension {
         val records = !TimingModeRepo.getByEvent(eventId).orDie()
-        // Der Startsequenz-Tonplan steht seit dem 26.08.2026 im Ton-Satz; die Sätze der
-        // Veranstaltung kommen deshalb in EINER Abfrage mit und werden hier aufgelöst.
+        // Die vier Töne stehen seit dem 26.08.2026 im Ton-Satz; die Sätze der Veranstaltung
+        // kommen deshalb in EINER Abfrage mit und werden hier aufgelöst.
         val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
         KIO.ok(
             ApiResponse.ListDto(
                 records.sortedBy { it.name }.map {
-                    it.toDto(TimingToneSetLogic.sequenceTonePlan(toneSets, it.toneSet))
+                    it.toDto(TimingToneResolveLogic.resolve(toneSets, it.toneSet))
                 }
             )
         )

@@ -3786,6 +3786,32 @@ export type ResendInvitationRequest = {
     callbackUrl: string
 }
 
+/**
+ * The tones a board REALLY plays - the result of the resolution, and thus the counterpart of TimingToneSetDto: that one says what somebody configured, this one what comes out of it. Resolved on the wire and not in the board, because a board should play what arrives instead of rebuilding an inheritance chain; the chain ("the mode's tone set -> the event's default set -> the built-in default") exists exactly once, in the backend, and is unit-tested there. One caveat about a null field inside a PICKED set: it falls back to the BUILT-IN default, not to the default set. A picked set is a statement, and an empty field in it means "default", not "take the one from elsewhere".
+ */
+export type ResolvedToneSetDto = {
+    /**
+     * Tone plan of the start sequence, offsets counting BACKWARDS to the start. The only one of the four that stays nullable, deliberately: its built-in default is the boards' own countdown (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0), which the backend has never known. Inventing it here would mean maintaining the same sound in two places - null simply says "unchanged, as always".
+     */
+    sequenceTonePlan?: Array<ToneStepDto> | null
+    /**
+     * Confirmation beep at the SPLIT station, never null.
+     */
+    splitTone: CaptureToneDto
+    /**
+     * False-start SEQUENCE, never null and never empty.
+     */
+    falseStartTone: Array<ToneStepDto>
+    /**
+     * Confirmation beep at the FINISH station, never null.
+     */
+    finishTone: CaptureToneDto
+    /**
+     * Does the capture tone tell the boats apart? See TimingToneSetDto.tonePerBoat; without any set the database default (on) applies.
+     */
+    tonePerBoat: boolean
+}
+
 export type Resource =
     | 'USER'
     | 'EVENT'
@@ -4396,9 +4422,9 @@ export type TimingModeDto = {
      */
     leadInSeconds: number
     /**
-     * Tone plan of the start sequence, ascending by offset. Null means the built-in default plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound unconfigured modes always had. RESOLVED, not the mode's own value: since 2026-08-26 the plan lives in the tone set, so this is the plan of the mode's own tone set, or of the event's default set when the mode inherits. Read-only - write it through PUT /timing/tone-sets/{toneSetId}, which is why TimingModeRequest has no tonePlan.
+     * The four tones a match of this mode actually makes, resolved: the mode's own tone set, else the event's default set, else the built-in defaults. The counterpart of toneSet - that field holds the CHOICE (null meaning "inherits"), this one holds the RESULT, so a board plays what arrives instead of rebuilding the inheritance chain. Read-only: the tones are written on the tone set (PUT /timing/tone-sets/{toneSetId}), which is why TimingModeRequest does not carry them.
      */
-    readonly tonePlan?: Array<ToneStepDto> | null
+    resolvedToneSet: ResolvedToneSetDto
 }
 
 export type TimingModeRequest = {
@@ -4551,6 +4577,10 @@ export type TimingSettingsDto = {
      * What the start display (the athlete screen at the start) shows and how large, already resolved like the tones: unconfigured events get the built-in defaults, so the display simply renders what is sent here and never has to know about "unset".
      */
     startDisplay: StartDisplaySettingsDto
+    /**
+     * The event's DEFAULT tone set, resolved - the fallback for everything that belongs to no match. Since 2026-08-26 the tones travel with the match (TimingMatchDto.timingMode), because they belong to the timing mode: a time trial need not sound like a mass start. Exactly one grab has no match though - the big capture button, which banks a time WITHOUT an assignment. Without this fallback it would fall silent, and silence at the finish line reads as a fault rather than as a setting. It also applies when the start list is empty, when the station leads no match at all, or when the event has no timing modes. finishTone/splitTone/falseStartTone next to it are the old event-column path and fall once the frontend reads from here.
+     */
+    defaultToneSet: ResolvedToneSetDto
 }
 
 /**

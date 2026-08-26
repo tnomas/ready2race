@@ -565,10 +565,14 @@ object TimingService {
         )
         val mode = modeId?.let { !TimingModeRepo.get(it).orDie() }
         // Über die DTO-Umwandlung, damit die Rückfallregel für die nullable getippte Spalte an
-        // genau einer Stelle steht (siehe Conversions) - kein zweites `?: true` hier. Der
-        // Startsequenz-Tonplan bleibt dabei ungefragt (null): Hier steht nur die eine Frage, ob
-        // der Rückruf erlaubt ist - die Töne dieses Rückrufs holt das Board selbst.
-        !KIO.failOn(mode == null || !mode.toDto(sequenceTonePlan = null).falseStartEnabled) {
+        // genau einer Stelle steht (siehe Conversions) - kein zweites `?: true` hier. Die Töne
+        // bleiben dabei ungefragt (leere Satzliste = eingebauter Standard, gelesen wird das
+        // Ergebnis nie): Hier steht nur die eine Frage, ob der Rückruf erlaubt ist - die Töne
+        // dieses Rückrufs holt das Board selbst, mit der Partie.
+        !KIO.failOn(
+            mode == null ||
+                !mode.toDto(TimingToneResolveLogic.resolve(emptyList(), null)).falseStartEnabled
+        ) {
             TimingError.FalseStartDisabled
         }
 

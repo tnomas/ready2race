@@ -153,11 +153,13 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     } = useTimingSettings(eventId)
 
     // Fehlstart-Ton: RUNNING→ABORTED der gespiegelten Sequenz und attemptRetracted der gerade
-    // gezeigten Partie — Bedingungen in `falseStart.ts`, verdeckter Tab bleibt still.
+    // gezeigten Partie — Bedingungen in `falseStart.ts`, verdeckter Tab bleibt still. Gespielt
+    // wird die Folge des Zeitnahmetyps der geführten Partie; der Vorgabesatz der Veranstaltung
+    // ist nur noch der Rückfall.
     const {onAttemptRetracted} = useFalseStartTone(
         sequenceState.sequence,
         matchesData ?? [],
-        settings.falseStartTone,
+        settings.defaultToneSet.falseStartTone,
     )
 
     /**
