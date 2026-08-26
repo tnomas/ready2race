@@ -1,5 +1,7 @@
 import {describe, expect, it} from 'vitest'
-import {boatPitch} from './boatPitch.ts'
+import {CaptureToneDto} from '@api/types.gen.ts'
+import {DEFAULT_CAPTURE_TONE} from '@utils/timing/tonePlan.ts'
+import {boatCaptureTone, boatPitch} from './boatPitch.ts'
 
 describe('boatPitch', () => {
     it('lässt Position 1 auf dem Grundton', () => {
@@ -31,5 +33,46 @@ describe('boatPitch', () => {
     it('fällt bei unbekannter Position auf den Grundton zurück', () => {
         expect(boatPitch(800, 0)).toBe(800)
         expect(boatPitch(800, 7)).toBe(800)
+    })
+})
+
+describe('boatCaptureTone', () => {
+    const tone: CaptureToneDto = {
+        frequencyHz: 800,
+        durationMillis: 120,
+        waveform: 'SQUARE',
+        releaseMillis: 40,
+    }
+
+    it('hebt den Ton auf die Stufe des getroffenen Bootes', () => {
+        expect(boatCaptureTone(tone, true, 4)?.frequencyHz).toBe(1200)
+    })
+
+    it('lässt alles außer der Tonhöhe unberührt', () => {
+        // Wellenform und Hüllkurve sind die Handschrift des Satzes — die Leiter verschiebt nur
+        // die Tonhöhe, sonst klänge Position 4 wie ein anderer Ton und nicht wie derselbe höher.
+        expect(boatCaptureTone(tone, true, 4)).toEqual({...tone, frequencyHz: 1200})
+    })
+
+    // Der große Erfassungsknopf bankt OHNE Boot — dann bleibt es beim Grundton, und genau das ist
+    // die Information: „gebankt, noch ohne Boot".
+    it('behält ohne Boot den Grundton', () => {
+        expect(boatCaptureTone(tone, true, undefined)).toBe(tone)
+    })
+
+    it('behält bei abgeschalteter Leiter den Grundton', () => {
+        expect(boatCaptureTone(tone, false, 4)).toBe(tone)
+    })
+
+    it('nimmt ohne eingestellten Ton den eingebauten Standard als Grundton', () => {
+        expect(boatCaptureTone(undefined, true, 6)?.frequencyHz).toBe(
+            DEFAULT_CAPTURE_TONE.frequencyHz * 2,
+        )
+    })
+
+    // Ohne Boot und ohne eingestellten Ton bleibt es bei undefined — der Posten klingt damit
+    // exakt wie vor der Leiter, statt den Standard als Objekt durchzureichen.
+    it('bleibt ohne Ton und ohne Boot undefined', () => {
+        expect(boatCaptureTone(undefined, true, undefined)).toBeUndefined()
     })
 })

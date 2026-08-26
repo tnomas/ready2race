@@ -7,6 +7,7 @@ import {
     boatKeyHint,
     boatKeyLayout,
     boatKeyRows,
+    boatPosition,
     cycleFocus,
     finishKeyTarget,
     resolveFinishFocus,
@@ -228,5 +229,31 @@ describe('cycleFocus', () => {
 
     it('liefert undefined für eine leere Liste', () => {
         expect(cycleFocus([], 'a', 1)).toBeUndefined()
+    })
+})
+
+describe('boatPosition', () => {
+    // Dieselbe Zählung wie die Tasten: die Stelle nach Startnummer, nicht die Startnummer selbst.
+    const focused = match('m1', 'STARTED', [team(4), team(2), team(9)])
+    const other = match('m2', 'STARTED', [team(1), team(7)])
+
+    it('zählt die Stelle nach Startnummer, 1-basiert', () => {
+        expect(boatPosition([focused], 'team-2')).toBe(1)
+        expect(boatPosition([focused], 'team-4')).toBe(2)
+        expect(boatPosition([focused], 'team-9')).toBe(3)
+    })
+
+    it('findet ein Boot auch in einer nicht fokussierten Partie', () => {
+        // Ein Boots-Tipp trifft auch die erwarteten Partien darunter — die Stelle zählt dann
+        // innerhalb DERER Partie, nicht über die Liste hinweg.
+        expect(boatPosition([focused, other], 'team-7')).toBe(2)
+    })
+
+    it('liefert undefined für ein unbekanntes Boot', () => {
+        expect(boatPosition([focused], 'team-fremd')).toBeUndefined()
+    })
+
+    it('liefert undefined ohne Partien', () => {
+        expect(boatPosition([], 'team-2')).toBeUndefined()
     })
 })

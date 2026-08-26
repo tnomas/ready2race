@@ -50,7 +50,7 @@ import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
 import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
-import {resolveFinishFocus} from '@utils/timing/boardFocus.ts'
+import {boatPosition, resolveFinishFocus} from '@utils/timing/boardFocus.ts'
 import {armedGateApplies, captureAllowed} from '@utils/timing/armed.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
@@ -570,6 +570,18 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     const captureTones = focusedMatch?.timingMode?.resolvedToneSet ?? settings.defaultToneSet
 
     /**
+     * Die Stelle des getroffenen Bootes für die Tonleiter je Boot — gesucht über ALLE Partien des
+     * Postens, weil der Direkttipp auch eine erwartete Partie unter der fokussierten trifft. Die
+     * Zählung kommt aus `boardFocus`, dieselbe, die auch die Tasten benutzen: Zwei Zählungen
+     * nebeneinander würden irgendwann auseinanderlaufen, und dann meldete der Ton ein anderes Boot
+     * als die Taste getroffen hat.
+     */
+    const positionOfBoat = useCallback(
+        (competitionMatchTeam: string) => boatPosition(matches, competitionMatchTeam),
+        [matches],
+    )
+
+    /**
      * The board's single capture flow, shared by the big two-step button, the Space shortcut and the
      * team grid's taps/keys — see `useCaptureFlow` for the write-ahead protocol. Owning it here (rather
      * than inside each surface) is what keeps "one physical press, one mark" true no matter which
@@ -587,6 +599,11 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 : station?.type === 'SPLIT'
                   ? captureTones.splitTone
                   : undefined,
+        // Die Leiter je Boot gehört demselben Ton-Satz wie der Grundton — beide kommen aus
+        // `captureTones`, damit ein Lauf nie den Ton des einen Satzes auf der Leiter eines
+        // anderen spielt.
+        tonePerBoat: captureTones.tonePerBoat,
+        boatPosition: positionOfBoat,
         now: clock.now,
         applyLocalMark,
         markSaved: handleMarkSaved,

@@ -1,4 +1,5 @@
-import {TONE_FREQUENCY_MAX_HZ} from '@utils/timing/tonePlan.ts'
+import {CaptureToneDto} from '@api/types.gen.ts'
+import {DEFAULT_CAPTURE_TONE, TONE_FREQUENCY_MAX_HZ} from '@utils/timing/tonePlan.ts'
 
 /**
  * Die Verhältnisse der sechs Stufen: eine pentatonische Leiter über dem Grundton, Position 6
@@ -32,4 +33,30 @@ export function boatPitch(base: number, position: number): number {
     const ratio = BOAT_PITCH_RATIOS[position - 1]
     if (ratio === undefined) return base
     return Math.min(Math.round(base * ratio), TONE_FREQUENCY_MAX_HZ)
+}
+
+/**
+ * Der Erfassungston einer einzelnen Geste: mit zugeordnetem Boot und eingeschalteter Leiter
+ * ([TimingToneSetDto.tonePerBoat]) auf der Stufe dieses Bootes, sonst unverändert der Grundton.
+ *
+ * Der **unzugeordnete Griff behält den Grundton** — der große Erfassungsknopf bankt eine Zeit
+ * ohne Boot, und damit bedeutet der Grundton am Ziel „gebankt, noch ohne Boot". Das ist
+ * Information, die nichts kostet: Sie fällt als Nebenprodukt der Leiter an und unterscheidet
+ * hörbar die beiden Griffe, die sonst gleich klingen.
+ *
+ * Verschoben wird ausschließlich die Tonhöhe. Wellenform und Hüllkurve sind die Handschrift des
+ * Ton-Satzes; änderte die Leiter sie mit, klänge eine Position wie ein ANDERER Ton statt wie
+ * derselbe höher — und genau das Wiedererkennen ist der Zweck.
+ *
+ * Ohne eingestellten Ton bleibt es ohne Boot bei `undefined` (der Posten klingt exakt wie vor der
+ * Leiter); erst mit Boot tritt der eingebaute Standard als Grundton ein.
+ */
+export function boatCaptureTone(
+    tone: CaptureToneDto | undefined,
+    tonePerBoat: boolean,
+    position: number | undefined,
+): CaptureToneDto | undefined {
+    if (!tonePerBoat || position === undefined) return tone
+    const base = tone ?? DEFAULT_CAPTURE_TONE
+    return {...base, frequencyHz: boatPitch(base.frequencyHz, position)}
 }

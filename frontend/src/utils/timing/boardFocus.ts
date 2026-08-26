@@ -1,4 +1,4 @@
-import {TimingMatchDto, TimingModeDto} from '@api/types.gen.ts'
+import {TimingMatchDto, TimingMatchTeamDto, TimingModeDto} from '@api/types.gen.ts'
 
 /**
  * Reine Fokus-Logik des Zielpostens: welche Partie die Tasten treffen, wohin der Fokus nach
@@ -70,6 +70,38 @@ export function boatKeyRows(keys: BoatKeyLayout): string {
         : `${row(keys.primary)} / ${row(keys.secondary)}`
 }
 
+/**
+ * Die Boote einer Partie in Positionsreihenfolge — nach Startnummer. Die EINE Zählung des
+ * Zielpostens: An ihr hängen die Tasten ([finishKeyTarget]), die Hinweise an den Booten
+ * ([boatKeyHint]) und die Tonleiter je Boot ([boatPosition]). Eine zweite Zählung daneben würde
+ * über kurz oder lang von der ersten abweichen, und dann trifft die Taste ein anderes Boot als
+ * der Ton meldet.
+ */
+function boatsByPosition(match: TimingMatchDto): TimingMatchTeamDto[] {
+    return [...match.teams].sort((a, b) => a.startNumber - b.startNumber)
+}
+
+/**
+ * Die Stelle eines Bootes in seiner Partie, 1-basiert und nach Startnummer — dieselbe Stelle, die
+ * auch seine Taste trägt. Gebraucht für die Tonhöhe des Erfassungstons (`boatPitch`).
+ *
+ * Gesucht wird über ALLE gelieferten Partien und nicht nur in der fokussierten: Ein Boots-Tipp
+ * trifft auch die erwarteten Partien unter der fokussierten, und dann zählt die Stelle innerhalb
+ * DERER Partie.
+ */
+export function boatPosition(
+    matches: TimingMatchDto[],
+    competitionMatchTeam: string,
+): number | undefined {
+    for (const match of matches) {
+        const index = boatsByPosition(match).findIndex(
+            team => team.competitionMatchTeam === competitionMatchTeam,
+        )
+        if (index !== -1) return index + 1
+    }
+    return undefined
+}
+
 /** Die Position, die eine Taste in dieser Belegung trifft — die erste Reihe hat Vorrang. */
 function keyPosition(keys: BoatKeyLayout, key: string): number | undefined {
     // Groß und klein sind dieselbe Taste: Das Board liest den Druck ohne Rücksicht auf die
@@ -104,7 +136,7 @@ export function finishKeyTarget(
     const position = keyPosition(keys, key)
     if (position === undefined) return undefined
 
-    const team = [...match.teams].sort((a, b) => a.startNumber - b.startNumber)[position]
+    const team = boatsByPosition(match)[position]
     if (team === undefined) return undefined
     return {teamId: team.competitionMatchTeam, finished: team.finished}
 }
