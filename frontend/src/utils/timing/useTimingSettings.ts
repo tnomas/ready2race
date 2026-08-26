@@ -51,7 +51,10 @@ const DEFAULT_SETTINGS: TimingSettingsDto = {
         finishTone: DEFAULT_CAPTURE_TONE,
         splitTone: DEFAULT_CAPTURE_TONE,
         falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
-        tonePerBoat: true,
+        // Wie auf dem Server (TimingToneResolveLogic): Ohne Satz EIN Ton für alle Boote. Stünde
+        // hier `true`, klänge der Wimpernschlag vor dem ersten Fetch anders als jede Erfassung
+        // danach — genau der Sprung, den die Tonleiter nicht machen darf.
+        tonePerBoat: false,
     },
 }
 

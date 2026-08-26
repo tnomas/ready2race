@@ -1681,10 +1681,6 @@
         "summaryHeld": "held · {{millis}} ms release"
       },
       "captureTones": {
-        "title": "Capture tones",
-        "hint": "The confirmation tone finish and split stations play when a time is captured — configurable per station type. It only sounds on the key press itself; resending from the offline queue stays silent.",
-        "finish": "Finish station",
-        "split": "Split station",
         "frequencyHz": "Pitch (Hz)",
         "durationMillis": "Duration (ms)",
         "releaseMillis": "Release (ms)",
@@ -1694,8 +1690,6 @@
         "invalid": "Pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "False-start recall",
-        "hint": "The tone sequence the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing. A sequence rather than a single tone, because a pattern with a differing final tone (\"short, short, long\") reads as a recall out on the water, where a single tone passes as just another signal.",
         "label": "False start",
         "presetSingle": "Single tone",
         "presetTriple": "Three short",
@@ -1705,7 +1699,7 @@
       "toneSets": {
         "title": "Tone sets",
         "hint": "Named sound templates of the event — for example \"Loud for the water\" and \"Quiet for the hall\". One set carries all four tones; a timing mode picks a set or inherits the default set. Changing the tones of every mode therefore means changing one set instead of every single mode.",
-        "none": "No tone sets created yet. Without a set every station plays the built-in tones.",
+        "none": "No tone sets created yet. Without a set every station plays the built-in tones — one tone for all boats.",
         "add": "Add tone set",
         "edit": "Edit tone set",
         "name": "Name",
@@ -3285,6 +3279,7 @@
       "noMode": "no timing mode",
       "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
       "noStartSequenceHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The start time comes from the manual stamp, not from a sequence.",
+      "noStartSequenceNoCaptureHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The manual capture button is hidden — this board cannot record a start time at all right now. Turn it on in the event's timing settings under \"Manual capture at the start station\"; the board follows immediately.",
       "noTeamsLeft": "Every boat of this race has already started.",
       "allStarted": "All races have been started — nothing left open.",
       "start": "Start sequence",

@@ -130,8 +130,16 @@ object TimingSequenceService {
      * ist ein Geräte-Token-Klient und läuft womöglich mit einer Startliste weiter, die den gerade
      * umgestellten Typ noch nicht kennt. Eine Bedienhilfe ist keine Zusicherung. Der zweite
      * Schalter desselben Typs - der Fehlstart-Rückruf - wird seit jeher serverseitig durchgesetzt
-     * ([TimingService.falseStart]); zwei Schalter am selben Typ verschieden ernst zu nehmen wäre
-     * für den Bediener nicht erklärbar.
+     * ([TimingService.falseStart]); ein Schalter, den nur die Bedienoberfläche einhält, wäre keine
+     * Einstellung, sondern ein Vorschlag.
+     *
+     * **Am Rand fallen die beiden Schalter bewusst VERSCHIEDEN aus, und das ist kein Versehen:**
+     * Ist gar kein Typ herleitbar, lehnt der Fehlstart-Rückruf ab (`mode == null` scheitert dort),
+     * die Startsequenz-Sperre lässt durch (siehe unten). Der Unterschied liegt in dem, was der
+     * jeweilige Griff anrichtet. Der Rückruf LÖSCHT Startzeiten eines Laufs - eine Wirkung, die
+     * niemand zurücknimmt, und ohne herleitbaren Typ weiß der Server nicht einmal, welchen Lauf er
+     * vor sich hat; im Zweifel also nicht. Die Startsequenz erzeugt nur ein Countdown-Fenster; sie
+     * im Zweifel zu verweigern hielte am Renntag Läufe an, die niemand gesperrt hat.
      *
      * Der Weg zum Typ ist derselbe wie beim Rückruf, nur um einen Schritt länger: Der Request
      * trägt keine Partie, also führt das erste Team über [COMPETITION_MATCH_TEAM.COMPETITION_MATCH]

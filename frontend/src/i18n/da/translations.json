@@ -1681,10 +1681,6 @@
         "summaryHeld": "fastholdt · {{millis}} ms efterklang"
       },
       "captureTones": {
-        "title": "Registreringstoner",
-        "hint": "Bekræftelsestonen, som mål- og mellemtidsposter afspiller, når en tid registreres — kan indstilles pr. posttype. Den lyder kun ved selve tastetrykket; genafsendelse fra offline-køen forbliver stum.",
-        "finish": "Målpost",
-        "split": "Mellemtidspost",
         "frequencyHz": "Tonehøjde (Hz)",
         "durationMillis": "Varighed (ms)",
         "releaseMillis": "Efterklang (ms)",
@@ -1694,8 +1690,6 @@
         "invalid": "Tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "Tyvstart-tilbagekaldelse",
-        "hint": "Den tonefølge, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. En følge frem for én enkelt tone, fordi et mønster med en afvigende sidste tone (\"kort, kort, lang\") kan genkendes som en tilbagekaldelse på vandet, hvor en enkelt tone bare lyder som et signal.",
         "label": "Tyvstart",
         "presetSingle": "Enkelt tone",
         "presetTriple": "Tre korte",
@@ -1705,7 +1699,7 @@
       "toneSets": {
         "title": "Tonesæt",
         "hint": "Navngivne lydskabeloner for stævnet — for eksempel \"Højt til vandet\" og \"Stille til hallen\". Ét sæt bærer alle fire toner; en tidtagningstype vælger et sæt eller arver standardsættet. Vil du ændre tonerne for alle typer, ændrer du derfor ét sæt i stedet for hver enkelt type.",
-        "none": "Endnu ingen tonesæt oprettet. Uden sæt afspiller alle poster de indbyggede toner.",
+        "none": "Endnu ingen tonesæt oprettet. Uden sæt afspiller alle poster de indbyggede toner — én tone for alle både.",
         "add": "Opret tonesæt",
         "edit": "Rediger tonesæt",
         "name": "Navn",
@@ -3258,6 +3252,7 @@
       "noMode": "ingen tidtagningstype",
       "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
       "noStartSequenceHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Starttidspunktet kommer fra det manuelle stempel, ikke fra en sekvens.",
+      "noStartSequenceNoCaptureHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Den manuelle registreringsknap er skjult — dette board kan slet ikke registrere et starttidspunkt lige nu. Slå den til i stævnets tidtagningsindstillinger under „Manuel registrering ved startposten“; boardet følger med det samme.",
       "noTeamsLeft": "Alle både i dette løb er allerede startet.",
       "allStarted": "Alle løb er startet — intet står åbent.",
       "start": "Start startsekvens",

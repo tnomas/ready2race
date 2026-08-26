@@ -1681,10 +1681,6 @@
         "summaryHeld": "gehalten · {{millis}} ms Ausklingen"
       },
       "captureTones": {
-        "title": "Erfassungstöne",
-        "hint": "Der Bestätigungston, den Ziel- und Zwischenzeitposten beim Erfassen einer Zeit spielen — je Postentyp getrennt einstellbar. Er erklingt nur beim Tastendruck selbst; das Nachsenden aus der Offline-Warteschlange bleibt stumm.",
-        "finish": "Zielposten",
-        "split": "Zwischenzeitposten",
         "frequencyHz": "Tonhöhe (Hz)",
         "durationMillis": "Dauer (ms)",
         "releaseMillis": "Ausklingen (ms)",
@@ -1694,8 +1690,6 @@
         "invalid": "Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "Fehlstart-Rückruf",
-        "hint": "Die Tonfolge, die Start-Board und Startbildschirm spielen, wenn ein Start zurückgenommen oder eine laufende Startsequenz abgebrochen wird — nur für den Lauf, den das Board gerade führt. Eine Folge statt eines einzelnen Tons, weil ein Muster mit abweichendem Schluss („kurz, kurz, lang\") am Wasser als Rückruf erkennbar ist, wo ein einzelner Ton als irgendein Signal durchgeht.",
         "label": "Fehlstart",
         "presetSingle": "Einzelton",
         "presetTriple": "Dreifach kurz",
@@ -1705,7 +1699,7 @@
       "toneSets": {
         "title": "Ton-Sätze",
         "hint": "Benannte Klang-Vorlagen der Veranstaltung — zum Beispiel „Laut fürs Wasser“ und „Leise für die Halle“. Ein Satz trägt alle vier Töne; ein Zeitnahmetyp wählt einen Satz oder erbt den Vorgabesatz. Wer die Töne aller Typen ändern will, ändert damit einen Satz statt jedes einzelnen Typs.",
-        "none": "Noch keine Ton-Sätze angelegt. Ohne Satz spielen alle Posten die eingebauten Töne.",
+        "none": "Noch keine Ton-Sätze angelegt. Ohne Satz spielen alle Posten die eingebauten Töne — ein Ton für alle Boote.",
         "add": "Ton-Satz anlegen",
         "edit": "Ton-Satz bearbeiten",
         "name": "Name",
@@ -3285,6 +3279,7 @@
       "noMode": "kein Zeitnahmetyp",
       "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
       "noStartSequenceHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Die Startzeit kommt über den Stempel, nicht über eine Sequenz.",
+      "noStartSequenceNoCaptureHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Der manuelle Stempel ist ausgeblendet — dieses Board kann gerade gar keine Startzeit erfassen. Einschalten in den Zeitnahme-Einstellungen der Veranstaltung unter „Manueller Stempel am Startposten“; das Board folgt sofort.",
       "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
       "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
       "start": "Startsequenz starten",

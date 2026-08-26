@@ -2081,7 +2081,7 @@ export type EventStartlistPreviewMatchDto = {
 }
 
 /**
- * The event's timing settings. Timing system and the file-format presets live here once and apply to EVERY competition - a per-competition deviation no longer exists (the competition columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker race or an internal timing mode - is not here either: that is the timing profile tree (/event/{eventId}/timing-profile). The tones are not here either: split, false-start and finish tone belong to the timing mode and live in the event's tone sets since 2026-08-26 (/event/{eventId}/timing/tone-set); the three event columns were dropped in V202608261210.
+ * The event's timing settings. Timing system and the file-format presets live here once and apply to EVERY competition - a per-competition deviation no longer exists (the competition columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker race or an internal timing mode - is not here either: that is the timing profile tree (/event/{eventId}/timing-profile). The tones are not here either: split, false-start and finish tone belong to the timing mode and live in the event's tone sets since 2026-08-26 (/event/{eventId}/timing/tone-sets); the three event columns were dropped in V202608261210.
  *
  */
 export type EventTimingConfigDto = {
@@ -3783,7 +3783,7 @@ export type ResolvedToneSetDto = {
      */
     finishTone: CaptureToneDto
     /**
-     * Does the capture tone tell the boats apart? See TimingToneSetDto.tonePerBoat; without any set the database default (on) applies.
+     * Does the capture tone tell the boats apart? See TimingToneSetDto.tonePerBoat; without any set it is off - one tone for all boats. The column default (on) is a proposal for NEWLY created sets only; an event that never had a set never heard the scale and must not be switched over unasked.
      */
     tonePerBoat: boolean
 }

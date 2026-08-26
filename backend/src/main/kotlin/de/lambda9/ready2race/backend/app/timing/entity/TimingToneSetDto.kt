@@ -69,6 +69,10 @@ data class ResolvedToneSet(
     val falseStartTone: List<ToneStep>,
     /** Bestätigungston am FINISH-Posten, nie null. */
     val finishTone: CaptureTone,
-    /** Siehe [TimingToneSetDto.tonePerBoat]; ohne Satz gilt der Datenbank-Default (an). */
+    /**
+     * Siehe [TimingToneSetDto.tonePerBoat]; ohne Satz ist sie AUS - ein Ton für alle Boote. Der
+     * Spalten-Default (an) ist ein Vorschlag für NEU angelegte Sätze, keine Aussage über
+     * Veranstaltungen, die nie einen Satz hatten.
+     */
     val tonePerBoat: Boolean,
 )

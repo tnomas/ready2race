@@ -44,7 +44,16 @@ object TimingToneResolveLogic {
             falseStartTone = set?.falseStartTone.toToneSequence()
                 ?: TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE,
             finishTone = set?.finishTone.toCaptureTone() ?: TimingToneLimits.DEFAULT_CAPTURE_TONE,
-            tonePerBoat = set?.tonePerBoat ?: true,
+            // Ohne Satz: EIN Ton für alle Boote. Das sieht neben dem Spalten-Default `true` wie
+            // ein Widerspruch aus, ist aber die Trennung zwischen „neu angelegt" und
+            // „unkonfiguriert": Wer einen Satz ANLEGT, bekommt die Tonleiter als Vorschlag; wer
+            // gar keinen hat, hat sie nie gehört und darf sie auch nicht ungefragt bekommen.
+            // Zwei Wege führen hierher, und beide dürfen nicht plötzlich anders klingen:
+            // Veranstaltungen ohne Zeitnahmetypen UND ohne eigene Töne bekamen beim Umzug keinen
+            // Satz (V202608261200), erfassen über den Zielposten aber weiterhin Zeiten; und wer
+            // den letzten Satz löscht, hat bis eben „Ein Ton für alle Boote" auf der Zeile
+            // gelesen. Ein `true` hier schaltete beiden still die Tonleiter ein.
+            tonePerBoat = set?.tonePerBoat ?: false,
         )
     }
 

@@ -35,6 +35,13 @@ export type StartBoardPanelProps = {
     onOpenMenu: (match: TimingMatchDto, anchor: HTMLElement) => void
     /** Ob das Menü für die fokussierte Partie etwas anzubieten hat. */
     menuAvailable: (match: TimingMatchDto) => boolean
+    /**
+     * Ob die Seite unter diesem Panel den manuellen Stempel zeigt (`settings.showManualCapture`,
+     * Vorgabe AUS). Nur für den Hinweistext bei abgeschalteter Startsequenz: Ohne den Stempel gibt
+     * es auf diesem Board überhaupt kein Bedienelement für die Startzeit, und ein Hinweis, der auf
+     * den Stempel zeigt, zeigte dann auf eine leere Fläche.
+     */
+    manualCaptureVisible: boolean
     onPause: () => void
     onResume: () => void
     onRewind: () => void
@@ -62,6 +69,7 @@ const StartBoardPanel = ({
     focusedMatch,
     onOpenMenu,
     menuAvailable,
+    manualCaptureVisible,
     onPause,
     onResume,
     onRewind,
@@ -117,7 +125,9 @@ const StartBoardPanel = ({
     // Startet die App Läufe dieses Typs überhaupt? Nicht jeder Lauf bekommt eine Sequenz: Wird am
     // Steg von Hand losgeschickt, gibt es kein Countdown-Fenster — und ein Board, das trotzdem
     // eines anbietet, lädt zum falschen Griff ein. Der manuelle Stempel bleibt der Weg; er hängt
-    // an `showManualCapture` und nicht an dieser Sperre.
+    // an `showManualCapture` und nicht an dieser Sperre — und dessen Vorgabe ist AUS. Deshalb
+    // nimmt der Hinweis unten `manualCaptureVisible` dazu, statt den Stempel als gegeben
+    // anzunehmen.
     const sequenceOffByMode = focusedMatch?.timingMode?.startSequenceEnabled === false
     const startDisabled =
         busy ||
@@ -176,12 +186,24 @@ const StartBoardPanel = ({
                 </Alert>
             )}
             {/* Kein Mangel, sondern die Absicht des Zeitnahmetyps — deshalb ein Hinweis und keine
-                Warnung. Er nennt den Typ beim Namen, damit klar ist, WO das eingestellt ist. */}
+                Warnung. Er nennt den Typ beim Namen, damit klar ist, WO das eingestellt ist.
+                Welcher der beiden Sätze steht, entscheidet der Stempel: Die zwei Schalter sitzen
+                auf verschiedenen Seiten (Startsequenz am Zeitnahmetyp, Stempel an den
+                Zeitnahme-Einstellungen), und mit ausgeblendetem Stempel steht auf diesem Board
+                gar kein Bedienelement für die Startzeit. Der Satz „die Startzeit kommt über den
+                Stempel" zeigte dann auf eine leere Fläche — am Renntag genau die Ratlosigkeit,
+                die niemand gebrauchen kann. Deshalb sagt der zweite Satz stattdessen, wo man den
+                Stempel einschaltet. */}
             {sequenceOffByMode && focusedMatch?.timingMode != null && (
-                <Alert severity="info" sx={{flexShrink: 0}}>
-                    {t('timing.matches.noStartSequenceHint', {
-                        mode: focusedMatch.timingMode.name,
-                    })}
+                <Alert
+                    severity={manualCaptureVisible ? 'info' : 'warning'}
+                    sx={{flexShrink: 0}}>
+                    {t(
+                        manualCaptureVisible
+                            ? 'timing.matches.noStartSequenceHint'
+                            : 'timing.matches.noStartSequenceNoCaptureHint',
+                        {mode: focusedMatch.timingMode.name},
+                    )}
                 </Alert>
             )}
             {focusedMatch !== undefined &&

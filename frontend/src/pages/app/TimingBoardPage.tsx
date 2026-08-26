@@ -599,9 +599,14 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                 : station?.type === 'SPLIT'
                   ? captureTones.splitTone
                   : undefined,
-        // Die Leiter je Boot gehört demselben Ton-Satz wie der Grundton — beide kommen aus
-        // `captureTones`, damit ein Lauf nie den Ton des einen Satzes auf der Leiter eines
-        // anderen spielt.
+        // Schalter UND Grundton kommen aus demselben `captureTones`, also immer aus EINEM Satz —
+        // eine halb aus dem einen, halb aus dem anderen Satz gemischte Leiter gibt es nicht.
+        // Nicht behauptet ist dagegen, dass Satz und getroffenes Boot immer zur selben Partie
+        // gehören: `captureTones` folgt der GEFÜHRTEN Partie, die Stufe sucht `positionOfBoat`
+        // über ALLE Partien des Postens. Ein Direkttipp auf ein Boot einer erwarteten (nicht
+        // geführten) Partie klingt deshalb im Satz der geführten. Das ist bewusst so — die
+        // erfasste Zeit landet korrekt am getippten Boot, nur der Bestätigungston stammt aus dem
+        // Satz, den der Posten gerade fährt.
         tonePerBoat: captureTones.tonePerBoat,
         boatPosition: positionOfBoat,
         now: clock.now,
@@ -1162,6 +1167,7 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
                                     focusedMatch={focusedMatch}
                                     onOpenMenu={openMatchMenu}
                                     menuAvailable={matchMenuAvailable}
+                                    manualCaptureVisible={settings.showManualCapture}
                                     onPause={handlePauseSequence}
                                     onResume={handleResumeSequence}
                                     onRewind={handleRewindSequence}

@@ -132,8 +132,10 @@ class TimingToneResolveLogicTest {
         assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, resolved.splitTone)
         assertEquals(TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE, resolved.falseStartTone)
         assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, resolved.finishTone)
-        // Die Tonleiter je Boot ist der Datenbank-Default: an.
-        assertEquals(true, resolved.tonePerBoat)
+        // Ohne Satz bleibt es bei EINEM Ton für alle Boote - der Spalten-Default `true` gilt nur
+        // für NEU angelegte Sätze. Wer keinen Satz hat, hat die Tonleiter nie gehört und darf sie
+        // weder durch den Umzug noch durch das Löschen des letzten Satzes ungefragt bekommen.
+        assertEquals(false, resolved.tonePerBoat)
     }
 
     /**

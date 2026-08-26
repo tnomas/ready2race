@@ -284,7 +284,10 @@ class TimingToneSetServiceTest {
         assertEquals(TimingToneLimits.DEFAULT_CAPTURE_TONE, ohneSätze.splitTone)
         assertEquals(TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE, ohneSätze.falseStartTone)
         assertNull(ohneSätze.sequenceTonePlan)
-        assertTrue(ohneSätze.tonePerBoat)
+        // ... und zwar denselben wie gestern: EIN Ton für alle Boote. Der Spalten-Default (an) ist
+        // ein Vorschlag für neu angelegte Sätze; eine Veranstaltung ohne jeden Satz hat die
+        // Tonleiter nie gehört und darf sie nicht ungefragt bekommen.
+        assertFalse(ohneSätze.tonePerBoat)
 
         val eigenerZielton = CaptureTone(frequencyHz = 990, durationMillis = 200)
         !addToneSet(
@@ -312,5 +315,28 @@ class TimingToneSetServiceTest {
             eigenerZielton,
             (!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet.finishTone,
         )
+    }
+
+    /**
+     * Der zweite Weg in den satzlosen Zustand - und der heimtückischere: Wer den LETZTEN Ton-Satz
+     * löscht (erlaubt, siehe „der letzte Satz darf gehen"), hat bis zum Klick „Ein Ton für alle
+     * Boote" auf der Zeile gelesen. Fiele die Auflösung ohne Satz auf den Spalten-Default (an)
+     * zurück, schaltete genau dieses Löschen still die Tonleiter EIN - ein Klangwechsel, den
+     * niemand bestellt hat, an einer Stelle, an der niemand ihn vermutet.
+     */
+    @Test
+    fun `das Löschen des letzten Satzes schaltet die Tonleiter nicht ein`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val id = ((!addToneSet(
+            TimingToneSetRequest(name = "Laut fürs Wasser", tonePerBoat = false),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        assertFalse((!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet.tonePerBoat)
+
+        !TimingToneSetService.deleteToneSet(id, eventId)
+
+        // Kein Satz mehr - und trotzdem derselbe Klang wie eben.
+        assertFalse((!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet.tonePerBoat)
     }
 }
