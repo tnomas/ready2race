@@ -1051,7 +1051,7 @@ const CompetitionExecutionRound = ({
                                                     </TableCell>
                                                     <TableCell width="55%">
                                                         <Typography>
-                                                            {team.actualClubName ?? team.clubName}
+                                                            {team.actualClubName}
                                                         </Typography>
                                                         <Typography
                                                             variant="body2"

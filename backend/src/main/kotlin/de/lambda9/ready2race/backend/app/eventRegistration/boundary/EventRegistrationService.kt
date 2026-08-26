@@ -1201,7 +1201,7 @@ object EventRegistrationService {
 
                                                 text(
                                                     fontStyle = FontStyle.BOLD
-                                                ) { team.actualClubName?: team.clubName }
+                                                ) { team.actualClubName }
                                                 block (
                                                     padding = Padding(left = 5f)
                                                 ) {
@@ -1234,8 +1234,9 @@ object EventRegistrationService {
                                                     column(0.1f)
                                                     column(0.3f)
 
+                                                    // Bootsreihenfolge, wie die Vereinskette
+                                                    // darüber - siehe ClubComposition.inBoatOrder.
                                                     team.participants
-                                                        .sortedBy { it.role }
                                                         .forEachIndexed { idx, member ->
                                                             row(
                                                                 color = if (idx % 2 == 1) Color(
@@ -1260,7 +1261,7 @@ object EventRegistrationService {
                                                                     text { member.year.toString() }
                                                                 }
                                                                 cell {
-                                                                    text { member.externalClubName ?: team.clubName }
+                                                                    text { member.wornClubName ?: team.clubName }
                                                                 }
                                                             }
                                                         }

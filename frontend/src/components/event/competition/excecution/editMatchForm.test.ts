@@ -7,6 +7,7 @@ const team = (startNumber: number): CompetitionMatchTeamDto => ({
     teamNumber: startNumber,
     clubId: crypto.randomUUID(),
     clubName: 'Ruderclub Musterstadt',
+    actualClubName: 'Ruderclub Musterstadt',
     namedParticipants: [],
     startNumber,
     deregistered: false,

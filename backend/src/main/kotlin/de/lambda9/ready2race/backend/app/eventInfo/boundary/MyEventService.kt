@@ -373,6 +373,9 @@ object MyEventService {
                 competitionRegistrationName = row.get("team_name", String::class.java),
                 external = row[PARTICIPANT.EXTERNAL],
                 externalClubName = row[PARTICIPANT.EXTERNAL_CLUB_NAME],
+                // Wie Jahrgang und Geschlecht: Diese Ansicht zeigt keine Vereinszeile je Boot, und
+                // die Abfrage holt den eigenen Verein der Person deshalb gar nicht erst.
+                ownClubName = null,
             )
         }.distinctBy { it.id to it.namedParticipantId }
 

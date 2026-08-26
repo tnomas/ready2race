@@ -1,6 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.control
 
-import de.lambda9.ready2race.backend.singletonOrFallback
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionLogic
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchStatusLogic
@@ -54,7 +54,6 @@ private fun List<CompetitionMatchTeamParticipant>.toNamedParticipantsDto() =
  * bevor diese Umwandlung läuft - der abgemeldete Gegner ist hier also nicht mehr zu sehen.
  */
 fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
-    mixedTeamTerm: String?,
     lastScanByParticipant: Map<UUID, Pair<String, LocalDateTime>> = emptyMap(),
     byeByMatch: Map<UUID, MatchByeDto> = emptyMap(),
 ) = run {
@@ -89,9 +88,14 @@ fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
                                 teamNumber = team.teamNumber!!, // This should not be null because competition_match_teams are not created if the registration teamNumber is missing
                                 clubId = team.clubId,
                                 clubName = team.clubName,
-                                actualClubName = singletonOrFallback(
-                                    team.participants.map { it.externalClubName }.toSet(),
-                                    mixedTeamTerm
+                                // Die Vereinskette der Crew, nicht der meldende Verein: Bis zum
+                                // 26.08.2026 stand hier bei gemischter Crew das pauschale
+                                // `mixedTeamTerm`, und auch das nur bei Gastruderern - eine
+                                // Meldung aus mehreren gepflegten Vereinen (V202608142000) sah
+                                // eindeutig aus und landete beim Melder.
+                                actualClubName = ClubComposition.fullLine(
+                                    team.participants.map { it.wornClubName },
+                                    team.clubName,
                                 ),
                                 namedParticipants = team.participants.toNamedParticipantsDto(),
                                 name = team.registrationName,
@@ -222,7 +226,15 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
                         clubName = team.clubName!!,
                         registrationName = team.registrationName,
                         teamNumber = team.teamNumber,
-                        participants = team.participants!!.filterNotNull().map { p ->
+                        // Die View liefert die Crew aus einem `array_agg` - in beliebiger
+                        // Reihenfolge. Hier steht das Boot, und alles, was daran hängt
+                        // (Vereinskette, Mannschaftsliste, Ergebnisausdruck), erbt sie.
+                        participants = ClubComposition.inBoatOrder(
+                            team.participants!!.filterNotNull(),
+                            role = { it.role!! },
+                            lastName = { it.lastname!! },
+                            id = { it.participantId!! },
+                        ).map { p ->
                             CompetitionMatchTeamParticipant(
                                 competitionRegistrationId = p.teamId!!,
                                 namedParticipantId = p.roleId!!,
@@ -252,7 +264,6 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
                                     ?: RatingCategoryRef.UNCONFIGURED_SORT_ORDER,
                             )
                         },
-                        mixedTeamTerm = mixedTeamTerm,
                         laps = team.laps.orEmpty().filterNotNull()
                             .sortedBy { it.position }
                             .map { lap ->
@@ -308,6 +319,6 @@ fun CompetitionMatchTeamWithRegistration.toCompetitionTeamPlaceDto(
         deregistered = deregistered,
         deregistrationReason = deregistrationReason,
         excluded = deregistered || out || failed,
-        actualClubName = singletonOrFallback(participants.map { it.externalClubName }.toSet(), mixedTeamTerm)
+        actualClubName = ClubComposition.fullLine(participants.map { it.wornClubName }, clubName)
     )
 )

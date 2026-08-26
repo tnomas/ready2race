@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionRegistration.control
 
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.competitionDeregistration.entity.CompetitionDeregistrationDto
 import de.lambda9.ready2race.backend.app.competitionRegistration.entity.CompetitionRegistrationDto
@@ -395,6 +396,7 @@ object CompetitionRegistrationRepo {
                 PARTICIPANT_FOR_EVENT.ID,
                 PARTICIPANT_FOR_EVENT.CLUB_ID,
                 PARTICIPANT_FOR_EVENT.CLUB_NAME,
+                PARTICIPANT_FOR_EVENT.OWN_CLUB_NAME,
                 PARTICIPANT_FOR_EVENT.FIRSTNAME,
                 PARTICIPANT_FOR_EVENT.LASTNAME,
                 PARTICIPANT_FOR_EVENT.YEAR,
@@ -414,6 +416,11 @@ object CompetitionRegistrationRepo {
                         id = it[PARTICIPANT_FOR_EVENT.ID]!!,
                         clubId = it[PARTICIPANT_FOR_EVENT.CLUB_ID]!!,
                         clubName = it[PARTICIPANT_FOR_EVENT.CLUB_NAME]!!,
+                        wornClubName = ClubComposition.clubWorn(
+                            it[PARTICIPANT_FOR_EVENT.EXTERNAL],
+                            it[PARTICIPANT_FOR_EVENT.EXTERNAL_CLUB_NAME],
+                            it[PARTICIPANT_FOR_EVENT.OWN_CLUB_NAME],
+                        ),
                         firstname = it[PARTICIPANT_FOR_EVENT.FIRSTNAME]!!,
                         lastname = it[PARTICIPANT_FOR_EVENT.LASTNAME]!!,
                         year = it[PARTICIPANT_FOR_EVENT.YEAR],

@@ -110,8 +110,8 @@ fun TestComprehensionScope<JEnv>.seedClubChain(): SeededClubChain {
             name = "Testregatta",
             createdAt = CHAIN_SEED_TIME,
             updatedAt = CHAIN_SEED_TIME,
-            // Der Begriff bleibt in der Veranstaltung stehen (Startlisten nutzen ihn weiter) -
-            // in den umgestellten Anzeigen darf er nicht mehr auftauchen.
+            // Der Begriff steht noch an der Veranstaltung - in KEINER Anzeige darf er
+            // seit dem 26.08.2026 noch auftauchen.
             mixedTeamTerm = "Renngemeinschaft",
         )
     )
@@ -191,6 +191,7 @@ fun TestComprehensionScope<JEnv>.seedClubChain(): SeededClubChain {
             competition = competitionId,
             club = registeringClubId,
             name = "Mix Nord",
+            teamNumber = 1,
             createdAt = CHAIN_SEED_TIME,
             updatedAt = CHAIN_SEED_TIME,
         )
@@ -228,6 +229,80 @@ fun TestComprehensionScope<JEnv>.seedClubChain(): SeededClubChain {
         matchId = matchId,
         registeringClubId = registeringClubId,
         crew = crew,
+    )
+}
+
+const val CROSS_CLUB_A = "Ruderverein Eckernförde"
+const val CROSS_CLUB_B = "Ruderclub Kappeln"
+
+/** Die zweite Mannschaft: zwei Vereine, kein Gastruderer - siehe [seedCrossClubTeam]. */
+data class SeededCrossClubTeam(
+    val registrationId: UUID,
+    val clubAId: UUID,
+    val clubBId: UUID,
+)
+
+/**
+ * Eine zweite Mannschaft in derselben Veranstaltung, mit dem Zuschnitt, an dem die alte Ableitung
+ * still versagte: zwei Personen aus zwei GEPFLEGTEN Vereinen, kein einziger Gastruderer.
+ *
+ * `singletonOrFallback(participants.map { external_club_name })` sah dort zweimal null, hielt die
+ * Mannschaft für eindeutig und ließ die Anzeige auf den meldenden Verein zurückfallen - weder eine
+ * Kette noch "Renngemeinschaft", sondern schlicht der Hauptverein. Genau dieser Fall entsteht
+ * seit `event.cross_club_registration` (V202608142000) im Alltag, und deshalb steht er hier neben
+ * der Gastruderer-Mannschaft aus [seedClubChain].
+ *
+ * Bewusst opt-in: Die Anzeigen mit genau einem Boot ([seedClubChain]) prüfen `teams.single()`.
+ */
+fun TestComprehensionScope<JEnv>.seedCrossClubTeam(seeded: SeededClubChain): SeededCrossClubTeam {
+    val registrationId = UUID.randomUUID()
+    val eventRegistrationId = UUID.randomUUID()
+
+    val clubAId = seedClub(CROSS_CLUB_A)
+    val clubBId = seedClub(CROSS_CLUB_B)
+
+    !EVENT_REGISTRATION.insert(
+        EventRegistrationRecord(
+            id = eventRegistrationId,
+            event = seeded.eventId,
+            club = clubAId,
+            createdAt = CHAIN_SEED_TIME,
+            updatedAt = CHAIN_SEED_TIME,
+        )
+    )
+    !COMPETITION_REGISTRATION.insert(
+        CompetitionRegistrationRecord(
+            id = registrationId,
+            eventRegistration = eventRegistrationId,
+            competition = seeded.competitionId,
+            club = clubAId,
+            name = "Doppelzweier",
+            teamNumber = 1,
+            createdAt = CHAIN_SEED_TIME,
+            updatedAt = CHAIN_SEED_TIME,
+        )
+    )
+
+    seedCrewMember(registrationId, "1. Ruderer", "Hansen", clubId = clubAId)
+    seedCrewMember(registrationId, "2. Ruderer", "Iversen", clubId = clubBId)
+
+    !COMPETITION_MATCH_TEAM.insert(
+        CompetitionMatchTeamRecord(
+            id = UUID.randomUUID(),
+            competitionMatch = seeded.matchId,
+            competitionRegistration = registrationId,
+            startNumber = 2,
+            place = 2,
+            placesCalculated = true,
+            createdAt = CHAIN_SEED_TIME,
+            updatedAt = CHAIN_SEED_TIME,
+        )
+    )
+
+    return SeededCrossClubTeam(
+        registrationId = registrationId,
+        clubAId = clubAId,
+        clubBId = clubBId,
     )
 }
 

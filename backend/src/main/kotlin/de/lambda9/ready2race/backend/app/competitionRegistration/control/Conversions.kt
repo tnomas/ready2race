@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionRegistration.control
 
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.appuser.entity.AppUserNameDto
 import de.lambda9.ready2race.backend.app.competitionDeregistration.entity.CompetitionDeregistrationDto
@@ -57,6 +58,11 @@ fun CompetitionRegistrationTeamRecord.toDto(
         )
     }
 
+/**
+ * [clubId]/[clubName] sind der meldende Verein der Mannschaft und kommen von aussen; der eigene
+ * Verein der Person steht in der View selbst - `ownClubName = this.clubName` liest ausdrücklich
+ * den Empfänger, nicht den gleichnamigen Parameter.
+ */
 fun CompetitionRegistrationTeamParticipantRecord.toParticipantForExecutionDto(
     clubId: UUID,
     clubName: String,
@@ -75,7 +81,8 @@ fun CompetitionRegistrationTeamParticipantRecord.toParticipantForExecutionDto(
         competitionRegistrationId = competitionRegistrationId!!,
         competitionRegistrationName = registrationName,
         external = external,
-        externalClubName = externalClubName
+        externalClubName = externalClubName,
+        ownClubName = this.clubName,
     )
 )
 
@@ -94,6 +101,7 @@ fun ParticipantForExecutionDto.toParticipantForCompetitionRegistrationTeam(
         gender = gender,
         external = external ?: false,
         externalClubName = externalClubName,
+        wornClubName = ClubComposition.clubWorn(external, externalClubName, ownClubName),
         qrCodeId = qrCodeId,
         participantRequirementsChecked = participantRequirementsChecked,
         currentStatus = currentStatus,

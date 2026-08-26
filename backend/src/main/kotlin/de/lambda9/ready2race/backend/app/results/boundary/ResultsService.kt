@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.results.boundary
 
+import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
@@ -347,12 +348,14 @@ object ResultsService {
                                         .orDie()
 
 
-                                val clubs = team.participants.map { it.externalClubName }.toSet()
-                                val actualClubName = if (clubs.size == 1) {
-                                    clubs.first()
-                                } else {
-                                    event.mixedTeamTerm
-                                }
+                                // Die Vereinskette der Crew in Bootsreihenfolge; ersatzweise der
+                                // meldende Verein. Bis zum 26.08.2026 stand hier bei gemischter
+                                // Crew das pauschale `mixedTeamTerm` - und auch das nur, wenn die
+                                // Crew Gastruderer verschiedener Vereine enthielt.
+                                val actualClubName = ClubComposition.fullLine(
+                                    team.participants.map { it.wornClubName },
+                                    team.clubName,
+                                )
 
                                 EventResultData.TeamResultData(
                                     place = entry.item.categoryPlace,
@@ -373,6 +376,7 @@ object ResultsService {
                                             year = it.year,
                                             gender = it.gender,
                                             externalClubName = it.externalClubName,
+                                            wornClubName = it.wornClubName,
                                         )
                                     },
                                     sortedSubstitutions = substitutions.sortedBy { it.orderForRound!! }
@@ -607,7 +611,7 @@ object ResultsService {
                                 block {
                                     text(
                                         fontStyle = FontStyle.BOLD
-                                    ) { team.participatingClubName ?: team.clubName }
+                                    ) { team.participatingClubName }
                                     block(
                                         padding = Padding(left = 5f)
                                     ) {
@@ -664,7 +668,7 @@ object ResultsService {
                                                     text { member.year.toString() }
                                                 }
                                                 cell {
-                                                    text { member.externalClubName ?: team.clubName }
+                                                    text { member.wornClubName ?: team.clubName }
                                                 }
                                             }
                                         }

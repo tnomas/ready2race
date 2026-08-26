@@ -15,6 +15,12 @@ data class ParticipantForCompetitionRegistrationTeam(
     val gender: Gender,
     val external: Boolean,
     val externalClubName: String?,
+    /**
+     * Der Verein, den diese Person trägt: ihr eigener, bei Gastruderern der Freitext aus
+     * [externalClubName]. Ausdrücklich nicht der meldende Verein der Mannschaft - der steht am
+     * Team und ist seit der vereinsübergreifenden Meldung (V202608142000) etwas anderes.
+     */
+    val wornClubName: String?,
     val qrCodeId: String?,
     val participantRequirementsChecked: List<CheckedParticipantRequirement>,
     val currentStatus: ParticipantScanType?,

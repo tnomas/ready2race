@@ -97,7 +97,7 @@ object DocumentTemplateService {
                                         name = "#1",
                                         clubId = club1,
                                         clubName = "Ruderclub",
-                                        actualClubName = null,
+                                        actualClubName = "Ruderclub",
                                         ratingCategory = null,
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
@@ -106,7 +106,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 1990,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Ruderclub"
                                             )
                                         )
                                     ),
@@ -115,7 +116,7 @@ object DocumentTemplateService {
                                         clubId = club1,
                                         clubName = "Ruderclub",
                                         ratingCategory = null,
-                                        actualClubName = null,
+                                        actualClubName = "Ruderclub",
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -123,7 +124,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 2000,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Ruderclub"
                                             )
                                         )
                                     ),
@@ -132,7 +134,7 @@ object DocumentTemplateService {
                                         clubId = club1,
                                         clubName = "Ruderclub",
                                         ratingCategory = null,
-                                        actualClubName = null,
+                                        actualClubName = "1. RC",
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -140,7 +142,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 1970,
                                                 gender = Gender.M,
-                                                externalClubName = "1. RC"
+                                                externalClubName = "1. RC",
+                                                wornClubName = "1. RC"
                                             )
                                         )
                                     ),
@@ -149,7 +152,7 @@ object DocumentTemplateService {
                                         clubId = club2,
                                         clubName = "Rudern",
                                         ratingCategory = null,
-                                        actualClubName = null,
+                                        actualClubName = "Rudern",
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -157,7 +160,8 @@ object DocumentTemplateService {
                                                 lastname = "Jensen",
                                                 year = 1994,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Rudern"
                                             )
                                         )
                                     )
@@ -172,7 +176,7 @@ object DocumentTemplateService {
                                         name = "#1",
                                         clubId = club1,
                                         clubName = "Ruderclub",
-                                        actualClubName = null,
+                                        actualClubName = "Ruderclub",
                                         ratingCategory = null,
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
@@ -181,7 +185,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 1990,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Ruderclub"
                                             ),
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -189,7 +194,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 2000,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Ruderclub"
                                             )
                                         )
                                     ),
@@ -197,7 +203,7 @@ object DocumentTemplateService {
                                         name = "#2",
                                         clubId = club1,
                                         clubName = "Ruderclub",
-                                        actualClubName = null,
+                                        actualClubName = "1. RC / Ruderclub",
                                         ratingCategory = null,
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
@@ -206,7 +212,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 1970,
                                                 gender = Gender.M,
-                                                externalClubName = "1. RC"
+                                                externalClubName = "1. RC",
+                                                wornClubName = "1. RC"
                                             ),
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -214,7 +221,8 @@ object DocumentTemplateService {
                                                 lastname = "Mustermann",
                                                 year = 1974,
                                                 gender = Gender.F,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Ruderclub"
                                             )
                                         )
                                     ),
@@ -222,7 +230,7 @@ object DocumentTemplateService {
                                         name = null,
                                         clubId = club2,
                                         clubName = "Rudern",
-                                        actualClubName = null,
+                                        actualClubName = "Rudern",
                                         ratingCategory = null,
                                         participants = listOf(
                                             EventRegistrationResultData.ParticipantRegistrationData(
@@ -231,7 +239,8 @@ object DocumentTemplateService {
                                                 lastname = "Jensen",
                                                 year = 1994,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Rudern"
                                             ),
                                             EventRegistrationResultData.ParticipantRegistrationData(
                                                 role = "Teilnehmer",
@@ -239,7 +248,8 @@ object DocumentTemplateService {
                                                 lastname = "Jensen",
                                                 year = 1979,
                                                 gender = Gender.M,
-                                                externalClubName = null
+                                                externalClubName = null,
+                                                wornClubName = "Rudern"
                                             )
                                         )
                                     )
@@ -318,7 +328,7 @@ object DocumentTemplateService {
                             matchTeamId = UUID.randomUUID(),
                             startNumber = 1,
                             registeringClubName = "Sportclub Musterhausen",
-                            actualClubName = null,
+                            actualClubName = "Sportclub Musterhausen / Ruderverein Neustadt",
                             teamName = "#1",
                             ratingCategory = null,
                             deregistered = false,
@@ -329,7 +339,21 @@ object DocumentTemplateService {
                                     lastname = "Mustermann",
                                     year = 1970,
                                     gender = Gender.M,
-                                    externalClubName = null
+                                    externalClubName = null,
+                                    wornClubName = "Sportclub Musterhausen"
+                                ),
+                                // Die zweite Person kommt aus einem anderen Verein: Erst dadurch
+                                // zeigt die Vorschau eine Vereinskette statt eines einzelnen
+                                // Namens - der Fall, an dem sich im Vorlagen-Editor entscheidet,
+                                // ob die Zeile in den Kasten passt.
+                                CompetitionMatchData.CompetitionMatchParticipant(
+                                    role = "Teilnehmer",
+                                    firstname = "Erika",
+                                    lastname = "Beispiel",
+                                    year = 1975,
+                                    gender = Gender.F,
+                                    externalClubName = null,
+                                    wornClubName = "Ruderverein Neustadt"
                                 )
                             )
                         ),
@@ -338,7 +362,7 @@ object DocumentTemplateService {
                             matchTeamId = UUID.randomUUID(),
                             startNumber = 2,
                             registeringClubName = "Sportclub Musterhausen",
-                            actualClubName = null,
+                            actualClubName = "Sportclub Musterhausen",
                             teamName = "#2",
                             ratingCategory = null,
                             deregistered = false,
@@ -349,7 +373,8 @@ object DocumentTemplateService {
                                     lastname = "König",
                                     year = 1980,
                                     gender = Gender.M,
-                                    externalClubName = null
+                                    externalClubName = null,
+                                    wornClubName = "Sportclub Musterhausen"
                                 )
                             )
                         ),
@@ -358,7 +383,7 @@ object DocumentTemplateService {
                             matchTeamId = UUID.randomUUID(),
                             startNumber = 3,
                             registeringClubName = "Neustadt 101",
-                            actualClubName = null,
+                            actualClubName = "Neustadt 101",
                             teamName = null,
                             ratingCategory = null,
                             deregistered = true,
@@ -369,7 +394,8 @@ object DocumentTemplateService {
                                     lastname = "Klausen",
                                     year = 1992,
                                     gender = Gender.M,
-                                    externalClubName = null
+                                    externalClubName = null,
+                                    wornClubName = "Neustadt 101"
                                 )
                             )
                         ),
@@ -378,7 +404,7 @@ object DocumentTemplateService {
                             matchTeamId = UUID.randomUUID(),
                             startNumber = 4,
                             registeringClubName = "Sportfreunde e.V.",
-                            actualClubName = null,
+                            actualClubName = "Sportfreunde e.V.",
                             teamName = null,
                             ratingCategory = null,
                             deregistered = false,
@@ -389,7 +415,8 @@ object DocumentTemplateService {
                                     lastname = "Doe",
                                     year = 1990,
                                     gender = Gender.M,
-                                    externalClubName = null
+                                    externalClubName = null,
+                                    wornClubName = "Sportfreunde e.V."
                                 )
                             )
                         ),

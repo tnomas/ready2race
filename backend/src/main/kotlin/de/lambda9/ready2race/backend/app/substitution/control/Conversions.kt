@@ -35,6 +35,13 @@ fun SubstitutionRequest.toRecord(
     }
 )
 
+/**
+ * Die eingewechselte Person, frisch aus `substitution_view` gelesen.
+ *
+ * [clubId]/[clubName] der View sind der meldende Verein der Mannschaft; der eigene Verein der
+ * Person steht daneben in `participant_in_club_name`. Nur so ändert eine Ummeldung aus einem
+ * anderen Verein die Vereinskette des Bootes - genau der Fall, der im Betrieb weh tut.
+ */
 fun SubstitutionViewRecord.toParticipantForExecutionDto(
     participant: ParticipantRecord,
 ) = KIO.ok(
@@ -51,7 +58,8 @@ fun SubstitutionViewRecord.toParticipantForExecutionDto(
         competitionRegistrationId = competitionRegistrationId!!,
         competitionRegistrationName = competitionRegistrationName,
         external = participant.external,
-        externalClubName = participant.externalClubName
+        externalClubName = participant.externalClubName,
+        ownClubName = participantInClubName,
     )
 )
 
@@ -71,10 +79,18 @@ fun SubstitutionViewRecord.toParticipantForExecutionDto(
         competitionRegistrationId = competitionRegistrationId!!,
         competitionRegistrationName = competitionRegistrationName,
         external = participant.external,
-        externalClubName = participant.externalClubName
+        externalClubName = participant.externalClubName,
+        // Der eigene Verein reist mit der Person, nicht mit der Ummeldung: hier wechselt nur die
+        // Mannschaft, in die sie eingesetzt wird.
+        ownClubName = participant.ownClubName,
     )
 )
 
+/**
+ * [clubId]/[clubName] sind der meldende Verein der Mannschaft und kommen deshalb von aussen; der
+ * eigene Verein der Person steht in der View selbst (`club_name`) und wird hier nicht überschrieben
+ * - `ownClubName = this.clubName` liest ausdrücklich den Empfänger, nicht den Parameter.
+ */
 fun RegisteredCompetitionTeamParticipantRecord.toParticipantForExecutionDto(
     clubId: UUID,
     clubName: String,
@@ -94,7 +110,8 @@ fun RegisteredCompetitionTeamParticipantRecord.toParticipantForExecutionDto(
         competitionRegistrationId = registrationId,
         competitionRegistrationName = registrationName,
         external = external,
-        externalClubName = externalClubName
+        externalClubName = externalClubName,
+        ownClubName = this.clubName,
     )
 )
 

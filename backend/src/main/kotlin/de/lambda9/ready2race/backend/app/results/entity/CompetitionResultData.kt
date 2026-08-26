@@ -42,9 +42,14 @@ data class EventResultData(
         val time: String?,
         /** „Zeitstrafe +10 s (Frühstart)" - als Hinweis neben der Zeit, null ohne Strafe. */
         val penalty: String?,
+        /** Der meldende Verein - reine Verwaltung, siehe [participatingClubName]. */
         val clubName: String,
         val teamName: String?,
-        val participatingClubName: String?,
+        /**
+         * Die Vereine, die die Crew trägt, als Kette in Bootsreihenfolge; bei einem reinen
+         * Vereinsboot schlicht dieser eine Verein. Ersatzweise der meldende Verein.
+         */
+        val participatingClubName: String,
         val participants: List<ParticipantResultData>,
         val sortedSubstitutions: List<SubstitutionResultData>
     )
@@ -56,6 +61,11 @@ data class EventResultData(
         val year: Int,
         val gender: Gender,
         val externalClubName: String?,
+        /**
+         * Der Verein, den diese Person trägt. Nur für die gestartete Crew gesetzt; die
+         * Ummelde-Zeilen darunter nennen ausschließlich Namen und laden ihn gar nicht erst.
+         */
+        val wornClubName: String? = null,
     )
 
     sealed interface SubstitutionResultData {

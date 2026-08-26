@@ -118,7 +118,10 @@ fun ParticipantQrAssignmentViewRecord.extendToParticipantForExecutionDto(): App<
             competitionRegistrationId = competitionRegistrationId!!,
             competitionRegistrationName = competitionRegistrationName,
             external = false,
-            externalClubName = ""
+            externalClubName = "",
+            // Wie year/gender/clubName darüber ein Platzhalter: Dieser Weg reicht die Person nur
+            // durch die Ummelde-Auflösung an die QR-Zuordnung weiter, die keine Vereinszeile zeigt.
+            ownClubName = null,
         )
     )
 

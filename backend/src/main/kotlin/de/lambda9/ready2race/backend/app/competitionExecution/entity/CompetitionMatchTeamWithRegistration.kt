@@ -29,7 +29,6 @@ data class CompetitionMatchTeamWithRegistration(
      * die Sortierstelle zum Anordnen der Abschnitte.
      */
     val ratingCategory: RatingCategoryRef?,
-    val mixedTeamTerm: String?,
     /**
      * Zwischenzeiten dieses Bootes, in der Reihenfolge ihrer Position.
      *

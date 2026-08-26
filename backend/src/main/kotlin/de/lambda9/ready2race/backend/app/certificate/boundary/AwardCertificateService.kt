@@ -133,9 +133,9 @@ object AwardCertificateService {
 
                     val teams = places.map { (team, place) ->
                         // Dieselbe Regel wie auf dem Siegerehrungsbogen, deshalb steht sie samt
-                        // Begründung bei ClubComposition.printedLine: die Vereine der Athleten in
+                        // Begründung bei ClubComposition.fullLine: die Vereine der Athleten in
                         // voller Länge, ersatzweise der meldende Verein.
-                        val clubName = ClubComposition.printedLine(
+                        val clubName = ClubComposition.fullLine(
                             team.participants.map {
                                 ClubComposition.clubWorn(it.external, it.externalClubName, it.clubName)
                             },

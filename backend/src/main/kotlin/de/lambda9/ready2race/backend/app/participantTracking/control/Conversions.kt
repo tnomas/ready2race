@@ -66,6 +66,10 @@ fun TeamForScanOverviewDto.toParticipantForExecutionDtos(): App<Nothing, List<Pa
             competitionRegistrationName = teamName,
             external = participant.external,
             externalClubName = participant.externalClubName,
+            // Der Weg fuehrt ueber die Ummelde-Aufloesung zurueck in TeamParticipantDto, und die
+            // An-/Abmelde-Ansicht zeigt keine Vereinszeile - der eigene Verein wird hier weder
+            // geladen noch gebraucht.
+            ownClubName = null,
         )
     }
 )

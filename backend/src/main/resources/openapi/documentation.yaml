@@ -13364,6 +13364,10 @@ components:
           type: boolean
         externalClubName:
           type: string
+        wornClubName:
+          type: string
+          nullable: true
+          description: "the club this person wears: their own, or the free-text club of a guest rower. Not the club that registered the team"
         qrCodeId:
           type: string
         participantRequirementsChecked:
@@ -14534,8 +14538,14 @@ components:
         clubId:
           type: string
           format: uuid
+          description: "the club that registered this person for the event - the one the invoice follows"
         clubName:
           type: string
+          description: "name of the registering club, not of the person's own club - see wornClubName"
+        wornClubName:
+          type: string
+          nullable: true
+          description: "the club this person wears: their own, or the free-text club of a guest rower. Since cross-club registration this differs from clubName"
         firstname:
           type: string
         lastname:
@@ -15771,6 +15781,7 @@ components:
         - teamNumber
         - clubId
         - clubName
+        - actualClubName
         - namedParticipants
         - startNumber
         - deregistered
@@ -15786,8 +15797,10 @@ components:
           format: uuid
         clubName:
           type: string
+          description: "the registering club - administration only, see actualClubName"
         actualClubName:
           type: string
+          description: "the clubs the crew wears, chained in boat order; a single club for a plain club boat, the registering club when nobody carries one"
         namedParticipants:
           type: array
           items:
@@ -16034,6 +16047,7 @@ components:
         - teamNumber
         - clubId
         - clubName
+        - actualClubName
         - namedParticipants
         - place
         - deregistered
@@ -16051,8 +16065,10 @@ components:
           format: uuid
         clubName:
           type: string
+          description: "the registering club - administration only, see actualClubName"
         actualClubName:
           type: string
+          description: "the clubs the crew wears, chained in boat order; a single club for a plain club boat, the registering club when nobody carries one"
         namedParticipants:
           type: array
           items:
