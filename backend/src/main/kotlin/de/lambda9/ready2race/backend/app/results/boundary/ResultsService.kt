@@ -354,6 +354,7 @@ object ResultsService {
                                 val actualClubName = ClubComposition.fullLine(
                                     team.participants.map { it.wornClubName },
                                     team.clubName,
+                                    team.displayName,
                                 )
 
                                 EventResultData.TeamResultData(

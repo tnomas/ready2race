@@ -207,6 +207,15 @@ object CompetitionRegistrationService {
             }
         }
 
+    /**
+     * Der Mannschaftsname, so wie er in die Datenbank gehört: ohne führende und folgende
+     * Leerzeichen, und leer als `null`. Sonst stünde eine Eingabe aus Leerzeichen als Name da, der
+     * die Vereinskette verdeckt und den niemand sieht - und `""` und `null` bedeuteten dasselbe
+     * an zwei verschiedenen Werten.
+     */
+    private fun displayNameOf(request: CompetitionRegistrationTeamUpsertDto): String? =
+        request.displayName?.trim()?.takeIf { it.isNotEmpty() }
+
     fun create(
         request: CompetitionRegistrationTeamUpsertDto,
         eventId: UUID,
@@ -282,6 +291,7 @@ object CompetitionRegistrationService {
                 user.id,
                 isLate = isLate,
                 ratingCategory = request.ratingCategory,
+                displayName = displayNameOf(request),
             )
         ).orDie()
 
@@ -323,6 +333,7 @@ object CompetitionRegistrationService {
                 .onNullFail { CompetitionRegistrationError.NotFound }
 
         registration.ratingCategory = request.ratingCategory
+        registration.displayName = displayNameOf(request)
         registration.updatedAt = LocalDateTime.now()
         registration.updatedBy = user.id!!
 

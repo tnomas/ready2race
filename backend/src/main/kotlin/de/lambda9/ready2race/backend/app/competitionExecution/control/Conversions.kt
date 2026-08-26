@@ -96,6 +96,7 @@ fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
                                 actualClubName = ClubComposition.fullLine(
                                     team.participants.map { it.wornClubName },
                                     team.clubName,
+                                    team.displayName,
                                 ),
                                 namedParticipants = team.participants.toNamedParticipantsDto(),
                                 name = team.registrationName,
@@ -220,6 +221,7 @@ fun CompetitionSetupRoundWithMatchesRecord.toCompetitionSetupRoundWithMatches() 
                         clubId = team.clubId!!,
                         clubName = team.clubName!!,
                         registrationName = team.registrationName,
+                        displayName = team.displayName,
                         teamNumber = team.teamNumber,
                         // Die View liefert die Crew aus einem `array_agg` - in beliebiger
                         // Reihenfolge. Hier steht das Boot, und alles, was daran hängt
@@ -308,6 +310,6 @@ fun CompetitionMatchTeamWithRegistration.toCompetitionTeamPlaceDto(
         deregistered = deregistered,
         deregistrationReason = deregistrationReason,
         excluded = deregistered || out || failed,
-        actualClubName = ClubComposition.fullLine(participants.map { it.wornClubName }, clubName)
+        actualClubName = ClubComposition.fullLine(participants.map { it.wornClubName }, clubName, displayName)
     )
 )

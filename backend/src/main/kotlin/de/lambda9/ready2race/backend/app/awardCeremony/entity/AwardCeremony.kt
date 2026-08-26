@@ -24,6 +24,8 @@ data class AwardCeremonyCandidate(
     /** Der meldende Verein der Mannschaft - reine Verwaltung, nicht der Verein der Personen. */
     val registeringClubName: String,
     val teamName: String?,
+    /** Der von Hand vergebene Mannschaftsname; er schlägt die Vereinskette, siehe ClubComposition. */
+    val displayName: String?,
     val time: String?,
     val penaltySeconds: Int?,
     val penaltyNote: String?,

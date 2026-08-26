@@ -31,6 +31,7 @@ fun CompetitionRegistrationTeamRecord.toDto(
         CompetitionRegistrationTeamDto(
             id = competitionRegistrationId!!,
             name = teamName,
+            displayName = displayName,
             clubId = clubId!!,
             clubName = clubName!!,
             namedParticipants = participants!!.filterNotNull().groupBy { it.roleId!! }.map { np ->

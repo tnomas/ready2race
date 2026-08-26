@@ -11635,6 +11635,11 @@ components:
           format: uuid
         name:
           type: string
+          description: "the automatic counter ('#1', '#2') assigned by the server, not the name of the team - see displayName"
+        displayName:
+          type: string
+          nullable: true
+          description: "freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters"
         clubId:
           type: string
           format: uuid
@@ -11741,6 +11746,11 @@ components:
           format: uuid
         name:
           type: string
+          description: "the automatic counter ('#1', '#2') assigned by the server, not the name of the team - see displayName"
+        displayName:
+          type: string
+          nullable: true
+          description: "freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters"
         clubId:
           type: string
           format: uuid
@@ -13352,6 +13362,11 @@ components:
         ratingCategory:
           type: string
           format: uuid
+        displayName:
+          type: string
+          nullable: true
+          maxLength: 80
+          description: "freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters"
         callbackUrl:
           type: string
       required:
@@ -13475,6 +13490,10 @@ components:
         ratingCategory:
           type: string
           format: uuid
+        displayName:
+          type: string
+          nullable: true
+          description: "freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters"
       required:
         - id
         - optionalFees

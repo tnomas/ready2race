@@ -1030,7 +1030,14 @@ export type CompetitionRaceAssignmentDto = {
 
 export type CompetitionRegistrationDto = {
     id: string
+    /**
+     * the automatic counter ('#1', '#2') assigned by the server, not the name of the team - see displayName
+     */
     name?: string
+    /**
+     * freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters
+     */
+    displayName?: string | null
     clubId: string
     clubName: string
     optionalFees: Array<CompetitionRegistrationFeeDto>
@@ -1101,7 +1108,14 @@ export type CompetitionRegistrationsWithoutTeamNumberDto = {
 
 export type CompetitionRegistrationTeamDto = {
     id: string
+    /**
+     * the automatic counter ('#1', '#2') assigned by the server, not the name of the team - see displayName
+     */
     name?: string
+    /**
+     * freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters
+     */
+    displayName?: string | null
     clubId: string
     clubName: string
     namedParticipants: Array<CompetitionRegistrationTeamNamedParticipantDto>
@@ -1124,6 +1138,10 @@ export type CompetitionRegistrationTeamLockedDto = {
     namedParticipants: Array<CompetitionRegistrationNamedParticipantLockedDto>
     isLate: boolean
     ratingCategory?: string
+    /**
+     * freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters
+     */
+    displayName?: string | null
 }
 
 export type CompetitionRegistrationTeamNamedParticipantDto = {
@@ -1139,6 +1157,10 @@ export type CompetitionRegistrationTeamUpsertDto = {
     optionalFees?: Array<string>
     namedParticipants?: Array<CompetitionRegistrationNamedParticipantUpsertDto>
     ratingCategory?: string
+    /**
+     * freely chosen team name, e.g. 'RG Eckernförde/Kappeln'. Empty for almost every registration; when set it replaces the club chain in every display. Max 80 characters
+     */
+    displayName?: string | null
     callbackUrl?: string
 }
 

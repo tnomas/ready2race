@@ -79,6 +79,7 @@
       "secondsShort": "s",
       "optional": "Optional",
       "required": "Please fill in this field.",
+      "tooLong": "Please use at most {{max}} characters.",
       "requiredCheck": "You have to accept this to continue.",
       "selectFile": "Select file",
       "select": {
@@ -920,7 +921,9 @@
           },
           "deregistered": "Deregistered",
           "reason": "Reason"
-        }
+        },
+        "displayName": "Team name",
+        "displayNameHint": "Optional. For example \"RG Eckernförde/Kappeln\". Left empty, every display shows the clubs of the crew."
       },
       "setup": {
         "setup": "Competition Setup",

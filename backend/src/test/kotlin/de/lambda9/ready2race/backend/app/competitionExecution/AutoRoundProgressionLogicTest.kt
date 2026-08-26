@@ -53,6 +53,7 @@ class AutoRoundProgressionLogicTest {
         penaltySeconds = null,
         penaltyNote = null,
         ratingCategory = null,
+        displayName = null,
     )
 
     private fun match(

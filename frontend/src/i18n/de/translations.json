@@ -79,6 +79,7 @@
       "secondsShort": "s",
       "optional": "Optional",
       "required": "Bitte füllen Sie dieses Feld aus.",
+      "tooLong": "Bitte höchstens {{max}} Zeichen.",
       "requiredCheck": "Zum Fortfahren muss dies akzeptiert werden.",
       "selectFile": "Datei auswählen",
       "select": {
@@ -920,7 +921,9 @@
           },
           "deregistered": "Abgemeldet",
           "reason": "Begründung"
-        }
+        },
+        "displayName": "Name der Mannschaft",
+        "displayNameHint": "Optional. Zum Beispiel „RG Eckernförde/Kappeln“. Bleibt das Feld leer, zeigen alle Anzeigen die Vereine der Crew."
       },
       "setup": {
         "setup": "Wettbewerbsablauf",

@@ -293,6 +293,8 @@ Entscheidungsfunktion: fehlt die Crew im Datensatz, rendert die Karte Stufe 2.
   Ableitung ein vereinsgemischtes Boot ohne Gastruderer gar nicht erkannte.*
 - ein frei eingegebener Mannschaftsname je Meldung. `competition_registration.name` bleibt, was es
   ist: der automatische `#1`/`#2`-Zähler, den `CompetitionRegistrationService` beim Anlegen und
-  Löschen neu vergibt
+  Löschen neu vergibt. *Nachgeholt am 26.08.2026 als zweite Spalte `display_name` neben dem Zähler,
+  siehe `2026-08-26-mannschaftsname-design.md`: Der vergebene Name schlägt die Kette in jeder
+  Anzeige.*
 - eine Vorschlagsliste der 46 CRF-Kurzformen zum Gegenlesen — sinnvoll, aber getrennt von der
   Implementierung

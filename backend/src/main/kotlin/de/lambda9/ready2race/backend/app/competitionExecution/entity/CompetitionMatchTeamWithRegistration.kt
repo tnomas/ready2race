@@ -13,7 +13,13 @@ data class CompetitionMatchTeamWithRegistration(
     val competitionRegistration: UUID,
     val clubId: UUID,
     val clubName: String,
+    /** Der automatische Zähler der Meldung ("#1", "#2"), nicht der Name der Mannschaft. */
     val registrationName: String?,
+    /**
+     * Der von Hand vergebene Mannschaftsname, leer bei den allermeisten Meldungen. Er schlägt in
+     * jeder Anzeige die Vereinskette - siehe `ClubComposition.of`.
+     */
+    val displayName: String?,
     val teamNumber: Int?,
     val participants: List<CompetitionMatchTeamParticipant>,
     val deregistered: Boolean,

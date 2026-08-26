@@ -313,6 +313,7 @@ object AwardCeremonyService {
                             ratingCategory = team.ratingCategory,
                             registeringClubName = team.clubName,
                             teamName = team.registrationName,
+                            displayName = team.displayName,
                             time = team.timeString,
                             penaltySeconds = team.penaltySeconds,
                             penaltyNote = team.penaltyNote,

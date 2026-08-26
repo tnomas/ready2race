@@ -8,4 +8,6 @@ data class CompetitionRegistrationTeamLockedDto(
     val namedParticipants: List<CompetitionRegistrationNamedParticipantLockedDto>,
     val isLate: Boolean,
     val ratingCategory: UUID?,
+    /** Der Mannschaftsname der bereits festgeschriebenen Meldung - nur zum Anzeigen. */
+    val displayName: String?,
 )

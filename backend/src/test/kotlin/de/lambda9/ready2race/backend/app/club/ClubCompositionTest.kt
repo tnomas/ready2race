@@ -169,4 +169,43 @@ class ClubCompositionTest {
         assertEquals("", composition.full)
         assertEquals("", composition.short)
     }
+
+    /**
+     * Der vergebene Mannschaftsname schlägt die Kette - und zwar in BEIDEN Schreibweisen. Auf dem
+     * Board wäre sonst je nach Kartenbreite mal der Name und mal die Kette zu sehen, und dasselbe
+     * Boot hieße auf zwei Bildschirmen verschieden.
+     */
+    @Test
+    fun aGivenTeamNameReplacesTheChainInBothWritings() {
+        val composition = ClubComposition.of(
+            listOf("Ruderverein Eckernförde", "Ruderclub Kappeln"),
+            ClubNameRuleFixtures.rowingSettings(),
+            displayName = "RG Eckernförde/Kappeln",
+        )
+
+        assertEquals("RG Eckernförde/Kappeln", composition.full)
+        assertEquals("RG Eckernförde/Kappeln", composition.short)
+    }
+
+    /**
+     * Leer und aus Leerzeichen ist dasselbe wie "kein Name": Sonst verdeckte ein aus Versehen
+     * abgeschicktes Leerzeichen die Vereinskette durch nichts.
+     */
+    @Test
+    fun aBlankTeamNameIsNoName() {
+        val clubs = listOf("Ruderverein Eckernförde", "Ruderclub Kappeln")
+        val expected = ClubComposition.of(clubs, ClubNameRuleFixtures.rowingSettings())
+
+        assertEquals(expected, ClubComposition.of(clubs, ClubNameRuleFixtures.rowingSettings(), displayName = null))
+        assertEquals(expected, ClubComposition.of(clubs, ClubNameRuleFixtures.rowingSettings(), displayName = "   "))
+    }
+
+    /** Der Name steht auch dort, wo sonst der meldende Verein einspränge - Crew ganz ohne Verein. */
+    @Test
+    fun aGivenTeamNameAlsoBeatsTheRegisteringClub() {
+        assertEquals(
+            "RG Nord",
+            ClubComposition.fullLine(listOf(null, "N.N."), "Erster Kieler Ruder-Club von 1862 e.V.", "RG Nord"),
+        )
+    }
 }

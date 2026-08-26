@@ -40,6 +40,7 @@ class RaceClockerAssignmentLogicTest {
         penaltySeconds = null,
         penaltyNote = null,
         ratingCategory = null,
+        displayName = null,
     )
 
     private fun row(

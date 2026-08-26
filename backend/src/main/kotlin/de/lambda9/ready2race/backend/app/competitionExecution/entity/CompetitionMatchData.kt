@@ -137,6 +137,7 @@ data class CompetitionMatchData(
             val actualClubName = ClubComposition.fullLine(
                 actuallyParticipatingParticipants.map { it.wornClubName },
                 clubName!!,
+                displayName,
             )
 
             KIO.ok(

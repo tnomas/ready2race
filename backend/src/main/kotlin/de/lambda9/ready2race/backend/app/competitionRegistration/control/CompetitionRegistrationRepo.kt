@@ -233,6 +233,7 @@ object CompetitionRegistrationRepo {
                 CompetitionRegistrationDto(
                     id = it[COMPETITION_REGISTRATION.ID]!!,
                     name = it[COMPETITION_REGISTRATION.NAME],
+                    displayName = it[COMPETITION_REGISTRATION.DISPLAY_NAME],
                     clubId = it[COMPETITION_REGISTRATION.CLUB]!!,
                     clubName = it[CLUB.NAME]!!,
                     optionalFees = it[optionalFees],
@@ -304,6 +305,7 @@ object CompetitionRegistrationRepo {
                 CompetitionRegistrationDto(
                     id = it[COMPETITION_REGISTRATION.ID]!!,
                     name = it[COMPETITION_REGISTRATION.NAME],
+                    displayName = it[COMPETITION_REGISTRATION.DISPLAY_NAME],
                     clubId = it[COMPETITION_REGISTRATION.CLUB]!!,
                     clubName = it[CLUB.NAME]!!,
                     optionalFees = it[optionalFees],
