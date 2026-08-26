@@ -52,7 +52,6 @@ class TimingFalseStartActionTest {
         startGrouping = TimingStartGrouping.WELLE,
         intervalSeconds = null,
         leadInSeconds = 10,
-        tonePlan = null,
         falseStartEnabled = falseStartEnabled,
     )
 
@@ -91,7 +90,7 @@ class TimingFalseStartActionTest {
         // Ohne ausdrückliche Angabe steht der Rückruf zur Verfügung - das ist der Normalfall am
         // Wellen- und Massenstart, und der Datenbank-Default (V202608242020) sagt dasselbe.
         val created = !TimingModeService.addMode(
-            TimingModeRequest("Standard", TimingStartGrouping.WELLE, null, 10, null),
+            TimingModeRequest("Standard", TimingStartGrouping.WELLE, null, 10),
             userId,
             eventId,
         )

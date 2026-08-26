@@ -27,8 +27,28 @@ data class TimingModeDto(
      */
     val falseStartEnabled: Boolean,
     /**
+     * Der gewählte Ton-Satz ([TimingToneSetDto]) oder null - dann erbt der Typ den Vorgabesatz
+     * der Veranstaltung.
+     */
+    val toneSet: UUID?,
+    /**
+     * Startet die App Läufe dieses Typs überhaupt? Nicht jeder Lauf wird von der App gestartet -
+     * ein Lauf mit Startrichter am Steg hat kein Countdown-Fenster, und ein Board, das ihm eines
+     * hinstellt, lädt zum falschen Griff ein. Vorgabe `true`: das bisherige Verhalten.
+     */
+    val startSequenceEnabled: Boolean,
+    /** Erste Tastenreihe des Zielpostens, in Positionsreihenfolge; siehe [TimingBoatKeys]. */
+    val boatKeysPrimary: String,
+    /** Zweite, optionale Tastenreihe; null = es gibt keine. */
+    val boatKeysSecondary: String?,
+    /**
      * Tonplan der Startsequenz: welche Sinus-Pieps wann relativ zum Start gespielt werden,
      * aufsteigend nach Offset. null = eingebauter Standardplan (klingt exakt wie bisher).
+     *
+     * Seit dem 26.08.2026 steht der Plan nicht mehr am Typ, sondern in seinem Ton-Satz - dieses
+     * Feld ist deshalb AUFGELÖST: der eigene Satz, sonst der Vorgabesatz der Veranstaltung
+     * ([TimingToneSetLogic.sequenceTonePlan]). Für die Boards ändert sich damit nichts; geschrieben
+     * wird der Plan jetzt am Satz, nicht mehr am Typ, weshalb [TimingModeRequest] ihn nicht führt.
      */
     val tonePlan: List<ToneStep>?,
 )

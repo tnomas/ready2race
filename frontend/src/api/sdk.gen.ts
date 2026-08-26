@@ -1096,6 +1096,18 @@ import type {
     DeleteTimingModeData,
     DeleteTimingModeError,
     DeleteTimingModeResponse,
+    GetTimingToneSetsData,
+    GetTimingToneSetsError,
+    GetTimingToneSetsResponse,
+    AddTimingToneSetData,
+    AddTimingToneSetError,
+    AddTimingToneSetResponse,
+    UpdateTimingToneSetData,
+    UpdateTimingToneSetError,
+    UpdateTimingToneSetResponse,
+    DeleteTimingToneSetData,
+    DeleteTimingToneSetError,
+    DeleteTimingToneSetResponse,
     CreateTimingStationShareLinkData,
     CreateTimingStationShareLinkError,
     CreateTimingStationShareLinkResponse,
@@ -6076,6 +6088,70 @@ export const deleteTimingMode = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/timing/modes/{modeId}',
+    })
+}
+
+/**
+ * The named tone sets of the event - the templates a timing mode picks from. Sorted with the default first, then alphabetically. All four tone fields are UNRESOLVED here: null keeps meaning "built-in default", so the form can still offer "restore default".
+ */
+export const getTimingToneSets = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingToneSetsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingToneSetsResponse,
+        GetTimingToneSetsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets',
+    })
+}
+
+/**
+ * Creates a tone set. The FIRST tone set of an event always becomes the default, whatever the body asks for - a set nobody inherits would be dead weight from the start. Asking for isDefault on a later set moves the mark off the previous default in the same transaction.
+ */
+export const addTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddTimingToneSetResponse,
+        AddTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets',
+    })
+}
+
+/**
+ * Updates the tone set. Refused with 409 when it would leave an event that still has other tone sets without a default - move the mark to another set instead of stripping it here.
+ */
+export const updateTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingToneSetResponse,
+        UpdateTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets/{toneSetId}',
+    })
+}
+
+/**
+ * Deletes the tone set. Timing modes pointing at it fall back to the default instead of becoming unusable. The default itself may only go as the LAST tone set of the event - otherwise every inheriting mode would silently drop to the built-in tones.
+ */
+export const deleteTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingToneSetResponse,
+        DeleteTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets/{toneSetId}',
     })
 }
 

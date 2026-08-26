@@ -4,7 +4,6 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
     FormControlLabel,
     Stack,
     Switch,
@@ -18,15 +17,6 @@ import {useTranslation} from 'react-i18next'
 import {addTimingMode, updateTimingMode} from '@api/sdk.gen.ts'
 import {TimingModeDto, TimingModeRequest, TimingStartGrouping} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
-import {
-    DEFAULT_START_TONE_PLAN,
-    PRESET_ONLY_START,
-    PRESET_TEN_COUNTDOWN,
-    TONE_PLAN_MAX_STEPS,
-    equalsDefaultStartPlan,
-} from '@utils/timing/tonePlan.ts'
-import {ToneRow, planFromRows, rowsFromPlan} from './tonePlanEditor.ts'
-import ToneSequenceEditor from './ToneSequenceEditor.tsx'
 
 export type TimingModeDialogProps = {
     open: boolean
@@ -43,13 +33,11 @@ export type TimingModeDialogProps = {
  * Sequenz-Setup-Formular); validiert wird beim Speichern. Ein leeres Intervall ist dabei kein
  * Fehler, sondern die bewusste Bedeutung „jeder Start wird von Hand ausgelöst".
  *
- * Der Abschnitt „Töne" pflegt den Tonplan der Startsequenz im gemeinsamen Tonfolge-Editor
- * ([ToneSequenceEditor], denselben nutzen Fehlstart-Folge und Erfassungstöne): Zeitleiste,
- * kompakte Zeilen zum Aufklappen, Vorlagen, Abspielknopf je Ton und eine „Sequenz
- * anhören"-Vorschau. Der Klick auf einen Abspielknopf IST die Nutzergeste, die WebAudio
- * entsperrt (iOS-Regel). Gespeichert wird `null`, wenn der Plan inhaltlich dem eingebauten
- * Standard entspricht — so bleibt „unkonfiguriert" unkonfiguriert und eine künftige
- * Standard-Änderung erreicht auch Typen, deren Töne nie bewusst verstellt wurden.
+ * Die Töne stehen seit dem 26.08.2026 nicht mehr hier: Der Startsequenz-Tonplan gehört zum
+ * Ton-Satz der Veranstaltung, gemeinsam mit Zwischenton, Fehlstart-Folge und Zielton. Der Typ
+ * wählt einen Satz — oder lässt die Wahl leer und erbt den Vorgabesatz. Die Wahl selbst und die
+ * Verwaltung der Sätze bekommen ihre eigenen Oberflächen; dieser Dialog führt bis dahin nur noch
+ * die Startparameter.
  */
 const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingModeDialogProps) => {
     const {t} = useTranslation()
@@ -60,10 +48,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
     const [intervalInput, setIntervalInput] = useState('')
     const [leadInInput, setLeadInInput] = useState('10')
     const [falseStartEnabled, setFalseStartEnabled] = useState(true)
-    const [toneRows, setToneRows] = useState<ToneRow[]>([])
     const [submitting, setSubmitting] = useState(false)
     const [invalidField, setInvalidField] = useState<
-        'name' | 'interval' | 'leadIn' | 'tones' | undefined
+        'name' | 'interval' | 'leadIn' | undefined
     >(undefined)
 
     useEffect(() => {
@@ -75,15 +62,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         // Vorgabe „an“ wie in der Datenbank: der Rückruf ist der Normalfall, abgeschaltet wird er
         // bewusst (Timetrial: Strafzeit statt Rückruf).
         setFalseStartEnabled(entity?.falseStartEnabled ?? true)
-        // null/leer = eingebauter Standard: der Editor zeigt ihn als konkrete, bearbeitbare
-        // Zeilen — beim Speichern wird ein unveränderter Standard wieder zu null normalisiert.
-        setToneRows(
-            rowsFromPlan(
-                entity?.tonePlan != null && entity.tonePlan.length > 0
-                    ? entity.tonePlan
-                    : DEFAULT_START_TONE_PLAN,
-            ),
-        )
         setSubmitting(false)
         setInvalidField(undefined)
     }, [open, entity])
@@ -107,11 +85,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             setInvalidField('leadIn')
             return
         }
-        const plan = planFromRows(toneRows, 'BEFORE_START')
-        if (plan === null || plan.length === 0 || plan.length > TONE_PLAN_MAX_STEPS) {
-            setInvalidField('tones')
-            return
-        }
         setInvalidField(undefined)
 
         const body: TimingModeRequest = {
@@ -120,8 +93,12 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             startGrouping,
             intervalSeconds: intervalSeconds !== null ? Math.floor(intervalSeconds) : null,
             leadInSeconds: Math.floor(leadInSeconds),
-            // Standard bleibt null in der Datenbank — siehe Komponenten-Kommentar.
-            tonePlan: equalsDefaultStartPlan(plan) ? null : plan,
+            // Ton-Satz, Startsequenz-Schalter und Tastenbelegung bleiben, was sie sind: Der
+            // Request führt sie mit Vorgabewerten, und dieser Dialog verstellt sie (noch) nicht.
+            toneSet: entity?.toneSet ?? null,
+            startSequenceEnabled: entity?.startSequenceEnabled ?? true,
+            boatKeysPrimary: entity?.boatKeysPrimary ?? '123456',
+            boatKeysSecondary: entity?.boatKeysSecondary ?? 'ABCDEF',
         }
 
         setSubmitting(true)
@@ -228,52 +205,6 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         </Typography>
                     </Stack>
 
-                    <Divider />
-
-                    {/* --- Töne der Startsequenz -------------------------------------------
-                        Derselbe Baustein wie bei Fehlstart-Folge und Erfassungstönen; hier
-                        zählen die Zeitpunkte rückwärts zum Start (0 = Start). */}
-                    <Stack spacing={1.5}>
-                        <Typography variant="subtitle2">
-                            {t('event.timing.modes.tones.title')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            {t('event.timing.modes.tones.hint')}
-                        </Typography>
-                        <ToneSequenceEditor
-                            direction={'BEFORE_START'}
-                            rows={toneRows}
-                            onChange={rows => {
-                                setToneRows(rows)
-                                if (invalidField === 'tones') setInvalidField(undefined)
-                            }}
-                            invalid={invalidField === 'tones'}
-                            invalidText={t('event.timing.modes.tones.invalid')}
-                            maxSteps={TONE_PLAN_MAX_STEPS}
-                            presets={[
-                                {
-                                    label: t('event.timing.modes.tones.presetOnlyStart'),
-                                    steps: PRESET_ONLY_START,
-                                },
-                                {
-                                    label: t('event.timing.modes.tones.presetTenCountdown'),
-                                    steps: PRESET_TEN_COUNTDOWN,
-                                },
-                                {
-                                    label: t('event.timing.modes.tones.presetDefault'),
-                                    steps: DEFAULT_START_TONE_PLAN,
-                                },
-                            ]}
-                            help={
-                                <>
-                                    {t('event.timing.modes.tones.previewHint')}{' '}
-                                    {t('event.timing.toneEnvelope.decayHelp')}{' '}
-                                    {t('event.timing.toneEnvelope.heldHelp')}{' '}
-                                    {t('event.timing.toneWaveform.help')}
-                                </>
-                            }
-                        />
-                    </Stack>
                 </Stack>
             </DialogContent>
             <DialogActions>

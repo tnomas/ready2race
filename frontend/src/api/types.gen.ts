@@ -4367,6 +4367,22 @@ export type TimingModeDto = {
     event: uuid
     name: string
     /**
+     * The tone set this mode picked, or null - then it inherits the event's default tone set.
+     */
+    toneSet?: uuid | null
+    /**
+     * Does the app start matches of this mode at all? Not every race is started by the app; a race started by a judge on the pontoon has no countdown window, and a board offering one invites the wrong grab. Default true - the previous behaviour.
+     */
+    startSequenceEnabled: boolean
+    /**
+     * The keys the finish station uses to hit the boats, in position order. Validated on write: no key twice within a row nor across the two rows (case-insensitively - boards read the key press regardless of Shift), no whitespace (the space bar is the big capture button), at most 6 keys - as many as a match has positions.
+     */
+    boatKeysPrimary: string
+    /**
+     * Optional second row of keys; null means there is none.
+     */
+    boatKeysSecondary?: string | null
+    /**
      * Whether the start board may trigger an explicit false start (recall) for matches of this mode. Default true - the recall is the normal case for wave and mass starts. It is switched off where a recall would be wrong: rowing time trials answer a false start with a time penalty instead of calling the field back.
      */
     falseStartEnabled: boolean
@@ -4391,9 +4407,21 @@ export type TimingModeRequest = {
     intervalSeconds?: number | null
     leadInSeconds: number
     /**
-     * Null restores the built-in default plan; limits see ToneStepDto.
+     * The tone set of this mode; null (the default) means it inherits the event's default tone set. The start sequence tone plan is no longer part of this request - it belongs to the tone set, together with the other three tones, and is maintained through PUT /timing/tone-sets/{toneSetId}. A second write path onto the same value would be an invitation to set it differently in two places.
      */
-    tonePlan?: Array<ToneStepDto> | null
+    toneSet?: uuid | null
+    /**
+     * Does the app start matches of this mode? Omitted means true.
+     */
+    startSequenceEnabled?: boolean
+    /**
+     * First row of finish keys, in position order. No key twice within a row nor across the two rows (case-insensitively), no whitespace, at most 6 keys.
+     */
+    boatKeysPrimary?: string
+    /**
+     * Optional second row; null means there is none. An empty string is rejected.
+     */
+    boatKeysSecondary?: string | null
     /**
      * Whether the start board may trigger an explicit false start (recall) for matches of this mode. Omitted means true.
      */
@@ -4649,6 +4677,66 @@ export type TimingTeamDto = {
     competitionName?: string
     matchName?: string
     matchPhase: TimingMatchPhase
+}
+
+/**
+ * A named set of the four tones of a timing ("Laut fuers Wasser", "Leise fuer die Halle") - the template any number of timing modes share. It belongs to the event because you set a sound up ONCE and then want it to apply to every race that should sound the same: changing the volume of all modes means changing one set instead of seven modes. All four tone fields are UNRESOLVED: null means "built-in default", exactly as it did on the event and the mode, so the form can still tell "default" from "own value".
+ */
+export type TimingToneSetDto = {
+    id: uuid
+    name: string
+    /**
+     * The event's default set: timing modes without a pick of their own inherit it. Exactly one per event - enforced by a partial unique index, not by application logic, because two defaults raise a question nobody can answer.
+     */
+    isDefault: boolean
+    /**
+     * Tone plan of the start sequence, offsets counting BACKWARDS to the start; null means the built-in default plan.
+     */
+    sequenceTonePlan?: Array<ToneStepDto> | null
+    /**
+     * Confirmation beep at the SPLIT station; null means the built-in default.
+     */
+    splitTone?: CaptureToneDto | null
+    /**
+     * False start SEQUENCE, offsets counting FORWARD from the trigger; null means the built-in default sequence.
+     */
+    falseStartTone?: Array<ToneStepDto> | null
+    /**
+     * Confirmation beep at the FINISH station; null means the built-in default.
+     */
+    finishTone?: CaptureToneDto | null
+    /**
+     * Does the capture tone tell the boats apart? Position 1 plays the finish tone, the other five a pentatonic scale above it. It belongs to the set and not to the event: it is a property of this sound picture.
+     */
+    tonePerBoat: boolean
+}
+
+export type TimingToneSetRequest = {
+    name: string
+    /**
+     * Make this set the event's default. True takes the mark off the previous default in the same transaction; false on the current default is refused while other sets exist - an event with sets but no default would leave every inheriting mode on the built-in tones. The first set of an event always becomes the default regardless of this field.
+     */
+    isDefault?: boolean
+    /**
+     * Null restores the built-in default plan; limits see ToneStepDto.
+     */
+    sequenceTonePlan?: Array<ToneStepDto> | null
+    /**
+     * Null restores the built-in default tone.
+     */
+    splitTone?: CaptureToneDto | null
+    /**
+     * Null restores the built-in default sequence; limits see ToneStepDto.
+     */
+    falseStartTone?: Array<ToneStepDto> | null
+    /**
+     * Null restores the built-in default tone.
+     */
+    finishTone?: CaptureToneDto | null
+    /**
+     * Omitted means true - see TimingToneSetDto.tonePerBoat.
+     */
+    tonePerBoat?: boolean
 }
 
 /**
@@ -10081,6 +10169,50 @@ export type DeleteTimingModeData = {
 export type DeleteTimingModeResponse = void
 
 export type DeleteTimingModeError = unknown
+
+export type GetTimingToneSetsData = {
+    path: {
+        eventId: uuid
+    }
+}
+
+export type GetTimingToneSetsResponse = Array<TimingToneSetDto>
+
+export type GetTimingToneSetsError = unknown
+
+export type AddTimingToneSetData = {
+    body: TimingToneSetRequest
+    path: {
+        eventId: uuid
+    }
+}
+
+export type AddTimingToneSetResponse = uuid
+
+export type AddTimingToneSetError = unknown
+
+export type UpdateTimingToneSetData = {
+    body: TimingToneSetRequest
+    path: {
+        eventId: uuid
+        toneSetId: uuid
+    }
+}
+
+export type UpdateTimingToneSetResponse = void
+
+export type UpdateTimingToneSetError = unknown
+
+export type DeleteTimingToneSetData = {
+    path: {
+        eventId: uuid
+        toneSetId: uuid
+    }
+}
+
+export type DeleteTimingToneSetResponse = void
+
+export type DeleteTimingToneSetError = unknown
 
 export type CreateTimingStationShareLinkData = {
     path: {

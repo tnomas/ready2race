@@ -10405,6 +10405,114 @@ paths:
           description: This timing mode is still assigned somewhere in the timing profile tree.
       tags:
         - Timing
+  /event/{eventId}/timing/tone-sets:
+    get:
+      operationId: getTimingToneSets
+      description: >-
+        The named tone sets of the event - the templates a timing mode picks from. Sorted with the
+        default first, then alphabetically. All four tone fields are UNRESOLVED here: null keeps
+        meaning "built-in default", so the form can still offer "restore default".
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingToneSetDto'
+      tags:
+        - Timing
+    post:
+      operationId: addTimingToneSet
+      description: >-
+        Creates a tone set. The FIRST tone set of an event always becomes the default, whatever
+        the body asks for - a set nobody inherits would be dead weight from the start. Asking for
+        isDefault on a later set moves the mark off the previous default in the same transaction.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '409':
+          description: A tone set with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingToneSetRequest'
+  /event/{eventId}/timing/tone-sets/{toneSetId}:
+    put:
+      operationId: updateTimingToneSet
+      description: >-
+        Updates the tone set. Refused with 409 when it would leave an event that still has other
+        tone sets without a default - move the mark to another set instead of stripping it here.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: toneSetId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: >-
+            The name is already taken, or the event would be left without a default tone set.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingToneSetRequest'
+    delete:
+      operationId: deleteTimingToneSet
+      description: >-
+        Deletes the tone set. Timing modes pointing at it fall back to the default instead of
+        becoming unusable. The default itself may only go as the LAST tone set of the event -
+        otherwise every inheriting mode would silently drop to the built-in tones.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: toneSetId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: The event would be left without a default tone set.
+      tags:
+        - Timing
   /event/{eventId}/timing/stations/{stationId}/share-link:
     post:
       operationId: createTimingStationShareLink
@@ -21651,6 +21759,8 @@ components:
         - startGrouping
         - leadInSeconds
         - falseStartEnabled
+        - startSequenceEnabled
+        - boatKeysPrimary
       properties:
         id:
           $ref: '#/components/schemas/uuid'
@@ -21658,6 +21768,29 @@ components:
           $ref: '#/components/schemas/uuid'
         name:
           type: string
+        toneSet:
+          allOf:
+            - $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            The tone set this mode picked, or null - then it inherits the event's default tone set.
+        startSequenceEnabled:
+          type: boolean
+          description: >-
+            Does the app start matches of this mode at all? Not every race is started by the app;
+            a race started by a judge on the pontoon has no countdown window, and a board offering
+            one invites the wrong grab. Default true - the previous behaviour.
+        boatKeysPrimary:
+          type: string
+          description: >-
+            The keys the finish station uses to hit the boats, in position order. Validated on
+            write: no key twice within a row nor across the two rows (case-insensitively - boards
+            read the key press regardless of Shift), no whitespace (the space bar is the big
+            capture button), at most 6 keys - as many as a match has positions.
+        boatKeysSecondary:
+          type: string
+          nullable: true
+          description: Optional second row of keys; null means there is none.
         falseStartEnabled:
           type: boolean
           description: >-
@@ -21708,19 +21841,143 @@ components:
           type: integer
           format: int32
           minimum: 0
-        tonePlan:
-          type: array
+        toneSet:
+          allOf:
+            - $ref: '#/components/schemas/uuid'
           nullable: true
-          maxItems: 30
-          description: Null restores the built-in default plan; limits see ToneStepDto.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
+          description: >-
+            The tone set of this mode; null (the default) means it inherits the event's default
+            tone set. The start sequence tone plan is no longer part of this request - it belongs
+            to the tone set, together with the other three tones, and is maintained through
+            PUT /timing/tone-sets/{toneSetId}. A second write path onto the same value would be an
+            invitation to set it differently in two places.
+        startSequenceEnabled:
+          type: boolean
+          default: true
+          description: Does the app start matches of this mode? Omitted means true.
+        boatKeysPrimary:
+          type: string
+          default: '123456'
+          maxLength: 6
+          description: >-
+            First row of finish keys, in position order. No key twice within a row nor across the
+            two rows (case-insensitively), no whitespace, at most 6 keys.
+        boatKeysSecondary:
+          type: string
+          nullable: true
+          default: 'ABCDEF'
+          maxLength: 6
+          description: Optional second row; null means there is none. An empty string is rejected.
         falseStartEnabled:
           type: boolean
           default: true
           description: >-
             Whether the start board may trigger an explicit false start (recall) for matches of
             this mode. Omitted means true.
+
+    TimingToneSetDto:
+      type: object
+      description: >-
+        A named set of the four tones of a timing ("Laut fuers Wasser", "Leise fuer die Halle") -
+        the template any number of timing modes share. It belongs to the event because you set a
+        sound up ONCE and then want it to apply to every race that should sound the same: changing
+        the volume of all modes means changing one set instead of seven modes. All four tone fields
+        are UNRESOLVED: null means "built-in default", exactly as it did on the event and the mode,
+        so the form can still tell "default" from "own value".
+      required:
+        - id
+        - name
+        - isDefault
+        - tonePerBoat
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        isDefault:
+          type: boolean
+          description: >-
+            The event's default set: timing modes without a pick of their own inherit it. Exactly
+            one per event - enforced by a partial unique index, not by application logic, because
+            two defaults raise a question nobody can answer.
+        sequenceTonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: >-
+            Tone plan of the start sequence, offsets counting BACKWARDS to the start; null means
+            the built-in default plan.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        splitTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Confirmation beep at the SPLIT station; null means the built-in default.
+        falseStartTone:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: >-
+            False start SEQUENCE, offsets counting FORWARD from the trigger; null means the
+            built-in default sequence.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        finishTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Confirmation beep at the FINISH station; null means the built-in default.
+        tonePerBoat:
+          type: boolean
+          description: >-
+            Does the capture tone tell the boats apart? Position 1 plays the finish tone, the other
+            five a pentatonic scale above it. It belongs to the set and not to the event: it is a
+            property of this sound picture.
+
+    TimingToneSetRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        isDefault:
+          type: boolean
+          default: false
+          description: >-
+            Make this set the event's default. True takes the mark off the previous default in the
+            same transaction; false on the current default is refused while other sets exist - an
+            event with sets but no default would leave every inheriting mode on the built-in tones.
+            The first set of an event always becomes the default regardless of this field.
+        sequenceTonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default plan; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        splitTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Null restores the built-in default tone.
+        falseStartTone:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default sequence; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        finishTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Null restores the built-in default tone.
+        tonePerBoat:
+          type: boolean
+          default: true
+          description: Omitted means true - see TimingToneSetDto.tonePerBoat.
 
     TimingProfileKind:
       type: string

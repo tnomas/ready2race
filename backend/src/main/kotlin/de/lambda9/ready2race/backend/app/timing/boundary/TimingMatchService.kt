@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.timing.control.TimingMatchRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingToneSetRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchPhase
@@ -97,6 +98,10 @@ object TimingMatchService {
         val marks = !TimingOfficialTimeRepo.getAssignedActiveMarks(eventId).orDie()
         val teamsInActiveSequences = (!TimingSequenceEntryRepo.getTeamsInActiveSequences(eventId).orDie()).toSet()
         val modes = !TimingModeRepo.getByEvent(eventId).orDie()
+        // Die Ton-Sätze der Veranstaltung: Der Startsequenz-Tonplan hängt seit dem 26.08.2026
+        // nicht mehr am Typ, sondern an seinem Satz - der Posten braucht ihn aber weiterhin mit
+        // der Partie, sonst schwiege sein Countdown.
+        val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
         // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
         // TimingProfileRepo.getAssignments.
         val assignments = !TimingProfileRepo.getAssignments(eventId, TimingProfileKind.MODE).orDie()
@@ -175,7 +180,11 @@ object TimingMatchService {
                 // übrige Läufe im Wellenstart fahren.
                 timingMode = TimingProfileResolveLogic
                     .resolve(assignmentRows, match.competitionId, match.roundId, match.setupMatchId)
-                    ?.let { modeById[it]?.toDto() },
+                    ?.let { modeId ->
+                        modeById[modeId]?.let { mode ->
+                            mode.toDto(TimingToneSetLogic.sequenceTonePlan(toneSets, mode.toneSet))
+                        }
+                    },
                 teams = teams,
             )
         }

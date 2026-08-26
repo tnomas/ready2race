@@ -23,6 +23,19 @@ sealed interface TimingError : ServiceError {
     data object ModeNotFound : TimingError
     data object ModeNameTaken : TimingError
     data object ModeInUse : TimingError
+    data object ToneSetNotFound : TimingError
+    data object ToneSetNameTaken : TimingError
+
+    /**
+     * Eine Veranstaltung mit Ton-Sätzen hat immer genau EINEN Vorgabesatz - der partielle Index
+     * verhindert zwei, diese Regel verhindert keinen. Ohne Vorgabe fielen alle Typen, die keinen
+     * eigenen Satz gewählt haben, still auf die eingebauten Töne zurück; die Regatta klänge anders,
+     * ohne dass jemand einen Ton verstellt hätte. Wer die Vorgabe loswerden will, macht deshalb
+     * einen anderen Satz zur Vorgabe, statt diesen zu entwerten oder zu löschen. Nur der LETZTE
+     * Satz einer Veranstaltung darf gehen - dann gibt es wieder gar keine Sätze, und der Rückfall
+     * auf die eingebauten Töne ist die richtige Antwort.
+     */
+    data object ToneSetDefaultRequired : TimingError
     data object RoundNotOfCompetition : TimingError
     data object LinkedStationInvalid : TimingError
     data object StationNotCapturing : TimingError
@@ -84,6 +97,15 @@ sealed interface TimingError : ServiceError {
         ModeInUse -> ApiError(
             HttpStatusCode.Conflict,
             message = "This timing mode is still assigned to competitions or rounds"
+        )
+        ToneSetNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing tone set not found")
+        ToneSetNameTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A timing tone set with this name already exists for this event"
+        )
+        ToneSetDefaultRequired -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "An event with tone sets needs exactly one default - make another tone set the default first"
         )
         RoundNotOfCompetition -> ApiError(
             HttpStatusCode.BadRequest,

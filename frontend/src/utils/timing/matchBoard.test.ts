@@ -21,6 +21,9 @@ const mode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
     startGrouping: 'EINZEL',
     intervalSeconds: 30,
     leadInSeconds: 10,
+    // Vorgaben wie in der Datenbank: Die App startet den Lauf, und die Boote hängen an 1-6.
+    startSequenceEnabled: true,
+    boatKeysPrimary: '123456',
     ...overrides,
 })
 

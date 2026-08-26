@@ -48,7 +48,6 @@ class TimingProfileServiceTest {
                     startGrouping = TimingStartGrouping.EINZEL,
                     intervalSeconds = 30,
                     leadInSeconds = 10,
-                    tonePlan = null,
                 ),
                 userId,
                 eventId,

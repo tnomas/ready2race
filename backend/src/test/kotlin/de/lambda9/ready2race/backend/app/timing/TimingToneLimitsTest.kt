@@ -5,8 +5,7 @@ import de.lambda9.ready2race.backend.app.timing.control.toJsonb
 import de.lambda9.ready2race.backend.app.timing.control.toTonePlan
 import de.lambda9.ready2race.backend.app.timing.control.toToneSequence
 import de.lambda9.ready2race.backend.app.timing.entity.CaptureTone
-import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
-import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneSetRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingToneLimits
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
 import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
@@ -24,12 +23,11 @@ import kotlin.test.assertTrue
  */
 class TimingToneLimitsTest {
 
-    private fun request(tonePlan: List<ToneStep>?) = TimingModeRequest(
-        name = "Timetrial 30s",
-        startGrouping = TimingStartGrouping.EINZEL,
-        intervalSeconds = 30,
-        leadInSeconds = 10,
-        tonePlan = tonePlan,
+    // Geprüft wird am Ton-Satz: Seit dem 26.08.2026 trägt er den Startsequenz-Tonplan (und die
+    // drei übrigen Töne), nicht mehr der Zeitnahmetyp.
+    private fun request(tonePlan: List<ToneStep>?) = TimingToneSetRequest(
+        name = "Laut fürs Wasser",
+        sequenceTonePlan = tonePlan,
     )
 
     private fun step(

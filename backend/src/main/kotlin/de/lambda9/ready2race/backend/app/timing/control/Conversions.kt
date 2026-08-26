@@ -12,6 +12,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingSta
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.TimingToneSetRecord
 import de.lambda9.ready2race.backend.parsing.Parser
 import de.lambda9.tailwind.core.KIO
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -264,7 +265,12 @@ fun officialTimecode(effectiveMillis: Long, precision: TimingPrecision): Timecod
     return Parser.timecode.parse(rendered)
 }
 
-fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
+/**
+ * [sequenceTonePlan] kommt von außen, weil der Plan seit dem 26.08.2026 nicht mehr am Typ hängt,
+ * sondern in seinem Ton-Satz - aufgelöst wird das eine Ebene höher
+ * (`TimingToneSetLogic.sequenceTonePlan`), damit diese Konvertierung ohne zweite Abfrage auskommt.
+ */
+fun TimingModeRecord.toDto(sequenceTonePlan: List<ToneStep>?): TimingModeDto = TimingModeDto(
     id = id,
     event = event,
     name = name,
@@ -273,7 +279,14 @@ fun TimingModeRecord.toDto(): TimingModeDto = TimingModeDto(
     // Not-null-Spalte mit Default; jOOQ typisiert sie dennoch nullable (bekanntes Muster, siehe
     // EventTimingConfigDto) - der Datenbank-Default ist die einzig richtige Rückfalllinie.
     leadInSeconds = leadInSeconds ?: 10,
-    tonePlan = tonePlan.toTonePlan(),
+    toneSet = toneSet,
+    // Wie leadInSeconds not-null mit Default, von jOOQ dennoch nullable typisiert: Der Rückfall
+    // ist genau der Datenbank-Default - ein Typ, dessen Spalte wider Erwarten leer ist, verliert
+    // weder seinen Startablauf noch seine Tasten.
+    startSequenceEnabled = startSequenceEnabled ?: true,
+    boatKeysPrimary = boatKeysPrimary ?: TimingBoatKeys.DEFAULT_PRIMARY,
+    boatKeysSecondary = boatKeysSecondary,
+    tonePlan = sequenceTonePlan,
     // Wie leadInSeconds eine not-null-Spalte mit Default, die jOOQ dennoch nullable typisiert.
     // Der Rückfall ist deshalb genau der Datenbank-Default (V202608242020): Fehlstart erlaubt -
     // ein Typ, dessen Spalte wider Erwarten leer ist, verliert den Rückruf nicht stillschweigend.
@@ -289,8 +302,47 @@ fun TimingModeRequest.toRecord(userId: UUID, eventId: UUID): TimingModeRecord =
             startGrouping = startGrouping.name,
             intervalSeconds = intervalSeconds,
             leadInSeconds = leadInSeconds,
-            tonePlan = tonePlan?.toJsonb(),
+            toneSet = toneSet,
+            startSequenceEnabled = startSequenceEnabled,
+            boatKeysPrimary = boatKeysPrimary,
+            boatKeysSecondary = boatKeysSecondary,
             falseStartEnabled = falseStartEnabled,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+    }
+
+fun TimingToneSetRecord.toDto(): TimingToneSetDto = TimingToneSetDto(
+    id = id,
+    name = name,
+    // Drei not-null-Spalten mit Default, von jOOQ nullable typisiert - der Rückfall ist jeweils
+    // der Datenbank-Default (V202608261200).
+    isDefault = isDefault ?: false,
+    sequenceTonePlan = sequenceTonePlan.toTonePlan(),
+    splitTone = splitTone.toCaptureTone(),
+    // Wie an der Veranstaltung: ein noch als Einzelton gespeicherter Fehlstart-Ton kommt als
+    // einelementige Folge an (siehe toToneSequence) - die Migration hat ihn unverändert kopiert.
+    falseStartTone = falseStartTone.toToneSequence(),
+    finishTone = finishTone.toCaptureTone(),
+    tonePerBoat = tonePerBoat ?: true,
+)
+
+fun TimingToneSetRequest.toRecord(userId: UUID, eventId: UUID, isDefault: Boolean): TimingToneSetRecord =
+    LocalDateTime.now().let { now ->
+        TimingToneSetRecord(
+            id = UUID.randomUUID(),
+            event = eventId,
+            name = name,
+            // Nicht aus dem Request, sondern aus der Entscheidung des Dienstes: Der erste Satz
+            // einer Veranstaltung wird immer die Vorgabe, auch wenn niemand danach gefragt hat.
+            isDefault = isDefault,
+            sequenceTonePlan = sequenceTonePlan?.toJsonb(),
+            splitTone = splitTone?.toJsonb(),
+            falseStartTone = falseStartTone?.toJsonb(),
+            finishTone = finishTone?.toJsonb(),
+            tonePerBoat = tonePerBoat,
             createdAt = now,
             createdBy = userId,
             updatedAt = now,
