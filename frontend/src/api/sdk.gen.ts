@@ -1096,6 +1096,18 @@ import type {
     DeleteTimingModeData,
     DeleteTimingModeError,
     DeleteTimingModeResponse,
+    GetTimingToneSetsData,
+    GetTimingToneSetsError,
+    GetTimingToneSetsResponse,
+    AddTimingToneSetData,
+    AddTimingToneSetError,
+    AddTimingToneSetResponse,
+    UpdateTimingToneSetData,
+    UpdateTimingToneSetError,
+    UpdateTimingToneSetResponse,
+    DeleteTimingToneSetData,
+    DeleteTimingToneSetError,
+    DeleteTimingToneSetResponse,
     CreateTimingStationShareLinkData,
     CreateTimingStationShareLinkError,
     CreateTimingStationShareLinkResponse,
@@ -6080,6 +6092,70 @@ export const deleteTimingMode = <ThrowOnError extends boolean = false>(
 }
 
 /**
+ * The named tone sets of the event - the templates a timing mode picks from. Sorted with the default first, then alphabetically. All four tone fields are UNRESOLVED here: null keeps meaning "built-in default", so the form can still offer "restore default".
+ */
+export const getTimingToneSets = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetTimingToneSetsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetTimingToneSetsResponse,
+        GetTimingToneSetsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets',
+    })
+}
+
+/**
+ * Creates a tone set. The FIRST tone set of an event always becomes the default, whatever the body asks for - a set nobody inherits would be dead weight from the start. Asking for isDefault on a later set moves the mark off the previous default in the same transaction.
+ */
+export const addTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddTimingToneSetResponse,
+        AddTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets',
+    })
+}
+
+/**
+ * Updates the tone set. Refused with 409 when it would leave an event that still has other tone sets without a default - move the mark to another set instead of stripping it here.
+ */
+export const updateTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateTimingToneSetResponse,
+        UpdateTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets/{toneSetId}',
+    })
+}
+
+/**
+ * Deletes the tone set. Timing modes pointing at it fall back to the default instead of becoming unusable. The default itself may only go as the LAST tone set of the event - otherwise every inheriting mode would silently drop to the built-in tones.
+ */
+export const deleteTimingToneSet = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteTimingToneSetData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteTimingToneSetResponse,
+        DeleteTimingToneSetError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/timing/tone-sets/{toneSetId}',
+    })
+}
+
+/**
  * Issues a device token for the station automatically and returns the finished link (root-relative path plus token). Reuse instead of inflation: as long as an automatically issued, unrevoked token exists for the station, every call returns the SAME link. Revoking the token in the devices tab makes the next call issue a fresh one. Requires a session with UPDATE EVENT.
  */
 export const createTimingStationShareLink = <ThrowOnError extends boolean = false>(
@@ -6095,6 +6171,9 @@ export const createTimingStationShareLink = <ThrowOnError extends boolean = fals
     })
 }
 
+/**
+ * Arms a server-driven start sequence for the given teams on a START station. Rejected with 409 when the timing mode resolved for the match of those teams switches the app-driven start off (startSequenceEnabled false): such a match is started by a starter at the jetty, and a board handing out a countdown window invites the wrong action. The start board hides its button already, but that is an operating aid - boards are device-token clients and may run on a start list that predates the change, so the rule is enforced here as well, exactly like the false-start switch of the same mode. When NO mode can be resolved for the request (no teams, the match not in the boards' start list, or no mode assigned in the timing profile tree) the sequence is allowed: the column's default is "start sequence on", so nobody has forbidden anything, and a lock that locks when in doubt would stop races at the regatta that were never configured to stop.
+ */
 export const createTimingSequence = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimingSequenceData, ThrowOnError>,
 ) => {

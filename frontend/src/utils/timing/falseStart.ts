@@ -1,5 +1,5 @@
 import {TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
-import {ToneStep, toneSequenceTotalMillis} from './tonePlan.ts'
+import {matchOfSequence, ToneStep, toneSequenceTotalMillis} from './tonePlan.ts'
 
 /**
  * Fehlstart-Erkennung der Zeitnahme: WANN der konfigurierte Fehlstart-Ton fällig ist — als reine
@@ -83,6 +83,25 @@ export function isAttemptRetractionFalseStart(
         match !== undefined &&
         match.teams.some(team => sequenceTeams.has(team.competitionMatchTeam))
     )
+}
+
+/**
+ * Die Fehlstart-FOLGE, die zur gerade geführten Sequenz gehört: die des Zeitnahmetyps ihrer
+ * Partie, sonst [defaultTone] — der aufgelöste Vorgabesatz der Veranstaltung.
+ *
+ * Seit dem 26.08.2026 gehören die Töne zum Zeitnahmetyp, und ein Rückruf im Zeitfahren darf anders
+ * klingen als einer im Massenstart. Maßgeblich ist dieselbe Partie, an der auch die beiden
+ * Auslöser hängen (siehe oben, „nur die aktive/fokussierte Sequenz") — der Rückruf klingt also nie
+ * nach einem Lauf, der gar nicht gemeint ist. Ohne geführte Sequenz oder ohne Zeitnahmetyp bleibt
+ * der Vorgabesatz: ein Board, das die Vorgabe spielt, ist besser als eines, das schweigt.
+ */
+export function falseStartToneForSequence(
+    matches: readonly TimingMatchDto[],
+    sequence: TimingSequenceDto | undefined,
+    defaultTone: readonly ToneStep[],
+): readonly ToneStep[] {
+    const tone = matchOfSequence(matches, sequence)?.timingMode?.resolvedToneSet.falseStartTone
+    return tone != null && tone.length > 0 ? tone : defaultTone
 }
 
 /**

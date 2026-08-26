@@ -6,6 +6,7 @@ import {
     DialogTitle,
     Divider,
     FormControlLabel,
+    MenuItem,
     Stack,
     Switch,
     TextField,
@@ -15,18 +16,10 @@ import {
 } from '@mui/material'
 import {useEffect, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {addTimingMode, updateTimingMode} from '@api/sdk.gen.ts'
+import {addTimingMode, getTimingToneSets, updateTimingMode} from '@api/sdk.gen.ts'
 import {TimingModeDto, TimingModeRequest, TimingStartGrouping} from '@api/types.gen.ts'
-import {useFeedback} from '@utils/hooks.ts'
-import {
-    DEFAULT_START_TONE_PLAN,
-    PRESET_ONLY_START,
-    PRESET_TEN_COUNTDOWN,
-    TONE_PLAN_MAX_STEPS,
-    equalsDefaultStartPlan,
-} from '@utils/timing/tonePlan.ts'
-import {ToneRow, planFromRows, rowsFromPlan} from './tonePlanEditor.ts'
-import ToneSequenceEditor from './ToneSequenceEditor.tsx'
+import {DEFAULT_BOAT_KEYS} from '@utils/timing/boardFocus.ts'
+import {useFeedback, useFetch} from '@utils/hooks.ts'
 
 export type TimingModeDialogProps = {
     open: boolean
@@ -37,19 +30,53 @@ export type TimingModeDialogProps = {
     reloadData: () => void
 }
 
+/** „Kein eigener Ton-Satz" — dieselbe Schreibweise wie im Zeitnahmeprofil-Baum. */
+const INHERIT_VALUE = ''
+
+/** So viele Boote hat eine Partie am Zielposten höchstens — mehr Tasten wären ohne Ziel. */
+const MAX_BOAT_KEYS = 6
+
+/**
+ * Spiegel der Server-Regeln für eine Tastenreihe (`TimingBoatKeys` im Backend): nicht leer,
+ * höchstens [MAX_BOAT_KEYS] Zeichen, kein Leerzeichen (die Leertaste ist der große
+ * Erfassungsknopf) und keine Taste zweimal — groß und klein sind dieselbe Taste, weil das Board
+ * den Druck ohne Rücksicht auf die Umschalttaste liest.
+ */
+const validBoatKeyRow = (row: string): boolean =>
+    row.length > 0 &&
+    row.length <= MAX_BOAT_KEYS &&
+    !/\s/.test(row) &&
+    new Set([...row.toUpperCase()]).size === row.length
+
+/**
+ * Beide Reihen zusammen — getrennt ginge die wichtigste Regel verloren: keine Doppelung ZWISCHEN
+ * den Reihen. `null` heißt „keine zweite Reihe".
+ */
+const validBoatKeys = (primary: string, secondary: string | null): boolean => {
+    if (!validBoatKeyRow(primary)) return false
+    if (secondary === null) return true
+    if (!validBoatKeyRow(secondary)) return false
+    const used = new Set([...primary.toUpperCase()])
+    return ![...secondary.toUpperCase()].some(key => used.has(key))
+}
+
 /**
  * Anlegen/Bearbeiten eines Zeitnahmetyps. Die Zahlenfelder werden als Strings geführt,
  * damit sie beim Tippen vorübergehend leer sein dürfen (gleiche Begründung wie im
  * Sequenz-Setup-Formular); validiert wird beim Speichern. Ein leeres Intervall ist dabei kein
  * Fehler, sondern die bewusste Bedeutung „jeder Start wird von Hand ausgelöst".
  *
- * Der Abschnitt „Töne" pflegt den Tonplan der Startsequenz im gemeinsamen Tonfolge-Editor
- * ([ToneSequenceEditor], denselben nutzen Fehlstart-Folge und Erfassungstöne): Zeitleiste,
- * kompakte Zeilen zum Aufklappen, Vorlagen, Abspielknopf je Ton und eine „Sequenz
- * anhören"-Vorschau. Der Klick auf einen Abspielknopf IST die Nutzergeste, die WebAudio
- * entsperrt (iOS-Regel). Gespeichert wird `null`, wenn der Plan inhaltlich dem eingebauten
- * Standard entspricht — so bleibt „unkonfiguriert" unkonfiguriert und eine künftige
- * Standard-Änderung erreicht auch Typen, deren Töne nie bewusst verstellt wurden.
+ * Der Typ beschreibt, wie ein Lauf gestartet und gemessen wird — und trägt seit dem 26.08.2026
+ * alles dazu: die Startart, den Fehlstart-Rückruf, ob die App den Lauf überhaupt startet, die
+ * Tastenbelegung des Zielpostens und den Ton-Satz. Die TÖNE selbst stehen bewusst nicht hier: Sie
+ * gehören dem Ton-Satz, den sich beliebig viele Typen teilen; dieser Dialog wählt nur einen aus
+ * (oder lässt die Wahl leer und erbt den Vorgabesatz der Veranstaltung). Ein zweiter Schreibweg
+ * auf dieselben Töne wäre eine Einladung, sie an zwei Stellen verschieden zu setzen.
+ *
+ * Zwei Felder tragen Erklärtexte statt bloßer Beschriftungen, weil ihre Bedeutung sonst regelmäßig
+ * falsch geraten wird: die Startart (der Massenstart ist keine dritte Ausprägung, sondern eine
+ * Welle mit allen Booten) und der Fehlstart-Schalter (er ist Bedienhilfe am Startposten und greift
+ * NICHT in die Wertung ein).
  */
 const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingModeDialogProps) => {
     const {t} = useTranslation()
@@ -60,11 +87,43 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
     const [intervalInput, setIntervalInput] = useState('')
     const [leadInInput, setLeadInInput] = useState('10')
     const [falseStartEnabled, setFalseStartEnabled] = useState(true)
-    const [toneRows, setToneRows] = useState<ToneRow[]>([])
+    const [toneSet, setToneSet] = useState<string>(INHERIT_VALUE)
+    const [startSequenceEnabled, setStartSequenceEnabled] = useState(true)
+    const [boatKeysPrimary, setBoatKeysPrimary] = useState(DEFAULT_BOAT_KEYS.primary)
+    const [boatKeysSecondary, setBoatKeysSecondary] = useState(DEFAULT_BOAT_KEYS.secondary ?? '')
     const [submitting, setSubmitting] = useState(false)
     const [invalidField, setInvalidField] = useState<
-        'name' | 'interval' | 'leadIn' | 'tones' | undefined
+        'name' | 'interval' | 'leadIn' | 'boatKeys' | undefined
     >(undefined)
+
+    // Die Ton-Sätze werden bei jedem Öffnen frisch geholt: Sie werden weiter oben auf derselben
+    // Seite gepflegt, und ein gerade angelegter Satz soll hier ohne Neuladen zur Wahl stehen.
+    const {data: toneSets} = useFetch(signal => getTimingToneSets({signal, path: {eventId}}), {
+        onResponse: ({error}) => {
+            if (error) {
+                feedback.error(t('common.error.unexpected'))
+            }
+        },
+        preCondition: () => open,
+        deps: [eventId, open],
+    })
+
+    const sets = toneSets ?? []
+    const defaultSet = sets.find(option => option.isDefault)
+    const toneSetsReady = toneSets !== null
+    /**
+     * Der Wert, den die Auswahl zeigt UND der gespeichert wird — beides muss dasselbe sein, sonst
+     * speichert jemand etwas anderes, als er liest. Solange die Sätze noch unterwegs sind, bleibt
+     * die gewählte Kennung stehen (mit einem eigenen „wird geladen"-Eintrag, damit die Auswahl
+     * nicht auf einen Eintrag zeigt, den sie noch nicht hat); ist der Satz danach nicht dabei,
+     * wurde er inzwischen gelöscht — dann gilt, was auch der Server tut: zurück auf „erbt".
+     */
+    const selectedToneSet =
+        toneSet === INHERIT_VALUE || !toneSetsReady
+            ? toneSet
+            : sets.some(option => option.id === toneSet)
+              ? toneSet
+              : INHERIT_VALUE
 
     useEffect(() => {
         if (!open) return
@@ -75,14 +134,17 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
         // Vorgabe „an“ wie in der Datenbank: der Rückruf ist der Normalfall, abgeschaltet wird er
         // bewusst (Timetrial: Strafzeit statt Rückruf).
         setFalseStartEnabled(entity?.falseStartEnabled ?? true)
-        // null/leer = eingebauter Standard: der Editor zeigt ihn als konkrete, bearbeitbare
-        // Zeilen — beim Speichern wird ein unveränderter Standard wieder zu null normalisiert.
-        setToneRows(
-            rowsFromPlan(
-                entity?.tonePlan != null && entity.tonePlan.length > 0
-                    ? entity.tonePlan
-                    : DEFAULT_START_TONE_PLAN,
-            ),
+        // Leere Wahl = erbt den Vorgabesatz. Das ist die Vorgabe für neue Typen, damit ein neuer
+        // Typ ohne Zutun so klingt wie die Veranstaltung.
+        setToneSet(entity?.toneSet ?? INHERIT_VALUE)
+        setStartSequenceEnabled(entity?.startSequenceEnabled ?? true)
+        setBoatKeysPrimary(entity?.boatKeysPrimary ?? DEFAULT_BOAT_KEYS.primary)
+        // Leeres Feld = keine zweite Reihe; der Server kennt dafür nur `null`, nie den leeren
+        // String — beim Speichern wird das eine ins andere übersetzt.
+        setBoatKeysSecondary(
+            entity === undefined
+                ? (DEFAULT_BOAT_KEYS.secondary ?? '')
+                : (entity.boatKeysSecondary ?? ''),
         )
         setSubmitting(false)
         setInvalidField(undefined)
@@ -107,9 +169,13 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             setInvalidField('leadIn')
             return
         }
-        const plan = planFromRows(toneRows, 'BEFORE_START')
-        if (plan === null || plan.length === 0 || plan.length > TONE_PLAN_MAX_STEPS) {
-            setInvalidField('tones')
+        const primaryKeys = boatKeysPrimary.trim()
+        const secondaryTrimmed = boatKeysSecondary.trim()
+        const secondaryKeys = secondaryTrimmed === '' ? null : secondaryTrimmed
+        // Die Prüfung sitzt im Server; hier wird sie nur vorweggenommen, damit die Belegung mit
+        // einem lesbaren Satz zurückkommt statt mit einem nackten Fehlerschluss.
+        if (!validBoatKeys(primaryKeys, secondaryKeys)) {
+            setInvalidField('boatKeys')
             return
         }
         setInvalidField(undefined)
@@ -120,8 +186,10 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             startGrouping,
             intervalSeconds: intervalSeconds !== null ? Math.floor(intervalSeconds) : null,
             leadInSeconds: Math.floor(leadInSeconds),
-            // Standard bleibt null in der Datenbank — siehe Komponenten-Kommentar.
-            tonePlan: equalsDefaultStartPlan(plan) ? null : plan,
+            toneSet: selectedToneSet === INHERIT_VALUE ? null : selectedToneSet,
+            startSequenceEnabled,
+            boatKeysPrimary: primaryKeys,
+            boatKeysSecondary: secondaryKeys,
         }
 
         setSubmitting(true)
@@ -164,6 +232,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         }
                         onChange={event => setName(event.target.value)}
                     />
+                    {/* Startart: Der Erklärtext trägt die Unterscheidung, die sonst regelmäßig
+                        falsch geraten wird — insbesondere, dass es keinen eigenen Massenstart
+                        gibt, sondern nur die Welle, in der alle Boote stehen. */}
                     <Stack spacing={1}>
                         <Typography variant="body2" color="text.secondary">
                             {t('event.timing.modes.startGrouping.label')}
@@ -175,18 +246,44 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                             onChange={(_, value: TimingStartGrouping | null) => {
                                 if (value !== null) setStartGrouping(value)
                             }}>
-                            <ToggleButton value="EINZEL">
+                            <ToggleButton value="EINZEL" className="cursor-pointer">
                                 {t('event.timing.modes.startGrouping.EINZEL')}
                             </ToggleButton>
-                            <ToggleButton value="WELLE">
+                            <ToggleButton value="WELLE" className="cursor-pointer">
                                 {t('event.timing.modes.startGrouping.WELLE')}
                             </ToggleButton>
                         </ToggleButtonGroup>
+                        <Typography variant="body2" color="text.secondary">
+                            {t('event.timing.modes.startGrouping.help')}
+                        </Typography>
                     </Stack>
+                    {/* Startsequenz: Nicht jeder Lauf wird von der App gestartet. Aus heißt, dass
+                        das Start-Board für diesen Typ gar kein Countdown-Fenster anbietet — der
+                        Schalter steht deshalb VOR den beiden Feldern, die er sperrt. */}
+                    <Stack spacing={0.5}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={startSequenceEnabled}
+                                    className="cursor-pointer"
+                                    onChange={(_, checked) => setStartSequenceEnabled(checked)}
+                                />
+                            }
+                            label={t('event.timing.modes.startSequenceEnabled')}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                            {t('event.timing.modes.startSequenceEnabledHelp')}
+                        </Typography>
+                    </Stack>
+                    {/* Intervall und Vorlauf beschreiben die Startsequenz — startet die App den
+                        Lauf nicht, wirken sie nirgends. Gesperrt statt versteckt: Die Werte
+                        bleiben lesbar und kommen beim Wiedereinschalten zurück, und die Zeile in
+                        der Typen-Liste lässt sie aus demselben Grund weg. */}
                     <TextField
                         type="number"
                         label={t('event.timing.modes.intervalSeconds')}
                         value={intervalInput}
+                        disabled={!startSequenceEnabled}
                         error={invalidField === 'interval'}
                         helperText={
                             invalidField === 'interval'
@@ -200,6 +297,7 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                         type="number"
                         label={t('event.timing.modes.leadInSeconds')}
                         value={leadInInput}
+                        disabled={!startSequenceEnabled}
                         error={invalidField === 'leadIn'}
                         helperText={
                             invalidField === 'leadIn'
@@ -211,13 +309,15 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
                     />
                     {/* Fehlstart-Rückruf: der Schalter entscheidet, ob das Erfassungsboard des
                         START-Postens den Fehlstart überhaupt anbietet — und der Server lehnt ihn
-                        ohne ihn auch ab. Aus für Timetrials: dort wird ein Fehlstart mit
-                        Strafzeit geahndet, nicht mit einem Rückruf des Feldes. */}
+                        ohne ihn auch ab. Was ein Fehlstart für die WERTUNG bedeutet, steht
+                        woanders: im Regelwerk, und von Hand am Lauf. Genau das sagt der
+                        Erklärtext, weil der Schalter sonst für eine Wertungsregel gehalten wird. */}
                     <Stack spacing={0.5}>
                         <FormControlLabel
                             control={
                                 <Switch
                                     checked={falseStartEnabled}
+                                    className="cursor-pointer"
                                     onChange={(_, checked) => setFalseStartEnabled(checked)}
                                 />
                             }
@@ -230,57 +330,89 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
 
                     <Divider />
 
-                    {/* --- Töne der Startsequenz -------------------------------------------
-                        Derselbe Baustein wie bei Fehlstart-Folge und Erfassungstönen; hier
-                        zählen die Zeitpunkte rückwärts zum Start (0 = Start). */}
-                    <Stack spacing={1.5}>
-                        <Typography variant="subtitle2">
-                            {t('event.timing.modes.tones.title')}
-                        </Typography>
+                    {/* Ton-Satz: die Wahl, nicht die Töne. Gepflegt werden die Sätze weiter oben
+                        auf derselben Seite; „erbt" ist die Vorgabe und nennt den Satz, der dann
+                        gilt — eine Vererbung, die ihr Ziel verschweigt, ist keine Hilfe. */}
+                    <Stack spacing={0.5}>
+                        <TextField
+                            select
+                            label={t('event.timing.modes.toneSet')}
+                            value={selectedToneSet}
+                            disabled={!toneSetsReady}
+                            onChange={event => setToneSet(event.target.value)}>
+                            <MenuItem value={INHERIT_VALUE} className="cursor-pointer">
+                                <em>
+                                    {defaultSet !== undefined
+                                        ? t('event.timing.modes.toneSetInherit', {
+                                              name: defaultSet.name,
+                                          })
+                                        : t('event.timing.modes.toneSetInheritNone')}
+                                </em>
+                            </MenuItem>
+                            {!toneSetsReady && toneSet !== INHERIT_VALUE && (
+                                <MenuItem value={toneSet} className="cursor-pointer">
+                                    <em>{t('event.timing.modes.toneSetLoading')}</em>
+                                </MenuItem>
+                            )}
+                            {sets.map(option => (
+                                <MenuItem
+                                    key={option.id}
+                                    value={option.id}
+                                    className="cursor-pointer">
+                                    {option.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
                         <Typography variant="body2" color="text.secondary">
-                            {t('event.timing.modes.tones.hint')}
+                            {t('event.timing.modes.toneSetHelp')}
                         </Typography>
-                        <ToneSequenceEditor
-                            direction={'BEFORE_START'}
-                            rows={toneRows}
-                            onChange={rows => {
-                                setToneRows(rows)
-                                if (invalidField === 'tones') setInvalidField(undefined)
-                            }}
-                            invalid={invalidField === 'tones'}
-                            invalidText={t('event.timing.modes.tones.invalid')}
-                            maxSteps={TONE_PLAN_MAX_STEPS}
-                            presets={[
-                                {
-                                    label: t('event.timing.modes.tones.presetOnlyStart'),
-                                    steps: PRESET_ONLY_START,
-                                },
-                                {
-                                    label: t('event.timing.modes.tones.presetTenCountdown'),
-                                    steps: PRESET_TEN_COUNTDOWN,
-                                },
-                                {
-                                    label: t('event.timing.modes.tones.presetDefault'),
-                                    steps: DEFAULT_START_TONE_PLAN,
-                                },
-                            ]}
-                            help={
-                                <>
-                                    {t('event.timing.modes.tones.previewHint')}{' '}
-                                    {t('event.timing.toneEnvelope.decayHelp')}{' '}
-                                    {t('event.timing.toneEnvelope.heldHelp')}{' '}
-                                    {t('event.timing.toneWaveform.help')}
-                                </>
-                            }
-                        />
+                    </Stack>
+
+                    {/* Tastenbelegung des Zielpostens: In Positionsreihenfolge, das erste Zeichen
+                        trifft das Boot mit der niedrigsten Startnummer. Die Boots-Knöpfe am Board
+                        tragen genau diese Zeichen als Hinweis — deshalb muss hier stehen, was
+                        dort wirkt. */}
+                    <Stack spacing={1}>
+                        <Typography variant="body2" color="text.secondary">
+                            {t('event.timing.modes.boatKeys.title')}
+                        </Typography>
+                        <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
+                            <TextField
+                                fullWidth
+                                label={t('event.timing.modes.boatKeys.primary')}
+                                value={boatKeysPrimary}
+                                error={invalidField === 'boatKeys'}
+                                slotProps={{htmlInput: {maxLength: MAX_BOAT_KEYS}}}
+                                onChange={event => setBoatKeysPrimary(event.target.value)}
+                            />
+                            <TextField
+                                fullWidth
+                                label={t('event.timing.modes.boatKeys.secondary')}
+                                value={boatKeysSecondary}
+                                error={invalidField === 'boatKeys'}
+                                slotProps={{htmlInput: {maxLength: MAX_BOAT_KEYS}}}
+                                onChange={event => setBoatKeysSecondary(event.target.value)}
+                            />
+                        </Stack>
+                        <Typography
+                            variant="body2"
+                            color={invalidField === 'boatKeys' ? 'error' : 'text.secondary'}>
+                            {invalidField === 'boatKeys'
+                                ? t('event.timing.modes.boatKeys.invalid')
+                                : t('event.timing.modes.boatKeys.help')}
+                        </Typography>
                     </Stack>
                 </Stack>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} disabled={submitting}>
+                <Button onClick={onClose} disabled={submitting} className="cursor-pointer">
                     {t('common.cancel')}
                 </Button>
-                <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
+                <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="cursor-pointer">
                     {t('common.save')}
                 </Button>
             </DialogActions>

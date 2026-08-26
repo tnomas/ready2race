@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.timing.control.TimingMatchRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingOfficialTimeRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingToneSetRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingMatchPhase
@@ -97,11 +98,21 @@ object TimingMatchService {
         val marks = !TimingOfficialTimeRepo.getAssignedActiveMarks(eventId).orDie()
         val teamsInActiveSequences = (!TimingSequenceEntryRepo.getTeamsInActiveSequences(eventId).orDie()).toSet()
         val modes = !TimingModeRepo.getByEvent(eventId).orDie()
+        // Die Ton-Sätze der Veranstaltung: Die Töne hängen seit dem 26.08.2026 nicht mehr am Typ,
+        // sondern an seinem Satz - der Posten braucht sie aber weiterhin MIT der Partie, denn er
+        // spielt die Töne des Laufs, den er gerade führt, und ohne sie schwiege sein Countdown.
+        val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
         // Der Zuschnitt auf die Profil-Art steckt in der Abfrage - siehe die Begründung an
         // TimingProfileRepo.getAssignments.
         val assignments = !TimingProfileRepo.getAssignments(eventId, TimingProfileKind.MODE).orDie()
 
-        val modeById = modes.associateBy { it.id }
+        // Je Zeitnahmetyp EINMAL aufgelöst, nicht je Partie: Die Auflösung hängt allein am Typ
+        // (sein Satz, sonst der Vorgabesatz) und wäre für jede seiner Partien Zeichen für Zeichen
+        // dieselbe. Je Partie gerechnet parste Jackson die vier jsonb-Felder erneut - bei 200
+        // Partien rund 800 Läufe je Abruf, und genau diesen Abruf pollt jedes Board im Takt.
+        val modeDtoById = modes.associate { mode ->
+            mode.id to mode.toDto(TimingToneResolveLogic.resolve(toneSets, mode.toneSet))
+        }
         val assignmentRows = assignments.map {
             TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile)
         }
@@ -175,7 +186,7 @@ object TimingMatchService {
                 // übrige Läufe im Wellenstart fahren.
                 timingMode = TimingProfileResolveLogic
                     .resolve(assignmentRows, match.competitionId, match.roundId, match.setupMatchId)
-                    ?.let { modeById[it]?.toDto() },
+                    ?.let { modeId -> modeDtoById[modeId] },
                 teams = teams,
             )
         }

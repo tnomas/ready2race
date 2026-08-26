@@ -436,7 +436,8 @@ describe('tonePlanForSequence', () => {
                 startGrouping: 'EINZEL',
                 intervalSeconds: 30,
                 leadInSeconds: 10,
-                tonePlan,
+                // Der Plan steht seit dem 26.08.2026 im aufgelösten Ton-Satz des Typs.
+                resolvedToneSet: {sequenceTonePlan: tonePlan},
             },
             teams: teamIds.map(team),
         }) as unknown as TimingMatchDto

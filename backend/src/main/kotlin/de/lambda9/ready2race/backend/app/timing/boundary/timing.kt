@@ -12,6 +12,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.PushOfficialTimesRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingDeviceTokenRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationArmedRequest
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneSetRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
@@ -155,6 +156,53 @@ fun Route.timing() {
                         val eventId = !pathParam("eventId", uuid)
                         val modeId = !pathParam("modeId", uuid)
                         TimingModeService.deleteMode(modeId, eventId)
+                    }
+                }
+            }
+        }
+
+        // Ton-Sätze: die benannten Klang-Vorlagen der Veranstaltung, aus denen die Zeitnahmetypen
+        // wählen. Rechte wie bei den Typen und den Posten - gepflegt mit UPDATE EVENT, gelesen mit
+        // denselben Sitzungsrechten wie die übrige Leitstand-Konfiguration. Kein
+        // Geräte-Token-Zweig: Die Boards bekommen die Töne aufgelöst über die Startliste und die
+        // Einstellungen, nicht über die Rohkonfiguration.
+        route("/tone-sets") {
+
+            post {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val body = !receiveKIO(TimingToneSetRequest.example)
+                    TimingToneSetService.addToneSet(body, user.id!!, eventId)
+                }
+            }
+
+            get {
+                call.respondComprehension {
+                    !authenticateAny(Privilege.UpdateAppTimingGlobal, Privilege.UpdateEventGlobal, Privilege.ReadEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    TimingToneSetService.getToneSets(eventId)
+                }
+            }
+
+            route("/{toneSetId}") {
+
+                put {
+                    call.respondComprehension {
+                        val user = !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val toneSetId = !pathParam("toneSetId", uuid)
+                        val body = !receiveKIO(TimingToneSetRequest.example)
+                        TimingToneSetService.updateToneSet(body, user.id!!, toneSetId, eventId)
+                    }
+                }
+
+                delete {
+                    call.respondComprehension {
+                        !authenticate(Privilege.UpdateEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val toneSetId = !pathParam("toneSetId", uuid)
+                        TimingToneSetService.deleteToneSet(toneSetId, eventId)
                     }
                 }
             }

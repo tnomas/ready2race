@@ -6,6 +6,9 @@ import de.lambda9.ready2race.backend.app.competitionExecution.control.Competitio
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.control.*
 import de.lambda9.ready2race.backend.app.timing.entity.*
+import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileResolveLogic
+import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
+import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
@@ -56,6 +59,9 @@ object TimingSequenceService {
                 KIO.ok(Unit)
             }
         }
+
+        // Erst wenn die Teams zur Veranstaltung gehören, lässt sich ihr Zeitnahmetyp herleiten.
+        !ensureStartSequenceAllowed(request.teams, eventId)
 
         val now = LocalDateTime.now()
         val sequenceId = UUID.randomUUID()
@@ -113,6 +119,87 @@ object TimingSequenceService {
 
         broadcastAsync(eventId, sequenceDto(record, entries))
         KIO.ok(ApiResponse.Created(sequenceId))
+    }
+
+    /**
+     * Startet die App diesen Lauf überhaupt? Der Zeitnahmetyp darf das abschalten
+     * ([TimingModeDto.startSequenceEnabled]) - ein Lauf mit Startrichter am Steg hat kein
+     * Countdown-Fenster.
+     *
+     * Die Prüfung sitzt HIER und nicht nur im Start-Board: Das Board sperrt seinen Knopf, aber es
+     * ist ein Geräte-Token-Klient und läuft womöglich mit einer Startliste weiter, die den gerade
+     * umgestellten Typ noch nicht kennt. Eine Bedienhilfe ist keine Zusicherung. Der zweite
+     * Schalter desselben Typs - der Fehlstart-Rückruf - wird seit jeher serverseitig durchgesetzt
+     * ([TimingService.falseStart]); ein Schalter, den nur die Bedienoberfläche einhält, wäre keine
+     * Einstellung, sondern ein Vorschlag.
+     *
+     * **Am Rand fallen die beiden Schalter bewusst VERSCHIEDEN aus, und das ist kein Versehen:**
+     * Ist gar kein Typ herleitbar, lehnt der Fehlstart-Rückruf ab (`mode == null` scheitert dort),
+     * die Startsequenz-Sperre lässt durch (siehe unten). Der Unterschied liegt in dem, was der
+     * jeweilige Griff anrichtet. Der Rückruf LÖSCHT Startzeiten eines Laufs - eine Wirkung, die
+     * niemand zurücknimmt, und ohne herleitbaren Typ weiß der Server nicht einmal, welchen Lauf er
+     * vor sich hat; im Zweifel also nicht. Die Startsequenz erzeugt nur ein Countdown-Fenster; sie
+     * im Zweifel zu verweigern hielte am Renntag Läufe an, die niemand gesperrt hat.
+     *
+     * Der Weg zum Typ ist derselbe wie beim Rückruf, nur um einen Schritt länger: Der Request
+     * trägt keine Partie, also führt das erste Team über [COMPETITION_MATCH_TEAM.COMPETITION_MATCH]
+     * auf die Setup-Partie. Ein Team genügt - eine Sequenz startet die Boote EINES Laufs, und die
+     * Kette ist über die Startliste ohnehin nicht mischbar. Danach die Zeile des
+     * Zeitnahmeprofil-Baums auflösen und die Flagge über die DTO-Umwandlung lesen, damit die
+     * Rückfallregel der nullbar getippten Spalte an genau einer Stelle steht (die Töne bleiben
+     * dabei ungefragt: hier steht nur die eine Frage).
+     *
+     * **Ist gar kein Typ herleitbar, wird durchgelassen** - kein Team im Request, die Partie nicht
+     * in der Startliste (nicht INTERN gezeitet, Freilos, noch nicht materialisiert) oder schlicht
+     * kein Typ im Baum. Das ist eine Entscheidung, keine Lücke: Der Vorgabewert der Spalte ist
+     * „Startsequenz an", eine Veranstaltung ohne Zeitnahmeprofil hat also nie etwas verboten. Eine
+     * Sperre, die im Zweifel sperrt, hielte am Renntag Läufe an, die niemand gesperrt hat - und
+     * ein Startposten, dessen Knopf ohne Erklärung nicht mehr geht, hat keinen zweiten Weg. Die
+     * Zusicherung bleibt trotzdem tragfähig, weil sie genau das zusichert, was jemand eingestellt
+     * hat: Ein Typ, der Nein sagt, kommt nicht durch.
+     */
+    private fun ensureStartSequenceAllowed(
+        teams: List<UUID>,
+        eventId: UUID,
+    ): App<ServiceError, Unit> = KIO.comprehension {
+        val teamId = teams.firstOrNull()
+        val setupMatchId = if (teamId == null) {
+            null
+        } else {
+            (!CompetitionMatchTeamRepo.getById(teamId).orDie())?.competitionMatch
+        }
+
+        // Über die Startliste statt über eine eigene Abfrage - derselbe Zuschnitt, den die Posten
+        // sehen, und dieselbe Quelle für Wettkampf und Runde, die die Auflösung braucht.
+        val match = if (setupMatchId == null) {
+            null
+        } else {
+            (!TimingMatchRepo.getMatchesByEvent(eventId).orDie())
+                .firstOrNull { it.setupMatchId == setupMatchId }
+        }
+
+        val mode = if (match == null) {
+            null
+        } else {
+            val assignments = !TimingProfileRepo.getAssignments(eventId, TimingProfileKind.MODE).orDie()
+            val modeId = TimingProfileResolveLogic.resolve(
+                assignments.map {
+                    TimingProfileResolveLogic.Assignment(it.competition, it.round, it.match, it.profile)
+                },
+                match.competitionId,
+                match.roundId,
+                match.setupMatchId,
+            )
+            modeId?.let { !TimingModeRepo.get(it).orDie() }
+        }
+
+        !KIO.failOn(
+            mode != null &&
+                !mode.toDto(TimingToneResolveLogic.resolve(emptyList(), null)).startSequenceEnabled
+        ) {
+            TimingError.StartSequenceDisabled
+        }
+        KIO.ok(Unit)
     }
 
     /**

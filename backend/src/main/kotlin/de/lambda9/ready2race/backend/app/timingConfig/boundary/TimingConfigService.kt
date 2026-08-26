@@ -5,10 +5,8 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
-import de.lambda9.ready2race.backend.app.timing.control.toCaptureTone
 import de.lambda9.ready2race.backend.app.timing.control.toJsonb
 import de.lambda9.ready2race.backend.app.timing.control.toStartDisplaySettings
-import de.lambda9.ready2race.backend.app.timing.control.toToneSequence
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigDto
 import de.lambda9.ready2race.backend.app.timingConfig.entity.EventTimingConfigRequest
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
@@ -46,11 +44,6 @@ object TimingConfigService {
                     watchAfterMinutes = event.raceclockerWatchAfterMinutes!!,
                     timingPrecision = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
                         ?: TimingPrecision.ZEHNTEL,
-                    // Unaufgelöst (null = Standard): das Formular braucht den Unterschied für
-                    // "Standard wiederherstellen" - aufgelöst liefert erst GET /timing/settings.
-                    finishTone = event.timingFinishTone.toCaptureTone(),
-                    splitTone = event.timingSplitTone.toCaptureTone(),
-                    falseStartTone = event.timingFalseStartTone.toToneSequence(),
                     // NOT NULL mit Vorgabe (V202608242000), jOOQ typisiert dennoch nullable -
                     // dasselbe Muster wie bei den Abruf-Takten weiter oben.
                     showManualCapture = event.timingShowManualCapture!!,
@@ -69,18 +62,13 @@ object TimingConfigService {
         val event = !EventRepo.get(eventId).orDie()
             .onNullFail { EventError.NotFound }
 
-        // VOR dem Schreiben festhalten, ob sich Genauigkeit oder Erfassungstöne ändern - danach
-        // ist der alte Stand weg. Fehlender Wert = Datenbank-Vorgabe, dieselbe Rückfalllinie wie
-        // beim Lesen.
+        // VOR dem Schreiben festhalten, ob sich die Genauigkeit ändert - danach ist der alte Stand
+        // weg. Fehlender Wert = Datenbank-Vorgabe, dieselbe Rückfalllinie wie beim Lesen.
         val precisionBefore = event.timingPrecision?.let { TimingPrecision.valueOf(it) }
             ?: TimingPrecision.ZEHNTEL
-        val tonesChanged = event.timingFinishTone.toCaptureTone() != request.finishTone ||
-            event.timingSplitTone.toCaptureTone() != request.splitTone ||
-            event.timingFalseStartTone.toToneSequence() != request.falseStartTone
-        // Die beiden Anzeige-Entscheidungen (Stempel am START-Board, Startbildschirm) gehen
-        // denselben Weg wie die Töne: gerechnet wird nichts, aber jedes verbundene Board muss den
-        // neuen Stand sofort sehen - ein Bildschirm am Steg soll einer Umstellung folgen, ohne
-        // dass jemand hinläuft und neu lädt.
+        // Die beiden Anzeige-Entscheidungen (Stempel am START-Board, Startbildschirm): gerechnet
+        // wird nichts, aber jedes verbundene Board muss den neuen Stand sofort sehen - ein
+        // Bildschirm am Steg soll einer Umstellung folgen, ohne dass jemand hinläuft und neu lädt.
         val displayChanged = event.timingShowManualCapture != request.showManualCapture ||
             event.timingStartDisplay.toStartDisplaySettings() != request.startDisplay
 
@@ -94,9 +82,6 @@ object TimingConfigService {
             raceclockerWatchBeforeMinutes = request.watchBeforeMinutes
             raceclockerWatchAfterMinutes = request.watchAfterMinutes
             timingPrecision = request.timingPrecision.name
-            timingFinishTone = request.finishTone?.toJsonb()
-            timingSplitTone = request.splitTone?.toJsonb()
-            timingFalseStartTone = request.falseStartTone?.toJsonb()
             timingShowManualCapture = request.showManualCapture
             timingStartDisplay = request.startDisplay?.toJsonb()
             updatedBy = userId
@@ -107,13 +92,12 @@ object TimingConfigService {
         // - der Fingerabdruck trägt den abgeschnittenen Wert, deshalb erkennt die Übernahme ihre
         // Zeilen wieder und missdeutet sie nicht als fremd. Zusätzlich erfahren alle verbundenen
         // Leitstände und Boards den neuen Stand live (settingsChanged), damit die Anzeige ohne
-        // Neuladen folgt. Geänderte Erfassungstöne und geänderte Anzeige-Einstellungen brauchen
-        // nur den Broadcast - die Boards spielen ab der nächsten Erfassung den neuen Ton bzw.
+        // Neuladen folgt. Geänderte Anzeige-Einstellungen brauchen nur den Broadcast - die Boards
         // zeichnen den Startbildschirm neu, gerechnet wird dafür nichts.
         if (request.timingPrecision != precisionBefore) {
             !TimingOfficialTimeService.recomputeApplyEvent(eventId, userId)
             !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
-        } else if (tonesChanged || displayChanged) {
+        } else if (displayChanged) {
             !TimingOfficialTimeService.broadcastSettingsAsync(eventId)
         }
 

@@ -45,14 +45,25 @@ const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
         },
     )
 
-    /** Die Eckdaten eines Typs in einer Zeile — was der Posten später als Chip sieht. */
+    /**
+     * Die Eckdaten eines Typs in einer Zeile — was der Posten später als Chip sieht. Startet die
+     * App den Lauf gar nicht, entfallen Intervall und Vorlauf: Sie stehen zwar am Typ, wirken aber
+     * nirgends, und eine Zeile, die „Intervall 30 s" für einen Typ ohne Startsequenz behauptet,
+     * verspricht etwas, das nie passiert.
+     */
     const describeMode = (mode: TimingModeDto) =>
         [
             t(`event.timing.modes.startGrouping.${mode.startGrouping}`),
-            mode.intervalSeconds != null
-                ? t('event.timing.modes.describe.interval', {seconds: mode.intervalSeconds})
-                : t('event.timing.modes.describe.manualStart'),
-            t('event.timing.modes.describe.leadIn', {seconds: mode.leadInSeconds}),
+            ...(mode.startSequenceEnabled
+                ? [
+                      mode.intervalSeconds != null
+                          ? t('event.timing.modes.describe.interval', {
+                                seconds: mode.intervalSeconds,
+                            })
+                          : t('event.timing.modes.describe.manualStart'),
+                      t('event.timing.modes.describe.leadIn', {seconds: mode.leadInSeconds}),
+                  ]
+                : [t('event.timing.modes.describe.noStartSequence')]),
         ].join(' · ')
 
     const removeMode = (mode: TimingModeDto) => {
@@ -102,6 +113,7 @@ const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
                         </Box>
                         <IconButton
                             aria-label={t('event.timing.modes.edit')}
+                            className={'cursor-pointer'}
                             onClick={() => {
                                 setEditedMode(mode)
                                 setDialogOpen(true)
@@ -110,6 +122,7 @@ const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
                         </IconButton>
                         <IconButton
                             aria-label={t('common.delete')}
+                            className={'cursor-pointer'}
                             onClick={() => removeMode(mode)}>
                             <Delete fontSize={'small'} />
                         </IconButton>
@@ -119,6 +132,7 @@ const TimingModePanel = ({eventId, onChanged}: TimingModePanelProps) => {
             <Button
                 startIcon={<Add />}
                 sx={{mt: 1}}
+                className={'cursor-pointer'}
                 onClick={() => {
                     setEditedMode(undefined)
                     setDialogOpen(true)

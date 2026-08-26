@@ -3,12 +3,13 @@ package de.lambda9.ready2race.backend.app.timing
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingModeService
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingToneSetService
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStartGrouping
+import de.lambda9.ready2race.backend.app.timing.entity.TimingToneSetRequest
 import de.lambda9.ready2race.backend.app.timing.entity.ToneStep
-import de.lambda9.ready2race.backend.app.timing.entity.ToneWaveform
 import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingSystem
 import de.lambda9.ready2race.backend.app.timingProfile.boundary.TimingProfileService
 import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileAssignmentRequest
@@ -20,6 +21,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Zeitnahmetypen gegen echtes Postgres: CRUD, der (event, name)-Unique-Vorbau und die Löschsperre
@@ -61,7 +63,6 @@ class TimingModeServiceTest {
         startGrouping = grouping,
         intervalSeconds = intervalSeconds,
         leadInSeconds = 10,
-        tonePlan = null,
     )
 
     @Test
@@ -79,39 +80,106 @@ class TimingModeServiceTest {
         assertEquals(TimingStartGrouping.EINZEL, mode.startGrouping)
         assertEquals(30, mode.intervalSeconds)
         assertEquals(10, mode.leadInSeconds)
-        // Kein Plan gespeichert = eingebauter Standard: die Spalte bleibt null und kommt als
-        // null zurück, damit künftige Standard-Änderungen unkonfigurierte Typen erreichen.
-        assertNull(mode.tonePlan)
+        // Ohne eigene Wahl erbt der Typ - und ohne jeden Ton-Satz an der Veranstaltung bleibt
+        // auch da nichts zu erben: null heißt weiterhin "eingebauter Standardplan", damit
+        // künftige Standard-Änderungen unkonfigurierte Typen erreichen.
+        assertNull(mode.toneSet)
+        assertNull(mode.resolvedToneSet.sequenceTonePlan)
+        // Die Vorgaben der neuen Spalten kommen unverändert zurück - ein Typ, der nie angefasst
+        // wurde, startet weiter über die App und trifft die Boote auf 1-6 bzw. A-F.
+        assertTrue(mode.startSequenceEnabled)
+        assertEquals("123456", mode.boatKeysPrimary)
+        assertEquals("ABCDEF", mode.boatKeysSecondary)
     }
 
+    /**
+     * Der Startsequenz-Tonplan steht seit dem 26.08.2026 im Ton-Satz. Am Typ kommt er AUFGELÖST
+     * an: sein eigener Satz, sonst der Vorgabesatz der Veranstaltung. Genau das hält die
+     * Zusicherung „keine Regatta klingt anders" über die Migration hinaus - die Boards lesen
+     * dieses Feld unverändert weiter.
+     */
     @Test
-    fun tonePlanSurvivesTheJsonbRoundtrip() = testComprehension {
+    fun `der Tonplan kommt aus dem Ton-Satz, eigener vor Vorgabe`() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
-        val plan = listOf(
-            ToneStep(offsetMillis = -10_000, frequencyHz = 600, durationMillis = 100),
-            // Gehalten mit 0 ms Ausklingen: die 0 waehlt eine ANDERE Huellkurve als null
-            // (Abfallend) und muss den Roundtrip als echte 0 ueberleben, nicht als null.
-            ToneStep(offsetMillis = -5_000, frequencyHz = 600, durationMillis = 100, releaseMillis = 0),
-            // Mit Ausklingzeit: auch releaseMillis muss den jsonb-Roundtrip unverändert überleben.
-            ToneStep(offsetMillis = 0, frequencyHz = 880, durationMillis = 400, releaseMillis = 800),
-            // Wellenform: gesetzt bleibt gesetzt, nicht gesetzt bleibt null (= Sinus) - auch
-            // kombiniert mit einer Ausklingzeit (die Dimensionen sind unabhaengig).
-            ToneStep(offsetMillis = -2_000, frequencyHz = 440, durationMillis = 300, waveform = ToneWaveform.SQUARE),
-            ToneStep(offsetMillis = -1_000, frequencyHz = 440, durationMillis = 300, releaseMillis = 500, waveform = ToneWaveform.SAWTOOTH),
+        val vorgabePlan = listOf(ToneStep(offsetMillis = 0, frequencyHz = 900, durationMillis = 400))
+        val eigenerPlan = listOf(ToneStep(offsetMillis = -3000, frequencyHz = 600, durationMillis = 100))
+
+        !TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Standard", isDefault = true, sequenceTonePlan = vorgabePlan),
+            userId,
+            eventId,
+        )
+        val eigenerSatz = ((!TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Leise", sequenceTonePlan = eigenerPlan),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+
+        // Ohne eigene Wahl: der Vorgabesatz.
+        val erbend = ((!TimingModeService.addMode(request(name = "Erbt"), userId, eventId)) as ApiResponse.Created).id
+        // Mit eigener Wahl: der gewählte Satz.
+        !TimingModeService.addMode(request(name = "Eigen").copy(toneSet = eigenerSatz), userId, eventId)
+
+        val modes = (!TimingModeService.getModes(eventId)).data.associateBy { it.name }
+        assertEquals(vorgabePlan, modes.getValue("Erbt").resolvedToneSet.sequenceTonePlan)
+        assertEquals(eigenerPlan, modes.getValue("Eigen").resolvedToneSet.sequenceTonePlan)
+
+        // Und der Wechsel wirkt: derselbe Typ, andere Wahl, anderer Plan.
+        !TimingModeService.updateMode(request(name = "Erbt").copy(toneSet = eigenerSatz), userId, erbend, eventId)
+        assertEquals(
+            eigenerPlan,
+            (!TimingModeService.getModes(eventId)).data.single { it.name == "Erbt" }.resolvedToneSet.sequenceTonePlan,
+        )
+    }
+
+    /**
+     * Ein gelöschter Ton-Satz macht seine Typen nicht unbrauchbar: Sie fallen per
+     * `on delete set null` auf die Vorgabe zurück. Wer einen Satz wegwirft, soll nicht gehindert
+     * werden - und der Countdown darf danach nicht schweigen.
+     */
+    @Test
+    fun `ein gelöschter Satz lässt seine Typen auf die Vorgabe zurückfallen`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val vorgabePlan = listOf(ToneStep(offsetMillis = 0, frequencyHz = 900, durationMillis = 400))
+        val eigenerPlan = listOf(ToneStep(offsetMillis = -3000, frequencyHz = 600, durationMillis = 100))
+
+        !TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Standard", isDefault = true, sequenceTonePlan = vorgabePlan),
+            userId,
+            eventId,
+        )
+        val eigenerSatz = ((!TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Leise", sequenceTonePlan = eigenerPlan),
+            userId,
+            eventId,
+        )) as ApiResponse.Created).id
+        !TimingModeService.addMode(request().copy(toneSet = eigenerSatz), userId, eventId)
+        assertEquals(
+            eigenerPlan,
+            (!TimingModeService.getModes(eventId)).data.single().resolvedToneSet.sequenceTonePlan,
         )
 
-        val created = !TimingModeService.addMode(request().copy(tonePlan = plan), userId, eventId)
-        val modeId = (created as ApiResponse.Created).id
-        assertEquals(plan, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
+        !TimingToneSetService.deleteToneSet(eigenerSatz, eventId)
 
-        // Update auf einen anderen Plan und zurück auf null (= Standard) - beides muss die
-        // jsonb-Spalte exakt nachziehen, nicht nur beim Anlegen.
-        val updated = listOf(ToneStep(offsetMillis = 0, frequencyHz = 1200, durationMillis = 200))
-        !TimingModeService.updateMode(request().copy(tonePlan = updated), userId, modeId, eventId)
-        assertEquals(updated, (!TimingModeService.getModes(eventId)).data.single().tonePlan)
+        val mode = (!TimingModeService.getModes(eventId)).data.single()
+        assertNull(mode.toneSet)
+        assertEquals(vorgabePlan, mode.resolvedToneSet.sequenceTonePlan)
+    }
 
-        !TimingModeService.updateMode(request(), userId, modeId, eventId)
-        assertNull((!TimingModeService.getModes(eventId)).data.single().tonePlan)
+    /** Ein Ton-Satz einer FREMDEN Veranstaltung ist keine gültige Wahl. */
+    @Test
+    fun `ein Ton-Satz einer anderen Veranstaltung wird abgelehnt`() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        val fremderSatz = ((!TimingToneSetService.addToneSet(
+            TimingToneSetRequest(name = "Fremd"),
+            otherUserId,
+            otherEventId,
+        )) as ApiResponse.Created).id
+
+        assertKIOFails(TimingError.EventMismatch) {
+            TimingModeService.addMode(request().copy(toneSet = fremderSatz), userId, eventId)
+        }
     }
 
     @Test

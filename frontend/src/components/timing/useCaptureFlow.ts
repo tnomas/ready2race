@@ -2,6 +2,7 @@ import {useCallback} from 'react'
 import {assignTimeMark, createTimeMark} from '@api/sdk.gen.ts'
 import {ApiError, AssignTimeMarkRequest, CaptureToneDto, TimeMarkDto, TimingStationDto} from '@api/types.gen.ts'
 import {RequestResult} from '@hey-api/client-fetch'
+import {boatCaptureTone} from '@utils/timing/boatPitch.ts'
 import {playCaptureFeedback} from '@utils/timing/feedback.ts'
 import {enqueue, PendingTimeMark, remove as removeQueued} from '@utils/timing/offlineQueue.ts'
 
@@ -49,6 +50,21 @@ export type UseCaptureFlowOptions = {
      * Nachsenden Minuten später niemandem eine Erfassung bestätigt.
      */
     captureTone?: CaptureToneDto
+    /**
+     * Unterscheidet der Erfassungston die Boote? Die Flagge des aufgelösten Ton-Satzes
+     * (`tonePerBoat`); ohne sie klingt jede Erfassung gleich, wie vor dem 26.08.2026.
+     *
+     * Sie greift nur zusammen mit [boatPosition] und einem zugeordneten Boot: Der große
+     * Erfassungsknopf bankt OHNE Zuordnung und behält deshalb den Grundton — siehe
+     * [boatCaptureTone].
+     */
+    tonePerBoat?: boolean
+    /**
+     * Die Stelle eines Bootes nach Startnummer, 1-basiert — der Aufrufer holt sie über
+     * `boatPosition` aus den Partien des Postens, damit es bei der EINEN Zählung bleibt, die auch
+     * die Tasten und die Hinweise an den Booten benutzen.
+     */
+    boatPosition?: (competitionMatchTeam: string) => number | undefined
     now: () => number | null
     applyLocalMark: (mark: TimeMarkDto) => void
     markSaved: (id: string) => void
@@ -106,6 +122,8 @@ export function useCaptureFlow({
     eventId,
     station,
     captureTone,
+    tonePerBoat,
+    boatPosition,
     now,
     applyLocalMark,
     markSaved,
@@ -134,7 +152,19 @@ export function useCaptureFlow({
             }
 
             applyLocalMark(mark)
-            playCaptureFeedback(captureTone)
+            // Der Ton der Geste: mit Boot und eingeschalteter Leiter auf dessen Stufe, sonst der
+            // Grundton. Dass der UNZUGEORDNETE Griff beim Grundton bleibt, ist kein Rest, sondern
+            // die Nebeninformation der Leiter: Der Grundton heißt am Ziel „gebankt, noch ohne
+            // Boot" und ist damit vom Direkttipp aufs Boot hörbar unterscheidbar.
+            playCaptureFeedback(
+                boatCaptureTone(
+                    captureTone,
+                    tonePerBoat === true,
+                    competitionMatchTeam === undefined
+                        ? undefined
+                        : boatPosition?.(competitionMatchTeam),
+                ),
+            )
 
             void (async () => {
                 const item: PendingTimeMark = {
@@ -207,6 +237,8 @@ export function useCaptureFlow({
             now,
             station,
             captureTone,
+            tonePerBoat,
+            boatPosition,
             eventId,
             applyLocalMark,
             markSaved,

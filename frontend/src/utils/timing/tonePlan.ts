@@ -459,24 +459,34 @@ export function advanceTonePlan(
 // --- Plan-Auflösung je Sequenz -------------------------------------------------------------------
 
 /**
- * Der wirksame Tonplan einer laufenden Sequenz: Über die Boote der Sequenz wird die Partie der
- * Startliste gefunden (jedes Boot steht in genau einer Partie), und deren aufgelöster
- * Zeitnahmetyp (Runde schlägt Wettkampf — bereits serverseitig aufgelöst) trägt den Plan.
- * Ohne Treffer oder ohne konfigurierten Plan gilt der eingebaute Standard — so klingt ein
- * unkonfigurierter Typ exakt wie bisher.
+ * Die Partie, die eine laufende Sequenz startet — über ihre Boote gefunden, denn jedes Boot steht
+ * in genau einer Partie. Das ist der Griff, mit dem ein Board von „was läuft gerade" auf „welcher
+ * Zeitnahmetyp, und damit welche Töne" kommt; ohne Sequenz oder ohne Treffer in der Startliste
+ * gibt es keine geführte Partie.
+ */
+export function matchOfSequence(
+    matches: readonly TimingMatchDto[],
+    sequence: TimingSequenceDto | undefined,
+): TimingMatchDto | undefined {
+    if (sequence === undefined) return undefined
+    const teamIds = new Set(sequence.entries.map(entry => entry.competitionMatchTeam))
+    return matches.find(candidate =>
+        candidate.teams.some(team => teamIds.has(team.competitionMatchTeam)),
+    )
+}
+
+/**
+ * Der wirksame Tonplan einer laufenden Sequenz: Über [matchOfSequence] wird die Partie gefunden,
+ * und deren aufgelöster Zeitnahmetyp (Runde schlägt Wettkampf — bereits serverseitig aufgelöst)
+ * trägt den Plan seines Ton-Satzes. Ohne Treffer oder ohne konfigurierten Plan gilt der eingebaute
+ * Standard — so klingt ein unkonfigurierter Typ exakt wie bisher.
  */
 export function tonePlanForSequence(
     matches: readonly TimingMatchDto[],
     sequence: TimingSequenceDto | undefined,
 ): ToneStep[] {
-    if (sequence !== undefined) {
-        const teamIds = new Set(sequence.entries.map(entry => entry.competitionMatchTeam))
-        const match = matches.find(candidate =>
-            candidate.teams.some(team => teamIds.has(team.competitionMatchTeam)),
-        )
-        const plan = match?.timingMode?.tonePlan
-        if (plan != null && plan.length > 0) return sortedTonePlan(plan)
-    }
+    const plan = matchOfSequence(matches, sequence)?.timingMode?.resolvedToneSet.sequenceTonePlan
+    if (plan != null && plan.length > 0) return sortedTonePlan(plan)
     return [...DEFAULT_START_TONE_PLAN]
 }
 

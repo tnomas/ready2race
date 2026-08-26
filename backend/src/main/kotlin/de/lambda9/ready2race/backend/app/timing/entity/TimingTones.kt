@@ -26,15 +26,15 @@ enum class ToneWaveform {
  * Struktur trägt beide Tonfolgen des Systems - der Unterschied liegt allein in der RICHTUNG des
  * [offsetMillis], und die entscheidet das FELD, das die Folge trägt, nicht der Typ:
  *
- * - **Startplan** (`timing_mode.tone_plan`): der Bezugspunkt ist der Start des jeweiligen
- *   Boots/der Welle, gezählt wird RÜCKWÄRTS - [offsetMillis] negativ = vor dem Start, 0 = der
- *   Start selbst; positive Werte sind hier nicht erlaubt (nach dem Start wandert das
- *   Countdown-Ziel sofort zum nächsten Boot, ein Ton "nach dem Start" wäre je Boot mehrdeutig).
- *   Geprüft von [TimingToneLimits.validateTonePlan] (-600000..0).
- * - **Fehlstart-Folge** (`event.timing_false_start_tone`): der Bezugspunkt ist die AUSLÖSUNG
- *   (Versuchs-Rücknahme oder Sequenz-Abbruch), gezählt wird VORWÄRTS - [offsetMillis] 0 = sofort,
- *   positive Werte = so viele ms später. Geprüft von [TimingToneLimits.validateToneSequence]
- *   (0..+60000).
+ * - **Startplan** (`timing_tone_set.sequence_tone_plan`; bis zum 26.08.2026 `timing_mode.tone_plan`):
+ *   der Bezugspunkt ist der Start des jeweiligen Boots/der Welle, gezählt wird RÜCKWÄRTS -
+ *   [offsetMillis] negativ = vor dem Start, 0 = der Start selbst; positive Werte sind hier nicht
+ *   erlaubt (nach dem Start wandert das Countdown-Ziel sofort zum nächsten Boot, ein Ton "nach dem
+ *   Start" wäre je Boot mehrdeutig). Geprüft von [TimingToneLimits.validateTonePlan] (-600000..0).
+ * - **Fehlstart-Folge** (`timing_tone_set.false_start_tone`, bis zum Umbau des Lesewegs weiterhin
+ *   auch `event.timing_false_start_tone`): der Bezugspunkt ist die AUSLÖSUNG (Versuchs-Rücknahme
+ *   oder Sequenz-Abbruch), gezählt wird VORWÄRTS - [offsetMillis] 0 = sofort, positive Werte = so
+ *   viele ms später. Geprüft von [TimingToneLimits.validateToneSequence] (0..+60000).
  *
  * Warum EIN Typ und nicht zwei: die fünf Felder, ihre Grenzen, der jsonb-Mapper, der
  * Editor-Baustein und die Wiedergabe im Board sind für beide Folgen dasselbe - ein zweiter Typ

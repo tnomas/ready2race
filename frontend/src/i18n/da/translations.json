@@ -1681,10 +1681,6 @@
         "summaryHeld": "fastholdt · {{millis}} ms efterklang"
       },
       "captureTones": {
-        "title": "Registreringstoner",
-        "hint": "Bekræftelsestonen, som mål- og mellemtidsposter afspiller, når en tid registreres — kan indstilles pr. posttype. Den lyder kun ved selve tastetrykket; genafsendelse fra offline-køen forbliver stum.",
-        "finish": "Målpost",
-        "split": "Mellemtidspost",
         "frequencyHz": "Tonehøjde (Hz)",
         "durationMillis": "Varighed (ms)",
         "releaseMillis": "Efterklang (ms)",
@@ -1694,13 +1690,48 @@
         "invalid": "Tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "Tyvstart-tilbagekaldelse",
-        "hint": "Den tonefølge, som start-boardet og startskærmen afspiller, når en start trækkes tilbage, eller en igangværende startsekvens afbrydes — kun for det løb, boardet viser lige nu. En følge frem for én enkelt tone, fordi et mønster med en afvigende sidste tone (\"kort, kort, lang\") kan genkendes som en tilbagekaldelse på vandet, hvor en enkelt tone bare lyder som et signal.",
         "label": "Tyvstart",
         "presetSingle": "Enkelt tone",
         "presetTriple": "Tre korte",
         "presetShortShortLong": "Kort-kort-lang (standard)",
         "invalid": "Kontrollér de markerede toner: tidspunkt 0–60000 ms efter udløsning, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, mindst én og højst 30 toner."
+      },
+      "toneSets": {
+        "title": "Tonesæt",
+        "hint": "Navngivne lydskabeloner for stævnet — for eksempel \"Højt til vandet\" og \"Stille til hallen\". Ét sæt bærer alle fire toner; en tidtagningstype vælger et sæt eller arver standardsættet. Vil du ændre tonerne for alle typer, ændrer du derfor ét sæt i stedet for hver enkelt type.",
+        "none": "Endnu ingen tonesæt oprettet. Uden sæt afspiller alle poster de indbyggede toner — én tone for alle både.",
+        "add": "Opret tonesæt",
+        "edit": "Rediger tonesæt",
+        "name": "Navn",
+        "nameHelp": "Et navn, der beskriver lyden — \"Højt til vandet\", \"Stille til hallen\".",
+        "isDefault": "Stævnets standardsæt",
+        "isDefaultHelp": "Tidtagningstyper uden eget valg arver standardsættet. Bliver dette sæt standard, afgiver det hidtidige standardsæt markeringen.",
+        "isDefaultFirstHelp": "Det første tonesæt i et stævne bliver altid standard — ellers ville ingen arve det.",
+        "isDefaultLockedHelp": "Standarden gives videre, den fravælges ikke: markér et andet sæt som standard på listen, så afgiver dette sæt markeringen.",
+        "defaultChip": "Standard",
+        "makeDefault": "Brug som standard",
+        "defaultSet": "\"{{name}}\" er nu standardsættet.",
+        "deleteConfirm": "Skal tonesættet \"{{name}}\" virkelig slettes? Tidtagningstyper, der peger på det, falder tilbage til standardsættet.",
+        "deleteDefaultBlocked": "Standardsættet kan kun slettes som det sidste tonesæt — gør først et andet sæt til standard.",
+        "deleteBlocked": "\"{{name}}\" blev ikke slettet: Det er standardsættet, og der findes stadig andre sæt.",
+        "deleted": "Tonesæt slettet.",
+        "saved": "Tonesæt gemt.",
+        "nameTaken": "Der findes allerede et tonesæt med dette navn.",
+        "tonePerBoat": "Toneskala pr. båd",
+        "tonePerBoatHelp": "Til: Måltonen lyder forskelligt højt alt efter den ramte position — position 1 på den indstillede måltone, de øvrige fem trinvist derover op til oktaven. Seks tonehøjder kan ikke genkendes absolut; ingen hører \"det var båd 4\". Hørbart er, at man har ramt en anden båd end lige før — det fanger dobbelttrykket — og groft hvor i feltet den ligger.",
+        "tonePerBoatAudition": "Hør de seks trin",
+        "tones": {
+          "sequence": "Startsekvens",
+          "split": "Mellemtone",
+          "falseStart": "Tyvstart",
+          "finish": "Måltone"
+        },
+        "describe": {
+          "allDefault": "Alle toner som standard",
+          "own": "Egne: {{tones}}",
+          "tonePerBoatOn": "Toneskala pr. båd",
+          "tonePerBoatOff": "Én tone for alle både"
+        }
       },
       "modes": {
         "title": "Tidtagningstyper",
@@ -1712,7 +1743,8 @@
         "startGrouping": {
           "label": "Starttype",
           "EINZEL": "Enkeltstart",
-          "WELLE": "Bølge"
+          "WELLE": "Bølge",
+          "help": "Enkeltstart sender hver båd afsted for sig — en enkeltstart mod uret, hvor hver båd får sit eget starttidspunkt. Bølgestart sender flere både afsted sammen; alle både i en bølge deler ét starttidspunkt. Der findes ingen selvstændig massestart: den er en bølge, hvor alle løbets både står."
         },
         "intervalSeconds": "Startinterval (sekunder)",
         "intervalHelp": "Lad feltet stå tomt, hvis hver start udløses manuelt. Med en værdi følger starterne automatisk med dette interval (enkeltstart mod uret).",
@@ -1723,7 +1755,8 @@
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manuel start",
-          "leadIn": "nedtælling {{seconds}} s"
+          "leadIn": "nedtælling {{seconds}} s",
+          "noStartSequence": "startes ikke af appen"
         },
         "saved": "Tidtagningstype gemt",
         "deleted": "Tidtagningstype slettet",
@@ -1739,7 +1772,21 @@
           "invalid": "Kontrollér de markerede toner: tidspunkt 0–600 sekunder før start, tonehøjde 100–4000 Hz, varighed 20–10000 ms, efterklang 0–5000 ms, højst 30 toner."
         },
         "falseStartEnabled": "Tillad tilbagekaldelse ved tyvstart",
-        "falseStartEnabledHelp": "Til: Startposten kan kalde løb af denne type tilbage — startsekvensen afbrydes, forsøget trækkes tilbage, og atletdisplayene blinker rødt. Fra ved enkeltstart (timetrial): dér straffes en tyvstart med strafftid i stedet for en tilbagekaldelse af feltet."
+        "falseStartEnabledHelp": "Kontakten afgør kun, om der overhovedet vises en tyvstart-knap på startposten. Til: Posten kan kalde løb af denne type tilbage — startsekvensen afbrydes, forsøget trækkes tilbage, og atletdisplayene blinker rødt. Fra: Knappen mangler, for eksempel ved enkeltstart mod uret, hvor ingen kalder feltet tilbage. Bedømmelsen af en tyvstart berøres ikke af den: Om den udløser straftid eller diskvalifikation følger af reglementet og indtastes manuelt på løbet. Denne kontakt griber ikke ind i bedømmelsen.",
+        "startSequenceEnabled": "Startsekvens via appen",
+        "startSequenceEnabledHelp": "Til: Start-boardet danner en startsekvens med nedtælling og toner for løb af denne type. Fra: Ikke alle løb startes af appen — sendes et løb manuelt afsted fra broen, findes der intet nedtællingsvindue, og et board, der alligevel tilbyder et, inviterer til det forkerte greb. Startinterval og nedtælling før start virker så ikke.",
+        "toneSet": "Tonesæt",
+        "toneSetInherit": "Arver ({{name}})",
+        "toneSetInheritNone": "Arver stævnets standardsæt",
+        "toneSetLoading": "Indlæses …",
+        "toneSetHelp": "Hvilke fire toner løb af denne type laver: startsekvens, mellemtone, tyvstart-sekvens og måltone. Uden et eget valg gælder stævnets standardsæt — en ændring i sættet når så alle typer, der arver det. Selve sættene plejes længere oppe på denne side.",
+        "boatKeys": {
+          "title": "Tastebelægning på målposten",
+          "primary": "Første række",
+          "secondary": "Anden række (valgfri)",
+          "help": "Tasterne, som målposten rammer bådene med — i positionsrækkefølge: det første tegn hører til båden med det laveste startnummer. To rækker, fordi man griber det, der er tættest på tastaturet; den anden må gerne stå tom. Store og små bogstaver er den samme tast, hver tast hører til præcis én båd, og mellemrumstasten holdes fri — den er den store registreringsknap. Højst seks tegn pr. række.",
+          "invalid": "Kontrollér venligst: Første række må ikke være tom, højst seks tegn pr. række, ingen mellemrum, og ingen tast to gange — heller ikke mellem de to rækker (store og små bogstaver tæller som samme tast)."
+        }
       },
       "races": {
         "title": "RaceClocker-løb",
@@ -1806,6 +1853,9 @@
       "startDisplay": {
         "title": "Startskærm",
         "hint": "Atletskærmen ved starten: hvad der vises for hver båd, og hvor stort. En 27\" skærm på broen kræver andre skriftstørrelser end en tablet i båden, og ét stævne råber startnumre op, mens det næste råber bådnavne op. Ændringer når hver tilsluttet skærm med det samme — uden genindlæsning.",
+        "moved": "Hvad startskærmen viser, indstilles på skærmen selv: tandhjulet nederst til højre åbner de samme kontakter og størrelser. Den, der ændrer dem der, ser virkningen bag dialogen med det samme. De gemmes fortsat her på arrangementet og gælder for hver tilsluttet skærm.",
+        "open": "Visningsindstillinger",
+        "saved": "Visningsindstillinger gemt",
         "showPosition": "Løbenummer foran båden",
         "showStartNumber": "Startnummer",
         "showTeamName": "Bådnavn",
@@ -3184,7 +3234,7 @@
     "finish": {
       "assignPrompt": "Tiden {{time}} venter — tryk på en båd for at tildele den.",
       "assignLater": "Tildel senere",
-      "hint": "Tryk på en båd eller tast 1–6 / A–F: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
+      "hint": "Tryk på en båd eller tast {{keys}}: tag tid og tildel i én bevægelse. Stor knap eller mellemrumstast: gem en tid uden båd og tildel den med næste tryk.",
       "hintTouch": "Tryk på en båd: tag tid og tildel i én bevægelse. Stor flade: gem en tid uden båd og tildel den ved bagefter at trykke på en båd.",
       "finishedCount": "{{finished}}/{{total}} i mål",
       "upcomingTitle": "Forventes som næste",
@@ -3201,6 +3251,8 @@
       "boats_other": "{{count}} både",
       "noMode": "ingen tidtagningstype",
       "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
+      "noStartSequenceHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Starttidspunktet kommer fra det manuelle stempel, ikke fra en sekvens.",
+      "noStartSequenceNoCaptureHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Den manuelle registreringsknap er skjult — dette board kan slet ikke registrere et starttidspunkt lige nu. Slå den til i stævnets tidtagningsindstillinger under „Manuel registrering ved startposten“; boardet følger med det samme.",
       "noTeamsLeft": "Alle både i dette løb er allerede startet.",
       "allStarted": "Alle løb er startet — intet står åbent.",
       "start": "Start startsekvens",

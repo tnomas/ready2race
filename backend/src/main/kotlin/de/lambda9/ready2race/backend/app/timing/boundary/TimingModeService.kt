@@ -3,8 +3,8 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.timing.control.TimingModeRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingToneSetRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
-import de.lambda9.ready2race.backend.app.timing.control.toJsonb
 import de.lambda9.ready2race.backend.app.timing.control.toRecord
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingModeDto
@@ -42,6 +42,7 @@ object TimingModeService {
     ): App<TimingError, ApiResponse.Created> = KIO.comprehension {
         val nameTaken = !TimingModeRepo.existsByEventAndName(eventId, request.name).orDie()
         !KIO.failOn(nameTaken) { TimingError.ModeNameTaken }
+        !validateToneSet(request.toneSet, eventId)
 
         val id = !TimingModeRepo.create(request.toRecord(userId, eventId)).orDie()
         KIO.ok(ApiResponse.Created(id))
@@ -51,7 +52,16 @@ object TimingModeService {
         eventId: UUID,
     ): App<ServiceError, ApiResponse.ListDto<TimingModeDto>> = KIO.comprehension {
         val records = !TimingModeRepo.getByEvent(eventId).orDie()
-        KIO.ok(ApiResponse.ListDto(records.sortedBy { it.name }.map { it.toDto() }))
+        // Die vier Töne stehen seit dem 26.08.2026 im Ton-Satz; die Sätze der Veranstaltung
+        // kommen deshalb in EINER Abfrage mit und werden hier aufgelöst.
+        val toneSets = !TimingToneSetRepo.getByEvent(eventId).orDie()
+        KIO.ok(
+            ApiResponse.ListDto(
+                records.sortedBy { it.name }.map {
+                    it.toDto(TimingToneResolveLogic.resolve(toneSets, it.toneSet))
+                }
+            )
+        )
     }
 
     fun updateMode(
@@ -65,13 +75,17 @@ object TimingModeService {
 
         val nameTaken = !TimingModeRepo.existsByEventAndName(eventId, request.name, excludingId = modeId).orDie()
         !KIO.failOn(nameTaken) { TimingError.ModeNameTaken }
+        !validateToneSet(request.toneSet, eventId)
 
         !TimingModeRepo.update(modeId) {
             name = request.name
             startGrouping = request.startGrouping.name
             intervalSeconds = request.intervalSeconds
             leadInSeconds = request.leadInSeconds
-            tonePlan = request.tonePlan?.toJsonb()
+            toneSet = request.toneSet
+            startSequenceEnabled = request.startSequenceEnabled
+            boatKeysPrimary = request.boatKeysPrimary
+            boatKeysSecondary = request.boatKeysSecondary
             falseStartEnabled = request.falseStartEnabled
             updatedAt = LocalDateTime.now()
             updatedBy = userId
@@ -99,4 +113,20 @@ object TimingModeService {
         !TimingModeRepo.delete(modeId).orDie()
         noData
     }
+
+    /**
+     * Ein gewählter Ton-Satz muss es geben und er muss DIESER Veranstaltung gehören - sonst
+     * hörte ein Typ die Töne einer fremden Regatta. Der Fremdschlüssel allein prüft nur die
+     * Existenz, nicht die Zugehörigkeit.
+     */
+    private fun validateToneSet(toneSet: UUID?, eventId: UUID): App<TimingError, Unit> =
+        if (toneSet == null) {
+            KIO.unit
+        } else {
+            KIO.comprehension {
+                val record = !TimingToneSetRepo.get(toneSet).orDie().onNullFail { TimingError.ToneSetNotFound }
+                !KIO.failOn(record.event != eventId) { TimingError.EventMismatch }
+                KIO.unit
+            }
+        }
 }

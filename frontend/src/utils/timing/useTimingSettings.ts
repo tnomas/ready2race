@@ -26,8 +26,8 @@ export type UseTimingSettingsResult = {
 
 /**
  * Die Server-Vorgaben einer frischen Veranstaltung — siehe Migrationen V202608211440/V202608211450,
- * (Erfassungstöne, V202608211470) den eingebauten Standardton aus `tonePlan.ts` und
- * (Anzeige, V202608242000) den Standard-Anzeigeblock aus `startDisplay.ts`.
+ * (Töne) den eingebauten Standardton aus `tonePlan.ts` und (Anzeige, V202608242000) den
+ * Standard-Anzeigeblock aus `startDisplay.ts`.
  *
  * Die Anzeige-Felder gehören von Anfang an dazu: Der Startbildschirm zeichnet mit diesem Stand,
  * bevor der erste Fetch zurück ist. Fehlten sie hier, liefe er für einen Wimpernschlag gegen
@@ -37,13 +37,25 @@ export type UseTimingSettingsResult = {
 const DEFAULT_SETTINGS: TimingSettingsDto = {
     autoApply: true,
     precision: 'ZEHNTEL',
-    finishTone: DEFAULT_CAPTURE_TONE,
-    splitTone: DEFAULT_CAPTURE_TONE,
-    falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
     // Der manuelle Stempel am START-Posten ist standardmäßig verborgen: er stünde sonst als
     // zweite grüne „Start"-Fläche direkt unter dem Sequenz-Knopf.
     showManualCapture: false,
     startDisplay: {...DEFAULT_START_DISPLAY},
+    // Der Rückfall der Töne für alles, was zu keiner Partie gehört — allen voran der große
+    // Erfassungsknopf, der eine Zeit OHNE Zuordnung bankt. Er muss auch in diesem Wimpernschlag
+    // vor dem ersten Fetch klingen, deshalb stehen hier die eingebauten Standardtöne und nicht
+    // etwa nichts: Ein stummer Knopf liest sich am Wasser als Fehler.
+    defaultToneSet: {
+        // null heißt „eingebauter Countdown" — den kennen nur die Boards (DEFAULT_START_TONE_PLAN).
+        sequenceTonePlan: null,
+        finishTone: DEFAULT_CAPTURE_TONE,
+        splitTone: DEFAULT_CAPTURE_TONE,
+        falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
+        // Wie auf dem Server (TimingToneResolveLogic): Ohne Satz EIN Ton für alle Boote. Stünde
+        // hier `true`, klänge der Wimpernschlag vor dem ersten Fetch anders als jede Erfassung
+        // danach — genau der Sprung, den die Tonleiter nicht machen darf.
+        tonePerBoat: false,
+    },
 }
 
 /**

@@ -10345,6 +10345,12 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '400':
+          description: >-
+            The requested tone set belongs to another event - a mode must not play the tones of a
+            foreign regatta.
+        '404':
+          description: The requested tone set does not exist.
         '409':
           description: A timing mode with this name already exists for this event.
       tags:
@@ -10372,6 +10378,11 @@ paths:
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
+        '400':
+          description: >-
+            The mode or the requested tone set belongs to another event.
+        '404':
+          description: The mode or the requested tone set does not exist.
         '409':
           description: A timing mode with this name already exists for this event.
       tags:
@@ -10403,6 +10414,114 @@ paths:
           description: 'There is no content to send for this request, but the headers may be useful. '
         '409':
           description: This timing mode is still assigned somewhere in the timing profile tree.
+      tags:
+        - Timing
+  /event/{eventId}/timing/tone-sets:
+    get:
+      operationId: getTimingToneSets
+      description: >-
+        The named tone sets of the event - the templates a timing mode picks from. Sorted with the
+        default first, then alphabetically. All four tone fields are UNRESOLVED here: null keeps
+        meaning "built-in default", so the form can still offer "restore default".
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimingToneSetDto'
+      tags:
+        - Timing
+    post:
+      operationId: addTimingToneSet
+      description: >-
+        Creates a tone set. The FIRST tone set of an event always becomes the default, whatever
+        the body asks for - a set nobody inherits would be dead weight from the start. Asking for
+        isDefault on a later set moves the mark off the previous default in the same transaction.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/uuid'
+        '409':
+          description: A tone set with this name already exists for this event.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingToneSetRequest'
+  /event/{eventId}/timing/tone-sets/{toneSetId}:
+    put:
+      operationId: updateTimingToneSet
+      description: >-
+        Updates the tone set. Refused with 409 when it would leave an event that still has other
+        tone sets without a default - move the mark to another set instead of stripping it here.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: toneSetId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: >-
+            The name is already taken, or the event would be left without a default tone set.
+      tags:
+        - Timing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimingToneSetRequest'
+    delete:
+      operationId: deleteTimingToneSet
+      description: >-
+        Deletes the tone set. Timing modes pointing at it fall back to the default instead of
+        becoming unusable. The default itself may only go as the LAST tone set of the event -
+        otherwise every inheriting mode would silently drop to the built-in tones.
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+        - name: toneSetId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/uuid'
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          description: The event would be left without a default tone set.
       tags:
         - Timing
   /event/{eventId}/timing/stations/{stationId}/share-link:
@@ -10437,6 +10556,18 @@ paths:
   /event/{eventId}/timing/sequences:
     post:
       operationId: createTimingSequence
+      description: >-
+        Arms a server-driven start sequence for the given teams on a START station. Rejected with
+        409 when the timing mode resolved for the match of those teams switches the app-driven
+        start off (startSequenceEnabled false): such a match is started by a starter at the jetty,
+        and a board handing out a countdown window invites the wrong action. The start board hides
+        its button already, but that is an operating aid - boards are device-token clients and may
+        run on a start list that predates the change, so the rule is enforced here as well, exactly
+        like the false-start switch of the same mode. When NO mode can be resolved for the request
+        (no teams, the match not in the boards' start list, or no mode assigned in the timing
+        profile tree) the sequence is allowed: the column's default is "start sequence on", so
+        nobody has forbidden anything, and a lock that locks when in doubt would stop races at the
+        regatta that were never configured to stop.
       parameters:
         - name: eventId
           in: path
@@ -10450,6 +10581,8 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '409':
+          description: The timing mode of this match does not allow the app to start it.
         '500':
           description: Server error
           content:
@@ -16284,7 +16417,9 @@ components:
         apply to EVERY competition - a per-competition deviation no longer exists (the competition
         columns were dropped in V202608242110). Which profile stops a single match - a RaceClocker
         race or an internal timing mode - is not here either: that is the timing profile tree
-        (/event/{eventId}/timing-profile).
+        (/event/{eventId}/timing-profile). The tones are not here either: split, false-start and
+        finish tone belong to the timing mode and live in the event's tone sets since 2026-08-26
+        (/event/{eventId}/timing/tone-sets); the three event columns were dropped in V202608261210.
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -16314,28 +16449,6 @@ components:
           description: How long after its planned start a match that is not active yet is still watched.
         timingPrecision:
           $ref: '#/components/schemas/TimingPrecision'
-        finishTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          nullable: true
-          description: >-
-            Capture confirmation tone of FINISH stations. Unlike TimingSettingsDto this is NOT
-            resolved - null means "built-in default", so the form knows whether a custom value is
-            set and can offer a reset.
-        splitTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          nullable: true
-          description: Capture confirmation tone of SPLIT stations; null means "built-in default".
-        falseStartTone:
-          type: array
-          nullable: true
-          description: >-
-            False-start SEQUENCE of start boards (offsets counted forward from the trigger). Like
-            the capture tones NOT resolved - null means "built-in default sequence" (short-short-
-            long, see TimingSettingsDto.falseStartTone), so the form can offer a reset. A column
-            still holding the pre-24.08.2026 single tone (a jsonb object) is read as a
-            one-element sequence with offsetMillis 0, so no migration is needed.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
         showManualCapture:
           type: boolean
           description: >-
@@ -16346,8 +16459,8 @@ components:
           $ref: '#/components/schemas/StartDisplaySettingsDto'
           nullable: true
           description: >-
-            Display block of the start display. Like the tones NOT resolved - null means "built-in
-            defaults", so the form knows whether a custom value is set and can offer a reset.
+            Display block of the start display, NOT resolved - null means "built-in defaults", so
+            the form knows whether a custom value is set and can offer a reset.
       required:
         - autoPull
         - intervalActiveSeconds
@@ -16389,7 +16502,8 @@ components:
         Timing system and the two file-format presets stay optional - they are not known when the
         regatta is created. The five auto-pull fields are not optional: the database always has a
         value for them, and null here would ambiguously mean "leave unchanged". Which profile stops
-        a single match is not here - that is the timing profile tree.
+        a single match is not here - that is the timing profile tree. The tones are not here
+        either - they are maintained per tone set since 2026-08-26 (TimingToneSetRequest).
       properties:
         timingSystem:
           $ref: '#/components/schemas/TimingSystem'
@@ -16419,26 +16533,6 @@ components:
           description: How long after its planned start a match that is not active yet is still watched.
         timingPrecision:
           $ref: '#/components/schemas/TimingPrecision'
-        finishTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          nullable: true
-          description: >-
-            PUT semantics like the other optional fields - null (or absent) restores the built-in
-            default capture tone for FINISH stations.
-        splitTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          nullable: true
-          description: PUT semantics - null (or absent) restores the built-in default for SPLIT stations.
-        falseStartTone:
-          type: array
-          nullable: true
-          description: >-
-            False-start SEQUENCE, PUT semantics - null (or absent) restores the built-in default
-            sequence. offsetMillis is counted FORWARD from the trigger here (0..60000), unlike a
-            timing mode's tone plan; at most 30 steps. Always written as an array - the former
-            single-tone object stays readable but is never produced again.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
         showManualCapture:
           type: boolean
           description: >-
@@ -16450,8 +16544,8 @@ components:
           $ref: '#/components/schemas/StartDisplaySettingsDto'
           nullable: true
           description: >-
-            Display block of the start display, PUT semantics like the tones - null (or absent)
-            restores the built-in defaults. Partially set does not exist: either the whole block
+            Display block of the start display with PUT semantics - null (or absent) restores the
+            built-in defaults. Partially set does not exist: either the whole block
             or none of it. Limits are enforced here (scales 0.5..3.0, followingCount 0..20).
       required:
         - autoPull
@@ -21261,39 +21355,14 @@ components:
       required:
         - autoApply
         - precision
-        - finishTone
-        - splitTone
-        - falseStartTone
         - showManualCapture
         - startDisplay
+        - defaultToneSet
       properties:
         autoApply:
           type: boolean
         precision:
           $ref: '#/components/schemas/TimingPrecision'
-        finishTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          description: >-
-            Capture confirmation tone of FINISH stations, already resolved: unconfigured events
-            get the built-in default (880 Hz / 150 ms), so boards simply play what is sent here.
-            Edited via the event timing config (updateEventTimingConfig), pushed live via
-            settingsChanged.
-        splitTone:
-          $ref: '#/components/schemas/CaptureToneDto'
-          description: Capture confirmation tone of SPLIT stations, resolved like finishTone.
-        falseStartTone:
-          type: array
-          description: >-
-            False-start SEQUENCE of start boards, also resolved and never empty. Unconfigured
-            events get the built-in default: three SAWTOOTH tones held at full volume -
-            200 Hz / 300 ms at 0 ms, the same again at 400 ms, then 180 Hz / 1500 ms with a
-            400 ms release at 800 ms ("short - short - long"). Sawtooth and the low pitch are
-            deliberate: a sine is lost in regatta noise, and a repeated pattern with a differing
-            final tone reads as a recall rather than as just another beep. Boards play the whole
-            sequence with its offsets (counted forward from the trigger) when an attempt is
-            retracted or a running sequence is aborted for the match they are currently showing.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
         showManualCapture:
           type: boolean
           description: >-
@@ -21307,8 +21376,21 @@ components:
           $ref: '#/components/schemas/StartDisplaySettingsDto'
           description: >-
             What the start display (the athlete screen at the start) shows and how large, already
-            resolved like the tones: unconfigured events get the built-in defaults, so the display
-            simply renders what is sent here and never has to know about "unset".
+            resolved like the tone set below it: unconfigured events get the built-in defaults, so
+            the display simply renders what is sent here and never has to know about "unset".
+        defaultToneSet:
+          $ref: '#/components/schemas/ResolvedToneSetDto'
+          description: >-
+            The event's DEFAULT tone set, resolved - the fallback for everything that belongs to no
+            match. Since 2026-08-26 the tones travel with the match (TimingMatchDto.timingMode),
+            because they belong to the timing mode: a time trial need not sound like a mass start.
+            Exactly one grab has no match though - the big capture button, which banks a time
+            WITHOUT an assignment. Without this fallback it would fall silent, and silence at the
+            finish line reads as a fault rather than as a setting. It also applies when the start
+            list is empty, when the station leads no match at all, or when the event has no timing
+            modes. Since 2026-08-26 it is the ONLY tone path of this endpoint: the three single
+            fields beside it were the old event-column path and fell with those columns
+            (V202608261210).
 
     StartDisplaySettingsDto:
       type: object
@@ -21436,12 +21518,12 @@ components:
         One tone of a tone sequence: a synthesized beep at a point in time relative to a
         reference. The same shape carries both sequences of the system; only the DIRECTION of
         offsetMillis differs, and that is decided by the FIELD carrying the sequence, not by this
-        type. A timing mode's tonePlan counts BACKWARDS from the start of the boat/wave the
+        type. A tone set's sequenceTonePlan counts BACKWARDS from the start of the boat/wave the
         countdown is running for: offsetMillis is negative before the start and 0 at the start
         itself, positive values are rejected (after the start the countdown target immediately
-        moves on to the next boat), limits -600000..0 matching the maximum sequence lead-in. The
-        event's falseStartTone counts FORWARD from the trigger: 0 = immediately, positive = that
-        many milliseconds later, limits 0..60000. Common limits: frequencyHz 100..4000,
+        moves on to the next boat), limits -600000..0 matching the maximum sequence lead-in. A
+        tone set's falseStartTone counts FORWARD from the trigger: 0 = immediately, positive =
+        that many milliseconds later, limits 0..60000. Common limits: frequencyHz 100..4000,
         durationMillis 20..10000, releaseMillis 0..5000, at most 30 steps per sequence. Missed
         countdown tones are never played late - a board that reconnects mid-countdown stays
         silent for everything older than about a second.
@@ -21651,6 +21733,9 @@ components:
         - startGrouping
         - leadInSeconds
         - falseStartEnabled
+        - startSequenceEnabled
+        - boatKeysPrimary
+        - resolvedToneSet
       properties:
         id:
           $ref: '#/components/schemas/uuid'
@@ -21658,6 +21743,29 @@ components:
           $ref: '#/components/schemas/uuid'
         name:
           type: string
+        toneSet:
+          allOf:
+            - $ref: '#/components/schemas/uuid'
+          nullable: true
+          description: >-
+            The tone set this mode picked, or null - then it inherits the event's default tone set.
+        startSequenceEnabled:
+          type: boolean
+          description: >-
+            Does the app start matches of this mode at all? Not every race is started by the app;
+            a race started by a judge on the pontoon has no countdown window, and a board offering
+            one invites the wrong grab. Default true - the previous behaviour.
+        boatKeysPrimary:
+          type: string
+          description: >-
+            The keys the finish station uses to hit the boats, in position order. Validated on
+            write: no key twice within a row nor across the two rows (case-insensitively - boards
+            read the key press regardless of Shift), no whitespace (the space bar is the big
+            capture button), at most 6 keys - as many as a match has positions.
+        boatKeysSecondary:
+          type: string
+          nullable: true
+          description: Optional second row of keys; null means there is none.
         falseStartEnabled:
           type: boolean
           description: >-
@@ -21678,15 +21786,15 @@ components:
           type: integer
           format: int32
           description: Countdown before the (first) start; feeds the start sequences' lead-in.
-        tonePlan:
-          type: array
-          nullable: true
+        resolvedToneSet:
+          $ref: '#/components/schemas/ResolvedToneSetDto'
           description: >-
-            Tone plan of the start sequence, ascending by offset. Null means the built-in default
-            plan (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0) - exactly the sound
-            unconfigured modes always had.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
+            The four tones a match of this mode actually makes, resolved: the mode's own tone set,
+            else the event's default set, else the built-in defaults. The counterpart of toneSet -
+            that field holds the CHOICE (null meaning "inherits"), this one holds the RESULT, so a
+            board plays what arrives instead of rebuilding the inheritance chain. Read-only: the
+            tones are written on the tone set (PUT /timing/tone-sets/{toneSetId}), which is why
+            TimingModeRequest does not carry them.
 
     TimingModeRequest:
       type: object
@@ -21708,19 +21816,190 @@ components:
           type: integer
           format: int32
           minimum: 0
-        tonePlan:
-          type: array
+        toneSet:
+          allOf:
+            - $ref: '#/components/schemas/uuid'
           nullable: true
-          maxItems: 30
-          description: Null restores the built-in default plan; limits see ToneStepDto.
-          items:
-            $ref: '#/components/schemas/ToneStepDto'
+          description: >-
+            The tone set of this mode; null (the default) means it inherits the event's default
+            tone set. The start sequence tone plan is no longer part of this request - it belongs
+            to the tone set, together with the other three tones, and is maintained through
+            PUT /timing/tone-sets/{toneSetId}. A second write path onto the same value would be an
+            invitation to set it differently in two places.
+        startSequenceEnabled:
+          type: boolean
+          default: true
+          description: Does the app start matches of this mode? Omitted means true.
+        boatKeysPrimary:
+          type: string
+          default: '123456'
+          maxLength: 6
+          description: >-
+            First row of finish keys, in position order. No key twice within a row nor across the
+            two rows (case-insensitively), no whitespace, at most 6 keys.
+        boatKeysSecondary:
+          type: string
+          nullable: true
+          default: 'ABCDEF'
+          maxLength: 6
+          description: Optional second row; null means there is none. An empty string is rejected.
         falseStartEnabled:
           type: boolean
           default: true
           description: >-
             Whether the start board may trigger an explicit false start (recall) for matches of
             this mode. Omitted means true.
+
+    ResolvedToneSetDto:
+      type: object
+      description: >-
+        The tones a board REALLY plays - the result of the resolution, and thus the counterpart of
+        TimingToneSetDto: that one says what somebody configured, this one what comes out of it.
+        Resolved on the wire and not in the board, because a board should play what arrives instead
+        of rebuilding an inheritance chain; the chain ("the mode's tone set -> the event's default
+        set -> the built-in default") exists exactly once, in the backend, and is unit-tested there.
+        One caveat about a null field inside a PICKED set: it falls back to the BUILT-IN default,
+        not to the default set. A picked set is a statement, and an empty field in it means
+        "default", not "take the one from elsewhere".
+      required:
+        - splitTone
+        - falseStartTone
+        - finishTone
+        - tonePerBoat
+      properties:
+        sequenceTonePlan:
+          type: array
+          nullable: true
+          description: >-
+            Tone plan of the start sequence, offsets counting BACKWARDS to the start. The only one
+            of the four that stays nullable, deliberately: its built-in default is the boards' own
+            countdown (short 600 Hz ticks at T-5..T-1, a long 900 Hz tone at T-0), which the
+            backend has never known. Inventing it here would mean maintaining the same sound in two
+            places - null simply says "unchanged, as always".
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        splitTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: Confirmation beep at the SPLIT station, never null.
+        falseStartTone:
+          type: array
+          description: False-start SEQUENCE, never null and never empty.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        finishTone:
+          $ref: '#/components/schemas/CaptureToneDto'
+          description: Confirmation beep at the FINISH station, never null.
+        tonePerBoat:
+          type: boolean
+          description: >-
+            Does the capture tone tell the boats apart? See TimingToneSetDto.tonePerBoat; without
+            any set it is off - one tone for all boats. The column default (on) is a proposal for
+            NEWLY created sets only; an event that never had a set never heard the scale and must
+            not be switched over unasked.
+
+    TimingToneSetDto:
+      type: object
+      description: >-
+        A named set of the four tones of a timing ("Laut fürs Wasser", "Leise für die Halle") -
+        the template any number of timing modes share. It belongs to the event because you set a
+        sound up ONCE and then want it to apply to every race that should sound the same: changing
+        the volume of all modes means changing one set instead of seven modes. All four tone fields
+        are UNRESOLVED: null means "built-in default", exactly as it did on the event and the mode,
+        so the form can still tell "default" from "own value".
+      required:
+        - id
+        - name
+        - isDefault
+        - tonePerBoat
+      properties:
+        id:
+          $ref: '#/components/schemas/uuid'
+        name:
+          type: string
+        isDefault:
+          type: boolean
+          description: >-
+            The event's default set: timing modes without a pick of their own inherit it. Exactly
+            one per event - enforced by a partial unique index, not by application logic, because
+            two defaults raise a question nobody can answer.
+        sequenceTonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: >-
+            Tone plan of the start sequence, offsets counting BACKWARDS to the start; null means
+            the built-in default plan.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        splitTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Confirmation beep at the SPLIT station; null means the built-in default.
+        falseStartTone:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: >-
+            False start SEQUENCE, offsets counting FORWARD from the trigger; null means the
+            built-in default sequence.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        finishTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Confirmation beep at the FINISH station; null means the built-in default.
+        tonePerBoat:
+          type: boolean
+          description: >-
+            Does the capture tone tell the boats apart? Position 1 plays the finish tone, the other
+            five a pentatonic scale above it. It belongs to the set and not to the event: it is a
+            property of this sound picture.
+
+    TimingToneSetRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        isDefault:
+          type: boolean
+          default: false
+          description: >-
+            Make this set the event's default. True takes the mark off the previous default in the
+            same transaction; false on the current default is refused while other sets exist - an
+            event with sets but no default would leave every inheriting mode on the built-in tones.
+            The first set of an event always becomes the default regardless of this field.
+        sequenceTonePlan:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default plan; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        splitTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Null restores the built-in default tone.
+        falseStartTone:
+          type: array
+          nullable: true
+          maxItems: 30
+          description: Null restores the built-in default sequence; limits see ToneStepDto.
+          items:
+            $ref: '#/components/schemas/ToneStepDto'
+        finishTone:
+          allOf:
+            - $ref: '#/components/schemas/CaptureToneDto'
+          nullable: true
+          description: Null restores the built-in default tone.
+        tonePerBoat:
+          type: boolean
+          default: true
+          description: Omitted means true - see TimingToneSetDto.tonePerBoat.
 
     TimingProfileKind:
       type: string

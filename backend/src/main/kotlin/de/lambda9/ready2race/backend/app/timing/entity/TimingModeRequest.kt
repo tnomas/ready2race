@@ -5,14 +5,13 @@ import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.validate
 import de.lambda9.ready2race.backend.validation.validators.IntValidators
 import de.lambda9.ready2race.backend.validation.validators.StringValidators.notBlank
+import java.util.UUID
 
 data class TimingModeRequest(
     val name: String,
     val startGrouping: TimingStartGrouping,
     val intervalSeconds: Int?,
     val leadInSeconds: Int,
-    /** null = eingebauter Standardplan; Grenzen siehe [TimingToneLimits]. */
-    val tonePlan: List<ToneStep>?,
     /**
      * Fehlstart-Auslöser am Startposten erlaubt? Vorgabe `true` - der Rückruf ist der Normalfall.
      * Abgeschaltet wird er dort, wo er fachlich falsch wäre (Timetrial: Strafzeit statt Rückruf);
@@ -22,6 +21,21 @@ data class TimingModeRequest(
      * dürfen und dabei genau das bekommen, was die Datenbank als Default schreibt.
      */
     val falseStartEnabled: Boolean = true,
+    /**
+     * Der Ton-Satz dieses Typs; null (die Vorgabe) heißt „erbt den Vorgabesatz der Veranstaltung".
+     *
+     * Den Startsequenz-Tonplan führt dieser Request seit dem 26.08.2026 nicht mehr: Er gehört zum
+     * Ton-Satz, gemeinsam mit den drei übrigen Tönen, und wird über
+     * `PUT /timing/tone-sets/{toneSetId}` gepflegt. Ein zweiter Schreibweg auf denselben Wert wäre
+     * eine Einladung, ihn an zwei Stellen verschieden zu setzen.
+     */
+    val toneSet: UUID? = null,
+    /** Startet die App Läufe dieses Typs? Vorgabe `true` - siehe [TimingModeDto.startSequenceEnabled]. */
+    val startSequenceEnabled: Boolean = true,
+    /** Erste Tastenreihe des Zielpostens; Regeln siehe [TimingBoatKeys]. */
+    val boatKeysPrimary: String = TimingBoatKeys.DEFAULT_PRIMARY,
+    /** Zweite, optionale Tastenreihe; null heißt „es gibt keine". */
+    val boatKeysSecondary: String? = TimingBoatKeys.DEFAULT_SECONDARY,
 ) : Validatable {
 
     override fun validate(): ValidationResult = ValidationResult.allOf(
@@ -30,7 +44,9 @@ data class TimingModeRequest(
         // Intervall), kein Intervallstart. Deshalb mindestens 1 Sekunde.
         this::intervalSeconds validate IntValidators.min(1),
         this::leadInSeconds validate IntValidators.notNegative,
-        TimingToneLimits.validateTonePlan(tonePlan, "tonePlan"),
+        // Eigener, sprechender Fehler statt eines rohen Datenbankfehlers - die Datenbank kennt die
+        // Regeln der Tastenbelegung gar nicht, sie stehen an EINER Stelle im Code.
+        TimingBoatKeys.validate(boatKeysPrimary, boatKeysSecondary, "timingMode"),
     )
 
     companion object {
@@ -40,7 +56,6 @@ data class TimingModeRequest(
                 startGrouping = TimingStartGrouping.EINZEL,
                 intervalSeconds = 30,
                 leadInSeconds = 10,
-                tonePlan = null,
             )
     }
 }

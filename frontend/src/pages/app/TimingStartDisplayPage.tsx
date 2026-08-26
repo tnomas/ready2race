@@ -1,4 +1,5 @@
-import {Alert, Box, Divider, Stack, Typography} from '@mui/material'
+import {Alert, Box, Divider, IconButton, Stack, Tooltip, Typography} from '@mui/material'
+import {Settings} from '@mui/icons-material'
 import {Theme} from '@mui/material/styles'
 import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -21,6 +22,7 @@ import {useFetch} from '@utils/hooks.ts'
 import BoardAlarm from '@components/timing/BoardAlarm.tsx'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
+import StartDisplaySettingsDialog from '@components/timing/StartDisplaySettingsDialog.tsx'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useSequence} from '@utils/timing/useSequence.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
@@ -59,7 +61,9 @@ import {useTouchOnly} from '@utils/touch.ts'
  * Folgeboote) kommt über `useTimingSettings` und wird über `settingsChanged` live nachgezogen —
  * eine Änderung im Einstellungs-Formular greift also ohne Neuladen auf jedem Bildschirm am Steg.
  * Die Umsetzung der Schalter in eine Zeile steckt in `startDisplayRender.ts`, damit sie ohne DOM
- * testbar bleibt.
+ * testbar bleibt. EINGESTELLT wird dieser Block seit dem 26.08.2026 hier statt in den
+ * Veranstaltungs-Einstellungen: das Zahnrad unten in der Ecke öffnet ihn — dieselben Felder,
+ * derselbe Endpunkt, nur der Ort der Bedienung. Wer davorsteht, sieht sofort, was er tut.
  *
  * Zwischen zwei Läufen bleibt der Bildschirm nicht mehr leer: `nextMatchAnnouncement` sucht den
  * aufgerufenen nächsten Lauf und der Bildschirm kündigt ihn samt dem Boot an, das als Erstes an
@@ -77,6 +81,15 @@ export type TimingStartDisplayPageProps = {
  * dass ein vergessener Schirm nicht den halben Regattatag rot blinkt.
  */
 const FALSE_START_VISIBLE_MILLIS = 120_000
+
+/**
+ * Wie lange das Zahnrad nach der letzten Zeiger- oder Tastenbewegung noch steht, bevor es
+ * ausblendet. Dieser Bildschirm hängt im Vollbild an einer Wand: Ein Bedienelement, das dauerhaft
+ * darauf klebt, ist dort schlimmer als eine Einstellung, die man woanders sucht. Fünf Sekunden
+ * sind lang genug, um die Ecke mit der Maus zu erreichen, und kurz genug, dass das Bild wieder
+ * ruhig wird, sobald niemand mehr am Gerät steht.
+ */
+const SETTINGS_GEAR_IDLE_MILLIS = 5_000
 
 const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProps) => {
     const {t} = useTranslation()
@@ -153,11 +166,13 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     } = useTimingSettings(eventId)
 
     // Fehlstart-Ton: RUNNING→ABORTED der gespiegelten Sequenz und attemptRetracted der gerade
-    // gezeigten Partie — Bedingungen in `falseStart.ts`, verdeckter Tab bleibt still.
+    // gezeigten Partie — Bedingungen in `falseStart.ts`, verdeckter Tab bleibt still. Gespielt
+    // wird die Folge des Zeitnahmetyps der geführten Partie; der Vorgabesatz der Veranstaltung
+    // ist nur noch der Rückfall.
     const {onAttemptRetracted} = useFalseStartTone(
         sequenceState.sequence,
         matchesData ?? [],
-        settings.falseStartTone,
+        settings.defaultToneSet.falseStartTone,
     )
 
     /**
@@ -339,6 +354,49 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
     // angetippt, deshalb sagt ihr ein sichtbarer Hinweis, dass genau ein Tipp fehlt.
     const touchOnly = useTouchOnly()
     const audioUnlocked = useAudioUnlocked()
+
+    /**
+     * Das Zahnrad, hinter dem die Anzeige-Einstellungen dieses Bildschirms stecken (seit dem
+     * 26.08.2026; vorher standen dieselben Felder in den Zeitnahme-Einstellungen der
+     * Veranstaltung, wo sie den Blick auf alles andere verstopften).
+     *
+     * Es erscheint NUR für angemeldete Bediener mit Schreibrecht an der Veranstaltung: Der
+     * Endpunkt dahinter (`PUT /timing-config`) nimmt ausschließlich eine Sitzung mit
+     * UPDATE.EVENT.GLOBAL an — ein Geräte-Token darf dort NICHT schreiben, anders als bei den
+     * lesenden Abrufen dieser Seite. Ein Zahnrad auf einem Anzeige-Gerät liefe also unweigerlich
+     * in einen 401er; deshalb gibt es dort keins.
+     */
+    const canEditDisplay = user.checkPrivilege(updateEventGlobal)
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [gearVisible, setGearVisible] = useState(true)
+    const hideGear = useMemo(
+        () => debounce(() => setGearVisible(false), SETTINGS_GEAR_IDLE_MILLIS),
+        [],
+    )
+    useEffect(() => {
+        // Bei offenem Dialog läuft keine Ausblende-Uhr: Der Dialog liegt ohnehin darüber, und ein
+        // Zahnrad, das hinter ihm verschwindet, wäre beim Schließen weg, obwohl gerade jemand
+        // davor steht.
+        if (!canEditDisplay || settingsOpen) return
+        const wake = () => {
+            setGearVisible(true)
+            hideGear()
+        }
+        // Einmal beim Öffnen des Bildschirms: Wer die Seite gerade aufruft, soll sehen, dass es
+        // das Zahnrad gibt — danach entscheidet allein die Bewegung.
+        wake()
+        window.addEventListener('pointermove', wake)
+        // Tippen und Tastendruck zählen mit: Auf einem Tablet bewegt sich nie ein Zeiger, und wer
+        // am Bildschirm-Rechner die Tastatur benutzt, ist genauso anwesend wie eine Mausbewegung.
+        window.addEventListener('pointerdown', wake)
+        window.addEventListener('keydown', wake)
+        return () => {
+            window.removeEventListener('pointermove', wake)
+            window.removeEventListener('pointerdown', wake)
+            window.removeEventListener('keydown', wake)
+            hideGear.cancel()
+        }
+    }, [canEditDisplay, settingsOpen, hideGear])
 
     /**
      * Eine Theme-Schriftgröße mit dem Listen-Faktor multiplizieren. Die MUI-Variante bleibt stehen
@@ -696,6 +754,41 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                     </>
                 )}
             </Box>
+
+            {/* Das Zahnrad: klein, in der unteren Ecke, zurückgenommen — und es blendet ohne
+                Bewegung von selbst aus (siehe SETTINGS_GEAR_IDLE_MILLIS). Ausgeblendet bleibt es
+                im DOM stehen und wird nur durchsichtig und klick-tot statt entfernt: Nur so kann
+                es weich verschwinden und wiederkommen, und auf einer Wandanzeige fällt ein
+                aufpoppendes Element mehr auf als ein sanft verblassendes. Beim Überfahren mit der
+                Maus wird es voll sichtbar, damit man trifft, was man anklickt. */}
+            {canEditDisplay && (
+                <>
+                    <Tooltip title={t('event.timing.startDisplay.open')}>
+                        <IconButton
+                            aria-label={t('event.timing.startDisplay.open')}
+                            size={'small'}
+                            className={'cursor-pointer'}
+                            onClick={() => setSettingsOpen(true)}
+                            sx={{
+                                position: 'absolute',
+                                right: 8,
+                                bottom: 8,
+                                color: 'text.secondary',
+                                opacity: gearVisible ? 0.35 : 0,
+                                pointerEvents: gearVisible ? 'auto' : 'none',
+                                transition: 'opacity 600ms',
+                                '&:hover': {opacity: 1},
+                            }}>
+                            <Settings fontSize={'small'} />
+                        </IconButton>
+                    </Tooltip>
+                    <StartDisplaySettingsDialog
+                        open={settingsOpen}
+                        onClose={() => setSettingsOpen(false)}
+                        eventId={eventId}
+                    />
+                </>
+            )}
         </Box>
     )
 }

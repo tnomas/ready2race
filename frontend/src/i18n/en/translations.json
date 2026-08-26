@@ -1681,10 +1681,6 @@
         "summaryHeld": "held · {{millis}} ms release"
       },
       "captureTones": {
-        "title": "Capture tones",
-        "hint": "The confirmation tone finish and split stations play when a time is captured — configurable per station type. It only sounds on the key press itself; resending from the offline queue stays silent.",
-        "finish": "Finish station",
-        "split": "Split station",
         "frequencyHz": "Pitch (Hz)",
         "durationMillis": "Duration (ms)",
         "releaseMillis": "Release (ms)",
@@ -1694,13 +1690,48 @@
         "invalid": "Pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms."
       },
       "falseStartTone": {
-        "title": "False-start recall",
-        "hint": "The tone sequence the start board and the start display play when a start is retracted or a running start sequence is aborted — only for the race the board is currently showing. A sequence rather than a single tone, because a pattern with a differing final tone (\"short, short, long\") reads as a recall out on the water, where a single tone passes as just another signal.",
         "label": "False start",
         "presetSingle": "Single tone",
         "presetTriple": "Three short",
         "presetShortShortLong": "Short-short-long (default)",
         "invalid": "Please check the highlighted tones: time 0–60000 ms after the trigger, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at least one and at most 30 tones."
+      },
+      "toneSets": {
+        "title": "Tone sets",
+        "hint": "Named sound templates of the event — for example \"Loud for the water\" and \"Quiet for the hall\". One set carries all four tones; a timing mode picks a set or inherits the default set. Changing the tones of every mode therefore means changing one set instead of every single mode.",
+        "none": "No tone sets created yet. Without a set every station plays the built-in tones — one tone for all boats.",
+        "add": "Add tone set",
+        "edit": "Edit tone set",
+        "name": "Name",
+        "nameHelp": "A name that describes the sound — \"Loud for the water\", \"Quiet for the hall\".",
+        "isDefault": "Default set of the event",
+        "isDefaultHelp": "Timing modes without a pick of their own inherit the default set. Making this set the default takes the mark off the previous one.",
+        "isDefaultFirstHelp": "The first tone set of an event always becomes the default — otherwise nobody would inherit it.",
+        "isDefaultLockedHelp": "The default is handed on, not switched off: mark another set as the default in the list, then this one gives up the mark.",
+        "defaultChip": "Default",
+        "makeDefault": "Use as default",
+        "defaultSet": "\"{{name}}\" is now the default set.",
+        "deleteConfirm": "Really delete the tone set \"{{name}}\"? Timing modes pointing at it fall back to the default set.",
+        "deleteDefaultBlocked": "The default set can only be deleted as the last tone set — make another set the default first.",
+        "deleteBlocked": "\"{{name}}\" was not deleted: it is the default set, and other sets still exist.",
+        "deleted": "Tone set deleted.",
+        "saved": "Tone set saved.",
+        "nameTaken": "A tone set with this name already exists.",
+        "tonePerBoat": "Pitch per boat",
+        "tonePerBoatHelp": "On: the finish tone sounds at a different pitch depending on the position hit — position 1 on the configured finish tone, the other five stepped above it up to the octave. Six pitches are not absolutely recognisable; nobody hears \"that was boat 4\". What is audible is that you hit a different boat than a moment ago — that catches the double tap — and roughly where in the field it sits.",
+        "tonePerBoatAudition": "Play the six steps",
+        "tones": {
+          "sequence": "Start sequence",
+          "split": "Split tone",
+          "falseStart": "False start",
+          "finish": "Finish tone"
+        },
+        "describe": {
+          "allDefault": "All tones at default",
+          "own": "Own: {{tones}}",
+          "tonePerBoatOn": "Pitch per boat",
+          "tonePerBoatOff": "One tone for all boats"
+        }
       },
       "modes": {
         "title": "Timing modes",
@@ -1712,7 +1743,8 @@
         "startGrouping": {
           "label": "Start type",
           "EINZEL": "Individual start",
-          "WELLE": "Wave"
+          "WELLE": "Wave",
+          "help": "Individual start sends every boat on its own — a time trial in which each boat gets its own start time. Wave start sends several boats off together; all boats of a wave share one start time. There is no separate mass start: it is a wave holding all boats of the race."
         },
         "intervalSeconds": "Start interval (seconds)",
         "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
@@ -1723,7 +1755,8 @@
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",
-          "leadIn": "lead-in {{seconds}} s"
+          "leadIn": "lead-in {{seconds}} s",
+          "noStartSequence": "not started by the app"
         },
         "saved": "Timing mode saved",
         "deleted": "Timing mode deleted",
@@ -1739,7 +1772,21 @@
           "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
         },
         "falseStartEnabled": "Allow false-start recall",
-        "falseStartEnabledHelp": "On: the start station can recall matches of this mode — the start sequence is aborted, the attempt retracted, and the athlete displays flash red. Off for time trials: there a false start is answered with a time penalty instead of calling the field back."
+        "falseStartEnabledHelp": "The switch only decides whether a false-start button appears at the start station at all. On: the station can recall matches of this mode — the start sequence is aborted, the attempt retracted, and the athlete displays flash red. Off: the button is missing, for example in a time trial where nobody calls the field back. How a false start is SCORED stays untouched by it: whether it means a time penalty or a disqualification follows from the rules and is entered by hand on the match. This switch does not reach into the scoring.",
+        "startSequenceEnabled": "Start sequence run by the app",
+        "startSequenceEnabledHelp": "On: the start board builds a start sequence with countdown and tones for matches of this mode. Off: not every race is started by the app — a race sent off by hand at the pontoon has no countdown window, and a board offering one anyway invites the wrong grab. Start interval and countdown lead-in then have no effect.",
+        "toneSet": "Tone set",
+        "toneSetInherit": "Inherits ({{name}})",
+        "toneSetInheritNone": "Inherits the event's default set",
+        "toneSetLoading": "Loading …",
+        "toneSetHelp": "Which four tones matches of this mode make: start sequence, split tone, false-start sequence and finish tone. Without a choice of its own the event's default set applies — a change to that set then reaches every mode inheriting it. The sets themselves are maintained further up this page.",
+        "boatKeys": {
+          "title": "Finish station key layout",
+          "primary": "First row",
+          "secondary": "Second row (optional)",
+          "help": "The keys the finish station uses to hit the boats — in position order: the first character belongs to the boat with the lowest start number. Two rows, because you grab whatever is closer on your keyboard; the second may stay empty. Upper and lower case are the same key, every key belongs to exactly one boat, and the space bar stays free — it is the big capture button. At most six characters per row.",
+          "invalid": "Please check: the first row must not be empty, at most six characters per row, no spaces, and no key twice — not even across the two rows (upper and lower case count as the same key)."
+        }
       },
       "races": {
         "title": "RaceClocker races",
@@ -1806,6 +1853,9 @@
       "startDisplay": {
         "title": "Start display",
         "hint": "The athlete screen at the start: what is shown for each boat and how large. A 27\" screen on the pontoon needs different type sizes than a tablet in the boat, and one regatta calls out start numbers while the next calls out boat names. Changes reach every connected screen immediately — no reload needed.",
+        "moved": "What the start display shows is set on the screen itself: the gear in the bottom right corner opens the same switches and sizes. Whoever flips them there sees the effect behind the dialog immediately. They are still stored here on the event and apply to every connected screen.",
+        "open": "Display settings",
+        "saved": "Display settings saved",
         "showPosition": "Running number in front of the boat",
         "showStartNumber": "Start number",
         "showTeamName": "Boat name",
@@ -3211,7 +3261,7 @@
     "finish": {
       "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
       "assignLater": "Assign later",
-      "hint": "Tap a boat or press 1–6 / A–F: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
+      "hint": "Tap a boat or press {{keys}}: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
       "hintTouch": "Tap a boat: capture and assign in one gesture. Big surface: bank a time without a boat and assign it by tapping a boat afterwards.",
       "finishedCount": "{{finished}}/{{total}} finished",
       "upcomingTitle": "Expected next",
@@ -3228,6 +3278,8 @@
       "boats_other": "{{count}} boats",
       "noMode": "no timing mode",
       "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
+      "noStartSequenceHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The start time comes from the manual stamp, not from a sequence.",
+      "noStartSequenceNoCaptureHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The manual capture button is hidden — this board cannot record a start time at all right now. Turn it on in the event's timing settings under \"Manual capture at the start station\"; the board follows immediately.",
       "noTeamsLeft": "Every boat of this race has already started.",
       "allStarted": "All races have been started — nothing left open.",
       "start": "Start sequence",

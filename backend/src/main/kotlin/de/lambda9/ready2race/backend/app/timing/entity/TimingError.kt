@@ -23,6 +23,19 @@ sealed interface TimingError : ServiceError {
     data object ModeNotFound : TimingError
     data object ModeNameTaken : TimingError
     data object ModeInUse : TimingError
+    data object ToneSetNotFound : TimingError
+    data object ToneSetNameTaken : TimingError
+
+    /**
+     * Eine Veranstaltung mit Ton-Sätzen hat immer genau EINEN Vorgabesatz - der partielle Index
+     * verhindert zwei, diese Regel verhindert keinen. Ohne Vorgabe fielen alle Typen, die keinen
+     * eigenen Satz gewählt haben, still auf die eingebauten Töne zurück; die Regatta klänge anders,
+     * ohne dass jemand einen Ton verstellt hätte. Wer die Vorgabe loswerden will, macht deshalb
+     * einen anderen Satz zur Vorgabe, statt diesen zu entwerten oder zu löschen. Nur der LETZTE
+     * Satz einer Veranstaltung darf gehen - dann gibt es wieder gar keine Sätze, und der Rückfall
+     * auf die eingebauten Töne ist die richtige Antwort.
+     */
+    data object ToneSetDefaultRequired : TimingError
     data object RoundNotOfCompetition : TimingError
     data object LinkedStationInvalid : TimingError
     data object StationNotCapturing : TimingError
@@ -33,6 +46,16 @@ sealed interface TimingError : ServiceError {
      * Partie fachlich nicht zulässig, und das ist ein Konflikt.
      */
     data object FalseStartDisabled : TimingError
+
+    /**
+     * Startsequenz auf einem Lauf, dessen Zeitnahmetyp sie abschaltet. Wie [FalseStartDisabled]
+     * ein Konflikt und kein 400: Der Aufruf ist wohlgeformt, die Partie gibt es - sie wird an
+     * dieser Stelle nur nicht von der App gestartet (Startrichter am Steg).
+     *
+     * Nur der abgeschaltete Typ kommt hier an. Ist gar kein Typ herleitbar, wird DURCHGELASSEN -
+     * die Begründung steht bei der Prüfung selbst (TimingSequenceService).
+     */
+    data object StartSequenceDisabled : TimingError
 
     override fun respond(): ApiError = when (this) {
         StationNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing station not found")
@@ -85,6 +108,15 @@ sealed interface TimingError : ServiceError {
             HttpStatusCode.Conflict,
             message = "This timing mode is still assigned to competitions or rounds"
         )
+        ToneSetNotFound -> ApiError(HttpStatusCode.NotFound, message = "Timing tone set not found")
+        ToneSetNameTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A timing tone set with this name already exists for this event"
+        )
+        ToneSetDefaultRequired -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "An event with tone sets needs exactly one default - make another tone set the default first"
+        )
         RoundNotOfCompetition -> ApiError(
             HttpStatusCode.BadRequest,
             message = "The round does not belong to this competition"
@@ -100,6 +132,10 @@ sealed interface TimingError : ServiceError {
         FalseStartDisabled -> ApiError(
             HttpStatusCode.Conflict,
             message = "The timing mode of this match does not allow a false start"
+        )
+        StartSequenceDisabled -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "The timing mode of this match does not allow the app to start it"
         )
     }
 }
