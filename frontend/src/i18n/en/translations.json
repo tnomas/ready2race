@@ -1749,7 +1749,8 @@
         "startGrouping": {
           "label": "Start type",
           "EINZEL": "Individual start",
-          "WELLE": "Wave"
+          "WELLE": "Wave",
+          "help": "Individual start sends every boat on its own — a time trial in which each boat gets its own start time. Wave start sends several boats off together; all boats of a wave share one start time. There is no separate mass start: it is a wave holding all boats of the race."
         },
         "intervalSeconds": "Start interval (seconds)",
         "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
@@ -1760,7 +1761,8 @@
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",
-          "leadIn": "lead-in {{seconds}} s"
+          "leadIn": "lead-in {{seconds}} s",
+          "noStartSequence": "not started by the app"
         },
         "saved": "Timing mode saved",
         "deleted": "Timing mode deleted",
@@ -1776,7 +1778,21 @@
           "invalid": "Please check the highlighted tones: time 0–600 seconds before start, pitch 100–4000 Hz, duration 20–10000 ms, release 0–5000 ms, at most 30 tones."
         },
         "falseStartEnabled": "Allow false-start recall",
-        "falseStartEnabledHelp": "On: the start station can recall matches of this mode — the start sequence is aborted, the attempt retracted, and the athlete displays flash red. Off for time trials: there a false start is answered with a time penalty instead of calling the field back."
+        "falseStartEnabledHelp": "The switch only decides whether a false-start button appears at the start station at all. On: the station can recall matches of this mode — the start sequence is aborted, the attempt retracted, and the athlete displays flash red. Off: the button is missing, for example in a time trial where nobody calls the field back. How a false start is SCORED stays untouched by it: whether it means a time penalty or a disqualification follows from the rules and is entered by hand on the match. This switch does not reach into the scoring.",
+        "startSequenceEnabled": "Start sequence run by the app",
+        "startSequenceEnabledHelp": "On: the start board builds a start sequence with countdown and tones for matches of this mode. Off: not every race is started by the app — a race sent off by hand at the pontoon has no countdown window, and a board offering one anyway invites the wrong grab. Start interval and countdown lead-in then have no effect.",
+        "toneSet": "Tone set",
+        "toneSetInherit": "Inherits ({{name}})",
+        "toneSetInheritNone": "Inherits the event's default set",
+        "toneSetLoading": "Loading …",
+        "toneSetHelp": "Which four tones matches of this mode make: start sequence, split tone, false-start sequence and finish tone. Without a choice of its own the event's default set applies — a change to that set then reaches every mode inheriting it. The sets themselves are maintained further up this page.",
+        "boatKeys": {
+          "title": "Finish station key layout",
+          "primary": "First row",
+          "secondary": "Second row (optional)",
+          "help": "The keys the finish station uses to hit the boats — in position order: the first character belongs to the boat with the lowest start number. Two rows, because you grab whatever is closer on your keyboard; the second may stay empty. Upper and lower case are the same key, every key belongs to exactly one boat, and the space bar stays free — it is the big capture button. At most six characters per row.",
+          "invalid": "Please check: the first row must not be empty, at most six characters per row, no spaces, and no key twice — not even across the two rows (upper and lower case count as the same key)."
+        }
       },
       "races": {
         "title": "RaceClocker races",
@@ -3248,7 +3264,7 @@
     "finish": {
       "assignPrompt": "Time {{time}} is waiting — tap a boat to assign it.",
       "assignLater": "Assign later",
-      "hint": "Tap a boat or press 1–6 / A–F: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
+      "hint": "Tap a boat or press {{keys}}: capture and assign in one gesture. Big button or space bar: bank a time without a boat and assign it with the next press.",
       "hintTouch": "Tap a boat: capture and assign in one gesture. Big surface: bank a time without a boat and assign it by tapping a boat afterwards.",
       "finishedCount": "{{finished}}/{{total}} finished",
       "upcomingTitle": "Expected next",

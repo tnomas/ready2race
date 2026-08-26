@@ -1,4 +1,4 @@
-import {TimingMatchDto} from '@api/types.gen.ts'
+import {TimingMatchDto, TimingModeDto} from '@api/types.gen.ts'
 
 /**
  * Reine Fokus-Logik des Zielpostens: welche Partie die Tasten treffen, wohin der Fokus nach
@@ -13,28 +13,90 @@ export type FinishKeyTarget = {
 }
 
 /**
- * Ziffern 1–6 und Buchstaben A–F gleichwertig auf die Boote der fokussierten Partie abbilden:
- * Taste n (bzw. der n-te Buchstabe) trifft das Boot an Position n **nach Startnummer** — nicht die
- * Startnummer selbst, denn die wiederholt sich über Wettkämpfe und kann Lücken haben, während die
- * Position in der Partie für den Bediener direkt ablesbar ist (die Knöpfe tragen die Hinweise).
+ * Die Tastenbelegung des Zielpostens: welche Taste welches Boot trifft, in Positionsreihenfolge.
+ * Zwei Reihen, weil man je nach Tastatur greift, was näher liegt; `secondary === null` heißt „es
+ * gibt keine zweite Reihe".
+ */
+export type BoatKeyLayout = {
+    primary: string
+    secondary: string | null
+}
+
+/**
+ * Der Ausschnitt des Zeitnahmetyps, aus dem die Belegung besteht. Bewusst nur diese zwei Felder
+ * statt des ganzen [TimingModeDto]: Was diese Datei nicht liest, soll sie auch nicht verlangen.
+ */
+export type TimingModeKeys = Pick<TimingModeDto, 'boatKeysPrimary' | 'boatKeysSecondary'>
+
+/**
+ * Was vor dem 26.08.2026 fest verdrahtet war — jetzt der Rückfall für Läufe ohne Zeitnahmetyp.
+ * Ein Lauf ohne Typ ist am Zielposten kein Sonderfall: Er wird erfasst wie jeder andere, nur eben
+ * mit der Belegung, die auch die Datenbank als Vorgabe führt.
+ */
+export const DEFAULT_BOAT_KEYS: BoatKeyLayout = {primary: '123456', secondary: 'ABCDEF'}
+
+/** Die Belegung eines Laufs: die seines Zeitnahmetyps, sonst [DEFAULT_BOAT_KEYS]. */
+export function boatKeyLayout(mode: TimingModeKeys | null | undefined): BoatKeyLayout {
+    if (mode == null) return DEFAULT_BOAT_KEYS
+    return {primary: mode.boatKeysPrimary, secondary: mode.boatKeysSecondary ?? null}
+}
+
+/**
+ * Der sichtbare Tasten-Hinweis eines Boots: mit der Vorgabebelegung „1/A" an Position 0, „6/F" an
+ * Position 5. Wo in einer der beiden Reihen keine Taste liegt, fehlt sie auch im Hinweis; liegt in
+ * keiner eine, gibt es gar keinen. Ein Hinweis, der eine Taste verspricht, die nichts tut, schickt
+ * den Bediener unter Zeitdruck ins Leere — das ist schlimmer als kein Hinweis.
+ */
+export function boatKeyHint(keys: BoatKeyLayout, position: number): string | undefined {
+    const row = (value: string | null) => (value == null ? undefined : [...value][position])
+    const labels = [row(keys.primary), row(keys.secondary)].filter(
+        (key): key is string => key !== undefined,
+    )
+    return labels.length === 0 ? undefined : labels.join('/')
+}
+
+/**
+ * Die Reihen für den Fließtext des Hilfesatzes: „123456 / ABCDEF", ohne zweite Reihe nur „123456".
+ * Auch dieser Satz nannte bis zum 26.08.2026 fest verdrahtete Bereiche und würde sonst Tasten
+ * versprechen, die dieser Lauf gar nicht kennt.
+ */
+export function boatKeyRows(keys: BoatKeyLayout): string {
+    return keys.secondary == null ? keys.primary : `${keys.primary} / ${keys.secondary}`
+}
+
+/** Die Position, die eine Taste in dieser Belegung trifft — die erste Reihe hat Vorrang. */
+function keyPosition(keys: BoatKeyLayout, key: string): number | undefined {
+    // Groß und klein sind dieselbe Taste: Das Board liest den Druck ohne Rücksicht auf die
+    // Umschalttaste, und der Server verbietet aus demselben Grund `a` und `A` nebeneinander.
+    const pressed = key.toUpperCase()
+    const find = (row: string | null) =>
+        row == null ? -1 : [...row].findIndex(candidate => candidate.toUpperCase() === pressed)
+    const primary = find(keys.primary)
+    if (primary !== -1) return primary
+    const secondary = find(keys.secondary)
+    return secondary === -1 ? undefined : secondary
+}
+
+/**
+ * Die beiden Tastenreihen der Belegung gleichwertig auf die Boote der fokussierten Partie
+ * abbilden: Die n-te Taste einer Reihe trifft das Boot an Position n **nach Startnummer** — nicht
+ * die Startnummer selbst, denn die wiederholt sich über Wettkämpfe und kann Lücken haben, während
+ * die Position in der Partie für den Bediener direkt ablesbar ist (die Knöpfe tragen die
+ * Hinweise).
+ *
+ * Die Belegung kommt als Parameter herein und nicht mehr aus fest verdrahteten Bereichen: Sie
+ * gehört seit dem 26.08.2026 dem Zeitnahmetyp. Der Aufrufer holt sie über [boatKeyLayout] aus dem
+ * Typ der fokussierten Partie — und zeigt mit [boatKeyHint] genau dieselbe an den Booten an.
  */
 export function finishKeyTarget(
     match: TimingMatchDto | undefined,
     key: string,
+    keys: BoatKeyLayout,
 ): FinishKeyTarget | undefined {
     if (match === undefined || key.length !== 1) return undefined
 
-    let position: number
-    if (key >= '1' && key <= '6') {
-        position = key.charCodeAt(0) - '1'.charCodeAt(0)
-    } else {
-        const upper = key.toUpperCase()
-        if (upper >= 'A' && upper <= 'F') {
-            position = upper.charCodeAt(0) - 'A'.charCodeAt(0)
-        } else {
-            return undefined
-        }
-    }
+    const position = keyPosition(keys, key)
+    if (position === undefined) return undefined
 
     const team = [...match.teams].sort((a, b) => a.startNumber - b.startNumber)[position]
     if (team === undefined) return undefined

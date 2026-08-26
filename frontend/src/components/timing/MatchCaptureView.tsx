@@ -12,7 +12,13 @@ import {useFeedback} from '@utils/hooks.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
 import {assignCapturedMark, CaptureFn} from '@components/timing/useCaptureFlow.ts'
 import {expectedFinishMatches, pendingAssignmentMark} from '@utils/timing/matchBoard.ts'
-import {cycleFocus, finishKeyTarget} from '@utils/timing/boardFocus.ts'
+import {
+    boatKeyHint,
+    boatKeyLayout,
+    boatKeyRows,
+    cycleFocus,
+    finishKeyTarget,
+} from '@utils/timing/boardFocus.ts'
 import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {formatOfficialTime} from '@components/timing/leitstand/format.ts'
 import {boatReason} from '@components/timing/leitstand/officialTimeReason.ts'
@@ -60,21 +66,16 @@ export type MatchCaptureViewProps = {
 /** Das Ziel eines Boots-Tipps: id plus „an diesem Posten schon fertig". */
 type BoatTarget = {id: string; finished: boolean}
 
-/** Der sichtbare Tasten-Hinweis eines Boots: Position 0 → „1/A", Position 5 → „6/F". */
-function keyHint(position: number): string | undefined {
-    if (position > 5) return undefined
-    return `${position + 1}/${String.fromCharCode('A'.charCodeAt(0) + position)}`
-}
-
 /**
  * Die eine Ansicht des Zielpostens: die erwarteten Partien mit ihren Booten, jedes Boot ein
  * großer Knopf. Drei gleichwertige Griffe:
  *
- * 1. **Taste ohne Scharfschalten:** Ziffern 1–6 und Buchstaben A–F treffen das Boot an dieser
- *    Position der FOKUSSIERTEN Partie (nach Startnummer) — Zeit nehmen und zuordnen in einer
- *    Geste. Der Fokus ist sichtbar markiert und wandert per Tab (oder Klick); Boote, die schon
- *    im Ziel sind, reagieren nicht auf ihre Taste (kein Doppelstempel — Korrektur über die
- *    Zeitenliste).
+ * 1. **Taste ohne Scharfschalten:** die Tasten der Belegung treffen das Boot an dieser Position
+ *    der FOKUSSIERTEN Partie (nach Startnummer) — Zeit nehmen und zuordnen in einer Geste. Welche
+ *    Tasten das sind, sagt der Zeitnahmetyp des Laufs (`boatKeyLayout`); die Vorgabe bleibt
+ *    `1`–`6` und `A`–`F`. Der Fokus ist sichtbar markiert und wandert per Tab (oder Klick); Boote,
+ *    die schon im Ziel sind, reagieren nicht auf ihre Taste (kein Doppelstempel — Korrektur über
+ *    die Zeitenliste).
  * 2. **Erst stempeln, dann klicken:** die große Erfassungsfläche (oder die Leertaste) nimmt die
  *    Zeit im Moment der Ziellinie; die älteste unzugeordnete Zeit erscheint als Banner und der
  *    nächste Boots-Druck (Tipp ODER Taste) hängt sie an dieses Boot.
@@ -107,7 +108,7 @@ const MatchCaptureView = ({
 }: MatchCaptureViewProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
-    // Reine Touch-Geräte haben keine 1–6/A–F-Tasten: die Tasten-Hinweise an den Booten und die
+    // Reine Touch-Geräte haben gar keine Tastatur: die Tasten-Hinweise an den Booten und die
     // Tastatur-Sätze im Hilfetext entfallen dort — die Tasten-Listener bleiben (schaden nie).
     const touchOnly = useTouchOnly()
 
@@ -154,12 +155,15 @@ const MatchCaptureView = ({
         [disabled, pending, allowed, applyLocalAssignment, eventId, capture, feedback, t],
     )
 
-    // --- Tastatur: 1–6 / A–F auf die fokussierte Partie, Tab wechselt den Fokus ---------------
+    // --- Tastatur: die Boots-Tasten auf die fokussierte Partie, Tab wechselt den Fokus --------
     //
     // Im Ref gespiegelt, damit der Listener einmal registriert bleibt statt bei jeder Marken-
     // oder Fokusänderung ab- und wieder angemeldet zu werden (dasselbe Muster wie zuvor im
     // Team-Raster). Der Zeitstempel entsteht im Moment des Drucks — deshalb keydown, nie keyup.
     const focusedMatch = matches.find(match => match.competitionSetupMatch === focusedId)
+    // Der Hilfesatz oben nennt die Tasten, die WIRKEN — also die der fokussierten Partie, denn nur
+    // auf sie wirken sie überhaupt. Ohne Fokus steht dort die Vorgabebelegung.
+    const focusedKeys = boatKeyRows(boatKeyLayout(focusedMatch?.timingMode))
     const handlersRef = useRef({
         focusedMatch,
         currentIds: [] as string[],
@@ -202,9 +206,11 @@ const MatchCaptureView = ({
                 return
             }
 
-            const target = finishKeyTarget(match, event.key)
+            // Die Belegung der fokussierten Partie — dieselbe, die unten als Hinweis an ihren
+            // Booten steht.
+            const target = finishKeyTarget(match, event.key, boatKeyLayout(match?.timingMode))
             if (target === undefined) return
-            // Sperrstelle 2: Entschärft treffen 1–6 und A–F nichts mehr — weder erfassend noch
+            // Sperrstelle 2: Entschärft treffen die Boots-Tasten nichts mehr — weder erfassend noch
             // zuordnend. Genau diese Tasten sind die Unfallfläche, um die es geht: Sie hängen eine
             // Zeit sofort an ein bestimmtes Boot, und ein Ärmel trifft eine Tastatur. Ohne
             // `preventDefault`, damit der Browser eine Taste, die hier nichts mehr tut, wieder
@@ -233,6 +239,10 @@ const MatchCaptureView = ({
         // Startmarke nachgetragen ist (der Chip unten sagt das dem Bediener).
         const focusable = match.progress !== 'FINISHED'
         const startMissing = isFocused && match.progress === 'OPEN'
+        // Die Hinweise an den Booten kommen aus derselben Quelle wie die Tastenauswertung oben:
+        // dem Zeitnahmetyp DIESER Partie. Zwei Partien nebeneinander dürfen verschiedene
+        // Belegungen haben — ein Hinweis aus der falschen wäre ein Versprechen ins Leere.
+        const keys = boatKeyLayout(match.timingMode)
         return (
             <Stack
                 key={match.competitionSetupMatch}
@@ -299,10 +309,12 @@ const MatchCaptureView = ({
                         const dead = done || blocked
                         // Der Hinweis hängt an `allowed`, NICHT an `dead`: Wartet entschärft eine
                         // gebankte Zeit auf ihr Boot, lebt der Knopf als Zuordnungs-Ziel wieder auf
-                        // — die Tasten 1–6/A–F bleiben aber gesperrt. Ein „3/C" an einem Boot,
+                        // — die Boots-Tasten bleiben aber gesperrt. Ein „3/C" an einem Boot,
                         // dessen Taste nichts tut, schickt den Bediener unter Zeitdruck ins Leere.
                         const hint =
-                            isFocused && !touchOnly && allowed ? keyHint(position) : undefined
+                            isFocused && !touchOnly && allowed
+                                ? boatKeyHint(keys, position)
+                                : undefined
                         const official = officialTimes.get(team.competitionMatchTeam)
                         const officialLabel =
                             official === undefined
@@ -446,8 +458,8 @@ const MatchCaptureView = ({
                     {touchOnly
                         ? t('timing.finish.hintTouch')
                         : current.length > 1
-                          ? `${t('timing.finish.hint')} ${t('timing.finish.focusHint')}`
-                          : t('timing.finish.hint')}
+                          ? `${t('timing.finish.hint', {keys: focusedKeys})} ${t('timing.finish.focusHint')}`
+                          : t('timing.finish.hint', {keys: focusedKeys})}
                 </Typography>
             ) : null}
 

@@ -1749,7 +1749,8 @@
         "startGrouping": {
           "label": "Startart",
           "EINZEL": "Einzelstart",
-          "WELLE": "Welle"
+          "WELLE": "Welle",
+          "help": "Einzelstart schickt jedes Boot für sich auf die Strecke — ein Zeitfahren, in dem jedes Boot seine eigene Startzeit bekommt. Wellenstart schickt mehrere Boote gemeinsam los; alle Boote einer Welle teilen sich eine Startzeit. Einen eigenen Massenstart gibt es nicht: Er ist eine Welle, in der alle Boote des Laufs stehen."
         },
         "intervalSeconds": "Startintervall (Sekunden)",
         "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
@@ -1760,7 +1761,8 @@
         "describe": {
           "interval": "Intervall {{seconds}} s",
           "manualStart": "Start von Hand",
-          "leadIn": "Vorlauf {{seconds}} s"
+          "leadIn": "Vorlauf {{seconds}} s",
+          "noStartSequence": "Kein Start durch die App"
         },
         "saved": "Zeitnahmetyp gespeichert",
         "deleted": "Zeitnahmetyp gelöscht",
@@ -1776,7 +1778,21 @@
           "invalid": "Bitte prüfen Sie die markierten Töne: Zeitpunkt 0–600 Sekunden vor Start, Tonhöhe 100–4000 Hz, Dauer 20–10000 ms, Ausklingen 0–5000 ms, höchstens 30 Töne."
         },
         "falseStartEnabled": "Fehlstart-Rückruf erlauben",
-        "falseStartEnabledHelp": "An: Der Startposten kann Läufe dieses Typs zurückrufen — die Startsequenz wird abgebrochen, der Versuch zurückgenommen und die Athletenanzeigen blinken rot. Aus für Timetrials: dort wird ein Fehlstart mit einer Strafzeit geahndet statt mit einem Rückruf des Feldes."
+        "falseStartEnabledHelp": "Der Schalter bestimmt nur, ob am Startposten überhaupt ein Fehlstart-Knopf erscheint. An: Der Posten kann Läufe dieses Typs zurückrufen — die Startsequenz wird abgebrochen, der Versuch zurückgenommen und die Athletenanzeigen blinken rot. Aus: Der Knopf fehlt, zum Beispiel beim Zeitfahren, wo niemand das Feld zurückholt. Die Wertung eines Fehlstarts bleibt davon unberührt: Ob er eine Strafzeit oder eine Ausscheidung nach sich zieht, richtet sich nach dem Regelwerk und wird von Hand am Lauf eingetragen. Dieser Schalter greift nicht in die Wertung ein.",
+        "startSequenceEnabled": "Startsequenz durch die App",
+        "startSequenceEnabledHelp": "An: Das Start-Board erzeugt für Läufe dieses Typs eine Startsequenz mit Countdown und Tönen. Aus: Nicht jeder Lauf wird von der App gestartet — wird am Steg von Hand losgeschickt, gibt es kein Countdown-Fenster, und ein Board, das trotzdem eines anbietet, lädt zum falschen Griff ein. Startintervall und Countdown-Vorlauf wirken dann nicht.",
+        "toneSet": "Ton-Satz",
+        "toneSetInherit": "Erbt ({{name}})",
+        "toneSetInheritNone": "Erbt den Vorgabesatz der Veranstaltung",
+        "toneSetLoading": "Wird geladen …",
+        "toneSetHelp": "Welche vier Töne Läufe dieses Typs machen: Startsequenz, Zwischenton, Fehlstart-Folge und Zielton. Ohne eigene Wahl gilt der Vorgabesatz der Veranstaltung — eine Änderung am Satz erreicht dann alle Typen, die ihn erben. Die Sätze selbst werden weiter oben auf dieser Seite gepflegt.",
+        "boatKeys": {
+          "title": "Tastenbelegung am Zielposten",
+          "primary": "Erste Reihe",
+          "secondary": "Zweite Reihe (optional)",
+          "help": "Die Tasten, mit denen der Zielposten die Boote trifft — in Positionsreihenfolge: Das erste Zeichen gehört dem Boot mit der niedrigsten Startnummer. Zwei Reihen, weil man je nach Tastatur greift, was näher liegt; die zweite darf leer bleiben. Groß- und Kleinschreibung sind dieselbe Taste, jede Taste gehört zu genau einem Boot, und die Leertaste bleibt frei — sie ist der große Erfassungsknopf. Höchstens sechs Zeichen je Reihe.",
+          "invalid": "Bitte prüfen: Die erste Reihe darf nicht leer sein, höchstens sechs Zeichen je Reihe, keine Leerzeichen, und keine Taste zweimal — auch nicht zwischen den beiden Reihen (groß und klein zählen als dieselbe Taste)."
+        }
       },
       "races": {
         "title": "RaceClocker-Rennen",
@@ -3248,7 +3264,7 @@
     "finish": {
       "assignPrompt": "Zeit {{time}} wartet — Boot antippen, um sie zuzuordnen.",
       "assignLater": "Später zuordnen",
-      "hint": "Boot antippen oder Taste 1–6 / A–F: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Druck aufs Boot zuordnen.",
+      "hint": "Boot antippen oder Taste {{keys}}: Zeit nehmen und sofort zuordnen. Große Taste oder Leertaste: Zeit ohne Boot speichern und danach per Druck aufs Boot zuordnen.",
       "hintTouch": "Boot antippen: Zeit nehmen und sofort zuordnen. Große Fläche: Zeit ohne Boot speichern und danach durch Antippen eines Boots zuordnen.",
       "finishedCount": "{{finished}}/{{total}} im Ziel",
       "upcomingTitle": "Als Nächstes erwartet",
