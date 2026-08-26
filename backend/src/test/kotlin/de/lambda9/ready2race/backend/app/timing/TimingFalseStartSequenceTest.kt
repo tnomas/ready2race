@@ -130,6 +130,28 @@ class TimingFalseStartSequenceTest {
 
     // ---------------------------------------------------------------- Standard und Zuruecksetzen
 
+    /**
+     * Die Veranstaltung GANZ OHNE Ton-Satz - eine eigene Population, keine Doppelung des Falls
+     * darunter.
+     *
+     * Genau diese Regatten lässt V202608261200 bewusst setzlos: keine Zeitnahmetypen und in allen
+     * drei Ton-Spalten null. Nach V202608261210 gibt es für sie nirgends mehr einen gespeicherten
+     * Ton - weder an der Veranstaltung noch in einem Satz. Bliebe der Endpunkt hier stumm, wäre
+     * der große Erfassungsknopf auf jeder frischen Regatta tonlos, und das fiele erst am Wasser
+     * auf.
+     */
+    @Test
+    fun anEventWithoutAnyToneSetGetsTheBuiltInSequence() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+
+        // Ausdrücklich KEIN createDefaultToneSet: Der Dienst muss aus dem Nichts einen spielbaren
+        // Ton liefern.
+        assertEquals(
+            TimingToneLimits.DEFAULT_FALSE_START_SEQUENCE,
+            (!TimingOfficialTimeService.getSettings(eventId)).dto.defaultToneSet.falseStartTone,
+        )
+    }
+
     @Test
     fun anUnconfiguredToneSetGetsTheBuiltInSequence() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

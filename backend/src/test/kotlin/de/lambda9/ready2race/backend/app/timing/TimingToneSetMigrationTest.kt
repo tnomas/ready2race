@@ -78,6 +78,17 @@ class TimingToneSetMigrationTest {
     private val tonePlan =
         """[{"offsetMillis": -3000, "frequencyHz": 600, "durationMillis": 100}, {"offsetMillis": 0, "frequencyHz": 900, "durationMillis": 400}]"""
 
+    /**
+     * ANDERE Töne für die Veranstaltung ohne Zeitnahmetypen. Gäben alle Veranstaltungen dieselben
+     * Literale her, ginge jeder Vergleich auch dann auf, wenn die Migration die Töne der FALSCHEN
+     * Veranstaltung kopiert hätte — der Test prüfte dann nur noch, DASS etwas ankam, nicht WESSEN
+     * Töne.
+     */
+    private val otherSplitTone = """{"frequencyHz": 550, "durationMillis": 90}"""
+    private val otherFinishTone = """{"frequencyHz": 1320, "durationMillis": 250}"""
+    private val otherFalseStartTone =
+        """[{"offsetMillis": 0, "frequencyHz": 240, "durationMillis": 500}]"""
+
     @Test
     fun `überführt die Töne in Sätze, ohne dass eine Regatta anders klingt`() {
         val postgres = PostgreSQLContainer("postgres:17")
@@ -130,15 +141,22 @@ class TimingToneSetMigrationTest {
                     ),
                     "jede Veranstaltung mit eigenem Ton braucht einen Satz",
                 )
-                // Die drei Werte festhalten, solange die Spalten noch da sind: Nach dem Ablegen
-                // vergleichen die Fälle unten gegen DIESEN Stand statt gegen die Spalten.
-                Triple(
-                    queryString(conn, "select timing_split_tone::text from ready2race.event where id = ?", eventId),
-                    queryString(conn, "select timing_false_start_tone::text from ready2race.event where id = ?", eventId),
-                    queryString(conn, "select timing_finish_tone::text from ready2race.event where id = ?", eventId),
-                )
+                // Die drei Werte JE VERANSTALTUNG festhalten, solange die Spalten noch da sind:
+                // Nach dem Ablegen vergleichen die Fälle unten gegen DIESEN Stand statt gegen die
+                // Spalten. Je Veranstaltung und nicht einmal für alle — sonst prüfte der Vergleich
+                // nur, dass ÜBERHAUPT Töne ankamen, nicht dass es die der richtigen Regatta sind.
+                listOf(eventId, eventTonesOnlyId, eventSilentId).associateWith { event ->
+                    Triple(
+                        queryString(conn, "select timing_split_tone::text from ready2race.event where id = ?", event),
+                        queryString(conn, "select timing_false_start_tone::text from ready2race.event where id = ?", event),
+                        queryString(conn, "select timing_finish_tone::text from ready2race.event where id = ?", event),
+                    )
+                }
             }
-            assertNotNull(storedEventTones.first)
+            assertNotNull(storedEventTones.getValue(eventId).first)
+            // Der Seed muss die beiden Veranstaltungen wirklich unterscheiden - sonst wäre die
+            // Prüfung „SEINER Veranstaltung" unten wieder zahnlos.
+            assertNotEquals(storedEventTones.getValue(eventId), storedEventTones.getValue(eventTonesOnlyId))
 
             flyway(postgres).load().migrate()
 
@@ -159,7 +177,7 @@ class TimingToneSetMigrationTest {
                 assertFalse(queryBoolean(conn, "select is_default from ready2race.timing_tone_set where id = ?", ownSetId))
                 // Und er trägt dieselben drei Veranstaltungs-Töne wie der Vorgabesatz: der Typ
                 // klingt an Zwischenzeit, Fehlstart und Ziel weiter wie die ganze Regatta.
-                assertTrue(carriesEventTones(conn, ownSetId, storedEventTones))
+                assertTrue(carriesEventTones(conn, ownSetId, storedEventTones.getValue(eventId)))
 
                 // Fall 2: Der Vorgabesatz trägt die drei Töne der Veranstaltung unverändert und
                 // hat keinen eigenen Startplan — genau die heutige Bedeutung „eingebauter Plan".
@@ -167,7 +185,7 @@ class TimingToneSetMigrationTest {
                 assertNotNull(defaultSetId)
                 assertEquals("Standard", queryString(conn, "select name from ready2race.timing_tone_set where id = ?", defaultSetId))
                 assertNull(queryString(conn, "select sequence_tone_plan::text from ready2race.timing_tone_set where id = ?", defaultSetId))
-                assertTrue(carriesEventTones(conn, defaultSetId, storedEventTones))
+                assertTrue(carriesEventTones(conn, defaultSetId, storedEventTones.getValue(eventId)))
 
                 // Fall 3: Eine Veranstaltung OHNE Zeitnahmetypen, aber mit eigenen Tönen bekommt
                 // trotzdem ihren Vorgabesatz — und der trägt genau ihre Töne. Ohne ihn verlöre
@@ -178,7 +196,7 @@ class TimingToneSetMigrationTest {
                 )
                 val tonesOnlySetId = defaultSetOf(conn, eventTonesOnlyId)
                 assertNotNull(tonesOnlySetId)
-                assertTrue(carriesEventTones(conn, tonesOnlySetId, storedEventTones))
+                assertTrue(carriesEventTones(conn, tonesOnlySetId, storedEventTones.getValue(eventTonesOnlyId)))
 
                 // Erst ohne Typen UND ohne Töne bleibt es leer — dort gäbe es nichts zu bewahren.
                 assertEquals(
@@ -290,8 +308,16 @@ class TimingToneSetMigrationTest {
         insertMode(conn, modeWithPlanId, eventId, "Wellenstart", tonePlan)
         insertMode(conn, modeWithoutPlanId, eventId, "Massenstart", null)
 
-        // Ohne Zeitnahmetypen, aber mit eigenen Tönen: Der Satz muss trotzdem entstehen.
-        insertEvent(conn, eventTonesOnlyId, "Regatta ohne Zeitnahmetypen", splitTone, falseStartTone, finishTone)
+        // Ohne Zeitnahmetypen, aber mit eigenen Tönen: Der Satz muss trotzdem entstehen — und er
+        // muss IHRE Töne tragen, nicht irgendwelche. Deshalb hier andere Werte.
+        insertEvent(
+            conn,
+            eventTonesOnlyId,
+            "Regatta ohne Zeitnahmetypen",
+            otherSplitTone,
+            otherFalseStartTone,
+            otherFinishTone,
+        )
 
         // Weder Typen noch Töne: Hier ist ein Satz nur Ballast.
         insertEvent(conn, eventEmptyId, "Regatta ohne alles", null, null, null)
@@ -331,11 +357,13 @@ class TimingToneSetMigrationTest {
     )
 
     /**
-     * Trägt der Satz die drei Töne der Veranstaltung Zeichen für Zeichen?
+     * Trägt der Satz die drei Töne SEINER Veranstaltung Zeichen für Zeichen?
      *
-     * Verglichen wird gegen [tones] — den Stand, der VOR dem Ablegen der drei Spalten festgehalten
-     * wurde. Ein Verbund auf `event` ginge nicht mehr: Die Spalten sind mit V202608261210
-     * gefallen, und genau das ist ja der Punkt.
+     * Verglichen wird gegen [tones] — den Stand DIESER Veranstaltung, festgehalten vor dem Ablegen
+     * der drei Spalten. Ein Verbund auf `event` ginge nicht mehr: Die Spalten sind mit
+     * V202608261210 gefallen, und genau das ist ja der Punkt. Damit „SEINER" trägt und nicht nur
+     * so klingt, gibt der Seed den beteiligten Veranstaltungen VERSCHIEDENE Töne und der Aufrufer
+     * reicht die der jeweiligen Veranstaltung herein.
      */
     private fun carriesEventTones(conn: Connection, setId: UUID, tones: Triple<String?, String?, String?>): Boolean =
         count(

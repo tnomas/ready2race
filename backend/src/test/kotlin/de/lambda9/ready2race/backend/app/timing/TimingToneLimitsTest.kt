@@ -30,6 +30,20 @@ class TimingToneLimitsTest {
         sequenceTonePlan = tonePlan,
     )
 
+    /**
+     * Ein Ton-Satz mit einem EINZELTON - Ziel oder Zwischenzeit. Bewusst über den Request und
+     * nicht über [TimingToneLimits.validateCaptureTone] direkt: Geprüft werden soll nicht nur die
+     * Grenze, sondern die VERDRAHTUNG. Wer die beiden Zeilen aus
+     * `TimingToneSetRequest.validate()` löschte, bräche sonst keinen Test - der Wächter stünde
+     * ohne Wächter, und ein 4001-Hz-Zielton käme bis in die Datenbank.
+     */
+    private fun captureRequest(finishTone: CaptureTone? = null, splitTone: CaptureTone? = null) =
+        TimingToneSetRequest(
+            name = "Laut fürs Wasser",
+            finishTone = finishTone,
+            splitTone = splitTone,
+        )
+
     private fun step(
         offsetMillis: Int = -1000,
         frequencyHz: Int = 600,
@@ -91,6 +105,53 @@ class TimingToneLimitsTest {
         assertEquals(ValidationResult.Valid, request(listOf(step(releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS))).validate())
         assertTrue(request(listOf(step(releaseMillis = -1))).validate() is ValidationResult.Invalid)
         assertTrue(request(listOf(step(releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS + 1))).validate() is ValidationResult.Invalid)
+    }
+
+    // ------------------------------------------------- Erfassungstöne: Ablehnung über den Request
+
+    @Test
+    fun captureTonesInsideTheLimitsPassThroughTheRequest() {
+        assertEquals(
+            ValidationResult.Valid,
+            captureRequest(
+                finishTone = CaptureTone(frequencyHz = TimingToneLimits.FREQUENCY_MIN_HZ, durationMillis = TimingToneLimits.DURATION_MIN_MILLIS),
+                // Obergrenze seit dem Fehlstart-Ton: 10 s statt früher 2 s.
+                splitTone = CaptureTone(frequencyHz = TimingToneLimits.FREQUENCY_MAX_HZ, durationMillis = TimingToneLimits.DURATION_MAX_MILLIS),
+            ).validate(),
+        )
+    }
+
+    @Test
+    fun aCaptureToneOutsideTheAudibleWindowIsRejectedByTheRequest() {
+        assertTrue(captureRequest(finishTone = CaptureTone(99, 150)).validate() is ValidationResult.Invalid)
+        assertTrue(captureRequest(finishTone = CaptureTone(4001, 150)).validate() is ValidationResult.Invalid)
+        // Beide Töne hängen am selben Wächter - geprüft werden beide, sonst deckte der Test nur
+        // die eine der zwei Zeilen im Request ab.
+        assertTrue(captureRequest(splitTone = CaptureTone(99, 150)).validate() is ValidationResult.Invalid)
+    }
+
+    @Test
+    fun aCaptureToneOutsideTheDurationLimitsIsRejectedByTheRequest() {
+        assertTrue(captureRequest(splitTone = CaptureTone(880, 19)).validate() is ValidationResult.Invalid)
+        assertTrue(captureRequest(splitTone = CaptureTone(880, 10_001)).validate() is ValidationResult.Invalid)
+        assertTrue(captureRequest(finishTone = CaptureTone(880, 19)).validate() is ValidationResult.Invalid)
+    }
+
+    @Test
+    fun aCaptureToneWithAnImpossibleReleaseIsRejectedByTheRequest() {
+        assertTrue(
+            captureRequest(finishTone = CaptureTone(880, 150, releaseMillis = -1)).validate() is ValidationResult.Invalid,
+        )
+        assertTrue(
+            captureRequest(finishTone = CaptureTone(880, 150, releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS + 1))
+                .validate() is ValidationResult.Invalid,
+        )
+        // Das Ausklingen darf die Nenndauer überragen (150 ms Haltezeit + 5 s Abfall) - die
+        // Obergrenze gilt dem Ausklingen selbst, nicht der Summe.
+        assertEquals(
+            ValidationResult.Valid,
+            captureRequest(finishTone = CaptureTone(880, 150, releaseMillis = TimingToneLimits.RELEASE_MAX_MILLIS)).validate(),
+        )
     }
 
     @Test
