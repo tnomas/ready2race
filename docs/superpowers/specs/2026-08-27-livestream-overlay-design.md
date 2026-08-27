@@ -54,8 +54,14 @@ Aufbau `boundary/` `control/` `entity/` wie bei `liveDashboard`.
 | `chroma_color` | text null | nur bei CHROMA, Default `#00FF00` |
 | `safe_area_percent` | int | Sicherheitsrand, Default 0 |
 | `trial_mode` | boolean | Probemodus an/aus (siehe unten) |
-| `token` | text | Geräte-Token der Szene, widerrufbar durch Neu-Erzeugen — Muster Board-Share-Link |
 | `created_at` / `updated_at` … | | wie üblich |
+
+Der Szenen-Token liegt NICHT als Spalte hier, sondern in der bestehenden, bewusst
+vereinheitlichten Token-Infrastruktur: `timing_device_token` trägt heute Posten- oder
+Board-Tokens (genau ein Ziel, DB-Check-Constraint, siehe `V202608250900`). Die Migration
+ergänzt ein drittes Ziel `stream_scene` (fk, on delete cascade) und weitet den Constraint
+auf `num_nonnulls(station, board, stream_scene) = 1`. Ausstellen/Wiederverwenden/Widerrufen
+laufen über `TimingDeviceTokenService` (neu: `validateForStreamScene`), wie beim Board.
 
 **`stream_scene_graphic`** — je Szene und Grafiktyp eine Zeile, `unique(scene, type)`:
 
