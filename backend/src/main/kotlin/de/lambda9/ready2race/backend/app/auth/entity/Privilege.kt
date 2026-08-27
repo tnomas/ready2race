@@ -29,6 +29,7 @@ sealed class Privilege(
         RESULT,
         LIVE_DASHBOARD,
         BOARD,
+        STREAM,
         ADMINISTRATION,
     }
 
@@ -103,6 +104,12 @@ sealed class Privilege(
     // bestehende Rollen nichts verlieren.
     data object ReadBoardGlobal : Privilege(Action.READ, Resource.BOARD, Scope.GLOBAL)
     data object UpdateBoardGlobal : Privilege(Action.UPDATE, Resource.BOARD, Scope.GLOBAL)
+
+    // Der Stream (Livestream-Overlay) braucht dieselbe Trennung wie die Boards: Streamer
+    // pflegen ihre Overlay-Konfiguration, aber nicht das ganze Event. Deshalb ein eigenes Paar
+    // statt der Anbindung an UPDATE EVENT.
+    data object ReadStreamGlobal : Privilege(Action.READ, Resource.STREAM, Scope.GLOBAL)
+    data object UpdateStreamGlobal : Privilege(Action.UPDATE, Resource.STREAM, Scope.GLOBAL)
 
     data object UpdateAdministrationConfigGlobal : Privilege(Action.UPDATE, Resource.ADMINISTRATION, Scope.GLOBAL)
     data object ReadAdministrationConfigGlobal : Privilege(Action.READ, Resource.ADMINISTRATION, Scope.GLOBAL)

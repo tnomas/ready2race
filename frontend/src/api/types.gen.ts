@@ -3805,6 +3805,7 @@ export type Resource =
     | 'RESULT'
     | 'LIVE_DASHBOARD'
     | 'BOARD'
+    | 'STREAM'
 
 export type ResultChallengeClubDto = {
     id: string

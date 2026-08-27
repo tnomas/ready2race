@@ -11536,6 +11536,7 @@ components:
         - RESULT
         - LIVE_DASHBOARD
         - BOARD
+        - STREAM
 
     Scope:
       type: string

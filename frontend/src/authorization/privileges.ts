@@ -176,6 +176,19 @@ export const updateBoardGlobal: Privilege = {
     scope: 'GLOBAL',
 }
 
+// Der Stream (Livestream-Overlay) braucht dieselbe Trennung wie die Boards: Streamer
+// pflegen ihre Overlay-Konfiguration, aber nicht das ganze Event.
+export const readStreamGlobal: Privilege = {
+    action: 'READ',
+    resource: 'STREAM',
+    scope: 'GLOBAL',
+}
+export const updateStreamGlobal: Privilege = {
+    action: 'UPDATE',
+    resource: 'STREAM',
+    scope: 'GLOBAL',
+}
+
 export const updateAdministrationConfigGlobal: Privilege = {
     action: 'UPDATE',
     resource: 'ADMINISTRATION',

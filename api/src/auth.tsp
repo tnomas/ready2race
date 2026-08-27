@@ -26,6 +26,9 @@ enum Resource {
   APP_TIMING;
   WEB_DAV;
   RESULT;
+  LIVE_DASHBOARD;
+  BOARD;
+  STREAM;
   ADMINISTRATION;
 }
 
