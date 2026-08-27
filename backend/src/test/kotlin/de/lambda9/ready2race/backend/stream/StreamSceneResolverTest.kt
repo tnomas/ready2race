@@ -60,7 +60,7 @@ class StreamSceneResolverTest {
         ),
     )
 
-    private fun testResult(id: UUID = UUID.randomUUID()): AthleteBoardResult = AthleteBoardResult(
+    private fun testResult(id: UUID = UUID.randomUUID(), clarification: Boolean = false): AthleteBoardResult = AthleteBoardResult(
         matchId = id,
         competitionName = "Achter Herren",
         categoryName = null,
@@ -68,6 +68,7 @@ class StreamSceneResolverTest {
         matchName = null,
         startTime = null,
         actualStartTime = null,
+        clarification = clarification,
         teams = emptyList(),
     )
 
@@ -221,7 +222,11 @@ class StreamSceneResolverTest {
     @Test
     fun `finishTicker erscheint mit dem ersten Einlauf und weicht result`() {
         val entries = listOf(StreamFinishEntry(rank = 1, startNumber = 3, clubsShort = "RGF", clubsFull = null, timeString = "06:12.3"))
-        val graphics = listOf(graphic(StreamGraphicType.FINISH_TICKER, StreamPlacement.SIDE_RIGHT))
+        // RESULT muss in der Szene konfiguriert sein, sonst gibt es nichts, dem der Ticker weichen könnte.
+        val graphics = listOf(
+            graphic(StreamGraphicType.FINISH_TICKER, StreamPlacement.SIDE_RIGHT),
+            graphic(StreamGraphicType.RESULT, StreamPlacement.BOTTOM_CENTER),
+        )
 
         val withoutResult = resolveScene(
             baseInput(now = t0, graphics = graphics, finishEntries = entries)
@@ -238,6 +243,28 @@ class StreamSceneResolverTest {
             )
         )
         assertFalse(withResult.graphic(StreamGraphicType.FINISH_TICKER).visible, "Ticker muss dem Ergebnis weichen")
+    }
+
+    @Test
+    fun `finishTicker bleibt sichtbar wenn die Szene gar kein RESULT konfiguriert hat`() {
+        val entries = listOf(StreamFinishEntry(rank = 1, startNumber = 3, clubsShort = "RGF", clubsFull = null, timeString = "06:12.3"))
+        // Keine RESULT-Zeile in dieser Szene - ein latestResultAt im Anzeigefenster darf den
+        // Ticker trotzdem nicht ausblenden, weil nichts an seine Stelle treten würde.
+        val graphics = listOf(graphic(StreamGraphicType.FINISH_TICKER, StreamPlacement.SIDE_RIGHT))
+
+        val resolved = resolveScene(
+            baseInput(
+                now = t0,
+                graphics = graphics,
+                finishEntries = entries,
+                latestResult = testResult(),
+                latestResultAt = t0,
+            )
+        )
+        assertTrue(
+            resolved.graphic(StreamGraphicType.FINISH_TICKER).visible,
+            "Ohne konfigurierte RESULT-Grafik darf der Ticker nicht ausgeblendet werden",
+        )
     }
 
     @Test
@@ -291,6 +318,37 @@ class StreamSceneResolverTest {
         val nextUp = resolved.graphic(StreamGraphicType.NEXT_UP)
         assertTrue(nextUp.visible, "FORCED_ON muss unabhängig von der Platz-Priorität sichtbar sein")
         assertEquals(chosenId, nextUp.match?.matchId, "FORCED_ON mit match-Bezug muss den gewählten Lauf zeigen, nicht preparing")
+    }
+
+    @Test
+    fun `forcedOn RESULT mit matchBezug traegt die eigene Klaerung des gewaehlten Ergebnisses`() {
+        val chosenId = UUID.randomUUID()
+        // Das gewählte Ergebnis steht selbst auf Klärung - unabhängig von latestResultProvisional,
+        // das hier bewusst false bleibt, um zu zeigen, dass es nicht mehr herangezogen wird.
+        val chosenResult = testResult(id = chosenId, clarification = true)
+        val graphics = listOf(graphic(StreamGraphicType.RESULT, StreamPlacement.BOTTOM_CENTER))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.RESULT,
+                state = StreamOverrideState.FORCED_ON,
+                match = chosenId,
+                expiresAt = null,
+                createdAt = t0,
+            )
+        )
+
+        val resolved = resolveScene(
+            baseInput(
+                now = t0,
+                graphics = graphics,
+                overrides = overrides,
+                latestResultProvisional = false,
+                overriddenResults = mapOf(chosenId to chosenResult),
+            )
+        )
+        val result = resolved.graphic(StreamGraphicType.RESULT)
+        assertTrue(result.visible, "FORCED_ON muss das Ergebnis zeigen")
+        assertEquals(true, result.provisional, "Die Klärung des gewählten Ergebnisses muss durchgereicht werden, nicht verworfen")
     }
 
     @Test

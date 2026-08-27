@@ -146,9 +146,13 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
     }
 
     // RESULT muss vor FINISH_TICKER feststehen: der Ticker weicht der (AUTO- oder Regie-)Sichtbarkeit des Ergebnisses.
+    // Das gilt nur, wenn RESULT in dieser Szene überhaupt konfiguriert (enabled) ist - eine
+    // Szene ohne RESULT-Grafik hat nichts, dem der Ticker weichen könnte, auch wenn irgendwo noch
+    // eine RESULT-Override-Zeile oder ein frisches latestResultAt herumliegt.
+    val resultConfigured = input.graphics.any { it.type == StreamGraphicType.RESULT }
     val resultAuto = autoResult()
     val resultOverrideState = effectiveOverrideState(StreamGraphicType.RESULT)
-    val resultVisibleForTicker = when (resultOverrideState) {
+    val resultVisibleForTicker = resultConfigured && when (resultOverrideState) {
         StreamOverrideState.FORCED_OFF -> false
         StreamOverrideState.FORCED_ON -> true
         StreamOverrideState.AUTO -> resultAuto.visible
@@ -231,9 +235,10 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
         }
         val result = if (row.type == StreamGraphicType.RESULT) overriddenResult ?: input.latestResult else null
         val provisional = if (row.type == StreamGraphicType.RESULT) {
-            // Ein ausgewähltes fremdes Ergebnis (match-Bezug) trägt keine eigene Klärungs-Angabe -
-            // nur der jüngste Auto-Inhalt kennt latestResultProvisional.
-            if (overriddenResult != null) false else input.latestResultProvisional
+            // Ein ausgewähltes fremdes Ergebnis (match-Bezug) trägt seine Klärung selbst
+            // (AthleteBoardResult.clarification) - latestResultProvisional gilt nur für den
+            // jüngsten Auto-Inhalt, der keinen eigenen Klärungs-Zeitstempel im Input mitbringt.
+            if (overriddenResult != null) overriddenResult.clarification else input.latestResultProvisional
         } else null
         val finishEntries = if (row.type == StreamGraphicType.FINISH_TICKER) input.finishEntries else null
         val schedule = if (row.type == StreamGraphicType.SCHEDULE) input.schedule else null
