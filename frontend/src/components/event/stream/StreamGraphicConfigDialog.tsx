@@ -27,6 +27,7 @@ import {
     withAllGraphicTypes,
 } from './streamGraphicCatalog'
 import {extractErrorReason} from './streamApiError'
+import {classifyCourseImageDocuments} from './courseImageDocuments'
 
 export type StreamGraphicConfigDialogProps = {
     open: boolean
@@ -56,10 +57,15 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
 
     // Nur für COURSE_IMAGE gebraucht, aber unbedingt geladen (statt erst beim Aufklappen), damit
     // die Auswahl sofort einen Namen statt der bloßen ID zeigt.
-    const {data: documents} = useFetch(
+    //
+    // `getDocuments` verlangt READ EVENT - eine reine Stream-Rolle (nur READ/UPDATE STREAM) hat
+    // das nicht und bekommt 403. `classifyCourseImageDocuments` unterscheidet das ausdrücklich von
+    // einer leeren Dokumentenliste, damit die Auswahl nie stillschweigend leer bleibt.
+    const {data: documents, error: documentsError} = useFetch(
         signal => getDocuments({signal, path: {eventId}, query: {limit: 500}}),
         {preCondition: () => open, deps: [open, eventId]},
     )
+    const documentsState = classifyCourseImageDocuments(documentsError, documents)
 
     const updateRow = (type: StreamSceneGraphicDto['type'], patch: Partial<StreamSceneGraphicDto>) => {
         setRows(prev => prev.map(row => (row.type === type ? {...row, ...patch} : row)))
@@ -176,7 +182,11 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
                                         />
                                     )}
 
-                                    {usesImageDocument(row.type) && (
+                                    {/* Aktiv-Schalter bleibt in JEDEM Zustand nutzbar - fehlt die Bildwahl (403)
+                                        oder ist noch nichts hochgeladen, bleibt imageDocument einfach unbelegt;
+                                        die Grafik zeigt dann serverseitig nichts an (siehe StreamGraphic.tsx),
+                                        statt das Speichern zu blockieren. */}
+                                    {usesImageDocument(row.type) && documentsState.kind === 'loaded' && (
                                         <TextField
                                             select
                                             size="small"
@@ -194,15 +204,33 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
                                             <MenuItem value="">
                                                 {t('event.stream.scenes.graphicDialog.imageNone')}
                                             </MenuItem>
-                                            {documents?.data.map(document => (
+                                            {documentsState.documents.map(document => (
                                                 <MenuItem key={document.id} value={document.id}>
                                                     {document.name}
                                                 </MenuItem>
                                             ))}
                                         </TextField>
                                     )}
+                                    {/* Kein stillschweigend leeres Dropdown: fehlendes Recht, Ladefehler und eine
+                                        (noch) leere Dokumentenliste sind drei sichtbar unterschiedene Hinweise
+                                        statt einer Auswahl ohne Einträge. */}
+                                    {usesImageDocument(row.type) && documentsState.kind === 'forbidden' && (
+                                        <Typography variant="body2" color="warning.main" sx={{minWidth: 220}}>
+                                            {t('event.stream.scenes.graphicDialog.imageForbidden')}
+                                        </Typography>
+                                    )}
+                                    {usesImageDocument(row.type) && documentsState.kind === 'empty' && (
+                                        <Typography variant="body2" color="text.secondary" sx={{minWidth: 220}}>
+                                            {t('event.stream.scenes.graphicDialog.imageEmpty')}
+                                        </Typography>
+                                    )}
+                                    {usesImageDocument(row.type) && documentsState.kind === 'error' && (
+                                        <Typography variant="body2" color="error.main" sx={{minWidth: 220}}>
+                                            {t('event.stream.scenes.graphicDialog.imageLoadError')}
+                                        </Typography>
+                                    )}
                                 </Stack>
-                                {usesImageDocument(row.type) && (
+                                {usesImageDocument(row.type) && documentsState.kind === 'loaded' && (
                                     <Typography variant="caption" color="text.secondary" component="div" sx={{mt: 1}}>
                                         {t('event.stream.scenes.graphicDialog.imageHint')}
                                     </Typography>

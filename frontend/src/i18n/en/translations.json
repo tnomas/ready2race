@@ -2625,6 +2625,9 @@
           "image": "Image",
           "imageNone": "No image selected",
           "imageHint": "Images are uploaded through the event's documents.",
+          "imageForbidden": "Selecting an image requires an event read privilege (READ EVENT) — with a stream-only role the picker stays empty. The graphic can still be enabled, it just shows no image for now.",
+          "imageEmpty": "No documents uploaded yet — upload an image through the event's documents first.",
+          "imageLoadError": "Documents could not be loaded.",
           "saved": "Graphics saved"
         },
         "type": {

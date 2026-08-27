@@ -2625,6 +2625,9 @@
           "image": "Bild",
           "imageNone": "Kein Bild ausgewählt",
           "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",
+          "imageForbidden": "Zum Auswählen eines Bildes wird ein Veranstaltungs-Leserecht (READ EVENT) benötigt — mit reinem Stream-Recht bleibt die Auswahl leer. Aktivieren lässt sich die Grafik trotzdem, sie zeigt dann vorerst kein Bild.",
+          "imageEmpty": "Noch keine Dokumente hinterlegt — zuerst ein Bild über die Dokumente der Veranstaltung hochladen.",
+          "imageLoadError": "Dokumente konnten nicht geladen werden.",
           "saved": "Grafiken gespeichert"
         },
         "type": {
