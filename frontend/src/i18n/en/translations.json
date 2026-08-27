@@ -2548,6 +2548,12 @@
         }
       }
     },
+    "stream": {
+      "startlist": "Start list",
+      "nextUp": "Up next: {{wave}}",
+      "laps": "Splits",
+      "result": "Result"
+    },
     "betrieb": {
       "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
       "referee": {

@@ -6,6 +6,8 @@ import {useFetch} from '@utils/hooks.ts'
 import {streamSceneRoute} from '@routes'
 import {useStreamSceneSocket} from '@components/event/stream/useStreamSceneSocket.ts'
 import {isStreamStale} from '@components/event/stream/streamStale.ts'
+import {StreamStaleContext} from '@components/event/stream/StreamStaleContext.ts'
+import StreamGraphic from '@components/event/stream/graphics/StreamGraphic.tsx'
 import {
     stageScale,
     STREAM_STAGE_HEIGHT,
@@ -135,16 +137,39 @@ const StreamScenePage = () => {
                     transform: `translate(-50%, -50%) scale(${scale})`,
                     transformOrigin: 'center center',
                 }}>
-                <Box sx={{position: 'absolute', inset: `${view.safeAreaPercent}%`}}>
-                    {/* Leere Plätze — Tasks 10–12 füllen sie je Grafik-Typ mit Inhalt. */}
-                    {STREAM_PLACEMENTS.map(placement => (
-                        <Box
-                            key={placement}
-                            data-placement={placement}
-                            sx={STREAM_PLACEMENT_STYLE[placement]}
-                        />
-                    ))}
-                </Box>
+                {/* Die Veraltet-Sperre reist als Kontext statt als Prop durch jede einzelne
+                    Grafik — GraphicFrame liest sie über `useStreamStale` (siehe dort). */}
+                <StreamStaleContext.Provider value={stale}>
+                    <Box sx={{position: 'absolute', inset: `${view.safeAreaPercent}%`}}>
+                        {STREAM_PLACEMENTS.map(placement => {
+                            const graphicsAtPlacement = view.graphics.filter(
+                                graphic => graphic.placement === placement,
+                            )
+                            return (
+                                <Box
+                                    key={placement}
+                                    data-placement={placement}
+                                    sx={{
+                                        ...STREAM_PLACEMENT_STYLE[placement],
+                                        // Grid statt Blockfluss: Mehrere Grafiken desselben
+                                        // Platzes (laut Katalog teilen sich STARTLIST/LAPS/
+                                        // RESULT/NEXT_UP standardmäßig unten-mitte) legen sich so
+                                        // exakt übereinander statt untereinander zu stapeln — der
+                                        // Server garantiert ohnehin höchstens eine sichtbare
+                                        // Grafik je Platz, eine zweite ist höchstens kurz während
+                                        // ihrer eigenen Ausblendanimation noch mitgerendert.
+                                        display: 'grid',
+                                    }}>
+                                    {graphicsAtPlacement.map(graphic => (
+                                        <Box key={graphic.type} sx={{gridArea: '1 / 1'}}>
+                                            <StreamGraphic graphic={graphic} />
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )
+                        })}
+                    </Box>
+                </StreamStaleContext.Provider>
             </Box>
         </Box>
     )
