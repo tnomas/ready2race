@@ -20,6 +20,7 @@ import {
     updateEventGlobal,
     updateUserGlobal,
     readLiveDashboardGlobal,
+    readStreamGlobal,
 } from './authorization/privileges.ts'
 import {
     deviceSessionForEvent,
@@ -40,6 +41,7 @@ import EventInfoPage from './pages/event/EventInfoPage.tsx'
 import AthleteBoardPage from './pages/event/AthleteBoardPage.tsx'
 import BoardDisplayPage from './pages/event/BoardDisplayPage.tsx'
 import StreamScenePage from './pages/event/StreamScenePage.tsx'
+import StreamPanelPage from './pages/event/StreamPanelPage.tsx'
 import LiveDashboardPage from './pages/event/LiveDashboardPage.tsx'
 import RegistrationPage from './pages/user/RegistrationPage.tsx'
 import ResetPasswordPage from './pages/user/resetPassword/ResetPasswordPage.tsx'
@@ -344,6 +346,29 @@ export const eventLiveDashboardRoute = createRoute({
     },
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readLiveDashboardGlobal)
+    },
+})
+
+// Wie `eventInfoRoute` (dort sitzt die Szenen-VERWALTUNG, Task 13) braucht das Kontroll-Panel
+// eines der beiden Leserechte, READ STREAM ODER READ EVENT — `checkAuth` kennt nur ein einzelnes
+// Privileg, deshalb hier von Hand wie bei `eventTimingStartDisplayRoute`. Diese Route liegt
+// bewusst unter `eventRoute` (angemeldete Veranstaltungsverwaltung) und trägt NUR das Segment
+// `streamPanel` — sie kollidiert nicht mit der öffentlichen Bühnen-Route `streamSceneRoute`
+// weiter unten (`event/$eventId/stream/$sceneId`, ein eigener Zweig direkt unter `rootRoute`
+// mit einem ZUSÄTZLICHEN `$sceneId`-Segment): „streamPanel" ist kein Präfix von „stream" und
+// umgekehrt, beide Pfade bleiben in jeder Reihenfolge eindeutig unterscheidbar.
+export const eventStreamPanelRoute = createRoute({
+    getParentRoute: () => eventRoute,
+    path: 'streamPanel',
+    component: function EventStreamPanel() {
+        const {eventId} = eventRoute.useParams()
+        return <StreamPanelPage eventId={eventId} />
+    },
+    beforeLoad: ({context, location}) => {
+        checkAuth(context, location)
+        if (!context.checkPrivilege(readStreamGlobal) && !context.checkPrivilege(readEventGlobal)) {
+            throw redirect({to: '/dashboard'})
+        }
     },
 })
 
@@ -841,6 +866,7 @@ const routeTree = rootRoute.addChildren([
                 eventRegistrationRoute,
                 eventInfoRoute,
                 eventLiveDashboardRoute,
+                eventStreamPanelRoute,
                 eventTimingRoute.addChildren([
                     eventTimingLeitstandRoute,
                     eventTimingStartDisplayRoute,

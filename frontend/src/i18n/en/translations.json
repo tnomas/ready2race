@@ -2650,6 +2650,41 @@
           "SIDE_RIGHT": "Side right",
           "FULL_CENTER": "Full center"
         }
+      },
+      "panel": {
+        "title": "Control panel",
+        "sceneSelect": "Scene",
+        "noGraphics": "This scene has no enabled graphic yet.",
+        "health": {
+          "stale": "Scene “{{name}}” has had no data for {{seconds}}s"
+        },
+        "trialMode": {
+          "activeWarning": "Trial mode active — this scene shows a simulated demo race, not real data."
+        },
+        "status": {
+          "onAir": "On air",
+          "ready": "Ready",
+          "off": "Off"
+        },
+        "overrideState": {
+          "AUTO": "Automatic",
+          "FORCED_ON": "Forced on",
+          "FORCED_OFF": "Forced off"
+        },
+        "overrideAction": {
+          "AUTO": "Auto",
+          "FORCED_ON": "On",
+          "FORCED_OFF": "Off"
+        },
+        "matchPicker": {
+          "label": "Match",
+          "current": "Current content"
+        },
+        "duration": {
+          "label": "Duration",
+          "untilRevoked": "Until revoked",
+          "seconds": "{{seconds}}s"
+        }
       }
     },
     "betrieb": {
