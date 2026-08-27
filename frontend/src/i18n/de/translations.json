@@ -1872,8 +1872,8 @@
     },
     "info": {
       "sectionTitle": "Öffentliche Anzeigen",
-      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
-      "manageInfoViews": "Boards verwalten",
+      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL. Dazu die Livestream-Szenen für Wirecast/OBS.",
+      "manageInfoViews": "Boards & Livestream verwalten",
       "pendingRound": "Lauf noch nicht gesetzt",
       "freeSlot": "Programmpunkt",
       "athleteBoard": {
@@ -2555,7 +2555,99 @@
       "result": "Ergebnis",
       "finishTicker": "Einlauf",
       "schedule": "Tagesprogramm",
-      "courseImage": "Streckenbild"
+      "courseImage": "Streckenbild",
+      "scenes": {
+        "title": "Szenen",
+        "none": "Noch keine Szenen angelegt",
+        "create": "Szene anlegen",
+        "edit": "Szene bearbeiten",
+        "saved": "Szene gespeichert",
+        "deleted": "Szene gelöscht",
+        "confirmDelete": "Szene „{{name}}“ wirklich löschen? Die Bühne und ein etwaiger geteilter Link zeigen danach nichts mehr.",
+        "open": "Anzeigen",
+        "copyUrl": "URL kopieren",
+        "urlCopied": "URL kopiert",
+        "name": "Name",
+        "background": {
+          "label": "Hintergrund",
+          "TRANSPARENT": "Transparent",
+          "CHROMA": "Chroma-Key"
+        },
+        "chromaColor": "Chroma-Farbe",
+        "safeAreaPercent": "Sicherheitsabstand (%)",
+        "safeAreaPercentHint": "Rand rundum, den keine Grafik überschreitet — für den Bildausschnitt der Sendetechnik.",
+        "validation": {
+          "name": "Name darf nicht leer sein",
+          "safeAreaPercent": "Muss zwischen 0 und 100 liegen",
+          "chromaColor": "Hex-Farbe nötig (z. B. #00FF00), solange der Hintergrund Chroma-Key ist"
+        },
+        "graphicsCount": "{{enabled}}/{{total}} Grafiken aktiv",
+        "configureGraphics": "Grafiken konfigurieren",
+        "trialMode": {
+          "label": "Testmodus",
+          "active": "Testmodus aktiv",
+          "hint": "Speist die Szene mit einem simulierten Demo-Rennen, ohne echte Daten zu berühren.",
+          "on": "Testmodus eingeschaltet",
+          "off": "Testmodus ausgeschaltet",
+          "error": "Testmodus konnte nicht umgeschaltet werden."
+        },
+        "share": {
+          "action": "Link teilen",
+          "title": "Szene „{{name}}“ teilen",
+          "description": "Der Link trägt den Geräte-Zugang dieser Szene: Eine Wirecast-/OBS-Quelle braucht keine Anmeldung. Dieselbe Szene liefert immer denselben Link — bis er hier zurückgezogen wird.",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert",
+          "revokeHint": "Der Link bleibt hier jederzeit abrufbar. Er gilt nur für diese eine Szene — eine zweite Szene braucht ihren eigenen Link.",
+          "error": "Der Link konnte nicht erzeugt werden.",
+          "again": "Neuen Link erzeugen",
+          "revoke": {
+            "action": "Link zurückziehen",
+            "success": "Link zurückgezogen",
+            "error": "Der Link konnte nicht zurückgezogen werden.",
+            "done": "Der Link ist zurückgezogen und ungültig. „Neuen Link erzeugen“ stellt einen neuen aus — bereits verteilte Quellen zeigen danach nichts mehr.",
+            "confirm": {
+              "title": "Link zurückziehen?",
+              "content": "Der geteilte Link für „{{name}}“ wird sofort ungültig; eine Quelle, die ihn geladen hat, zeigt beim nächsten Abruf nichts mehr. Ein erneutes Teilen erzeugt einen NEUEN Link."
+            }
+          }
+        },
+        "graphicDialog": {
+          "title": "Grafiken – {{name}}",
+          "enabled": "Aktiv",
+          "placement": "Platz",
+          "size": {
+            "label": "Größe",
+            "COMPACT": "Kompakt",
+            "NORMAL": "Normal"
+          },
+          "displaySeconds": "Einblenddauer (Sekunden)",
+          "listLength": "Anzahl Zeilen",
+          "image": "Bild",
+          "imageNone": "Kein Bild ausgewählt",
+          "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",
+          "saved": "Grafiken gespeichert"
+        },
+        "type": {
+          "STARTLIST": "Startliste",
+          "CLOCK": "Uhr",
+          "LAPS": "Zwischenzeiten",
+          "RESULT": "Ergebnis",
+          "FINISH_TICKER": "Einlauf-Ticker",
+          "NEXT_UP": "Als Nächstes",
+          "SCHEDULE": "Tagesprogramm",
+          "COURSE_IMAGE": "Streckenbild"
+        },
+        "placement": {
+          "BOTTOM_CENTER": "Unten Mitte",
+          "BOTTOM_LEFT": "Unten Links",
+          "BOTTOM_RIGHT": "Unten Rechts",
+          "TOP_LEFT": "Oben Links",
+          "TOP_RIGHT": "Oben Rechts",
+          "SIDE_LEFT": "Seitlich Links",
+          "SIDE_RIGHT": "Seitlich Rechts",
+          "FULL_CENTER": "Vollbild Mitte"
+        }
+      }
     },
     "betrieb": {
       "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",

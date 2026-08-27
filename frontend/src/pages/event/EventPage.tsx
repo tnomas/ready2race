@@ -54,6 +54,7 @@ import {
     readLiveDashboardGlobal,
     readRegistrationGlobal,
     readRegistrationOwn,
+    readStreamGlobal,
     readUserGlobal,
     updateEventGlobal,
 } from '@authorization/privileges.ts'
@@ -424,7 +425,8 @@ const EventPage = () => {
                                         )}
                                 </Card>
                                 {(user.checkPrivilege(readEventGlobal) ||
-                                    user.checkPrivilege(readBoardGlobal)) &&
+                                    user.checkPrivilege(readBoardGlobal) ||
+                                    user.checkPrivilege(readStreamGlobal)) &&
                                     !data.challengeEvent && (
                                     <Card sx={{p: 2}}>
                                         <Typography variant="h6" sx={{mb: 1}}>

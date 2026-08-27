@@ -1872,8 +1872,8 @@
     },
     "info": {
       "sectionTitle": "Public displays",
-      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
-      "manageInfoViews": "Manage boards",
+      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL. Plus the livestream scenes for Wirecast/OBS.",
+      "manageInfoViews": "Manage boards & livestream",
       "pendingRound": "Race not yet set",
       "freeSlot": "Schedule item",
       "athleteBoard": {
@@ -2555,7 +2555,99 @@
       "result": "Result",
       "finishTicker": "Finish order",
       "schedule": "Schedule",
-      "courseImage": "Course map"
+      "courseImage": "Course map",
+      "scenes": {
+        "title": "Scenes",
+        "none": "No scenes created yet",
+        "create": "Create scene",
+        "edit": "Edit scene",
+        "saved": "Scene saved",
+        "deleted": "Scene deleted",
+        "confirmDelete": "Really delete scene “{{name}}”? The stage and any shared link will show nothing afterwards.",
+        "open": "Open",
+        "copyUrl": "Copy URL",
+        "urlCopied": "URL copied",
+        "name": "Name",
+        "background": {
+          "label": "Background",
+          "TRANSPARENT": "Transparent",
+          "CHROMA": "Chroma key"
+        },
+        "chromaColor": "Chroma color",
+        "safeAreaPercent": "Safe area (%)",
+        "safeAreaPercentHint": "Margin all around that no graphic crosses — for the broadcast crop.",
+        "validation": {
+          "name": "Name must not be blank",
+          "safeAreaPercent": "Must be between 0 and 100",
+          "chromaColor": "A hex color is required (e.g. #00FF00) while the background is chroma key"
+        },
+        "graphicsCount": "{{enabled}}/{{total}} graphics enabled",
+        "configureGraphics": "Configure graphics",
+        "trialMode": {
+          "label": "Trial mode",
+          "active": "Trial mode active",
+          "hint": "Feeds the scene with a simulated demo race, without touching real data.",
+          "on": "Trial mode turned on",
+          "off": "Trial mode turned off",
+          "error": "Trial mode could not be toggled."
+        },
+        "share": {
+          "action": "Share link",
+          "title": "Share scene “{{name}}”",
+          "description": "The link carries this scene's device access: a Wirecast/OBS source needs no login. The same scene always returns the same link — until it is revoked here.",
+          "copy": "Copy link",
+          "copied": "Link copied",
+          "revokeHint": "The link stays available here at any time. It only applies to this one scene — a second scene needs its own link.",
+          "error": "The link could not be created.",
+          "again": "Create new link",
+          "revoke": {
+            "action": "Revoke link",
+            "success": "Link revoked",
+            "error": "The link could not be revoked.",
+            "done": "The link is revoked and invalid. “Create new link” issues a new one — sources that already have the old one will show nothing afterwards.",
+            "confirm": {
+              "title": "Revoke link?",
+              "content": "The shared link for “{{name}}” becomes invalid immediately; a source that loaded it will show nothing on its next refresh. Sharing again creates a NEW link."
+            }
+          }
+        },
+        "graphicDialog": {
+          "title": "Graphics – {{name}}",
+          "enabled": "Enabled",
+          "placement": "Placement",
+          "size": {
+            "label": "Size",
+            "COMPACT": "Compact",
+            "NORMAL": "Normal"
+          },
+          "displaySeconds": "Display duration (seconds)",
+          "listLength": "Number of rows",
+          "image": "Image",
+          "imageNone": "No image selected",
+          "imageHint": "Images are uploaded through the event's documents.",
+          "saved": "Graphics saved"
+        },
+        "type": {
+          "STARTLIST": "Start list",
+          "CLOCK": "Clock",
+          "LAPS": "Splits",
+          "RESULT": "Result",
+          "FINISH_TICKER": "Finish ticker",
+          "NEXT_UP": "Up next",
+          "SCHEDULE": "Schedule",
+          "COURSE_IMAGE": "Course map"
+        },
+        "placement": {
+          "BOTTOM_CENTER": "Bottom center",
+          "BOTTOM_LEFT": "Bottom left",
+          "BOTTOM_RIGHT": "Bottom right",
+          "TOP_LEFT": "Top left",
+          "TOP_RIGHT": "Top right",
+          "SIDE_LEFT": "Side left",
+          "SIDE_RIGHT": "Side right",
+          "FULL_CENTER": "Full center"
+        }
+      }
     },
     "betrieb": {
       "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
