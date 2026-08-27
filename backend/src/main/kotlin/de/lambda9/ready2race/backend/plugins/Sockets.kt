@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardViewBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
 import de.lambda9.ready2race.backend.calls.requests.authenticateAnyWithToken
@@ -42,6 +43,8 @@ private const val TIMING_WS_PATH = "/api/ws/event/{eventId}/timing"
 private const val EVENT_CHANGE_WS_PATH = "/api/ws/event/{eventId}/info"
 
 private const val BOARD_VIEW_WS_PATH = "/api/ws/event/{eventId}/board/{boardId}"
+
+private const val STREAM_SCENE_WS_PATH = "/api/ws/event/{eventId}/stream/{sceneId}"
 
 fun Application.configureSockets(env: JEnv) {
     install(WebSockets) {
@@ -83,6 +86,19 @@ fun Application.configureSockets(env: JEnv) {
         // deshalb kein Subprotokoll anbieten müssen.
         webSocket(BOARD_VIEW_WS_PATH) {
             boardViewSocket(env)
+        }
+
+        // Der Szenen-Kanal des Livestream-Overlays: schickt den aufgelösten Szenenstand
+        // (StreamSceneViewDto), Bauart und Tür wie der Board-Kanal darüber. An derselben Szene
+        // hängen Bühne (Wirecast) und Kontroll-Panel - beide sehen deshalb per Konstruktion
+        // denselben Stand.
+        webSocket(STREAM_SCENE_WS_PATH, protocol = TIMING_WS_SUBPROTOCOL) {
+            streamSceneSocket(env)
+        }
+
+        // Fallback für Nicht-Browser-Clients, wie beim Board-Kanal.
+        webSocket(STREAM_SCENE_WS_PATH) {
+            streamSceneSocket(env)
         }
     }
 }
@@ -198,6 +214,91 @@ private suspend fun DefaultWebSocketServerSession.boardViewSocket(env: JEnv) {
         incoming.consumeEach { }
     } finally {
         BoardViewBroadcaster.unsubscribe(subscription)
+    }
+}
+
+/**
+ * Der Push-Kanal EINER Livestream-Szene: liefert beim Verbinden und nach jeder Änderung den
+ * kompletten, schon aufgelösten Szenenstand - genau die Nutzlast von
+ * `GET /event/{eventId}/stream/{sceneId}/view`. Die Bühne setzt sie direkt ein; on air entscheidet
+ * der Server, nicht der Browser.
+ *
+ * Zwei Wege hinein, exakt die des HTTP-Zwillings (stream.kt):
+ *   * eine Sitzung mit READ STREAM oder READ EVENT - das Kontroll-Panel;
+ *   * ein Geräte-Token für GENAU DIESE Szene. Wirecast und OBS können sich nicht anmelden; sie
+ *     tragen den geteilten Link.
+ * Browser können beim Handshake keine eigenen Header setzen, deshalb reist das Token wie in der
+ * Zeitnahme im zweiten Eintrag des Subprotokolls (`new WebSocket(url, ["r2r", token])`).
+ */
+private suspend fun DefaultWebSocketServerSession.streamSceneSocket(env: JEnv) {
+    val rawEventId = call.parameters["eventId"]
+    val rawSceneId = call.parameters["sceneId"]
+    val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    val sceneId = rawSceneId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+    if (eventId == null || sceneId == null) {
+        // Wie oben: die Pfadparameter sind client-kontrolliert und könnten per CR/LF Logzeilen
+        // fälschen - vor dem Loggen entschärfen.
+        val sanitized = "${rawEventId?.replace(Regex("[\r\n]"), "")}/${rawSceneId?.replace(Regex("[\r\n]"), "")}"
+        logger.info { "Rejecting stream ws handshake: invalid ids '$sanitized'" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid ids"))
+        return
+    }
+
+    val token = call.sessions.get<UserSession>()?.token ?: call.subprotocolToken()
+    if (token == null) {
+        logger.info { "Rejecting stream ws handshake for scene $sceneId: no token provided" }
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+        return
+    }
+
+    val sessionAuthorized = authenticateAnyWithToken(
+        token,
+        Privilege.ReadStreamGlobal,
+        Privilege.ReadEventGlobal,
+    ).unsafeRunSync(env).fold(
+        onSuccess = { true },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Rejecting stream ws handshake for scene $sceneId: authentication failed" }
+            false
+        },
+    )
+
+    // Wie beim Board greift der Token-Zweig nur OHNE gültige Sitzung, und der Zuschnitt ist eng:
+    // validateForStreamScene lässt ausschließlich ein Token DIESER Szene durch - ein Token der
+    // Nachbarszene, ein Board- und ein Posten-Token fallen mit derselben Antwort heraus.
+    val authorized = sessionAuthorized || TimingDeviceTokenService.validateForStreamScene(token, eventId, sceneId)
+        .unsafeRunSync(env).fold(
+            onSuccess = { true },
+            onError = { error ->
+                logger.info { "Rejecting stream ws handshake for scene $sceneId: $error" }
+                false
+            },
+            onDefect = { defect ->
+                logger.warn(defect) { "Rejecting stream ws handshake for scene $sceneId: device token check failed" }
+                false
+            },
+        )
+    if (!authorized) {
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+        return
+    }
+
+    // Der volle Stand sofort beim Verbinden: eine Bühne ist nach einem Funkloch allein durch den
+    // Reconnect wieder aktuell. Lässt sich der Stand gerade nicht bauen (unbekannte Szene,
+    // Datenbank hakt), bleibt die Verbindung trotzdem stehen - die Szene behält ihren letzten
+    // Stand, statt schwarz zu werden.
+    StreamSceneBroadcaster.currentView(env, eventId, sceneId)?.let { send(Frame.Text(it)) }
+
+    val subscription = StreamSceneBroadcaster.subscribe(env, eventId, sceneId) { json ->
+        send(Frame.Text(json))
+    }
+    try {
+        // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
+        // Ktor-Pings aus configureSockets).
+        incoming.consumeEach { }
+    } finally {
+        StreamSceneBroadcaster.unsubscribe(subscription)
     }
 }
 

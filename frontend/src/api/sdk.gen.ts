@@ -926,6 +926,8 @@ import type {
     SetStreamSceneTrialModeError,
     SetStreamSceneTrialModeResponse,
     GetStreamSceneViewData,
+    GetStreamSceneViewError,
+    GetStreamSceneViewResponse,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -5240,7 +5242,7 @@ export const createStreamSceneShareLink = <ThrowOnError extends boolean = false>
 }
 
 /**
- * Director override for one graphic type. state=AUTO in the body is equivalent to clearStreamOverride (no row = AUTO); FORCED_ON/FORCED_OFF replace the row entirely, so every call becomes "the most recent intervention", which the resolver's placement priority (Task 8) needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ * Director override for one graphic type. state=AUTO in the body is equivalent to clearStreamOverride (no row = AUTO); FORCED_ON/FORCED_OFF replace the row entirely, so every call becomes "the most recent intervention", which the resolver's placement priority needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
  */
 export const setStreamOverride = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<SetStreamOverrideData, ThrowOnError>,
@@ -5288,13 +5290,17 @@ export const setStreamSceneTrialMode = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * The resolved scene state a stage renders - same payload as the scene's websocket channel (Task 8). Needs either a session with READ STREAM or READ EVENT, or a device token issued for EXACTLY THIS scene in the X-Timing-Device-Token header (see createStreamSceneShareLink); a token of another scene, a board or timing station token, and a revoked token are all answered alike with 401. A sceneId belonging to another event answers 404, same as an unknown one - checked for the session path even though the resolver itself is not wired up yet.
- * Currently answers 501: the resolver that turns the configuration, overrides and live matches into a StreamSceneViewDto is built in Task 8. Auth and the event/scene ownership check are already fully in place.
+ * The resolved scene state a stage renders. Needs either a session with READ STREAM or READ EVENT, or a device token issued for EXACTLY THIS scene in the X-Timing-Device-Token header (see createStreamSceneShareLink); a token of another scene, a board or timing station token, and a revoked token are all answered alike with 401. A sceneId belonging to another event answers 404, same as an unknown one.
+ * Same payload as the scene's websocket channel, so a stage or panel does not have to wait for the first push - see StreamSceneViewDto for the channel itself.
  */
 export const getStreamSceneView = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetStreamSceneViewData, ThrowOnError>,
 ) => {
-    return (options?.client ?? client).get<void, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+        GetStreamSceneViewResponse,
+        GetStreamSceneViewError,
+        ThrowOnError
+    >({
         ...options,
         url: '/event/{eventId}/stream/{sceneId}/view',
     })

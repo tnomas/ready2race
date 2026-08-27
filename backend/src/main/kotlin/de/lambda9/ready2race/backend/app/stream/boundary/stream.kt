@@ -1,7 +1,6 @@
 package de.lambda9.ready2race.backend.app.stream.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
-import de.lambda9.ready2race.backend.app.stream.entity.StreamError
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicsRequest
@@ -12,6 +11,7 @@ import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.queryParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
+import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
@@ -138,9 +138,9 @@ fun Route.stream() {
         // Rechte-Weg. `validateForStreamScene` prüft die Zugehörigkeit zur Veranstaltung schon
         // selbst; der Sitzungszweig holt sie sich zusätzlich über `requireOwnedScene`.
         //
-        // Liefert bis Task 8 bewusst 501 - der Resolver, der aus alldem einen
-        // `StreamSceneViewDto` macht, ist erst dessen Aufgabe. Auth und Zugehörigkeitsprüfung
-        // stehen aber schon jetzt vollständig.
+        // Der Einstieg trägt dieselbe Nutzlast wie der Szenen-Kanal
+        // (`/api/ws/event/{eventId}/stream/{sceneId}`) - damit Bühne und Panel nicht auf den
+        // ersten Push warten müssen.
         get("/{sceneId}/view") {
             call.respondComprehension {
                 val eventId = !pathParam("eventId", uuid)
@@ -153,7 +153,7 @@ fun Route.stream() {
                     !StreamSceneService.requireOwnedScene(eventId, sceneId)
                 }
 
-                !KIO.fail<StreamError>(StreamError.ViewNotImplemented)
+                KIO.ok(ApiResponse.Dto(!StreamSceneLogic.buildView(eventId, sceneId)))
             }
         }
     }

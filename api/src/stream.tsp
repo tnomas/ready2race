@@ -16,11 +16,14 @@ namespace Ready2Race;
  * what the automatic rules would show, and toggle a trial mode so an operator can rehearse the
  * stage without it looking like a live moment.
  *
- * `GET .../view` currently answers 501 - the resolver that turns the scene's configuration,
- * overrides and the event's live matches into a StreamSceneViewDto is a later task. Once it
- * exists, the same payload is expected to also be pushed over a websocket channel
- * (`/api/ws/event/{eventId}/stream/{sceneId}`), mirroring the board channel documented in
- * eventInfo.tsp: receive-only, full view as the first frame, auth identical to the HTTP route.
+ * `GET .../view` answers the resolved scene state (StreamSceneViewDto): the server decides what
+ * is on air, not the browser. The very same payload is pushed over the scene's websocket channel
+ * `/api/ws/event/{eventId}/stream/{sceneId}`, mirroring the board channel documented in
+ * eventInfo.tsp: receive-only, full state as the first frame, auth identical to the HTTP route,
+ * messages `{ type: "streamSceneView", view: StreamSceneViewDto }`. Pushes come from the event's
+ * change marker (start, split, finish, state change, sequence start), from every write on the
+ * scene itself, and from a timer for the auto-out windows and override expiries the resolver
+ * announces - no polling anywhere.
  *
  * Auth for `GET .../view`: a session with READ STREAM or READ EVENT, OR a device token issued for
  * EXACTLY THIS scene in the X-Timing-Device-Token header (see createStreamSceneShareLink) - same
@@ -144,6 +147,75 @@ model StreamOverrideRequest {
   seconds?: int32;
 }
 
+// One finish on the FINISH_TICKER band, in the order the boats crossed the line.
+model StreamFinishEntry {
+  rank: int32;
+  startNumber: int32;
+  clubsShort?: string;
+  clubsFull?: string;
+  timeString: string;
+}
+
+// The resolved state of a single graphic. At most one of the content payloads is set, depending
+// on `type`. The payloads reuse the existing display DTOs (AthleteBoardMatch/AthleteBoardResult),
+// which eventInfo.tsp does not model - they are typed as `unknown` here and spelled out in
+// documentation.yaml, the file the frontend codegen actually reads.
+model StreamGraphicViewDto {
+  type: StreamGraphicType;
+  placement: StreamPlacement;
+  size: StreamGraphicSize;
+
+  // Whether the graphic is on air right now - a configured graphic can be off at this moment.
+  visible: boolean;
+
+  visibleSince?: dateTime;
+
+  // Timer for fading out; absent while no end is due.
+  visibleUntil?: dateTime;
+
+  overrideState: StreamOverrideState;
+
+  // STARTLIST/CLOCK/LAPS/NEXT_UP: an AthleteBoardMatch.
+  match?: unknown;
+
+  // RESULT: an AthleteBoardResult.
+  result?: unknown;
+
+  // RESULT: the match is under clarification - the result still goes out, marked provisional.
+  provisional?: boolean;
+
+  finishEntries?: StreamFinishEntry[];
+
+  // SCHEDULE: AthleteBoardMatch entries.
+  schedule?: unknown[];
+
+  // COURSE_IMAGE.
+  imageUrl?: string;
+
+  // CLOCK: countdown anchor of the running start sequence.
+  sequenceStartedAt?: dateTime;
+}
+
+// The resolved scene state a stage renders - see the class doc above for the websocket channel
+// that pushes exactly this payload.
+model StreamSceneViewDto {
+  sceneId: uuid;
+  background: StreamBackground;
+
+  // Only set for background CHROMA.
+  chromaColor?: string;
+
+  safeAreaPercent: int32;
+
+  // Trial mode: the state is fed by a synthetic demo race, no real data is touched.
+  trialMode: boolean;
+
+  // Server clock at resolution time, for the stage's clock correction.
+  serverTime: dateTime;
+
+  graphics: StreamGraphicViewDto[];
+}
+
 // The shareable scene link, word for word like BoardShareLinkDto (eventInfo.tsp isn't kept in
 // sync closely enough to reference it directly - see the class doc there): Wirecast/OBS cannot
 // log in, so it gets the same shared link with device token as a board display. Repeatable: the
@@ -171,7 +243,7 @@ model StreamSceneShareLinkDto {
 // PUT/DELETE /event/{eventId}/stream/{sceneId}/override/{graphicType}: require UpdateStreamGlobal OR UpdateEventGlobal
 // PUT /event/{eventId}/stream/{sceneId}/trialMode: require UpdateStreamGlobal OR UpdateEventGlobal
 // GET /event/{eventId}/stream/{sceneId}/view: require ReadStreamGlobal OR ReadEventGlobal, OR a
-//   scene device token (see the class doc above) - answers 501 for now, see Task 8.
+//   scene device token (see the class doc above).
 
 @route("/event/{eventId}/stream")
 @tag("Stream")
@@ -250,12 +322,12 @@ interface StreamRoutes {
     @query trialMode: boolean,
   ): void;
 
-  // See the class doc above - answers 501 until Task 8 wires up the resolver.
+  // See the class doc above - same payload as the scene's websocket channel.
   @get
   @route("/{sceneId}/view")
   @operationId("getStreamSceneView")
   getStreamSceneView(
     @path eventId: uuid,
     @path sceneId: uuid,
-  ): NotImplemented;
+  ): StreamSceneViewDto;
 }

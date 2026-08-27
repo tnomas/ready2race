@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -48,12 +49,20 @@ object EventChangeMarker {
      * der Schreibpfade, die schon [bump] rufen — ein zweites, parallel gepflegtes Verzeichnis
      * davon würde unweigerlich auseinanderlaufen. Der Aufruf kostet nichts, wenn niemand
      * zusieht (ohne Abonnenten kehrt er sofort zurück), und rechnet nie im Request-Thread.
+     *
+     * Genau dasselbe gilt für den Szenen-Kanal des Livestream-Overlays
+     * ([StreamSceneBroadcaster]): dieselben Ereignisse (Start, Zwischenzeit, Zieleinlauf,
+     * Zustandswechsel, Sequenzstart) sind es, die eine Einblendung kommen und gehen lassen.
+     * Was NUR eine einzelne Szene betrifft (Regie-Eingriff, Grafik-Konfiguration, Probemodus),
+     * läuft dagegen über `StreamSceneBroadcaster.broadcastScene` in `StreamSceneService` — wie
+     * die Board-Konfiguration über `broadcastBoard`.
      */
     fun bump(eventId: UUID) {
         val stand = counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
         AfterCommit.register {
             EventChangeBroadcaster.broadcast(eventId, stand)
             BoardViewBroadcaster.broadcast(eventId)
+            StreamSceneBroadcaster.broadcast(eventId)
         }
     }
 

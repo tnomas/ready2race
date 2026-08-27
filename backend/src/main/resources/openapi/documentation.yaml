@@ -8621,7 +8621,7 @@ paths:
         Director override for one graphic type. state=AUTO in the body is equivalent to
         clearStreamOverride (no row = AUTO); FORCED_ON/FORCED_OFF replace the row entirely, so every
         call becomes "the most recent intervention", which the resolver's placement priority
-        (Task 8) needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging
+        needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging
         to another event answers 404, same as an unknown one.
       requestBody:
         required: true
@@ -8701,20 +8701,21 @@ paths:
     get:
       operationId: getStreamSceneView
       description: >-
-        The resolved scene state a stage renders - same payload as the scene's websocket channel
-        (Task 8). Needs either a session with READ STREAM or READ EVENT, or a device token issued
-        for EXACTLY THIS scene in the X-Timing-Device-Token header (see
-        createStreamSceneShareLink); a token of another scene, a board or timing station token, and
-        a revoked token are all answered alike with 401. A sceneId belonging to another event
-        answers 404, same as an unknown one - checked for the session path even though the resolver
-        itself is not wired up yet.
+        The resolved scene state a stage renders. Needs either a session with READ STREAM or READ
+        EVENT, or a device token issued for EXACTLY THIS scene in the X-Timing-Device-Token header
+        (see createStreamSceneShareLink); a token of another scene, a board or timing station
+        token, and a revoked token are all answered alike with 401. A sceneId belonging to another
+        event answers 404, same as an unknown one.
 
-        Currently answers 501: the resolver that turns the configuration, overrides and live
-        matches into a StreamSceneViewDto is built in Task 8. Auth and the event/scene ownership
-        check are already fully in place.
+        Same payload as the scene's websocket channel, so a stage or panel does not have to wait
+        for the first push - see StreamSceneViewDto for the channel itself.
       responses:
-        501:
-          $ref: '#/components/responses/501'
+        200:
+          description: Resolved scene state retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSceneViewDto'
         401:
           $ref: '#/components/responses/401'
         403:
@@ -11790,13 +11791,6 @@ components:
 
     500:
       description: Server Error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ApiError'
-
-    501:
-      description: Not Implemented
       content:
         application/json:
           schema:
@@ -22792,6 +22786,154 @@ components:
           type: integer
           nullable: true
           description: "Auto-out of the manual override in seconds; null = no automatic fallback to AUTO."
+
+    StreamFinishEntry:
+      type: object
+      description: "One finish on the FINISH_TICKER band, in the order the boats crossed the line."
+      required:
+        - rank
+        - startNumber
+        - timeString
+      properties:
+        rank:
+          type: integer
+        startNumber:
+          type: integer
+        clubsShort:
+          type: string
+          nullable: true
+        clubsFull:
+          type: string
+          nullable: true
+        timeString:
+          type: string
+
+    StreamGraphicViewDto:
+      type: object
+      description: >-
+        The resolved state of a single graphic. At most one of the content payloads (match,
+        result, finishEntries, schedule, imageUrl) is set, depending on type.
+      required:
+        - type
+        - placement
+        - size
+        - visible
+        - overrideState
+      properties:
+        type:
+          $ref: '#/components/schemas/StreamGraphicType'
+        placement:
+          $ref: '#/components/schemas/StreamPlacement'
+        size:
+          $ref: '#/components/schemas/StreamGraphicSize'
+        visible:
+          type: boolean
+          description: "Whether the graphic is on air right now - a configured graphic can be off at this moment."
+        visibleSince:
+          type: string
+          format: date-time
+          nullable: true
+        visibleUntil:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Timer for fading out; null while no end is due."
+        overrideState:
+          $ref: '#/components/schemas/StreamOverrideState'
+        match:
+          allOf:
+            - $ref: '#/components/schemas/AthleteBoardMatch'
+          nullable: true
+          description: "STARTLIST/CLOCK/LAPS/NEXT_UP."
+        result:
+          allOf:
+            - $ref: '#/components/schemas/AthleteBoardResult'
+          nullable: true
+          description: "RESULT."
+        provisional:
+          type: boolean
+          nullable: true
+          description: "RESULT: the match is under clarification - the result still goes out, marked provisional."
+        finishEntries:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/StreamFinishEntry'
+        schedule:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AthleteBoardMatch'
+        imageUrl:
+          type: string
+          nullable: true
+          description: "COURSE_IMAGE."
+        sequenceStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "CLOCK: countdown anchor of the running start sequence."
+
+    StreamSceneViewDto:
+      type: object
+      description: |-
+        The resolved scene state a stage renders - the server decides what is on air, not the
+        browser.
+
+        Stages and control panels get this very payload pushed over the scene's websocket channel
+        instead of polling:
+
+        - Path: `/api/ws/event/{eventId}/stream/{sceneId}` (note the `/api/ws` prefix - this
+        channel lives outside the regular `/api` REST routes documented in this spec).
+        - Auth: same two doors as the HTTP route above - a session with READ STREAM or READ EVENT,
+        or a device token issued for EXACTLY THIS scene. Browsers cannot set headers on a
+        websocket handshake, so the token travels as the second subprotocol entry:
+        `new WebSocket(url, ["r2r", token])`. Non-browser clients may send the session header and
+        omit the subprotocol. Anything else is closed with 1008 (policy violation) right after the
+        upgrade.
+        - Messages are JSON objects discriminated by a `type` field. The only type is
+        `{ type: "streamSceneView", view: StreamSceneViewDto }` - the complete, already resolved
+        state, field for field the body of `getStreamSceneView`. Apply it directly; there is
+        nothing left to fetch.
+        - The full state is also sent as the first frame of every connection, so a reconnect after
+        a dropout recovers on its own and needs no refetch.
+        - Pushes are triggered by the same event change marker that drives the board channels
+        (start, split, finish, state change, sequence start), by every write on the scene itself
+        (override, graphics configuration, trial mode) and by a timer for the auto-out windows and
+        override expiries the resolver announces. The server coalesces bursts and resolves each
+        scene once for all its subscribers; a scene nobody is connected to is never computed.
+        - The channel is receive-only: clients should ignore any data they send on it and rely on
+        the server's ping/pong keepalive.
+      required:
+        - sceneId
+        - background
+        - safeAreaPercent
+        - trialMode
+        - serverTime
+        - graphics
+      properties:
+        sceneId:
+          type: string
+          format: uuid
+        background:
+          $ref: '#/components/schemas/StreamBackground'
+        chromaColor:
+          type: string
+          nullable: true
+          description: "Only set for background CHROMA."
+        safeAreaPercent:
+          type: integer
+        trialMode:
+          type: boolean
+          description: "Trial mode: the state is fed by a synthetic demo race, no real data is touched."
+        serverTime:
+          type: string
+          format: date-time
+          description: "Server clock at resolution time, for the stage's clock correction."
+        graphics:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreamGraphicViewDto'
 
     StreamSceneShareLinkDto:
       type: object

@@ -15,6 +15,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneShareLinkDto
 import de.lambda9.ready2race.backend.app.stream.entity.allowedPlacements
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.StreamOverrideRecord
@@ -38,12 +39,27 @@ import java.util.UUID
  * Pfad und prüft sie über [requireOwnedScene] - Task-6-Vorgabe: eine fremde `sceneId` darf sich
  * nicht in eine andere Veranstaltung hineinreichen lassen.
  *
- * Jeder schreibende Weg soll am Ende einen Broadcast auf den Szenen-Kanal auslösen
- * (`StreamSceneBroadcaster.broadcastScene`) - der Broadcaster selbst entsteht erst in Task 8 und
- * zieht die Aufrufe dort nach. Bis dahin bleibt hier bewusst KEIN Ersatz-Aufruf wie
- * `EventChangeMarker.bump` stehen.
+ * Jeder schreibende Weg löst am Ende einen Broadcast auf den Szenen-Kanal aus
+ * ([StreamSceneBroadcaster.broadcastScene]) - und zwar über [AfterCommit], genau wie die
+ * Board-Konfiguration ihren `broadcastBoard` (siehe [de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardService.updateBoard]):
+ * Ein Push VOR dem Commit ließe die Bühne den alten Stand aufbauen. `EventChangeMarker.bump`
+ * bleibt hier bewusst außen vor - eine Regie-Entscheidung betrifft eine einzelne Szene und darf
+ * nicht die Zwischenspeicher aller öffentlichen Anzeigen entwerten.
  */
 object StreamSceneService {
+
+    /**
+     * Meldet dem Szenen-Kanal, dass diese eine Szene neu aufzulösen ist - nach dem Commit, aus
+     * demselben Grund wie im Zeitnahme-Kanal: Eine Bühne, die den Push sofort beantwortet, läse
+     * sonst über eine andere Verbindung den Stand VOR dem Schreiben, und ein Rollback erzeugte
+     * einen Push über eine Änderung, die es nie gab. [AfterCommit] puffert bis `respondKIO`
+     * committet hat und feuert für Nicht-HTTP-Aufrufer (Jobs, Tests) unmittelbar.
+     *
+     * Kostet nichts, wenn niemand zusieht: Ohne Abonnenten kehrt `broadcastScene` sofort zurück.
+     */
+    private fun notifyScene(sceneId: UUID) {
+        AfterCommit.register { StreamSceneBroadcaster.broadcastScene(sceneId) }
+    }
 
     /**
      * Lädt die Szene und prüft ihre Zugehörigkeit zu [eventId] - EINE Stelle für die Prüfung,
@@ -79,6 +95,11 @@ object StreamSceneService {
         )
     }
 
+    /**
+     * Ohne [notifyScene]: An einer eben erst entstandenen Szene kann noch niemand hängen - es
+     * gibt keinen Kanal, den man wecken könnte. Der erste Abonnent bekommt seinen Stand als
+     * Begrüßungsrahmen (`StreamSceneBroadcaster.currentView`).
+     */
     fun createScene(eventId: UUID, request: StreamSceneRequest): App<Nothing, ApiResponse.Dto<StreamSceneDto>> =
         KIO.comprehension {
             val now = LocalDateTime.now()
@@ -116,10 +137,22 @@ object StreamSceneService {
 
             val graphics = !StreamSceneRepo.getGraphics(sceneId).orDie().map { rows -> rows.map { it.toDto() } }
 
+            // Hintergrund, Chroma-Farbe und Sicherheitsrand stehen im Szenenstand - die Bühne
+            // soll sie sofort übernehmen, nicht erst beim nächsten Renn-Ereignis.
+            notifyScene(sceneId)
+
             KIO.ok(ApiResponse.Dto(updated.toDto(graphics)))
         }
 
-    /** Löscht die Szene - Grafik-Konfiguration, Regie-Zeilen und ihr Token hängen per `on delete cascade` daran (Migration V202608271000). */
+    /**
+     * Löscht die Szene - Grafik-Konfiguration, Regie-Zeilen und ihr Token hängen per
+     * `on delete cascade` daran (Migration V202608271000).
+     *
+     * Bewusst OHNE [notifyScene]: Für eine gelöschte Szene gibt es keinen Stand mehr zu bauen.
+     * Ein Aufbau scheiterte an `SceneNotFound`, der Kanal verwürfe ihn, und die Bühne behielte
+     * ohnehin ihr letztes Bild. Der Kanal verschwindet, sobald die verbundenen Clients die
+     * Verbindung verlieren (Teardown beim letzten Abonnenten).
+     */
     fun deleteScene(eventId: UUID, sceneId: UUID): App<StreamError, ApiResponse.NoData> = KIO.comprehension {
         !requireOwnedScene(eventId, sceneId)
 
@@ -167,6 +200,8 @@ object StreamSceneService {
 
         val updatedGraphics = !StreamSceneRepo.getGraphics(sceneId).orDie().map { rows -> rows.map { it.toDto() } }
 
+        notifyScene(sceneId)
+
         KIO.ok(ApiResponse.Dto(scene.toDto(updatedGraphics)))
     }
 
@@ -201,6 +236,10 @@ object StreamSceneService {
             ).orDie()
         }
 
+        // Der Eingriff der Regie ist genau der Fall, für den es diesen Kanal gibt: Was das Panel
+        // schaltet, muss auf der Bühne sofort passieren, nicht beim nächsten Renn-Ereignis.
+        notifyScene(sceneId)
+
         noData
     }
 
@@ -209,6 +248,8 @@ object StreamSceneService {
         KIO.comprehension {
             !requireOwnedScene(eventId, sceneId)
             !StreamOverrideRepo.delete(sceneId, type).orDie()
+
+            notifyScene(sceneId)
 
             noData
         }
@@ -220,6 +261,10 @@ object StreamSceneService {
                 this.trialMode = trialMode
                 updatedAt = LocalDateTime.now()
             }.orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+
+            // Der Probemodus wechselt die ganze Datenquelle - die Bühne muss sofort umschalten,
+            // sonst zeigte sie bis zum nächsten Ereignis noch die andere Welt.
+            notifyScene(sceneId)
 
             noData
         }

@@ -4134,6 +4134,17 @@ export type StartListFileType = 'PDF' | 'CSV'
 export type StreamBackground = 'TRANSPARENT' | 'CHROMA'
 
 /**
+ * One finish on the FINISH_TICKER band, in the order the boats crossed the line.
+ */
+export type StreamFinishEntry = {
+    rank: number
+    startNumber: number
+    clubsShort?: string | null
+    clubsFull?: string | null
+    timeString: string
+}
+
+/**
  * Mirrors the `settings` jsonb of stream_scene_graphic - only the fields belonging to the graphic's type are set, the rest stay null. Unknown fields are ignored on read, so a later removed field never breaks deserializing an old row.
  */
 export type StreamGraphicSettings = {
@@ -4162,6 +4173,47 @@ export type StreamGraphicType =
     | 'NEXT_UP'
     | 'SCHEDULE'
     | 'COURSE_IMAGE'
+
+/**
+ * The resolved state of a single graphic. At most one of the content payloads (match, result, finishEntries, schedule, imageUrl) is set, depending on type.
+ */
+export type StreamGraphicViewDto = {
+    type: StreamGraphicType
+    placement: StreamPlacement
+    size: StreamGraphicSize
+    /**
+     * Whether the graphic is on air right now - a configured graphic can be off at this moment.
+     */
+    visible: boolean
+    visibleSince?: string | null
+    /**
+     * Timer for fading out; null while no end is due.
+     */
+    visibleUntil?: string | null
+    overrideState: StreamOverrideState
+    /**
+     * STARTLIST/CLOCK/LAPS/NEXT_UP.
+     */
+    match?: AthleteBoardMatch | null
+    /**
+     * RESULT.
+     */
+    result?: AthleteBoardResult | null
+    /**
+     * RESULT: the match is under clarification - the result still goes out, marked provisional.
+     */
+    provisional?: boolean | null
+    finishEntries?: Array<StreamFinishEntry> | null
+    schedule?: Array<AthleteBoardMatch> | null
+    /**
+     * COURSE_IMAGE.
+     */
+    imageUrl?: string | null
+    /**
+     * CLOCK: countdown anchor of the running start sequence.
+     */
+    sequenceStartedAt?: string | null
+}
 
 /**
  * Director intervention from the control panel; match/seconds stay null when not set.
@@ -4258,6 +4310,54 @@ export type StreamSceneShareLinkDto = {
      * Root-relative frontend path including the token query parameter (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin. The stage sends the token as the X-Timing-Device-Token header.
      */
     path: string
+}
+
+/**
+ * The resolved scene state a stage renders - the server decides what is on air, not the
+ * browser.
+ *
+ * Stages and control panels get this very payload pushed over the scene's websocket channel
+ * instead of polling:
+ *
+ * - Path: `/api/ws/event/{eventId}/stream/{sceneId}` (note the `/api/ws` prefix - this
+ * channel lives outside the regular `/api` REST routes documented in this spec).
+ * - Auth: same two doors as the HTTP route above - a session with READ STREAM or READ EVENT,
+ * or a device token issued for EXACTLY THIS scene. Browsers cannot set headers on a
+ * websocket handshake, so the token travels as the second subprotocol entry:
+ * `new WebSocket(url, ["r2r", token])`. Non-browser clients may send the session header and
+ * omit the subprotocol. Anything else is closed with 1008 (policy violation) right after the
+ * upgrade.
+ * - Messages are JSON objects discriminated by a `type` field. The only type is
+ * `{ type: "streamSceneView", view: StreamSceneViewDto }` - the complete, already resolved
+ * state, field for field the body of `getStreamSceneView`. Apply it directly; there is
+ * nothing left to fetch.
+ * - The full state is also sent as the first frame of every connection, so a reconnect after
+ * a dropout recovers on its own and needs no refetch.
+ * - Pushes are triggered by the same event change marker that drives the board channels
+ * (start, split, finish, state change, sequence start), by every write on the scene itself
+ * (override, graphics configuration, trial mode) and by a timer for the auto-out windows and
+ * override expiries the resolver announces. The server coalesces bursts and resolves each
+ * scene once for all its subscribers; a scene nobody is connected to is never computed.
+ * - The channel is receive-only: clients should ignore any data they send on it and rely on
+ * the server's ping/pong keepalive.
+ */
+export type StreamSceneViewDto = {
+    sceneId: string
+    background: StreamBackground
+    /**
+     * Only set for background CHROMA.
+     */
+    chromaColor?: string | null
+    safeAreaPercent: number
+    /**
+     * Trial mode: the state is fed by a synthetic demo race, no real data is touched.
+     */
+    trialMode: boolean
+    /**
+     * Server clock at resolution time, for the stage's clock correction.
+     */
+    serverTime: string
+    graphics: Array<StreamGraphicViewDto>
 }
 
 export type SubstitutionDto = {
@@ -9538,6 +9638,10 @@ export type GetStreamSceneViewData = {
         sceneId: string
     }
 }
+
+export type GetStreamSceneViewResponse = StreamSceneViewDto
+
+export type GetStreamSceneViewError = ApiError
 
 export type AddRatingCategoryData = {
     body: RatingCategoryRequest
