@@ -27,6 +27,7 @@ import {
     writeDeviceSession,
 } from './utils/timing/deviceSession.ts'
 import {writeBoardDeviceToken} from './utils/board/deviceToken.ts'
+import {writeStreamSceneDeviceToken} from './utils/stream/sceneToken.ts'
 import UsersPage from './pages/user/UsersPage.tsx'
 import UserPage from './pages/user/UserPage.tsx'
 import RolesPage from './pages/user/RolesPage.tsx'
@@ -38,6 +39,7 @@ import EventDayPage from './pages/event/EventDayPage.tsx'
 import EventInfoPage from './pages/event/EventInfoPage.tsx'
 import AthleteBoardPage from './pages/event/AthleteBoardPage.tsx'
 import BoardDisplayPage from './pages/event/BoardDisplayPage.tsx'
+import StreamScenePage from './pages/event/StreamScenePage.tsx'
 import LiveDashboardPage from './pages/event/LiveDashboardPage.tsx'
 import RegistrationPage from './pages/user/RegistrationPage.tsx'
 import ResetPasswordPage from './pages/user/resetPassword/ResetPasswordPage.tsx'
@@ -796,6 +798,35 @@ export const boardDisplayRoute = createRoute({
     },
 })
 
+// Die Stream-Bühne einer Szene, ebenfalls ohne App-Layout — wortgetreue Kopie des Musters von
+// `boardDisplayRoute` (Geräte-Token aus der Adresse, replace-Redirect ohne Token in der
+// Adressleiste), aber unter dem vom Backend vorgegebenen Pfad: `StreamSceneShareLinkDto.path`
+// erzeugt genau diesen Link (`/event/{eventId}/stream/{sceneId}?token=…`), die Route MUSS also
+// hier liegen, auch wenn `event/$eventId` sonst der angemeldeten Veranstaltungsverwaltung gehört
+// (`eventRoute`). Beide Zweige bleiben eindeutig unterscheidbar: Diese Route trägt selbst die
+// weiteren Segmente `stream/$sceneId`, die es unter `eventRoute` nicht gibt.
+//
+// Anders als bei Boards braucht eine Bühne KEIN `checkAuth` und KEINE Fehlermeldung im Klartext
+// — sie läuft ungesehen als OBS-/Wirecast-Quelle, jeder sichtbare Text tauchte im Bild auf. Ohne
+// Sitzung und ohne (gültiges) Token bleibt die Bühne schlicht leer (siehe `StreamScenePage`).
+export const streamSceneRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: 'event/$eventId/stream/$sceneId',
+    validateSearch: validateTimingTokenSearch,
+    component: () => <StreamScenePage />,
+    beforeLoad: ({params, search}) => {
+        if (search.token !== undefined) {
+            writeStreamSceneDeviceToken(params.eventId, params.sceneId, search.token)
+            throw redirect({
+                to: '/event/$eventId/stream/$sceneId',
+                params,
+                search: {},
+                replace: true,
+            })
+        }
+    },
+})
+
 const routeTree = rootRoute.addChildren([
     mainLayoutRoute.addChildren([
         indexRoute,
@@ -852,6 +883,7 @@ const routeTree = rootRoute.addChildren([
     mobileRoute.addChildren([challengeRoute]),
     athleteBoardRoute,
     boardDisplayRoute,
+    streamSceneRoute,
 ])
 
 const basepath = document.getElementById('ready2race-root')!.dataset.basepath
