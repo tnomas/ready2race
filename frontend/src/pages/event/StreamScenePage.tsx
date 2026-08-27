@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {Box} from '@mui/material'
 import {getStreamSceneView} from '@api/sdk.gen'
 import {StreamSceneViewDto} from '@api/types.gen'
@@ -65,6 +65,20 @@ const StreamScenePage = () => {
     // Der Kanal schickt den vollen Stand als ersten Rahmen jeder Verbindung — er überholt den
     // Erstabruf binnen kurzem von selbst. Bis dahin trägt der Erstabruf allein.
     const view = pushed ?? initial.data ?? null
+
+    // Serverzeitversatz für die CLOCK-Bandgrafik: einmal je frisch eingetroffener Ansicht
+    // gemessen (`serverTime` ändert sich nur bei einem echten neuen Stand), nicht bei jedem
+    // Render — sonst würde jeder Uhr-/Countdown-Tick die Messung verfälschen. Dasselbe Muster
+    // wie beim alten Chroma-Key-Overlay (`BoardStreamOverlayElement`).
+    const clockOffsetMs = useMemo(
+        () => (view ? Date.now() - Date.parse(view.serverTime) : 0),
+        // Bewusst nur auf `serverTime` reagieren, nicht auf jede Referenzänderung von `view`
+        // (jeder Push liefert ein neues Objekt) — sonst würde ein Push, der denselben
+        // Serverzeitstempel trägt (kommt praktisch nicht vor, ist aber kein Fehlerfall), die
+        // Messung unnötig wiederholen.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [view?.serverTime],
+    )
 
     // Sekundentakt fürs Veraltet-Erkennen (Muster `useServerClock`) — kein Live-Rendering-Grund,
     // nur damit `stale` ohne neue Nachricht nach STREAM_STALE_AFTER_MS wirklich kippt.
@@ -152,7 +166,7 @@ const StreamScenePage = () => {
                                 <Box key={placement} data-placement={placement} sx={STREAM_SLOT_STYLE[placement]}>
                                     {graphicsAtPlacement.map(graphic => (
                                         <Box key={graphic.type} sx={{gridArea: '1 / 1'}}>
-                                            <StreamGraphic graphic={graphic} />
+                                            <StreamGraphic graphic={graphic} clockOffsetMs={clockOffsetMs} />
                                         </Box>
                                     ))}
                                 </Box>

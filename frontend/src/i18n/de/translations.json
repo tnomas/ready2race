@@ -2552,7 +2552,8 @@
       "startlist": "Startliste",
       "nextUp": "Als Nächstes: {{wave}}",
       "laps": "Zwischenzeiten",
-      "result": "Ergebnis"
+      "result": "Ergebnis",
+      "finishTicker": "Einlauf"
     },
     "betrieb": {
       "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",

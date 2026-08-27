@@ -1,6 +1,8 @@
 import {ReactElement, useRef} from 'react'
 import {StreamGraphicViewDto} from '@api/types.gen'
 import GraphicFrame from './GraphicFrame.tsx'
+import StreamClock from './StreamClock.tsx'
+import StreamFinishTicker from './StreamFinishTicker.tsx'
 import StreamLapsBand from './StreamLapsBand.tsx'
 import StreamNextUp from './StreamNextUp.tsx'
 import StreamResultPanel from './StreamResultPanel.tsx'
@@ -9,22 +11,23 @@ import {hasGraphicContent, retainGraphicContent} from './retainGraphicContent.ts
 
 interface StreamGraphicProps {
     graphic: StreamGraphicViewDto
+    /** Client-Server-Zeitversatz (`clientNow - serverTime`) für CLOCK — siehe `StreamScenePage`. */
+    clockOffsetMs: number
 }
 
 /**
- * Grafik-Typ → Inhalt. Nur die vier hier gebauten Typen (STARTLIST/NEXT_UP/LAPS/RESULT) haben
- * schon eine Komponente; die übrigen (CLOCK, FINISH_TICKER, SCHEDULE, COURSE_IMAGE) kommen mit
- * späteren Aufgaben dazu — bis dahin liefert ein noch unbehandelter oder inhaltloser Typ
- * bewusst nichts, statt eine leere Grafik-Hülle ins Bild zu stellen.
+ * Grafik-Typ → Inhalt. SCHEDULE/COURSE_IMAGE kommen mit einer späteren Aufgabe dazu — bis
+ * dahin liefert ein noch unbehandelter oder inhaltloser Typ bewusst nichts, statt eine leere
+ * Grafik-Hülle ins Bild zu stellen.
  *
- * WICHTIG: `match`/`result` sind NICHT unabhängig von `visible` — beide leiten sich aus
- * demselben Renn-Zustand ab (`input.preparing`/`input.running`, siehe
+ * WICHTIG: `match`/`result`/`finishEntries` sind NICHT unabhängig von `visible` — sie leiten
+ * sich aus demselben Renn-Zustand ab (`input.preparing`/`input.running`, siehe
  * `StreamSceneResolver.autoFor`). Endet der vorbereitete/laufende Lauf, können `visible` UND
  * der Inhalt im SELBEN Push wegfallen (z. B. Sequenzstart mitten im 15-s-Startlisten-Fenster,
  * oder ein Laufende mitten im 8-s-Rundenfenster). `contentFor` bekommt deshalb nie den rohen
  * Push, sondern den von `StreamGraphic` schon um `retainGraphicContent` ergänzten Stand.
  */
-const contentFor = (graphic: StreamGraphicViewDto): ReactElement | null => {
+const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): ReactElement | null => {
     switch (graphic.type) {
         case 'STARTLIST':
             return graphic.match ? <StreamStartlist match={graphic.match} size={graphic.size} /> : null
@@ -39,6 +42,19 @@ const contentFor = (graphic: StreamGraphicViewDto): ReactElement | null => {
                     provisional={graphic.provisional}
                     size={graphic.size}
                 />
+            ) : null
+        case 'CLOCK':
+            return graphic.match ? (
+                <StreamClock
+                    match={graphic.match}
+                    sequenceStartedAt={graphic.sequenceStartedAt}
+                    clockOffsetMs={clockOffsetMs}
+                    size={graphic.size}
+                />
+            ) : null
+        case 'FINISH_TICKER':
+            return graphic.finishEntries && graphic.finishEntries.length > 0 ? (
+                <StreamFinishTicker entries={graphic.finishEntries} size={graphic.size} />
             ) : null
         default:
             return null
@@ -55,12 +71,12 @@ const contentFor = (graphic: StreamGraphicViewDto): ReactElement | null => {
  * ausblendet. Ist die Ausblendanimation fertig (`phase === 'hidden'`), rendert `GraphicFrame`
  * von sich aus nichts mehr — der Ref muss dafür nie eigens geleert werden.
  */
-const StreamGraphic = ({graphic}: StreamGraphicProps) => {
+const StreamGraphic = ({graphic, clockOffsetMs}: StreamGraphicProps) => {
     const lastWithContentRef = useRef<StreamGraphicViewDto | null>(null)
     const effective = retainGraphicContent(graphic, lastWithContentRef.current)
     if (hasGraphicContent(graphic)) lastWithContentRef.current = graphic
 
-    const content = contentFor(effective)
+    const content = contentFor(effective, clockOffsetMs)
     if (content === null) return null
     return (
         <GraphicFrame
