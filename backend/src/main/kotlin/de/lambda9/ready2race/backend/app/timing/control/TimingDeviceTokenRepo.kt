@@ -77,4 +77,20 @@ object TimingDeviceTokenRepo {
             .limit(1)
             .fetchOne()
     }
+
+    /**
+     * Dasselbe für eine Stream-Szene (Migration V202608271000): das wiederverwendbare
+     * Link-Token einer Szene - wortgleich zu [getActiveShareLinkByBoard].
+     */
+    fun getActiveShareLinkByStreamScene(sceneId: UUID): JIO<TimingDeviceTokenRecord?> = Jooq.query {
+        selectFrom(TIMING_DEVICE_TOKEN)
+            .where(
+                TIMING_DEVICE_TOKEN.STREAM_SCENE.eq(sceneId)
+                    .and(TIMING_DEVICE_TOKEN.REVOKED.isFalse)
+                    .and(TIMING_DEVICE_TOKEN.SHARE_LINK_TOKEN.isNotNull)
+            )
+            .orderBy(TIMING_DEVICE_TOKEN.CREATED_AT.asc(), TIMING_DEVICE_TOKEN.ID.asc())
+            .limit(1)
+            .fetchOne()
+    }
 }

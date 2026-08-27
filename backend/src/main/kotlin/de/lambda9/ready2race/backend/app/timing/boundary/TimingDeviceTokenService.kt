@@ -5,6 +5,9 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.EventInfoProblem
+import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
+import de.lambda9.ready2race.backend.app.stream.entity.StreamError
+import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneShareLinkDto
 import de.lambda9.ready2race.backend.app.timing.control.TimingDeviceTokenRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingStationRepo
 import de.lambda9.ready2race.backend.app.timing.control.toDto
@@ -47,6 +50,10 @@ import java.util.UUID
  * [validateForBoard] und [validateBoardTokenForEvent] ausschließlich Board-Tokens. Ein
  * Board-Token öffnet also nie einen Zeitnahme-Endpunkt und ein Posten-Token nie eine Anzeige -
  * beides mit derselben opaken Antwort wie jede andere Ablehnung.
+ *
+ * Seit Migration V202608271000 kommt ein drittes Ziel hinzu: Stream-Szenen-Tokens für Wirecast
+ * als Web-Display-Quelle. [validateForStreamScene] zieht denselben Zuschnitt wie
+ * [validateForBoard] - eine Zeile öffnet genau ihr eigenes Ziel und keins der beiden anderen.
  */
 object TimingDeviceTokenService {
 
@@ -201,6 +208,65 @@ object TimingDeviceTokenService {
     }
 
     /**
+     * Dasselbe für eine Stream-Szene: stellt für [sceneId] ein Szenen-Geräte-Token aus und
+     * liefert die fertige Bühnen-Adresse - Wort für Wort [shareLinkForBoard], nur für das dritte
+     * Ziel derselben Token-Infrastruktur (Migration V202608271000). Wiederverwendung statt
+     * Inflation gilt genauso: solange ein automatisch ausgestelltes, nicht widerrufenes Token
+     * für die Szene lebt, kommt DASSELBE zurück.
+     *
+     * Eine Szene, die es nicht gibt, und eine Szene einer ANDEREN Veranstaltung antworten
+     * gleich - sonst verriete der Endpunkt, welche Szenen-Kennungen existieren.
+     */
+    fun shareLinkForStreamScene(
+        eventId: UUID,
+        sceneId: UUID,
+        userId: UUID,
+    ): App<StreamError, ApiResponse.Dto<StreamSceneShareLinkDto>> = KIO.comprehension {
+        val scene = !StreamSceneRepo.findById(sceneId).orDie()
+            .onNullFail { StreamError.SceneNotFound(sceneId) }
+        !KIO.failOn(scene.event != eventId) { StreamError.SceneNotFound(sceneId) }
+
+        val existing = !TimingDeviceTokenRepo.getActiveShareLinkByStreamScene(sceneId).orDie()
+        val record = existing ?: run {
+            val plain = RandomUtilities.alphanumerical(TOKEN_LENGTH)
+            val created = TimingDeviceTokenRecord(
+                id = UUID.randomUUID(),
+                event = eventId,
+                // Genau eines von dreien ist gesetzt (Check-Constraint der Migration): hier die
+                // Szene, weder Posten noch Board.
+                station = null,
+                streamScene = sceneId,
+                // Der Name benennt die Szene, nicht das Gerät - welcher Wirecast-Rechner den
+                // Link am Ende bekommt, weiß beim Teilen niemand.
+                name = "${scene.name} (Link)",
+                tokenHash = hash(plain),
+                revoked = false,
+                shareLinkToken = plain,
+                createdAt = LocalDateTime.now(),
+                createdBy = userId,
+            )
+            !TimingDeviceTokenRepo.create(created).orDie()
+            created
+        }
+
+        val plain = record.shareLinkToken!!
+        // Dieselbe Adressbildung wie beim Board-Link: die Bühnen-Route der Szene,
+        // wurzelrelativ - den Origin kennt nur der Browser.
+        val encoded = URLEncoder.encode(plain, Charsets.UTF_8)
+
+        KIO.ok(
+            ApiResponse.Dto(
+                StreamSceneShareLinkDto(
+                    deviceTokenId = record.id,
+                    scene = sceneId,
+                    token = plain,
+                    path = "/event/$eventId/stream/$sceneId?token=$encoded",
+                )
+            )
+        )
+    }
+
+    /**
      * Der Geräte-Reiter des Leitstands: die Posten-Tokens der Veranstaltung.
      *
      * Board-Tokens bleiben hier bewusst außen vor - sie haben keinen Posten, und der Reiter führt
@@ -325,6 +391,34 @@ object TimingDeviceTokenService {
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
         ) && record.revoked != true && record.event == eventId && record.board == boardId
+
+        !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
+        KIO.ok(record)
+    }
+
+    /**
+     * Gilt dieses Token für GENAU DIESE Stream-Szene? Wort für Wort [validateForBoard], nur für
+     * das dritte Ziel der Tabelle (Migration V202608271000): eine Szene, ausschließlich lesen.
+     * Ein Token, das für Szene A ausgestellt wurde, öffnet Szene B nicht - auch nicht in
+     * derselben Veranstaltung -, und ein Posten- oder Board-Token öffnet gar keine Szene
+     * (`record.streamScene` ist dort null und nie gleich einer Szenen-Kennung).
+     *
+     * Das ist die Funktion, an der der Wirecast-Zugriff auf die Bühne hängt - der
+     * WebSocket-Kanal der Szene ebenso wie ihr initialer GET-Einstieg.
+     */
+    fun validateForStreamScene(
+        plainToken: String,
+        eventId: UUID,
+        sceneId: UUID,
+    ): App<TimingError, TimingDeviceTokenRecord> = KIO.comprehension {
+        val expected = hash(plainToken)
+        val record = !TimingDeviceTokenRepo.getByHash(expected).orDie()
+            .onNullFail { TimingError.DeviceTokenInvalid }
+
+        val valid = MessageDigest.isEqual(
+            record.tokenHash.toByteArray(Charsets.UTF_8),
+            expected.toByteArray(Charsets.UTF_8),
+        ) && record.revoked != true && record.event == eventId && record.streamScene == sceneId
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)

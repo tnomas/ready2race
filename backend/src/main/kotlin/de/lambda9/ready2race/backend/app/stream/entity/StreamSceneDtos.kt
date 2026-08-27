@@ -51,3 +51,12 @@ data class StreamOverrideRequest(
     /** Auto-Out der Handschaltung in Sekunden; null = kein automatischer Rückfall auf AUTO. */
     val seconds: Int?,
 )
+
+/** Anlegen/Ändern einer Szene über die Verwaltung — die Grafik-Konfiguration läuft über [updateGraphics][de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService]. */
+data class StreamSceneRequest(
+    val name: String,
+    val background: StreamBackground = StreamBackground.TRANSPARENT,
+    /** Nur bei [StreamBackground.CHROMA] belegt. */
+    val chromaColor: String? = null,
+    val safeAreaPercent: Int = 0,
+)
