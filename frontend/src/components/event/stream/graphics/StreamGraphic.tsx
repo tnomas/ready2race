@@ -2,10 +2,12 @@ import {ReactElement, useRef} from 'react'
 import {StreamGraphicViewDto} from '@api/types.gen'
 import GraphicFrame from './GraphicFrame.tsx'
 import StreamClock from './StreamClock.tsx'
+import StreamCourseImage from './StreamCourseImage.tsx'
 import StreamFinishTicker from './StreamFinishTicker.tsx'
 import StreamLapsBand from './StreamLapsBand.tsx'
 import StreamNextUp from './StreamNextUp.tsx'
 import StreamResultPanel from './StreamResultPanel.tsx'
+import StreamSchedule from './StreamSchedule.tsx'
 import StreamStartlist from './StreamStartlist.tsx'
 import {hasGraphicContent, retainGraphicContent} from './retainGraphicContent.ts'
 
@@ -16,9 +18,9 @@ interface StreamGraphicProps {
 }
 
 /**
- * Grafik-Typ → Inhalt. SCHEDULE/COURSE_IMAGE kommen mit einer späteren Aufgabe dazu — bis
- * dahin liefert ein noch unbehandelter oder inhaltloser Typ bewusst nichts, statt eine leere
- * Grafik-Hülle ins Bild zu stellen.
+ * Grafik-Typ → Inhalt. Ein inhaltloser Typ (z. B. SCHEDULE ohne anstehende Läufe oder
+ * COURSE_IMAGE ohne hinterlegtes Bild) liefert bewusst nichts, statt eine leere Grafik-Hülle
+ * ins Bild zu stellen.
  *
  * WICHTIG: `match`/`result`/`finishEntries` sind NICHT unabhängig von `visible` — sie leiten
  * sich aus demselben Renn-Zustand ab (`input.preparing`/`input.running`, siehe
@@ -55,6 +57,14 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
         case 'FINISH_TICKER':
             return graphic.finishEntries && graphic.finishEntries.length > 0 ? (
                 <StreamFinishTicker entries={graphic.finishEntries} size={graphic.size} />
+            ) : null
+        case 'SCHEDULE':
+            return graphic.schedule && graphic.schedule.length > 0 ? (
+                <StreamSchedule schedule={graphic.schedule} size={graphic.size} />
+            ) : null
+        case 'COURSE_IMAGE':
+            return graphic.imageUrl ? (
+                <StreamCourseImage imageUrl={graphic.imageUrl} size={graphic.size} />
             ) : null
         default:
             return null

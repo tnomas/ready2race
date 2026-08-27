@@ -2553,7 +2553,9 @@
       "nextUp": "Up next: {{wave}}",
       "laps": "Splits",
       "result": "Result",
-      "finishTicker": "Finish order"
+      "finishTicker": "Finish order",
+      "schedule": "Schedule",
+      "courseImage": "Course map"
     },
     "betrieb": {
       "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
