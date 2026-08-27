@@ -30,3 +30,27 @@ export const STREAM_PLACEMENT_STYLE: Record<StreamPlacement, CSSProperties> = {
 
 /** Alle acht Plätze, in einer stabilen Reihenfolge fürs Rendern der Slots. */
 export const STREAM_PLACEMENTS = Object.keys(STREAM_PLACEMENT_STYLE) as StreamPlacement[]
+
+/**
+ * Der tatsächliche Stil des Platz-CONTAINERS in `StreamScenePage`: der Anker aus
+ * `STREAM_PLACEMENT_STYLE` PLUS CSS-Grid-Stapelung. Mehrere Grafiken desselben Platzes — der
+ * Grafik-Katalog setzt STARTLIST/LAPS/RESULT/NEXT_UP standardmäßig alle auf unten-mitte —
+ * legen sich damit exakt übereinander (`gridArea: '1 / 1'` je Grafik) statt im Blockfluss
+ * untereinander zu stapeln; der Server garantiert ohnehin höchstens eine sichtbare Grafik je
+ * Platz, eine zweite ist höchstens kurz während ihrer eigenen Ausblendanimation noch dabei.
+ *
+ * `placeItems: 'center'` ist bewusst dazugenommen, nicht dem Grid-Standard (`stretch`)
+ * überlassen: Für die sieben ankerpunkt-verorteten Plätze macht das keinen sichtbaren
+ * Unterschied (die Box ist ohnehin inhaltsgroß, kein `inset: 0`). Für FULL_CENTER dagegen ist
+ * die Box vollflächig — ohne `placeItems: 'center'` würde ihr Inhalt (Zeitplan, Streckenbild)
+ * unter Grid auf die volle Fläche GESTRECKT statt mittig zu sitzen, wie es die ursprüngliche
+ * Flex-Zentrierung (`alignItems`/`justifyContent: 'center'` oben) vorsah — genau der Fehler,
+ * den ein unbedachtes `{...STREAM_PLACEMENT_STYLE[placement], display: 'grid'}` einführen
+ * würde.
+ */
+export const STREAM_SLOT_STYLE: Record<StreamPlacement, CSSProperties> = Object.fromEntries(
+    STREAM_PLACEMENTS.map(placement => [
+        placement,
+        {...STREAM_PLACEMENT_STYLE[placement], display: 'grid', placeItems: 'center'},
+    ]),
+) as Record<StreamPlacement, CSSProperties>

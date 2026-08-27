@@ -13,10 +13,7 @@ import {
     STREAM_STAGE_HEIGHT,
     STREAM_STAGE_WIDTH,
 } from '@components/event/stream/stageScale.ts'
-import {
-    STREAM_PLACEMENT_STYLE,
-    STREAM_PLACEMENTS,
-} from '@components/event/stream/streamPlacement.ts'
+import {STREAM_PLACEMENTS, STREAM_SLOT_STYLE} from '@components/event/stream/streamPlacement.ts'
 
 /** Vorgabe der Key-Farbe, wenn eine Szene mit Hintergrund CHROMA keine eigene Farbe trägt. */
 const DEFAULT_CHROMA_COLOR = '#00FF00'
@@ -146,20 +143,13 @@ const StreamScenePage = () => {
                                 graphic => graphic.placement === placement,
                             )
                             return (
-                                <Box
-                                    key={placement}
-                                    data-placement={placement}
-                                    sx={{
-                                        ...STREAM_PLACEMENT_STYLE[placement],
-                                        // Grid statt Blockfluss: Mehrere Grafiken desselben
-                                        // Platzes (laut Katalog teilen sich STARTLIST/LAPS/
-                                        // RESULT/NEXT_UP standardmäßig unten-mitte) legen sich so
-                                        // exakt übereinander statt untereinander zu stapeln — der
-                                        // Server garantiert ohnehin höchstens eine sichtbare
-                                        // Grafik je Platz, eine zweite ist höchstens kurz während
-                                        // ihrer eigenen Ausblendanimation noch mitgerendert.
-                                        display: 'grid',
-                                    }}>
+                                // STREAM_SLOT_STYLE statt eines ad-hoc zusammengesetzten Stils:
+                                // Grid-Stapelung UND Zentrierung gehören zusammen entschieden
+                                // (siehe dessen KDoc) — ein unbedachtes
+                                // `{...STREAM_PLACEMENT_STYLE[placement], display: 'grid'}` hätte
+                                // FULL_CENTERs Flex-Zentrierung durch Grids Stretch-Standard
+                                // ersetzt und seinen Inhalt auf die volle Fläche gedehnt.
+                                <Box key={placement} data-placement={placement} sx={STREAM_SLOT_STYLE[placement]}>
                                     {graphicsAtPlacement.map(graphic => (
                                         <Box key={graphic.type} sx={{gridArea: '1 / 1'}}>
                                             <StreamGraphic graphic={graphic} />
