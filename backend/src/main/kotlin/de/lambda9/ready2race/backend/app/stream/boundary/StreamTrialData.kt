@@ -1,0 +1,231 @@
+package de.lambda9.ready2race.backend.app.stream.boundary
+
+import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardMatch
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResult
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResultTeam
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardStartState
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardTeam
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
+import de.lambda9.ready2race.backend.app.stream.entity.StreamFinishEntry
+import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
+import java.time.Duration
+import java.time.LocalDateTime
+import java.util.UUID
+
+/**
+ * Probemodus-Datenquelle (`StreamSceneDto.trialMode`): liefert [resolveScene] eine feste,
+ * erfundene Szene, damit eine Regie eine Konfiguration ohne echten Wettkampfbetrieb ansehen kann.
+ *
+ * [trialInput] ist rein: kein Uhrzugriff, kein Zufall, nur `now` als Parameter. Dieselbe `now`
+ * liefert immer dieselbe [StreamResolverInput] - der 3-Minuten-Loop wird ausschließlich über die
+ * Modulo-Rechnung aus `now` abgeleitet.
+ *
+ * Ablauf der 180-Sekunden-Schleife (Sekunden ab Schleifenbeginn):
+ * - 0–30 s: Vorbereitung (STARTLIST/NEXT_UP über `preparing`/`preparingSince`)
+ * - 30–60 s: Startsequenz (CLOCK-Countdown über `sequenceStartedAt`)
+ * - 60–150 s: Rennen (LAPS alle 20 s, FINISH_TICKER-Einläufe ab Sekunde 120)
+ * - 150–180 s: Ergebnis (RESULT, in der ersten Hälfte des Fensters `provisional`)
+ */
+
+/**
+ * Fester Bezugspunkt für die Loop-Rechnung. Der genaue Wert ist beliebig - entscheidend ist nur,
+ * dass er konstant bleibt, damit dieselbe `now` immer dieselbe Loop-Phase ergibt.
+ */
+val TRIAL_LOOP_EPOCH: LocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0)
+
+private const val LOOP_SECONDS = 180L
+private const val PREPARING_END = 30L
+private const val SEQUENCE_END = 60L
+private const val RUNNING_END = 150L
+
+/** Erste Hälfte des Ergebnisfensters (150–165 s) gilt als vorläufig, siehe Task-Vorgabe. */
+private const val PROVISIONAL_RESULT_END = 165L
+
+private val TRIAL_MATCH_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000701")
+private const val TRIAL_COMPETITION_NAME = "Achter Herren (Probemodus)"
+
+private data class TrialLane(val startNumber: Int, val clubShort: String)
+
+/** 4 Bahnen mit erfundenen Vereinsnamen. */
+private val TRIAL_LANES: List<TrialLane> = listOf(
+    TrialLane(1, "RC Demo"),
+    TrialLane(2, "SC Probe"),
+    TrialLane(3, "RV Muster"),
+    TrialLane(4, "RG Fiktiv"),
+)
+
+/** Zwischenzeiten-Stellen des Demo-Laufs, alle 20 s ab Rennstart (Sekunde 60 der Schleife). */
+private val SPLIT_OFFSETS: List<Pair<Long, String>> = listOf(
+    20L to "500 m",
+    40L to "1000 m",
+    60L to "1500 m",
+    80L to "2000 m",
+)
+
+/**
+ * Ziel-Reihenfolge des Demo-Laufs, als Sekunden nach Rennstart - Index in [TRIAL_LANES], Bahn 1
+ * gewinnt in dieser erfundenen Wiederholung immer. Alle Werte liegen vor [RUNNING_END] - [SEQUENCE_END]
+ * (90 s Rennfenster), damit bis Sekunde 150 alle vier Boote im Ziel sind.
+ */
+private val FINISH_OFFSETS: List<Long> = listOf(60L, 68L, 76L, 84L)
+
+private fun mmss(totalSeconds: Long): String {
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d.0".format(minutes, seconds)
+}
+
+private fun trialMatch(
+    state: MatchState,
+    actualStartTime: LocalDateTime? = null,
+    teams: List<AthleteBoardTeam> = emptyList(),
+): AthleteBoardMatch = AthleteBoardMatch(
+    matchId = TRIAL_MATCH_ID,
+    competitionName = TRIAL_COMPETITION_NAME,
+    categoryName = null,
+    roundName = null,
+    matchName = null,
+    startTime = null,
+    actualStartTime = actualStartTime,
+    state = state,
+    startState = AthleteBoardStartState.UNSCHEDULED,
+    teams = teams,
+)
+
+/** Baut die vier Demo-Boote, mit den bis [raceElapsedSeconds] bereits gefallenen Zwischenzeiten. */
+private fun trialTeams(raceStart: LocalDateTime, raceElapsedSeconds: Long): List<AthleteBoardTeam> =
+    TRIAL_LANES.map { lane ->
+        val laps = SPLIT_OFFSETS
+            .filter { (offset, _) -> raceElapsedSeconds >= offset }
+            .map { (offset, name) ->
+                MatchTeamLapDto(name = name, timeString = mmss(offset), recordedAt = raceStart.plusSeconds(offset))
+            }
+        AthleteBoardTeam(
+            startNumber = lane.startNumber,
+            teamNumber = null,
+            clubsShort = lane.clubShort,
+            clubsFull = lane.clubShort,
+            teamName = null,
+            participants = emptyList(),
+            laps = laps,
+        )
+    }
+
+/** Einläufe, die bis [raceElapsedSeconds] bereits im Ziel sind, in Zieleinlauf-Reihenfolge (Rang 1 zuerst). */
+private fun trialFinishEntries(raceElapsedSeconds: Long): List<StreamFinishEntry> =
+    FINISH_OFFSETS.withIndex()
+        .filter { (_, offset) -> raceElapsedSeconds >= offset }
+        .sortedBy { (_, offset) -> offset }
+        .mapIndexed { rankIndex, (laneIndex, offset) ->
+            val lane = TRIAL_LANES[laneIndex]
+            StreamFinishEntry(
+                rank = rankIndex + 1,
+                startNumber = lane.startNumber,
+                clubsShort = lane.clubShort,
+                clubsFull = lane.clubShort,
+                timeString = mmss(offset),
+            )
+        }
+
+/** Das fertige Ergebnis des Demo-Laufs, in derselben Zieleinlauf-Reihenfolge wie [FINISH_OFFSETS]. */
+private fun trialResult(): AthleteBoardResult {
+    val teams = FINISH_OFFSETS.withIndex()
+        .sortedBy { (_, offset) -> offset }
+        .mapIndexed { rankIndex, (laneIndex, offset) ->
+            val lane = TRIAL_LANES[laneIndex]
+            AthleteBoardResultTeam(
+                place = rankIndex + 1,
+                ratingCategory = null,
+                categoryPlace = rankIndex + 1,
+                startNumber = lane.startNumber,
+                teamNumber = null,
+                clubsShort = lane.clubShort,
+                clubsFull = lane.clubShort,
+                teamName = null,
+                timeString = mmss(offset),
+                penaltySeconds = null,
+                penaltyNote = null,
+                failed = false,
+                failedReason = null,
+                deregistered = false,
+                deregisteredReason = null,
+            )
+        }
+    return AthleteBoardResult(
+        matchId = TRIAL_MATCH_ID,
+        competitionName = TRIAL_COMPETITION_NAME,
+        categoryName = null,
+        roundName = null,
+        matchName = null,
+        startTime = null,
+        actualStartTime = null,
+        clarification = false,
+        teams = teams,
+    )
+}
+
+private fun emptyInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>): StreamResolverInput = StreamResolverInput(
+    now = now,
+    graphics = graphics,
+    overrides = emptyList(),
+    preparing = null,
+    preparingSince = null,
+    running = null,
+    sequenceStartedAt = null,
+    latestResult = null,
+    latestResultAt = null,
+    latestResultProvisional = false,
+    finishEntries = emptyList(),
+    overriddenMatches = emptyMap(),
+    overriddenResults = emptyMap(),
+    schedule = emptyList(),
+    courseImageUrl = null,
+)
+
+/**
+ * Bildet `now` auf die 3-Minuten-Demo-Schleife ab und liefert die passende [StreamResolverInput]
+ * für [resolveScene]. Siehe Klassendoku oben für die Phasengrenzen.
+ */
+fun trialInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>): StreamResolverInput {
+    val secondsSinceEpoch = Duration.between(TRIAL_LOOP_EPOCH, now).seconds
+    // Kotlins % kann bei negativer Differenz (now vor dem Bezugspunkt) negativ werden - der
+    // zweite Modulo hebt das Ergebnis zuverlässig in den Bereich [0, LOOP_SECONDS) an.
+    val secondsIntoLoop = ((secondsSinceEpoch % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS
+    val loopStart = now.minusSeconds(secondsIntoLoop)
+    val raceStart = loopStart.plusSeconds(SEQUENCE_END)
+    val resultAt = loopStart.plusSeconds(RUNNING_END)
+
+    val base = emptyInput(now, graphics)
+
+    return when {
+        secondsIntoLoop < PREPARING_END -> base.copy(
+            preparing = trialMatch(state = MatchState.PREPARING, teams = trialTeams(raceStart, 0)),
+            preparingSince = loopStart,
+        )
+
+        secondsIntoLoop < SEQUENCE_END -> base.copy(
+            preparing = trialMatch(state = MatchState.PREPARING, teams = trialTeams(raceStart, 0)),
+            preparingSince = loopStart,
+            sequenceStartedAt = loopStart.plusSeconds(PREPARING_END),
+        )
+
+        secondsIntoLoop < RUNNING_END -> {
+            val raceElapsedSeconds = secondsIntoLoop - SEQUENCE_END
+            base.copy(
+                running = trialMatch(
+                    state = MatchState.RUNNING,
+                    actualStartTime = raceStart,
+                    teams = trialTeams(raceStart, raceElapsedSeconds),
+                ),
+                finishEntries = trialFinishEntries(raceElapsedSeconds),
+            )
+        }
+
+        else -> base.copy(
+            latestResult = trialResult(),
+            latestResultAt = resultAt,
+            latestResultProvisional = secondsIntoLoop < PROVISIONAL_RESULT_END,
+        )
+    }
+}
