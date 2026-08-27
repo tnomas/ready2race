@@ -32,12 +32,34 @@ import java.util.UUID
  * `BoardService`): Szenen-CRUD, Grafik-Konfiguration, Regie-Eingriffe (Override), Probemodus und
  * Szenen-Token. Rechteprüfung ist bewusst NICHT hier - die kommt an den Routen (Task 6).
  *
+ * Anders als [de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardService] (dessen
+ * `updateBoard`/`deleteBoard` bewusst KEINE Veranstaltung entgegennehmen und die Zugehörigkeit
+ * folglich nicht prüfen) verlangt hier jede szenen-adressierte Funktion die `eventId` aus dem
+ * Pfad und prüft sie über [requireOwnedScene] - Task-6-Vorgabe: eine fremde `sceneId` darf sich
+ * nicht in eine andere Veranstaltung hineinreichen lassen.
+ *
  * Jeder schreibende Weg soll am Ende einen Broadcast auf den Szenen-Kanal auslösen
  * (`StreamSceneBroadcaster.broadcastScene`) - der Broadcaster selbst entsteht erst in Task 8 und
  * zieht die Aufrufe dort nach. Bis dahin bleibt hier bewusst KEIN Ersatz-Aufruf wie
  * `EventChangeMarker.bump` stehen.
  */
 object StreamSceneService {
+
+    /**
+     * Lädt die Szene und prüft ihre Zugehörigkeit zu [eventId] - EINE Stelle für die Prüfung,
+     * an der jede szenen-adressierte Funktion dieses Objekts hängt. Auch die Route des
+     * Szenenstands (`GET .../view`, Task 6) ruft das für ihren Sitzungszweig auf; der
+     * Token-Zweig bekommt dieselbe Prüfung schon über
+     * [de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService.validateForStreamScene].
+     * Eine Szene, die es nicht gibt, und eine Szene einer ANDEREN Veranstaltung antworten
+     * gleich - sonst verriete der Aufruf, welche Szenen-Kennungen existieren.
+     */
+    fun requireOwnedScene(eventId: UUID, sceneId: UUID): App<StreamError, StreamSceneRecord> = KIO.comprehension {
+        val scene = !StreamSceneRepo.findById(sceneId).orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+        !KIO.failOn(scene.event != eventId) { StreamError.SceneNotFound(sceneId) }
+
+        KIO.ok(scene)
+    }
 
     /**
      * Die Szenen einer Veranstaltung samt ihrer Grafik-Konfiguration - eine Abfrage für die
@@ -76,8 +98,14 @@ object StreamSceneService {
             KIO.ok(ApiResponse.Dto(created.toDto()))
         }
 
-    fun updateScene(sceneId: UUID, request: StreamSceneRequest): App<StreamError, ApiResponse.Dto<StreamSceneDto>> =
+    fun updateScene(
+        eventId: UUID,
+        sceneId: UUID,
+        request: StreamSceneRequest,
+    ): App<StreamError, ApiResponse.Dto<StreamSceneDto>> =
         KIO.comprehension {
+            !requireOwnedScene(eventId, sceneId)
+
             val updated = !StreamSceneRepo.update(sceneId) {
                 name = request.name
                 background = request.background.name
@@ -92,7 +120,9 @@ object StreamSceneService {
         }
 
     /** Löscht die Szene - Grafik-Konfiguration, Regie-Zeilen und ihr Token hängen per `on delete cascade` daran (Migration V202608271000). */
-    fun deleteScene(sceneId: UUID): App<StreamError, ApiResponse.NoData> = KIO.comprehension {
+    fun deleteScene(eventId: UUID, sceneId: UUID): App<StreamError, ApiResponse.NoData> = KIO.comprehension {
+        !requireOwnedScene(eventId, sceneId)
+
         val deleted = !StreamSceneRepo.delete(sceneId).orDie()
         if (deleted < 1) {
             !KIO.fail<StreamError>(StreamError.SceneNotFound(sceneId))
@@ -108,10 +138,11 @@ object StreamSceneService {
      * Platzierung lehnt den ganzen Aufruf ab, statt die anderen Zeilen trotzdem zu übernehmen.
      */
     fun updateGraphics(
+        eventId: UUID,
         sceneId: UUID,
         graphics: List<StreamSceneGraphicDto>,
     ): App<StreamError, ApiResponse.Dto<StreamSceneDto>> = KIO.comprehension {
-        val scene = !StreamSceneRepo.findById(sceneId).orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+        val scene = !requireOwnedScene(eventId, sceneId)
 
         val invalid = graphics.firstOrNull { allowedPlacements[it.type]?.contains(it.placement) != true }
         if (invalid != null) {
@@ -146,11 +177,12 @@ object StreamSceneService {
      * Aufruf ist damit "der jüngste Eingriff", was die Platz-Priorität im Resolver braucht.
      */
     fun setOverride(
+        eventId: UUID,
         sceneId: UUID,
         type: StreamGraphicType,
         request: StreamOverrideRequest,
     ): App<StreamError, ApiResponse.NoData> = KIO.comprehension {
-        !StreamSceneRepo.findById(sceneId).orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+        !requireOwnedScene(eventId, sceneId)
 
         if (request.state == StreamOverrideState.AUTO) {
             !StreamOverrideRepo.delete(sceneId, type).orDie()
@@ -173,22 +205,24 @@ object StreamSceneService {
     }
 
     /** Nimmt einen Regie-Eingriff zurück - keine Zeile heißt AUTO, ein fehlender Eingriff ist deshalb kein Fehler. */
-    fun clearOverride(sceneId: UUID, type: StreamGraphicType): App<StreamError, ApiResponse.NoData> =
+    fun clearOverride(eventId: UUID, sceneId: UUID, type: StreamGraphicType): App<StreamError, ApiResponse.NoData> =
         KIO.comprehension {
-            !StreamSceneRepo.findById(sceneId).orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+            !requireOwnedScene(eventId, sceneId)
             !StreamOverrideRepo.delete(sceneId, type).orDie()
 
             noData
         }
 
-    fun setTrialMode(sceneId: UUID, trialMode: Boolean): App<StreamError, ApiResponse.NoData> = KIO.comprehension {
-        !StreamSceneRepo.update(sceneId) {
-            this.trialMode = trialMode
-            updatedAt = LocalDateTime.now()
-        }.orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+    fun setTrialMode(eventId: UUID, sceneId: UUID, trialMode: Boolean): App<StreamError, ApiResponse.NoData> =
+        KIO.comprehension {
+            !requireOwnedScene(eventId, sceneId)
+            !StreamSceneRepo.update(sceneId) {
+                this.trialMode = trialMode
+                updatedAt = LocalDateTime.now()
+            }.orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
 
-        noData
-    }
+            noData
+        }
 
     /**
      * Stellt (bzw. gibt erneut) den geteilten Link samt Geräte-Token für die Szene aus - reiner

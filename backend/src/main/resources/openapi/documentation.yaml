@@ -8418,6 +8418,311 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/stream:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getStreamScenes
+      description: "The event's livestream scenes, each with its resolved graphics configuration. Requires a session with READ STREAM or READ EVENT."
+      responses:
+        200:
+          description: Scenes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StreamSceneDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: createStreamScene
+      description: "Creates a scene without any graphics configured yet - add rows through updateStreamSceneGraphics. Requires a session with UPDATE STREAM or UPDATE EVENT."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamSceneRequest'
+      responses:
+        200:
+          description: Scene created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSceneDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateStreamScene
+      description: "Updates name, background and safe area of a scene; the graphics configuration is untouched here (see updateStreamSceneGraphics). Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamSceneRequest'
+      responses:
+        200:
+          description: Scene updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSceneDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteStreamScene
+      description: "Deletes the scene; its graphics configuration, override rows and device token all hang off it via ON DELETE CASCADE. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one."
+      responses:
+        204:
+          description: Scene deleted
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/graphics:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateStreamSceneGraphics
+      description: >-
+        Upserts the given graphic rows (one call may carry any subset of the eight types, not
+        necessarily all of them). Every row is validated against its type's allowed placements
+        BEFORE anything is written - a single disallowed placement rejects the whole call, none of
+        the other rows are applied either. Requires a session with UPDATE STREAM or UPDATE EVENT. A
+        sceneId belonging to another event answers 404, same as an unknown one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamSceneGraphicsRequest'
+      responses:
+        200:
+          description: Graphics configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSceneDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/shareLink:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: createStreamSceneShareLink
+      description: >-
+        Issues a device token for the scene automatically and returns the finished stage link
+        (root-relative path plus token) - the way a Wirecast/OBS source that cannot log in gets at
+        one scene. Mirrors createBoardShareLink down to the rule: reuse instead of inflation, so as
+        long as an automatically issued, unrevoked token exists for the scene, every call returns
+        the SAME link; revoking it (deleteTimingDeviceToken, same table) makes the next call issue
+        a fresh one. Requires a session with UPDATE STREAM or UPDATE EVENT - the same rights as the
+        rest of the scene administration. A sceneId belonging to another event answers 404, same as
+        an unknown one.
+      responses:
+        200:
+          description: Share link issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamSceneShareLinkDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/override/{graphicType}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: graphicType
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/StreamGraphicType'
+    put:
+      operationId: setStreamOverride
+      description: >-
+        Director override for one graphic type. state=AUTO in the body is equivalent to
+        clearStreamOverride (no row = AUTO); FORCED_ON/FORCED_OFF replace the row entirely, so every
+        call becomes "the most recent intervention", which the resolver's placement priority
+        (Task 8) needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging
+        to another event answers 404, same as an unknown one.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamOverrideRequest'
+      responses:
+        204:
+          description: Override applied
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: clearStreamOverride
+      description: "Lifts a director override for one graphic type, back to AUTO. A missing override is not an error - no row already means AUTO. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one."
+      responses:
+        204:
+          description: Override cleared
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/trialMode:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setStreamSceneTrialMode
+      description: "Toggles the scene's trial mode (a visible marker so an operator can rehearse the stage without it looking like a live moment). Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one."
+      parameters:
+        - name: trialMode
+          in: query
+          required: true
+          schema:
+            type: boolean
+      responses:
+        204:
+          description: Trial mode updated
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/view:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getStreamSceneView
+      description: >-
+        The resolved scene state a stage renders - same payload as the scene's websocket channel
+        (Task 8). Needs either a session with READ STREAM or READ EVENT, or a device token issued
+        for EXACTLY THIS scene in the X-Timing-Device-Token header (see
+        createStreamSceneShareLink); a token of another scene, a board or timing station token, and
+        a revoked token are all answered alike with 401. A sceneId belonging to another event
+        answers 404, same as an unknown one - checked for the session path even though the resolver
+        itself is not wired up yet.
+
+        Currently answers 501: the resolver that turns the configuration, overrides and live
+        matches into a StreamSceneViewDto is built in Task 8. Auth and the event/scene ownership
+        check are already fully in place.
+      responses:
+        501:
+          $ref: '#/components/responses/501'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
 
   /ratingCategory:
     post:
@@ -11490,6 +11795,13 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
 
+    501:
+      description: Not Implemented
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
     502:
       description: Bad Gateway
       content:
@@ -11679,6 +11991,7 @@ components:
         - EXPORT_BUNDLE_DUPLICATE_DOCUMENT
         - EXPORT_BUNDLE_PLACEHOLDER_NOT_REMOVABLE
         - EXPORT_BUNDLE_ORDER_MISMATCH
+        - STREAM_PLACEMENT_NOT_ALLOWED
 
     Gender:
       type: string
@@ -22313,3 +22626,197 @@ components:
           nullable: true
           items:
             $ref: '#/components/schemas/AwardCeremonyKeyRequest'
+
+    StreamGraphicType:
+      type: string
+      enum:
+        - STARTLIST
+        - CLOCK
+        - LAPS
+        - RESULT
+        - FINISH_TICKER
+        - NEXT_UP
+        - SCHEDULE
+        - COURSE_IMAGE
+
+    StreamPlacement:
+      type: string
+      enum:
+        - BOTTOM_CENTER
+        - BOTTOM_LEFT
+        - BOTTOM_RIGHT
+        - TOP_LEFT
+        - TOP_RIGHT
+        - SIDE_LEFT
+        - SIDE_RIGHT
+        - FULL_CENTER
+
+    StreamGraphicSize:
+      type: string
+      enum:
+        - COMPACT
+        - NORMAL
+
+    StreamBackground:
+      type: string
+      enum:
+        - TRANSPARENT
+        - CHROMA
+
+    StreamOverrideState:
+      type: string
+      description: "AUTO exists only here and in the API - it means 'no row in stream_override', not 'a row with value AUTO'."
+      enum:
+        - AUTO
+        - FORCED_ON
+        - FORCED_OFF
+
+    StreamGraphicSettings:
+      type: object
+      description: "Mirrors the `settings` jsonb of stream_scene_graphic - only the fields belonging to the graphic's type are set, the rest stay null. Unknown fields are ignored on read, so a later removed field never breaks deserializing an old row."
+      properties:
+        displaySeconds:
+          type: integer
+          nullable: true
+          description: "LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds."
+        listLength:
+          type: integer
+          nullable: true
+          description: "SCHEDULE: number of rows shown, default 8."
+        imageDocument:
+          type: string
+          format: uuid
+          nullable: true
+          description: "COURSE_IMAGE: reference to the stored course image document."
+
+    StreamSceneGraphicDto:
+      type: object
+      description: "One graphic's configuration row within a scene - at most one per scene and type."
+      required:
+        - type
+        - enabled
+        - placement
+        - size
+        - settings
+      properties:
+        type:
+          $ref: '#/components/schemas/StreamGraphicType'
+        enabled:
+          type: boolean
+        placement:
+          $ref: '#/components/schemas/StreamPlacement'
+        size:
+          $ref: '#/components/schemas/StreamGraphicSize'
+        settings:
+          $ref: '#/components/schemas/StreamGraphicSettings'
+
+    StreamSceneDto:
+      type: object
+      required:
+        - id
+        - event
+        - name
+        - background
+        - safeAreaPercent
+        - trialMode
+        - graphics
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          format: uuid
+        name:
+          type: string
+        background:
+          $ref: '#/components/schemas/StreamBackground'
+        chromaColor:
+          type: string
+          nullable: true
+          description: "Only set for background CHROMA."
+        safeAreaPercent:
+          type: integer
+        trialMode:
+          type: boolean
+        graphics:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreamSceneGraphicDto'
+
+    StreamSceneRequest:
+      type: object
+      description: "Body of createStreamScene/updateStreamScene - the graphics configuration goes through updateStreamSceneGraphics instead."
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        background:
+          allOf:
+            - $ref: '#/components/schemas/StreamBackground'
+          description: "Defaults to TRANSPARENT."
+        chromaColor:
+          type: string
+          nullable: true
+          description: "Required to be a hex color (#RGB or #RRGGBB) when background is CHROMA."
+        safeAreaPercent:
+          type: integer
+          description: "0..100, defaults to 0."
+
+    StreamSceneGraphicsRequest:
+      type: object
+      description: "Body of updateStreamSceneGraphics - one call may carry any subset of the eight graphic types, not necessarily all of them."
+      required:
+        - graphics
+      properties:
+        graphics:
+          type: array
+          items:
+            $ref: '#/components/schemas/StreamSceneGraphicDto'
+
+    StreamOverrideRequest:
+      type: object
+      description: "Director intervention from the control panel; match/seconds stay null when not set."
+      required:
+        - state
+      properties:
+        state:
+          $ref: '#/components/schemas/StreamOverrideState'
+        match:
+          type: string
+          format: uuid
+          nullable: true
+          description: "Content choice ('result of match 12'); null = most recent/current content."
+        seconds:
+          type: integer
+          nullable: true
+          description: "Auto-out of the manual override in seconds; null = no automatic fallback to AUTO."
+
+    StreamSceneShareLinkDto:
+      type: object
+      description: >-
+        The shareable scene link, word for word like BoardShareLinkDto: Wirecast/OBS cannot log in,
+        so it gets the same shared link with device token as a board display. Repeatable: the same
+        scene returns the same link until its token is revoked.
+      required:
+        - deviceTokenId
+        - scene
+        - token
+        - path
+      properties:
+        deviceTokenId:
+          type: string
+          format: uuid
+          description: "Handle for revoking this link, through the same route as the other device tokens (deleteTimingDeviceToken)."
+        scene:
+          type: string
+          format: uuid
+        token:
+          type: string
+        path:
+          type: string
+          description: >-
+            Root-relative frontend path including the token query parameter
+            (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin.
+            The stage sends the token as the X-Timing-Device-Token header.

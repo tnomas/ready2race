@@ -59,30 +59,68 @@ class StreamSceneServiceTest {
             chromaColor = "#00FF00",
             safeAreaPercent = 8,
         )
-        val updated = (!StreamSceneService.updateScene(created.id, updateRequest)).dto
+        val updated = (!StreamSceneService.updateScene(eventId, created.id, updateRequest)).dto
         assertEquals("Tagesprogramm", updated.name)
         assertEquals(StreamBackground.CHROMA, updated.background)
         assertEquals("#00FF00", updated.chromaColor)
         assertEquals(8, updated.safeAreaPercent)
 
-        !StreamSceneService.deleteScene(created.id)
+        !StreamSceneService.deleteScene(eventId, created.id)
 
         assertTrue((!StreamSceneService.getScenes(eventId)).data.isEmpty())
     }
 
     @Test
     fun updateAndDeleteFailForAnUnknownScene() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
         val unknownId = UUID.randomUUID()
 
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
-            StreamSceneService.updateScene(unknownId, sceneRequest())
+            StreamSceneService.updateScene(eventId, unknownId, sceneRequest())
         }
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
-            StreamSceneService.deleteScene(unknownId)
+            StreamSceneService.deleteScene(eventId, unknownId)
         }
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
-            StreamSceneService.setTrialMode(unknownId, true)
+            StreamSceneService.setTrialMode(eventId, unknownId, true)
         }
+    }
+
+    @Test
+    fun sceneActionsFailForASceneBelongingToAnotherEvent() = testComprehension {
+        val (ownEventId, _) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(otherEventId, sceneRequest())).dto.id
+
+        // Dieselben Regeln wie bei einer unbekannten Szene - eine fremde sceneId antwortet
+        // gleich, sonst verriete der Aufruf, dass es die Szene irgendwo gibt (Task-6-Vorgabe).
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.updateScene(ownEventId, sceneId, sceneRequest())
+        }
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.deleteScene(ownEventId, sceneId)
+        }
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.setTrialMode(ownEventId, sceneId, true)
+        }
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.updateGraphics(ownEventId, sceneId, emptyList())
+        }
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.setOverride(
+                ownEventId,
+                sceneId,
+                StreamGraphicType.CLOCK,
+                StreamOverrideRequest(state = StreamOverrideState.FORCED_ON, match = null, seconds = null),
+            )
+        }
+        assertKIOFails(StreamError.SceneNotFound(sceneId)) {
+            StreamSceneService.clearOverride(ownEventId, sceneId, StreamGraphicType.CLOCK)
+        }
+
+        // Über die eigene Veranstaltung bleibt die Szene erreichbar - die Sperre trifft nur die
+        // Verwechslung, nicht die Szene selbst.
+        !StreamSceneService.setTrialMode(otherEventId, sceneId, true)
     }
 
     @Test
@@ -105,7 +143,7 @@ class StreamSceneServiceTest {
             settings = StreamGraphicSettings(imageDocument = UUID.randomUUID()),
         )
 
-        val updated = (!StreamSceneService.updateGraphics(sceneId, listOf(laps, courseImage))).dto
+        val updated = (!StreamSceneService.updateGraphics(eventId, sceneId, listOf(laps, courseImage))).dto
         assertEquals(2, updated.graphics.size)
 
         val storedLaps = updated.graphics.first { it.type == StreamGraphicType.LAPS }
@@ -147,7 +185,7 @@ class StreamSceneServiceTest {
         )
 
         assertKIOFails(StreamError.PlacementNotAllowed(StreamGraphicType.CLOCK, StreamPlacement.BOTTOM_CENTER)) {
-            StreamSceneService.updateGraphics(sceneId, listOf(validStartlist, invalidClock))
+            StreamSceneService.updateGraphics(eventId, sceneId, listOf(validStartlist, invalidClock))
         }
 
         // Nichts von der abgelehnten Anfrage wurde übernommen - auch nicht die gültige Zeile.
@@ -157,6 +195,7 @@ class StreamSceneServiceTest {
 
     @Test
     fun updateGraphicsFailsForAnUnknownScene() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
         val unknownId = UUID.randomUUID()
         val startlist = StreamSceneGraphicDto(
             type = StreamGraphicType.STARTLIST,
@@ -167,7 +206,7 @@ class StreamSceneServiceTest {
         )
 
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
-            StreamSceneService.updateGraphics(unknownId, listOf(startlist))
+            StreamSceneService.updateGraphics(eventId, unknownId, listOf(startlist))
         }
     }
 
@@ -178,6 +217,7 @@ class StreamSceneServiceTest {
 
         val before = LocalDateTime.now()
         !StreamSceneService.setOverride(
+            eventId,
             sceneId,
             StreamGraphicType.RESULT,
             StreamOverrideRequest(state = StreamOverrideState.FORCED_ON, match = null, seconds = 30),
@@ -195,7 +235,7 @@ class StreamSceneServiceTest {
             "expiresAt ${row.expiresAt} sollte nahe bei $expectedExpiry liegen",
         )
 
-        !StreamSceneService.clearOverride(sceneId, StreamGraphicType.RESULT)
+        !StreamSceneService.clearOverride(eventId, sceneId, StreamGraphicType.RESULT)
         assertNull(!StreamOverrideRepo.findOne(sceneId, StreamGraphicType.RESULT).orDie())
     }
 
@@ -205,6 +245,7 @@ class StreamSceneServiceTest {
         val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
 
         !StreamSceneService.setOverride(
+            eventId,
             sceneId,
             StreamGraphicType.STARTLIST,
             StreamOverrideRequest(state = StreamOverrideState.FORCED_OFF, match = null, seconds = null),
@@ -215,6 +256,7 @@ class StreamSceneServiceTest {
 
         // AUTO über setOverride ist gleichbedeutend mit clearOverride: keine Zeile mehr.
         !StreamSceneService.setOverride(
+            eventId,
             sceneId,
             StreamGraphicType.STARTLIST,
             StreamOverrideRequest(state = StreamOverrideState.AUTO, match = null, seconds = null),
@@ -224,17 +266,19 @@ class StreamSceneServiceTest {
 
     @Test
     fun overrideActionsFailForAnUnknownScene() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
         val unknownId = UUID.randomUUID()
 
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
             StreamSceneService.setOverride(
+                eventId,
                 unknownId,
                 StreamGraphicType.CLOCK,
                 StreamOverrideRequest(state = StreamOverrideState.FORCED_ON, match = null, seconds = null),
             )
         }
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
-            StreamSceneService.clearOverride(unknownId, StreamGraphicType.CLOCK)
+            StreamSceneService.clearOverride(eventId, unknownId, StreamGraphicType.CLOCK)
         }
     }
 
@@ -243,10 +287,10 @@ class StreamSceneServiceTest {
         val (eventId, _) = !createTestEventWithAdmin()
         val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
 
-        !StreamSceneService.setTrialMode(sceneId, true)
+        !StreamSceneService.setTrialMode(eventId, sceneId, true)
         assertEquals(true, (!StreamSceneRepo.findById(sceneId).orDie())?.trialMode)
 
-        !StreamSceneService.setTrialMode(sceneId, false)
+        !StreamSceneService.setTrialMode(eventId, sceneId, false)
         assertEquals(false, (!StreamSceneRepo.findById(sceneId).orDie())?.trialMode)
     }
 }

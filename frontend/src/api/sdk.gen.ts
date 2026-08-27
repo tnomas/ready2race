@@ -898,6 +898,34 @@ import type {
     CreateBoardShareLinkData,
     CreateBoardShareLinkError,
     CreateBoardShareLinkResponse,
+    GetStreamScenesData,
+    GetStreamScenesError,
+    GetStreamScenesResponse,
+    CreateStreamSceneData,
+    CreateStreamSceneError,
+    CreateStreamSceneResponse,
+    UpdateStreamSceneData,
+    UpdateStreamSceneError,
+    UpdateStreamSceneResponse,
+    DeleteStreamSceneData,
+    DeleteStreamSceneError,
+    DeleteStreamSceneResponse,
+    UpdateStreamSceneGraphicsData,
+    UpdateStreamSceneGraphicsError,
+    UpdateStreamSceneGraphicsResponse,
+    CreateStreamSceneShareLinkData,
+    CreateStreamSceneShareLinkError,
+    CreateStreamSceneShareLinkResponse,
+    SetStreamOverrideData,
+    SetStreamOverrideError,
+    SetStreamOverrideResponse,
+    ClearStreamOverrideData,
+    ClearStreamOverrideError,
+    ClearStreamOverrideResponse,
+    SetStreamSceneTrialModeData,
+    SetStreamSceneTrialModeError,
+    SetStreamSceneTrialModeResponse,
+    GetStreamSceneViewData,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -5112,6 +5140,163 @@ export const createBoardShareLink = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/boards/{boardId}/share-link',
+    })
+}
+
+/**
+ * The event's livestream scenes, each with its resolved graphics configuration. Requires a session with READ STREAM or READ EVENT.
+ */
+export const getStreamScenes = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetStreamScenesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetStreamScenesResponse,
+        GetStreamScenesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream',
+    })
+}
+
+/**
+ * Creates a scene without any graphics configured yet - add rows through updateStreamSceneGraphics. Requires a session with UPDATE STREAM or UPDATE EVENT.
+ */
+export const createStreamScene = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateStreamSceneData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateStreamSceneResponse,
+        CreateStreamSceneError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream',
+    })
+}
+
+/**
+ * Updates name, background and safe area of a scene; the graphics configuration is untouched here (see updateStreamSceneGraphics). Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const updateStreamScene = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateStreamSceneData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateStreamSceneResponse,
+        UpdateStreamSceneError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}',
+    })
+}
+
+/**
+ * Deletes the scene; its graphics configuration, override rows and device token all hang off it via ON DELETE CASCADE. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const deleteStreamScene = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteStreamSceneData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteStreamSceneResponse,
+        DeleteStreamSceneError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}',
+    })
+}
+
+/**
+ * Upserts the given graphic rows (one call may carry any subset of the eight types, not necessarily all of them). Every row is validated against its type's allowed placements BEFORE anything is written - a single disallowed placement rejects the whole call, none of the other rows are applied either. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const updateStreamSceneGraphics = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateStreamSceneGraphicsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateStreamSceneGraphicsResponse,
+        UpdateStreamSceneGraphicsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/graphics',
+    })
+}
+
+/**
+ * Issues a device token for the scene automatically and returns the finished stage link (root-relative path plus token) - the way a Wirecast/OBS source that cannot log in gets at one scene. Mirrors createBoardShareLink down to the rule: reuse instead of inflation, so as long as an automatically issued, unrevoked token exists for the scene, every call returns the SAME link; revoking it (deleteTimingDeviceToken, same table) makes the next call issue a fresh one. Requires a session with UPDATE STREAM or UPDATE EVENT - the same rights as the rest of the scene administration. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const createStreamSceneShareLink = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<CreateStreamSceneShareLinkData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        CreateStreamSceneShareLinkResponse,
+        CreateStreamSceneShareLinkError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/shareLink',
+    })
+}
+
+/**
+ * Director override for one graphic type. state=AUTO in the body is equivalent to clearStreamOverride (no row = AUTO); FORCED_ON/FORCED_OFF replace the row entirely, so every call becomes "the most recent intervention", which the resolver's placement priority (Task 8) needs. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const setStreamOverride = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetStreamOverrideData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetStreamOverrideResponse,
+        SetStreamOverrideError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/override/{graphicType}',
+    })
+}
+
+/**
+ * Lifts a director override for one graphic type, back to AUTO. A missing override is not an error - no row already means AUTO. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const clearStreamOverride = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<ClearStreamOverrideData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        ClearStreamOverrideResponse,
+        ClearStreamOverrideError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/override/{graphicType}',
+    })
+}
+
+/**
+ * Toggles the scene's trial mode (a visible marker so an operator can rehearse the stage without it looking like a live moment). Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const setStreamSceneTrialMode = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetStreamSceneTrialModeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetStreamSceneTrialModeResponse,
+        SetStreamSceneTrialModeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/trialMode',
+    })
+}
+
+/**
+ * The resolved scene state a stage renders - same payload as the scene's websocket channel (Task 8). Needs either a session with READ STREAM or READ EVENT, or a device token issued for EXACTLY THIS scene in the X-Timing-Device-Token header (see createStreamSceneShareLink); a token of another scene, a board or timing station token, and a revoked token are all answered alike with 401. A sceneId belonging to another event answers 404, same as an unknown one - checked for the session path even though the resolver itself is not wired up yet.
+ * Currently answers 501: the resolver that turns the configuration, overrides and live matches into a StreamSceneViewDto is built in Task 8. Auth and the event/scene ownership check are already fully in place.
+ */
+export const getStreamSceneView = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetStreamSceneViewData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<void, unknown, ThrowOnError>({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/view',
     })
 }
 

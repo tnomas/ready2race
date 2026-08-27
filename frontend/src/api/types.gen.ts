@@ -1698,6 +1698,7 @@ export type ErrorCode =
     | 'EXPORT_BUNDLE_DUPLICATE_DOCUMENT'
     | 'EXPORT_BUNDLE_PLACEHOLDER_NOT_REMOVABLE'
     | 'EXPORT_BUNDLE_ORDER_MISMATCH'
+    | 'STREAM_PLACEMENT_NOT_ALLOWED'
 
 export type EventDayDto = {
     id: string
@@ -4129,6 +4130,135 @@ export type StartListConfigRequest = {
 }
 
 export type StartListFileType = 'PDF' | 'CSV'
+
+export type StreamBackground = 'TRANSPARENT' | 'CHROMA'
+
+/**
+ * Mirrors the `settings` jsonb of stream_scene_graphic - only the fields belonging to the graphic's type are set, the rest stay null. Unknown fields are ignored on read, so a later removed field never breaks deserializing an old row.
+ */
+export type StreamGraphicSettings = {
+    /**
+     * LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds.
+     */
+    displaySeconds?: number | null
+    /**
+     * SCHEDULE: number of rows shown, default 8.
+     */
+    listLength?: number | null
+    /**
+     * COURSE_IMAGE: reference to the stored course image document.
+     */
+    imageDocument?: string | null
+}
+
+export type StreamGraphicSize = 'COMPACT' | 'NORMAL'
+
+export type StreamGraphicType =
+    | 'STARTLIST'
+    | 'CLOCK'
+    | 'LAPS'
+    | 'RESULT'
+    | 'FINISH_TICKER'
+    | 'NEXT_UP'
+    | 'SCHEDULE'
+    | 'COURSE_IMAGE'
+
+/**
+ * Director intervention from the control panel; match/seconds stay null when not set.
+ */
+export type StreamOverrideRequest = {
+    state: StreamOverrideState
+    /**
+     * Content choice ('result of match 12'); null = most recent/current content.
+     */
+    match?: string | null
+    /**
+     * Auto-out of the manual override in seconds; null = no automatic fallback to AUTO.
+     */
+    seconds?: number | null
+}
+
+/**
+ * AUTO exists only here and in the API - it means 'no row in stream_override', not 'a row with value AUTO'.
+ */
+export type StreamOverrideState = 'AUTO' | 'FORCED_ON' | 'FORCED_OFF'
+
+export type StreamPlacement =
+    | 'BOTTOM_CENTER'
+    | 'BOTTOM_LEFT'
+    | 'BOTTOM_RIGHT'
+    | 'TOP_LEFT'
+    | 'TOP_RIGHT'
+    | 'SIDE_LEFT'
+    | 'SIDE_RIGHT'
+    | 'FULL_CENTER'
+
+export type StreamSceneDto = {
+    id: string
+    event: string
+    name: string
+    background: StreamBackground
+    /**
+     * Only set for background CHROMA.
+     */
+    chromaColor?: string | null
+    safeAreaPercent: number
+    trialMode: boolean
+    graphics: Array<StreamSceneGraphicDto>
+}
+
+/**
+ * One graphic's configuration row within a scene - at most one per scene and type.
+ */
+export type StreamSceneGraphicDto = {
+    type: StreamGraphicType
+    enabled: boolean
+    placement: StreamPlacement
+    size: StreamGraphicSize
+    settings: StreamGraphicSettings
+}
+
+/**
+ * Body of updateStreamSceneGraphics - one call may carry any subset of the eight graphic types, not necessarily all of them.
+ */
+export type StreamSceneGraphicsRequest = {
+    graphics: Array<StreamSceneGraphicDto>
+}
+
+/**
+ * Body of createStreamScene/updateStreamScene - the graphics configuration goes through updateStreamSceneGraphics instead.
+ */
+export type StreamSceneRequest = {
+    name: string
+    /**
+     * Defaults to TRANSPARENT.
+     */
+    background?: StreamBackground
+    /**
+     * Required to be a hex color (#RGB or #RRGGBB) when background is CHROMA.
+     */
+    chromaColor?: string | null
+    /**
+     * 0..100, defaults to 0.
+     */
+    safeAreaPercent?: number
+}
+
+/**
+ * The shareable scene link, word for word like BoardShareLinkDto: Wirecast/OBS cannot log in, so it gets the same shared link with device token as a board display. Repeatable: the same scene returns the same link until its token is revoked.
+ */
+export type StreamSceneShareLinkDto = {
+    /**
+     * Handle for revoking this link, through the same route as the other device tokens (deleteTimingDeviceToken).
+     */
+    deviceTokenId: string
+    scene: string
+    token: string
+    /**
+     * Root-relative frontend path including the token query parameter (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin. The stage sends the token as the X-Timing-Device-Token header.
+     */
+    path: string
+}
 
 export type SubstitutionDto = {
     id: string
@@ -9295,6 +9425,119 @@ export type CreateBoardShareLinkData = {
 export type CreateBoardShareLinkResponse = BoardShareLinkDto
 
 export type CreateBoardShareLinkError = ApiError
+
+export type GetStreamScenesData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetStreamScenesResponse = Array<StreamSceneDto>
+
+export type GetStreamScenesError = ApiError
+
+export type CreateStreamSceneData = {
+    body: StreamSceneRequest
+    path: {
+        eventId: string
+    }
+}
+
+export type CreateStreamSceneResponse = StreamSceneDto
+
+export type CreateStreamSceneError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type UpdateStreamSceneData = {
+    body: StreamSceneRequest
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type UpdateStreamSceneResponse = StreamSceneDto
+
+export type UpdateStreamSceneError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeleteStreamSceneData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type DeleteStreamSceneResponse = void
+
+export type DeleteStreamSceneError = ApiError
+
+export type UpdateStreamSceneGraphicsData = {
+    body: StreamSceneGraphicsRequest
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type UpdateStreamSceneGraphicsResponse = StreamSceneDto
+
+export type UpdateStreamSceneGraphicsError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type CreateStreamSceneShareLinkData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type CreateStreamSceneShareLinkResponse = StreamSceneShareLinkDto
+
+export type CreateStreamSceneShareLinkError = ApiError
+
+export type SetStreamOverrideData = {
+    body: StreamOverrideRequest
+    path: {
+        eventId: string
+        graphicType: StreamGraphicType
+        sceneId: string
+    }
+}
+
+export type SetStreamOverrideResponse = void
+
+export type SetStreamOverrideError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type ClearStreamOverrideData = {
+    path: {
+        eventId: string
+        graphicType: StreamGraphicType
+        sceneId: string
+    }
+}
+
+export type ClearStreamOverrideResponse = void
+
+export type ClearStreamOverrideError = ApiError
+
+export type SetStreamSceneTrialModeData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+    query: {
+        trialMode: boolean
+    }
+}
+
+export type SetStreamSceneTrialModeResponse = void
+
+export type SetStreamSceneTrialModeError = ApiError
+
+export type GetStreamSceneViewData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
 
 export type AddRatingCategoryData = {
     body: RatingCategoryRequest

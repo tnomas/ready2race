@@ -38,6 +38,7 @@ import "./src/results.tsp";
 import "./src/role.tsp";
 import "./src/sequence.tsp";
 import "./src/startListConfig.tsp";
+import "./src/stream.tsp";
 import "./src/substitution.tsp";
 import "./src/task.tsp";
 import "./src/timecode.tsp";
