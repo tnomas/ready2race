@@ -321,7 +321,9 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene
 - [ ] **Step 4:** `mvn clean test`, `npm run build` — grün.
 - [ ] **Step 5: Commit** — `"Stream-API: Szenen, Regie und Szenenstand"`
 
----### Task 7: Probemodus-Datenquelle (rein, getestet)
+---
+
+### Task 7: Probemodus-Datenquelle (rein, getestet)
 
 **Files:**
 - Create: `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/stream/boundary/StreamTrialData.kt`
