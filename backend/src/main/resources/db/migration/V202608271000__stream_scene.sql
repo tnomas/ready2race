@@ -9,7 +9,8 @@ create table stream_scene
     id                uuid primary key default gen_random_uuid(),
     event             uuid    not null references event (id) on delete cascade,
     name              text    not null,
-    background        text    not null default 'TRANSPARENT', -- TRANSPARENT | CHROMA
+    background        text    not null default 'TRANSPARENT'
+        check (background in ('TRANSPARENT', 'CHROMA')),
     chroma_color      text,                                   -- nur bei CHROMA belegt
     safe_area_percent int     not null default 0,
     trial_mode        boolean not null default false,
@@ -25,10 +26,15 @@ create table stream_scene_graphic
 (
     id        uuid primary key default gen_random_uuid(),
     scene     uuid    not null references stream_scene (id) on delete cascade,
-    type      text    not null, -- STARTLIST|CLOCK|LAPS|RESULT|FINISH_TICKER|NEXT_UP|SCHEDULE|COURSE_IMAGE
+    type      text    not null
+        check (type in ('STARTLIST', 'CLOCK', 'LAPS', 'RESULT', 'FINISH_TICKER', 'NEXT_UP',
+                         'SCHEDULE', 'COURSE_IMAGE')),
     enabled   boolean not null default false,
-    placement text    not null,
-    size      text    not null default 'NORMAL', -- COMPACT | NORMAL
+    placement text    not null
+        check (placement in ('BOTTOM_CENTER', 'BOTTOM_LEFT', 'BOTTOM_RIGHT', 'TOP_LEFT',
+                              'TOP_RIGHT', 'SIDE_LEFT', 'SIDE_RIGHT', 'FULL_CENTER')),
+    size      text    not null default 'NORMAL'
+        check (size in ('COMPACT', 'NORMAL')),
     settings  jsonb   not null default '{}',
     unique (scene, type)
 );
@@ -43,7 +49,8 @@ create table stream_override
     id           uuid primary key default gen_random_uuid(),
     scene        uuid      not null references stream_scene (id) on delete cascade,
     graphic_type text      not null,
-    state        text      not null, -- FORCED_ON | FORCED_OFF  (AUTO = Zeile fehlt)
+    state        text      not null
+        check (state in ('FORCED_ON', 'FORCED_OFF')), -- AUTO = Zeile fehlt
     match        uuid      references competition_match on delete cascade,
     expires_at   timestamp,
     created_at   timestamp not null,
