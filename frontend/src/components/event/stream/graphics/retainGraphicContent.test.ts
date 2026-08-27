@@ -123,6 +123,32 @@ describe('retainGraphicContent', () => {
         expect(result.provisional).toBe(true)
     })
 
+    it('behält bei CLOCK match UND sequenceStartedAt, wenn ein Push beides gemeinsam räumt (abgebrochene Startsequenz)', () => {
+        // Review-Fall: Eine Startsequenz bricht ab, bevor `actualStartTime` gestempelt wird —
+        // derselbe Push räumt `match` UND `sequenceStartedAt` gemeinsam mit `visible=false`.
+        // Ohne Rückfall auf `previous.sequenceStartedAt` würde `streamClockState` weder einen
+        // gestempelten Start noch einen Sequenzanker sehen und sofort auf `hidden` springen,
+        // statt den Countdown durch `GraphicFrame`s Ausblendanimation hindurch einzufrieren.
+        const previous = graphic({
+            type: 'CLOCK',
+            visible: true,
+            match: baseMatch,
+            sequenceStartedAt: '2026-08-27T10:00:00Z',
+        })
+        const current = graphic({
+            type: 'CLOCK',
+            visible: false,
+            match: null,
+            sequenceStartedAt: null,
+        })
+
+        const result = retainGraphicContent(current, previous)
+
+        expect(result.match).toBe(baseMatch)
+        expect(result.sequenceStartedAt).toBe('2026-08-27T10:00:00Z')
+        expect(result.visible).toBe(false)
+    })
+
     it('übernimmt nichts von einem vorigen Stand eines ANDEREN Grafik-Typs', () => {
         const previous = graphic({type: 'LAPS', visible: true, match: baseMatch})
         const current = graphic({type: 'STARTLIST', visible: false, match: null})
