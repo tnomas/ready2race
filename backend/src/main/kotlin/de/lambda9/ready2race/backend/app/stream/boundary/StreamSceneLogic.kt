@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventInfoService
 import de.lambda9.ready2race.backend.app.eventInfo.control.toAthleteBoardMatch
 import de.lambda9.ready2race.backend.app.eventInfo.control.toAthleteBoardResult
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardMatch
+import de.lambda9.ready2race.backend.app.eventInfo.entity.RunningMatchInfo
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
 import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
 import de.lambda9.ready2race.backend.app.stream.control.StreamOverrideRepo
@@ -74,6 +75,19 @@ object StreamSceneLogic {
     private const val OVERRIDE_LOOKUP_LIMIT = 10
 
     /**
+     * Sprecherinnen-Details (Crew einzeln, Jahrgänge, meldender Verein) an allen Lauf-Blöcken -
+     * EIN Schalter für alle, wie `BoardService.getBoardView` ihn aus `needs.crewDetails` zieht
+     * und auf `running`, `upcoming` und `results` gleichermaßen anwendet.
+     *
+     * Für die Szene steht er fest auf `true`: Die Bootszeilen zeigen die Besatzung (dieselbe
+     * Entscheidung, die die alte Stream-Kachel über `streamCrew` traf), und der Inhalt einer
+     * Grafik darf nicht davon abhängen, ob die Szene NEBENBEI ein Tagesprogramm konfiguriert hat
+     * - ein von der Regie erzwungenes NEXT_UP kommt aus demselben Block wie das Tagesprogramm.
+     * Zusätzliche Abfragen kostet der Schalter keine, nur Nutzlast.
+     */
+    private const val CREW_DETAILS = true
+
+    /**
      * Der aufgelöste Stand samt dem Zeitpunkt, an dem er von selbst veraltet.
      *
      * [nextEvaluationAt] gehört NICHT in den [StreamSceneViewDto] (die Bühne braucht ihn nicht,
@@ -123,15 +137,12 @@ object StreamSceneLogic {
             // nach „In Vorbereitung".
             val runningInfos =
                 (!EventInfoService.getRunningMatches(eventId, RUNNING_LIMIT, clubShortNames)).data
-            // includeDetails: die Bootszeilen der Szene zeigen die Besatzung - dieselbe
-            // Entscheidung, die die alte Stream-Kachel über `streamCrew` traf
-            // (BoardLogic.dataNeeds). Kostet keine zusätzliche Abfrage, nur Nutzlast.
             val runningMatches = runningInfos.map {
-                it.toAthleteBoardMatch(now, showCountdown = true, includeDetails = true)
+                it.toAthleteBoardMatch(now, showCountdown = true, includeDetails = CREW_DETAILS)
             }
 
             val runningIndex = pickRunning(runningMatches)
-            val preparingIndex = pickPreparing(runningMatches)
+            val preparingIndex = pickPreparing(runningMatches, runningInfos)
             val running = runningIndex?.let { runningMatches[it] }
             val preparing = preparingIndex?.let { runningMatches[it] }
             val preparingSince = preparingIndex?.let { runningInfos[it].activatedAt }
@@ -177,7 +188,7 @@ object StreamSceneLogic {
                 )
                 AthleteBoardLogic.sortByStartTime(
                     (!EventInfoService.getUpcomingMatchesForBoard(eventId, limit, clubShortNames)).data
-                        .map { it.toAthleteBoardMatch(now, showCountdown = true, includeDetails = needsSchedule) }
+                        .map { it.toAthleteBoardMatch(now, showCountdown = true, includeDetails = CREW_DETAILS) }
                 ) { it.startTime }
             } else emptyList()
 
@@ -228,6 +239,17 @@ object StreamSceneLogic {
             val input = !buildInput(eventId, scene)
             val resolved = resolveScene(input)
 
+            // Im Probemodus treibt niemand die Szene: Es schreibt keiner, und die Demo-Schleife
+            // wechselt ihre Phasen allein aus der Uhr heraus. Der Resolver kennt nur die
+            // Einblendfenster (STARTLIST/LAPS/RESULT) und ließe die Szene danach einschlafen -
+            // die Schleife stünde still. Deshalb kommt hier der nächste Punkt der Schleife dazu;
+            // gewichtet wird nach „was zuerst fällig ist".
+            val nextEvaluationAt = if (scene.trialMode == true) {
+                listOfNotNull(resolved.nextEvaluationAt, nextTrialEvaluationAt(input.now)).minOrNull()
+            } else {
+                resolved.nextEvaluationAt
+            }
+
             KIO.ok(
                 ResolvedSceneView(
                     view = StreamSceneViewDto(
@@ -242,7 +264,7 @@ object StreamSceneLogic {
                         serverTime = input.now,
                         graphics = resolved.graphics,
                     ),
-                    nextEvaluationAt = resolved.nextEvaluationAt,
+                    nextEvaluationAt = nextEvaluationAt,
                 )
             )
         }
@@ -259,12 +281,21 @@ object StreamSceneLogic {
         matches.indexOfLast { it.state == MatchState.RUNNING }.takeIf { it >= 0 }
 
     /**
-     * Der Lauf am Steg: der zuletzt an den Start gerufene, der noch nicht fährt. „Zuletzt" statt
-     * „als erstes" aus demselben Grund wie oben - stehen zwei Läufe bereit, ist der spätere der,
-     * auf den die Szene zeigt.
+     * Der Lauf am Steg: der zuletzt AKTIVIERTE, der noch nicht fährt - nicht der im Zeitplan
+     * späteste.
+     *
+     * Der Block ist nach GEPLANTEM Start sortiert; „der letzte" wäre also der spätest geplante.
+     * Genau das geht am Regattatag schief: Stehen zwei Läufe gleichzeitig in Vorbereitung (die
+     * Kette aktiviert den Folgelauf, während eine Startgruppe noch am Steg wartet - real
+     * vorgekommen), zeigte die Szene den falschen der beiden, nämlich den, der planmäßig später
+     * dran ist statt den, der eben gerufen wurde. `activated_at` ist der Zeitpunkt genau dieses
+     * Rufens und damit die richtige Ordnung. Ohne Zeitstempel (dürfte in diesem Block nicht
+     * vorkommen, die Abfrage verlangt `activated_at is not null`) verliert der Lauf.
      */
-    private fun pickPreparing(matches: List<AthleteBoardMatch>): Int? =
-        matches.indexOfLast { it.state == MatchState.PREPARING }.takeIf { it >= 0 }
+    private fun pickPreparing(matches: List<AthleteBoardMatch>, infos: List<RunningMatchInfo>): Int? =
+        matches.indices
+            .filter { matches[it].state == MatchState.PREPARING }
+            .maxByOrNull { infos[it].activatedAt ?: LocalDateTime.MIN }
 
     /**
      * Die Einläufe eines Laufs, in der Reihenfolge der Zieldurchfahrt. Gewertet heißt hier: das

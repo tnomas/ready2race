@@ -138,6 +138,67 @@ class StreamSceneViewTest {
         assertFalse(matchIds.contains(fixture.ownMatchId), "Der Probemodus fasst die echten Daten nicht an")
     }
 
+    /**
+     * Im Probemodus schreibt niemand und die Demo-Schleife wechselt ihre Phasen allein aus der
+     * Uhr heraus - der Umschaltpunkt ist deshalb der einzige Grund, aus dem der Kanal die
+     * nächste Phase je pusht. Er darf nie fehlen und muss innerhalb der laufenden Runde liegen.
+     */
+    @Test
+    fun trialModeAlwaysAnnouncesItsNextPhase() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
+        // Bewusst eine Grafik OHNE Auto-Out-Fenster: dann kann der Umschaltpunkt nur aus der
+        // Demo-Schleife stammen, nicht aus einem visibleUntil des Resolvers.
+        !StreamSceneService.updateGraphics(
+            fixture.eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+        !StreamSceneService.setTrialMode(fixture.eventId, sceneId, true)
+
+        val resolved = !StreamSceneLogic.buildResolvedView(fixture.eventId, sceneId)
+        val next = resolved.nextEvaluationAt
+
+        assertNotNull(next, "Der Probemodus muss seinen nächsten Phasenwechsel melden")
+        assertTrue(next.isAfter(resolved.view.serverTime), "Der Umschaltpunkt muss in der Zukunft liegen: $next")
+        assertTrue(
+            !next.isAfter(resolved.view.serverTime.plusSeconds(180)),
+            "Der Umschaltpunkt darf nicht über die Schleifenrunde hinausgehen: $next",
+        )
+    }
+
+    /**
+     * Stehen zwei Läufe gleichzeitig in Vorbereitung, gewinnt der ZULETZT AKTIVIERTE - nicht der
+     * im Zeitplan spätere. Genau der Fall der Kette, die einen Folgelauf aktiviert, während eine
+     * Startgruppe noch am Steg steht.
+     */
+    @Test
+    fun theMostRecentlyActivatedHeatWinsTheStartlist() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val now = LocalDateTime.now()
+        // ownMatch ist im Zeitplan der frühere (executionOrder 1), foreignMatch der spätere -
+        // aktiviert wird aber ownMatch zuletzt.
+        !activate(fixture.foreignMatchId, now.minusSeconds(5))
+        !activate(fixture.ownMatchId, now)
+
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            fixture.eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER)),
+        )
+
+        val view = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        val startlist = view.graphics.single { it.type == StreamGraphicType.STARTLIST }
+
+        assertTrue(startlist.visible)
+        assertEquals(
+            fixture.ownMatchId,
+            startlist.match?.matchId,
+            "Die Startliste muss den zuletzt an den Start gerufenen Lauf zeigen",
+        )
+    }
+
     /** Der Umschlag des Szenen-Kanals - Muster BoardViewBroadcaster.message. */
     @Test
     fun theChannelMessageCarriesTheResolvedView() = testComprehension {

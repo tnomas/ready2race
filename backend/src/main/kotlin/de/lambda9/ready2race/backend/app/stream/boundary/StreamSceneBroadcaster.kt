@@ -184,8 +184,17 @@ object StreamSceneBroadcaster {
 
         if (channel === fresh) {
             channel.job.start()
+            // Ein Aufbau SOFORT beim Entstehen des Kanals - nicht wegen des Stands (den trägt
+            // der Begrüßungsrahmen), sondern wegen des Weckers: Der wird ausschließlich in der
+            // Render-Schleife gestellt. Ohne diesen einen Anstoß liefe sie erst beim nächsten
+            // fremden Auslöser los, und eine Bühne, die sich mitten in ein Einblendfenster
+            // verbindet, sähe die Startliste nie wieder verschwinden. Der doppelte Aufbau kostet
+            // nichts Nennenswertes - das Sammelfenster fasst ihn ohnehin mit allem zusammen, was
+            // in derselben Zehntelsekunde hereinkommt.
+            channel.dirty.trySend(Unit)
         } else {
-            // Der Kanal stand schon: die eben gebaute Hülle wieder abräumen.
+            // Der Kanal stand schon: die eben gebaute Hülle wieder abräumen. Sein Wecker läuft
+            // bereits, der neue Abonnent braucht keinen zweiten Anstoß.
             fresh.job.cancel()
             fresh.dirty.close()
         }

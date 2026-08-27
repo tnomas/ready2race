@@ -70,6 +70,42 @@ private val SPLIT_OFFSETS: List<Pair<Long, String>> = listOf(
  */
 private val FINISH_OFFSETS: List<Long> = listOf(60L, 68L, 76L, 84L)
 
+/**
+ * Alle Sekunden der Schleife, an denen sich die Ausgabe von [trialInput] ÄNDERT: die vier
+ * Phasengrenzen, das Umschlagen auf „nicht mehr vorläufig", jede Zwischenzeit und jeder
+ * Zieleinlauf. Abgeleitet aus denselben Konstanten wie die Schleife selbst - eine neue Zwischenzeit
+ * bekommt ihren Weckzeitpunkt damit automatisch mit.
+ */
+private val LOOP_BOUNDARIES: List<Long> = (
+    listOf(PREPARING_END, SEQUENCE_END, RUNNING_END, PROVISIONAL_RESULT_END, LOOP_SECONDS) +
+        SPLIT_OFFSETS.map { (offset, _) -> SEQUENCE_END + offset } +
+        FINISH_OFFSETS.map { SEQUENCE_END + it }
+    ).distinct().sorted()
+
+/** Sekunden seit Beginn der aktuellen Schleifenrunde — die eine Modulo-Rechnung für alles hier. */
+private fun secondsIntoLoop(now: LocalDateTime): Long {
+    val secondsSinceEpoch = Duration.between(TRIAL_LOOP_EPOCH, now).seconds
+    // Kotlins % kann bei negativer Differenz (now vor dem Bezugspunkt) negativ werden - der
+    // zweite Modulo hebt das Ergebnis zuverlässig in den Bereich [0, LOOP_SECONDS) an.
+    return ((secondsSinceEpoch % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS
+}
+
+/**
+ * Der nächste Zeitpunkt NACH [now], an dem die Demo-Schleife etwas anderes zeigt — nie null.
+ *
+ * Der Probemodus hat keine Ereignisse, die einen Push auslösen könnten: Es schreibt niemand, und
+ * die Einblendungen der Schleife tragen bis auf STARTLIST/LAPS/RESULT auch kein `visibleUntil`.
+ * Ohne diese Auskunft schliefe der Szenen-Kanal nach der ersten Einblendung ein und die Schleife
+ * stünde still (`StreamSceneLogic.buildResolvedView` mischt den Wert deshalb im Probemodus unter
+ * das `nextEvaluationAt` des Resolvers). Weil [LOOP_SECONDS] selbst in [LOOP_BOUNDARIES] steht,
+ * gibt es für jede Stelle der Schleife einen nächsten Punkt - spätestens den Rundenanfang.
+ */
+fun nextTrialEvaluationAt(now: LocalDateTime): LocalDateTime {
+    val secondsIntoLoop = secondsIntoLoop(now)
+    val loopStart = now.minusSeconds(secondsIntoLoop)
+    return loopStart.plusSeconds(LOOP_BOUNDARIES.first { it > secondsIntoLoop })
+}
+
 private fun mmss(totalSeconds: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
@@ -188,10 +224,7 @@ private fun emptyInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>
  * für [resolveScene]. Siehe Klassendoku oben für die Phasengrenzen.
  */
 fun trialInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>): StreamResolverInput {
-    val secondsSinceEpoch = Duration.between(TRIAL_LOOP_EPOCH, now).seconds
-    // Kotlins % kann bei negativer Differenz (now vor dem Bezugspunkt) negativ werden - der
-    // zweite Modulo hebt das Ergebnis zuverlässig in den Bereich [0, LOOP_SECONDS) an.
-    val secondsIntoLoop = ((secondsSinceEpoch % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS
+    val secondsIntoLoop = secondsIntoLoop(now)
     val loopStart = now.minusSeconds(secondsIntoLoop)
     val raceStart = loopStart.plusSeconds(SEQUENCE_END)
     val resultAt = loopStart.plusSeconds(RUNNING_END)

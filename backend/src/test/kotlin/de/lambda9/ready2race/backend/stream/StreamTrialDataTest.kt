@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.stream
 
 import de.lambda9.ready2race.backend.app.stream.boundary.TRIAL_LOOP_EPOCH
+import de.lambda9.ready2race.backend.app.stream.boundary.nextTrialEvaluationAt
 import de.lambda9.ready2race.backend.app.stream.boundary.resolveScene
 import de.lambda9.ready2race.backend.app.stream.boundary.trialInput
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
@@ -113,6 +114,39 @@ class StreamTrialDataTest {
         val first = trialInput(now, graphics)
         val second = trialInput(now, graphics)
         assertEquals(first, second, "trialInput muss für dasselbe now immer dieselbe Eingabe liefern")
+    }
+
+    /**
+     * Der Weckzeitpunkt der Demo-Schleife: Im Probemodus schreibt niemand, also ist er der
+     * einzige Grund, aus dem der Szenen-Kanal die nächste Phase je zeigt.
+     */
+    @Test
+    fun `der naechste Weckzeitpunkt liegt immer in dieser Schleifenrunde`() {
+        // Jede Sekunde der Schleife einmal durchgehen: nie null, immer echt nach `now`, nie
+        // weiter als bis zum Ende der laufenden Runde.
+        (0L until 180L).forEach { second ->
+            val now = TRIAL_LOOP_EPOCH.plusSeconds(second)
+            val next = nextTrialEvaluationAt(now)
+            assertTrue(next.isAfter(now), "Weckzeitpunkt bei Sekunde $second muss in der Zukunft liegen: $next")
+            assertTrue(
+                !next.isAfter(now.plusSeconds(180 - second)),
+                "Weckzeitpunkt bei Sekunde $second darf die Runde nicht überspringen: $next",
+            )
+        }
+    }
+
+    @Test
+    fun `die Phasengrenzen sind Weckzeitpunkte`() {
+        // Vorbereitung -> Startsequenz -> Rennen, und aus der Rennphase heraus die
+        // Zwischenzeiten (Sekunde 80) bzw. der erste Zieleinlauf (Sekunde 120).
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(30), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(10)))
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(60), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(45)))
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(80), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(61)))
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(120), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(119)))
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(150), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(145)))
+        // Aus der Ergebnisphase heraus: erst das Ende der Vorläufigkeit, dann die nächste Runde.
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(165), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(151)))
+        assertEquals(TRIAL_LOOP_EPOCH.plusSeconds(180), nextTrialEvaluationAt(TRIAL_LOOP_EPOCH.plusSeconds(170)))
     }
 
     @Test
