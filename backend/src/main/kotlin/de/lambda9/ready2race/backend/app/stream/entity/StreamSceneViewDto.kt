@@ -1,0 +1,58 @@
+package de.lambda9.ready2race.backend.app.stream.entity
+
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardMatch
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResult
+import java.time.LocalDateTime
+import java.util.UUID
+
+/** Aufgelöster Szenenstand — Push-Nutzlast des Szenen-Kanals UND Antwort des GET-Einstiegs. */
+data class StreamSceneViewDto(
+    val sceneId: UUID,
+    val background: StreamBackground,
+    /** Nur bei [StreamBackground.CHROMA] belegt. */
+    val chromaColor: String? = null,
+    val safeAreaPercent: Int,
+    val trialMode: Boolean,
+    /** Für die Uhr-Korrektur wie bei [de.lambda9.ready2race.backend.app.eventInfo.entity.BoardViewDto.serverTime]. */
+    val serverTime: LocalDateTime,
+    val graphics: List<StreamGraphicViewDto>,
+)
+
+/**
+ * Aufgelöster Stand einer einzelnen Grafik. Je [type] ist höchstens eine der Inhalts-Payloads
+ * ([match], [result], [finishEntries], [schedule], [imageUrl]) belegt.
+ */
+data class StreamGraphicViewDto(
+    val type: StreamGraphicType,
+    val placement: StreamPlacement,
+    val size: StreamGraphicSize,
+    /** Ob die Grafik gerade eingeblendet ist — das Regelwerk kann sie konfiguriert und trotzdem gerade aus haben. */
+    val visible: Boolean,
+    val visibleSince: LocalDateTime?,
+    /** Timer fürs Ausblenden; null, solange kein Ablauf feststeht. */
+    val visibleUntil: LocalDateTime?,
+    val overrideState: StreamOverrideState,
+    /** STARTLIST/CLOCK/LAPS/NEXT_UP. */
+    val match: AthleteBoardMatch? = null,
+    /** RESULT. */
+    val result: AthleteBoardResult? = null,
+    /** RESULT: Lauf steht auf Klärung — das Ergebnis geht trotzdem raus, nur als vorläufig gekennzeichnet. */
+    val provisional: Boolean? = null,
+    /** FINISH_TICKER. */
+    val finishEntries: List<StreamFinishEntry>? = null,
+    /** SCHEDULE. */
+    val schedule: List<AthleteBoardMatch>? = null,
+    /** COURSE_IMAGE. */
+    val imageUrl: String? = null,
+    /** CLOCK: Countdown ab Sequenzstart. */
+    val sequenceStartedAt: LocalDateTime? = null,
+)
+
+/** Ein Einlauf auf dem FINISH_TICKER-Band, in der Reihenfolge der Zieldurchfahrt. */
+data class StreamFinishEntry(
+    val rank: Int,
+    val startNumber: Int,
+    val clubsShort: String?,
+    val clubsFull: String?,
+    val timeString: String,
+)
