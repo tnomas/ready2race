@@ -26,6 +26,14 @@ interface StreamClockProps {
  * nicht bei jedem Frame) — kein Re-Render, kein DOM-Schreiben, solange der sichtbare
  * Text gleich bleibt.
  *
+ * ZUSÄTZLICH ein grobes `setInterval` (250 ms) als Fallback: Browser (allen voran Chrome)
+ * setzen `requestAnimationFrame` in einem verdeckten Dokument aus — genau der Zustand, den
+ * eine Wirecast/CEF-Aufnahmequelle dauerhaft melden kann, obwohl sie aktiv aufnimmt (siehe
+ * `useStreamSceneSocket`, das aus demselben Grund keine Sichtbarkeits-Bedingung mehr kennt).
+ * Ohne den Fallback fröre die Uhr in genau diesem Fall ein, obwohl frische Pushes ankommen.
+ * Beide Antriebe rufen denselben `tick` auf und schreiben nur über denselben Text-Vergleich —
+ * nebeneinander also harmlos, keiner der beiden plant den anderen neu.
+ *
  * `match`/`sequenceStartedAt`/`clockOffsetMs` reisen als Refs in den Loop hinein: der
  * Loop selbst startet nur neu, wenn `match.matchId` wechselt (ein neuer Lauf, neuer
  * Zeitanker) — nicht bei jedem Push mit fortschreitenden Zwischenständen desselben
@@ -60,7 +68,10 @@ const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamCloc
         lastTextRef.current = null
         setText(null)
 
-        let frameId: number
+        // Reine Berechnung + Text-Vergleich, OHNE sich selbst neu einzuplanen — das bleibt
+        // Sache der beiden Antriebe unten. Nur so bleiben rAF-Loop und Intervall-Fallback
+        // unabhängig voneinander, statt sich bei jedem manuellen Aufruf gegenseitig weitere,
+        // nie wieder eingefangene rAF-Ketten aufzuzwingen.
         const tick = () => {
             const state = streamClockState(
                 matchRef.current,
@@ -89,10 +100,18 @@ const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamCloc
                 lastTextRef.current = next
                 setText(next)
             }
-            frameId = requestAnimationFrame(tick)
         }
-        frameId = requestAnimationFrame(tick)
-        return () => cancelAnimationFrame(frameId)
+
+        let frameId = requestAnimationFrame(function raf() {
+            tick()
+            frameId = requestAnimationFrame(raf)
+        })
+        const intervalId = window.setInterval(tick, 250)
+
+        return () => {
+            cancelAnimationFrame(frameId)
+            window.clearInterval(intervalId)
+        }
     }, [match.matchId])
 
     if (text === null) return null

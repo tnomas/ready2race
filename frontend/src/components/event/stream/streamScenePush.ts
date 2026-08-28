@@ -68,3 +68,29 @@ export const parseStreamSceneMessage = (raw: string): StreamSceneViewDto | null 
     if (typeof (view as {sceneId?: unknown}).sceneId !== 'string') return null
     return view as StreamSceneViewDto
 }
+
+/**
+ * Verarbeitet einen rohen Kanal-Rahmen vollständig: Lebendigkeit ZUERST und für jeden erkannten
+ * Rahmen (Herzschlag wie Zustand gleichermaßen — Begründung bei `isRecognizedStreamSceneFrame`),
+ * danach — falls der Rahmen einen Zustand trägt — die Anwendung über [onView].
+ *
+ * Bewusst OHNE jede Sichtbarkeits-Bedingung: Eine frühere Fassung stellte eine eingetroffene
+ * Ansicht zurück, solange `document.hidden` galt, und wendete sie erst beim Zurückkehren an
+ * (Vorbild `useBoardViewSocket`, dort für eine Kontroll-Oberfläche im Hintergrund-Tab gedacht).
+ * Für eine Aufnahmequelle ist das fatal: Wirecast/CEF-Browserquellen melden ihr Dokument oft
+ * dauerhaft als `hidden`, obwohl sie aktiv aufnehmen — die Bühne fror damit auf dem ERSTEN
+ * Stand ein, während der Herzschlag die Veraltet-Erkennung weiter für gesund hielt (kein
+ * `stale`, keine Warnung, einfach ein für immer falsches Bild). Diese Funktion nimmt jede
+ * eingehende Ansicht sofort an, ganz ohne Sichtbarkeits-Weiche — als eigene, isoliert testbare
+ * Funktion, damit eine künftige "Optimierung" in diese Richtung hier auffiele statt sich
+ * unbemerkt in den WebSocket-Handler einzuschleichen.
+ */
+export const dispatchStreamSceneFrame = (
+    raw: string,
+    onFrame: (() => void) | undefined,
+    onView: (view: StreamSceneViewDto) => void,
+): void => {
+    if (isRecognizedStreamSceneFrame(raw)) onFrame?.()
+    const view = parseStreamSceneMessage(raw)
+    if (view !== null) onView(view)
+}

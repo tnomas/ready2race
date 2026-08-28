@@ -1,11 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import Config from '../../../Config'
 import {StreamSceneViewDto} from '@api/types.gen'
-import {
-    buildStreamSceneWsUrl,
-    isRecognizedStreamSceneFrame,
-    parseStreamSceneMessage,
-} from './streamScenePush.ts'
+import {buildStreamSceneWsUrl, dispatchStreamSceneFrame} from './streamScenePush.ts'
 import {streamSceneDeviceToken} from '@utils/stream/sceneToken.ts'
 import {isInAppSurface, socketTokens} from '@utils/timing/socketTokens.ts'
 
@@ -45,12 +41,18 @@ const backoffMillis = (attempt: number): number => {
  * aus als ersten Rahmen jeder Verbindung (siehe `StreamSceneViewDto`-Dokumentation). Ein
  * Reconnect nach einem Funkloch holt das Verpasste damit selbst ab.
  *
- * [onFrame] feuert für JEDEN erkannten Rahmen — Zustand UND Herzschlag gleichermaßen
- * (`isRecognizedStreamSceneFrame`) — und zwar VOR der Sichtbarkeits-Weiche unten: eine Bühne im
- * Hintergrund-Tab soll trotzdem als lebendig gelten, nur die Anwendung des Zustands selbst wartet
- * auf die Rückkehr. Gedacht für die Veraltet-Erkennung (Bühne: `isStreamStale`, Panel:
- * `isPanelStale`) — beide dürfen NUR den Zeitpunkt zählen, nie den Inhalt lesen, sonst bräuchten
- * sie den Umweg über [onView] und verpassten den Herzschlag.
+ * [onFrame] feuert für JEDEN erkannten Rahmen — Zustand UND Herzschlag gleichermaßen. Gedacht für
+ * die Veraltet-Erkennung (Bühne: `isStreamStale`, Panel: `isPanelStale`) — beide dürfen NUR den
+ * Zeitpunkt zählen, nie den Inhalt lesen, sonst bräuchten sie den Umweg über [onView] und
+ * verpassten den Herzschlag.
+ *
+ * Jede eingehende Ansicht wird SOFORT angewendet, ganz ohne Sichtbarkeits-Bedingung — anders als
+ * beim Board-Vorbild (`useBoardViewSocket`), das eine Ansicht im Hintergrund-Tab zurückstellt.
+ * Das trägt für eine Kontroll-Oberfläche, die ein Mensch tatsächlich wegschaltet; es ist für
+ * eine Aufnahmequelle fatal, weil Wirecast/CEF-Browserquellen ihr Dokument oft dauerhaft als
+ * `document.hidden` melden, obwohl sie aktiv aufnehmen — die Bühne fröre damit für immer auf dem
+ * ersten Stand ein, während der Herzschlag die Veraltet-Erkennung weiter für gesund hielte.
+ * Siehe `dispatchStreamSceneFrame` in `streamScenePush.ts` für die (isoliert getestete) Regel.
  */
 export const useStreamSceneSocket = (
     eventId: string,
@@ -77,9 +79,6 @@ export const useStreamSceneSocket = (
         let reconnectTimer: ReturnType<typeof setTimeout> | null = null
         let stableTimer: ReturnType<typeof setTimeout> | null = null
         let attempt = 0
-        // Ein Stand, der im Hintergrund ankam — beim Zurückkehren einmal anwenden (falls die
-        // Bühne z.B. als Kontroll-Tab statt als OBS-Quelle läuft und der Tab kurz verdeckt war).
-        let pendingWhileHidden: StreamSceneViewDto | null = null
         let deferConnectedUntilStable = false
         let rejectedTokens = new Set<string>()
 
@@ -172,18 +171,7 @@ export const useStreamSceneSocket = (
             ws.onmessage = event => {
                 if (disposed) return
                 if (typeof event.data !== 'string') return
-                // Lebendigkeit VOR der Sichtbarkeits-Weiche und unabhängig vom Nachrichtentyp:
-                // ein Herzschlag trägt keinen Stand, zählt aber genauso als "der Kanal lebt" wie
-                // ein echter Zustandsrahmen — sonst hielte eine ruhige, aber gesunde Szene die
-                // Veraltet-Erkennung für gestört.
-                if (isRecognizedStreamSceneFrame(event.data)) onFrameRef.current?.()
-                const view = parseStreamSceneMessage(event.data)
-                if (view === null) return
-                if (document.hidden) {
-                    pendingWhileHidden = view
-                    return
-                }
-                onViewRef.current(view)
+                dispatchStreamSceneFrame(event.data, onFrameRef.current, onViewRef.current)
             }
 
             ws.onclose = event => scheduleReconnect(event)
@@ -209,19 +197,10 @@ export const useStreamSceneSocket = (
             reconnectTimer = setTimeout(connect, ALTERNATE_TOKEN_RETRY_MILLIS)
         }
 
-        const onVisibilityChange = () => {
-            if (document.hidden || pendingWhileHidden === null) return
-            const view = pendingWhileHidden
-            pendingWhileHidden = null
-            onViewRef.current(view)
-        }
-
-        document.addEventListener('visibilitychange', onVisibilityChange)
         connect()
 
         return () => {
             disposed = true
-            document.removeEventListener('visibilitychange', onVisibilityChange)
             if (reconnectTimer !== null) clearTimeout(reconnectTimer)
             if (stableTimer !== null) clearTimeout(stableTimer)
             if (socket !== null) {

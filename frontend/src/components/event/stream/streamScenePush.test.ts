@@ -1,6 +1,7 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 import {
     buildStreamSceneWsUrl,
+    dispatchStreamSceneFrame,
     isRecognizedStreamSceneFrame,
     parseStreamSceneMessage,
 } from './streamScenePush'
@@ -86,5 +87,54 @@ describe('isRecognizedStreamSceneFrame', () => {
         expect(isRecognizedStreamSceneFrame('42')).toBe(false)
         expect(isRecognizedStreamSceneFrame(JSON.stringify({}))).toBe(false)
         expect(isRecognizedStreamSceneFrame(JSON.stringify({type: 42}))).toBe(false)
+    })
+})
+
+describe('dispatchStreamSceneFrame', () => {
+    it('wendet einen Zustandsrahmen SOFORT an — ganz ohne Sichtbarkeits-Bedingung', () => {
+        // Regressionstest für den kritischen Befund: eine frühere Fassung stellte die Ansicht
+        // zurück, solange `document.hidden` galt — genau das darf hier nicht mehr passieren,
+        // eine Aufnahmequelle (Wirecast/CEF) meldet ihr Dokument oft dauerhaft als verdeckt.
+        const onFrame = vi.fn()
+        const onView = vi.fn()
+        const raw = JSON.stringify({type: 'streamSceneView', view: {sceneId: 'sc-1'}})
+
+        dispatchStreamSceneFrame(raw, onFrame, onView)
+
+        expect(onFrame).toHaveBeenCalledTimes(1)
+        expect(onView).toHaveBeenCalledTimes(1)
+        expect(onView.mock.calls[0][0].sceneId).toBe('sc-1')
+    })
+
+    it('zählt einen Herzschlag als Lebenszeichen, ohne eine Ansicht anzuwenden', () => {
+        const onFrame = vi.fn()
+        const onView = vi.fn()
+
+        dispatchStreamSceneFrame(JSON.stringify({type: 'heartbeat'}), onFrame, onView)
+
+        expect(onFrame).toHaveBeenCalledTimes(1)
+        expect(onView).not.toHaveBeenCalled()
+    })
+
+    it('ignoriert Unlesbares, ohne [onFrame] auszulösen', () => {
+        const onFrame = vi.fn()
+        const onView = vi.fn()
+
+        dispatchStreamSceneFrame('kein json', onFrame, onView)
+
+        expect(onFrame).not.toHaveBeenCalled()
+        expect(onView).not.toHaveBeenCalled()
+    })
+
+    it('kommt ohne [onFrame] aus (optional)', () => {
+        const onView = vi.fn()
+        expect(() =>
+            dispatchStreamSceneFrame(
+                JSON.stringify({type: 'streamSceneView', view: {sceneId: 'sc-1'}}),
+                undefined,
+                onView,
+            ),
+        ).not.toThrow()
+        expect(onView).toHaveBeenCalledTimes(1)
     })
 })
