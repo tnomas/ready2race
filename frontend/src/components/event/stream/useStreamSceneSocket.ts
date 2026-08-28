@@ -1,7 +1,11 @@
 import {useEffect, useRef, useState} from 'react'
 import Config from '../../../Config'
 import {StreamSceneViewDto} from '@api/types.gen'
-import {buildStreamSceneWsUrl, parseStreamSceneMessage} from './streamScenePush.ts'
+import {
+    buildStreamSceneWsUrl,
+    isRecognizedStreamSceneFrame,
+    parseStreamSceneMessage,
+} from './streamScenePush.ts'
 import {streamSceneDeviceToken} from '@utils/stream/sceneToken.ts'
 import {isInAppSurface, socketTokens} from '@utils/timing/socketTokens.ts'
 
@@ -40,11 +44,19 @@ const backoffMillis = (attempt: number): number => {
  * Kein eigenes Nachladen nach dem Verbinden nötig: der Server schickt den vollen Stand von sich
  * aus als ersten Rahmen jeder Verbindung (siehe `StreamSceneViewDto`-Dokumentation). Ein
  * Reconnect nach einem Funkloch holt das Verpasste damit selbst ab.
+ *
+ * [onFrame] feuert für JEDEN erkannten Rahmen — Zustand UND Herzschlag gleichermaßen
+ * (`isRecognizedStreamSceneFrame`) — und zwar VOR der Sichtbarkeits-Weiche unten: eine Bühne im
+ * Hintergrund-Tab soll trotzdem als lebendig gelten, nur die Anwendung des Zustands selbst wartet
+ * auf die Rückkehr. Gedacht für die Veraltet-Erkennung (Bühne: `isStreamStale`, Panel:
+ * `isPanelStale`) — beide dürfen NUR den Zeitpunkt zählen, nie den Inhalt lesen, sonst bräuchten
+ * sie den Umweg über [onView] und verpassten den Herzschlag.
  */
 export const useStreamSceneSocket = (
     eventId: string,
     sceneId: string,
     onView: (view: StreamSceneViewDto) => void,
+    onFrame?: () => void,
 ): {connected: boolean} => {
     const [connected, setConnected] = useState(false)
 
@@ -53,6 +65,10 @@ export const useStreamSceneSocket = (
     const onViewRef = useRef(onView)
     useEffect(() => {
         onViewRef.current = onView
+    })
+    const onFrameRef = useRef(onFrame)
+    useEffect(() => {
+        onFrameRef.current = onFrame
     })
 
     useEffect(() => {
@@ -156,6 +172,11 @@ export const useStreamSceneSocket = (
             ws.onmessage = event => {
                 if (disposed) return
                 if (typeof event.data !== 'string') return
+                // Lebendigkeit VOR der Sichtbarkeits-Weiche und unabhängig vom Nachrichtentyp:
+                // ein Herzschlag trägt keinen Stand, zählt aber genauso als "der Kanal lebt" wie
+                // ein echter Zustandsrahmen — sonst hielte eine ruhige, aber gesunde Szene die
+                // Veraltet-Erkennung für gestört.
+                if (isRecognizedStreamSceneFrame(event.data)) onFrameRef.current?.()
                 const view = parseStreamSceneMessage(event.data)
                 if (view === null) return
                 if (document.hidden) {

@@ -1,5 +1,9 @@
 import {describe, expect, it} from 'vitest'
-import {buildStreamSceneWsUrl, parseStreamSceneMessage} from './streamScenePush'
+import {
+    buildStreamSceneWsUrl,
+    isRecognizedStreamSceneFrame,
+    parseStreamSceneMessage,
+} from './streamScenePush'
 
 describe('buildStreamSceneWsUrl', () => {
     it('baut aus einer absoluten API-Basis die ws-URL', () => {
@@ -56,5 +60,31 @@ describe('parseStreamSceneMessage', () => {
         expect(
             parseStreamSceneMessage(JSON.stringify({type: 'streamSceneView', view: null})),
         ).toBeNull()
+    })
+})
+
+describe('isRecognizedStreamSceneFrame', () => {
+    it('erkennt einen Zustandsrahmen', () => {
+        expect(
+            isRecognizedStreamSceneFrame(
+                JSON.stringify({type: 'streamSceneView', view: {sceneId: 'sc-1'}}),
+            ),
+        ).toBe(true)
+    })
+
+    it('erkennt den inhaltslosen Herzschlag genauso — er zählt für die Lebendigkeit', () => {
+        expect(isRecognizedStreamSceneFrame(JSON.stringify({type: 'heartbeat'}))).toBe(true)
+    })
+
+    it('erkennt auch einen künftigen, hier noch unbekannten Typ — nur die Form zählt', () => {
+        expect(isRecognizedStreamSceneFrame(JSON.stringify({type: 'somethingNew'}))).toBe(true)
+    })
+
+    it('verwirft Unlesbares und Rahmen ohne type-Feld', () => {
+        expect(isRecognizedStreamSceneFrame('kein json')).toBe(false)
+        expect(isRecognizedStreamSceneFrame('null')).toBe(false)
+        expect(isRecognizedStreamSceneFrame('42')).toBe(false)
+        expect(isRecognizedStreamSceneFrame(JSON.stringify({}))).toBe(false)
+        expect(isRecognizedStreamSceneFrame(JSON.stringify({type: 42}))).toBe(false)
     })
 })

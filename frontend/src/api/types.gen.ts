@@ -4235,6 +4235,27 @@ export type StreamOverrideRequest = {
  */
 export type StreamOverrideState = 'AUTO' | 'FORCED_ON' | 'FORCED_OFF'
 
+/**
+ * One match of the event's day for the control panel's match picker (getStreamPickerMatches) - decomposed name parts rather than one joined label, same shape as LiveMatchInfo, so the panel can build its own label.
+ */
+export type StreamPickerMatchDto = {
+    matchId: string
+    competitionName: string
+    categoryName?: string | null
+    roundName?: string | null
+    matchName?: string | null
+    /**
+     * Scheduled start; null for a match without one yet.
+     */
+    startTime?: string | null
+    state: StreamPickerMatchState
+}
+
+/**
+ * Coarse state of a match for the control panel's match picker - deliberately just these three, not the full match-state machine the referee dashboard uses.
+ */
+export type StreamPickerMatchState = 'UPCOMING' | 'RUNNING' | 'FINISHED'
+
 export type StreamPlacement =
     | 'BOTTOM_CENTER'
     | 'BOTTOM_LEFT'
@@ -9546,6 +9567,16 @@ export type CreateStreamSceneData = {
 export type CreateStreamSceneResponse = StreamSceneDto
 
 export type CreateStreamSceneError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetStreamPickerMatchesData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetStreamPickerMatchesResponse = Array<StreamPickerMatchDto>
+
+export type GetStreamPickerMatchesError = ApiError
 
 export type UpdateStreamSceneData = {
     body: StreamSceneRequest

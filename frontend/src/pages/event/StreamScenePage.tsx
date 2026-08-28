@@ -56,11 +56,15 @@ const StreamScenePage = () => {
         (view: StreamSceneViewDto) => {
             if (view.sceneId !== sceneId) return
             setPushed(view)
-            setLastReceivedAt(Date.now())
         },
         [sceneId],
     )
-    useStreamSceneSocket(eventId, sceneId, onView)
+    // onFrame statt onView für die Veraltet-Erkennung: ein Herzschlag trägt keinen Stand, zählt
+    // aber genauso als "der Kanal lebt" — sonst hielte eine ruhige, aber gesunde Szene (kein
+    // Start, keine Zwischenzeit, kein Regie-Eingriff seit Minuten) `isStreamStale` fälschlich für
+    // gestört, obwohl nur nichts zu melden war (siehe `StreamSceneBroadcaster.heartbeatLoop`).
+    const onFrame = useCallback(() => setLastReceivedAt(Date.now()), [])
+    useStreamSceneSocket(eventId, sceneId, onView, onFrame)
 
     // Der Kanal schickt den vollen Stand als ersten Rahmen jeder Verbindung — er überholt den
     // Erstabruf binnen kurzem von selbst. Bis dahin trägt der Erstabruf allein.

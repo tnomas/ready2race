@@ -33,6 +33,26 @@ export const buildStreamSceneWsUrl = (
  * `getStreamSceneView` liefert. `sceneId` wird trotzdem verlangt: daran erkennt die Bühne, dass
  * sie den Stand IHRER Szene hält.
  */
+/**
+ * Ob eine eingehende Nachricht überhaupt ein erkannter Rahmen ist (irgendein JSON-Objekt mit
+ * einem `type`-Feld) — für die Lebendigkeits-Erkennung zählt JEDER erkannte Rahmen, nicht nur
+ * ein Zustandsrahmen: der Herzschlag (`{"type":"heartbeat"}`, siehe `StreamSceneBroadcaster`)
+ * trägt bewusst keinen Stand, soll aber genauso den "zuletzt gehört"-Zeitpunkt der Bühne UND des
+ * Kontroll-Panels auffrischen wie ein echter `streamSceneView`-Push — sonst hielte eine ruhige,
+ * aber gesunde Szene die Veraltet-Erkennung für gestört, nur weil sich am Renngeschehen gerade
+ * nichts ändert.
+ */
+export const isRecognizedStreamSceneFrame = (raw: string): boolean => {
+    let data: unknown
+    try {
+        data = JSON.parse(raw)
+    } catch {
+        return false
+    }
+    if (typeof data !== 'object' || data === null) return false
+    return typeof (data as {type?: unknown}).type === 'string'
+}
+
 export const parseStreamSceneMessage = (raw: string): StreamSceneViewDto | null => {
     let data: unknown
     try {

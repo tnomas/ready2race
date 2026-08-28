@@ -1,14 +1,14 @@
-import {useCallback, useEffect, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {Box, MenuItem, TextField, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
 import {
-    getLiveMatches,
+    getStreamPickerMatches,
     getStreamSceneView,
     getStreamScenes,
     setStreamSceneTrialMode,
 } from '@api/sdk.gen.ts'
-import {LiveMatchInfo, StreamSceneViewDto} from '@api/types.gen.ts'
+import {StreamPickerMatchDto, StreamSceneViewDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {updateEventGlobal, updateStreamGlobal} from '@authorization/privileges.ts'
@@ -22,8 +22,13 @@ import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 
 type Props = {eventId: string}
 
-/** Läufe des Tages für den Lauf-Wähler der Karten — großzügig genug, keine Regatta läuft mehr Läufe gleichzeitig an. */
-const MATCHES_LIMIT = 100
+/**
+ * Sicherheitstakt für die Lauf-Liste, ZUSÄTZLICH zum sofortigen Nachladen bei Kanal-Reconnect
+ * unten — eine Regatta läuft über Stunden, ein einmaliger Abruf beim Öffnen des Panels würde mit
+ * jedem beendeten/neu angesetzten Lauf veralten. 60 s ist grobkörnig genug (keine Live-Anzeige,
+ * nur ein Wähler), siehe Prüfungshinweis "Match list one-shot snapshot".
+ */
+const MATCHES_REFRESH_MS = 60_000
 /** Grobkörniger Sekundentakt fürs Sendepause-Erkennen — kein Live-Rendering-Grund. */
 const CLOCK_TICK_MS = 1_000
 
@@ -123,11 +128,14 @@ const StreamPanelSceneView = ({eventId, sceneId, sceneName, canEdit, feedback}: 
         (view: StreamSceneViewDto) => {
             if (view.sceneId !== sceneId) return
             setPushed(view)
-            setLastReceivedAt(Date.now())
         },
         [sceneId],
     )
-    useStreamSceneSocket(eventId, sceneId, onView)
+    // onFrame statt onView für die Veraltet-Erkennung: ein Herzschlag trägt keinen Stand, zählt
+    // aber genauso als "der Kanal lebt" — sonst hielte eine ruhige, aber gesunde Szene die
+    // Panel-Warnung fälschlich für eine Störung (siehe `StreamSceneBroadcaster.heartbeatLoop`).
+    const onFrame = useCallback(() => setLastReceivedAt(Date.now()), [])
+    const {connected} = useStreamSceneSocket(eventId, sceneId, onView, onFrame)
 
     // Der Kanal schickt den vollen Stand als ersten Rahmen jeder Verbindung — er überholt den
     // Erstabruf binnen kurzem von selbst (wortgetreu wie `StreamScenePage`).
@@ -145,23 +153,40 @@ const StreamPanelSceneView = ({eventId, sceneId, sceneName, canEdit, feedback}: 
         return () => window.clearInterval(id)
     }, [])
 
-    // Läufe des Tages für den Lauf-Wähler der Inhaltsgrafiken — dieselbe öffentliche
-    // "Live"-Quelle, die auch die öffentliche Ergebnisanzeige nutzt (`ResultsLiveMatches`):
-    // ausschließlich mit `eventId` erreichbar, keine eigene Rechteverdrahtung nötig, und genau
-    // die Läufe, die "jetzt" oder "als Nächstes" von Interesse sind.
+    // Läufe des Tages für den Lauf-Wähler der Inhaltsgrafiken — die eigene Panel-Quelle
+    // (getStreamPickerMatches), NICHT die öffentliche `getLiveMatches`: die lässt einen Lauf
+    // fallen, sobald er beendet ist, und genau "Ergebnis von Lauf 12 erneut zeigen" ist der
+    // Leitfall dieses Wählers. Bereits vom Server finished-zuerst, dann laufend, dann anstehend
+    // sortiert (siehe dortige KDoc) — hier wird nicht noch einmal sortiert.
+    //
+    // Zwei unabhängige Auffrisch-Wege: ein 60-Sekunden-Sicherheitstakt (die Liste veraltet sonst
+    // über eine mehrstündige Regatta) UND ein sofortiger Nachschlag, sobald der Szenen-Kanal
+    // nach einem Funkloch wieder verbunden ist (unten) — ein einmaliger Abruf beim Öffnen des
+    // Panels reicht nicht.
     const matchesData = useFetch(
-        signal => getLiveMatches({signal, path: {eventId}, query: {limit: MATCHES_LIMIT}}),
-        {deps: [eventId], preCondition: () => canEdit},
+        signal => getStreamPickerMatches({signal, path: {eventId}}),
+        {deps: [eventId], preCondition: () => canEdit, autoReloadInterval: MATCHES_REFRESH_MS},
     )
     const matchOptions: StreamPanelMatchOption[] = useMemo(() => {
-        const matches: LiveMatchInfo[] = matchesData.data?.matches ?? []
-        return matches
-            .filter(m => m.name == null && !m.cancelled && !m.pendingRound)
-            .map(m => ({
-                id: m.matchId,
-                label: matchOptionLabel(m, m.startTime ? format(new Date(m.startTime), t('format.time')) : null),
-            }))
+        const matches: StreamPickerMatchDto[] = matchesData.data ?? []
+        return matches.map(m => ({
+            id: m.matchId,
+            label: matchOptionLabel(m, m.startTime ? format(new Date(m.startTime), t('format.time')) : null),
+        }))
     }, [matchesData.data, t])
+
+    // Reconnect-Auffrischung: `reload` wäre in den Abhängigkeiten instabil (useFetch baut die
+    // Funktion jedes Rendern neu) - eine Ref hält immer die jüngste Fassung, dasselbe Muster wie
+    // `onViewRef`/`onFrameRef` im Kanal-Hook selbst.
+    const reloadMatchesRef = useRef(matchesData.reload)
+    useEffect(() => {
+        reloadMatchesRef.current = matchesData.reload
+    })
+    const wasConnectedRef = useRef(connected)
+    useEffect(() => {
+        if (connected && !wasConnectedRef.current) reloadMatchesRef.current()
+        wasConnectedRef.current = connected
+    }, [connected])
 
     const [togglingTrialMode, setTogglingTrialMode] = useState(false)
     const handleToggleTrialMode = async () => {

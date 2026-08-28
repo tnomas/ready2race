@@ -904,6 +904,9 @@ import type {
     CreateStreamSceneData,
     CreateStreamSceneError,
     CreateStreamSceneResponse,
+    GetStreamPickerMatchesData,
+    GetStreamPickerMatchesError,
+    GetStreamPickerMatchesResponse,
     UpdateStreamSceneData,
     UpdateStreamSceneError,
     UpdateStreamSceneResponse,
@@ -5174,6 +5177,22 @@ export const createStreamScene = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/stream',
+    })
+}
+
+/**
+ * The day's matches for the control panel's match picker (STARTLIST/RESULT/NEXT_UP override), including finished ones - unlike the public /info/live-matches, which drops a match the moment it is finished. Finished results are always included regardless of the event's public results visibility setting: the panel is an admin surface, not the public results page, and a director must be able to force-show a result before it is public. Ordered finished-most-recent-first, then running, then upcoming by start time - the primary use case ("re-show the result of match 12") wants the just-finished match at the top. Requires a session with READ STREAM or READ EVENT.
+ */
+export const getStreamPickerMatches = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetStreamPickerMatchesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetStreamPickerMatchesResponse,
+        GetStreamPickerMatchesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/matches',
     })
 }
 
