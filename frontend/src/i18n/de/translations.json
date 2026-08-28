@@ -2653,6 +2653,7 @@
       },
       "panel": {
         "title": "Kontroll-Panel",
+        "open": "Kontroll-Panel öffnen",
         "sceneSelect": "Szene",
         "noGraphics": "Diese Szene hat noch keine aktivierte Grafik.",
         "health": {

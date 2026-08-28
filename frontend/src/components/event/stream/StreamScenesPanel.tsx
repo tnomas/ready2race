@@ -16,6 +16,7 @@ import {
     ContentCopy as ContentCopyIcon,
     Delete as DeleteIcon,
     Edit as EditIcon,
+    LiveTvOutlined as LiveTvOutlinedIcon,
     OpenInNew as OpenInNewIcon,
     QrCode2 as QrCode2Icon,
     Science as ScienceIcon,
@@ -25,7 +26,13 @@ import {useTranslation} from 'react-i18next'
 import {useFeedback, useFetch} from '@utils/hooks'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {updateEventGlobal, updateStreamGlobal} from '@authorization/privileges.ts'
+import {
+    readEventGlobal,
+    readStreamGlobal,
+    updateEventGlobal,
+    updateStreamGlobal,
+} from '@authorization/privileges.ts'
+import {Link} from '@tanstack/react-router'
 import {deleteStreamScene, getStreamScenes, setStreamSceneTrialMode} from '@api/sdk.gen'
 import {StreamSceneDto} from '@api/types.gen'
 import {STREAM_GRAPHIC_TYPES} from './streamGraphicCatalog'
@@ -53,6 +60,11 @@ const StreamScenesPanel = ({eventId}: StreamScenesPanelProps) => {
     // reine Leserolle da und liefen beim Klick in den 403 des Servers (wie bei BoardsPanel).
     const canEdit =
         user.checkPrivilege(updateStreamGlobal) || user.checkPrivilege(updateEventGlobal)
+
+    // Dieselbe Rechte-Alternative wie die Route selbst (`eventStreamPanelRoute`): sonst ist das
+    // Kontroll-Panel von hier aus nirgends verlinkt.
+    const canOpenPanel =
+        user.checkPrivilege(readStreamGlobal) || user.checkPrivilege(readEventGlobal)
 
     const [reloadKey, setReloadKey] = useState(0)
     const [editingScene, setEditingScene] = useState<StreamSceneDto | null>(null)
@@ -120,13 +132,25 @@ const StreamScenesPanel = ({eventId}: StreamScenesPanelProps) => {
 
     return (
         <Box>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb: 2}}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb: 2}} flexWrap="wrap" gap={1}>
                 <Typography variant="h5">{t('event.stream.scenes.title')}</Typography>
-                {canEdit && (
-                    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreatingScene(true)}>
-                        {t('event.stream.scenes.create')}
-                    </Button>
-                )}
+                <Stack direction="row" spacing={1}>
+                    {canOpenPanel && (
+                        <Link to={'/event/$eventId/streamPanel'} params={{eventId}}>
+                            <Button variant="outlined" startIcon={<LiveTvOutlinedIcon />}>
+                                {t('event.stream.panel.open')}
+                            </Button>
+                        </Link>
+                    )}
+                    {canEdit && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => setCreatingScene(true)}>
+                            {t('event.stream.scenes.create')}
+                        </Button>
+                    )}
+                </Stack>
             </Stack>
 
             {scenes && scenes.length === 0 && (

@@ -35,6 +35,7 @@ import {
     CampaignOutlined,
     Forward,
     InfoOutlined,
+    LiveTvOutlined,
     PlayCircleOutlined,
     SportsScoreOutlined,
     TuneOutlined,
@@ -455,6 +456,21 @@ const EventPage = () => {
                                                 {t('speaker.openBoard')}
                                             </Button>
                                         </Link>
+                                        {/* Sonst ist das Kontroll-Panel nirgends verlinkt - dieselbe
+                                            Rechte-Alternative wie oben (READ STREAM ODER READ EVENT),
+                                            eine reine Streamer-Rolle ohne READ EVENT muss ihn hier finden. */}
+                                        {(user.checkPrivilege(readStreamGlobal) ||
+                                            user.checkPrivilege(readEventGlobal)) && (
+                                            <Link to={'/event/$eventId/streamPanel'} params={{eventId}}>
+                                                <Button
+                                                    startIcon={<LiveTvOutlined />}
+                                                    variant="outlined"
+                                                    fullWidth
+                                                    sx={{mt: 1}}>
+                                                    {t('event.stream.panel.open')}
+                                                </Button>
+                                            </Link>
+                                        )}
                                         {/* Die laufenden Läufe sind Sache der Veranstaltung, nicht
                                             der Anzeigen - eine reine Board-Rolle sieht sie nicht. */}
                                         {user.checkPrivilege(readEventGlobal) && (

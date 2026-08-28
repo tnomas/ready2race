@@ -2653,6 +2653,7 @@
       },
       "panel": {
         "title": "Control panel",
+        "open": "Open control panel",
         "sceneSelect": "Scene",
         "noGraphics": "This scene has no enabled graphic yet.",
         "health": {
