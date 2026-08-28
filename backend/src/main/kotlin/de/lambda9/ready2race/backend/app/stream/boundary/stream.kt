@@ -54,6 +54,19 @@ fun Route.stream() {
             }
         }
 
+        // Deklariert VOR "/{sceneId}"-Routen: "matches" ist ein fester Pfadteil, kein Ktor
+        // will ihn also nie als sceneId lesen, egal wie sich die Reihenfolge hier verschiebt
+        // (statische Segmente gewinnen in Ktors Routing-Baum grundsätzlich gegen Parameter) -
+        // die Position hier ist nur Lesbarkeit, keine Notwendigkeit.
+        get("/matches") {
+            call.respondComprehension {
+                !authenticateAny(Privilege.ReadStreamGlobal, Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+
+                StreamSceneService.getPickerMatches(eventId)
+            }
+        }
+
         put("/{sceneId}") {
             call.respondComprehension {
                 !authenticateAny(Privilege.UpdateStreamGlobal, Privilege.UpdateEventGlobal)

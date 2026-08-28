@@ -56,3 +56,30 @@ data class StreamFinishEntry(
     val clubsFull: String?,
     val timeString: String,
 )
+
+/**
+ * Grober Zustand eines Laufs für den Lauf-Wähler des Kontroll-Panels — bewusst nur diese drei,
+ * nicht die feine Zustandsmaschine des Schiedsrichter-Dashboards.
+ */
+enum class StreamPickerMatchState {
+    UPCOMING,
+    RUNNING,
+    FINISHED,
+}
+
+/**
+ * Ein Lauf des Veranstaltungstags für den Lauf-Wähler des Kontroll-Panels
+ * ([de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService.getPickerMatches]) —
+ * zerlegte Namensteile statt einer fertigen Beschriftung, dieselbe Form wie das öffentliche
+ * `LiveMatchInfo`, damit das Panel sich sein Label selbst baut.
+ */
+data class StreamPickerMatchDto(
+    val matchId: UUID,
+    val competitionName: String,
+    val categoryName: String?,
+    val roundName: String?,
+    val matchName: String?,
+    /** Geplanter Start; null für einen Lauf ohne eigene Startzeit. */
+    val startTime: LocalDateTime?,
+    val state: StreamPickerMatchState,
+)

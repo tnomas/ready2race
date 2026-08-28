@@ -8470,6 +8470,38 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/stream/matches:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getStreamPickerMatches
+      description: >-
+        The day's matches for the control panel's match picker (STARTLIST/RESULT/NEXT_UP override),
+        including finished ones - unlike the public /info/live-matches, which drops a match the
+        moment it is finished. Finished results are always included regardless of the event's
+        public results visibility setting: the panel is an admin surface, not the public results
+        page, and a director must be able to force-show a result before it is public. Ordered
+        finished-most-recent-first, then running, then upcoming by start time - the primary use
+        case ("re-show the result of match 12") wants the just-finished match at the top. Requires
+        a session with READ STREAM or READ EVENT.
+      responses:
+        200:
+          description: Matches retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StreamPickerMatchDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/stream/{sceneId}:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -22962,3 +22994,41 @@ components:
             Root-relative frontend path including the token query parameter
             (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin.
             The stage sends the token as the X-Timing-Device-Token header.
+
+    StreamPickerMatchState:
+      type: string
+      description: "Coarse state of a match for the control panel's match picker - deliberately just these three, not the full match-state machine the referee dashboard uses."
+      enum:
+        - UPCOMING
+        - RUNNING
+        - FINISHED
+
+    StreamPickerMatchDto:
+      type: object
+      description: "One match of the event's day for the control panel's match picker (getStreamPickerMatches) - decomposed name parts rather than one joined label, same shape as LiveMatchInfo, so the panel can build its own label."
+      required:
+        - matchId
+        - competitionName
+        - state
+      properties:
+        matchId:
+          type: string
+          format: uuid
+        competitionName:
+          type: string
+        categoryName:
+          type: string
+          nullable: true
+        roundName:
+          type: string
+          nullable: true
+        matchName:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Scheduled start; null for a match without one yet."
+        state:
+          $ref: '#/components/schemas/StreamPickerMatchState'

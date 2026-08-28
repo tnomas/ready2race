@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.stream
 
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
@@ -20,12 +21,14 @@ import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -130,6 +133,78 @@ class StreamSceneSocketTest {
         } finally {
             session.close()
         }
+    }
+
+    /**
+     * Der Herzschlag: eine Szene ohne jede Änderung (kein Start, keine Zwischenzeit, kein
+     * Regie-Eingriff) muss trotzdem in festem Takt ein Lebenszeichen schicken - sonst hält eine
+     * ruhige, aber gesunde Szene die Veraltet-Erkennung von Bühne und Panel für gestört (siehe
+     * KDoc an `StreamSceneBroadcaster.heartbeatLoop`). Der Takt wird für die Dauer dieses Tests
+     * auf 600 ms gesenkt, echte 20 Sekunden Wartezeit wären hier nur verschenkte Testlaufzeit.
+     *
+     * Ein neu entstehender Kanal baut sich absichtlich EIN zweites Mal auf, sobald der erste
+     * Abonnent kommt (`subscribe()`: "Ein Aufbau SOFORT beim Entstehen des Kanals") - derselbe
+     * Stand, kein echtes Ereignis, nur wegen des Timer-Weckers. Der Test toleriert diese eine
+     * zusätzliche `streamSceneView`-Nachricht VOR dem Herzschlag, statt sie als Fehlschlag zu
+     * werten - alles danach darf nur noch der Herzschlag sein.
+     */
+    @Test
+    fun theHeartbeatArrivesWithoutAnyStateChange() = testApplicationComprehension {
+        val previousInterval = StreamSceneBroadcaster.HEARTBEAT_INTERVAL_MILLIS
+        StreamSceneBroadcaster.HEARTBEAT_INTERVAL_MILLIS = 600L
+        try {
+            val (eventId, userId) = !createTestEventWithAdmin()
+            val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+            val link = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, sceneId, userId)).dto
+
+            val wsClient = createClient { install(WebSockets) }
+            val session = wsClient.sceneSocketSession(eventId, sceneId, link.token)
+            try {
+                // Begrüßungsrahmen: der volle Stand, kein Herzschlag.
+                val greeting = session.receiveText()
+                assertTrue(greeting.contains("\"type\":\"streamSceneView\""), "unexpected payload: $greeting")
+
+                // Bis zu einer weiteren (erwarteten) Zustandsnachricht überlesen, dann muss der
+                // Herzschlag kommen - exakt die Nutzlast, die heartbeatMessage() selbst baut.
+                var next = session.receiveText()
+                if (next.contains("\"type\":\"streamSceneView\"")) {
+                    next = session.receiveText()
+                }
+                assertEquals(StreamSceneBroadcaster.heartbeatMessage(), next)
+            } finally {
+                session.close()
+            }
+        } finally {
+            StreamSceneBroadcaster.HEARTBEAT_INTERVAL_MILLIS = previousInterval
+        }
+    }
+
+    /**
+     * Lebensdauer-Disziplin: mit dem letzten Abonnenten verschwindet der GANZE Kanal, Render-
+     * UND Herzschlag-Coroutine eingeschlossen (`unsubscribe` bricht beide im selben Zweig ab -
+     * siehe dort). Spiegelt `BoardViewSocketTest.twoDisplaysShareOneChannelAndBothGetThePush`.
+     */
+    @Test
+    fun theChannelAndItsHeartbeatVanishWithTheLastSubscriber() = testApplicationComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+        val link = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, sceneId, userId)).dto
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.sceneSocketSession(eventId, sceneId, link.token)
+        session.receiveText()
+        assertEquals(1, StreamSceneBroadcaster.subscriptionCount(sceneId))
+        session.close()
+
+        // Das Schließen läuft nebenläufig (unsubscribe hängt am finally des Socket-Handlers),
+        // deshalb kurz nachfassen statt sofort zu prüfen.
+        var remaining: Int? = StreamSceneBroadcaster.subscriptionCount(sceneId)
+        repeat(50) {
+            if (remaining == null) return@repeat
+            delay(100)
+            remaining = StreamSceneBroadcaster.subscriptionCount(sceneId)
+        }
+        assertNull(remaining, "the scene channel (and its heartbeat) must vanish with its last subscriber")
     }
 
     /** Spiegelt `new WebSocket(url, ["r2r", token])` im Browser. */

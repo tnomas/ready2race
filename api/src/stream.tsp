@@ -216,6 +216,29 @@ model StreamSceneViewDto {
   graphics: StreamGraphicViewDto[];
 }
 
+// Coarse state of a match for the control panel's match picker - deliberately just these three,
+// not the full match-state machine the referee dashboard uses.
+enum StreamPickerMatchState {
+  UPCOMING;
+  RUNNING;
+  FINISHED;
+}
+
+// One match of the event's day for the control panel's match picker (getStreamPickerMatches) -
+// decomposed name parts rather than one joined label, same shape as LiveMatchInfo (eventInfo.tsp),
+// so the panel can build its own label.
+model StreamPickerMatchDto {
+  matchId: uuid;
+  competitionName: string;
+  categoryName?: string;
+  roundName?: string;
+  matchName?: string;
+
+  // Scheduled start; absent for a match without one yet.
+  startTime?: dateTime;
+  state: StreamPickerMatchState;
+}
+
 // The shareable scene link, word for word like BoardShareLinkDto (eventInfo.tsp isn't kept in
 // sync closely enough to reference it directly - see the class doc there): Wirecast/OBS cannot
 // log in, so it gets the same shared link with device token as a board display. Repeatable: the
@@ -237,6 +260,7 @@ model StreamSceneShareLinkDto {
 // ==========================================================================
 // GET /event/{eventId}/stream: require ReadStreamGlobal OR ReadEventGlobal
 // POST /event/{eventId}/stream: require UpdateStreamGlobal OR UpdateEventGlobal
+// GET /event/{eventId}/stream/matches: require ReadStreamGlobal OR ReadEventGlobal
 // PUT/DELETE /event/{eventId}/stream/{sceneId}: require UpdateStreamGlobal OR UpdateEventGlobal
 // PUT /event/{eventId}/stream/{sceneId}/graphics: require UpdateStreamGlobal OR UpdateEventGlobal
 // POST /event/{eventId}/stream/{sceneId}/shareLink: require UpdateStreamGlobal OR UpdateEventGlobal
@@ -252,6 +276,15 @@ interface StreamRoutes {
   @get
   @operationId("getStreamScenes")
   getStreamScenes(@path eventId: uuid): StreamSceneDto[];
+
+  // The day's matches for the control panel's match picker, including finished ones - unlike the
+  // public /info/live-matches, which drops a match the moment it is finished. Always includes
+  // finished results regardless of the event's public results visibility: this is an admin
+  // surface, not the public results page.
+  @get
+  @route("/matches")
+  @operationId("getStreamPickerMatches")
+  getStreamPickerMatches(@path eventId: uuid): StreamPickerMatchDto[];
 
   @post
   @operationId("createStreamScene")

@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.UUID
@@ -55,6 +56,13 @@ typealias StreamSceneSubscriber = suspend (String) -> Unit
  * Override-Abläufe sind Umschaltpunkte, die von SELBST fällig werden, ohne dass irgendwo etwas
  * geschrieben wird. Statt eines Sekundentakts stellt sich die Render-Schleife nach jedem Aufbau
  * genau einen Wecker auf den nächsten fälligen Zeitpunkt (siehe [renderLoop]).
+ *
+ * Zweiter Unterschied zum Board-Muster: der **Herzschlag** ([heartbeatLoop]). Eine ruhige, aber
+ * gesunde Szene bekommt sonst tagelang keinen einzigen Push (kein Start, keine Zwischenzeit,
+ * kein Regie-Eingriff) — für die Veraltet-Erkennung der Bühne und des Kontroll-Panels sähe das
+ * ununterscheidbar von einer gestörten Verbindung aus. Der Herzschlag ist ein eigener, INHALTS-
+ * LOSER Nachrichtentyp im selben Kanal, im festen Takt, unabhängig vom Zustandsaufbau — er löst
+ * NIE [render] aus.
  */
 object StreamSceneBroadcaster {
 
@@ -66,6 +74,16 @@ object StreamSceneBroadcaster {
      * Signal. Bewusst kurz; im Livestream ist eine Zehntelsekunde keine Verzögerung.
      */
     private const val BURST_WINDOW_MILLIS = 150L
+
+    /**
+     * Takt des Herzschlags (siehe [heartbeatLoop]) — deutlich unter der kleineren der beiden
+     * Veraltet-Schwellen (Panel: 30 s), damit ein einzelner verzögerter/verlorener Herzschlag
+     * (Netz-Ruckler) noch nicht sofort in eine Warnung läuft.
+     *
+     * `internal var` statt `const val`: ein Test senkt sie kurzzeitig, um den Herzschlag ohne
+     * echte 20 Sekunden Wartezeit zu beobachten (siehe `StreamSceneSocketTest`).
+     */
+    internal var HEARTBEAT_INTERVAL_MILLIS = 20_000L
 
     // Spiegelt die Serialisierung von plugins/Serialization.kt (NON_ABSENT sticht das dortige
     // NON_NULL), damit die gepushte Nutzlast Feld für Feld so aussieht wie die HTTP-Antwort
@@ -95,8 +113,19 @@ object StreamSceneBroadcaster {
         val view: StreamSceneViewDto,
     )
 
+    /**
+     * Lebendigkeits-Rahmen ohne Stand — [heartbeatLoop] schickt ihn in einem festen Takt, damit
+     * eine ruhige (aber gesunde) Szene nicht als "veraltet" erscheint, nur weil sich am Renn-
+     * geschehen gerade nichts ändert (siehe dortige KDoc). Bühne und Panel verwerfen unbekannte
+     * Typen ohnehin (`parseStreamSceneMessage`), ein eigener Typ bricht also nichts.
+     */
+    private data class StreamHeartbeatMessage(val type: String = "heartbeat")
+
     /** Für Tests und den Begrüßungsrahmen sichtbar: die fertige Nachricht zu einem Stand. */
     fun message(view: StreamSceneViewDto): String = mapper.writeValueAsString(StreamSceneMessage(view = view))
+
+    /** Für Tests sichtbar: dieselbe Nachricht, die [heartbeatLoop] tatsächlich verschickt. */
+    internal fun heartbeatMessage(): String = mapper.writeValueAsString(StreamHeartbeatMessage())
 
     class StreamSceneSubscription internal constructor(
         internal val eventId: UUID,
@@ -104,6 +133,14 @@ object StreamSceneBroadcaster {
     ) {
         // CONFLATED: jede Nachricht trägt den vollständigen Stand, ältere sind damit wertlos.
         internal val queue = Channel<String>(Channel.CONFLATED)
+
+        // EIGENER Kanal statt derselben Warteschlange wie [queue]: ein Herzschlag darf einen
+        // bereits wartenden, noch nicht zugestellten Zustandsstand NIE überschreiben (CONFLATED
+        // kennt nur "der jüngste Wert zählt" - träfen beide denselben Kanal, könnte ein
+        // Herzschlag einen echten Stand verdrängen, der sonst erst beim nächsten Ereignis
+        // nachgeholt würde). Selbst-Konflation EINES Herzschlags mit dem nächsten ist dagegen
+        // unbedenklich - er trägt ohnehin keinen Inhalt.
+        internal val heartbeat = Channel<String>(Channel.CONFLATED)
 
         // Synchron in [subscribe] gesetzt, bevor die (lazy gestartete) Coroutine je läuft.
         internal lateinit var job: Job
@@ -129,6 +166,14 @@ object StreamSceneBroadcaster {
         lateinit var job: Job
 
         /**
+         * Der Herzschlag-Wecker dieser Szene — dieselbe Lebensdauer-Disziplin wie [job]: lazy
+         * gestartet, zusammen mit [job] gestartet und abgebrochen, nie eigenständig verwaltet.
+         * Baut NIE einen Stand ([heartbeatLoop] ruft [render] nicht) - eine ruhige Szene bleibt
+         * ruhig, nur der Kanal bleibt sichtbar lebendig.
+         */
+        lateinit var heartbeatJob: Job
+
+        /**
          * Der eine ausstehende Timer-Wecker dieser Szene. Ausschließlich von der Render-Coroutine
          * gesetzt (deshalb genügt Sichtbarkeit, keine Sperre) und als KIND der Render-Coroutine
          * gestartet: Wird der Kanal abgeräumt, nimmt das Abbrechen von [job] den Wecker mit —
@@ -152,7 +197,18 @@ object StreamSceneBroadcaster {
         val subscription = StreamSceneSubscription(eventId, sceneId)
         subscription.job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                subscription.queue.consumeEach { subscriber(it) }
+                // Zwei Quellen, EIN Schreiber: `select` nimmt, was zuerst da ist, aus Zustands-
+                // UND Herzschlag-Kanal - eine reine `consumeEach` kennt nur eine Quelle. Beide
+                // Kanäle werden gemeinsam geschlossen (siehe unsubscribe), `onReceiveCatching`
+                // liefert dann ein geschlossenes Ergebnis statt zu werfen; `getOrNull() == null`
+                // beendet die Schleife genauso still wie das Ende einer `consumeEach` am Vorbild.
+                while (true) {
+                    val next = select<String?> {
+                        subscription.queue.onReceiveCatching { it.getOrNull() }
+                        subscription.heartbeat.onReceiveCatching { it.getOrNull() }
+                    } ?: break
+                    subscriber(next)
+                }
             } catch (ex: CancellationException) {
                 throw ex
             } catch (ex: Exception) {
@@ -163,11 +219,12 @@ object StreamSceneBroadcaster {
             }
         }
 
-        // Der Kanal wird VOLLSTÄNDIG (samt lazy gestarteter Render-Coroutine) gebaut, bevor er in
-        // die Karte geht. Ihn erst danach zu vervollständigen, ließe ein nebenläufiges
-        // unsubscribe() auf ein noch nicht gesetztes `job` treffen.
+        // Der Kanal wird VOLLSTÄNDIG (samt lazy gestarteter Render- UND Herzschlag-Coroutine)
+        // gebaut, bevor er in die Karte geht. Ihn erst danach zu vervollständigen, ließe ein
+        // nebenläufiges unsubscribe() auf ein noch nicht gesetztes `job` treffen.
         val fresh = SceneChannel(env, eventId, sceneId)
         fresh.job = scope.launch(start = CoroutineStart.LAZY) { renderLoop(fresh) }
+        fresh.heartbeatJob = scope.launch(start = CoroutineStart.LAZY) { heartbeatLoop(fresh) }
 
         val channel = channels.compute(sceneId) { _, current ->
             (current ?: fresh).apply {
@@ -184,6 +241,7 @@ object StreamSceneBroadcaster {
 
         if (channel === fresh) {
             channel.job.start()
+            channel.heartbeatJob.start()
             // Ein Aufbau SOFORT beim Entstehen des Kanals - nicht wegen des Stands (den trägt
             // der Begrüßungsrahmen), sondern wegen des Weckers: Der wird ausschließlich in der
             // Render-Schleife gestellt. Ohne diesen einen Anstoß liefe sie erst beim nächsten
@@ -193,9 +251,10 @@ object StreamSceneBroadcaster {
             // in derselben Zehntelsekunde hereinkommt.
             channel.dirty.trySend(Unit)
         } else {
-            // Der Kanal stand schon: die eben gebaute Hülle wieder abräumen. Sein Wecker läuft
-            // bereits, der neue Abonnent braucht keinen zweiten Anstoß.
+            // Der Kanal stand schon: die eben gebaute Hülle wieder abräumen. Sein Wecker UND sein
+            // Herzschlag laufen bereits, der neue Abonnent braucht keinen zweiten Anstoß.
             fresh.job.cancel()
+            fresh.heartbeatJob.cancel()
             fresh.dirty.close()
         }
 
@@ -208,6 +267,7 @@ object StreamSceneBroadcaster {
 
     fun unsubscribe(subscription: StreamSceneSubscription) {
         subscription.queue.close()
+        subscription.heartbeat.close()
         // Ein Schreiber, der gerade an eine hängende (noch nicht als tot erkannte) Session
         // sendet, soll das unsubscribe nicht überleben.
         subscription.job.cancel()
@@ -217,10 +277,12 @@ object StreamSceneBroadcaster {
             current.subscribers.remove(subscription)
             if (current.subscribers.isNotEmpty()) return@compute current
 
-            // Letzter Abonnent weg: der Kanal verschwindet mitsamt seiner Render-Coroutine UND
-            // deren ausstehendem Wecker (er ist ihr Kind, das Abbrechen nimmt ihn mit). Ab jetzt
-            // wird für diese Szene nichts mehr gerechnet.
+            // Letzter Abonnent weg: der Kanal verschwindet mitsamt seiner Render-Coroutine, ihrem
+            // Herzschlag UND deren ausstehendem Wecker (beide sind ihr Kind, das Abbrechen nimmt
+            // sie mit). Ab jetzt wird für diese Szene nichts mehr gerechnet und nichts mehr
+            // geschickt.
             current.job.cancel()
+            current.heartbeatJob.cancel()
             current.dirty.close()
             scenesByEvent.compute(subscription.eventId) { _, scenes ->
                 scenes?.apply { remove(subscription.sceneId) }?.takeIf { it.isNotEmpty() }
@@ -290,6 +352,37 @@ object StreamSceneBroadcaster {
             // ausgerechnet hat, und löst sich dann einmal selbst aus. Jeder neue Aufbau ersetzt
             // den Wecker: der Umschaltpunkt kann sich mit jedem Ereignis verschieben.
             scheduleWakeUp(this, channel, rendered.nextEvaluationAt)
+        }
+    }
+
+    /**
+     * Der Herzschlag-Wecker EINER Szene: schickt allen aktuellen Abonnenten im festen Takt
+     * [HEARTBEAT_INTERVAL_MILLIS] einen [heartbeatMessage] — OHNE jemals [render] aufzurufen.
+     * Das ist der ganze Punkt: eine Szene, an der real nichts passiert (kein Start, keine
+     * Zwischenzeit, kein Regie-Eingriff), soll ruhig bleiben — nicht alle 20 s neu aus der
+     * Datenbank aufgelöst werden, nur um denselben Stand noch einmal zu verschicken.
+     *
+     * Bühne UND Panel lesen daraus: „der Kanal lebt", unabhängig davon, ob sich der INHALT
+     * ändert. Ohne das würde eine gesunde, aber ruhige Szene nach der Veraltet-Schwelle
+     * (`isStreamStale`/`isPanelStale`, je 15 bzw. 30 s) fälschlich als gestört erscheinen — die
+     * Automatik pusht schließlich nur bei Änderungen/Timern, nicht auf Zuruf.
+     *
+     * `while (true)` statt einer Endlosschleife über `delay` + Bedingung: die Coroutine selbst
+     * IST die Lebensdauer, ihr Abbruch (siehe [unsubscribe]/`heartbeatJob.cancel()`) beendet die
+     * Schleife von außen — dieselbe Bauart wie [renderLoop].
+     */
+    private suspend fun heartbeatLoop(channel: SceneChannel) {
+        val payload = heartbeatMessage()
+        while (true) {
+            delay(HEARTBEAT_INTERVAL_MILLIS)
+            channel.subscribers.forEach { subscription ->
+                // Eigener Kanal (siehe StreamSceneSubscription.heartbeat) - kann den Zustands-
+                // Rahmen nicht verdrängen. Eine bereits geschlossene Subscription (Abriss
+                // zwischen den beiden Server-Ticks) räumt sich über [unsubscribe] ohnehin selbst
+                // aus [channel.subscribers] - trySend auf eine geschlossene Queue ist dann
+                // wirkungslos, kein Grund, hier zusätzlich abzuräumen.
+                subscription.heartbeat.trySend(payload)
+            }
         }
     }
 
