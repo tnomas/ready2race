@@ -102,6 +102,30 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
     fun settingsFor(type: StreamGraphicType): StreamGraphicSettings =
         input.graphics.firstOrNull { it.type == type }?.settings ?: StreamGraphicSettings()
 
+    // Der Lauf-Bezug einer FORCED_ON-Zeile, oder null (kein Bezug -> "aktueller Inhalt").
+    fun overrideMatchId(type: StreamGraphicType): UUID? =
+        if (effectiveOverrideState(type) == StreamOverrideState.FORCED_ON) overridesByType[type]?.match else null
+
+    /**
+     * Hat die Regie für [type] einen KONKRETEN Lauf benannt, der sich nicht auf Inhalt auflösen
+     * lässt (z. B. ein längst beendeter Lauf, von der Regie auf STARTLIST/NEXT_UP erzwungen -
+     * [StreamSceneLogic.buildInput] befüllt `overriddenMatches` nur aus laufenden/anstehenden
+     * Läufen, `overriddenResults` dagegen aus beendeten)? Dann ist das kein Fall für den
+     * Automatik-Rückfall: die Bedienoberfläche hat ausdrücklich EINEN Lauf verlangt, nicht "was
+     * gerade automatisch dran wäre" - zeigt die Bühne trotzdem den Automatik-Inhalt, sieht niemand,
+     * dass die Regie ins Leere griff. Kein Lauf-Bezug (null) ist dagegen die normale FORCED_ON-Wahl
+     * "aktueller Inhalt" und damit nicht unaufgelöst.
+     */
+    fun overrideContentUnresolved(type: StreamGraphicType): Boolean {
+        val matchId = overrideMatchId(type) ?: return false
+        return when (type) {
+            StreamGraphicType.STARTLIST, StreamGraphicType.NEXT_UP,
+            StreamGraphicType.CLOCK, StreamGraphicType.LAPS -> input.overriddenMatches[matchId] == null
+            StreamGraphicType.RESULT -> input.overriddenResults[matchId] == null
+            else -> false
+        }
+    }
+
     fun autoStartlist(): AutoResolution {
         val since = input.preparingSince
         if (input.preparing == null || since == null || input.sequenceStartedAt != null) {
@@ -152,11 +176,14 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
     val resultConfigured = input.graphics.any { it.type == StreamGraphicType.RESULT }
     val resultAuto = autoResult()
     val resultOverrideState = effectiveOverrideState(StreamGraphicType.RESULT)
-    val resultVisibleForTicker = resultConfigured && when (resultOverrideState) {
-        StreamOverrideState.FORCED_OFF -> false
-        StreamOverrideState.FORCED_ON -> true
-        StreamOverrideState.AUTO -> resultAuto.visible
-    }
+    // Ein FORCED_ON auf einen unauflösbaren Lauf zeigt (ab hier) kein Ergebnis mehr - dann muss
+    // der Ticker auch nicht mehr weichen, sonst bliebe der Platz für nichts leer.
+    val resultVisibleForTicker = resultConfigured && !overrideContentUnresolved(StreamGraphicType.RESULT) &&
+        when (resultOverrideState) {
+            StreamOverrideState.FORCED_OFF -> false
+            StreamOverrideState.FORCED_ON -> true
+            StreamOverrideState.AUTO -> resultAuto.visible
+        }
 
     fun autoFinishTicker(): AutoResolution {
         val visible = input.finishEntries.isNotEmpty() && !resultVisibleForTicker
@@ -181,17 +208,24 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
         val overrideState: StreamOverrideState,
         val auto: AutoResolution,
         val wantsVisible: Boolean,
+        /** FORCED_ON mit einem Lauf-Bezug, der sich nicht auflöst (siehe [overrideContentUnresolved]). */
+        val unresolved: Boolean,
     )
 
     val candidates = input.graphics.map { row ->
         val overrideState = effectiveOverrideState(row.type)
         val auto = autoFor(row.type)
-        val wantsVisible = when (overrideState) {
-            StreamOverrideState.FORCED_OFF -> false
-            StreamOverrideState.FORCED_ON -> true
-            StreamOverrideState.AUTO -> auto.visible
+        val unresolved = overrideContentUnresolved(row.type)
+        val wantsVisible = when {
+            // Kein stiller Rückfall auf Automatik-Inhalt: die Regie hat gezielt einen Lauf
+            // verlangt, den es an dieser Grafik nicht gibt - dann bleibt die Grafik aus, statt
+            // ungefragt etwas anderes zu zeigen.
+            unresolved -> false
+            overrideState == StreamOverrideState.FORCED_OFF -> false
+            overrideState == StreamOverrideState.FORCED_ON -> true
+            else -> auto.visible
         }
-        Candidate(row, overrideState, auto, wantsVisible)
+        Candidate(row, overrideState, auto, wantsVisible, unresolved)
     }
 
     // Regel 4: je Platz höchstens eine sichtbare Grafik. FORCED_ON schlägt die Platz-Priorität
@@ -222,19 +256,24 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
             else -> candidate.auto.visibleUntil
         }
 
-        // Inhaltswahl der Regie (nur bei FORCED_ON): match-Bezug schlägt Auto-Inhalt.
+        // Inhaltswahl der Regie (nur bei FORCED_ON): match-Bezug schlägt Auto-Inhalt. Ist der
+        // Bezug unauflösbar (candidate.unresolved), gibt es HIER keinen Rückfall auf den
+        // Automatik-Inhalt mehr - die Grafik ist über `visible` (wantsVisible=false) schon
+        // ausgeblendet, und sie soll auch keinen falschen Inhalt im DTO tragen.
         val overrideMatchId = if (candidate.overrideState == StreamOverrideState.FORCED_ON) rawOverride?.match else null
         val overriddenMatch = overrideMatchId?.let { input.overriddenMatches[it] }
         val overriddenResult = overrideMatchId?.let { input.overriddenResults[it] }
 
-        val match = when (row.type) {
+        val match = if (candidate.unresolved) null else when (row.type) {
             StreamGraphicType.STARTLIST, StreamGraphicType.NEXT_UP -> overriddenMatch ?: input.preparing
             StreamGraphicType.CLOCK -> overriddenMatch ?: (input.running ?: input.preparing)
             StreamGraphicType.LAPS -> overriddenMatch ?: input.running
             else -> null
         }
-        val result = if (row.type == StreamGraphicType.RESULT) overriddenResult ?: input.latestResult else null
-        val provisional = if (row.type == StreamGraphicType.RESULT) {
+        val result = if (candidate.unresolved) null
+        else if (row.type == StreamGraphicType.RESULT) overriddenResult ?: input.latestResult else null
+        val provisional = if (candidate.unresolved) null
+        else if (row.type == StreamGraphicType.RESULT) {
             // Ein ausgewähltes fremdes Ergebnis (match-Bezug) trägt seine Klärung selbst
             // (AthleteBoardResult.clarification) - latestResultProvisional gilt nur für den
             // jüngsten Auto-Inhalt, der keinen eigenen Klärungs-Zeitstempel im Input mitbringt.

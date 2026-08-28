@@ -351,6 +351,86 @@ class StreamSceneResolverTest {
         assertEquals(true, result.provisional, "Die Klärung des gewählten Ergebnisses muss durchgereicht werden, nicht verworfen")
     }
 
+    // --- FORCED_ON auf einen unauflösbaren Lauf: kein stiller Rückfall auf Automatik-Inhalt ---
+    //
+    // `overriddenMatches`/`overriddenResults` kommen von `StreamSceneLogic.buildInput` und decken
+    // nicht jeden denkbaren Lauf ab (Startliste/nextUp/Uhr/Laps kennen nur laufende/anstehende
+    // Läufe, Ergebnis nur beendete - siehe Kommentar an `overrideContentUnresolved`). Fehlt der
+    // von der Regie benannte Lauf in der jeweiligen Map (z. B. weil er inzwischen beendet ist),
+    // darf der Resolver NICHT auf `preparing`/`latestResult` zurückfallen: das zeigte einen
+    // anderen Lauf, als die Regie verlangt hat, ohne jedes Signal an die Bedienoberfläche.
+
+    @Test
+    fun `forcedOn STARTLIST mit unaufloesbarem Lauf bleibt aus statt auf preparing zurueckzufallen`() {
+        val missingId = UUID.randomUUID()
+        val preparing = testMatch(state = MatchState.PREPARING)
+        val graphics = listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.STARTLIST,
+                state = StreamOverrideState.FORCED_ON,
+                match = missingId,
+                expiresAt = null,
+                createdAt = t0,
+            )
+        )
+
+        val resolved = resolveScene(
+            baseInput(
+                now = t0,
+                graphics = graphics,
+                overrides = overrides,
+                preparing = preparing,
+                preparingSince = t0,
+                // overriddenMatches bleibt leer: der benannte Lauf ist nicht auffindbar (z. B.
+                // längst beendet - buildInput befüllt die Map nur aus laufenden/anstehenden Läufen).
+            )
+        )
+        val startlist = resolved.graphic(StreamGraphicType.STARTLIST)
+        assertFalse(startlist.visible, "Ein unauflösbarer FORCED_ON-Bezug darf nicht auf den Automatik-Inhalt zurückfallen")
+        assertEquals(
+            StreamOverrideState.FORCED_ON,
+            startlist.overrideState,
+            "Die Regie muss weiterhin als aktiv (aber leer) gemeldet werden, nicht als AUTO",
+        )
+        assertNull(startlist.match, "Ohne aufgelösten Inhalt darf kein Lauf im DTO stehen")
+    }
+
+    @Test
+    fun `forcedOn RESULT mit unaufloesbarem Lauf bleibt aus statt auf latestResult zurueckzufallen`() {
+        val missingId = UUID.randomUUID()
+        val graphics = listOf(graphic(StreamGraphicType.RESULT, StreamPlacement.BOTTOM_CENTER))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.RESULT,
+                state = StreamOverrideState.FORCED_ON,
+                match = missingId,
+                expiresAt = null,
+                createdAt = t0,
+            )
+        )
+
+        val resolved = resolveScene(
+            baseInput(
+                now = t0,
+                graphics = graphics,
+                overrides = overrides,
+                latestResult = testResult(),
+                latestResultAt = t0,
+                // overriddenResults bleibt leer: der benannte Lauf liefert kein (bestätigtes)
+                // Ergebnis.
+            )
+        )
+        val result = resolved.graphic(StreamGraphicType.RESULT)
+        assertFalse(result.visible, "Ein unauflösbarer FORCED_ON-Bezug darf nicht auf das jüngste Ergebnis zurückfallen")
+        assertEquals(
+            StreamOverrideState.FORCED_ON,
+            result.overrideState,
+            "Die Regie muss weiterhin als aktiv (aber leer) gemeldet werden, nicht als AUTO",
+        )
+        assertNull(result.result, "Ohne aufgelösten Inhalt darf kein Ergebnis im DTO stehen")
+    }
+
     @Test
     fun `abgelaufener Override faellt auf AUTO zurueck`() {
         val preparing = testMatch(state = MatchState.PREPARING)

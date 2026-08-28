@@ -48,7 +48,9 @@ create table stream_override
 (
     id           uuid primary key default gen_random_uuid(),
     scene        uuid      not null references stream_scene (id) on delete cascade,
-    graphic_type text      not null,
+    graphic_type text      not null
+        check (graphic_type in ('STARTLIST', 'CLOCK', 'LAPS', 'RESULT', 'FINISH_TICKER', 'NEXT_UP',
+                                 'SCHEDULE', 'COURSE_IMAGE')),
     state        text      not null
         check (state in ('FORCED_ON', 'FORCED_OFF')), -- AUTO = Zeile fehlt
     match        uuid      references competition_match on delete cascade,

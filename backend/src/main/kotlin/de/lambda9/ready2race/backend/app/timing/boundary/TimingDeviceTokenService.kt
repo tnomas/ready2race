@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.timing.boundary
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.EventInfoProblem
@@ -283,13 +284,24 @@ object TimingDeviceTokenService {
     /**
      * Revokes a token. Kept as a flag rather than a delete so the Leitstand can still show that a
      * device once existed (and which marks it produced).
+     *
+     * [hasEventPrivilege] unterscheidet die beiden Rollen, die diese Route erreichen dürfen
+     * (`authenticateAny(UpdateEventGlobal, UpdateStreamGlobal)` im Boundary): UPDATE EVENT
+     * widerruft jedes Token der Veranstaltung, wie schon immer. Eine reine Stream-Rolle (UPDATE
+     * STREAM ohne UPDATE EVENT) - der Fall, den `StreamSceneShareDialog` bedient - darf dagegen
+     * NUR Szenen-Tokens widerrufen. Ohne diese Grenze öffnete UPDATE STREAM nebenbei den Widerruf
+     * von Posten- und Board-Tokens, die mit Livestreaming nichts zu tun haben.
      */
     fun revoke(
         eventId: UUID,
         tokenId: UUID,
+        // Default deckt die bisherigen Aufrufer (Tests, die direkt widerrufen statt über die
+        // Route) ab: vor dieser Prüfung durfte ohnehin nur UPDATE EVENT die Route erreichen.
+        hasEventPrivilege: Boolean = true,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         val record = !TimingDeviceTokenRepo.get(tokenId).orDie().onNullFail { TimingError.DeviceTokenNotFound }
         !KIO.failOn(record.event != eventId) { TimingError.EventMismatch }
+        !KIO.failOn(!hasEventPrivilege && record.streamScene == null) { AuthError.PrivilegeMissing }
 
         !TimingDeviceTokenRepo.update(tokenId) {
             revoked = true
