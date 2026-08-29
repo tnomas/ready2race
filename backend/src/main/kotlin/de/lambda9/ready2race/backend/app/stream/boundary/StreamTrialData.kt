@@ -201,10 +201,14 @@ private fun trialResult(): AthleteBoardResult {
     )
 }
 
-private fun emptyInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>): StreamResolverInput = StreamResolverInput(
+private fun emptyInput(
+    now: LocalDateTime,
+    graphics: List<StreamSceneGraphicDto>,
+    overrides: List<StreamOverrideRow>,
+): StreamResolverInput = StreamResolverInput(
     now = now,
     graphics = graphics,
-    overrides = emptyList(),
+    overrides = overrides,
     preparing = null,
     preparingSince = null,
     running = null,
@@ -222,14 +226,26 @@ private fun emptyInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>
 /**
  * Bildet `now` auf die 3-Minuten-Demo-Schleife ab und liefert die passende [StreamResolverInput]
  * für [resolveScene]. Siehe Klassendoku oben für die Phasengrenzen.
+ *
+ * [overrides] sind die ECHTEN Regie-Zeilen der Szene (`StreamOverrideRepo`, per
+ * [StreamSceneLogic.buildInput] geladen) — Standard leer, damit die bestehenden Tests dieser
+ * Datei ungerührt bleiben. Nur so kann eine Regie Auto/An/Aus gegen die Demo-Schleife
+ * durchspielen: der Rest von [trialInput] bleibt die erfundene Szene, einzig `overrides` reist
+ * unverändert in die zurückgegebene Eingabe durch, der reine [resolveScene] wertet sie dann
+ * genauso aus wie im echten Betrieb (samt des Unaufgelöst-Rückfalls für einen FORCED_ON-Bezug
+ * auf einen Lauf, den es in der Demo-Schleife nicht gibt).
  */
-fun trialInput(now: LocalDateTime, graphics: List<StreamSceneGraphicDto>): StreamResolverInput {
+fun trialInput(
+    now: LocalDateTime,
+    graphics: List<StreamSceneGraphicDto>,
+    overrides: List<StreamOverrideRow> = emptyList(),
+): StreamResolverInput {
     val secondsIntoLoop = secondsIntoLoop(now)
     val loopStart = now.minusSeconds(secondsIntoLoop)
     val raceStart = loopStart.plusSeconds(SEQUENCE_END)
     val resultAt = loopStart.plusSeconds(RUNNING_END)
 
-    val base = emptyInput(now, graphics)
+    val base = emptyInput(now, graphics, overrides)
 
     return when {
         secondsIntoLoop < PREPARING_END -> base.copy(

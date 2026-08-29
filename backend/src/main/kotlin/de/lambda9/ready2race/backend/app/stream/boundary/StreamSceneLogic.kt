@@ -114,10 +114,9 @@ object StreamSceneLogic {
                 .map { it.toDto() }
                 .filter { it.enabled }
 
-            if (scene.trialMode == true) {
-                return@comprehension KIO.ok(trialInput(now, graphics))
-            }
-
+            // Auch im Probemodus geladen: eine Regie soll die Übersteuerung (Auto/An/Aus) an der
+            // Demo-Schleife üben können, ohne dass dafür ein echter Wettkampf läuft (siehe
+            // `trialInput`-Aufruf unten).
             val overrides = (!StreamOverrideRepo.findByScene(sceneId).orDie()).map { row ->
                 StreamOverrideRow(
                     graphicType = StreamGraphicType.valueOf(row.graphicType),
@@ -126,6 +125,10 @@ object StreamSceneLogic {
                     expiresAt = row.expiresAt,
                     createdAt = row.createdAt,
                 )
+            }
+
+            if (scene.trialMode == true) {
+                return@comprehension KIO.ok(trialInput(now, graphics, overrides))
             }
 
             // Einmal je Aufbau, nicht je Mannschaft - dieselbe Begründung wie in

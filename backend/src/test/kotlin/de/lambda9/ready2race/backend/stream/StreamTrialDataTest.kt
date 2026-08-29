@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.stream
 
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamOverrideRow
 import de.lambda9.ready2race.backend.app.stream.boundary.TRIAL_LOOP_EPOCH
 import de.lambda9.ready2race.backend.app.stream.boundary.nextTrialEvaluationAt
 import de.lambda9.ready2race.backend.app.stream.boundary.resolveScene
@@ -7,11 +8,14 @@ import de.lambda9.ready2race.backend.app.stream.boundary.trialInput
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSize
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
+import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.app.stream.entity.StreamPlacement
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -156,5 +160,76 @@ class StreamTrialDataTest {
         val secondLoop = trialInput(TRIAL_LOOP_EPOCH.plusSeconds(190), graphics)
 
         assertEquals(first.preparing, secondLoop.preparing, "Der synthetische Lauf muss über Schleifen hinweg gleich aussehen")
+    }
+
+    /**
+     * Ab hier: die Regie-Übersteuerung im Probemodus (siehe [StreamSceneLogic.buildInput] -
+     * `trialInput` bekommt jetzt die ECHTEN Overrides der Szene statt sie zu verschweigen, damit
+     * eine Regie Auto/An/Aus an der Demo-Schleife üben kann).
+     */
+
+    @Test
+    fun `FORCED_OFF im Probemodus blendet eine von der Schleife gezeigte Grafik aus`() {
+        val now = TRIAL_LOOP_EPOCH.plusSeconds(10) // Vorbereitungsphase - Startliste liefe automatisch.
+        val graphics = listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.STARTLIST,
+                state = StreamOverrideState.FORCED_OFF,
+                match = null,
+                expiresAt = null,
+                createdAt = now.minusSeconds(1),
+            ),
+        )
+
+        val resolved = resolveScene(trialInput(now, graphics, overrides))
+        val startlist = resolved.graphics.first { it.type == StreamGraphicType.STARTLIST }
+        assertFalse(startlist.visible, "FORCED_OFF muss auch im Probemodus greifen")
+        assertEquals(StreamOverrideState.FORCED_OFF, startlist.overrideState)
+    }
+
+    @Test
+    fun `FORCED_ON im Probemodus zeigt eine von der Schleife verdeckte Grafik mit Demo-Inhalt`() {
+        val now = TRIAL_LOOP_EPOCH.plusSeconds(10) // Vorbereitungsphase - die Uhr liefe noch nicht automatisch.
+        val graphics = listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.CLOCK,
+                state = StreamOverrideState.FORCED_ON,
+                match = null,
+                expiresAt = null,
+                createdAt = now.minusSeconds(1),
+            ),
+        )
+
+        val resolved = resolveScene(trialInput(now, graphics, overrides))
+        val clock = resolved.graphics.first { it.type == StreamGraphicType.CLOCK }
+        assertTrue(clock.visible, "FORCED_ON muss auch im Probemodus greifen")
+        assertEquals(StreamOverrideState.FORCED_ON, clock.overrideState)
+        assertTrue(clock.match != null, "FORCED_ON ohne Lauf-Bezug zeigt den aktuellen Demo-Inhalt")
+    }
+
+    @Test
+    fun `FORCED_ON mit unaufloesbarem Lauf-Bezug bleibt auch im Probemodus verdeckt`() {
+        // Der Vertrag gilt unverändert (siehe StreamSceneResolver.overrideContentUnresolved):
+        // ein Lauf, den es in der Demo-Schleife nicht gibt, darf nicht still auf den
+        // Automatik-Inhalt zurückfallen.
+        val now = TRIAL_LOOP_EPOCH.plusSeconds(10)
+        val graphics = listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER))
+        val overrides = listOf(
+            StreamOverrideRow(
+                graphicType = StreamGraphicType.STARTLIST,
+                state = StreamOverrideState.FORCED_ON,
+                match = UUID.randomUUID(),
+                expiresAt = null,
+                createdAt = now.minusSeconds(1),
+            ),
+        )
+
+        val resolved = resolveScene(trialInput(now, graphics, overrides))
+        val startlist = resolved.graphics.first { it.type == StreamGraphicType.STARTLIST }
+        assertFalse(startlist.visible, "Ein unauflösbarer Lauf-Bezug darf nicht auf Automatik-Inhalt zurückfallen")
+        assertEquals(StreamOverrideState.FORCED_ON, startlist.overrideState)
+        assertNull(startlist.match)
     }
 }
