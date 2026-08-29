@@ -22,6 +22,13 @@ describe('streamPlacement', () => {
             expect(STREAM_PLACEMENT_STYLE[placement].position).toBe('absolute')
         }
     })
+
+    it('verankert SIDE_LEFT/SIDE_RIGHT an einer festen Kopfkante statt vertikal zentriert, damit der wachsende Einlauf-Ticker nicht mit jeder neuen Zeile den ganzen Kasten verschiebt', () => {
+        for (const placement of ['SIDE_LEFT', 'SIDE_RIGHT'] as const) {
+            expect(STREAM_PLACEMENT_STYLE[placement].top).toBe('16%')
+            expect(STREAM_PLACEMENT_STYLE[placement].transform).toBeUndefined()
+        }
+    })
 })
 
 describe('STREAM_SLOT_STYLE', () => {

@@ -4,6 +4,14 @@ import {fitScale, steadyScale} from './fitScale.ts'
 
 interface FitToHeightProps {
     children: ReactNode
+    /**
+     * Weicher Übergang statt hartem Sprung, wenn sich der Maßstab ändert (z. B. wächst ein
+     * Ergebnis-Panel um eine Rückstand-Zeile). Bewusst standardmäßig AUS: Auf dem alten
+     * Chroma-Key-Overlay lief `FitToHeight` schon vor dieser Bühne (Task 9) unverändert und
+     * ruckfrei genug, eine ungefragte Transition dort wäre ein Verhaltenswechsel ohne Nutzen.
+     * Die neuen Stream-Grafiken schalten ihn gezielt ein.
+     */
+    smooth?: boolean
 }
 
 /**
@@ -25,7 +33,7 @@ interface FitToHeightProps {
  * Chroma-Regel bleibt gewahrt: skaliert wird per `transform`, es entsteht keine
  * Halbtransparenz, die sich mit der Key-Farbe mischen könnte.
  */
-const FitToHeight = ({children}: FitToHeightProps) => {
+const FitToHeight = ({children, smooth = false}: FitToHeightProps) => {
     const outerRef = useRef<HTMLDivElement>(null)
     const innerRef = useRef<HTMLDivElement>(null)
     const [scale, setScale] = useState(1)
@@ -63,6 +71,7 @@ const FitToHeight = ({children}: FitToHeightProps) => {
                     transformOrigin: 'top left',
                     transform: scale < 1 ? `scale(${scale})` : undefined,
                     width: scale < 1 ? `${100 / scale}%` : 1,
+                    ...(smooth && {transition: 'transform 300ms ease'}),
                 }}>
                 {children}
             </Box>

@@ -171,7 +171,7 @@ function FlipList<T>({
                 return (
                     <div
                         key={key}
-                        style={itemStyle}
+                        style={{willChange: 'transform', ...itemStyle}}
                         ref={node => {
                             if (node) nodes.current.set(key, node)
                             else nodes.current.delete(key)

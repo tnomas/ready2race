@@ -41,7 +41,6 @@ const StreamSchedule = ({schedule, size}: StreamScheduleProps) => {
                 borderRadius: 3,
                 boxShadow: '0 24px 56px rgba(0, 0, 0, 0.5)',
                 backgroundColor: alpha(theme.palette.common.black, 0.72),
-                backdropFilter: 'blur(6px)',
                 color: theme.palette.common.white,
                 display: 'flex',
                 flexDirection: 'column',
@@ -68,7 +67,7 @@ const StreamSchedule = ({schedule, size}: StreamScheduleProps) => {
                 </Typography>
                 {/* Keine Bildlaufleiste auf einer TV-Grafik — passt die Liste nicht in die
                     Kartenhöhe, verkleinert FitToHeight sie, statt die letzte Zeile abzuschneiden. */}
-                <FitToHeight>
+                <FitToHeight smooth>
                     <Stack sx={{gap: compact ? 1 : 1.5}}>
                         <FlipList
                             items={rows}

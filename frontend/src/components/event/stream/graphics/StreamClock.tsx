@@ -124,7 +124,6 @@ const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamCloc
                 overflow: 'hidden',
                 boxShadow: '0 20px 48px rgba(0, 0, 0, 0.5)',
                 backgroundColor: alpha(theme.palette.common.black, 0.74),
-                backdropFilter: 'blur(6px)',
                 color: theme.palette.common.white,
             }}>
             <Box

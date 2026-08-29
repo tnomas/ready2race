@@ -57,7 +57,7 @@ const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) 
             }>
             {/* Keine Bildlaufleiste auf einer Bandgrafik — passt das Feld nicht in die
                 Bandhöhe, verkleinert FitToHeight es, statt die letzte Zeile abzuschneiden. */}
-            <FitToHeight>
+            <FitToHeight smooth>
                 <Stack sx={{gap: 1.5}}>
                     <FlipList
                         items={teams}

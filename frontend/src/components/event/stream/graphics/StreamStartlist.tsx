@@ -33,7 +33,7 @@ const StreamStartlist = ({match, size}: StreamStartlistProps) => {
             roundLine={roundMatchLabel(match.roundName, match.matchName)}>
             {/* Keine Bildlaufleiste auf einer Bandgrafik — passt das Feld nicht in die
                 Bandhöhe, verkleinert FitToHeight es, statt die letzte Zeile abzuschneiden. */}
-            <FitToHeight>
+            <FitToHeight smooth>
                 <Stack sx={{gap: 1.5}}>
                     <FlipList
                         items={teams}

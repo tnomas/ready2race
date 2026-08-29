@@ -38,7 +38,6 @@ const StreamNextUp = ({match, size}: StreamNextUpProps) => {
                 borderRadius: 999,
                 boxShadow: '0 12px 32px rgba(0, 0, 0, 0.45)',
                 backgroundColor: alpha(theme.palette.common.black, 0.74),
-                backdropFilter: 'blur(6px)',
                 color: theme.palette.common.white,
             }}>
             <Box

@@ -17,8 +17,15 @@ export const STREAM_PLACEMENT_STYLE: Record<StreamPlacement, CSSProperties> = {
     BOTTOM_RIGHT: {position: 'absolute', right: 0, bottom: 0},
     TOP_LEFT: {position: 'absolute', left: 0, top: 0},
     TOP_RIGHT: {position: 'absolute', right: 0, top: 0},
-    SIDE_LEFT: {position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)'},
-    SIDE_RIGHT: {position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)'},
+    // Feste Kopfkante statt vertikaler Zentrierung: SIDE_LEFT/SIDE_RIGHT tragen den
+    // Einlauf-Ticker, der mit jedem Zieleinlauf nach unten WÄCHST (siehe
+    // `StreamFinishTicker`). Eine mittige Verankerung (`top: '50%'` + `translateY(-50%)`)
+    // ließe den ganzen Kasten bei jeder neuen Zeile ein Stück nach oben rutschen, obwohl die
+    // Zeilen selbst schon sauber per FLIP gleiten (`FlipList`) — Rahmen und Inhalt laufen
+    // dann sichtbar auseinander. Mit einer festen oberen Kante bleibt der Kopf der Liste
+    // stehen, nur das Fußende wandert.
+    SIDE_LEFT: {position: 'absolute', left: 0, top: '16%'},
+    SIDE_RIGHT: {position: 'absolute', right: 0, top: '16%'},
     FULL_CENTER: {
         position: 'absolute',
         inset: 0,

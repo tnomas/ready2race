@@ -42,6 +42,14 @@ const SLIDE_OFFSET_PX = 24
  * sichtbar werden, solange die Bühne frisch ist (`useStreamStale`, von `StreamScenePage`
  * gesetzt) — sonst wäre das eine Einblendung, die der Server nie bestätigt hat. Eine bereits
  * laufende Einblendung bleibt davon unberührt.
+ *
+ * Kein `backdropFilter` auf den Grafiken selbst (siehe die einzelnen Kacheln): Die Bühne ist
+ * eine transparente Fläche, hinter den Kästen liegt nichts, was sich verwischen ließe — das
+ * Kamerabild liegt außerhalb des Dokuments, erst im Mischer. Der Filter bewirkt also nichts,
+ * zwingt den Browser aber, ihn bei jedem Animationsbild dieser Ein-/Ausblendung neu zu
+ * berechnen, was hier genau die ruckelige Bewegung verursacht hat, die diese Hülle eigentlich
+ * glätten soll. `willChange` gibt dem Browser stattdessen vorab einen echten Compositing-Hinweis
+ * für die tatsächlich animierten Eigenschaften.
  */
 const GraphicFrame = ({visible, children}: GraphicFrameProps) => {
     const stale = useStreamStale()
@@ -101,6 +109,7 @@ const GraphicFrame = ({visible, children}: GraphicFrameProps) => {
                 transition: `opacity ${GRAPHIC_TRANSITION_MS}ms ease, transform ${GRAPHIC_TRANSITION_MS}ms ease`,
                 opacity: settled ? 1 : 0,
                 transform: settled ? 'translateY(0)' : `translateY(${SLIDE_OFFSET_PX}px)`,
+                willChange: 'transform, opacity',
             }}>
             {children}
         </Box>
