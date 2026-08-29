@@ -24,5 +24,11 @@ prüfbar:
    Zwischenzeiten-Band, Einlauf-Ticker, „Vorläufig" bei Klärung, Folgelauf-Band).
 
 Bekannte, bewusst offene Punkte (Folge-Tickets, siehe Ledger/Abschlussbericht):
-Streckenbild-Auslieferung für Token-Szenen; Probemodus ignoriert Regie-Overrides;
-Picker zeigt übersprungene Läufe.
+Streckenbild-Auslieferung für Token-Szenen; Picker zeigt übersprungene Läufe.
+
+Am 29.08.2026 nach einem Durchgang am laufenden System behoben (jeweils am Server
+nachgemessen, nicht nur im Test): Regie-Eingriffe greifen jetzt auch im Probemodus;
+der Vor-Start-Countdown zählt auf den Startschuss herunter statt vom Sequenzstart
+wegzulaufen (Bezug ist `leadInMillis` der Sequenz, Anzeige klemmt bei 0:00);
+Einlauf-Ticker hängt an fester Oberkante statt zentriert zu wachsen; wirkungsloser
+`backdrop-filter` entfernt und Compositing-Hinweise ergänzt.
