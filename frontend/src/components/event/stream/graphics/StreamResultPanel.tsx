@@ -21,6 +21,12 @@ interface StreamResultPanelProps {
  * bereits formatierten Ergebniszeiten gerechnet (`winnerGap`) — der Server liefert dem
  * Endergebnis keine rohen Millisekunden wie den Zwischenzeiten; lässt sich eine Zeile nicht
  * parsen, bleibt die Stelle leer statt eine Zahl zu erfinden.
+ *
+ * Die Rückstand-Zeile bekommt JEDE Zeile reserviert, auch die des Siegers ohne eigenen
+ * Rückstand — sonst hätten nur die Zeilen dahinter eine zweite Zeile und die Vereinsnamen
+ * säßen zeilenweise unterschiedlich hoch. Der Sieger bekommt trotzdem nie eine erfundene
+ * „+0,00" zu sehen: seine Zeile bleibt per `visibility: hidden` leer, nimmt aber denselben
+ * Platz ein wie die Rückstände der übrigen Boote.
  */
 const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) => {
     const {t} = useTranslation()
@@ -75,14 +81,17 @@ const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) 
                                         size={size === 'COMPACT' ? 'compact' : 'large'}
                                         showLaps={false}
                                     />
-                                    {gap && (
-                                        <Typography
-                                            variant="body2"
-                                            align="right"
-                                            sx={{opacity: 0.8, fontVariantNumeric: 'tabular-nums'}}>
-                                            {gap}
-                                        </Typography>
-                                    )}
+                                    <Typography
+                                        variant="body2"
+                                        align="right"
+                                        aria-hidden={gap ? undefined : true}
+                                        sx={{
+                                            opacity: 0.8,
+                                            fontVariantNumeric: 'tabular-nums',
+                                            visibility: gap ? 'visible' : 'hidden',
+                                        }}>
+                                        {gap ?? ' '}
+                                    </Typography>
                                 </Box>
                             )
                         }}
