@@ -194,6 +194,11 @@ model StreamGraphicViewDto {
 
   // CLOCK: countdown anchor of the running start sequence.
   sequenceStartedAt?: dateTime;
+
+  // CLOCK: instant the start signal falls (sequence anchor plus its configured lead-in) - absent
+  // unless a start sequence is currently running. The countdown counts down TO this, as opposed
+  // to sequenceStartedAt, which it used to (wrongly) count up FROM.
+  sequenceFiresAt?: dateTime;
 }
 
 // The resolved scene state a stage renders - see the class doc above for the websocket channel

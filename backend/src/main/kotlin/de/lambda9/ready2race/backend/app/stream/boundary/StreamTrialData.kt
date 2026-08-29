@@ -213,6 +213,7 @@ private fun emptyInput(
     preparingSince = null,
     running = null,
     sequenceStartedAt = null,
+    sequenceFiresAt = null,
     latestResult = null,
     latestResultAt = null,
     latestResultProvisional = false,
@@ -257,6 +258,9 @@ fun trialInput(
             preparing = trialMatch(state = MatchState.PREPARING, teams = trialTeams(raceStart, 0)),
             preparingSince = loopStart,
             sequenceStartedAt = loopStart.plusSeconds(PREPARING_END),
+            // Die Demo-Schleife feuert den Start immer bei Sekunde 60 (= raceStart) - derselbe
+            // Zeitpunkt, an dem die Rennphase unten beginnt und `actualStartTime` stempelt.
+            sequenceFiresAt = raceStart,
         )
 
         secondsIntoLoop < RUNNING_END -> {

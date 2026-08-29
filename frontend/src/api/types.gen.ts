@@ -4213,6 +4213,10 @@ export type StreamGraphicViewDto = {
      * CLOCK: countdown anchor of the running start sequence.
      */
     sequenceStartedAt?: string | null
+    /**
+     * CLOCK: instant the start signal falls (sequence anchor plus its configured lead-in) - null unless a start sequence is currently running. This is what the countdown counts down TO, as opposed to sequenceStartedAt, which it counts up FROM.
+     */
+    sequenceFiresAt?: string | null
 }
 
 /**

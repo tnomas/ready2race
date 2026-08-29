@@ -93,6 +93,7 @@ class StreamSceneResolverTest {
         preparingSince: LocalDateTime? = null,
         running: AthleteBoardMatch? = null,
         sequenceStartedAt: LocalDateTime? = null,
+        sequenceFiresAt: LocalDateTime? = null,
         latestResult: AthleteBoardResult? = null,
         latestResultAt: LocalDateTime? = null,
         latestResultProvisional: Boolean = false,
@@ -109,6 +110,7 @@ class StreamSceneResolverTest {
         preparingSince = preparingSince,
         running = running,
         sequenceStartedAt = sequenceStartedAt,
+        sequenceFiresAt = sequenceFiresAt,
         latestResult = latestResult,
         latestResultAt = latestResultAt,
         latestResultProvisional = latestResultProvisional,
@@ -163,13 +165,15 @@ class StreamSceneResolverTest {
     @Test
     fun `clock zaehlt ab Sequenzstart (sichtbar, sequenceStartedAt gesetzt)`() {
         val graphics = listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT))
+        val firesAt = t0.plusSeconds(30)
 
         val resolved = resolveScene(
-            baseInput(now = t0, graphics = graphics, sequenceStartedAt = t0)
+            baseInput(now = t0, graphics = graphics, sequenceStartedAt = t0, sequenceFiresAt = firesAt)
         )
         val clock = resolved.graphic(StreamGraphicType.CLOCK)
         assertTrue(clock.visible, "Uhr muss ab Sequenzstart sichtbar sein")
         assertEquals(t0, clock.sequenceStartedAt, "Sequenzstart muss durchgereicht werden")
+        assertEquals(firesAt, clock.sequenceFiresAt, "Feuerzeitpunkt muss durchgereicht werden")
     }
 
     @Test

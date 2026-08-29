@@ -46,6 +46,12 @@ data class StreamGraphicViewDto(
     val imageUrl: String? = null,
     /** CLOCK: Countdown ab Sequenzstart. */
     val sequenceStartedAt: LocalDateTime? = null,
+    /**
+     * CLOCK: der Zeitpunkt, an dem der Start tatsächlich fällt (Sequenzanker plus konfigurierten
+     * Vorlauf) — null, solange keine Sequenz läuft. Dahin zählt der Countdown HERUNTER, anders
+     * als [sequenceStartedAt], von dem aus er (falsch) HOCHzählte.
+     */
+    val sequenceFiresAt: LocalDateTime? = null,
 )
 
 /** Ein Einlauf auf dem FINISH_TICKER-Band, in der Reihenfolge der Zieldurchfahrt. */

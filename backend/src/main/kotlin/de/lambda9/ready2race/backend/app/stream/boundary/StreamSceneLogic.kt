@@ -212,7 +212,7 @@ object StreamSceneLogic {
                 ).map { response -> response.data.firstOrNull() }
             }).filterNotNull().associate { it.matchId to it.toAthleteBoardResult(includeDetails = true) }
 
-            val sequenceStart = !sequenceStartedAt(eventId)
+            val timing = !sequenceTiming(eventId)
 
             KIO.ok(
                 StreamResolverInput(
@@ -222,7 +222,8 @@ object StreamSceneLogic {
                     preparing = preparing,
                     preparingSince = preparingSince,
                     running = running,
-                    sequenceStartedAt = sequenceStart,
+                    sequenceStartedAt = timing.startedAt,
+                    sequenceFiresAt = timing.firesAt,
                     latestResult = latestResultInfo?.toAthleteBoardResult(includeDetails = true),
                     latestResultAt = latestResultInfo?.updatedAt,
                     latestResultProvisional = latestResultInfo?.clarification == true,
@@ -319,8 +320,11 @@ object StreamSceneLogic {
                 )
             }
 
+    /** [sequenceTiming]: Anker und Feuerzeitpunkt der laufenden Startsequenz, oder beide null. */
+    private data class SequenceTiming(val startedAt: LocalDateTime?, val firesAt: LocalDateTime?)
+
     /**
-     * Der Startzeitpunkt der laufenden Startsequenz, oder null.
+     * Anker und Feuerzeitpunkt der laufenden Startsequenz, oder beide null.
      *
      * Die Szene hängt nicht an einem bestimmten Posten: sie zeigt, wie eine unverknüpfte Anzeige,
      * die zuletzt angefasste aktive Sequenz der Veranstaltung
@@ -335,11 +339,24 @@ object StreamSceneLogic {
      * verbucht) - der Countdown läuft dann sichtbar weiter, obwohl niemand startet. Das ist
      * bewusst in Kauf genommen: die Alternative wäre, die Sequenz während der Pause zu
      * verschweigen, und dann käme die Startliste zurück auf die Bühne.
+     *
+     * [SequenceTiming.firesAt] ist derselbe Anker PLUS `lead_in_millis` — die von der Zeitnahme
+     * konfigurierte Vorlaufdauer, nach der der Start tatsächlich fällt (siehe
+     * `TimingSequenceService.createSequence`, wo das Feld exakt so benannt und dokumentiert ist).
+     * Erst damit kann die Bühne HERUNTERzählen statt nur die seit dem Anker verstrichene Zeit mit
+     * einem Minus davor hochzuzählen.
      */
-    private fun sequenceStartedAt(eventId: UUID): App<Nothing, LocalDateTime?> =
+    private fun sequenceTiming(eventId: UUID): App<Nothing, SequenceTiming> =
         TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie().map { record ->
-            record?.startedAtMillis?.let {
-                TimingMatchStampLogic.stampFor(it + (record.pauseShiftMillis ?: 0L))
+            val startedAtMillis = record?.startedAtMillis
+            if (startedAtMillis == null) {
+                SequenceTiming(startedAt = null, firesAt = null)
+            } else {
+                val anchorMillis = startedAtMillis + (record.pauseShiftMillis ?: 0L)
+                SequenceTiming(
+                    startedAt = TimingMatchStampLogic.stampFor(anchorMillis),
+                    firesAt = TimingMatchStampLogic.stampFor(anchorMillis + (record.leadInMillis ?: 0L)),
+                )
             }
         }
 

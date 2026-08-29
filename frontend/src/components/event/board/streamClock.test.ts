@@ -80,39 +80,87 @@ describe('formatElapsed', () => {
 })
 
 // Neu für die Stream-Bandgrafik CLOCK (Task 11): additive Erweiterung von `streamClockState`
-// um einen optionalen vierten Parameter `sequenceStartedAt` — alle Aufrufe oben mit genau
-// drei Argumenten bleiben dadurch unverändert (`sequenceStartedAt` ist `undefined`, exakt wie
-// bisher `match.actualStartTime == null` ohne weitere Fallunterscheidung).
-describe('streamClockState mit Sequenzstart (Countdown)', () => {
-    it('zählt im Countdown ab Sequenzstart, mit Versatz-Korrektur (Sequenzstart vor now)', () => {
+// um zwei optionale Parameter `sequenceStartedAt`/`sequenceFiresAt` — alle Aufrufe oben mit
+// genau drei Argumenten bleiben dadurch unverändert (beide sind `undefined`, exakt wie bisher
+// `match.actualStartTime == null` ohne weitere Fallunterscheidung).
+//
+// Frühere Fassung dieses Blocks testete noch das Hochzählen ab `sequenceStartedAt` mit Minus
+// davor — genau der Fehler, den der Nutzer als "Zeit läuft rückwärts" gemeldet hat. Jetzt zählt
+// die Funktion auf `sequenceFiresAt` (Sequenzanker + `leadInMillis`) HERUNTER.
+describe('streamClockState mit Sequenzstart (Countdown auf den Feuerzeitpunkt)', () => {
+    it('zählt auf den Feuerzeitpunkt herunter, mit Versatz-Korrektur (Feuerzeitpunkt in der Zukunft)', () => {
         const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
+        const firesAt = new Date('2026-08-13T10:00:30.000Z') // 30 s Vorlauf
         const match = matchWith({actualStartTime: null, teams: []})
-        // Client-Uhr 2:41 (161 s) nach Sequenzstart plus 2 s Client-Server-Versatz.
-        const clientNowMs = sequenceStart.getTime() + 161_000 + 2000
+        // Client-Uhr 19 s nach Sequenzstart (also 11 s vor dem Feuerzeitpunkt) plus 2 s
+        // Client-Server-Versatz.
+        const clientNowMs = sequenceStart.getTime() + 19_000 + 2000
         const clockOffsetMs = 2000
-        const state = streamClockState(match, clientNowMs, clockOffsetMs, sequenceStart.toISOString())
-        expect(state).toEqual({phase: 'countdown', elapsedMs: 161_000})
+        const state = streamClockState(
+            match,
+            clientNowMs,
+            clockOffsetMs,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 11_000})
     })
 
-    it('klemmt auf 0, wenn der Sequenzstart laut Serverzeit noch in der Zukunft liegt (Sequenzstart nach now)', () => {
+    it('zeigt genau 0, wenn der Feuerzeitpunkt laut Serverzeit exakt erreicht ist', () => {
+        const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
+        const firesAt = new Date('2026-08-13T10:00:30.000Z')
+        const match = matchWith({actualStartTime: null, teams: []})
+        const state = streamClockState(
+            match,
+            firesAt.getTime(),
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 0})
+    })
+
+    it('klemmt auf 0, statt in positive Zahlen zu laufen, wenn der Feuerzeitpunkt bereits verstrichen ist (Überzug, z. B. durch eine Pause)', () => {
+        const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
+        const firesAt = new Date('2026-08-13T10:00:30.000Z')
+        const match = matchWith({actualStartTime: null, teams: []})
+        // 10 s NACH dem Feuerzeitpunkt, aber immer noch kein gestempelter Start (Pause/Verzug).
+        const clientNowMs = firesAt.getTime() + 10_000
+        const state = streamClockState(
+            match,
+            clientNowMs,
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 0})
+    })
+
+    it('bleibt hidden ohne Feuerzeitpunkt, auch wenn eine Sequenz läuft — keine Notlösung mit vertauschtem Vorzeichen', () => {
         const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
         const match = matchWith({actualStartTime: null, teams: []})
-        const clientNowMs = sequenceStart.getTime() - 5000
-        const state = streamClockState(match, clientNowMs, 0, sequenceStart.toISOString())
-        expect(state).toEqual({phase: 'countdown', elapsedMs: 0})
+        const state = streamClockState(match, Date.now(), 0, sequenceStart.toISOString(), null)
+        expect(state).toEqual({phase: 'hidden'})
     })
 
     it('bleibt hidden ohne actualStartTime, wenn auch kein Sequenzstart vorliegt', () => {
         const match = matchWith({actualStartTime: null, teams: []})
-        expect(streamClockState(match, Date.now(), 0, null)).toEqual({phase: 'hidden'})
+        expect(streamClockState(match, Date.now(), 0, null, null)).toEqual({phase: 'hidden'})
     })
 
-    it('wechselt bei gestempeltem Start auf running, auch wenn sequenceStartedAt noch mitgeschickt wird', () => {
+    it('wechselt bei gestempeltem Start auf running, auch wenn Sequenzstart und Feuerzeitpunkt noch mitgeschickt werden', () => {
         const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
+        const firesAt = new Date('2026-08-13T10:00:30.000Z')
         const actualStart = new Date('2026-08-13T10:02:00.000Z')
         const match = matchWith({actualStartTime: actualStart.toISOString(), teams: [team({})]})
         const clientNowMs = actualStart.getTime() + 5000
-        const state = streamClockState(match, clientNowMs, 0, sequenceStart.toISOString())
+        const state = streamClockState(
+            match,
+            clientNowMs,
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+        )
         expect(state).toEqual({phase: 'running', elapsedMs: 5000})
     })
 })

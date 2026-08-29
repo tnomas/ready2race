@@ -63,6 +63,21 @@ class StreamTrialDataTest {
     }
 
     @Test
+    fun `Startsequenz kuendigt den Feuerzeitpunkt an - die Schleife startet bei Sekunde 60`() {
+        // Bühne muss HERUNTERzählen können, nicht nur wissen, wann die Sequenz begann.
+        val now = TRIAL_LOOP_EPOCH.plusSeconds(45)
+        val graphics = listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT))
+
+        val resolved = resolveScene(trialInput(now, graphics))
+        val clock = resolved.graphics.first { it.type == StreamGraphicType.CLOCK }
+        assertEquals(
+            TRIAL_LOOP_EPOCH.plusSeconds(60),
+            clock.sequenceFiresAt,
+            "Feuerzeitpunkt der Demo-Schleife muss Sekunde 60 sein (Rennstart)",
+        )
+    }
+
+    @Test
     fun `Rennphase zeigt Zwischenzeiten alle 20s`() {
         // 25s ins Rennen (Rennstart bei Sekunde 60 der Schleife) - eine Zwischenzeit (bei +20s) ist gefallen.
         val now = TRIAL_LOOP_EPOCH.plusSeconds(85)

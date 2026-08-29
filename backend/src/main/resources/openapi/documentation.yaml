@@ -22905,6 +22905,14 @@ components:
           format: date-time
           nullable: true
           description: "CLOCK: countdown anchor of the running start sequence."
+        sequenceFiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            CLOCK: instant the start signal falls (sequence anchor plus its configured lead-in) -
+            null unless a start sequence is currently running. This is what the countdown counts
+            down TO, as opposed to sequenceStartedAt, which it counts up FROM.
 
     StreamSceneViewDto:
       type: object

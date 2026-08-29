@@ -41,6 +41,8 @@ data class StreamResolverInput(
     val running: AthleteBoardMatch?,
     /** Laufende Startsequenz, sonst null. */
     val sequenceStartedAt: LocalDateTime?,
+    /** Zeitpunkt, an dem der Start dieser Sequenz fällt (Anker + Vorlauf), sonst null. */
+    val sequenceFiresAt: LocalDateTime?,
     val latestResult: AthleteBoardResult?,
     /** Zeitpunkt der Wertung (für den RESULT-Auto-Out). */
     val latestResultAt: LocalDateTime?,
@@ -283,6 +285,7 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
         val schedule = if (row.type == StreamGraphicType.SCHEDULE) input.schedule else null
         val imageUrl = if (row.type == StreamGraphicType.COURSE_IMAGE) input.courseImageUrl else null
         val sequenceStartedAt = if (row.type == StreamGraphicType.CLOCK) input.sequenceStartedAt else null
+        val sequenceFiresAt = if (row.type == StreamGraphicType.CLOCK) input.sequenceFiresAt else null
 
         StreamGraphicViewDto(
             type = row.type,
@@ -299,6 +302,7 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
             schedule = schedule,
             imageUrl = imageUrl,
             sequenceStartedAt = sequenceStartedAt,
+            sequenceFiresAt = sequenceFiresAt,
         )
     }
 

@@ -50,6 +50,7 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
                 <StreamClock
                     match={graphic.match}
                     sequenceStartedAt={graphic.sequenceStartedAt}
+                    sequenceFiresAt={graphic.sequenceFiresAt}
                     clockOffsetMs={clockOffsetMs}
                     size={graphic.size}
                 />

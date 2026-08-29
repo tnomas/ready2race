@@ -2,13 +2,17 @@ import {AthleteBoardMatch} from '@api/types.gen.ts'
 
 /**
  * Zustand der Laufuhr im Stream-Overlay. `hidden` ohne laufenden Lauf oder ohne
- * gestempelten Start, `countdown` zählt seit dem Sequenzstart (noch kein gestempelter
- * Start — siehe `sequenceStartedAt`-Parameter unten), `running` tickt, `frozen` steht
- * auf dem letzten berechneten Wert.
+ * gestempelten Start, `countdown` zählt auf den Feuerzeitpunkt der Startsequenz HERUNTER
+ * (noch kein gestempelter Start — siehe `sequenceFiresAt`-Parameter unten), `running`
+ * tickt, `frozen` steht auf dem letzten berechneten Wert.
+ *
+ * `countdown` trägt `remainingMs`, nicht `elapsedMs` wie die beiden anderen laufenden
+ * Phasen — es ist die Zeit BIS zu einem Zeitpunkt, keine Zeit SEIT einem Zeitpunkt, ein
+ * eigener Feldname beugt der Verwechslung vor, die genau diesen Fehler erst verursacht hat.
  */
 export type StreamClockState =
     | {phase: 'hidden'}
-    | {phase: 'countdown'; elapsedMs: number}
+    | {phase: 'countdown'; remainingMs: number}
     | {phase: 'running'; elapsedMs: number}
     | {phase: 'frozen'; elapsedMs: number}
 
@@ -24,35 +28,42 @@ export type StreamClockState =
  * fortschreitendem clientNowMs erneut aufzurufen — sonst würde der "eingefrorene" Wert
  * bei jedem weiteren Aufruf weiterlaufen.
  *
- * `sequenceStartedAt` (optional, additive Ergänzung für die neue Stream-Bandgrafik
- * CLOCK — die Board-Kachel ruft weiterhin mit genau drei Argumenten auf und verhält
- * sich dadurch unverändert): Ist noch kein Start gestempelt, aber eine laufende
- * Startsequenz bekannt, liefert die Funktion `countdown` mit der seit Sequenzstart
- * vergangenen Zeit (auf 0 geklemmt, falls der Sequenzstart laut server-korrigierter
- * Uhr noch in der Zukunft läge — Uhrenversatz/Rundungsrand). Diese Zeit wird NEGATIV
- * dargestellt (siehe `formatCountdown`): sie zählt nicht auf einen bekannten
- * Startzeitpunkt herunter (der steht ja noch nicht fest), sondern zeigt „so lange
- * warten wir schon" als Vorzeichen der Vor-Start-Phase. Ein gestempelter Start hat
- * IMMER Vorrang vor `sequenceStartedAt`.
+ * `sequenceStartedAt`/`sequenceFiresAt` (optional, additive Ergänzung für die neue
+ * Stream-Bandgrafik CLOCK — die Board-Kachel ruft weiterhin mit genau drei Argumenten
+ * auf und verhält sich dadurch unverändert): Ist noch kein Start gestempelt, aber eine
+ * laufende Startsequenz bekannt, liefert die Funktion `countdown` mit der bis zum
+ * FEUERZEITPUNKT der Sequenz verbleibenden Zeit (auf 0 geklemmt, sowohl falls der
+ * Feuerzeitpunkt laut server-korrigierter Uhr noch nicht erreicht… als auch falls er
+ * bereits VERSTRICHEN ist — eine pausierte oder verzögerte Sequenz darf hier nie in
+ * positive Zahlen laufen, das würde eine tickende Uhr für einen Lauf zeigen, der noch
+ * gar nicht gestartet ist). Ein gestempelter Start (`actualStartTime`) hat IMMER
+ * Vorrang und schaltet unabhängig von beiden Sequenz-Feldern auf `running`/`frozen`.
+ *
+ * Eine frühere Fassung zeigte hier ersatzweise die seit `sequenceStartedAt` verstrichene
+ * Zeit mit einem Minus davor — das zählte sichtbar in die FALSCHE Richtung (weiter weg
+ * von 0 statt darauf zu). Fehlt der Feuerzeitpunkt (`sequenceFiresAt`), während eine
+ * Sequenz läuft, zeigt die Bühne jetzt lieber GAR KEINE Uhr als eine mit vertauschtem
+ * Vorzeichen.
  */
 export const streamClockState = (
     match: AthleteBoardMatch | null,
     clientNowMs: number,
     clockOffsetMs: number,
     sequenceStartedAt?: string | null,
+    sequenceFiresAt?: string | null,
 ): StreamClockState => {
     if (match === null) {
         return {phase: 'hidden'}
     }
 
     if (match.actualStartTime == null) {
-        if (sequenceStartedAt == null) {
+        if (sequenceStartedAt == null || sequenceFiresAt == null) {
             return {phase: 'hidden'}
         }
-        const sequenceStartMs = new Date(sequenceStartedAt).getTime()
+        const fireMs = new Date(sequenceFiresAt).getTime()
         const serverNowMs = clientNowMs - clockOffsetMs
-        const elapsedMs = Math.max(0, serverNowMs - sequenceStartMs)
-        return {phase: 'countdown', elapsedMs}
+        const remainingMs = Math.max(0, fireMs - serverNowMs)
+        return {phase: 'countdown', remainingMs}
     }
 
     const startMs = new Date(match.actualStartTime).getTime()
@@ -87,11 +98,11 @@ export const formatElapsed = (elapsedMs: number): string => {
  * Minuszeichen U+2212, kein Bindestrich — Typografie der Uhr). Keine Zehntel, anders
  * als `formatElapsed`: Die Sekunde reicht für eine Wartezeit vor dem Start, und ein
  * 100-ms-Ticken vor dem Komma suggerierte eine Präzision, die der einzige Anker
- * (`sequenceStartedAt`) nicht hat. Bei 0 (oder geklemmt negativ) OHNE Vorzeichen — der
- * Moment des Sequenzstarts selbst ist kein „davor" mehr.
+ * (`sequenceFiresAt`) nicht hat. Bei 0 (oder geklemmt negativ) OHNE Vorzeichen — der
+ * Moment des Starts selbst ist kein „davor" mehr.
  */
-export const formatCountdown = (elapsedMs: number): string => {
-    const clamped = Math.max(0, elapsedMs)
+export const formatCountdown = (remainingMs: number): string => {
+    const clamped = Math.max(0, remainingMs)
     if (clamped === 0) return '0:00'
     const totalSeconds = Math.floor(clamped / 1000)
     const seconds = totalSeconds % 60

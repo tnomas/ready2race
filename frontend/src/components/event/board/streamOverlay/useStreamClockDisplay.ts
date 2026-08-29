@@ -147,7 +147,11 @@ const useStreamClockDisplay = (match: AthleteBoardMatch, clockOffsetMs: number):
     }, [visible, mounted])
 
     if (!mounted) return {mounted: false, visible: false, text: null}
-    const liveElapsedMs = liveState && liveState.phase !== 'hidden' ? liveState.elapsedMs : null
+    // `hasStart` schließt die Board-Kachel oben schon von `countdown` aus (sie ruft
+    // `streamClockState` ohne Sequenz-Parameter auf, siehe KDoc dort) - diese Prüfung ist
+    // deshalb reine Typ-Enge für den Compiler, kein Verhaltensunterschied zur früheren Fassung.
+    const liveElapsedMs =
+        liveState && (liveState.phase === 'running' || liveState.phase === 'frozen') ? liveState.elapsedMs : null
     const elapsedMs = frozenElapsedMs ?? liveElapsedMs ?? 0
     return {mounted: true, visible, text: formatElapsed(elapsedMs)}
 }

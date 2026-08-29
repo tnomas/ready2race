@@ -5,14 +5,18 @@ import {formatCountdown, formatElapsed, streamClockState} from '../../board/stre
 
 interface StreamClockProps {
     match: AthleteBoardMatch
-    /** Countdown-Anker der laufenden Startsequenz — null/fehlend, solange keine läuft. */
+    /** Anker der laufenden Startsequenz — null/fehlend, solange keine läuft. */
     sequenceStartedAt?: string | null
+    /** Zeitpunkt, an dem der Start tatsächlich fällt (Anker + Vorlauf) — dahin zählt der
+     *  Countdown herunter. Ohne ihn zeigt die Uhr während der Sequenz lieber nichts, siehe
+     *  `streamClockState`-KDoc. */
+    sequenceFiresAt?: string | null
     clockOffsetMs: number
     size: StreamGraphicSize
 }
 
 /**
- * CLOCK-Bandgrafik: zählt bereits während der Startsequenz negativ ab `sequenceStartedAt`
+ * CLOCK-Bandgrafik: zählt bereits während der Startsequenz auf `sequenceFiresAt` HERUNTER
  * und wechselt beim gestempelten Start (`match.actualStartTime`) nahtlos auf die positive
  * Laufzeit — dieselbe reine Zustandsfunktion `streamClockState` wie die Board-Kachel
  * (`board/streamOverlay/ClockPlate.tsx`), nur additiv um den Countdown-Fall erweitert
@@ -46,7 +50,7 @@ interface StreamClockProps {
  * festgehalten und danach nicht mehr aus der Funktion übernommen, bis ein neuer Lauf
  * (neue `matchId`) den Ref zurücksetzt.
  */
-const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamClockProps) => {
+const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, size}: StreamClockProps) => {
     const theme = useTheme()
     const compact = size === 'COMPACT'
     const [text, setText] = useState<string | null>(null)
@@ -57,6 +61,8 @@ const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamCloc
     matchRef.current = match
     const sequenceStartedAtRef = useRef(sequenceStartedAt)
     sequenceStartedAtRef.current = sequenceStartedAt
+    const sequenceFiresAtRef = useRef(sequenceFiresAt)
+    sequenceFiresAtRef.current = sequenceFiresAt
     const clockOffsetRef = useRef(clockOffsetMs)
     clockOffsetRef.current = clockOffsetMs
 
@@ -78,12 +84,13 @@ const StreamClock = ({match, sequenceStartedAt, clockOffsetMs, size}: StreamCloc
                 Date.now(),
                 clockOffsetRef.current,
                 sequenceStartedAtRef.current,
+                sequenceFiresAtRef.current,
             )
 
             let next: string | null
             switch (state.phase) {
                 case 'countdown':
-                    next = formatCountdown(state.elapsedMs)
+                    next = formatCountdown(state.remainingMs)
                     break
                 case 'running':
                     next = formatElapsed(state.elapsedMs)
