@@ -124,8 +124,20 @@ const useStreamClockDisplay = (match: AthleteBoardMatch, clockOffsetMs: number):
     // dem "gerade erst versteckt"-Zustand von effect oben sofort wieder sichtbar machen.
     useEffect(() => {
         if (!mounted || !hasStart) return
-        const id = requestAnimationFrame(() => setVisible(true))
-        return () => cancelAnimationFrame(id)
+        // In einem verdeckten Dokument (OBS/CEF-Quelle) sofort sichtbar schalten: rAF
+        // läuft dort nie, Timer sind hart gedrosselt, und die Uhr bliebe für immer bei
+        // Opacity 0. Das Fade-in sieht dort niemand — dasselbe Muster wie in
+        // `GraphicFrame`/`FlipList`.
+        if (document.visibilityState === 'hidden') {
+            setVisible(true)
+            return
+        }
+        const frameId = requestAnimationFrame(() => setVisible(true))
+        const timerId = window.setTimeout(() => setVisible(true), 50)
+        return () => {
+            cancelAnimationFrame(frameId)
+            window.clearTimeout(timerId)
+        }
     }, [mounted, matchId, hasStart])
 
     useEffect(() => {

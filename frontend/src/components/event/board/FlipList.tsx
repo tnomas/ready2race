@@ -145,10 +145,24 @@ function FlipList<T>({
                 // der Browser Sprung und Rückstellung in einem Frame zusammen und es
                 // gibt keine sichtbare Bewegung.
                 void node.offsetHeight
-                requestAnimationFrame(() => {
+                // In einem VERDECKTEN Dokument sofort zurückstellen: Dort läuft rAF nie
+                // (Wirecast/CEF meldet den Zustand dauerhaft, obwohl es aufnimmt — siehe
+                // `StreamClock`), Timer sind bis auf einmal pro Minute gedrosselt, und der
+                // Eintrag bliebe um `delta` verschoben stehen — genau so stand das
+                // Rundenband um den Enter-Versatz nach links versetzt im Bild. Die
+                // Bewegung sieht dort niemand, die korrekte Endlage schlägt sie. Sichtbar
+                // bleibt der rAF-Weg, mit Timeout als zweitem Netz (Rückstellung ist
+                // idempotent, wer zuerst feuert, gewinnt).
+                const restore = () => {
                     node.style.transition = `transform ${TRANSITION_MS}ms ease-out`
                     node.style.transform = ''
-                })
+                }
+                if (document.visibilityState === 'hidden') {
+                    restore()
+                } else {
+                    requestAnimationFrame(restore)
+                    window.setTimeout(restore, 64)
+                }
             }
             lastPositions.current.set(key, current)
         })

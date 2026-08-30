@@ -97,8 +97,24 @@ const GraphicFrame = ({visible, children}: GraphicFrameProps) => {
             setSettled(false)
             return
         }
-        const id = requestAnimationFrame(() => setSettled(true))
-        return () => cancelAnimationFrame(id)
+        // In einem VERDECKTEN Dokument sofort in den Endzustand: Browser setzen dort
+        // `requestAnimationFrame` aus, und genau diesen Zustand kann eine Wirecast/CEF-
+        // Aufnahmequelle dauerhaft melden, obwohl sie aktiv aufnimmt (dasselbe Muster wie
+        // der 250-ms-Fallback der Laufuhr, siehe `StreamClock`) — jede neu eingeblendete
+        // Grafik bliebe für immer bei Opacity 0. Eine Enter-Animation sieht dort ohnehin
+        // niemand, der korrekte Endzustand schlägt sie. Sichtbar bleibt der saubere
+        // rAF-Übergang, mit einem Timeout als zweitem Netz (wer zuerst feuert, gewinnt —
+        // `setSettled(true)` ist idempotent).
+        if (document.visibilityState === 'hidden') {
+            setSettled(true)
+            return
+        }
+        const frameId = requestAnimationFrame(() => setSettled(true))
+        const timerId = window.setTimeout(() => setSettled(true), 50)
+        return () => {
+            cancelAnimationFrame(frameId)
+            window.clearTimeout(timerId)
+        }
     }, [effectiveVisible])
 
     if (phase === 'hidden') return null
