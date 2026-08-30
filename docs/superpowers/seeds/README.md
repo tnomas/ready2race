@@ -27,6 +27,7 @@ liegen können, ohne sich zu stören:
 | `a4f1` | [`2026-08-06-seed-auflagen.sql`](2026-08-06-seed-auflagen.sql) | Auflagen (D6), Ersatzleute (D7), Renngemeinschaften (G6) |
 | `c4a1` | [`2026-08-06-seed-challenge.sql`](2026-08-06-seed-challenge.sql) | Challenge-Event für die Teilnahmeurkunden (G15, G16, G18, G22) |
 | `7e57` | [`2026-08-07-seed-schiedsrichter-testrennen.sql`](2026-08-07-seed-schiedsrichter-testrennen.sql) | Übungsrennen für die Schiedsrichter: Vorlauf setzen → durchführen → Progression ins Finale |
+| `71ed` | [`2026-08-30-seed-zeitnahme-livestream.sql`](2026-08-30-seed-zeitnahme-livestream.sql) | Interne Zeitnahme (Posten, Profile, Ton-Sätze, Startsequenzen, Marken, Zwischenzeiten) und Livestream-Szenen |
 
 Ein neuer Seed nimmt einen bisher unbenutzten Präfix und trägt sich hier ein.
 
@@ -125,3 +126,60 @@ durch die Schiedsrichter, nicht an der Uhrzeit.
 **Zeitnahme:** Der Seed setzt bewusst kein Zeitnahme-System. Für einen Durchlauf mit RaceClocker
 gehören die beiden Ergebnis-Adressen in die Voreinstellung der Veranstaltung
 (Veranstaltung → Einstellungen → Zeitnahme) — von dort erbt der Wettkampf sie.
+
+## `2026-08-30-seed-zeitnahme-livestream.sql` (Präfix `71ed`)
+
+Die Veranstaltung „Zeitnahme- und Streamtest": ein Renntag (heute), sechs Vereine, drei
+Wettkämpfe (Sprint 500 m als Frauen- und Männer-Doppelzweier, Langstrecke 6 km als
+Mixed-Doppelzweier), 16 Boote, 32 Personen. Zweck ist ein Teststand für die **interne** Zeitnahme
+und die **Stream-Domäne** — beides zusammen, weil die Szenen nur dann etwas zeigen, wenn darunter
+echte Läufe in echten Zuständen liegen.
+
+Alle Zeiten sind relativ zum Einspielzeitpunkt gerechnet (Hilfsfunktionen `pg_temp.t`/`pg_temp.ms`
+über einen Anker). Der Seed kann also zu jeder Tages- und Nachtzeit eingespielt werden und ergibt
+immer dieselbe Lage — anders als die älteren Seeds braucht er keinen Verschiebe-Block am Ende.
+
+**Sechs Läufe, sechs Zustände** — die ganze Zustandsleiter auf einmal:
+
+| Lauf | Zustand | wofür |
+| --- | --- | --- |
+| W3 Zeitfahren | beendet **in Klärung** | „Vorläufig" auf der Ergebnisgrafik |
+| W1 Vorlauf | **beendet**, voll gewertet | jüngstes Ergebnis, Strafzeit, DNF |
+| W2 Vorlauf | **läuft** seit 110 s | Uhr, Zwischenzeiten, Einlauf-Ticker |
+| W1 Finale | **in Vorbereitung** | Startliste, scharfe Startsequenz |
+| W2 / W3 Finale | **anstehend** | Tagesprogramm, „Nächstes Rennen" |
+
+**Zeitnahme.** Fünf Posten (Start, zwei SPLIT, Ziel im scharfgeschalteten Betrieb, plus eine
+ANZEIGE, die den Start spiegelt). Die Mole steht im Sprint bei 250 m und auf der Langstrecke bei
+4000 m — derselbe Posten, zwei Distanzen, genau der Fall, für den `competition_timing_station`
+existiert. Zwei Ton-Sätze, drei Zeitnahmetypen, und der Profilbaum ist auf **allen vier Ebenen**
+belegt (Veranstaltung → Wettkampf → Runde → Partie). Von vier Startsequenzen ist genau eine
+**scharf** (das W1-Finale) — der Knopf, auf den alles wartet; die übrigen sind Historie, darunter
+ein abgebrochener Fehlstart-Versuch. 49 Marken, davon eine bewusst **unzugeordnet** am Zielposten:
+der Übungsfall für die Klick-Zuordnung.
+
+Die offiziellen Zeiten decken Strafzeit (10 s, kostet drei Plätze), DNF und das Abschneiden auf
+ZEHNTEL ab. Ihre `applied_fingerprint`-Spalten sind feldgetreu mitgeschrieben — ohne sie hielte
+die Übernahme jedes Ergebnis für fremd und fasste es nie wieder an. Belegt: ein
+`POST /timing/officialTimes/compute` über den W1-Vorlauf rechnet aus den Marken exakt dieselben
+Zeiten und lässt Plätze, Timecodes und Zwischenzeiten unangetastet.
+
+**Livestream.** Drei Szenen mit fertigen Geräte-Token, die der Seed am Ende als Adressen ausgibt
+(`raise notice`):
+
+- **Hauptkamera** — transparent, Vollausstattung. Startliste, Nächstes Rennen, Runden und Ergebnis
+  teilen sich `BOTTOM_CENTER` und lösen einander über die Platz-Priorität ab. Direkt nach dem
+  Einspielen läuft diese Kette einmal von selbst durch: Ergebnis (15 s) → Startliste (5 s) →
+  Nächstes Rennen. Tagesprogramm und Streckenbild sind eingerichtet, aber **aus** — beide kennen
+  kein Zeitfenster und lägen sonst dauerhaft als Vollbild über der Kamera; sie gehören der Regie.
+- **Zielkamera** — schmal: Uhr oben links, Ergebnis als Vollbild, Einlauf-Ticker links.
+- **Probe (Chroma)** — `trial_mode`, Chroma `#00b140`. Läuft ohne jeden echten Lauf in einer
+  Drei-Minuten-Schleife und legt jede Grafik auf einen **eigenen** Platz: in einem Blick ist zu
+  sehen, ob alle Bausteine zeichnen.
+
+Regie-Zeilen (`stream_override`) legt der Seed absichtlich **keine** an. AUTO ist der Normalfall,
+und eine vorbelegte Handschaltung wäre beim Testen genau die Verwirrung, die das Kontroll-Panel
+(`/event/<id>/streamPanel`) aufklären soll.
+
+Die Klartext-Token sind sprechend statt zufällig (`71edPostenStart…`, `71edStreamHauptkamera…`) —
+Teststand, kein Betrieb. Auf einer echten Veranstaltung stellt die Oberfläche sie aus.
