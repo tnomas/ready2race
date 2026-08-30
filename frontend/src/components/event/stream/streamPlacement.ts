@@ -12,11 +12,18 @@ import {StreamPlacement} from '@api/types.gen'
  * fehlen.
  */
 export const STREAM_PLACEMENT_STYLE: Record<StreamPlacement, CSSProperties> = {
-    BOTTOM_CENTER: {position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)'},
-    BOTTOM_LEFT: {position: 'absolute', left: 0, bottom: 0},
-    BOTTOM_RIGHT: {position: 'absolute', right: 0, bottom: 0},
-    TOP_LEFT: {position: 'absolute', left: 0, top: 0},
-    TOP_RIGHT: {position: 'absolute', right: 0, top: 0},
+    // Volle Breite statt `left: 50%` + `translateX(-50%)`: Die Mitte-Verankerung über den
+    // Versatz gab der Box nur den halben Sicherheitsbereich als „verfügbare Breite" — eine
+    // Grafik mit nicht umbrechbarem Inhalt (Rundenband mit langen Vereinsketten, alles
+    // `noWrap`) wuchs über ihre Min-Content-Breite trotzdem weiter, wurde mittig zentriert
+    // und ragte dann LINKS UND RECHTS über die Bühne hinaus. Ein voll aufgespannter Platz
+    // hat eine definite Breite; zentriert wird über das Grid (`placeItems` in
+    // STREAM_SLOT_STYLE), und der Inhalt kann nie breiter werden als der Sicherheitsbereich.
+    BOTTOM_CENTER: {position: 'absolute', left: 0, right: 0, bottom: 0},
+    BOTTOM_LEFT: {position: 'absolute', left: 0, bottom: 0, maxWidth: '100%'},
+    BOTTOM_RIGHT: {position: 'absolute', right: 0, bottom: 0, maxWidth: '100%'},
+    TOP_LEFT: {position: 'absolute', left: 0, top: 0, maxWidth: '100%'},
+    TOP_RIGHT: {position: 'absolute', right: 0, top: 0, maxWidth: '100%'},
     // Feste Kopfkante statt vertikaler Zentrierung: SIDE_LEFT/SIDE_RIGHT tragen den
     // Einlauf-Ticker, der mit jedem Zieleinlauf nach unten WÄCHST (siehe
     // `StreamFinishTicker`). Eine mittige Verankerung (`top: '50%'` + `translateY(-50%)`)
@@ -24,8 +31,8 @@ export const STREAM_PLACEMENT_STYLE: Record<StreamPlacement, CSSProperties> = {
     // Zeilen selbst schon sauber per FLIP gleiten (`FlipList`) — Rahmen und Inhalt laufen
     // dann sichtbar auseinander. Mit einer festen oberen Kante bleibt der Kopf der Liste
     // stehen, nur das Fußende wandert.
-    SIDE_LEFT: {position: 'absolute', left: 0, top: '16%'},
-    SIDE_RIGHT: {position: 'absolute', right: 0, top: '16%'},
+    SIDE_LEFT: {position: 'absolute', left: 0, top: '16%', maxWidth: '100%'},
+    SIDE_RIGHT: {position: 'absolute', right: 0, top: '16%', maxWidth: '100%'},
     FULL_CENTER: {
         position: 'absolute',
         inset: 0,

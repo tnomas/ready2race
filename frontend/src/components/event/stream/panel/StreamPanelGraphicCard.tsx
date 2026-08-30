@@ -178,10 +178,15 @@ const StreamPanelGraphicCard = ({
                             }}>
                             <Box sx={{position: 'absolute', inset: `${safeAreaPercent}%`}}>
                                 <Box sx={STREAM_SLOT_STYLE[graphic.placement]}>
-                                    <StreamGraphic
-                                        graphic={{...graphic, visible: true}}
-                                        clockOffsetMs={clockOffsetMs}
-                                    />
+                                    {/* Dieselbe Breiten-Kappung wie auf der Bühne
+                                        (`StreamScenePage`): noWrap-Inhalt darf die Grid-Spur
+                                        nicht über die Platzbreite hinausziehen. */}
+                                    <Box sx={{gridArea: '1 / 1', minWidth: 0, maxWidth: '100%'}}>
+                                        <StreamGraphic
+                                            graphic={{...graphic, visible: true}}
+                                            clockOffsetMs={clockOffsetMs}
+                                        />
+                                    </Box>
                                 </Box>
                             </Box>
                         </Box>

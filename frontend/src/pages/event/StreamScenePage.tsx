@@ -169,7 +169,14 @@ const StreamScenePage = () => {
                                 // ersetzt und seinen Inhalt auf die volle Fläche gedehnt.
                                 <Box key={placement} data-placement={placement} sx={STREAM_SLOT_STYLE[placement]}>
                                     {graphicsAtPlacement.map(graphic => (
-                                        <Box key={graphic.type} sx={{gridArea: '1 / 1'}}>
+                                        // `minWidth: 0` + `maxWidth: '100%'`: Ohne beides zöge eine
+                                        // Grafik mit nicht umbrechbarem Inhalt (noWrap-Vereinsketten)
+                                        // die Grid-Spur über die Platzbreite hinaus auf und ragte
+                                        // über die Bühne — erst die Kappung zwingt die Zeilen in die
+                                        // Ellipse statt über den Rand.
+                                        <Box
+                                            key={graphic.type}
+                                            sx={{gridArea: '1 / 1', minWidth: 0, maxWidth: '100%'}}>
                                             <StreamGraphic graphic={graphic} clockOffsetMs={clockOffsetMs} />
                                         </Box>
                                     ))}

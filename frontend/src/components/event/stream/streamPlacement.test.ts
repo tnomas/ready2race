@@ -29,6 +29,19 @@ describe('streamPlacement', () => {
             expect(STREAM_PLACEMENT_STYLE[placement].transform).toBeUndefined()
         }
     })
+
+    it('spannt BOTTOM_CENTER voll auf statt per left:50% + translateX zu zentrieren — die Versatz-Zentrierung ließ noWrap-Inhalt über beide Bühnenränder hinauswachsen', () => {
+        expect(STREAM_PLACEMENT_STYLE.BOTTOM_CENTER.left).toBe(0)
+        expect(STREAM_PLACEMENT_STYLE.BOTTOM_CENTER.right).toBe(0)
+        expect(STREAM_PLACEMENT_STYLE.BOTTOM_CENTER.transform).toBeUndefined()
+    })
+
+    it('kappt jeden kantenverankerten Platz auf die Breite des Sicherheitsbereichs', () => {
+        for (const placement of ALL_PLACEMENTS) {
+            if (placement === 'BOTTOM_CENTER' || placement === 'FULL_CENTER') continue
+            expect(STREAM_PLACEMENT_STYLE[placement].maxWidth).toBe('100%')
+        }
+    })
 })
 
 describe('STREAM_SLOT_STYLE', () => {
