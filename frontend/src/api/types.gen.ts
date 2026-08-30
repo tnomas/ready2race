@@ -4142,6 +4142,10 @@ export type StreamFinishEntry = {
     clubsShort?: string | null
     clubsFull?: string | null
     timeString: string
+    /**
+     * Crew names in boat order; empty when no crew is recorded.
+     */
+    participants?: Array<string>
 }
 
 /**

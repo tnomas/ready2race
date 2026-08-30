@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.stream.boundary
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardMatch
+import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardParticipant
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResult
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResultTeam
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardStartState
@@ -45,14 +46,15 @@ private const val PROVISIONAL_RESULT_END = 165L
 private val TRIAL_MATCH_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000701")
 private const val TRIAL_COMPETITION_NAME = "Achter Herren (Probemodus)"
 
-private data class TrialLane(val startNumber: Int, val clubShort: String)
+private data class TrialLane(val startNumber: Int, val clubShort: String, val crew: List<String>)
 
-/** 4 Bahnen mit erfundenen Vereinsnamen. */
+/** 4 Bahnen mit erfundenen Vereins- und Besatzungsnamen — so zeigen Startliste, Ergebnis und
+ *  Einlauf-Ticker im Probemodus dieselben Zeilen wie im echten Betrieb, Namen inklusive. */
 private val TRIAL_LANES: List<TrialLane> = listOf(
-    TrialLane(1, "RC Demo"),
-    TrialLane(2, "SC Probe"),
-    TrialLane(3, "RV Muster"),
-    TrialLane(4, "RG Fiktiv"),
+    TrialLane(1, "RC Demo", listOf("Anna Beispiel", "Ben Beispiel")),
+    TrialLane(2, "SC Probe", listOf("Clara Probe", "David Probe")),
+    TrialLane(3, "RV Muster", listOf("Emma Muster", "Finn Muster")),
+    TrialLane(4, "RG Fiktiv", listOf("Greta Fiktiv", "Henry Fiktiv")),
 )
 
 /** Zwischenzeiten-Stellen des Demo-Laufs, alle 20 s ab Rennstart (Sekunde 60 der Schleife). */
@@ -143,7 +145,7 @@ private fun trialTeams(raceStart: LocalDateTime, raceElapsedSeconds: Long): List
             clubsShort = lane.clubShort,
             clubsFull = lane.clubShort,
             teamName = null,
-            participants = emptyList(),
+            participants = lane.crew.map { AthleteBoardParticipant(name = it, role = null) },
             laps = laps,
         )
     }
@@ -161,6 +163,7 @@ private fun trialFinishEntries(raceElapsedSeconds: Long): List<StreamFinishEntry
                 clubsShort = lane.clubShort,
                 clubsFull = lane.clubShort,
                 timeString = mmss(offset),
+                participants = lane.crew,
             )
         }
 
@@ -179,6 +182,7 @@ private fun trialResult(): AthleteBoardResult {
                 clubsShort = lane.clubShort,
                 clubsFull = lane.clubShort,
                 teamName = null,
+                participants = lane.crew.map { AthleteBoardParticipant(name = it, role = null) },
                 timeString = mmss(offset),
                 penaltySeconds = null,
                 penaltyNote = null,

@@ -61,6 +61,12 @@ data class StreamFinishEntry(
     val clubsShort: String?,
     val clubsFull: String?,
     val timeString: String,
+    /**
+     * Besatzungsnamen in Bootsreihenfolge — leer, wenn keine Besatzung erfasst ist. Das Band
+     * zeigt sie als Zweitzeile unter der Vereinskette; ohne sie stand im Einlauf nur der
+     * Verein, während Startliste und Ergebnis längst Namen zeigen.
+     */
+    val participants: List<String> = emptyList(),
 )
 
 /**

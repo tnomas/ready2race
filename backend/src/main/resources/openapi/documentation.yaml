@@ -22839,6 +22839,11 @@ components:
           nullable: true
         timeString:
           type: string
+        participants:
+          type: array
+          items:
+            type: string
+          description: "Crew names in boat order; empty when no crew is recorded."
 
     StreamGraphicViewDto:
       type: object

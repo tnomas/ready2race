@@ -42,7 +42,10 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
     return (
         <Box
             sx={{
-                width: compact ? 'min(20rem, 32vw)' : 'min(26rem, 38vw)',
+                // Bühnenfeste rem statt vw: siehe `StreamBandShell` — Fenstermaße ließen den
+                // Ticker in der Regie-Vorschau anders ausfallen als in der OBS-Quelle.
+                width: compact ? '22rem' : '30rem',
+                maxWidth: '100%',
                 borderRadius: 3,
                 overflow: 'hidden',
                 boxShadow: '0 20px 48px rgba(0, 0, 0, 0.5)',
@@ -94,12 +97,25 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
                                 }}>
                                 {entry.startNumber}
                             </Typography>
-                            <Typography
-                                variant={compact ? 'body2' : 'body1'}
-                                noWrap
-                                sx={{flex: 1, minWidth: 0, fontWeight: 600}}>
-                                {entry.clubsShort ?? entry.clubsFull}
-                            </Typography>
+                            <Box sx={{flex: 1, minWidth: 0}}>
+                                <Typography
+                                    variant={compact ? 'body2' : 'body1'}
+                                    noWrap
+                                    sx={{fontWeight: 600}}>
+                                    {entry.clubsShort ?? entry.clubsFull}
+                                </Typography>
+                                {/* Besatzung als Zweitzeile — dieselbe Punkt-Kette wie in
+                                    Startliste und Ergebnis (`participantsLabel`), damit der
+                                    Einlauf nicht das einzige Band ohne Namen bleibt. */}
+                                {(entry.participants?.length ?? 0) > 0 && (
+                                    <Typography
+                                        variant="body2"
+                                        noWrap
+                                        sx={{opacity: 0.85}}>
+                                        {entry.participants?.join(' · ')}
+                                    </Typography>
+                                )}
+                            </Box>
                             <Typography
                                 variant={compact ? 'body1' : 'h6'}
                                 sx={{fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0}}>

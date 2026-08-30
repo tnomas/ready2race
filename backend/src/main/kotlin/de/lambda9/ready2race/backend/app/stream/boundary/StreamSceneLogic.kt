@@ -317,6 +317,7 @@ object StreamSceneLogic {
                     clubsShort = team.clubsShort,
                     clubsFull = team.clubsFull,
                     timeString = team.timeString!!,
+                    participants = team.participants.map { it.name },
                 )
             }
 
