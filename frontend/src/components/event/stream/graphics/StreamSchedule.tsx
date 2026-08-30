@@ -35,8 +35,11 @@ const StreamSchedule = ({schedule, size}: StreamScheduleProps) => {
     return (
         <Box
             sx={{
-                width: compact ? 'min(46rem, 60vw)' : 'min(58rem, 66vw)',
-                maxHeight: compact ? '60vh' : '72vh',
+                // Bühnenfeste rem statt vw/vh: siehe `StreamBandShell` — Fenstermaße ließen
+                // die Karte in der Regie-Vorschau anders ausfallen als in der OBS-Quelle.
+                width: compact ? '46rem' : '58rem',
+                maxWidth: '100%',
+                maxHeight: compact ? '40rem' : '48rem',
                 overflow: 'hidden',
                 borderRadius: 3,
                 boxShadow: '0 24px 56px rgba(0, 0, 0, 0.5)',

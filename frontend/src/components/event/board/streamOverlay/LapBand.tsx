@@ -67,12 +67,15 @@ const LapBand = ({laps, element}: LapBandProps) => {
                                 alignItems: 'center',
                                 gap: 2,
                                 px: 3,
-                                // Akzentrand nur am neuesten (linken) Eintrag — eine harte
-                                // Kante, kein Verlauf.
+                                // Akzentrand am neuesten (linken) Eintrag — eine harte
+                                // Kante, kein Verlauf. Die übrigen trennt eine dezente Linie,
+                                // sonst klebt die Zielzeit eines Eintrags optisch an der
+                                // Startnummer des nächsten. Halbtransparent ist hier erlaubt:
+                                // Die Linie liegt AUF dem deckenden Band, nie auf der Key-Farbe.
                                 borderLeft:
                                     index === 0
                                         ? `0.4rem solid ${solidOr(theme.palette.primary.main, '#1976d2')}`
-                                        : 'none',
+                                        : '1px solid rgba(255, 255, 255, 0.3)',
                             }}>
                             <Typography
                                 variant="h4"

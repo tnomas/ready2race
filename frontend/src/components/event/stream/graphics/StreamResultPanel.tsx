@@ -82,7 +82,7 @@ const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) 
                                         showLaps={false}
                                     />
                                     <Typography
-                                        variant="body2"
+                                        variant={size === 'COMPACT' ? 'body2' : 'body1'}
                                         align="right"
                                         aria-hidden={gap ? undefined : true}
                                         sx={{

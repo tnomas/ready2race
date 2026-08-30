@@ -96,8 +96,11 @@ const StreamBoatRow = ({
                 </Typography>
                 {/* Zweite Zeile nach `streamCrew`: Besatzung ODER Verein, je nachdem was
                     NICHT schon prominent oben steht (CLUBS_ONLY hat gar keine). */}
+                {/* In den großen TV-Panels eine Stufe größer (h6 statt body1): Die
+                    Besatzungszeile war nach dem FitToHeight-Verkleinern voller Felder
+                    sonst kaum noch lesbar. */}
                 {showSecondary && secondary && (
-                    <Typography variant={large ? 'body1' : 'body2'} sx={twoLineClamp}>
+                    <Typography variant={large ? 'h6' : 'body2'} sx={{...twoLineClamp, ...(large && {fontWeight: 400})}}>
                         {unitSpans(secondary)}
                     </Typography>
                 )}

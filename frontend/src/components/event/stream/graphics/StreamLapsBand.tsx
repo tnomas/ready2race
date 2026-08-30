@@ -56,9 +56,14 @@ const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
                             gap: 2,
                             px: compact ? 2 : 3,
                             py: compact ? 1.5 : 2,
-                            // Akzentrand nur am neuesten (linken) Eintrag.
+                            // Akzentrand am neuesten (linken) Eintrag; alle weiteren bekommen
+                            // eine dezente Trennlinie — ohne sie klebte die Zielzeit eines
+                            // Eintrags optisch an der Startnummer des nächsten und las sich
+                            // als dessen Zeit.
                             borderLeft:
-                                index === 0 ? `0.35rem solid ${theme.palette.primary.main}` : 'none',
+                                index === 0
+                                    ? `0.35rem solid ${theme.palette.primary.main}`
+                                    : `1px solid ${alpha(theme.palette.common.white, 0.3)}`,
                         }}>
                         <Typography
                             variant={compact ? 'h5' : 'h4'}

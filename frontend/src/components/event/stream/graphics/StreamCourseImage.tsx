@@ -37,8 +37,11 @@ const StreamCourseImage = ({imageUrl, size}: StreamCourseImageProps) => {
     return (
         <Box
             sx={{
-                maxWidth: compact ? '70vw' : '82vw',
-                maxHeight: compact ? '60vh' : '78vh',
+                // Bühnenfeste rem statt vw/vh: siehe `StreamBandShell` — Fenstermaße ließen
+                // den Rahmen in der Regie-Vorschau anders ausfallen als in der OBS-Quelle.
+                // (84/98rem ≙ 70/82 % der 120rem breiten Bühne, 40/52rem ≙ 60/78 % der Höhe.)
+                maxWidth: compact ? '84rem' : '98rem',
+                maxHeight: compact ? '40rem' : '52rem',
                 p: compact ? 1 : 1.5,
                 borderRadius: 2,
                 boxShadow: '0 24px 56px rgba(0, 0, 0, 0.45)',
@@ -53,7 +56,7 @@ const StreamCourseImage = ({imageUrl, size}: StreamCourseImageProps) => {
                 style={{
                     display: 'block',
                     maxWidth: '100%',
-                    maxHeight: compact ? '58vh' : '76vh',
+                    maxHeight: compact ? '39rem' : '51rem',
                     objectFit: 'contain',
                     borderRadius: 4,
                 }}

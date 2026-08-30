@@ -36,8 +36,15 @@ const StreamBandShell = ({
     return (
         <Box
             sx={{
-                width: compact ? 'min(48rem, 60vw)' : 'min(60rem, 70vw)',
-                maxHeight: compact ? '28vh' : '38vh',
+                // Bühnenfeste rem statt vw/vh: Die Bühne ist immer 1920×1080 (120×67,5rem)
+                // und wird als Ganzes skaliert — Fenstermaße (vw/vh) ließen die Karte in der
+                // Regie-Vorschau anders ausfallen als in der OBS-Quelle. Bewusst großzügig
+                // bemessen (Ergebnis/Startliste dürfen einen breiten Teil des Bilds füllen):
+                // je mehr natürliche Fläche, desto seltener muss FitToHeight die Zeilen
+                // verkleinern und desto lesbarer bleiben die Besatzungsnamen.
+                width: compact ? '52rem' : '78rem',
+                maxWidth: '100%',
+                maxHeight: compact ? '24rem' : '34rem',
                 overflow: 'hidden',
                 borderRadius: 3,
                 boxShadow: '0 20px 48px rgba(0, 0, 0, 0.5)',
