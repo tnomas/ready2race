@@ -199,6 +199,12 @@ model StreamGraphicViewDto {
   // unless a start sequence is currently running. The countdown counts down TO this, as opposed
   // to sequenceStartedAt, which it used to (wrongly) count up FROM.
   sequenceFiresAt?: dateTime;
+
+  // CLOCK: start of the sequence's CURRENT pause - only present while it is paused. The stage
+  // freezes the countdown at the remainder as of this instant (sequenceFiresAt minus
+  // sequencePausedAt, a pure server-time difference); resuming shifts sequenceFiresAt by exactly
+  // the pause duration, so the frozen value continues seamlessly.
+  sequencePausedAt?: dateTime;
 }
 
 // The resolved scene state a stage renders - see the class doc above for the websocket channel

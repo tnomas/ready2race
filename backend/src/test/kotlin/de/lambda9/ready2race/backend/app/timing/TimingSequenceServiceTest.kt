@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingOfficialTimeService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.timing.control.TimingAssignmentRepo
@@ -974,6 +975,103 @@ class TimingSequenceServiceTest {
         assertEquals(sequenceId, dto.id)
         assertEquals(SequenceState.PAUSED, dto.state)
         assertNotNull(dto.pausedAtMillis)
+    }
+
+    // ------------------------------------------------------- Sync mit Stream und Boards (Bumps)
+
+    /**
+     * Jede Sequenz-Mutation muss den EventChangeMarker hochzählen: an ihm hängen der Board-Kanal
+     * UND der Szenen-Kanal des Livestreams (StreamSceneBroadcaster über EventChangeMarker.bump),
+     * und die Stream-Uhr baut sich direkt aus dem Sequenzzustand (StreamSceneLogic.sequenceTiming).
+     * Vor dieser Regel liefen Pause/Fortsetzen/Abbruch komplett am Stream vorbei - der Countdown
+     * tickte on air weiter, obwohl die Kette stand.
+     */
+    @Test
+    fun everySequenceMutationBumpsTheEventChangeMarker() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teamA = !createTestMatchTeam(eventId)
+        val teamB = !createTestMatchTeam(eventId)
+
+        var marker = EventChangeMarker.current(eventId)
+        fun assertBumped(mutation: String) {
+            val current = EventChangeMarker.current(eventId)
+            assertTrue(current > marker, "$mutation muss den EventChangeMarker hochzählen")
+            marker = current
+        }
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(teamA, teamB), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        assertBumped("createSequence")
+
+        // Der Regressionsfall: die Partien sind seit dem Einrichten schon aktiviert - der Start
+        // der Sequenz setzt nur startedAtMillis, und genau daraus baut der Stream den Countdown.
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        assertBumped("startSequence (ohne frische Aktivierung)")
+
+        // Position 0 feuern, damit später etwas zum Zurücksetzen da ist.
+        !shiftStart(sequenceId, System.currentTimeMillis() - LEAD_IN)
+        assertEquals(1, (!TimingSequenceService.fireDueEntries()).fired.size)
+        marker = EventChangeMarker.current(eventId)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        assertBumped("pauseSequence")
+
+        !TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+        assertBumped("rewindSequence")
+
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        assertBumped("resumeSequence")
+
+        val entries = !TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()
+        val pendingEntry = entries.first { it.status == SequenceEntryStatus.PENDING.name }
+        !TimingSequenceService.skipEntry(pendingEntry.id, userId, eventId)
+        assertBumped("skipEntry")
+
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+        assertBumped("abortSequence")
+    }
+
+    /**
+     * Der DONE-Übergang OHNE Laufzustands-Stempel und ohne Ergebnis (hier: der letzte Eintrag
+     * wurde übersprungen, der Scheduler löst die leere Sequenz nur noch auf) muss die Anzeigen
+     * trotzdem erreichen - sonst stünde der Countdown einer längst beendeten Sequenz on air.
+     */
+    @Test
+    fun schedulerDoneTransitionWithoutStampsStillBumps() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val entry = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()).single()
+        !TimingSequenceService.skipEntry(entry.id, userId, eventId)
+
+        val marker = EventChangeMarker.current(eventId)
+        val result = !TimingSequenceService.fireDueEntries()
+
+        // Nichts gefeuert, nichts gestempelt - aber die Sequenz ist eben zu Ende gegangen.
+        assertTrue(result.fired.isEmpty())
+        assertEquals(
+            SequenceState.DONE.name,
+            (!TimingSequenceRepo.get(sequenceId).orDie())!!.state,
+        )
+        assertEquals(listOf(eventId), result.changedSequences.map { it.event })
+
+        // Der Bump kommt wie immer erst nach dem Commit des Scheduler-Laufs.
+        assertEquals(marker, EventChangeMarker.current(eventId))
+        TimingSequenceService.broadcastFireResult(result)
+        assertEquals(marker + 1, EventChangeMarker.current(eventId))
     }
 
     // Die geplanten Startzeiten so, wie die Boards sie sehen - über den Endpunkt statt über die

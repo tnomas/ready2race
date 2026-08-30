@@ -89,10 +89,11 @@ class TimingMatchStampServiceTest {
             eventId,
         )
 
-        // Die Zeitnahme ruft an den Start, sie rückt keine bestehende Aktivierung vor - und ohne
-        // Stempel gibt es auch keinen Bump.
+        // Die Zeitnahme ruft an den Start, sie rückt keine bestehende Aktivierung vor. Gebumpt
+        // wird trotzdem: jede Sequenz-Mutation erreicht die Anzeigen, weil der Sequenzzustand
+        // die Stream-Uhr speist (siehe Bump-Regel in TimingSequenceService.createSequence).
         assertEquals(refereeStamp, matchOfTeam(teamId).activatedAt)
-        assertEquals(markerBefore, EventChangeMarker.current(eventId))
+        assertTrue(EventChangeMarker.current(eventId) > markerBefore)
     }
 
     // ------------------------------------------------------------------ Ist-Start (Punkt 2)

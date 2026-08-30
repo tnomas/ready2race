@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
 import {alpha, Box, Typography, useTheme} from '@mui/material'
+import PauseIcon from '@mui/icons-material/Pause'
 import {AthleteBoardMatch, StreamGraphicSize} from '@api/types.gen'
 import {formatCountdown, formatElapsed, streamClockState} from '../../board/streamClock.ts'
 
@@ -11,6 +12,9 @@ interface StreamClockProps {
      *  Countdown herunter. Ohne ihn zeigt die Uhr während der Sequenz lieber nichts, siehe
      *  `streamClockState`-KDoc. */
     sequenceFiresAt?: string | null
+    /** Beginn der laufenden Pause der Sequenz — nur gesetzt, solange sie angehalten ist.
+     *  Friert den Countdown auf dem Reststand des Pausenbeginns ein (`streamClockState`). */
+    sequencePausedAt?: string | null
     clockOffsetMs: number
     size: StreamGraphicSize
 }
@@ -50,10 +54,21 @@ interface StreamClockProps {
  * festgehalten und danach nicht mehr aus der Funktion übernommen, bis ein neuer Lauf
  * (neue `matchId`) den Ref zurücksetzt.
  */
-const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, size}: StreamClockProps) => {
+const StreamClock = ({
+    match,
+    sequenceStartedAt,
+    sequenceFiresAt,
+    sequencePausedAt,
+    clockOffsetMs,
+    size,
+}: StreamClockProps) => {
     const theme = useTheme()
     const compact = size === 'COMPACT'
     const [text, setText] = useState<string | null>(null)
+    // Pausiert muss man auch im Stream SEHEN, nicht nur am stehenden Zahlenwert erraten —
+    // eine eingefrorene Ziffer allein ist von einer hängenden Quelle nicht zu unterscheiden.
+    // Dieselbe Signalfarbe wie die Pause am Startbildschirm (SequenceStatusBar: warning).
+    const [paused, setPaused] = useState(false)
 
     // Immer der jüngste Stand fürs Innere des Loops — Zuweisung während des Renderns ist
     // das etablierte React-Muster für einen "letzter Wert"-Ref ohne eigenen Effekt dafür.
@@ -63,16 +78,21 @@ const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, 
     sequenceStartedAtRef.current = sequenceStartedAt
     const sequenceFiresAtRef = useRef(sequenceFiresAt)
     sequenceFiresAtRef.current = sequenceFiresAt
+    const sequencePausedAtRef = useRef(sequencePausedAt)
+    sequencePausedAtRef.current = sequencePausedAt
     const clockOffsetRef = useRef(clockOffsetMs)
     clockOffsetRef.current = clockOffsetMs
 
     const frozenElapsedMsRef = useRef<number | null>(null)
     const lastTextRef = useRef<string | null>(null)
+    const lastPausedRef = useRef(false)
 
     useEffect(() => {
         frozenElapsedMsRef.current = null
         lastTextRef.current = null
+        lastPausedRef.current = false
         setText(null)
+        setPaused(false)
 
         // Reine Berechnung + Text-Vergleich, OHNE sich selbst neu einzuplanen — das bleibt
         // Sache der beiden Antriebe unten. Nur so bleiben rAF-Loop und Intervall-Fallback
@@ -85,6 +105,7 @@ const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, 
                 clockOffsetRef.current,
                 sequenceStartedAtRef.current,
                 sequenceFiresAtRef.current,
+                sequencePausedAtRef.current,
             )
 
             let next: string | null
@@ -106,6 +127,14 @@ const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, 
             if (next !== lastTextRef.current) {
                 lastTextRef.current = next
                 setText(next)
+            }
+
+            // Gleiches Sparsamkeits-Muster wie beim Text: State nur anfassen, wenn sich der
+            // sichtbare Zustand wirklich ändert — der Loop läuft je Frame.
+            const nextPaused = state.phase === 'countdown' && state.paused
+            if (nextPaused !== lastPausedRef.current) {
+                lastPausedRef.current = nextPaused
+                setPaused(nextPaused)
             }
         }
 
@@ -137,10 +166,28 @@ const StreamClock = ({match, sequenceStartedAt, sequenceFiresAt, clockOffsetMs, 
                 sx={{
                     width: compact ? '0.45rem' : '0.6rem',
                     flexShrink: 0,
-                    backgroundColor: theme.palette.primary.main,
+                    // Pausiert kippt der Akzentbalken auf die Warnfarbe — dieselbe Sprache wie
+                    // der Startbildschirm, ohne Blinken (auf einer Broadcast-Bühne wäre das
+                    // unruhiger als informativ).
+                    backgroundColor: paused ? theme.palette.warning.main : theme.palette.primary.main,
                 }}
             />
-            <Box sx={{px: compact ? 2.5 : 3.5, py: compact ? 1.25 : 1.75}}>
+            <Box
+                sx={{
+                    px: compact ? 2.5 : 3.5,
+                    py: compact ? 1.25 : 1.75,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: compact ? 1 : 1.5,
+                }}>
+                {paused && (
+                    <PauseIcon
+                        sx={{
+                            fontSize: compact ? '1.6rem' : '2.2rem',
+                            color: theme.palette.warning.main,
+                        }}
+                    />
+                )}
                 <Typography
                     variant={compact ? 'h3' : 'h2'}
                     sx={{fontWeight: 700, fontVariantNumeric: 'tabular-nums'}}>

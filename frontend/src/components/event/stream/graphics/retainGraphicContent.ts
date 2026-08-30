@@ -47,13 +47,16 @@ export const retainGraphicContent = (
         finishEntries: previous.finishEntries,
         schedule: previous.schedule,
         imageUrl: previous.imageUrl,
-        // CLOCK trägt seinen Inhalt als PAAR (match, sequenceStartedAt) — bricht eine
-        // Startsequenz ab, bevor `actualStartTime` gestempelt wird, räumt derselbe Push
-        // typischerweise BEIDE Felder gemeinsam (siehe `hasGraphicContent`-KDoc). Ohne diese
-        // Zeile würde der Rückfall zwar `match` einfrieren, `sequenceStartedAt` aber vom
-        // aktuellen (bereits geräumten) Push übernehmen — `streamClockState` sähe dann weder
-        // einen gestempelten Start noch einen Sequenzanker und spränge auf `hidden`, statt die
+        // CLOCK trägt seinen Inhalt als BÜNDEL (match, sequenceStartedAt, sequenceFiresAt,
+        // sequencePausedAt) — bricht eine Startsequenz ab, bevor `actualStartTime` gestempelt
+        // wird, räumt derselbe Push ALLE Felder gemeinsam (siehe `hasGraphicContent`-KDoc).
+        // Ohne diese Zeilen würde der Rückfall zwar `match` einfrieren, die Sequenzfelder aber
+        // vom aktuellen (bereits geräumten) Push übernehmen — `streamClockState` sähe dann
+        // weder einen gestempelten Start noch einen vollständigen Sequenzanker (ohne
+        // `sequenceFiresAt` zeigt sie bewusst GAR NICHTS) und spränge auf `hidden`, statt die
         // Countdown-Anzeige durch `GraphicFrame`s Ausblendanimation hindurch einzufrieren.
         sequenceStartedAt: previous.sequenceStartedAt,
+        sequenceFiresAt: previous.sequenceFiresAt,
+        sequencePausedAt: previous.sequencePausedAt,
     }
 }

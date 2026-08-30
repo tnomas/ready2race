@@ -94,6 +94,7 @@ class StreamSceneResolverTest {
         running: AthleteBoardMatch? = null,
         sequenceStartedAt: LocalDateTime? = null,
         sequenceFiresAt: LocalDateTime? = null,
+        sequencePausedAt: LocalDateTime? = null,
         latestResult: AthleteBoardResult? = null,
         latestResultAt: LocalDateTime? = null,
         latestResultProvisional: Boolean = false,
@@ -111,6 +112,7 @@ class StreamSceneResolverTest {
         running = running,
         sequenceStartedAt = sequenceStartedAt,
         sequenceFiresAt = sequenceFiresAt,
+        sequencePausedAt = sequencePausedAt,
         latestResult = latestResult,
         latestResultAt = latestResultAt,
         latestResultProvisional = latestResultProvisional,
@@ -174,6 +176,44 @@ class StreamSceneResolverTest {
         assertTrue(clock.visible, "Uhr muss ab Sequenzstart sichtbar sein")
         assertEquals(t0, clock.sequenceStartedAt, "Sequenzstart muss durchgereicht werden")
         assertEquals(firesAt, clock.sequenceFiresAt, "Feuerzeitpunkt muss durchgereicht werden")
+        assertEquals(null, clock.sequencePausedAt, "ohne Pause darf kein Pausenbeginn mitreisen")
+    }
+
+    @Test
+    fun `clock bleibt bei pausierter Sequenz sichtbar und traegt den Pausenbeginn`() {
+        // Die Pause ist eine Unterbrechung, kein Ende: die Uhr bleibt on air und friert auf dem
+        // Reststand des Pausenbeginns ein (das Einfrieren rechnet die Bühne, der Resolver reicht
+        // nur den Zeitpunkt durch - und zwar AUSSCHLIESSLICH an die CLOCK-Grafik).
+        val graphics = listOf(
+            graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT),
+            graphic(StreamGraphicType.NEXT_UP, StreamPlacement.BOTTOM_CENTER),
+        )
+        val firesAt = t0.plusSeconds(30)
+        val pausedAt = t0.plusSeconds(19)
+
+        val resolved = resolveScene(
+            baseInput(
+                now = t0.plusSeconds(25),
+                graphics = graphics,
+                preparing = testMatch(state = MatchState.PREPARING),
+                preparingSince = t0.minusSeconds(60),
+                sequenceStartedAt = t0,
+                sequenceFiresAt = firesAt,
+                sequencePausedAt = pausedAt,
+            )
+        )
+        val clock = resolved.graphic(StreamGraphicType.CLOCK)
+        assertTrue(clock.visible, "Uhr muss auch pausiert sichtbar bleiben")
+        assertEquals(pausedAt, clock.sequencePausedAt, "Pausenbeginn muss durchgereicht werden")
+        assertEquals(
+            null,
+            resolved.graphic(StreamGraphicType.NEXT_UP).sequencePausedAt,
+            "Pausenbeginn gehört ausschließlich an die CLOCK-Grafik",
+        )
+        assertFalse(
+            resolved.graphic(StreamGraphicType.NEXT_UP).visible,
+            "die pausierte Sequenz ist weiter aktiv - nextUp bleibt verdrängt",
+        )
     }
 
     @Test

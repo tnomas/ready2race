@@ -2,6 +2,14 @@ package de.lambda9.ready2race.backend.app.stream
 
 import de.lambda9.ready2race.backend.app.eventInfo.MyEventFixture
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
+import de.lambda9.ready2race.backend.app.timing.addTestStation
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
+import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
+import de.lambda9.ready2race.backend.app.timing.createTestMatchTeam
+import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
+import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
+import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
+import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
@@ -44,12 +52,13 @@ class StreamSceneViewTest {
         type: StreamGraphicType,
         placement: StreamPlacement,
         enabled: Boolean = true,
+        displaySeconds: Int? = null,
     ) = StreamSceneGraphicDto(
         type = type,
         enabled = enabled,
         placement = placement,
         size = StreamGraphicSize.NORMAL,
-        settings = StreamGraphicSettings(),
+        settings = StreamGraphicSettings(displaySeconds = displaySeconds),
     )
 
     /** Ruft den Lauf an den Start (`activated_at`), ohne ihn zu starten - das ist "In Vorbereitung". */
@@ -95,22 +104,83 @@ class StreamSceneViewTest {
         assertFalse(clock.visible)
     }
 
+    /**
+     * Der ganze Weg der Pause bis in den Szenenstand, gegen echte Sequenz-Daten: eine über den
+     * Service angehaltene Startsequenz muss der CLOCK-Grafik ihren Pausenbeginn mitgeben (daran
+     * friert die Bühne den Countdown ein) und dabei sichtbar bleiben - die Pause ist eine
+     * Unterbrechung, kein Ende.
+     */
+    @Test
+    fun aPausedSequenceCarriesItsPauseStartIntoTheClock() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            // Langer Vorlauf, damit im Testfenster garantiert nichts feuert.
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team), 60000L),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        // Vor der Pause: Countdown ohne Pausenbeginn.
+        val runningView = !StreamSceneLogic.buildView(eventId, sceneId)
+        val runningClock = runningView.graphics.single { it.type == StreamGraphicType.CLOCK }
+        assertTrue(runningClock.visible, "Die Uhr muss während der laufenden Sequenz sichtbar sein")
+        assertNotNull(runningClock.sequenceFiresAt)
+        assertEquals(null, runningClock.sequencePausedAt)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+
+        val pausedView = !StreamSceneLogic.buildView(eventId, sceneId)
+        val pausedClock = pausedView.graphics.single { it.type == StreamGraphicType.CLOCK }
+        assertTrue(pausedClock.visible, "Die Uhr muss auch pausiert sichtbar bleiben")
+        assertNotNull(pausedClock.sequenceStartedAt)
+        assertNotNull(pausedClock.sequenceFiresAt)
+        assertNotNull(pausedClock.sequencePausedAt, "Die Pause muss als Pausenbeginn an der Uhr ankommen")
+
+        // Fortgesetzt verschwindet der Pausenbeginn wieder - und der Feuerzeitpunkt ist um die
+        // Pausendauer nach hinten gerückt (>=, der Testlauf selbst braucht Millisekunden).
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+        val resumedView = !StreamSceneLogic.buildView(eventId, sceneId)
+        val resumedClock = resumedView.graphics.single { it.type == StreamGraphicType.CLOCK }
+        assertEquals(null, resumedClock.sequencePausedAt)
+        assertTrue(
+            !resumedClock.sequenceFiresAt!!.isBefore(pausedClock.sequenceFiresAt!!),
+            "Das Fortsetzen darf den Feuerzeitpunkt nie nach vorne ziehen",
+        )
+    }
+
     @Test
     fun trialModeReplacesTheRealDataWithSyntheticBoats() = testComprehension {
         val fixture = !MyEventFixture.create()
         !activate(fixture.ownMatchId, LocalDateTime.now())
 
         val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
-        // Alle Grafiken, die in irgendeiner Phase der Demo-Schleife Inhalt tragen - so ist
-        // unabhängig vom Zeitpunkt des Testlaufs immer mindestens eine sichtbar.
+        // Alle Grafiken, die in irgendeiner Phase der Demo-Schleife Inhalt tragen - und zwar
+        // mit Anzeigedauern, die die 180-Sekunden-Schleife LÜCKENLOS abdecken: Mit den
+        // Vorgabewerten (Startliste 15 s, Ergebnis 20 s) blieben die Fenster 15-30 s und
+        // 170-180 s der Schleife komplett leer, und der Test schlug je nach Uhrzeit des
+        // Laufs fehl. Startliste auf 30 s deckt die Vorbereitung (0-30) voll ab, Ergebnis
+        // auf 30 s das Ergebnisfenster (150-180); dazwischen trägt durchgehend die Uhr
+        // (Sequenz 30-60, Rennen 60-150).
         !StreamSceneService.updateGraphics(
             fixture.eventId,
             sceneId,
             listOf(
-                graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER),
+                graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER, displaySeconds = 30),
                 graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT),
                 graphic(StreamGraphicType.LAPS, StreamPlacement.BOTTOM_LEFT),
-                graphic(StreamGraphicType.RESULT, StreamPlacement.FULL_CENTER),
+                graphic(StreamGraphicType.RESULT, StreamPlacement.FULL_CENTER, displaySeconds = 30),
                 graphic(StreamGraphicType.FINISH_TICKER, StreamPlacement.SIDE_RIGHT),
             ),
         )

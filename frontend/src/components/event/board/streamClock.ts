@@ -13,7 +13,7 @@ import {parseResultTimeMillis} from '../stream/graphics/resultGap.ts'
  */
 export type StreamClockState =
     | {phase: 'hidden'}
-    | {phase: 'countdown'; remainingMs: number}
+    | {phase: 'countdown'; remainingMs: number; paused: boolean}
     | {phase: 'running'; elapsedMs: number}
     | {phase: 'frozen'; elapsedMs: number}
 
@@ -47,6 +47,16 @@ export type StreamClockState =
  * von 0 statt darauf zu). Fehlt der Feuerzeitpunkt (`sequenceFiresAt`), während eine
  * Sequenz läuft, zeigt die Bühne jetzt lieber GAR KEINE Uhr als eine mit vertauschtem
  * Vorzeichen.
+ *
+ * `sequencePausedAt` (nur gesetzt, solange die Sequenz angehalten ist): friert den
+ * Countdown auf dem Reststand des Pausenbeginns ein — `sequenceFiresAt − sequencePausedAt`,
+ * eine reine Serverzeit-Differenz, die BEWUSST ohne `clockOffsetMs` auskommt (beide
+ * Zeitpunkte stammen von derselben Serveruhr; der Versatz der Bühne hat darin nichts zu
+ * suchen und die Anzeige tickt damit auch bei stehendem `clientNowMs`-Fortschritt nicht).
+ * Das Fortsetzen verschiebt den Feuerzeitpunkt serverseitig um exakt die Pausendauer,
+ * der eingefrorene Wert läuft also nahtlos weiter. Ein gestempelter Start hat weiterhin
+ * Vorrang — eine Pause stoppt künftige Starts, nie einen Lauf, der schon auf dem Wasser
+ * ist.
  */
 export const streamClockState = (
     match: AthleteBoardMatch | null,
@@ -54,6 +64,7 @@ export const streamClockState = (
     clockOffsetMs: number,
     sequenceStartedAt?: string | null,
     sequenceFiresAt?: string | null,
+    sequencePausedAt?: string | null,
 ): StreamClockState => {
     if (match === null) {
         return {phase: 'hidden'}
@@ -64,9 +75,13 @@ export const streamClockState = (
             return {phase: 'hidden'}
         }
         const fireMs = new Date(sequenceFiresAt).getTime()
+        if (sequencePausedAt != null) {
+            const pausedMs = new Date(sequencePausedAt).getTime()
+            return {phase: 'countdown', remainingMs: Math.max(0, fireMs - pausedMs), paused: true}
+        }
         const serverNowMs = clientNowMs - clockOffsetMs
         const remainingMs = Math.max(0, fireMs - serverNowMs)
-        return {phase: 'countdown', remainingMs}
+        return {phase: 'countdown', remainingMs, paused: false}
     }
 
     const startMs = new Date(match.actualStartTime).getTime()

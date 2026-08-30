@@ -224,6 +224,7 @@ object StreamSceneLogic {
                     running = running,
                     sequenceStartedAt = timing.startedAt,
                     sequenceFiresAt = timing.firesAt,
+                    sequencePausedAt = timing.pausedAt,
                     latestResult = latestResultInfo?.toAthleteBoardResult(includeDetails = true),
                     latestResultAt = latestResultInfo?.updatedAt,
                     latestResultProvisional = latestResultInfo?.clarification == true,
@@ -321,8 +322,12 @@ object StreamSceneLogic {
                 )
             }
 
-    /** [sequenceTiming]: Anker und Feuerzeitpunkt der laufenden Startsequenz, oder beide null. */
-    private data class SequenceTiming(val startedAt: LocalDateTime?, val firesAt: LocalDateTime?)
+    /** [sequenceTiming]: Anker, Feuerzeitpunkt und ggf. Pausenbeginn der laufenden Startsequenz. */
+    private data class SequenceTiming(
+        val startedAt: LocalDateTime?,
+        val firesAt: LocalDateTime?,
+        val pausedAt: LocalDateTime?,
+    )
 
     /**
      * Anker und Feuerzeitpunkt der laufenden Startsequenz, oder beide null.
@@ -337,9 +342,12 @@ object StreamSceneLogic {
      * Der Server feuert die ganze Kette um genau diese Summe nach hinten versetzt
      * (`plannedStartMillis`), also ist Start + Verschiebung der Anker, gegen den die Uhr laufen
      * muss. WÄHREND einer Pause wächst die Summe noch nicht mit (sie wird erst beim Fortsetzen
-     * verbucht) - der Countdown läuft dann sichtbar weiter, obwohl niemand startet. Das ist
-     * bewusst in Kauf genommen: die Alternative wäre, die Sequenz während der Pause zu
-     * verschweigen, und dann käme die Startliste zurück auf die Bühne.
+     * verbucht) - dafür reist der Pausenbeginn selbst mit ([SequenceTiming.pausedAt], nur bei
+     * PAUSED belegt): Die Bühne friert den Countdown auf dem Reststand von genau diesem
+     * Zeitpunkt ein, statt sichtbar weiter auf 0:00 zuzulaufen, obwohl niemand startet. Das
+     * Fortsetzen verbucht die Verschiebung, der Feuerzeitpunkt rückt exakt um die Pausendauer
+     * nach hinten - der eingefrorene Reststand läuft also nahtlos weiter (fires' − resume =
+     * fires − pausedAt).
      *
      * [SequenceTiming.firesAt] ist derselbe Anker PLUS `lead_in_millis` — die von der Zeitnahme
      * konfigurierte Vorlaufdauer, nach der der Start tatsächlich fällt (siehe
@@ -351,12 +359,16 @@ object StreamSceneLogic {
         TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie().map { record ->
             val startedAtMillis = record?.startedAtMillis
             if (startedAtMillis == null) {
-                SequenceTiming(startedAt = null, firesAt = null)
+                SequenceTiming(startedAt = null, firesAt = null, pausedAt = null)
             } else {
                 val anchorMillis = startedAtMillis + (record.pauseShiftMillis ?: 0L)
                 SequenceTiming(
                     startedAt = TimingMatchStampLogic.stampFor(anchorMillis),
                     firesAt = TimingMatchStampLogic.stampFor(anchorMillis + (record.leadInMillis ?: 0L)),
+                    // `paused_at_millis` beschreibt per Vertrag immer nur die LAUFENDE Pause
+                    // (TimingSequenceService.resumeSequence leert es beim Fortsetzen) - gesetzt
+                    // heißt also PAUSED, eine eigene Zustandsabfrage braucht es hier nicht.
+                    pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
                 )
             }
         }

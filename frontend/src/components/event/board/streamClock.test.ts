@@ -131,7 +131,7 @@ describe('streamClockState mit Sequenzstart (Countdown auf den Feuerzeitpunkt)',
             sequenceStart.toISOString(),
             firesAt.toISOString(),
         )
-        expect(state).toEqual({phase: 'countdown', remainingMs: 11_000})
+        expect(state).toEqual({phase: 'countdown', remainingMs: 11_000, paused: false})
     })
 
     it('zeigt genau 0, wenn der Feuerzeitpunkt laut Serverzeit exakt erreicht ist', () => {
@@ -145,7 +145,7 @@ describe('streamClockState mit Sequenzstart (Countdown auf den Feuerzeitpunkt)',
             sequenceStart.toISOString(),
             firesAt.toISOString(),
         )
-        expect(state).toEqual({phase: 'countdown', remainingMs: 0})
+        expect(state).toEqual({phase: 'countdown', remainingMs: 0, paused: false})
     })
 
     it('klemmt auf 0, statt in positive Zahlen zu laufen, wenn der Feuerzeitpunkt bereits verstrichen ist (Überzug, z. B. durch eine Pause)', () => {
@@ -161,7 +161,7 @@ describe('streamClockState mit Sequenzstart (Countdown auf den Feuerzeitpunkt)',
             sequenceStart.toISOString(),
             firesAt.toISOString(),
         )
-        expect(state).toEqual({phase: 'countdown', remainingMs: 0})
+        expect(state).toEqual({phase: 'countdown', remainingMs: 0, paused: false})
     })
 
     it('bleibt hidden ohne Feuerzeitpunkt, auch wenn eine Sequenz läuft — keine Notlösung mit vertauschtem Vorzeichen', () => {
@@ -190,6 +190,94 @@ describe('streamClockState mit Sequenzstart (Countdown auf den Feuerzeitpunkt)',
             firesAt.toISOString(),
         )
         expect(state).toEqual({phase: 'running', elapsedMs: 5000})
+    })
+})
+
+// Pause der Startsequenz: der Countdown friert auf dem Reststand des Pausenbeginns ein
+// (`sequenceFiresAt − sequencePausedAt`, reine Serverzeit-Differenz — bewusst OHNE
+// Versatz-Korrektur, beide Zeitpunkte stammen von derselben Serveruhr). Vorher lief er
+// on air sichtbar auf 0:00 zu, obwohl niemand startete.
+describe('streamClockState mit pausierter Sequenz', () => {
+    const sequenceStart = new Date('2026-08-13T10:00:00.000Z')
+    const firesAt = new Date('2026-08-13T10:00:30.000Z')
+    const match = matchWith({actualStartTime: null, teams: []})
+
+    it('friert den Countdown auf dem Reststand des Pausenbeginns ein', () => {
+        const pausedAt = new Date('2026-08-13T10:00:19.000Z') // 11 s vor dem Feuerzeitpunkt
+        const state = streamClockState(
+            match,
+            pausedAt.getTime() + 45_000, // die Uhr der Bühne läuft weiter — egal
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+            pausedAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 11_000, paused: true})
+    })
+
+    it('ignoriert den Client-Server-Versatz im Pausenstand (reine Serverzeit-Differenz)', () => {
+        const pausedAt = new Date('2026-08-13T10:00:25.000Z')
+        const state = streamClockState(
+            match,
+            Date.now(),
+            123_456, // absichtlich absurd — darf im eingefrorenen Wert nicht auftauchen
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+            pausedAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 5000, paused: true})
+    })
+
+    it('klemmt auf 0, wenn die Pause erst nach dem Feuerzeitpunkt begann (Scheduler-Rennen)', () => {
+        const pausedAt = new Date('2026-08-13T10:00:31.000Z')
+        const state = streamClockState(
+            match,
+            Date.now(),
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+            pausedAt.toISOString(),
+        )
+        expect(state).toEqual({phase: 'countdown', remainingMs: 0, paused: true})
+    })
+
+    it('gestempelter Start schlägt die Pause — sie stoppt künftige Starts, nie einen laufenden Lauf', () => {
+        const actualStart = new Date('2026-08-13T10:02:00.000Z')
+        const started = matchWith({actualStartTime: actualStart.toISOString(), teams: [team({})]})
+        const state = streamClockState(
+            started,
+            actualStart.getTime() + 5000,
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+            new Date('2026-08-13T10:02:03.000Z').toISOString(),
+        )
+        expect(state).toEqual({phase: 'running', elapsedMs: 5000})
+    })
+
+    it('läuft nach dem Fortsetzen nahtlos am eingefrorenen Wert weiter (Feuerzeitpunkt um die Pausendauer verschoben)', () => {
+        const pausedAt = new Date('2026-08-13T10:00:19.000Z') // Rest: 11 s
+        const frozen = streamClockState(
+            match,
+            pausedAt.getTime() + 60_000,
+            0,
+            sequenceStart.toISOString(),
+            firesAt.toISOString(),
+            pausedAt.toISOString(),
+        )
+        // Fortsetzen nach 60 s Pause: der Server verschiebt den Feuerzeitpunkt um exakt die
+        // Pausendauer — im Moment des Fortsetzens zeigt die live rechnende Uhr denselben Rest.
+        const resumedFiresAt = new Date(firesAt.getTime() + 60_000)
+        const resumed = streamClockState(
+            match,
+            pausedAt.getTime() + 60_000,
+            0,
+            sequenceStart.toISOString(),
+            resumedFiresAt.toISOString(),
+            null,
+        )
+        expect(frozen).toEqual({phase: 'countdown', remainingMs: 11_000, paused: true})
+        expect(resumed).toEqual({phase: 'countdown', remainingMs: 11_000, paused: false})
     })
 })
 

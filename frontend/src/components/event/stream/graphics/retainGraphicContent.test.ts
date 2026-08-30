@@ -123,29 +123,36 @@ describe('retainGraphicContent', () => {
         expect(result.provisional).toBe(true)
     })
 
-    it('behält bei CLOCK match UND sequenceStartedAt, wenn ein Push beides gemeinsam räumt (abgebrochene Startsequenz)', () => {
+    it('behält bei CLOCK das ganze Sequenz-Bündel, wenn ein Push alles gemeinsam räumt (abgebrochene Startsequenz)', () => {
         // Review-Fall: Eine Startsequenz bricht ab, bevor `actualStartTime` gestempelt wird —
-        // derselbe Push räumt `match` UND `sequenceStartedAt` gemeinsam mit `visible=false`.
-        // Ohne Rückfall auf `previous.sequenceStartedAt` würde `streamClockState` weder einen
-        // gestempelten Start noch einen Sequenzanker sehen und sofort auf `hidden` springen,
+        // derselbe Push räumt `match` UND die Sequenzfelder gemeinsam mit `visible=false`.
+        // Ohne Rückfall auf die vorigen Sequenzfelder würde `streamClockState` weder einen
+        // gestempelten Start noch einen VOLLSTÄNDIGEN Sequenzanker sehen (ohne
+        // `sequenceFiresAt` zeigt sie bewusst nichts) und sofort auf `hidden` springen,
         // statt den Countdown durch `GraphicFrame`s Ausblendanimation hindurch einzufrieren.
         const previous = graphic({
             type: 'CLOCK',
             visible: true,
             match: baseMatch,
             sequenceStartedAt: '2026-08-27T10:00:00Z',
+            sequenceFiresAt: '2026-08-27T10:00:30Z',
+            sequencePausedAt: '2026-08-27T10:00:19Z',
         })
         const current = graphic({
             type: 'CLOCK',
             visible: false,
             match: null,
             sequenceStartedAt: null,
+            sequenceFiresAt: null,
+            sequencePausedAt: null,
         })
 
         const result = retainGraphicContent(current, previous)
 
         expect(result.match).toBe(baseMatch)
         expect(result.sequenceStartedAt).toBe('2026-08-27T10:00:00Z')
+        expect(result.sequenceFiresAt).toBe('2026-08-27T10:00:30Z')
+        expect(result.sequencePausedAt).toBe('2026-08-27T10:00:19Z')
         expect(result.visible).toBe(false)
     })
 

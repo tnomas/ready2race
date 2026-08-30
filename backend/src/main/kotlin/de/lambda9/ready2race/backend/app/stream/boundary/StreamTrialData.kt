@@ -218,6 +218,7 @@ private fun emptyInput(
     running = null,
     sequenceStartedAt = null,
     sequenceFiresAt = null,
+    sequencePausedAt = null,
     latestResult = null,
     latestResultAt = null,
     latestResultProvisional = false,

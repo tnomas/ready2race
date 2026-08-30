@@ -110,12 +110,14 @@ object TimingSequenceService {
 
         // Die eingerichtete Sequenz ruft ihre Partien an den Start (activated_at, nur wenn noch
         // nicht gesetzt) - Dashboard und Boards zeigen "In Vorbereitung", sobald der Posten die
-        // Sequenz anlegt, nicht erst mit dem ersten Start. Der Bump entwertet die Caches der
-        // öffentlichen Anzeigen im selben Request (Broadcast nach Commit).
-        val activated = !TimingMatchStampService.activateMatchesOfTeams(request.teams, userId)
-        if (activated) {
-            EventChangeMarker.bump(eventId)
-        }
+        // Sequenz anlegt, nicht erst mit dem ersten Start.
+        !TimingMatchStampService.activateMatchesOfTeams(request.teams, userId)
+
+        // JEDE Sequenz-Mutation bumpt (hier wie in start/pause/resume/abort/rewind/skip), nicht
+        // nur die, die gerade sichtbar etwas ändert: Der Sequenzzustand speist die Stream-Uhr
+        // (StreamSceneLogic.sequenceTiming) und künftig die Boards - ein ausgelassener Bump ist
+        // eine falsch weiterlaufende Uhr on air, ein überflüssiger kostet einen Cache-Neubau.
+        EventChangeMarker.bump(eventId)
 
         broadcastAsync(eventId, sequenceDto(record, entries))
         KIO.ok(ApiResponse.Created(sequenceId))
@@ -264,10 +266,13 @@ object TimingSequenceService {
         // laufenden Countdown unstrittig wieder am Start.
         val entryTeams = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
             .mapNotNull { it.competitionMatchTeam }
-        val activated = !TimingMatchStampService.activateMatchesOfTeams(entryTeams, userId)
-        if (activated) {
-            EventChangeMarker.bump(eventId)
-        }
+        !TimingMatchStampService.activateMatchesOfTeams(entryTeams, userId)
+
+        // Immer, nicht nur bei frischer Aktivierung: Mit dem Start der Sequenz beginnt der
+        // Countdown der Stream-Uhr (sequenceStartedAt wird erst hier gesetzt) - waren die
+        // Partien schon aktiviert, bliebe der Stream sonst bis zum nächsten fremden Ereignis
+        // ohne Countdown (siehe Bump-Regel in [createSequence]).
+        EventChangeMarker.bump(eventId)
 
         !broadcastSequence(updated)
         noData
@@ -291,6 +296,11 @@ object TimingSequenceService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        // Mit dem Abbruch verschwindet die Sequenz aus der Stream-Uhr (sie ist nicht mehr
+        // aktiv) - ohne Bump stünde der Countdown on air, bis zufällig das nächste Ereignis
+        // kommt (Bump-Regel siehe [createSequence]).
+        EventChangeMarker.bump(eventId)
 
         !broadcastSequence(updated)
         noData
@@ -339,6 +349,11 @@ object TimingSequenceService {
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
 
+        // Die Pause muss die Stream-Uhr SOFORT erreichen: sie friert den Countdown am
+        // Pausenbeginn ein (sequencePausedAt am CLOCK-DTO) - ohne Bump liefe er on air einfach
+        // weiter auf 0:00 zu, obwohl niemand startet (Bump-Regel siehe [createSequence]).
+        EventChangeMarker.bump(eventId)
+
         !broadcastSequence(updated)
         noData
     }
@@ -381,6 +396,11 @@ object TimingSequenceService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
+
+        // Das Fortsetzen verschiebt den Feuerzeitpunkt um die Pausendauer nach hinten - die
+        // Stream-Uhr muss den neuen Anker sofort bekommen, sonst zeigte sie den eingefrorenen
+        // Pausenstand weiter (Bump-Regel siehe [createSequence]).
+        EventChangeMarker.bump(eventId)
 
         !broadcastSequence(updated)
         noData
@@ -442,6 +462,10 @@ object TimingSequenceService {
             updatedBy = userId
         }.orDie().onNullFail { TimingError.SequenceNotFound }
 
+        // Bump-Regel siehe [createSequence]; die Marken-Rücknahme oben bumpt nur, wenn sie eine
+        // offizielle Zeit oder Zwischenzeit geräumt hat - eine reine Startmarke tut das nicht.
+        EventChangeMarker.bump(eventId)
+
         !broadcastSequence(updated)
         noData
     }
@@ -480,6 +504,9 @@ object TimingSequenceService {
         // the scheduler owns that DONE transition and picks it up on its next tick (within a
         // second). An ARMED sequence never reaches the scheduler though, which is why it is
         // resolved above instead.
+        // Bump-Regel siehe [createSequence] - insbesondere die ARMED->ABORTED-Auflösung eben
+        // muss die Anzeigen erreichen.
+        EventChangeMarker.bump(eventId)
         !broadcastSequence(updated)
         noData
     }
@@ -555,14 +582,19 @@ object TimingSequenceService {
                     TimingWsMessage.OfficialTimeChanged(entries.flatMap { it.changedOfficialTimes }),
                 )
             }
-        // Laufzustands-Stempel (started_at/activated_at) UND geschriebene Ergebnisse des Laufs:
-        // erst hier, nach dem Commit, die Caches der öffentlichen Anzeigen entwerten - ein Bump
-        // aus der Scheduler-Transaktion heraus ginge vor dem Commit raus (AfterCommit hat dort
-        // keinen Puffer) und ließe die Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf
-        // festhalten. Beide Änderungsarten derselben Veranstaltung bündeln sich zu EINEM Bump.
-        result.fired
+        // Laufzustands-Stempel (started_at/activated_at), geschriebene Ergebnisse UND jeder
+        // Sequenz-Zustandswechsel des Laufs (gefeuerter Eintrag, DONE-Übergang): erst hier, nach
+        // dem Commit, die Caches der öffentlichen Anzeigen entwerten - ein Bump aus der
+        // Scheduler-Transaktion heraus ginge vor dem Commit raus (AfterCommit hat dort keinen
+        // Puffer) und ließe die Anzeigen den alten Stand nachladen und bis zum TTL-Ablauf
+        // festhalten. changedSequences gehört dazu, weil die Stream-Uhr am Sequenzzustand hängt:
+        // Gerade der DONE-Übergang OHNE Stempel (letzter Eintrag übersprungen, zweites Boot
+        // einer schon gestempelten Partie) ließe sonst den Countdown einer längst beendeten
+        // Sequenz on air stehen. Alle Änderungsarten derselben Veranstaltung bündeln sich zu
+        // EINEM Bump.
+        (result.fired
             .filter { it.matchStamped || it.resultsWritten }
-            .map { it.mark.event }
+            .map { it.mark.event } + result.changedSequences.map { it.event })
             .distinct()
             .forEach { eventId -> EventChangeMarker.bump(eventId) }
     }

@@ -52,6 +52,14 @@ data class StreamGraphicViewDto(
      * als [sequenceStartedAt], von dem aus er (falsch) HOCHzählte.
      */
     val sequenceFiresAt: LocalDateTime? = null,
+    /**
+     * CLOCK: Beginn der LAUFENDEN Pause der Sequenz — nur gesetzt, solange sie angehalten ist.
+     * Die Bühne friert den Countdown auf dem Reststand dieses Zeitpunkts ein
+     * (`sequenceFiresAt − sequencePausedAt`, reine Serverzeit-Differenz ohne Versatz-Korrektur);
+     * das Fortsetzen verschiebt [sequenceFiresAt] um exakt die Pausendauer, der eingefrorene
+     * Wert läuft also nahtlos weiter.
+     */
+    val sequencePausedAt: LocalDateTime? = null,
 )
 
 /** Ein Einlauf auf dem FINISH_TICKER-Band, in der Reihenfolge der Zieldurchfahrt. */

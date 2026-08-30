@@ -4221,6 +4221,10 @@ export type StreamGraphicViewDto = {
      * CLOCK: instant the start signal falls (sequence anchor plus its configured lead-in) - null unless a start sequence is currently running. This is what the countdown counts down TO, as opposed to sequenceStartedAt, which it counts up FROM.
      */
     sequenceFiresAt?: string | null
+    /**
+     * CLOCK: start of the sequence's CURRENT pause - only set while it is paused. The stage freezes the countdown at the remainder as of this instant (sequenceFiresAt minus sequencePausedAt, a pure server-time difference); resuming shifts sequenceFiresAt by exactly the pause duration, so the frozen value continues seamlessly.
+     */
+    sequencePausedAt?: string | null
 }
 
 /**

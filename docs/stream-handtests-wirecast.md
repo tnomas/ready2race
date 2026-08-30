@@ -22,6 +22,21 @@ prüfbar:
    einsetzen.
 6. **Echtdaten-Tag**: Automatik-Regeln mit echter Zeitnahme (Startsequenz-Countdown,
    Zwischenzeiten-Band, Einlauf-Ticker, „Vorläufig" bei Klärung, Folgelauf-Band).
+7. **Ausnahmen der Startsequenz** (Sync-Runde 30.08.2026, im Test belegt, am echten
+   Stack nachziehen — Sequenz am Startbildschirm bedienen, Wirecast-Quelle daneben):
+   - **Pause**: Countdown friert SOFORT auf dem Reststand ein (kein Weiterlaufen auf
+     0:00), Akzentbalken der Uhr kippt auf Orange, Pause-Symbol neben der Zahl.
+   - **Fortsetzen**: Countdown läuft nahtlos am eingefrorenen Wert weiter (der
+     Feuerzeitpunkt rückt serverseitig um exakt die Pausendauer nach hinten).
+   - **Pause → Zurücksetzen → Fortsetzen**: der zurückgesetzte Start feuert direkt nach
+     dem Fortsetzen; Uhr wechselt mit dem Stempel auf die laufende Zeit.
+   - **Abbruch** (auch aus der Pause): Countdown verschwindet über die
+     Ausblendanimation (kein Abpoppen, kein stehender 0:00-Rest); Folgelauf-Band darf
+     zurückkommen.
+   - **Fehlstart vom Erfassungsboard**: bricht die Sequenz ab — gleiche Erwartung wie
+     beim Abbruch, zusätzlich fällt der Lauf auf „In Vorbereitung" zurück.
+   - **Pause NACH dem Startschuss** (Boot fährt): die laufende Uhr läuft weiter — die
+     Pause stoppt künftige Starts, nie einen Lauf auf dem Wasser.
 
 Bekannte, bewusst offene Punkte (Folge-Tickets, siehe Ledger/Abschlussbericht):
 Streckenbild-Auslieferung für Token-Szenen; Picker zeigt übersprungene Läufe.
