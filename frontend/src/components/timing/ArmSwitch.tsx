@@ -118,17 +118,24 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                 py: 1,
                 border: 3,
                 borderColor: armed ? 'success.main' : 'warning.main',
+                // Nicht scharf ist der gefährliche Zustand (der Posten erfasst nichts mit
+                // Zuordnung) — der darf nicht wie ein dezenter Rahmen aussehen, sondern
+                // flächig warnen. Scharf bleibt ruhig: nur der grüne Rahmen.
+                backgroundColor: armed ? 'transparent' : 'warning.main',
+                color: armed ? 'text.primary' : 'warning.contrastText',
             }}>
             <Stack sx={{flexGrow: 1, minWidth: 0}}>
                 <Typography
                     variant="h5"
                     sx={{fontWeight: 800, lineHeight: 1.2}}
-                    color={armed ? 'success.main' : 'warning.main'}>
+                    color={armed ? 'success.main' : 'inherit'}>
                     {armed
                         ? t('timing.board.armed.stateArmed')
                         : t('timing.board.armed.stateDisarmed')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                    variant="body2"
+                    sx={{color: armed ? 'text.secondary' : 'inherit', opacity: armed ? 1 : 0.9}}>
                     {t('timing.board.armed.holdHint')}
                 </Typography>
             </Stack>
@@ -165,6 +172,10 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                     borderColor: 'divider',
                     userSelect: 'none',
                     touchAction: 'manipulation',
+                    // Eigene Fläche, damit Ring und Beschriftung auch auf der flächigen
+                    // Warnfarbe des Nicht-scharf-Zustands lesbar bleiben.
+                    backgroundColor: 'background.paper',
+                    color: 'text.primary',
                 }}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                     <Box sx={{position: 'relative', display: 'inline-flex'}}>
@@ -175,7 +186,15 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                             value={progress}
                             size={52}
                             thickness={5}
-                            sx={{color: armed ? 'warning.main' : 'success.main'}}
+                            sx={{
+                                color: armed ? 'warning.main' : 'success.main',
+                                // MUI animiert jeden determinate-Wert mit ~300 ms Transition
+                                // hinterher — bei einem live mitlaufenden Haltering hieß das:
+                                // Der Schalter kippte bereits, während der Ring sichtbar erst
+                                // bei ~70 % stand. Der 40-ms-Takt ist selbst flüssig genug,
+                                // der Ring soll den ECHTEN Fortschritt zeigen.
+                                '& .MuiCircularProgress-circle': {transition: 'none'},
+                            }}
                         />
                         <Box
                             sx={{
