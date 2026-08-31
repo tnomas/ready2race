@@ -437,22 +437,50 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                 <Typography variant="h5" textAlign="center" sx={listFont('h5')}>
                     {[time, compactScheduleTitle(next.match)].filter(part => part).join(' · ')}
                 </Typography>
-                {next.firstTeam !== undefined && (
+                {/* Welle (Massenstart): „zuerst am Start" gibt es nicht, das Feld geht gemeinsam
+                    — also alle Boote gleichrangig statt eines groß. Einzelstart wie gehabt: das
+                    erste Boot ist die Botschaft. */}
+                {next.wave && next.startTeams.length > 0 ? (
                     <>
                         <Typography
                             variant="h6"
                             color="text.secondary"
                             sx={[listFont('h6'), {pt: 2}]}>
-                            {t('timing.startDisplay.upcomingFirst')}
+                            {t('timing.startDisplay.next')}
                         </Typography>
-                        {/* Das erste Boot ist die eigentliche Botschaft dieser Ansicht — es soll
-                            aus der Entfernung lesbar sein, deshalb die große Stufe und kein
-                            `noWrap`: ein umbrechender Vereinsname ist besser als ein
-                            abgeschnittener. */}
-                        <Typography variant="h3" textAlign="center" sx={listFont('h3')}>
-                            {announcementLabel(next.match, next.firstTeam)}
-                        </Typography>
+                        <Stack
+                            divider={<Divider />}
+                            sx={{width: 1, maxWidth: 640, minHeight: 0, overflowY: 'auto'}}>
+                            {next.startTeams.map(team => (
+                                <Typography
+                                    key={team.competitionMatchTeam}
+                                    variant="h5"
+                                    noWrap
+                                    textAlign="center"
+                                    sx={[listFont('h5'), {py: 1}]}>
+                                    {announcementLabel(next.match, team)}
+                                </Typography>
+                            ))}
+                        </Stack>
                     </>
+                ) : (
+                    next.firstTeam !== undefined && (
+                        <>
+                            <Typography
+                                variant="h6"
+                                color="text.secondary"
+                                sx={[listFont('h6'), {pt: 2}]}>
+                                {t('timing.startDisplay.upcomingFirst')}
+                            </Typography>
+                            {/* Das erste Boot ist die eigentliche Botschaft dieser Ansicht — es
+                                soll aus der Entfernung lesbar sein, deshalb die große Stufe und
+                                kein `noWrap`: ein umbrechender Vereinsname ist besser als ein
+                                abgeschnittener. */}
+                            <Typography variant="h3" textAlign="center" sx={listFont('h3')}>
+                                {announcementLabel(next.match, next.firstTeam)}
+                            </Typography>
+                        </>
+                    )
                 )}
             </Stack>
         )
@@ -662,12 +690,37 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                                                 sx={[listFont('h6'), {opacity: 0.85}]}>
                                                 {t('timing.startDisplay.next')}
                                             </Typography>
-                                            <Typography
-                                                variant="h3"
-                                                textAlign="center"
-                                                sx={listFont('h3')}>
-                                                {label(view.next)}
-                                            </Typography>
+                                            {/* Welle: das ganze Feld wartet gemeinsam auf das
+                                                Fortsetzen — alle Boote, nicht nur das erste
+                                                (siehe RUNNING-Zweig unten). */}
+                                            {view.mode === 'MASS' ? (
+                                                <Stack
+                                                    divider={<Divider />}
+                                                    sx={{
+                                                        width: 1,
+                                                        maxWidth: 640,
+                                                        minHeight: 0,
+                                                        overflowY: 'auto',
+                                                    }}>
+                                                    {[view.next, ...view.following].map(entry => (
+                                                        <Typography
+                                                            key={entry.id}
+                                                            variant="h5"
+                                                            noWrap
+                                                            textAlign="center"
+                                                            sx={[listFont('h5'), {py: 1}]}>
+                                                            {label(entry)}
+                                                        </Typography>
+                                                    ))}
+                                                </Stack>
+                                            ) : (
+                                                <Typography
+                                                    variant="h3"
+                                                    textAlign="center"
+                                                    sx={listFont('h3')}>
+                                                    {label(view.next)}
+                                                </Typography>
+                                            )}
                                         </Stack>
                                     )}
                                 </Stack>
@@ -694,60 +747,100 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
                                         }}
                                     />
                                 )}
-                                <Stack
-                                    spacing={1}
-                                    alignItems="center"
-                                    sx={{width: 1, minHeight: 0}}>
-                                    <Typography
-                                        variant="h6"
-                                        color="text.secondary"
-                                        sx={listFont('h6')}>
-                                        {t('timing.startDisplay.next')}
-                                    </Typography>
-                                    <Typography
-                                        variant="h3"
-                                        textAlign="center"
-                                        noWrap
-                                        sx={[listFont('h3'), {maxWidth: 1}]}>
-                                        {label(view.next)}
-                                    </Typography>
-                                </Stack>
-                                {/* `followingCount` schneidet die Liste ab: auf einem kleinen Schirm ist
+                                {view.mode === 'MASS' ? (
+                                    /* Welle: das GANZE Feld startet im selben Moment — alle
+                                       wartenden Boote gleichrangig unter „Am Start", ohne
+                                       „Danach"-Liste (es gibt kein danach) und ohne den
+                                       `followingCount`-Schnitt: Wer in der Welle sitzt, muss
+                                       sich auf dem Schirm finden. */
+                                    <Stack
+                                        spacing={1}
+                                        alignItems="center"
+                                        sx={{width: 1, minHeight: 0}}>
+                                        <Typography
+                                            variant="h6"
+                                            color="text.secondary"
+                                            sx={listFont('h6')}>
+                                            {t('timing.startDisplay.next')}
+                                        </Typography>
+                                        <Stack
+                                            divider={<Divider />}
+                                            sx={{
+                                                width: 1,
+                                                maxWidth: 640,
+                                                minHeight: 0,
+                                                overflowY: 'auto',
+                                            }}>
+                                            {[view.next, ...view.following].map(entry => (
+                                                <Typography
+                                                    key={entry.id}
+                                                    variant="h5"
+                                                    noWrap
+                                                    textAlign="center"
+                                                    sx={[listFont('h5'), {py: 1}]}>
+                                                    {label(entry)}
+                                                </Typography>
+                                            ))}
+                                        </Stack>
+                                    </Stack>
+                                ) : (
+                                    <>
+                                        <Stack
+                                            spacing={1}
+                                            alignItems="center"
+                                            sx={{width: 1, minHeight: 0}}>
+                                            <Typography
+                                                variant="h6"
+                                                color="text.secondary"
+                                                sx={listFont('h6')}>
+                                                {t('timing.startDisplay.next')}
+                                            </Typography>
+                                            <Typography
+                                                variant="h3"
+                                                textAlign="center"
+                                                noWrap
+                                                sx={[listFont('h3'), {maxWidth: 1}]}>
+                                                {label(view.next)}
+                                            </Typography>
+                                        </Stack>
+                                        {/* `followingCount` schneidet die Liste ab: auf einem kleinen Schirm ist
                             „nur das aktuelle Boot" (0) die aufgeräumteste Anzeige, bei einem
                             Zeitfahren mit dreißig Booten will niemand alle sehen. Geschnitten
                             wird beim Zeichnen und nicht in der Ableitung, damit `view.following`
                             weiterhin den vollständigen Rest beschreibt. */}
-                                {display.followingCount > 0 && view.following.length > 0 && (
-                                    <Stack
-                                        spacing={1}
-                                        sx={{
-                                            width: 1,
-                                            maxWidth: 640,
-                                            minHeight: 0,
-                                            overflowY: 'auto',
-                                        }}>
-                                        <Typography
-                                            variant="h6"
-                                            color="text.secondary"
-                                            textAlign="center"
-                                            sx={listFont('h6')}>
-                                            {t('timing.startDisplay.following')}
-                                        </Typography>
-                                        <Stack divider={<Divider />}>
-                                            {view.following
-                                                .slice(0, display.followingCount)
-                                                .map(entry => (
-                                                    <Typography
-                                                        key={entry.id}
-                                                        variant="h5"
-                                                        noWrap
-                                                        textAlign="center"
-                                                        sx={[listFont('h5'), {py: 1}]}>
-                                                        {label(entry)}
-                                                    </Typography>
-                                                ))}
-                                        </Stack>
-                                    </Stack>
+                                        {display.followingCount > 0 && view.following.length > 0 && (
+                                            <Stack
+                                                spacing={1}
+                                                sx={{
+                                                    width: 1,
+                                                    maxWidth: 640,
+                                                    minHeight: 0,
+                                                    overflowY: 'auto',
+                                                }}>
+                                                <Typography
+                                                    variant="h6"
+                                                    color="text.secondary"
+                                                    textAlign="center"
+                                                    sx={listFont('h6')}>
+                                                    {t('timing.startDisplay.following')}
+                                                </Typography>
+                                                <Stack divider={<Divider />}>
+                                                    {view.following
+                                                        .slice(0, display.followingCount)
+                                                        .map(entry => (
+                                                            <Typography
+                                                                key={entry.id}
+                                                                variant="h5"
+                                                                noWrap
+                                                                textAlign="center"
+                                                                sx={[listFont('h5'), {py: 1}]}>
+                                                                {label(entry)}
+                                                            </Typography>
+                                                        ))}
+                                                </Stack>
+                                            </Stack>
+                                        )}
+                                    </>
                                 )}
                             </>
                         )}

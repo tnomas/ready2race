@@ -2,6 +2,7 @@ import {describe, expect, test} from 'vitest'
 import {
     TimingMatchDto,
     TimingMatchTeamDto,
+    TimingModeDto,
     TimingSequenceDto,
     TimingSequenceEntryDto,
 } from '@api/types.gen.ts'
@@ -164,6 +165,15 @@ const matchTeam = (
     ...overrides,
 })
 
+const timingMode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
+    id: crypto.randomUUID(),
+    event: crypto.randomUUID(),
+    name: 'Testtyp',
+    startSequenceEnabled: true,
+    boatKeysPrimary: '123456',
+    ...overrides,
+})
+
 const match = (
     id: string,
     phase: TimingMatchDto['phase'],
@@ -266,5 +276,50 @@ describe('nextMatchAnnouncement', () => {
 
         expect(result?.match.competitionSetupMatch).toBe('called')
         expect(result?.firstTeam).toBeUndefined()
+        expect(result?.startTeams).toEqual([])
+    })
+
+    test('ein Typ ohne Startabstand kuendigt eine Welle mit dem ganzen Feld an', () => {
+        const result = nextMatchAnnouncement([
+            match('called', 'ACTIVE', 'OPEN', {
+                timingMode: timingMode({intervalSeconds: null}),
+                teams: [matchTeam(2), matchTeam(1), matchTeam(3, {started: true})],
+            }),
+        ])
+
+        expect(result?.wave).toBe(true)
+        // Das ganze noch startbare Feld in Startreihenfolge - nicht nur das erste Boot.
+        expect(result?.startTeams.map(team => team.startNumber)).toEqual([1, 2])
+        expect(result?.firstTeam?.startNumber).toBe(1)
+    })
+
+    test('ein Typ mit Startabstand bleibt Einzelstart (keine Welle)', () => {
+        const result = nextMatchAnnouncement([
+            match('called', 'ACTIVE', 'OPEN', {timingMode: timingMode({intervalSeconds: 60})}),
+        ])
+
+        expect(result?.wave).toBe(false)
+    })
+
+    test('ohne aufgeloesten Zeitnahmetyp keine Welle - das erste Boot bleibt die Auskunft', () => {
+        const result = nextMatchAnnouncement([match('called', 'ACTIVE', 'OPEN')])
+
+        expect(result?.wave).toBe(false)
+    })
+})
+
+describe('deriveStartDisplay (Startart)', () => {
+    test('RUNNING und PAUSED reichen die Startart durch - die Welle zeigt alle Boote', () => {
+        const entries = [
+            entry({id: 'a', position: 0, status: 'PENDING', plannedStartMillis: 9_000}),
+            entry({id: 'b', position: 1, status: 'PENDING', plannedStartMillis: 9_000}),
+        ]
+        const running = deriveStartDisplay(sequence({state: 'RUNNING', mode: 'MASS', entries}))
+        const paused = deriveStartDisplay(sequence({state: 'PAUSED', mode: 'MASS', entries}))
+
+        expect(running.kind).toBe('RUNNING')
+        if (running.kind === 'RUNNING') expect(running.mode).toBe('MASS')
+        expect(paused.kind).toBe('PAUSED')
+        if (paused.kind === 'PAUSED') expect(paused.mode).toBe('MASS')
     })
 })

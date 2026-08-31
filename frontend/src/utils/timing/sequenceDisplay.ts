@@ -1,4 +1,5 @@
 import {
+    SequenceMode,
     SequenceState,
     TimingMatchDto,
     TimingMatchTeamDto,
@@ -56,6 +57,13 @@ export type StartDisplayView =
     | {kind: 'ARMED'; entries: TimingSequenceEntryDto[]}
     | {
           kind: 'RUNNING'
+          /**
+           * Startart der Sequenz: bei MASS (Welle) startet das GANZE Feld im selben Moment —
+           * der Bildschirm zeigt dann alle wartenden Boote gleichrangig statt „eines groß,
+           * der Rest als ‚Danach'-Liste" (das ist die Einzelstart-Erzählung, und für eine
+           * Welle ist sie schlicht falsch: es gibt kein „danach").
+           */
+          mode: SequenceMode
           next: TimingSequenceEntryDto
           following: TimingSequenceEntryDto[]
           settled: TimingSequenceEntryDto[]
@@ -63,6 +71,8 @@ export type StartDisplayView =
       }
     | {
           kind: 'PAUSED'
+          /** Startart wie am RUNNING-Zweig — auch die Pausen-Ansicht einer Welle nennt alle Boote. */
+          mode: SequenceMode
           /** Das Boot, das nach dem Fortsetzen als Erstes dran ist; undefined am Sequenzende. */
           next: TimingSequenceEntryDto | undefined
           following: TimingSequenceEntryDto[]
@@ -83,6 +93,7 @@ export function deriveStartDisplay(sequence: TimingSequenceDto | undefined): Sta
             if (split.next === undefined) return {kind: 'FINISHING'}
             return {
                 kind: 'RUNNING',
+                mode: sequence.mode,
                 next: split.next,
                 following: split.following,
                 settled: split.settled,
@@ -99,6 +110,7 @@ export function deriveStartDisplay(sequence: TimingSequenceDto | undefined): Sta
             const split = splitRunningEntries(sequence)
             return {
                 kind: 'PAUSED',
+                mode: sequence.mode,
                 next: split.next,
                 following: split.following,
                 settled: split.settled,
@@ -129,12 +141,25 @@ export type NextMatchAnnouncement = {
      * ohne Boote (Freilos-Sonderfälle).
      */
     firstTeam: TimingMatchTeamDto | undefined
+    /**
+     * Das ganze Startfeld in Startreihenfolge (dieselbe Auswahl, aus der [firstTeam] das erste
+     * ist). Für eine Welle ([wave]) zeigt der Bildschirm ALLE diese Boote — „zuerst am Start"
+     * gibt es dort nicht, das Feld geht gemeinsam.
+     */
+    startTeams: TimingMatchTeamDto[]
+    /**
+     * True für einen Massenstart (Welle): der aufgelöste Zeitnahmetyp der Partie kennt keinen
+     * Startabstand — dieselbe Regel, mit der `sequenceRequestFromMode` MASS wählt. Ohne
+     * aufgelösten Typ bleibt es bei der Einzelstart-Darstellung (erstes Boot): sie ist die
+     * vorsichtigere Auskunft, und ein Lauf ohne Typ lässt sich vom Board ohnehin nicht starten.
+     */
+    wave: boolean
     /** True, wenn der Lauf aufgerufen ist („in Vorbereitung"), nicht bloß der nächste offene. */
     inPreparation: boolean
 }
 
 /**
- * Welches Boot eine Startsequenz dieser Partie als Erstes aufrufen würde.
+ * Das Startfeld, das eine Startsequenz dieser Partie aufrufen würde, in Startreihenfolge.
  *
  * Dieselbe Regel wie `sequenceRequestFromMode` in `matchBoard.ts`: bereits gestartete Boote
  * (Nachzügler-Fall) fallen heraus, der Rest startet in Startnummern-Reihenfolge. Die Regel steht
@@ -143,10 +168,10 @@ export type NextMatchAnnouncement = {
  * Fällt am Ende doch alles heraus (jedes Boot schon unterwegs), zählt wieder das ganze Feld: eine
  * Ankündigung ohne Boot wäre auf dem Bildschirm am Steg die schlechtere Auskunft.
  */
-function firstSequenceTeam(match: TimingMatchDto): TimingMatchTeamDto | undefined {
+function sequenceStartField(match: TimingMatchDto): TimingMatchTeamDto[] {
     const startable = match.teams.filter(team => !team.started)
     const pool = startable.length > 0 ? startable : match.teams
-    return [...pool].sort((a, b) => a.startNumber - b.startNumber)[0]
+    return [...pool].sort((a, b) => a.startNumber - b.startNumber)
 }
 
 /**
@@ -166,9 +191,13 @@ export function nextMatchAnnouncement(
     const prepared = matches.find(match => match.phase === 'ACTIVE' && match.progress === 'OPEN')
     const match = prepared ?? matches.find(match => match.progress === 'OPEN')
     if (match === undefined) return undefined
+    const startTeams = sequenceStartField(match)
     return {
         match,
-        firstTeam: firstSequenceTeam(match),
+        firstTeam: startTeams[0],
+        startTeams,
+        // Welle = aufgelöster Typ ohne Startabstand (MASS) — siehe KDoc am Feld.
+        wave: match.timingMode != null && match.timingMode.intervalSeconds == null,
         inPreparation: prepared !== undefined,
     }
 }
