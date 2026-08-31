@@ -358,5 +358,20 @@ export const buildDemoResponse = (pathname: string): unknown => {
         return {data: [DEMO_EVENT], pagination: {total: 1, limit: 10, offset: 0}}
     }
 
+    // Die Zeitnahme-Endpunkte des Dashboards: leer beantwortet, damit die Demo ohne Backend nicht
+    // ins Leere läuft — das Panel zeigt dann sauber „keine interne Zeitnahme".
+    if (pathname.endsWith('/timing/state')) {
+        return {stations: [], timeMarks: []}
+    }
+    if (pathname.endsWith('/timing/matches') || pathname.endsWith('/timing/stations')) {
+        return []
+    }
+    if (pathname.endsWith('/timing/sequences/active')) {
+        return {}
+    }
+    if (pathname.endsWith('/timing/serverTime')) {
+        return {serverTimeMillis: Date.now()}
+    }
+
     return null
 }

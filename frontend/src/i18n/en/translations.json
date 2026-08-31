@@ -1824,7 +1824,7 @@
       },
       "profiles": {
         "title": "Timing profiles",
-        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. Rebuilding the competition setup itself makes its matches lose their own profiles \u2014 a round regenerated during execution keeps them.",
+        "hint": "A timing profile is what a match is timed with: the race for RaceClocker, the timing mode for internal timing. It is inherited downwards from the event — competition, round and match may deviate, and the most specific level that is set applies. Every change is saved immediately. Rebuilding the competition setup itself makes its matches lose their own profiles — a round regenerated during execution keeps them.",
         "matchLevelExportHint": "The bulk start list export groups by competition. A match with a race of its own appears there under its competition's race — its start list has to be exported on its own.",
         "noSystem": "There are no profiles for this timing system. Select “RaceClocker” or “Internal timing” above.",
         "noOptions": "No profile has been created yet. Create a race or a timing mode above.",
@@ -4276,7 +4276,9 @@
       "teams": "Teams",
       "badges": "Notes",
       "empty": "No races match the current filters.",
-      "openDetails": "Open details"
+      "openDetails": "Open details",
+      "teamCount": "{{count}} team",
+      "teamCount_other": "{{count}} teams"
     },
     "match": {
       "start": "Start",
@@ -4323,6 +4325,41 @@
       "refresh": "Refresh",
       "turnaround": "Turnaround warning",
       "resetAll": "Reset everything"
+    },
+    "dashboard": {
+      "detailsTitle": "Race details",
+      "noSelection": "No race selected — pick one in the program on the left or enable \"Follow live\".",
+      "followLive": "Follow live"
+    },
+    "panelSettings": {
+      "showFinished": "Show finished races",
+      "compactRows": "Compact rows",
+      "showYears": "Show birth years",
+      "tickerLimit": "Finish ticker entries"
+    },
+    "timing": {
+      "title": "Timing",
+      "live": "Live connected",
+      "connecting": "Connecting …",
+      "unauthorized": "No permission for timing data — sign in with an account that has read access.",
+      "noStations": "This event does not use internal timing.",
+      "sequences": "Start sequences",
+      "noSequence": "No active start sequence.",
+      "sequenceArmed": "Armed",
+      "sequenceRunning": "Running",
+      "sequencePaused": "Paused",
+      "sequenceProgress": "{{started}}/{{total}} started",
+      "nextStart": "Next start",
+      "startNow": "Start!",
+      "finishTicker": "Finish line",
+      "noFinishes": "No finishes yet.",
+      "unassignedFinish": "Finish captured — not assigned yet",
+      "falseStart": "False start!",
+      "falseStartShort": "False start",
+      "startingShort": "Starting",
+      "progress": "Live",
+      "started": "started",
+      "finished": "finished"
     }
   }
 }

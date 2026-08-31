@@ -1,21 +1,24 @@
-import {Box, IconButton, Stack, Tab, Tabs, Typography} from '@mui/material'
+import {Box, Collapse, IconButton, Stack, Typography} from '@mui/material'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SettingsIcon from '@mui/icons-material/Settings'
+import ViewTimelineIcon from '@mui/icons-material/ViewTimeline'
 import {getEvent, getLatestMatchResults, getRunningMatches, getUpcomingMatches} from '@api/sdk.gen.ts'
-import SpeakerMatchDialog from '@components/speaker/SpeakerMatchDialog.tsx'
-import SpeakerParticipantDialog from '@components/speaker/SpeakerParticipantDialog.tsx'
-import SpeakerProgramTable from '@components/speaker/SpeakerProgramTable.tsx'
-import SpeakerResultsList from '@components/speaker/SpeakerResultsList.tsx'
+import SpeakerMatchPanel from '@components/speaker/SpeakerMatchPanel.tsx'
+import SpeakerParticipantPanel from '@components/speaker/SpeakerParticipantPanel.tsx'
+import SpeakerProgramPanel from '@components/speaker/SpeakerProgramPanel.tsx'
 import SpeakerSettingsDialog from '@components/speaker/SpeakerSettingsDialog.tsx'
 import SpeakerTimeline from '@components/speaker/SpeakerTimeline.tsx'
+import SpeakerTimingPanel from '@components/speaker/SpeakerTimingPanel.tsx'
 import {
     computeSpeakerBadges,
+    matchLabel,
     mergeSpeakerMatches,
     SpeakerMatch,
 } from '@components/speaker/speakerData.ts'
+import {useSpeakerTiming} from '@components/speaker/speakerTiming.ts'
 import {
     loadSpeakerSettings,
     resolveSpeakerColors,
@@ -34,14 +37,17 @@ import {useTranslation} from 'react-i18next'
 
 const FETCH_LIMIT = 500
 
-type SpeakerTab = 'timeline' | 'program' | 'results'
-
+/**
+ * Das Sprecher-Board als Dashboard: Programm links, Details des gewählten Laufs in der Mitte,
+ * rechts die Echtzeit-Lage der Zeitnahme und das Athlet:innen-Panel. Alles steht nebeneinander
+ * statt in verschachtelten Dialogen — eine Sprecherin will Dinge stehen lassen können, während
+ * sie weiterklickt. Der Zeitstrahl bleibt als einklappbarer Streifen darüber erhalten.
+ */
 const SpeakerBoardPage = () => {
     const {t} = useTranslation()
     const {eventId} = useParams({from: '/speaker/event/$eventId'})
 
-    const [tab, setTab] = useState<SpeakerTab>('timeline')
-    const [selectedMatch, setSelectedMatch] = useState<SpeakerMatch | null>(null)
+    const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
     const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [fullscreen, setFullscreen] = useState(false)
@@ -112,15 +118,6 @@ const SpeakerBoardPage = () => {
 
     const badges = useMemo(() => computeSpeakerBadges(matches), [matches])
 
-    // keep the open dialog in sync with fresh data
-    const dialogMatch = useMemo(
-        () =>
-            selectedMatch
-                ? (matches.find(match => match.matchId === selectedMatch.matchId) ?? selectedMatch)
-                : null,
-        [selectedMatch, matches],
-    )
-
     const reloadAll = () => {
         reloadUpcoming()
         reloadRunning()
@@ -130,129 +127,280 @@ const SpeakerBoardPage = () => {
 
     const runningCount = matches.filter(match => match.status === 'RUNNING').length
 
+    // Echtzeit-Zeitnahme (Sequenzen, Fehlstärte, Zieleinläufe) über denselben Kanal wie der
+    // Leitstand — rein lesend, ohne Berechtigung degradiert das Panel zu einem Hinweis.
+    const timing = useSpeakerTiming(eventId, settings.timingTickerLimit)
+
+    // Zeitnahme-Aktivität lädt die Sprecher-Listen nach: Das Scharfstellen einer Sequenz oder ein
+    // Zieleinlauf verschiebt einen Lauf sofort zwischen den drei Info-Feeds, aber der allgemeine
+    // Event-Push feuert bei Zeitnahme-Aktionen nicht und der Poll ist als Sicherheitsnetz gestreckt.
+    // Der Schlüssel fasst alles zusammen, was einen Feed-Wechsel anzeigt; entprellt, weil eine
+    // Startwelle viele Nachrichten in kurzer Folge bringt.
+    const timingActivityKey = [
+        [...timing.sequences.values()]
+            .map(
+                sequence =>
+                    `${sequence.id}:${sequence.state}:${
+                        sequence.entries.filter(entry => entry.status === 'STARTED').length
+                    }`,
+            )
+            .join('|'),
+        timing.finishTicker[0]?.markId ?? '',
+        timing.falseStarts.length,
+    ].join('·')
+    const activityReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    useEffect(() => {
+        if (activityReloadTimer.current !== null) clearTimeout(activityReloadTimer.current)
+        activityReloadTimer.current = setTimeout(() => {
+            activityReloadTimer.current = null
+            reloadAllRef.current()
+        }, 1200)
+        return () => {
+            if (activityReloadTimer.current !== null) {
+                clearTimeout(activityReloadTimer.current)
+                activityReloadTimer.current = null
+            }
+        }
+    }, [timingActivityKey])
+
+    // Partien, die gerade in einer scharfen/laufenden/pausierten Startsequenz stecken.
+    const startingMatchIds = useMemo(() => {
+        const ids = new Set<string>()
+        for (const sequence of timing.sequences.values()) {
+            if (
+                sequence.state !== 'ARMED' &&
+                sequence.state !== 'RUNNING' &&
+                sequence.state !== 'PAUSED'
+            )
+                continue
+            sequence.entries.forEach(entry => {
+                const ref = timing.index.byTeam.get(entry.competitionMatchTeam)
+                if (ref) ids.add(ref.match.competitionSetupMatch)
+            })
+        }
+        return ids
+    }, [timing.sequences, timing.index])
+
+    const falseStartMatchIds = useMemo(
+        () => new Set(timing.falseStarts.map(event => event.matchId)),
+        [timing.falseStarts],
+    )
+
+    // „Live folgen": der Lauf, den die Mitte von selbst zeigen soll — bevorzugt der Lauf in einer
+    // laufenden Startsequenz, sonst der zuletzt gestartete laufende, sonst der nächste anstehende.
+    const liveMatchId = useMemo(() => {
+        for (const sequence of timing.sequences.values()) {
+            if (sequence.state !== 'RUNNING' && sequence.state !== 'ARMED') continue
+            const nextEntry = [...sequence.entries]
+                .sort((a, b) => a.position - b.position)
+                .find(entry => entry.status === 'PENDING')
+            const ref = nextEntry
+                ? timing.index.byTeam.get(nextEntry.competitionMatchTeam)
+                : undefined
+            if (ref) return ref.match.competitionSetupMatch
+        }
+        const running = matches.filter(match => match.status === 'RUNNING')
+        if (running.length > 0) return running[running.length - 1].matchId
+        const upcoming = matches.find(
+            match =>
+                match.status === 'UPCOMING' &&
+                !match.cancelled &&
+                match.startTime &&
+                match.startTime.getTime() >= now.getTime() - 5 * 60 * 1000,
+        )
+        if (upcoming) return upcoming.matchId
+        const finished = matches.filter(match => match.status === 'FINISHED')
+        return finished.length > 0 ? finished[finished.length - 1].matchId : null
+    }, [timing.sequences, timing.index, matches, now])
+
+    useEffect(() => {
+        if (settings.followLive && liveMatchId != null) {
+            setSelectedMatchId(liveMatchId)
+        }
+    }, [settings.followLive, liveMatchId])
+
+    const selectedMatch = useMemo(
+        () => matches.find(match => match.matchId === selectedMatchId) ?? null,
+        [matches, selectedMatchId],
+    )
+
+    // Ein Handgriff wählt den Lauf UND löst das Live-Folgen — sonst spränge die Mitte beim
+    // nächsten Datenstand sofort wieder weg von der bewussten Auswahl.
+    const selectMatchManually = (match: SpeakerMatch) => {
+        setSelectedMatchId(match.matchId)
+        if (settings.followLive) updateSettings({followLive: false})
+    }
+
+    const selectMatchById = (matchId: string) => {
+        const match = matches.find(candidate => candidate.matchId === matchId)
+        if (match) selectMatchManually(match)
+    }
+
+    const matchLabelOf = (matchId: string): string | null => {
+        const match = matches.find(candidate => candidate.matchId === matchId)
+        return match ? matchLabel(match) : null
+    }
+
     return (
         <SpeakerSettingsContext.Provider value={{settings, colors, updateSettings}}>
             <Box
-            sx={{
-                minHeight: '100vh',
-                bgcolor: colors.background,
-                color: colors.text,
-                display: 'flex',
-                flexDirection: 'column',
-            }}>
-            <Stack
-                direction={'row'}
-                alignItems={'center'}
-                spacing={2}
                 sx={{
-                    px: 2,
-                    py: 1,
-                    borderBottom: `1px solid ${colors.border}`,
-                    position: 'sticky',
-                    top: 0,
+                    height: '100vh',
                     bgcolor: colors.background,
-                    zIndex: 10,
+                    color: colors.text,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: {xs: 'auto', lg: 'hidden'},
                 }}>
-                <Link to={'/speaker'}>
-                    <IconButton sx={{color: colors.textSecondary}}>
-                        <ArrowBackIcon />
-                    </IconButton>
-                </Link>
-                <Box sx={{minWidth: 0}}>
-                    <Typography variant={'h6'} noWrap fontWeight={'bold'}>
-                        🎙️ {eventData?.name ?? t('speaker.title')}
-                    </Typography>
-                    <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
-                        {t('speaker.subtitle')}
-                        {runningCount > 0 && (
-                            <Typography
-                                component={'span'}
-                                variant={'caption'}
-                                fontWeight={'bold'}
-                                sx={{color: colors.running}}>
-                                {' '}
-                                · ● {t('speaker.liveCount', {count: runningCount})}
-                            </Typography>
-                        )}
-                    </Typography>
-                </Box>
-                <Tabs
-                    value={tab}
-                    onChange={(_, value: SpeakerTab) => setTab(value)}
+                <Stack
+                    direction={'row'}
+                    alignItems={'center'}
+                    spacing={2}
                     sx={{
-                        mx: 'auto',
-                        '& .MuiTab-root': {color: colors.textSecondary},
-                        '& .Mui-selected': {color: `${colors.text} !important`},
-                        '& .MuiTabs-indicator': {bgcolor: colors.upcoming},
+                        px: 2,
+                        py: 1,
+                        borderBottom: `1px solid ${colors.border}`,
+                        position: 'sticky',
+                        top: 0,
+                        bgcolor: colors.background,
+                        zIndex: 10,
+                        flexShrink: 0,
                     }}>
-                    <Tab value={'timeline'} label={t('speaker.tabs.timeline')} />
-                    <Tab value={'program'} label={t('speaker.tabs.program')} />
-                    <Tab value={'results'} label={t('speaker.tabs.results')} />
-                </Tabs>
-                <Typography
-                    variant={'h6'}
-                    fontWeight={'bold'}
-                    sx={{fontVariantNumeric: 'tabular-nums'}}>
-                    {format(now, t('format.time'))}
-                </Typography>
-                <IconButton onClick={reloadAll} sx={{color: colors.textSecondary}}>
-                    <RefreshIcon />
-                </IconButton>
-                <IconButton
-                    onClick={() => setSettingsOpen(true)}
-                    sx={{color: colors.textSecondary}}>
-                    <SettingsIcon />
-                </IconButton>
-                <IconButton onClick={toggleFullscreen} sx={{color: colors.textSecondary}}>
-                    {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                </IconButton>
-            </Stack>
-            <Box sx={{flex: 1, p: 2, zoom: settings.scalePercent / 100}}>
+                    <Link to={'/speaker'}>
+                        <IconButton sx={{color: colors.textSecondary}}>
+                            <ArrowBackIcon />
+                        </IconButton>
+                    </Link>
+                    <Box sx={{minWidth: 0, flex: 1}}>
+                        <Typography variant={'h6'} noWrap fontWeight={'bold'}>
+                            🎙️ {eventData?.name ?? t('speaker.title')}
+                        </Typography>
+                        <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
+                            {t('speaker.subtitle')}
+                            {runningCount > 0 && (
+                                <Typography
+                                    component={'span'}
+                                    variant={'caption'}
+                                    fontWeight={'bold'}
+                                    sx={{color: colors.running}}>
+                                    {' '}
+                                    · ● {t('speaker.liveCount', {count: runningCount})}
+                                </Typography>
+                            )}
+                        </Typography>
+                    </Box>
+                    <Typography
+                        variant={'h6'}
+                        fontWeight={'bold'}
+                        sx={{fontVariantNumeric: 'tabular-nums'}}>
+                        {format(now, t('format.time'))}
+                    </Typography>
+                    <IconButton
+                        onClick={() => updateSettings({showTimeline: !settings.showTimeline})}
+                        title={t('speaker.tabs.timeline')}
+                        sx={{
+                            color: settings.showTimeline ? colors.upcoming : colors.textSecondary,
+                        }}>
+                        <ViewTimelineIcon />
+                    </IconButton>
+                    <IconButton onClick={reloadAll} sx={{color: colors.textSecondary}}>
+                        <RefreshIcon />
+                    </IconButton>
+                    <IconButton
+                        onClick={() => setSettingsOpen(true)}
+                        sx={{color: colors.textSecondary}}>
+                        <SettingsIcon />
+                    </IconButton>
+                    <IconButton onClick={toggleFullscreen} sx={{color: colors.textSecondary}}>
+                        {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                    </IconButton>
+                </Stack>
                 {!loaded ? (
                     <Throbber />
                 ) : (
-                    <>
-                        {tab === 'timeline' && (
-                            <SpeakerTimeline
-                                matches={matches}
-                                badges={badges}
-                                now={now}
-                                onSelectMatch={setSelectedMatch}
-                            />
-                        )}
-                        {tab === 'program' && (
-                            <SpeakerProgramTable
-                                matches={matches}
-                                badges={badges}
-                                onSelectMatch={setSelectedMatch}
-                                onSelectParticipant={setSelectedParticipantId}
-                            />
-                        )}
-                        {tab === 'results' && (
-                            <SpeakerResultsList
-                                matches={matches}
-                                badges={badges}
-                                onSelectMatch={setSelectedMatch}
-                                onSelectParticipant={setSelectedParticipantId}
-                            />
-                        )}
-                    </>
+                    <Box
+                        sx={{
+                            flex: 1,
+                            minHeight: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            zoom: settings.scalePercent / 100,
+                        }}>
+                        <Collapse in={settings.showTimeline}>
+                            <Box sx={{px: 2, pt: 2, maxHeight: '38vh', overflowY: 'auto'}}>
+                                <SpeakerTimeline
+                                    matches={matches}
+                                    badges={badges}
+                                    now={now}
+                                    onSelectMatch={selectMatchManually}
+                                />
+                            </Box>
+                        </Collapse>
+                        <Box
+                            sx={{
+                                flex: 1,
+                                minHeight: 0,
+                                p: 2,
+                                display: 'grid',
+                                gap: 2,
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    lg: 'minmax(320px, 3fr) minmax(400px, 4.5fr) minmax(300px, 3fr)',
+                                },
+                                alignItems: 'stretch',
+                            }}>
+                            <Box sx={{minHeight: {xs: 320, lg: 0}}}>
+                                <SpeakerProgramPanel
+                                    matches={matches}
+                                    badges={badges}
+                                    selectedMatchId={selectedMatchId}
+                                    onSelectMatch={selectMatchManually}
+                                    startingMatchIds={startingMatchIds}
+                                    falseStartMatchIds={falseStartMatchIds}
+                                />
+                            </Box>
+                            <Box sx={{minHeight: {xs: 320, lg: 0}}}>
+                                <SpeakerMatchPanel
+                                    match={selectedMatch}
+                                    badges={badges}
+                                    timing={timing}
+                                    followLive={settings.followLive}
+                                    onToggleFollowLive={follow =>
+                                        updateSettings({followLive: follow})
+                                    }
+                                    onSelectParticipant={setSelectedParticipantId}
+                                />
+                            </Box>
+                            <Box
+                                sx={{
+                                    minHeight: {xs: 320, lg: 0},
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 2,
+                                }}>
+                                <Box sx={{flex: 1, minHeight: 0}}>
+                                    <SpeakerTimingPanel
+                                        timing={timing}
+                                        matchLabelOf={matchLabelOf}
+                                        onSelectMatch={selectMatchById}
+                                    />
+                                </Box>
+                                {selectedParticipantId && (
+                                    <Box sx={{flex: 1, minHeight: 0}}>
+                                        <SpeakerParticipantPanel
+                                            participantId={selectedParticipantId}
+                                            badges={badges}
+                                            now={now}
+                                            onClose={() => setSelectedParticipantId(null)}
+                                            onSelectMatch={selectMatchManually}
+                                        />
+                                    </Box>
+                                )}
+                            </Box>
+                        </Box>
+                    </Box>
                 )}
-            </Box>
-            <SpeakerMatchDialog
-                match={dialogMatch}
-                badges={badges}
-                onClose={() => setSelectedMatch(null)}
-                onSelectParticipant={setSelectedParticipantId}
-            />
-            <SpeakerParticipantDialog
-                participantId={selectedParticipantId}
-                badges={badges}
-                now={now}
-                onClose={() => setSelectedParticipantId(null)}
-                onSelectMatch={setSelectedMatch}
-            />
-            <SpeakerSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+                <SpeakerSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
             </Box>
         </SpeakerSettingsContext.Provider>
     )

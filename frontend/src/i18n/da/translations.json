@@ -4109,7 +4109,9 @@
       "teams": "Hold",
       "badges": "Noter",
       "empty": "Ingen løb matcher de aktuelle filtre.",
-      "openDetails": "Åbn detaljer"
+      "openDetails": "Åbn detaljer",
+      "teamCount": "{{count}} hold",
+      "teamCount_other": "{{count}} hold"
     },
     "match": {
       "start": "Start",
@@ -4156,6 +4158,41 @@
       "refresh": "Opdatering",
       "turnaround": "Skiftetids-advarsel",
       "resetAll": "Nulstil alt"
+    },
+    "dashboard": {
+      "detailsTitle": "Løbsdetaljer",
+      "noSelection": "Intet løb valgt — vælg et i programmet til venstre eller slå \"Følg live\" til.",
+      "followLive": "Følg live"
+    },
+    "panelSettings": {
+      "showFinished": "Vis afsluttede løb",
+      "compactRows": "Kompakte rækker",
+      "showYears": "Vis årgange",
+      "tickerLimit": "Poster i målpassage"
+    },
+    "timing": {
+      "title": "Tidtagning",
+      "live": "Live forbundet",
+      "connecting": "Opretter forbindelse …",
+      "unauthorized": "Ingen adgang til tidtagningen — log ind med en konto med læseadgang.",
+      "noStations": "Dette stævne bruger ikke intern tidtagning.",
+      "sequences": "Startsekvenser",
+      "noSequence": "Ingen aktiv startsekvens.",
+      "sequenceArmed": "Klar",
+      "sequenceRunning": "Kører",
+      "sequencePaused": "På pause",
+      "sequenceProgress": "{{started}}/{{total}} startet",
+      "nextStart": "Næste start",
+      "startNow": "Start!",
+      "finishTicker": "Målpassage",
+      "noFinishes": "Ingen målpassager endnu.",
+      "unassignedFinish": "Målpassage registreret — endnu ikke tildelt",
+      "falseStart": "Tyvstart!",
+      "falseStartShort": "Tyvstart",
+      "startingShort": "Starter",
+      "progress": "Live",
+      "started": "startet",
+      "finished": "i mål"
     }
   }
 }

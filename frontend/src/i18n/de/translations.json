@@ -1824,7 +1824,7 @@
       },
       "profiles": {
         "title": "Zeitnahmeprofile",
-        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird der Wettkampfablauf selbst umgebaut, verlieren seine Partien ihre eigenen Profile \u2014 eine in der Durchf\u00fchrung neu erzeugte Runde beh\u00e4lt sie dagegen.",
+        "hint": "Ein Zeitnahmeprofil ist das, womit gestoppt wird: bei RaceClocker das Rennen, bei der internen Zeitnahme der Zeitnahmetyp. Es wird von der Veranstaltung nach unten vererbt — Wettkampf, Runde und Partie können abweichen, und die speziellste gesetzte Ebene gilt. Jede Änderung speichert sofort. Wird der Wettkampfablauf selbst umgebaut, verlieren seine Partien ihre eigenen Profile — eine in der Durchführung neu erzeugte Runde behält sie dagegen.",
         "matchLevelExportHint": "Der Startlisten-Sammelexport gruppiert je Wettkampf. Eine Partie mit eigenem Rennen erscheint dort unter dem Rennen ihres Wettkampfs — ihre Startliste muss einzeln exportiert werden.",
         "noSystem": "Für dieses Zeitnahme-System gibt es keine Profile. Wählen Sie oben „RaceClocker“ oder „Interne Zeitnahme“.",
         "noOptions": "Es ist noch kein Profil angelegt. Legen Sie oben ein Rennen bzw. einen Zeitnahmetyp an.",
@@ -4276,7 +4276,9 @@
       "teams": "Teams",
       "badges": "Hinweise",
       "empty": "Keine Rennen für die aktuellen Filter.",
-      "openDetails": "Details öffnen"
+      "openDetails": "Details öffnen",
+      "teamCount": "{{count}} Team",
+      "teamCount_other": "{{count}} Teams"
     },
     "match": {
       "start": "Start",
@@ -4323,6 +4325,41 @@
       "refresh": "Aktualisierung",
       "turnaround": "Wechselzeit-Warnung",
       "resetAll": "Alles zurücksetzen"
+    },
+    "dashboard": {
+      "detailsTitle": "Laufdetails",
+      "noSelection": "Kein Lauf gewählt — links im Programm einen Lauf anklicken oder „Live folgen\" einschalten.",
+      "followLive": "Live folgen"
+    },
+    "panelSettings": {
+      "showFinished": "Beendete Läufe anzeigen",
+      "compactRows": "Kompakte Zeilen",
+      "showYears": "Jahrgänge anzeigen",
+      "tickerLimit": "Einträge im Zieleinlauf"
+    },
+    "timing": {
+      "title": "Zeitnahme",
+      "live": "Live verbunden",
+      "connecting": "Verbindung wird aufgebaut …",
+      "unauthorized": "Keine Berechtigung für die Zeitnahme — mit einem Konto mit Leserecht anmelden.",
+      "noStations": "Diese Veranstaltung nutzt keine interne Zeitnahme.",
+      "sequences": "Startsequenzen",
+      "noSequence": "Keine aktive Startsequenz.",
+      "sequenceArmed": "Scharf",
+      "sequenceRunning": "Läuft",
+      "sequencePaused": "Pausiert",
+      "sequenceProgress": "{{started}}/{{total}} gestartet",
+      "nextStart": "Nächster Start",
+      "startNow": "Start!",
+      "finishTicker": "Zieleinlauf",
+      "noFinishes": "Noch keine Zieleinläufe.",
+      "unassignedFinish": "Zieleinlauf erfasst — noch ohne Zuordnung",
+      "falseStart": "Fehlstart!",
+      "falseStartShort": "Fehlstart",
+      "startingShort": "Startet",
+      "progress": "Live",
+      "started": "gestartet",
+      "finished": "im Ziel"
     }
   }
 }

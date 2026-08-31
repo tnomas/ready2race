@@ -15,6 +15,18 @@ export type SpeakerSettings = {
     // warn when a participant's next start is closer than this many minutes
     turnaroundMinutes: number
     customColors: Partial<Record<SpeakerAccentKey, string>>
+    // the collapsible timeline strip above the dashboard columns
+    showTimeline: boolean
+    // center panel follows the currently live match instead of a manual pick
+    followLive: boolean
+    // program panel: keep finished matches in the list
+    programShowFinished: boolean
+    // program panel: single-line rows without team counts
+    programCompact: boolean
+    // match panel: show birth years next to participant names
+    matchShowYears: boolean
+    // timing panel: how many finish-line entries the ticker keeps visible
+    timingTickerLimit: number
 }
 
 export const DEFAULT_SPEAKER_SETTINGS: SpeakerSettings = {
@@ -23,6 +35,12 @@ export const DEFAULT_SPEAKER_SETTINGS: SpeakerSettings = {
     refreshSeconds: 20,
     turnaroundMinutes: 45,
     customColors: {},
+    showTimeline: false,
+    followLive: true,
+    programShowFinished: true,
+    programCompact: false,
+    matchShowYears: true,
+    timingTickerLimit: 8,
 }
 
 const PRESET_PALETTES: Record<SpeakerThemePreset, SpeakerColors> = {
