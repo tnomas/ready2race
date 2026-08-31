@@ -49,7 +49,7 @@ import {isSpaceOwnedByFocusedControl, isTypingContext} from '@utils/timing/short
 import {orderTeamsForBoard} from '@utils/timing/teamOrder.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {useTimingMatches} from '@utils/timing/useTimingMatches.ts'
-import {resolveStartSelection} from '@utils/timing/matchBoard.ts'
+import {StartSelection, resolveStartSelection, startSelectionFor} from '@utils/timing/matchBoard.ts'
 import {boatPosition, resolveFinishFocus} from '@utils/timing/boardFocus.ts'
 import {armedGateApplies, captureAllowed} from '@utils/timing/armed.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
@@ -249,10 +249,18 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
     // weil Tagesablauf-Spalte und Arbeitsfläche denselben Zustand teilen — die Auflösung
     // (Vorrücken nach Start bzw. Zieleinlauf) übernimmt je Posten-Typ die passende reine Logik.
     // (`isStart` steht weiter oben, die Scharfschaltung braucht es schon dort.)
-    const [selectedMatchId, setSelectedMatchId] = useState<string | undefined>(undefined)
+    // Der Startposten merkt sich zur Handwahl auch die Klick-Absicht (StartSelection.pinned):
+    // eine angeklickte GESTARTETE Partie bleibt fokussiert („ansehen"), eine offene verfällt
+    // nach ihrem Start wie gehabt, damit der Fokus von selbst vorrückt. Der Zielposten liest
+    // nur die Kennung — seine Halte-Regeln stehen in `resolveFinishFocus`.
+    const [selection, setSelection] = useState<StartSelection | undefined>(undefined)
+    const setSelectedMatchId = useCallback(
+        (matchId: string) => setSelection(startSelectionFor(matches, matchId)),
+        [matches],
+    )
     const focusedMatchId = isStart
-        ? resolveStartSelection(matches, selectedMatchId)
-        : resolveFinishFocus(matches, selectedMatchId)
+        ? resolveStartSelection(matches, selection)
+        : resolveFinishFocus(matches, selection?.matchId)
     const focusedMatch = matches.find(match => match.competitionSetupMatch === focusedMatchId)
 
     // Eingeklappt merken (geräteweit): auf schmalen Bildschirmen startet die Spalte eingeklappt.

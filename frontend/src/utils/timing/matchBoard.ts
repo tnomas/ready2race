@@ -63,17 +63,45 @@ export function sequenceRequestFromMode(
 }
 
 /**
+ * Handwahl des Startpostens samt der Absicht, mit der geklickt wurde: Ein Klick auf eine OFFENE
+ * Partie heißt „diese als Nächstes starten" — die Wahl verfällt, sobald die Partie nicht mehr
+ * offen ist, damit der Fokus nach dem Start weiter von selbst vorrückt. Ein Klick auf eine
+ * BEREITS GESTARTETE (oder fertige) Partie heißt dagegen „diese ansehen" ([pinned]) — sie
+ * bleibt fokussiert, bis der Posten woanders hinklickt. Ohne die Unterscheidung war eine
+ * gestartete Partie gar nicht mehr anklickbar: die Auswahl ließ nur OPEN durch, und der Klick
+ * verpuffte wortlos (der Zielposten erlaubt die Handwahl längst, siehe `resolveFinishFocus`).
+ */
+export type StartSelection = {
+    matchId: string
+    /** Absicht „ansehen": die Partie war beim Klick schon nicht mehr offen. */
+    pinned: boolean
+}
+
+/** Baut die Handwahl aus dem Klick — die Absicht ergibt sich aus dem Zustand der Partie. */
+export function startSelectionFor(
+    matches: TimingMatchDto[],
+    matchId: string,
+): StartSelection | undefined {
+    const match = matches.find(entry => entry.competitionSetupMatch === matchId)
+    if (match === undefined) return undefined
+    return {matchId, pinned: match.progress !== 'OPEN'}
+}
+
+/**
  * Vorauswahl des Startpostens: die von Hand gewählte Partie bleibt gewählt, solange sie offen
- * ist; sonst (oder ohne Wahl) die erste offene Partie in gelieferter Reihenfolge — das ist das
- * „Vorrücken" nach einem Start, weil die gestartete Partie auf STARTING/STARTED springt und
- * damit aus der Auswahl fällt. Ohne offene Partie gibt es nichts mehr zu starten (undefined).
+ * ist (bzw. dauerhaft, wenn sie „angesehen" wird — [StartSelection.pinned]); sonst (oder ohne
+ * Wahl) die erste offene Partie in gelieferter Reihenfolge — das ist das „Vorrücken" nach einem
+ * Start, weil die gestartete Partie auf STARTING/STARTED springt und damit aus der Auswahl
+ * fällt. Ohne offene Partie gibt es nichts mehr zu starten (undefined).
  */
 export function resolveStartSelection(
     matches: TimingMatchDto[],
-    selectedId: string | undefined,
+    selection: StartSelection | undefined,
 ): string | undefined {
     const selected = matches.find(
-        match => match.competitionSetupMatch === selectedId && match.progress === 'OPEN',
+        match =>
+            match.competitionSetupMatch === selection?.matchId &&
+            (selection.pinned || match.progress === 'OPEN'),
     )
     if (selected !== undefined) return selected.competitionSetupMatch
     return matches.find(match => match.progress === 'OPEN')?.competitionSetupMatch

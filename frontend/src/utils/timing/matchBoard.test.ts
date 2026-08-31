@@ -12,6 +12,7 @@ import {
     pendingAssignmentMark,
     resolveStartSelection,
     sequenceRequestFromMode,
+    startSelectionFor,
     startSequenceOffByMode,
 } from './matchBoard.ts'
 import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
@@ -175,7 +176,7 @@ describe('resolveStartSelection', () => {
     })
 
     it('behält eine von Hand gewählte Partie, solange sie offen ist', () => {
-        expect(resolveStartSelection(matches, 'm4')).toBe('m4')
+        expect(resolveStartSelection(matches, {matchId: 'm4', pinned: false})).toBe('m4')
     })
 
     it('rückt vor, sobald die gewählte Partie nicht mehr offen ist', () => {
@@ -187,16 +188,46 @@ describe('resolveStartSelection', () => {
             match('m3', 'STARTING'),
             match('m4', 'OPEN'),
         ]
-        expect(resolveStartSelection(advanced, 'm3')).toBe('m4')
+        expect(resolveStartSelection(advanced, {matchId: 'm3', pinned: false})).toBe('m4')
+    })
+
+    it('hält eine angepinnte (zum Ansehen angeklickte) gestartete Partie im Fokus', () => {
+        // Der Bugfall vom Wasser: Sequenz gestartet, der Posten klickt den laufenden Lauf an —
+        // vorher verpuffte der Klick, weil die Auswahl nur OPEN durchließ.
+        expect(resolveStartSelection(matches, {matchId: 'm2', pinned: true})).toBe('m2')
+    })
+
+    it('hält auch eine angepinnte fertige Partie im Fokus', () => {
+        expect(resolveStartSelection(matches, {matchId: 'm1', pinned: true})).toBe('m1')
+    })
+
+    it('fällt auf die erste offene Partie zurück, wenn die angepinnte verschwindet', () => {
+        expect(resolveStartSelection(matches, {matchId: 'weg', pinned: true})).toBe('m3')
     })
 
     it('liefert undefined, wenn keine Partie mehr offen ist', () => {
         const done = [match('m1', 'FINISHED'), match('m2', 'STARTED')]
-        expect(resolveStartSelection(done, 'm1')).toBeUndefined()
+        expect(resolveStartSelection(done, {matchId: 'm1', pinned: false})).toBeUndefined()
     })
 
     it('liefert undefined für eine leere Liste', () => {
         expect(resolveStartSelection([], undefined)).toBeUndefined()
+    })
+})
+
+describe('startSelectionFor', () => {
+    const matches = [match('m1', 'STARTED'), match('m2', 'OPEN')]
+
+    it('klick auf eine offene Partie ist die Absicht „starten" (nicht angepinnt)', () => {
+        expect(startSelectionFor(matches, 'm2')).toEqual({matchId: 'm2', pinned: false})
+    })
+
+    it('klick auf eine gestartete Partie ist die Absicht „ansehen" (angepinnt)', () => {
+        expect(startSelectionFor(matches, 'm1')).toEqual({matchId: 'm1', pinned: true})
+    })
+
+    it('liefert undefined für eine unbekannte Partie', () => {
+        expect(startSelectionFor(matches, 'weg')).toBeUndefined()
     })
 })
 
