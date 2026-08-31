@@ -480,6 +480,11 @@ object TimingSequenceService {
         !KIO.failOn(!sequence.stateEnum.isActive) { TimingError.SequenceStateConflict }
         !KIO.failOn(entry.status != SequenceEntryStatus.PENDING.name) { TimingError.SequenceStateConflict }
 
+        // FOR UPDATE wie im Scheduler: solange dieser Skip läuft, feuert kein paralleler Tick in
+        // dieselben Zeilen hinein - sonst könnte der eben übersprungene "nächste" Slot noch
+        // schnell einen Start setzen, während hier die Kette verschoben wird.
+        val pendingBefore = !TimingSequenceEntryRepo.getPendingForUpdate(entry.sequence).orDie()
+
         !TimingSequenceEntryRepo.update(entryId) {
             status = SequenceEntryStatus.SKIPPED.name
         }.orDie().onNullFail { TimingError.SequenceEntryNotFound }
@@ -488,13 +493,47 @@ object TimingSequenceService {
         // would otherwise sit stuck ARMED forever - the scheduler only resolves RUNNING sequences,
         // and this one never started. Resolving it to ABORTED here is the same terminal state an
         // operator-triggered abort would produce.
-        val stillPending = !TimingSequenceEntryRepo.existsPending(entry.sequence).orDie()
+        val stillPending = pendingBefore.any { it.id != entryId }
         val fullySkipped = sequence.stateEnum == SequenceState.ARMED && !stillPending
+
+        // Das nächste Boot bekommt wieder die VOLLE Zeit: Übersprungen wird am Wasser, wenn der
+        // fällige (oder überfällige) Start nicht rausgehen kann - das nachfolgende Boot stünde
+        // dann mit einem Restcountdown von Sekunden da, obwohl es sich gerade erst startklar
+        // macht. Deshalb rückt die Kette so weit nach hinten, dass der nächste anstehende Start
+        // frühestens einen vollen Startabstand nach JETZT fällt - über `pause_shift_millis`,
+        // dieselbe Ganze-Kette-Verschiebung wie beim Fortsetzen aus der Pause (die Abstände
+        // aller weiteren Boote bleiben unverändert). Nie nach vorn (coerceAtLeast): ein Skip
+        // lange vor dem Slot lässt den Plan einfach stehen.
+        //
+        // Nur wenn der übersprungene Eintrag der NÄCHSTE war (kleinste anstehende Position):
+        // wer weiter hinten in der Liste jemanden streicht, ändert am unmittelbar bevorstehenden
+        // Start nichts. Nur für INTERVAL (persistiertes intervalMillis gibt es nur dort - eine
+        // Welle hat keinen Startabstand) und nur mit gestarteter Sequenz (ARMED plant nichts).
+        //
+        // Referenz ist bei einer PAUSIERTEN Sequenz der Pausenbeginn, nicht "jetzt": das
+        // Fortsetzen schlägt die Pausendauer ohnehin noch auf die Kette drauf, und
+        // planned' >= resume + interval ist genau dann erfüllt, wenn planned - pausedAt >=
+        // interval - die Rechnung ist damit unabhängig davon, wann fortgesetzt wird.
+        val interval = sequence.intervalMillis
+        val nextAfterSkip = pendingBefore
+            .filter { it.id != entryId }
+            .minByOrNull { it.position ?: Int.MAX_VALUE }
+        val wasNextUp = pendingBefore.minByOrNull { it.position ?: Int.MAX_VALUE }?.id == entryId
+        val skipShift = if (
+            wasNextUp && nextAfterSkip != null && interval != null && sequence.startedAtMillis != null
+        ) {
+            val reference = sequence.pausedAtMillis ?: System.currentTimeMillis()
+            val plannedNext = plannedStartMillis(sequence, nextAfterSkip.position ?: 0)
+            if (plannedNext == null) 0L else (reference + interval - plannedNext).coerceAtLeast(0L)
+        } else 0L
 
         // Entries carry no audit columns of their own, so the change is recorded on the sequence.
         val updated = !TimingSequenceRepo.update(entry.sequence) {
             if (fullySkipped) {
                 state = SequenceState.ABORTED.name
+            }
+            if (skipShift > 0L) {
+                pauseShiftMillis = (pauseShiftMillis ?: 0L) + skipShift
             }
             updatedAt = LocalDateTime.now()
             updatedBy = userId

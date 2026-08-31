@@ -3,13 +3,19 @@ package de.lambda9.ready2race.backend.app.stream
 import de.lambda9.ready2race.backend.app.eventInfo.MyEventFixture
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
 import de.lambda9.ready2race.backend.app.timing.addTestStation
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchStampLogic
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
+import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
+import de.lambda9.ready2race.backend.app.timing.control.plannedStartMillis
 import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
 import de.lambda9.ready2race.backend.app.timing.createTestMatchTeam
+import de.lambda9.ready2race.backend.app.timing.createTestMatchTeams
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
@@ -157,6 +163,50 @@ class StreamSceneViewTest {
         assertTrue(
             !resumedClock.sequenceFiresAt!!.isBefore(pausedClock.sequenceFiresAt!!),
             "Das Fortsetzen darf den Feuerzeitpunkt nie nach vorne ziehen",
+        )
+    }
+
+    /**
+     * Der Countdown der Stream-Uhr zählt auf den ERSTEN NOCH ANSTEHENDEN Start - nicht stur auf
+     * den Slot der Position 0: Wird das erste Boot übersprungen, fällt der echte erste Start
+     * einen Startabstand später, und genau dorthin muss die Uhr zählen (sonst stünde sie auf
+     * 0:00, während noch niemand gestartet ist).
+     */
+    @Test
+    fun theClockCountsDownToTheFirstPendingStart() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 2)
+
+        val created = !TimingSequenceService.createSequence(
+            // Langer Vorlauf: nichts feuert im Testfenster, und der Skip trifft einen Slot weit
+            // vor seiner Zeit - die Kette bleibt also unverschoben und der Erwartungswert exakt.
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, 60000L),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val firstEntry = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .minByOrNull { it.position ?: Int.MAX_VALUE }!!
+        !TimingSequenceService.skipEntry(firstEntry.id, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val view = !StreamSceneLogic.buildView(eventId, sceneId)
+        val clock = view.graphics.single { it.type == StreamGraphicType.CLOCK }
+
+        val record = (!TimingSequenceRepo.get(sequenceId).orDie())!!
+        val expectedFiresAt = TimingMatchStampLogic.stampFor(plannedStartMillis(record, 1)!!)
+        assertEquals(
+            expectedFiresAt,
+            clock.sequenceFiresAt,
+            "Die Uhr muss auf den Slot des ersten ANSTEHENDEN Eintrags zählen (Position 1, nicht 0)",
         )
     }
 

@@ -977,6 +977,140 @@ class TimingSequenceServiceTest {
         assertNotNull(dto.pausedAtMillis)
     }
 
+    // ------------------------------------------------- Überspringen: volle Zeit fürs nächste Boot
+
+    /**
+     * Wird der NÄCHSTE anstehende Start übersprungen (der Fall am Wasser: der fällige oder schon
+     * überfällige Start kann nicht raus), bekommt das nachfolgende Boot wieder den vollen
+     * Startabstand ab JETZT - statt eines Restcountdowns von Sekunden. Die Kette rückt dafür als
+     * Ganzes über `pause_shift_millis`, die Abstände der weiteren Boote bleiben unverändert.
+     */
+    @Test
+    fun skippingTheOverdueNextEntryGivesTheFollowingBoatAFullInterval() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 3)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Position 0 ist 500 ms überfällig, Position 1 stünde in ~59,5 s an.
+        !shiftStart(sequenceId, System.currentTimeMillis() - 500 - LEAD_IN)
+
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .sortedBy { it.position }
+        val before = System.currentTimeMillis()
+        !TimingSequenceService.skipEntry(entries[0].id, userId, eventId)
+
+        val planned = !plannedStartsOf(sequenceId, eventId, stationId)
+        // Das nächste Boot (Position 1) hat wieder mindestens den vollen Abstand ab jetzt...
+        assertTrue(
+            planned[1] >= before + 60000,
+            "nächster Start ${planned[1] - before} ms nach dem Skip ist kein voller Abstand",
+        )
+        assertTrue(planned[1] < before + 70000, "Verschiebung ${planned[1] - before} ist unplausibel groß")
+        // ... und die Kette dahinter behält ihren Abstand.
+        assertEquals(60000L, planned[2] - planned[1])
+    }
+
+    @Test
+    fun skippingALaterEntryLeavesThePlanAlone() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 3)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 500 - LEAD_IN)
+
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .sortedBy { it.position }
+        val plannedBefore = !plannedStartsOf(sequenceId, eventId, stationId)
+        // Position 2 wird gestrichen - der unmittelbar bevorstehende Start (Position 0) und der
+        // Rest des Plans gehen das nichts an.
+        !TimingSequenceService.skipEntry(entries[2].id, userId, eventId)
+
+        assertEquals(plannedBefore, !plannedStartsOf(sequenceId, eventId, stationId))
+    }
+
+    @Test
+    fun skippingLongBeforeTheSlotDoesNotPullOrPushTheChain() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 2)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Die ganze Kette liegt weit in der Zukunft - das nächste Boot hat schon MEHR als den
+        // vollen Abstand, die Verschiebung darf es weder vorziehen noch weiter wegschieben.
+        !shiftStart(sequenceId, System.currentTimeMillis() + 600000)
+
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .sortedBy { it.position }
+        val plannedBefore = !plannedStartsOf(sequenceId, eventId, stationId)
+        !TimingSequenceService.skipEntry(entries[0].id, userId, eventId)
+
+        assertEquals(plannedBefore, !plannedStartsOf(sequenceId, eventId, stationId))
+    }
+
+    /**
+     * Skip aus der PAUSE heraus: Referenz ist der Pausenbeginn, nicht "jetzt" - zusammen mit der
+     * Verschiebung des Fortsetzens landet der nächste Start exakt einen vollen Abstand nach dem
+     * Fortsetzen, egal wie lange die Pause dauert.
+     */
+    @Test
+    fun skippingWhilePausedGivesAFullIntervalAfterResume() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 2)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+        // Eine echte halbe Minute Pause, ohne zu schlafen (siehe backdatePause) - und der
+        // Startmoment so datiert, dass Position 0 BEIM Pausenbeginn 500 ms überfällig war:
+        // genau die Lage, in der am Wasser angehalten und übersprungen wird.
+        !backdatePause(sequenceId, 30000L)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 30500 - LEAD_IN)
+
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .sortedBy { it.position }
+        !TimingSequenceService.skipEntry(entries[0].id, userId, eventId)
+
+        val beforeResume = System.currentTimeMillis()
+        !TimingSequenceService.resumeSequence(sequenceId, userId, eventId)
+
+        val planned = !plannedStartsOf(sequenceId, eventId, stationId)
+        assertTrue(
+            planned[1] >= beforeResume + 60000,
+            "nächster Start ${planned[1] - beforeResume} ms nach dem Fortsetzen ist kein voller Abstand",
+        )
+        assertTrue(
+            planned[1] < beforeResume + 70000,
+            "Verschiebung ${planned[1] - beforeResume} ist unplausibel groß",
+        )
+    }
+
     // ------------------------------------------------------- Sync mit Stream und Boards (Bumps)
 
     /**

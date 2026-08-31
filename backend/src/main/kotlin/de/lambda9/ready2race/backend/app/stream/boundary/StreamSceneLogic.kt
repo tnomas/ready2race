@@ -19,7 +19,10 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneViewDto
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchStampLogic
+import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
+import de.lambda9.ready2race.backend.app.timing.control.plannedStartMillis
+import de.lambda9.ready2race.backend.app.timing.entity.SequenceEntryStatus
 import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneRecord
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -349,29 +352,39 @@ object StreamSceneLogic {
      * nach hinten - der eingefrorene Reststand läuft also nahtlos weiter (fires' − resume =
      * fires − pausedAt).
      *
-     * [SequenceTiming.firesAt] ist derselbe Anker PLUS `lead_in_millis` — die von der Zeitnahme
-     * konfigurierte Vorlaufdauer, nach der der Start tatsächlich fällt (siehe
-     * `TimingSequenceService.createSequence`, wo das Feld exakt so benannt und dokumentiert ist).
-     * Erst damit kann die Bühne HERUNTERzählen statt nur die seit dem Anker verstrichene Zeit mit
-     * einem Minus davor hochzuzählen.
+     * [SequenceTiming.firesAt] ist der geplante Zeitpunkt des ERSTEN NOCH ANSTEHENDEN Starts
+     * ([plannedStartMillis] der kleinsten PENDING-Position — dieselbe Rechnung, gegen die der
+     * Scheduler feuert): Für den Normalfall ist das Anker + `lead_in_millis`, aber ein
+     * übersprungener erster Eintrag oder eine Skip-Verschiebung der Kette rücken den echten
+     * ersten Start nach hinten — eine Uhr, die stur auf den Slot der Position 0 zählte, stünde
+     * dann auf 0:00, während in Wahrheit noch niemand gestartet ist. Ohne anstehenden Eintrag
+     * (alles gestartet/übersprungen, DONE steht bevor) bleibt `firesAt` leer — die Bühne zeigt
+     * dann bewusst keinen Countdown mehr.
      */
-    private fun sequenceTiming(eventId: UUID): App<Nothing, SequenceTiming> =
-        TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie().map { record ->
-            val startedAtMillis = record?.startedAtMillis
-            if (startedAtMillis == null) {
-                SequenceTiming(startedAt = null, firesAt = null, pausedAt = null)
-            } else {
-                val anchorMillis = startedAtMillis + (record.pauseShiftMillis ?: 0L)
-                SequenceTiming(
-                    startedAt = TimingMatchStampLogic.stampFor(anchorMillis),
-                    firesAt = TimingMatchStampLogic.stampFor(anchorMillis + (record.leadInMillis ?: 0L)),
-                    // `paused_at_millis` beschreibt per Vertrag immer nur die LAUFENDE Pause
-                    // (TimingSequenceService.resumeSequence leert es beim Fortsetzen) - gesetzt
-                    // heißt also PAUSED, eine eigene Zustandsabfrage braucht es hier nicht.
-                    pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
-                )
-            }
+    private fun sequenceTiming(eventId: UUID): App<Nothing, SequenceTiming> = KIO.comprehension {
+        val record = !TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie()
+        val startedAtMillis = record?.startedAtMillis
+        if (record == null || startedAtMillis == null) {
+            return@comprehension KIO.ok(SequenceTiming(startedAt = null, firesAt = null, pausedAt = null))
         }
+
+        val anchorMillis = startedAtMillis + (record.pauseShiftMillis ?: 0L)
+        val nextPendingPosition = (!TimingSequenceEntryRepo.getBySequence(record.id).orDie())
+            .filter { it.status == SequenceEntryStatus.PENDING.name }
+            .minOfOrNull { it.position ?: Int.MAX_VALUE }
+        KIO.ok(
+            SequenceTiming(
+                startedAt = TimingMatchStampLogic.stampFor(anchorMillis),
+                firesAt = nextPendingPosition
+                    ?.let { plannedStartMillis(record, it) }
+                    ?.let { TimingMatchStampLogic.stampFor(it) },
+                // `paused_at_millis` beschreibt per Vertrag immer nur die LAUFENDE Pause
+                // (TimingSequenceService.resumeSequence leert es beim Fortsetzen) - gesetzt
+                // heißt also PAUSED, eine eigene Zustandsabfrage braucht es hier nicht.
+                pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
+            )
+        )
+    }
 
     /**
      * Die Adresse des Streckenbilds aus der Grafik-Konfiguration.
