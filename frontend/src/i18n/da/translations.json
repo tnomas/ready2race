@@ -1874,6 +1874,7 @@
       "sectionTitle": "Offentlige visninger",
       "pageDescription": "Sammensæt boards til offentlige skærme: løb, lister, ur og infotekster frit arrangeret, tilgængelige via en fast URL.",
       "manageInfoViews": "Administrér boards",
+      "manageStreamScenes": "Administrér livestream-scener",
       "pendingRound": "Løb endnu ikke fastsat",
       "freeSlot": "Programpunkt",
       "athleteBoard": {
@@ -2547,10 +2548,15 @@
         "mobileHint": "Til telefoner ved en post findes desuden den mobile indgangsside:",
         "mobileLink": "Åbn mobil registrering"
       },
+      "boards": {
+        "title": "Offentlige visninger",
+        "description": "Boards til skærmene på stedet: løb, lister, ur og infotekster frit arrangeret, tilgængelige via en fast URL.",
+        "open": "Administrér boards"
+      },
       "livestream": {
         "title": "Livestream",
-        "description": "Boards og stream-overlays til billedproduktionen: offentlige visninger og chroma-key-felter til OBS.",
-        "open": "Administrér boards & stream-overlays"
+        "description": "Stream-overlays til billedproduktionen: transparente scener til Wirecast/OBS, styret via kontrolpanelet.",
+        "open": "Administrér livestream"
       },
       "helpers": {
         "title": "Hjælpere",

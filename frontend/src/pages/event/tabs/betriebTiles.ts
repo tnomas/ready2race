@@ -3,6 +3,7 @@ import {
     readBoardGlobal,
     readEventGlobal,
     readLiveDashboardGlobal,
+    readStreamGlobal,
     updateEventGlobal,
 } from '@authorization/privileges.ts'
 
@@ -17,10 +18,14 @@ import {
  * - Sprecher:in → Sprecher-Ansicht (Boards-Leserecht oder Veranstaltungs-Leserecht, wie die
  *   bisherige Karte auf dem Allgemein-Tab)
  * - Zeitnahme → Postenverwaltung + Leitstand (`updateEventGlobal`, wie deren Server-Endpunkte)
- * - Livestream → Board-Verwaltung (Boards- oder Veranstaltungs-Leserecht, wie die Boards-Seite)
+ * - Öffentliche Anzeigen → Board-Verwaltung (Boards- oder Veranstaltungs-Leserecht, wie die
+ *   Boards-Seite)
+ * - Livestream → Szenen-Verwaltung (Stream- oder Veranstaltungs-Leserecht, wie deren Route).
+ *   Bis zum 31.08.2026 waren Anzeigen und Livestream EINE Kachel mit dem Boards-Recht — eine
+ *   reine Stream-Rolle fand ihre Szenen damit gar nicht erst.
  * - Helfer:innen → Helfer-App und Schichtplan (`readEventGlobal`, wie der Organisation-Tab)
  */
-export type BetriebTileId = 'referee' | 'speaker' | 'timing' | 'livestream' | 'helpers'
+export type BetriebTileId = 'referee' | 'speaker' | 'timing' | 'boards' | 'livestream' | 'helpers'
 
 export function visibleBetriebTiles(
     checkPrivilege: (privilege: Privilege) => boolean,
@@ -29,7 +34,8 @@ export function visibleBetriebTiles(
     if (checkPrivilege(readLiveDashboardGlobal)) tiles.push('referee')
     if (checkPrivilege(readEventGlobal) || checkPrivilege(readBoardGlobal)) tiles.push('speaker')
     if (checkPrivilege(updateEventGlobal)) tiles.push('timing')
-    if (checkPrivilege(readEventGlobal) || checkPrivilege(readBoardGlobal)) {
+    if (checkPrivilege(readEventGlobal) || checkPrivilege(readBoardGlobal)) tiles.push('boards')
+    if (checkPrivilege(readEventGlobal) || checkPrivilege(readStreamGlobal)) {
         tiles.push('livestream')
     }
     if (checkPrivilege(readEventGlobal)) tiles.push('helpers')

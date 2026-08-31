@@ -1872,8 +1872,9 @@
     },
     "info": {
       "sectionTitle": "Öffentliche Anzeigen",
-      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL. Dazu die Livestream-Szenen für Wirecast/OBS.",
-      "manageInfoViews": "Boards & Livestream verwalten",
+      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
+      "manageInfoViews": "Boards verwalten",
+      "manageStreamScenes": "Livestream-Szenen verwalten",
       "pendingRound": "Lauf noch nicht gesetzt",
       "freeSlot": "Programmpunkt",
       "athleteBoard": {
@@ -2707,10 +2708,15 @@
         "mobileHint": "Für Handys am Posten gibt es zusätzlich die mobile Einstiegsseite:",
         "mobileLink": "Mobile Erfassung öffnen"
       },
+      "boards": {
+        "title": "Öffentliche Anzeigen",
+        "description": "Boards für die Bildschirme am Gelände: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
+        "open": "Boards verwalten"
+      },
       "livestream": {
         "title": "Livestream",
-        "description": "Boards und Stream-Overlays für die Bildregie: öffentliche Anzeigen und Chroma-Key-Kacheln für OBS.",
-        "open": "Boards & Stream-Overlays verwalten"
+        "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Regie über das Kontroll-Panel.",
+        "open": "Livestream verwalten"
       },
       "helpers": {
         "title": "Helfer:innen",

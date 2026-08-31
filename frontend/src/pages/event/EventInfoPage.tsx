@@ -1,15 +1,19 @@
-import {Box, Stack} from '@mui/material'
+import {Box} from '@mui/material'
 import BoardsPanel from '@components/event/board/BoardsPanel'
-import StreamScenesPanel from '@components/event/stream/StreamScenesPanel'
 import {eventInfoRoute} from '@routes'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {readBoardGlobal, readEventGlobal, readStreamGlobal} from '@authorization/privileges.ts'
+import {readBoardGlobal, readEventGlobal} from '@authorization/privileges.ts'
 
 /**
- * Die Verwaltungsseite der Boards und der Livestream-Szenen. Bis zum Board-Umbau (10.08.2026)
+ * Die Verwaltungsseite der Boards (öffentliche Anzeigen). Bis zum Board-Umbau (10.08.2026)
  * rotierte hier die Info-Seite selbst durch ihre Views; die Anzeige läuft jetzt ausschließlich
- * über die öffentlichen Board-URLs (/board/{eventId}/{boardId}) bzw. die Szenen-URLs
- * (/event/{eventId}/stream/{sceneId}), diese Seite konfiguriert sie nur noch.
+ * über die öffentlichen Board-URLs (/board/{eventId}/{boardId}), diese Seite konfiguriert sie
+ * nur noch.
+ *
+ * Die Livestream-Szenen wohnten bis zum 31.08.2026 ebenfalls hier — Entscheidung von Thomas:
+ * öffentliche Anzeigen und Livestream sind zwei verschiedene Aufgaben und gehören getrennt
+ * aufgeführt. Die Szenen-Verwaltung hat jetzt ihre eigene Seite (`EventStreamScenesPage`,
+ * `/event/{eventId}/streamScenes`) samt eigener Kachel im Betrieb-Reiter.
  *
  * Die Zeitnahme-Posten wohnten kurzzeitig ebenfalls hier (Entscheidung vom 21.08.2026,
  * Commit cdd5fbc7). Das ist am 22.08.2026 BEWUSST zurückgenommen: Thomas hat die
@@ -22,20 +26,13 @@ const EventInfoPage = () => {
     const {eventId} = eventInfoRoute.useParams()
     const user = useUser()
 
-    // Jedes Panel gilt für sein eigenes Recht (READ BOARD/READ STREAM), nicht nur für den
-    // Seitenzugriff insgesamt: Eine reine Stream-Rolle ohne READ BOARD sieht diese Seite (die
-    // Verlinkung in EventPage lässt sie über READ STREAM ebenfalls durch), aber ihr Aufruf von
-    // getBoards liefe ungeprüft in den 403 des Servers.
+    // Das Panel gilt für sein eigenes Recht (READ BOARD), nicht nur für den Seitenzugriff
+    // insgesamt — ein ungeprüfter Aufruf von getBoards liefe sonst in den 403 des Servers.
     return (
         <Box sx={{p: 3}}>
-            <Stack spacing={4}>
-                {(user.checkPrivilege(readBoardGlobal) || user.checkPrivilege(readEventGlobal)) && (
-                    <BoardsPanel eventId={eventId} />
-                )}
-                {(user.checkPrivilege(readStreamGlobal) || user.checkPrivilege(readEventGlobal)) && (
-                    <StreamScenesPanel eventId={eventId} />
-                )}
-            </Stack>
+            {(user.checkPrivilege(readBoardGlobal) || user.checkPrivilege(readEventGlobal)) && (
+                <BoardsPanel eventId={eventId} />
+            )}
         </Box>
     )
 }

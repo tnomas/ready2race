@@ -1872,8 +1872,9 @@
     },
     "info": {
       "sectionTitle": "Public displays",
-      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL. Plus the livestream scenes for Wirecast/OBS.",
-      "manageInfoViews": "Manage boards & livestream",
+      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
+      "manageInfoViews": "Manage boards",
+      "manageStreamScenes": "Manage livestream scenes",
       "pendingRound": "Race not yet set",
       "freeSlot": "Schedule item",
       "athleteBoard": {
@@ -2707,10 +2708,15 @@
         "mobileHint": "For phones at a station there is also the mobile entry page:",
         "mobileLink": "Open mobile capture"
       },
+      "boards": {
+        "title": "Public displays",
+        "description": "Boards for the screens on site: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
+        "open": "Manage boards"
+      },
       "livestream": {
         "title": "Livestream",
-        "description": "Boards and stream overlays for the video direction: public displays and chroma-key tiles for OBS.",
-        "open": "Manage boards & stream overlays"
+        "description": "Stream overlays for the video direction: transparent scenes for Wirecast/OBS, directed via the control panel.",
+        "open": "Manage livestream"
       },
       "helpers": {
         "title": "Helpers",

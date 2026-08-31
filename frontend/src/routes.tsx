@@ -38,6 +38,7 @@ import CompetitionPage from './pages/event/CompetitionPage.tsx'
 import {CompetitionTab} from './components/event/competition/common.ts'
 import EventDayPage from './pages/event/EventDayPage.tsx'
 import EventInfoPage from './pages/event/EventInfoPage.tsx'
+import EventStreamScenesPage from './pages/event/EventStreamScenesPage.tsx'
 import AthleteBoardPage from './pages/event/AthleteBoardPage.tsx'
 import BoardDisplayPage from './pages/event/BoardDisplayPage.tsx'
 import StreamScenePage from './pages/event/StreamScenePage.tsx'
@@ -335,6 +336,25 @@ export const eventInfoRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'info',
     component: () => <EventInfoPage />,
+})
+
+// Die Szenen-VERWALTUNG des Livestreams — bis zum 31.08.2026 wohnte sie mit den Boards zusammen
+// auf `eventInfoRoute`, jetzt getrennt (siehe EventStreamScenesPage). Dieselbe Rechte-Tür wie
+// das Kontroll-Panel darunter: READ STREAM ODER READ EVENT, von Hand geprüft, weil `checkAuth`
+// nur ein einzelnes Privileg kennt. Zum Nicht-Konflikt mit der öffentlichen Bühnen-Route
+// (`event/$eventId/stream/$sceneId`) siehe den Kommentar an `eventStreamPanelRoute`.
+export const eventStreamScenesRoute = createRoute({
+    getParentRoute: () => eventRoute,
+    path: 'streamScenes',
+    component: function EventStreamScenes() {
+        return <EventStreamScenesPage />
+    },
+    beforeLoad: ({context, location}) => {
+        checkAuth(context, location)
+        if (!context.checkPrivilege(readStreamGlobal) && !context.checkPrivilege(readEventGlobal)) {
+            throw redirect({to: '/dashboard'})
+        }
+    },
 })
 
 export const eventLiveDashboardRoute = createRoute({
@@ -865,6 +885,7 @@ const routeTree = rootRoute.addChildren([
                 eventIndexRoute,
                 eventRegistrationRoute,
                 eventInfoRoute,
+                eventStreamScenesRoute,
                 eventLiveDashboardRoute,
                 eventStreamPanelRoute,
                 eventTimingRoute.addChildren([

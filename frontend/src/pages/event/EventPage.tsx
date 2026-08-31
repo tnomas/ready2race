@@ -36,6 +36,7 @@ import {
     Forward,
     InfoOutlined,
     LiveTvOutlined,
+    VideoSettingsOutlined,
     PlayCircleOutlined,
     SportsScoreOutlined,
     TuneOutlined,
@@ -456,6 +457,24 @@ const EventPage = () => {
                                                 {t('speaker.openBoard')}
                                             </Button>
                                         </Link>
+                                        {/* Die Szenen-Verwaltung des Livestreams — seit dem
+                                            31.08.2026 eine eigene Seite neben den Boards
+                                            (getrennte Aufgaben, getrennte Türen); dieselbe
+                                            Rechte-Alternative wie das Kontroll-Panel darunter. */}
+                                        {(user.checkPrivilege(readStreamGlobal) ||
+                                            user.checkPrivilege(readEventGlobal)) && (
+                                            <Link
+                                                to={'/event/$eventId/streamScenes'}
+                                                params={{eventId}}>
+                                                <Button
+                                                    startIcon={<VideoSettingsOutlined />}
+                                                    variant="outlined"
+                                                    fullWidth
+                                                    sx={{mt: 1}}>
+                                                    {t('event.info.manageStreamScenes')}
+                                                </Button>
+                                            </Link>
+                                        )}
                                         {/* Sonst ist das Kontroll-Panel nirgends verlinkt - dieselbe
                                             Rechte-Alternative wie oben (READ STREAM ODER READ EVENT),
                                             eine reine Streamer-Rolle ohne READ EVENT muss ihn hier finden. */}

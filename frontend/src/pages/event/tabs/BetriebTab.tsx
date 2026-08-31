@@ -1,5 +1,6 @@
 import {Box, Button, Card, Stack, Typography} from '@mui/material'
 import CampaignOutlined from '@mui/icons-material/CampaignOutlined'
+import ConnectedTvOutlined from '@mui/icons-material/ConnectedTvOutlined'
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined'
 import LiveTvOutlined from '@mui/icons-material/LiveTvOutlined'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
@@ -92,12 +93,26 @@ const BetriebTab = ({eventId, switchTab}: BetriebTabProps) => {
                             {t('event.betrieb.speaker.open')}
                         </Button>,
                     )}
+                {/* Anzeigen und Livestream sind seit dem 31.08.2026 ZWEI Kacheln: das eine sind
+                    die öffentlichen Bildschirme am Gelände, das andere die Overlay-Szenen der
+                    Bildregie — wer das eine sucht, soll nicht durch das andere müssen. */}
+                {show('boards') &&
+                    tileCard(
+                        <ConnectedTvOutlined color="primary" />,
+                        t('event.betrieb.boards.title'),
+                        t('event.betrieb.boards.description'),
+                        <Link to={'/event/$eventId/info'} params={{eventId}}>
+                            <Button variant="outlined" fullWidth>
+                                {t('event.betrieb.boards.open')}
+                            </Button>
+                        </Link>,
+                    )}
                 {show('livestream') &&
                     tileCard(
                         <LiveTvOutlined color="primary" />,
                         t('event.betrieb.livestream.title'),
                         t('event.betrieb.livestream.description'),
-                        <Link to={'/event/$eventId/info'} params={{eventId}}>
+                        <Link to={'/event/$eventId/streamScenes'} params={{eventId}}>
                             <Button variant="outlined" fullWidth>
                                 {t('event.betrieb.livestream.open')}
                             </Button>

@@ -33,6 +33,7 @@ describe('visibleBetriebTiles', () => {
             'referee',
             'speaker',
             'timing',
+            'boards',
             'livestream',
             'helpers',
         ])
@@ -42,13 +43,19 @@ describe('visibleBetriebTiles', () => {
         expect(visibleBetriebTiles(checkOf(p('READ', 'LIVE_DASHBOARD')))).toEqual(['referee'])
     })
 
-    test('reine Board-Rolle sieht Sprecher- und Livestream-Kachel, aber keine Zeitnahme', () => {
-        expect(visibleBetriebTiles(checkOf(p('READ', 'BOARD')))).toEqual(['speaker', 'livestream'])
+    test('reine Board-Rolle sieht Sprecher- und Anzeigen-Kachel, aber weder Zeitnahme noch Livestream', () => {
+        // Anzeigen und Livestream sind seit dem 31.08.2026 getrennte Kacheln mit getrennten
+        // Rechten - das Boards-Recht öffnet nicht mehr nebenbei die Szenen-Verwaltung.
+        expect(visibleBetriebTiles(checkOf(p('READ', 'BOARD')))).toEqual(['speaker', 'boards'])
+    })
+
+    test('reine Stream-Rolle sieht genau die Livestream-Kachel', () => {
+        expect(visibleBetriebTiles(checkOf(p('READ', 'STREAM')))).toEqual(['livestream'])
     })
 
     test('Leserecht auf die Veranstaltung reicht nicht fuer die Zeitnahme-Kachel', () => {
         const tiles = visibleBetriebTiles(checkOf(p('READ', 'EVENT')))
         expect(tiles).not.toContain('timing')
-        expect(tiles).toEqual(['speaker', 'livestream', 'helpers'])
+        expect(tiles).toEqual(['speaker', 'boards', 'livestream', 'helpers'])
     })
 })
