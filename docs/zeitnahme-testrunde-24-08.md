@@ -437,3 +437,15 @@ abhängen, welche Farben eine Veranstaltung hinterlegt hat.
 
 **Weiterhin offen:** Punkt 9 der Ursprungsliste (Sequenzen im Schiedsrichter-Dashboard und im
 Kachel-Dashboard, Uhr die von minus hochzählt) und der Handtest des Overlays in OBS.
+
+**Nachtrag 02.09.2026 – Punkt 9, erster Teil (Schiedsrichter-Dashboard) umgesetzt:** Der
+Dashboard-Datensatz trägt jetzt je Lauf die aktive Startsequenz (`sequence`: scharf/läuft/pausiert,
+Modus, Pausenbeginn) und je Boot den Sequenz-Eintrag (`sequenceEntry`: Position, Status, geplanter
+Start als Server-Epoch-Millis). Aufgelöst vom Server (`LiveDashboardSequenceLogic`), geliefert über
+den gewöhnlichen Poll und nachgeladen über den Veranstaltungs-Push – kein Zeitnahme-Kanal, kein
+neues Recht. Die Karte zeigt einen Sequenz-Streifen (Zustand, „x/y gestartet", nächstes Boot,
+stummer Countdown auf Serveruhr; pausiert eingefroren) und beim Zeitfahren je Boot den geplanten
+Start. Neu dazu: der Rückruf hinterlässt `competition_match.false_start_at` (Migration
+V202609021000), die Karte sagt „Fehlstart um 14:03 – Lauf zurückgerufen", bis der nächste Start
+den Stempel leert. Offen bleibt der zweite Teil (Kachel-Dashboard und Stream-Uhr, die von minus
+hochzählt).

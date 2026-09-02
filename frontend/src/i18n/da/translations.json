@@ -1974,6 +1974,17 @@
       "noStartTime": "Ingen starttid planlagt",
       "plannedAt": "planlagt {{time}}",
       "startedAtLabel": "startet {{time}}",
+      "sequence": {
+        "armed": "Startsekvens klar",
+        "running": "Startsekvens kører",
+        "paused": "Startsekvens på pause",
+        "progress": "{{started}}/{{total}} startet",
+        "nextStart": "Næste start: #{{number}}",
+        "startNow": "Start!",
+        "falseStart": "Tyvstart kl. {{time}} – løbet er kaldt tilbage",
+        "plannedStart": "Start planlagt {{time}}",
+        "skipped": "Start sprunget over"
+      },
       "invoice": {
         "PAID": "Faktura betalt",
         "OPEN": "Faktura åben",

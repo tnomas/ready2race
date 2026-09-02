@@ -100,6 +100,9 @@ object TimingMatchStampService {
                         val stamp = TimingMatchStampLogic.startStampFor(startedAt, markMillis)
                         if (stamp != null) {
                             startedAt = stamp
+                            // Der neue Start erledigt einen vorangegangenen Rückruf - die Karte
+                            // soll jetzt "läuft" sagen, nicht mehr "Fehlstart" (V202609021000).
+                            falseStartAt = null
                             if (activatedAt == null) {
                                 activatedAt = now
                             }
@@ -144,6 +147,28 @@ object TimingMatchStampService {
             }
         }.orDie()
         KIO.ok(retracted)
+    }
+
+    /**
+     * Leert den Rückruf-Stempel (`false_start_at`) der Partie - bei der gewöhnlichen
+     * Versuchs-Rücknahme, die kein Fehlstart ist. Gibt zurück, ob etwas zu leeren war, damit der
+     * Aufrufer wie bei den anderen Rücknahme-Schritten nur bei echter Änderung bumpt.
+     */
+    fun clearFalseStart(
+        setupMatchId: UUID,
+        userId: UUID,
+    ): App<Nothing, Boolean> = KIO.comprehension {
+        val now = LocalDateTime.now()
+        var cleared = false
+        !CompetitionMatchRepo.update(setupMatchId) {
+            if (falseStartAt != null) {
+                falseStartAt = null
+                updatedBy = userId
+                updatedAt = now
+                cleared = true
+            }
+        }.orDie()
+        KIO.ok(cleared)
     }
 
     /** Die Partien hinter den Teams, dedupliziert - Teams ohne Zeile fallen still heraus. */

@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing.boundary
 
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
@@ -492,10 +493,14 @@ object TimingService {
         // Der eigene Ist-Start-Stempel gehört bei der Versuchs-Rücknahme in jedem Fall zurück.
         val retractedStart = !TimingMatchStampService.retractStartOfAttempt(eventId, setupMatchId, userId)
 
+        // Eine gewöhnliche Rücknahme ist kein Fehlstart: ein stehender Rückruf-Stempel gehört mit
+        // dem Versuch weg (der ausdrückliche Rückruf setzt seinen eigenen erst NACH diesem Aufruf).
+        val falseStartCleared = !TimingMatchStampService.clearFalseStart(setupMatchId, userId)
+
         // Abgeräumte Ergebnisse und der zurückgenommene Laufzustand derselben Rücknahme sind für
         // die öffentlichen Anzeigen EINE Änderung - ein gemeinsamer Bump; ganz ohne Schreibvorgang
         // (Doppelklick auf den Menüpunkt) bleibt es still.
-        if (written || retractedStart || splitsChanged) {
+        if (written || retractedStart || splitsChanged || falseStartCleared) {
             EventChangeMarker.bump(eventId)
             // Fehlstart-Signal an die Boards: EINE Nachricht je Rücknahme (nicht je Marke), nur
             // wenn wirklich etwas zurückging - der harmlose Doppelklick bleibt auch hier still.
@@ -583,6 +588,18 @@ object TimingService {
         !sequenceIds.traverse { TimingSequenceService.abortSequence(it, userId, eventId) }
 
         !retractMatchAttempt(setupMatchId, eventId, userId)
+
+        // Der Rückruf hinterlässt seinen Stempel am Lauf (V202609021000): Anzeigen ohne
+        // Zeitnahme-Kanal - allen voran das Schiedsrichter-Dashboard - sehen den Fehlstart sonst
+        // nur als Lauf, der grundlos von "läuft" auf "in Vorbereitung" zurückfällt. Nach der
+        // Rücknahme gesetzt, weil die Rücknahme selbst den Stempel als gewöhnliche Korrektur leert.
+        val now = LocalDateTime.now()
+        !CompetitionMatchRepo.update(setupMatchId) {
+            falseStartAt = now
+            updatedBy = userId
+            updatedAt = now
+        }.orDie()
+        EventChangeMarker.bump(eventId)
 
         // Immer gemeldet, auch wenn nichts zurückzunehmen war (Rückruf noch vor der ersten Marke):
         // Genau dann ist der Rückruf am wichtigsten - die Boote stehen noch, und die Anzeige ist

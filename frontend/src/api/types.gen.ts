@@ -2475,6 +2475,14 @@ export type LiveDashboardMatchDto = {
      * Set while this match's pairing comes from a recalculation and the match has not been called to the start yet
      */
     pairingsRecalculatedAt?: string | null
+    /**
+     * the active start sequence (armed, running or paused) of this match from the in-house timing, resolved by the server; null without one
+     */
+    sequence?: LiveDashboardSequenceDto | null
+    /**
+     * when the start station last recalled this match (false start); null if never, or once a new start happened since
+     */
+    falseStartAt?: string | null
 }
 
 /**
@@ -2528,6 +2536,33 @@ export type LiveDashboardRequirementStatusDto = {
     timeCheck?: TimeCheckDto | null
     severity: EffectiveSeverity
 }
+
+/**
+ * the active start sequence of a match as the referee dashboard sees it - an excerpt of the timing module delivered through the regular dashboard poll, so that no timing privilege and no timing websocket is needed
+ */
+export type LiveDashboardSequenceDto = {
+    sequenceId: string
+    state: LiveDashboardSequenceState
+    mode: SequenceMode
+    /**
+     * start of the running pause (server epoch millis), only while PAUSED; the card freezes its countdown at plannedStartMillis - pausedAtMillis
+     */
+    pausedAtMillis?: number | null
+}
+
+export type LiveDashboardSequenceEntryDto = {
+    /**
+     * start order within the sequence, 0-based, across all matches of the sequence
+     */
+    position: number
+    status: SequenceEntryStatus
+    /**
+     * planned start of this boat (server epoch millis), absent while the sequence is only armed; the same calculation the scheduler fires against
+     */
+    plannedStartMillis?: number | null
+}
+
+export type LiveDashboardSequenceState = 'ARMED' | 'RUNNING' | 'PAUSED'
 
 export type LiveDashboardTeamDetailDto = {
     teamId: string
@@ -2604,6 +2639,10 @@ export type LiveDashboardTeamDto = {
      * referee notes on this boat, oldest first - communication between referees, not scoring; only part of this internal poll, never of the public endpoints
      */
     notes?: Array<MatchTeamNoteDto>
+    /**
+     * this boat's slot in the active start sequence of its match (LiveDashboardMatchDto.sequence); null when it is in none
+     */
+    sequenceEntry?: LiveDashboardSequenceEntryDto | null
 }
 
 /**

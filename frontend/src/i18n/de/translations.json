@@ -1977,6 +1977,17 @@
       "noStartTime": "Keine Startzeit geplant",
       "plannedAt": "geplant {{time}}",
       "startedAtLabel": "gestartet {{time}}",
+      "sequence": {
+        "armed": "Startsequenz scharf",
+        "running": "Startsequenz läuft",
+        "paused": "Startsequenz pausiert",
+        "progress": "{{started}}/{{total}} gestartet",
+        "nextStart": "Nächster Start: #{{number}}",
+        "startNow": "Start!",
+        "falseStart": "Fehlstart um {{time}} – Lauf zurückgerufen",
+        "plannedStart": "Start geplant {{time}}",
+        "skipped": "Start übersprungen"
+      },
       "invoice": {
         "PAID": "Rechnung bezahlt",
         "OPEN": "Rechnung offen",

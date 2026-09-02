@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing.control
 
+import de.lambda9.ready2race.backend.app.timing.entity.ActiveSequenceEntry
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceEntryStatus
 import de.lambda9.ready2race.backend.app.timing.entity.SequenceState
 import de.lambda9.ready2race.backend.database.*
@@ -7,6 +8,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingSta
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_START_SEQUENCE
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_START_SEQUENCE_ENTRY
+import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
 import java.util.UUID
 
@@ -99,6 +101,35 @@ object TimingSequenceEntryRepo {
             // TimingMatchRepo) - deshalb hier direkt der Vergleich ohne weiteren Join.
             .and(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(setupMatchId))
             .fetch { it[TIMING_START_SEQUENCE.ID]!! }
+    }
+
+    /**
+     * Alle Einträge aller aktiven Sequenzen der Veranstaltung samt Sequenz und Setup-Lauf - EINE
+     * Abfrage je Dashboard-Poll, die Zuordnung zu den Läufen macht
+     * `LiveDashboardSequenceLogic.byMatch`. Die beiden Datensätze kommen über ihre Sternchen und
+     * `into(Table)`: jOOQ ordnet dabei über die qualifizierten Felder zu, die gleichnamige
+     * `id`-Spalte beider Tabellen bleibt deshalb auseinander.
+     */
+    fun getActiveEntriesByEvent(eventId: UUID): JIO<List<ActiveSequenceEntry>> = Jooq.query {
+        select(
+            TIMING_START_SEQUENCE.asterisk(),
+            TIMING_START_SEQUENCE_ENTRY.asterisk(),
+            COMPETITION_MATCH_TEAM.COMPETITION_MATCH,
+        )
+            .from(TIMING_START_SEQUENCE_ENTRY)
+            .join(TIMING_START_SEQUENCE)
+            .on(TIMING_START_SEQUENCE_ENTRY.SEQUENCE.eq(TIMING_START_SEQUENCE.ID))
+            .join(COMPETITION_MATCH_TEAM)
+            .on(COMPETITION_MATCH_TEAM.ID.eq(TIMING_START_SEQUENCE_ENTRY.COMPETITION_MATCH_TEAM))
+            .where(TIMING_START_SEQUENCE.EVENT.eq(eventId))
+            .and(TIMING_START_SEQUENCE.STATE.`in`(SequenceState.activeNames))
+            .fetch { row ->
+                ActiveSequenceEntry(
+                    sequence = row.into(TIMING_START_SEQUENCE),
+                    entry = row.into(TIMING_START_SEQUENCE_ENTRY),
+                    setupMatchId = row[COMPETITION_MATCH_TEAM.COMPETITION_MATCH]!!,
+                )
+            }
     }
 
     fun getTeamsInActiveSequences(eventId: UUID) = Jooq.query {

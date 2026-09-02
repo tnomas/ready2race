@@ -18910,6 +18910,11 @@ components:
           items:
             $ref: '#/components/schemas/MatchTeamNoteDto'
           description: "referee notes on this boat, oldest first - communication between referees, not scoring; only part of this internal poll, never of the public endpoints"
+        sequenceEntry:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/LiveDashboardSequenceEntryDto'
+          description: "this boat's slot in the active start sequence of its match (LiveDashboardMatchDto.sequence); null when it is in none"
 
     MatchTeamNoteDto:
       type: object
@@ -19059,6 +19064,62 @@ components:
           format: date-time
           nullable: true
           description: "Set while this match's pairing comes from a recalculation and the match has not been called to the start yet"
+        sequence:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/LiveDashboardSequenceDto'
+          description: "the active start sequence (armed, running or paused) of this match from the in-house timing, resolved by the server; null without one"
+        falseStartAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "when the start station last recalled this match (false start); null if never, or once a new start happened since"
+
+    LiveDashboardSequenceState:
+      type: string
+      enum:
+        - ARMED
+        - RUNNING
+        - PAUSED
+
+    LiveDashboardSequenceDto:
+      type: object
+      description: "the active start sequence of a match as the referee dashboard sees it - an excerpt of the timing module delivered through the regular dashboard poll, so that no timing privilege and no timing websocket is needed"
+      required:
+        - sequenceId
+        - state
+        - mode
+      properties:
+        sequenceId:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/LiveDashboardSequenceState'
+        mode:
+          $ref: '#/components/schemas/SequenceMode'
+        pausedAtMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: "start of the running pause (server epoch millis), only while PAUSED; the card freezes its countdown at plannedStartMillis - pausedAtMillis"
+
+    LiveDashboardSequenceEntryDto:
+      type: object
+      required:
+        - position
+        - status
+      properties:
+        position:
+          type: integer
+          format: int32
+          description: "start order within the sequence, 0-based, across all matches of the sequence"
+        status:
+          $ref: '#/components/schemas/SequenceEntryStatus'
+        plannedStartMillis:
+          type: integer
+          format: int64
+          nullable: true
+          description: "planned start of this boat (server epoch millis), absent while the sequence is only armed; the same calculation the scheduler fires against"
 
     PendingSlotDto:
       type: object

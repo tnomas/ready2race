@@ -1977,6 +1977,17 @@
       "noStartTime": "No start time scheduled",
       "plannedAt": "planned {{time}}",
       "startedAtLabel": "started {{time}}",
+      "sequence": {
+        "armed": "Start sequence armed",
+        "running": "Start sequence running",
+        "paused": "Start sequence paused",
+        "progress": "{{started}}/{{total}} started",
+        "nextStart": "Next start: #{{number}}",
+        "startNow": "Go!",
+        "falseStart": "False start at {{time}} – race recalled",
+        "plannedStart": "Start planned {{time}}",
+        "skipped": "Start skipped"
+      },
       "invoice": {
         "PAID": "Invoice paid",
         "OPEN": "Invoice open",

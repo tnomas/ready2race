@@ -183,6 +183,12 @@ data class LiveDashboardTeamDto(
      * eventInfo-/Board-Endpunkte bekommen sie bewusst nicht.
      */
     val notes: List<MatchTeamNoteDto> = emptyList(),
+    /**
+     * Der Platz dieses Boots in der aktiven Startsequenz seines Laufs
+     * ([LiveDashboardMatchDto.sequence]) - null, wenn es in keiner steht. Beim Zeitfahren steht
+     * damit je Boot der geplante Start in der Zeile; beim Wellenstart teilen alle denselben.
+     */
+    val sequenceEntry: LiveDashboardSequenceEntryDto? = null,
 )
 
 /** Was der Detail-Dialog zusätzlich braucht; wird einzeln je Mannschaft geladen. */
@@ -247,6 +253,19 @@ data class LiveDashboardMatchDto(
      * fährt in dieser Aufstellung.
      */
     val pairingsRecalculatedAt: LocalDateTime?,
+    /**
+     * Die aktive Startsequenz dieses Laufs (scharf, laufend, pausiert) aus der hauseigenen
+     * Zeitnahme - null ohne eine solche. Aufgelöst vom Server, siehe [LiveDashboardSequenceDto]
+     * dazu, warum der Weg über den Poll und nicht über den Zeitnahme-Kanal führt.
+     */
+    val sequence: LiveDashboardSequenceDto? = null,
+    /**
+     * Wann der Startposten diesen Lauf zuletzt zurückgerufen hat (Fehlstart) - null, wenn nie oder
+     * wenn seither ein neuer Start stattfand. Der Rückruf nimmt den Versuch zurück, der Lauf steht
+     * danach wieder "in Vorbereitung"; ohne diesen Stempel wäre am Steg nicht zu unterscheiden,
+     * ob der Start noch aussteht oder gerade abgebrochen wurde.
+     */
+    val falseStartAt: LocalDateTime? = null,
 )
 
 /**

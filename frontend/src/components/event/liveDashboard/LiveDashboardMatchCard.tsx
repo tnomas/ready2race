@@ -34,6 +34,8 @@ import {
 } from './common.ts'
 import FinishMatchButton from './FinishMatchButton.tsx'
 import SeverityIcon from './SeverityIcon.tsx'
+import LiveDashboardSequenceStrip from './LiveDashboardSequenceStrip.tsx'
+import {showsFalseStart, teamSequenceMarker} from './liveDashboardSequence.ts'
 
 /**
  * Ab dieser Kartenbreite ist Platz für die Langform des Status. Darunter würde sie die Spalte im
@@ -315,6 +317,23 @@ const LiveDashboardMatchCard = ({
                         </Box>
                     )}
                 </Box>
+                {/*
+                    Der Rückruf vom Startposten: der Lauf steht wieder "in Vorbereitung", und die
+                    Karte sagt, warum. Der Server leert den Stempel mit dem nächsten Start
+                    (siehe showsFalseStart).
+                */}
+                {showsFalseStart(match) && match.falseStartAt && (
+                    <Typography
+                        variant="body2"
+                        fontWeight={700}
+                        sx={{color: 'error.main', mt: 0.5}}>
+                        {t('event.liveDashboard.sequence.falseStart', {
+                            time: format(new Date(match.falseStartAt), t('format.time')),
+                        })}
+                    </Typography>
+                )}
+                {/* Die Startsequenz der hauseigenen Zeitnahme, sobald der Posten sie scharf hat. */}
+                {match.sequence && <LiveDashboardSequenceStrip match={match} />}
                 {match.pairingsRecalculatedAt && (
                     // warningTextColor: die Palette-Warnfarbe ist ein heller Hintergrundton und
                     // als Text auf hellem Grund kaum lesbar.
@@ -621,6 +640,39 @@ const LiveDashboardMatchCard = ({
                                             })}
                                         </Typography>
                                     )}
+                                    {/*
+                                        Beim Zeitfahren steht je Boot der geplante eigene Start
+                                        aus der Sequenz, solange es ansteht; übersprungene Boote
+                                        sagen das (siehe teamSequenceMarker).
+                                    */}
+                                    {(() => {
+                                        const marker = teamSequenceMarker(team, match.sequence)
+                                        if (!marker) return null
+                                        return (
+                                            <Typography
+                                                variant="caption"
+                                                display="block"
+                                                sx={{
+                                                    color:
+                                                        marker.kind === 'skipped'
+                                                            ? 'grey.600'
+                                                            : 'info.dark',
+                                                    fontVariantNumeric: 'tabular-nums',
+                                                }}>
+                                                {marker.kind === 'skipped'
+                                                    ? t('event.liveDashboard.sequence.skipped')
+                                                    : t(
+                                                          'event.liveDashboard.sequence.plannedStart',
+                                                          {
+                                                              time: format(
+                                                                  new Date(marker.startMillis),
+                                                                  t('format.timeWithSeconds'),
+                                                              ),
+                                                          },
+                                                      )}
+                                            </Typography>
+                                        )
+                                    })()}
                                     {team.inArenaRequired && team.inArenaAt && (
                                         <Typography
                                             variant="caption"

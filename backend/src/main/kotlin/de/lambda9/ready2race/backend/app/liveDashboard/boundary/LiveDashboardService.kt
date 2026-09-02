@@ -23,6 +23,7 @@ import de.lambda9.ready2race.backend.app.liveDashboard.entity.*
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchByeService
 import de.lambda9.ready2race.backend.app.participantTracking.control.ParticipantTrackingRepo
 import de.lambda9.ready2race.backend.app.substitution.control.SubstitutionRepo
+import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
 import de.lambda9.ready2race.backend.app.substitution.entity.ParticipantForExecutionDto
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
@@ -81,6 +82,11 @@ object LiveDashboardService {
             // Absagen, die an echten Läufen hängen. Zwei Reads würden hier auseinanderlaufen können.
             val slotRecords = !EventScheduleRepo.getSlots(eventId).orDie()
             val byeByMatch = !MatchByeService.byeByMatch(eventId)
+            // Die aktiven Startsequenzen der Veranstaltung, einmal je Abruf - je Lauf der Kopf,
+            // je Boot der Eintrag. Ohne hauseigene Zeitnahme ist die Karte schlicht leer.
+            val sequenceByMatch = LiveDashboardSequenceLogic.byMatch(
+                !TimingSequenceEntryRepo.getActiveEntriesByEvent(eventId).orDie()
+            )
 
             val skippedMatchIds = slotRecords.mapNotNull { r ->
                 EventScheduleLogic.skippedMatchIdOrNull(
@@ -142,8 +148,10 @@ object LiveDashboardService {
                 startTime: LocalDateTime?,
                 timePrecision: Timecode.MillisecondPrecision,
                 matchRunning: Boolean,
+                matchSequence: LiveDashboardSequenceLogic.MatchSequence?,
             ): App<Nothing, LiveDashboardTeamDto> = KIO.comprehension {
                 val first = rows.first()
+                val matchTeamId = first.get("match_team_id", UUID::class.java)!!
                 val clubId = first.get("club_id", UUID::class.java)
                 val clubName = first.get("club_name", String::class.java)
                 val teamName = first.get("team_name", String::class.java)
@@ -242,6 +250,7 @@ object LiveDashboardService {
                         ),
                         substituted = participants.any { it.substitutedFor != null },
                         inArenaAt = inArenaAt,
+                        sequenceEntry = matchSequence?.entriesByMatchTeam?.get(matchTeamId),
                     )
                 )
             }
@@ -257,6 +266,7 @@ object LiveDashboardService {
                 // Boot, das an den Start gerufen ist, gehört raus - unabhängig davon, ob das Rennen
                 // schon unterwegs ist.
                 val running = activatedAt != null
+                val matchSequence = sequenceByMatch[matchId]
 
                 val matchRows = teamsByMatch[matchId] ?: emptyList()
                 // Anzeige-Präzision pro Lauf: standardmäßig eine Nachkommastelle, feiner nur,
@@ -265,7 +275,7 @@ object LiveDashboardService {
                 val teams = !matchRows
                     .groupBy { it[COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION]!! }
                     .toList()
-                    .traverse { (registrationId, rows) -> buildTeamDto(registrationId, rows, startTime, timePrecision, running) }
+                    .traverse { (registrationId, rows) -> buildTeamDto(registrationId, rows, startTime, timePrecision, running, matchSequence) }
                     // Die Karte bleibt nach Bahn sortiert - am Steg wird sie gegen das Wasser
                     // gelesen, nicht gegen die Ergebnisliste. Nur der Kategorieplatz kommt hinzu,
                     // damit das Ergebnis eines beendeten Laufs dieselbe Zahl zeigt wie die
@@ -312,6 +322,8 @@ object LiveDashboardService {
                             startedAt = startedAt,
                             finishedAt = finishedAt,
                         ),
+                        sequence = matchSequence?.sequence,
+                        falseStartAt = match[COMPETITION_MATCH.FALSE_START_AT],
                     )
                 )
             }
@@ -671,6 +683,8 @@ object LiveDashboardService {
         !CompetitionMatchRepo.update(matchId) {
             if (startedAt == null) {
                 startedAt = LocalDateTime.now()
+                // Ein neuer Start erledigt den alten Rückruf (siehe V202609021000).
+                falseStartAt = null
             }
             if (activatedAt == null) {
                 activatedAt = LocalDateTime.now()
