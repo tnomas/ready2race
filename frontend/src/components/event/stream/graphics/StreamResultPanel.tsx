@@ -1,11 +1,14 @@
-import {Box, Stack, Typography, useTheme} from '@mui/material'
+import {Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {AthleteBoardResult, AthleteBoardResultTeam, StreamGraphicSize} from '@api/types.gen'
+import {AthleteBoardResult, AthleteBoardResultTeam, StreamGraphicSize, StreamPlacement} from '@api/types.gen'
 import FlipList from '../../board/FlipList.tsx'
 import FitToHeight from '../../board/streamOverlay/FitToHeight.tsx'
-import StreamBoatRow from '../../board/streamOverlay/StreamBoatRow.tsx'
-import {byNullsLast, competitionLabel, roundMatchLabel, solidOr} from '../../board/streamOverlay/streamDisplay.ts'
-import StreamBandShell from './StreamBandShell.tsx'
+import {byNullsLast, competitionLabel, roundMatchLabel} from '../../board/streamOverlay/streamDisplay.ts'
+import StreamBoatLine from './design/StreamBoatLine.tsx'
+import StreamHeader from './design/StreamHeader.tsx'
+import StreamPlate from './design/StreamPlate.tsx'
+import StreamTag from './design/StreamTag.tsx'
+import {bandRowMode, boardLayout, formForPlacement, splitColumns} from './design/streamLayout.ts'
 import {winnerGap} from './resultGap.ts'
 
 interface StreamResultPanelProps {
@@ -13,28 +16,23 @@ interface StreamResultPanelProps {
     /** Lauf steht auf Klärung — das Ergebnis geht trotzdem raus, nur als vorläufig markiert. */
     provisional?: boolean | null
     size: StreamGraphicSize
+    placement: StreamPlacement
 }
 
 /**
- * RESULT-Bandgrafik: Ränge, Zeiten (über `StreamBoatRow`) und je Boot der Rückstand zum
- * Sieger, dazu ein „Vorläufig"-Kennzeichen bei laufender Klärung. Der Rückstand wird aus den
- * bereits formatierten Ergebniszeiten gerechnet (`winnerGap`) — der Server liefert dem
- * Endergebnis keine rohen Millisekunden wie den Zwischenzeiten; lässt sich eine Zeile nicht
- * parsen, bleibt die Stelle leer statt eine Zahl zu erfinden.
- *
- * Die Rückstand-Zeile bekommt JEDE Zeile reserviert, auch die des Siegers ohne eigenen
- * Rückstand — sonst hätten nur die Zeilen dahinter eine zweite Zeile und die Vereinsnamen
- * säßen zeilenweise unterschiedlich hoch. Der Sieger bekommt trotzdem nie eine erfundene
- * „+0,00" zu sehen: seine Zeile bleibt per `visibility: hidden` leer, nimmt aber denselben
- * Platz ein wie die Rückstände der übrigen Boote.
+ * RESULT: Platz, Startnummer, Boot, Zeit und Rückstand zum Sieger — als Band (unten) oder
+ * als Vollbild-Tafel (`FULL_CENTER`). Der Rückstand wird aus den fertig formatierten
+ * Ergebniszeiten gerechnet (`winnerGap`); lässt sich eine Zeile nicht parsen, bleibt die Stelle
+ * leer statt eine Zahl zu erfinden. Bei laufender Klärung trägt der Kopf ein „Vorläufig".
  */
-const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) => {
+const StreamResultPanel = ({result, provisional, size, placement}: StreamResultPanelProps) => {
     const {t} = useTranslation()
-    const theme = useTheme()
-    const streamCrew = 'CLUBS_FIRST' as const
+    const form = formForPlacement(placement) === 'board' ? 'board' : 'band'
     const teams = [...result.teams].sort(byNullsLast(team => team.place))
     const winner = teams.find(team => team.place === 1) ?? null
     const decimalPoint = t('decimal.point')
+    const layout = form === 'board' ? boardLayout(teams.length) : {columns: 1 as const, mode: bandRowMode(teams.length)}
+    const columns = splitColumns(teams, layout.columns)
 
     const gapFor = (team: AthleteBoardResultTeam): string | null =>
         team.place != null && team.place !== 1
@@ -42,63 +40,48 @@ const StreamResultPanel = ({result, provisional, size}: StreamResultPanelProps) 
             : null
 
     return (
-        <StreamBandShell
-            size={size}
-            stateLabel={t('event.stream.result')}
-            title={competitionLabel(result.competitionName, result.competitionShortName, true)}
-            roundLine={roundMatchLabel(result.roundName, result.matchName)}
-            headerTrailing={
-                provisional ? (
-                    <Typography
-                        variant={size === 'COMPACT' ? 'body1' : 'h6'}
-                        noWrap
-                        sx={{
-                            fontWeight: 700,
-                            flexShrink: 0,
-                            color: solidOr(theme.palette.warning.light, '#ffb74d'),
-                        }}>
-                        {t('event.match.status.provisional')}
-                    </Typography>
-                ) : undefined
-            }>
-            {/* Keine Bildlaufleiste auf einer Bandgrafik — passt das Feld nicht in die
-                Bandhöhe, verkleinert FitToHeight es, statt die letzte Zeile abzuschneiden. */}
+        <StreamPlate form={form} size={size}>
+            <StreamHeader
+                form={form}
+                tag={<StreamTag label={t('event.stream.result')} />}
+                title={competitionLabel(result.competitionName, result.competitionShortName, true)}
+                subtitle={roundMatchLabel(result.roundName, result.matchName)}
+                trailing={
+                    provisional ? <StreamTag tone="warning" label={t('event.match.status.provisional')} /> : undefined
+                }
+            />
             <FitToHeight smooth>
-                <Stack sx={{gap: 1.5}}>
-                    <FlipList
-                        items={teams}
-                        keyOf={team => String(team.startNumber)}
-                        render={team => {
-                            const gap = gapFor(team)
-                            return (
-                                <Box>
-                                    <StreamBoatRow
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+                        columnGap: '1.5em',
+                        py: '0.4em',
+                    }}>
+                    {columns.map((column, columnIndex) => (
+                        <Box key={columnIndex}>
+                            <FlipList
+                                items={column}
+                                keyOf={team => String(team.startNumber)}
+                                render={(team, index) => (
+                                    <StreamBoatLine
                                         team={team}
-                                        crewMode={streamCrew}
+                                        mode={layout.mode}
+                                        leading="place"
+                                        gap={gapFor(team)}
+                                        withGap
                                         useShortClubNames
                                         failedFallback={t('event.info.athleteBoard.failed')}
                                         deregisteredFallback={t('event.info.athleteBoard.deregistered')}
-                                        size={size === 'COMPACT' ? 'compact' : 'large'}
-                                        showLaps={false}
+                                        striped={index % 2 === 1}
                                     />
-                                    <Typography
-                                        variant={size === 'COMPACT' ? 'body2' : 'body1'}
-                                        align="right"
-                                        aria-hidden={gap ? undefined : true}
-                                        sx={{
-                                            opacity: 0.8,
-                                            fontVariantNumeric: 'tabular-nums',
-                                            visibility: gap ? 'visible' : 'hidden',
-                                        }}>
-                                        {gap ?? ' '}
-                                    </Typography>
-                                </Box>
-                            )
-                        }}
-                    />
-                </Stack>
+                                )}
+                            />
+                        </Box>
+                    ))}
+                </Box>
             </FitToHeight>
-        </StreamBandShell>
+        </StreamPlate>
     )
 }
 

@@ -28,6 +28,8 @@ describe('ALLOWED_PLACEMENTS', () => {
         expect(ALLOWED_PLACEMENTS.SCHEDULE).toEqual(['FULL_CENTER'])
         expect(ALLOWED_PLACEMENTS.FINISH_TICKER).toEqual(['SIDE_RIGHT', 'SIDE_LEFT'])
         expect(ALLOWED_PLACEMENTS.RESULT).toEqual(['BOTTOM_CENTER', 'FULL_CENTER'])
+        // Seit der Neugestaltung darf auch die Aufstellung als Vollbild-Tafel stehen.
+        expect(ALLOWED_PLACEMENTS.STARTLIST).toEqual(['BOTTOM_CENTER', 'BOTTOM_LEFT', 'BOTTOM_RIGHT', 'FULL_CENTER'])
     })
 })
 

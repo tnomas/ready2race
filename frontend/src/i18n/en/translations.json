@@ -2567,12 +2567,19 @@
     },
     "stream": {
       "startlist": "Start list",
-      "nextUp": "Up next: {{wave}}",
+      "nextUp": "Up next",
       "laps": "Splits",
       "result": "Result",
       "finishTicker": "Finish order",
       "schedule": "Schedule",
       "courseImage": "Course map",
+      "scheduleTitle": "Up next",
+      "cancelled": "Cancelled",
+      "clock": {
+        "countdown": "Start in",
+        "running": "Race time",
+        "paused": "Paused"
+      },
       "scenes": {
         "title": "Scenes",
         "none": "No scenes created yet",

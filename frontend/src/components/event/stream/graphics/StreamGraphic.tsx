@@ -32,7 +32,9 @@ interface StreamGraphicProps {
 const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): ReactElement | null => {
     switch (graphic.type) {
         case 'STARTLIST':
-            return graphic.match ? <StreamStartlist match={graphic.match} size={graphic.size} /> : null
+            return graphic.match ? (
+                <StreamStartlist match={graphic.match} size={graphic.size} placement={graphic.placement} />
+            ) : null
         case 'NEXT_UP':
             return graphic.match ? <StreamNextUp match={graphic.match} size={graphic.size} /> : null
         case 'LAPS':
@@ -43,6 +45,7 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
                     result={graphic.result}
                     provisional={graphic.provisional}
                     size={graphic.size}
+                    placement={graphic.placement}
                 />
             ) : null
         case 'CLOCK':

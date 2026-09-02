@@ -2567,12 +2567,19 @@
     },
     "stream": {
       "startlist": "Startliste",
-      "nextUp": "Als Nächstes: {{wave}}",
+      "nextUp": "Als Nächstes",
       "laps": "Zwischenzeiten",
       "result": "Ergebnis",
       "finishTicker": "Einlauf",
       "schedule": "Tagesprogramm",
       "courseImage": "Streckenbild",
+      "scheduleTitle": "Nächste Läufe",
+      "cancelled": "Fällt aus",
+      "clock": {
+        "countdown": "Start in",
+        "running": "Rennzeit",
+        "paused": "Pause"
+      },
       "scenes": {
         "title": "Szenen",
         "none": "Noch keine Szenen angelegt",

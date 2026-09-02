@@ -1,8 +1,12 @@
 import {useEffect, useRef, useState} from 'react'
-import {alpha, Box, Typography, useTheme} from '@mui/material'
+import {Box, Typography} from '@mui/material'
 import PauseIcon from '@mui/icons-material/Pause'
+import {useTranslation} from 'react-i18next'
 import {AthleteBoardMatch, StreamGraphicSize} from '@api/types.gen'
 import {formatCountdown, formatElapsed, streamClockState} from '../../board/streamClock.ts'
+import {competitionLabel} from '../../board/streamOverlay/streamDisplay.ts'
+import StreamPlate from './design/StreamPlate.tsx'
+import {STREAM_DISPLAY_FONT, STREAM_PLATE, useStreamAccent} from './design/streamTheme.ts'
 
 interface StreamClockProps {
     match: AthleteBoardMatch
@@ -19,40 +23,31 @@ interface StreamClockProps {
     size: StreamGraphicSize
 }
 
+type ClockPhase = 'countdown' | 'running' | 'frozen'
+
 /**
- * CLOCK-Bandgrafik: zählt bereits während der Startsequenz auf `sequenceFiresAt` HERUNTER
- * und wechselt beim gestempelten Start (`match.actualStartTime`) nahtlos auf die positive
- * Laufzeit — dieselbe reine Zustandsfunktion `streamClockState` wie die Board-Kachel
- * (`board/streamOverlay/ClockPlate.tsx`), nur additiv um den Countdown-Fall erweitert
- * (siehe deren KDoc in `streamClock.ts`).
+ * CLOCK: zählt bereits während der Startsequenz auf `sequenceFiresAt` HERUNTER und wechselt
+ * beim gestempelten Start (`match.actualStartTime`) nahtlos auf die positive Laufzeit —
+ * dieselbe reine Zustandsfunktion `streamClockState` wie die Board-Kachel. Über den Ziffern
+ * steht, was sie zeigen („Start in" / „Rennzeit" / „Pause"), rechts davon das Wettkampfkürzel.
  *
- * Antrieb per `requestAnimationFrame` statt Intervall (Vorgabe der Aufgabe): Eine
- * mehrstündige OBS-Session soll nicht durch einen tickenden `setInterval` am Leben
- * gehalten werden, der stur weiterläuft, selbst wenn niemand hinschaut. Der rAF-Loop
- * berechnet bei JEDEM Frame den Anzeigetext neu, setzt den React-State aber NUR, wenn
- * sich der TEXT tatsächlich ändert (Sekunden- bzw. Zehntelsekundentakt je nach Phase,
- * nicht bei jedem Frame) — kein Re-Render, kein DOM-Schreiben, solange der sichtbare
- * Text gleich bleibt.
+ * Antrieb per `requestAnimationFrame` statt Intervall: Der Loop berechnet bei JEDEM Frame den
+ * Anzeigetext neu, setzt den React-State aber NUR, wenn sich der TEXT tatsächlich ändert.
  *
- * ZUSÄTZLICH ein grobes `setInterval` (250 ms) als Fallback: Browser (allen voran Chrome)
- * setzen `requestAnimationFrame` in einem verdeckten Dokument aus — genau der Zustand, den
- * eine Wirecast/CEF-Aufnahmequelle dauerhaft melden kann, obwohl sie aktiv aufnimmt (siehe
- * `useStreamSceneSocket`, das aus demselben Grund keine Sichtbarkeits-Bedingung mehr kennt).
- * Ohne den Fallback fröre die Uhr in genau diesem Fall ein, obwohl frische Pushes ankommen.
- * Beide Antriebe rufen denselben `tick` auf und schreiben nur über denselben Text-Vergleich —
- * nebeneinander also harmlos, keiner der beiden plant den anderen neu.
+ * ZUSÄTZLICH ein grobes `setInterval` (250 ms) als Fallback: Browser setzen
+ * `requestAnimationFrame` in einem verdeckten Dokument aus — genau der Zustand, den eine
+ * Wirecast/CEF-Aufnahmequelle dauerhaft melden kann, obwohl sie aktiv aufnimmt. Ohne den
+ * Fallback fröre die Uhr in genau diesem Fall ein, obwohl frische Pushes ankommen. Beide
+ * Antriebe rufen denselben `tick` auf und schreiben nur über denselben Text-Vergleich.
  *
- * `match`/`sequenceStartedAt`/`clockOffsetMs` reisen als Refs in den Loop hinein: der
- * Loop selbst startet nur neu, wenn `match.matchId` wechselt (ein neuer Lauf, neuer
- * Zeitanker) — nicht bei jedem Push mit fortschreitenden Zwischenständen desselben
- * Laufs. Ein Neustart bei JEDER Match-Aktualisierung würde außerdem den Einfrier-Ref
- * unten fälschlich zurücksetzen.
+ * `match`/Sequenzfelder/`clockOffsetMs` reisen als Refs in den Loop: Der Loop startet nur neu,
+ * wenn `match.matchId` wechselt — nicht bei jedem Push mit fortschreitenden Zwischenständen.
+ * Ein Neustart bei JEDER Match-Aktualisierung würde außerdem den Einfrier-Ref fälschlich
+ * zurücksetzen.
  *
- * Einfrieren wie bei `ClockPlate`: `streamClockState` ist rein und kennt keine
- * Historie — ihr `elapsedMs` liefe im `frozen`-Fall bei fortschreitender Zeit einfach
- * weiter (siehe deren KDoc). Der erste eingefrorene Wert wird deshalb in einem Ref
- * festgehalten und danach nicht mehr aus der Funktion übernommen, bis ein neuer Lauf
- * (neue `matchId`) den Ref zurücksetzt.
+ * Einfrieren: `streamClockState` ist rein und kennt keine Historie — ihr `elapsedMs` liefe im
+ * `frozen`-Fall bei fortschreitender Zeit weiter. Der erste eingefrorene Wert wird deshalb in
+ * einem Ref festgehalten, bis ein neuer Lauf (neue `matchId`) den Ref zurücksetzt.
  */
 const StreamClock = ({
     match,
@@ -62,16 +57,14 @@ const StreamClock = ({
     clockOffsetMs,
     size,
 }: StreamClockProps) => {
-    const theme = useTheme()
-    const compact = size === 'COMPACT'
+    const {t} = useTranslation()
+    const accent = useStreamAccent()
     const [text, setText] = useState<string | null>(null)
+    const [phase, setPhase] = useState<ClockPhase>('running')
     // Pausiert muss man auch im Stream SEHEN, nicht nur am stehenden Zahlenwert erraten —
     // eine eingefrorene Ziffer allein ist von einer hängenden Quelle nicht zu unterscheiden.
-    // Dieselbe Signalfarbe wie die Pause am Startbildschirm (SequenceStatusBar: warning).
     const [paused, setPaused] = useState(false)
 
-    // Immer der jüngste Stand fürs Innere des Loops — Zuweisung während des Renderns ist
-    // das etablierte React-Muster für einen "letzter Wert"-Ref ohne eigenen Effekt dafür.
     const matchRef = useRef(match)
     matchRef.current = match
     const sequenceStartedAtRef = useRef(sequenceStartedAt)
@@ -86,18 +79,19 @@ const StreamClock = ({
     const frozenElapsedMsRef = useRef<number | null>(null)
     const lastTextRef = useRef<string | null>(null)
     const lastPausedRef = useRef(false)
+    const lastPhaseRef = useRef<ClockPhase>('running')
 
     useEffect(() => {
         frozenElapsedMsRef.current = null
         lastTextRef.current = null
         lastPausedRef.current = false
+        lastPhaseRef.current = 'running'
         setText(null)
         setPaused(false)
+        setPhase('running')
 
         // Reine Berechnung + Text-Vergleich, OHNE sich selbst neu einzuplanen — das bleibt
-        // Sache der beiden Antriebe unten. Nur so bleiben rAF-Loop und Intervall-Fallback
-        // unabhängig voneinander, statt sich bei jedem manuellen Aufruf gegenseitig weitere,
-        // nie wieder eingefangene rAF-Ketten aufzuzwingen.
+        // Sache der beiden Antriebe unten.
         const tick = () => {
             const state = streamClockState(
                 matchRef.current,
@@ -109,9 +103,11 @@ const StreamClock = ({
             )
 
             let next: string | null
+            let nextPhase: ClockPhase = 'running'
             switch (state.phase) {
                 case 'countdown':
                     next = formatCountdown(state.remainingMs)
+                    nextPhase = 'countdown'
                     break
                 case 'running':
                     next = formatElapsed(state.elapsedMs)
@@ -119,6 +115,7 @@ const StreamClock = ({
                 case 'frozen':
                     frozenElapsedMsRef.current ??= state.elapsedMs
                     next = formatElapsed(frozenElapsedMsRef.current)
+                    nextPhase = 'frozen'
                     break
                 default:
                     next = null
@@ -128,9 +125,10 @@ const StreamClock = ({
                 lastTextRef.current = next
                 setText(next)
             }
-
-            // Gleiches Sparsamkeits-Muster wie beim Text: State nur anfassen, wenn sich der
-            // sichtbare Zustand wirklich ändert — der Loop läuft je Frame.
+            if (nextPhase !== lastPhaseRef.current) {
+                lastPhaseRef.current = nextPhase
+                setPhase(nextPhase)
+            }
             const nextPaused = state.phase === 'countdown' && state.paused
             if (nextPaused !== lastPausedRef.current) {
                 lastPausedRef.current = nextPaused
@@ -152,49 +150,66 @@ const StreamClock = ({
 
     if (text === null) return null
 
+    const caption = paused
+        ? t('event.stream.clock.paused')
+        : phase === 'countdown'
+          ? t('event.stream.clock.countdown')
+          : t('event.stream.clock.running')
+    // Die Akzentkante kippt pausiert auf die Warnfarbe — dieselbe Sprache wie der
+    // Startbildschirm, ohne Blinken (auf einer Sendebühne wäre das unruhiger als informativ).
+    const edgeColor = paused ? STREAM_PLATE.warning : accent.main
+
     return (
-        <Box
-            sx={{
-                display: 'inline-flex',
-                borderRadius: 3,
-                overflow: 'hidden',
-                boxShadow: '0 20px 48px rgba(0, 0, 0, 0.5)',
-                backgroundColor: alpha(theme.palette.common.black, 0.74),
-                color: theme.palette.common.white,
-            }}>
-            <Box
-                sx={{
-                    width: compact ? '0.45rem' : '0.6rem',
-                    flexShrink: 0,
-                    // Pausiert kippt der Akzentbalken auf die Warnfarbe — dieselbe Sprache wie
-                    // der Startbildschirm, ohne Blinken (auf einer Broadcast-Bühne wäre das
-                    // unruhiger als informativ).
-                    backgroundColor: paused ? theme.palette.warning.main : theme.palette.primary.main,
-                }}
-            />
-            <Box
-                sx={{
-                    px: compact ? 2.5 : 3.5,
-                    py: compact ? 1.25 : 1.75,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: compact ? 1 : 1.5,
-                }}>
-                {paused && (
-                    <PauseIcon
+        <StreamPlate form="plate" size={size} sx={{display: 'inline-flex', flexDirection: 'row'}}>
+            <Box sx={{width: '0.6em', flexShrink: 0, backgroundColor: edgeColor}} />
+            <Box sx={{px: '1.5em', py: '0.8em', display: 'flex', flexDirection: 'column', gap: '0.2em', minWidth: '13em'}}>
+                <Box sx={{display: 'flex', alignItems: 'center', gap: '0.8em'}}>
+                    <Typography
+                        component="span"
                         sx={{
-                            fontSize: compact ? '1.6rem' : '2.2rem',
-                            color: theme.palette.warning.main,
-                        }}
-                    />
-                )}
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3em',
+                            fontFamily: STREAM_DISPLAY_FONT,
+                            fontWeight: 700,
+                            fontSize: '1.3em',
+                            lineHeight: 1,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            color: paused ? STREAM_PLATE.warning : STREAM_PLATE.muted,
+                        }}>
+                        {paused && <PauseIcon sx={{fontSize: '1.2em'}} />}
+                        {caption}
+                    </Typography>
+                    <Typography
+                        component="span"
+                        noWrap
+                        sx={{
+                            fontFamily: STREAM_DISPLAY_FONT,
+                            fontWeight: 600,
+                            fontSize: '1.3em',
+                            lineHeight: 1,
+                            letterSpacing: '0.03em',
+                            color: STREAM_PLATE.muted,
+                            ml: 'auto',
+                            maxWidth: '14em',
+                        }}>
+                        {competitionLabel(match.competitionName, match.competitionShortName, true)}
+                    </Typography>
+                </Box>
                 <Typography
-                    variant={compact ? 'h3' : 'h2'}
-                    sx={{fontWeight: 700, fontVariantNumeric: 'tabular-nums'}}>
+                    component="div"
+                    sx={{
+                        fontWeight: 700,
+                        fontSize: '4.8em',
+                        lineHeight: 1.05,
+                        fontVariantNumeric: 'tabular-nums',
+                        letterSpacing: '-0.01em',
+                    }}>
                     {text}
                 </Typography>
             </Box>
-        </Box>
+        </StreamPlate>
     )
 }
 

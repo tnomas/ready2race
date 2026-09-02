@@ -1,9 +1,11 @@
-import {alpha, Box, Stack, Typography, useTheme} from '@mui/material'
+import {Box, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardMatch, StreamGraphicSize} from '@api/types.gen'
 import FlipList from '../../board/FlipList.tsx'
 import {lastLaps} from '../../board/streamOverlay.ts'
 import {formatPlaceOrdinal} from '@utils/placeOrdinal.ts'
+import StreamPlate from './design/StreamPlate.tsx'
+import {STREAM_DISPLAY_FONT, STREAM_PLATE, useStreamAccent} from './design/streamTheme.ts'
 
 interface StreamLapsBandProps {
     match: AthleteBoardMatch
@@ -15,13 +17,13 @@ interface StreamLapsBandProps {
 const LAP_ENTER_OFFSET = -160
 
 /**
- * LAPS-Bandgrafik: die zuletzt eingetroffenen Zwischenzeiten nebeneinander, neueste links.
- * Nutzt dieselbe Aufbereitung wie das bisherige Chroma-Key-Rundenband (`lastLaps` samt Rang
- * und Tempo), nur in der neuen Karten-Optik statt der alten vollflächig-deckenden.
+ * LAPS: die zuletzt eingetroffenen Zwischenzeiten nebeneinander, neueste links mit
+ * Akzentkante. Jede Karte: Startnummer groß, Verein, darunter Marke · Rang · Tempo, rechts die
+ * Zeit. Nutzt dieselbe Aufbereitung wie das frühere Rundenband (`lastLaps` samt Rang und Tempo).
  */
 const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
     const {t} = useTranslation()
-    const theme = useTheme()
+    const accent = useStreamAccent()
     const compact = size === 'COMPACT'
     const laps = lastLaps(match, compact ? 2 : 3, t('decimal.point'))
 
@@ -29,15 +31,7 @@ const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
     if (laps.length === 0) return null
 
     return (
-        <Stack
-            direction="row"
-            sx={{
-                borderRadius: 3,
-                overflow: 'hidden',
-                boxShadow: '0 20px 48px rgba(0, 0, 0, 0.5)',
-                backgroundColor: alpha(theme.palette.common.black, 0.74),
-                color: theme.palette.common.white,
-            }}>
+        <StreamPlate form="plate" size={size} sx={{flexDirection: 'row', display: 'inline-flex'}}>
             <FlipList
                 axis="x"
                 enterOffset={LAP_ENTER_OFFSET}
@@ -46,56 +40,73 @@ const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
                 // darf nicht in den Schlüssel, sonst gälte jede Runde bei jedem Takt als neuer
                 // Eintrag (siehe `board/streamOverlay/LapBand.tsx`).
                 keyOf={lap => `${lap.startNumber}-${lap.lapName}`}
-                itemStyle={{flex: '1 1 0', minWidth: compact ? '13rem' : '16rem'}}
+                itemStyle={{flex: '1 1 0', minWidth: '24em', maxWidth: '32em'}}
                 render={(lap, index) => (
                     <Box
                         sx={{
                             height: 1,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 2,
-                            px: compact ? 2 : 3,
-                            py: compact ? 1.5 : 2,
-                            // Akzentrand am neuesten (linken) Eintrag; alle weiteren bekommen
-                            // eine dezente Trennlinie — ohne sie klebte die Zielzeit eines
-                            // Eintrags optisch an der Startnummer des nächsten und las sich
-                            // als dessen Zeit.
-                            borderLeft:
-                                index === 0
-                                    ? `0.35rem solid ${theme.palette.primary.main}`
-                                    : `1px solid ${alpha(theme.palette.common.white, 0.3)}`,
+                            gap: '0.9em',
+                            px: '1.2em',
+                            py: '0.8em',
+                            // Akzentkante am neuesten (linken) Eintrag; alle weiteren eine
+                            // Haarlinie — ohne sie klebte die Zeit eines Eintrags optisch an der
+                            // Startnummer des nächsten und las sich als dessen Zeit.
+                            borderLeft: index === 0 ? `0.4em solid ${accent.main}` : `1px solid ${STREAM_PLATE.divider}`,
                         }}>
                         <Typography
-                            variant={compact ? 'h5' : 'h4'}
-                            sx={{fontWeight: 800, fontVariantNumeric: 'tabular-nums', flexShrink: 0}}>
+                            component="span"
+                            sx={{
+                                fontFamily: STREAM_DISPLAY_FONT,
+                                fontWeight: 700,
+                                fontSize: '2.6em',
+                                lineHeight: 1,
+                                fontVariantNumeric: 'tabular-nums',
+                                flexShrink: 0,
+                                minWidth: '1.2em',
+                                textAlign: 'center',
+                            }}>
                             {lap.startNumber}
                         </Typography>
                         <Box sx={{minWidth: 0, flex: 1}}>
                             <Typography
-                                variant={compact ? 'body1' : 'h6'}
+                                component="div"
                                 noWrap
-                                sx={{fontWeight: 700}}>
+                                sx={{fontWeight: 700, fontSize: '1.4em', lineHeight: 1.2}}>
                                 {lap.clubsShort ?? lap.clubsFull}
                             </Typography>
-                            <Typography variant="body2" noWrap sx={{opacity: 0.85}}>
-                                {[
-                                    lap.lapName,
-                                    lap.rank != null ? formatPlaceOrdinal(lap.rank) : null,
-                                    lap.pace,
-                                ]
+                            <Typography
+                                component="div"
+                                noWrap
+                                sx={{
+                                    fontFamily: STREAM_DISPLAY_FONT,
+                                    fontWeight: 600,
+                                    fontSize: '1.05em',
+                                    lineHeight: 1.2,
+                                    letterSpacing: '0.03em',
+                                    color: STREAM_PLATE.muted,
+                                }}>
+                                {[lap.lapName, lap.rank != null ? formatPlaceOrdinal(lap.rank) : null, lap.pace]
                                     .filter(Boolean)
                                     .join(' · ')}
                             </Typography>
                         </Box>
                         <Typography
-                            variant={compact ? 'h6' : 'h5'}
-                            sx={{fontWeight: 700, fontVariantNumeric: 'tabular-nums', flexShrink: 0}}>
+                            component="span"
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: '1.9em',
+                                lineHeight: 1,
+                                fontVariantNumeric: 'tabular-nums',
+                                flexShrink: 0,
+                            }}>
                             {lap.timeString}
                         </Typography>
                     </Box>
                 )}
             />
-        </Stack>
+        </StreamPlate>
     )
 }
 

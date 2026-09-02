@@ -9,7 +9,7 @@ import {StreamGraphicSize, StreamGraphicType, StreamPlacement, StreamSceneGraphi
  * falls sich die Backend-Zuordnung ändert.
  */
 export const ALLOWED_PLACEMENTS: Record<StreamGraphicType, StreamPlacement[]> = {
-    STARTLIST: ['BOTTOM_CENTER', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'],
+    STARTLIST: ['BOTTOM_CENTER', 'BOTTOM_LEFT', 'BOTTOM_RIGHT', 'FULL_CENTER'],
     CLOCK: ['TOP_RIGHT', 'TOP_LEFT'],
     LAPS: ['BOTTOM_CENTER', 'BOTTOM_LEFT', 'BOTTOM_RIGHT'],
     RESULT: ['BOTTOM_CENTER', 'FULL_CENTER'],

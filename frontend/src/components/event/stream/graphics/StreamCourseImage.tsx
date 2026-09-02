@@ -1,7 +1,10 @@
 import {useEffect, useState} from 'react'
-import {Box, useTheme} from '@mui/material'
+import {Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {StreamGraphicSize} from '@api/types.gen'
+import StreamPlate from './design/StreamPlate.tsx'
+import StreamTag from './design/StreamTag.tsx'
+import {STREAM_PLATE} from './design/streamTheme.ts'
 
 interface StreamCourseImageProps {
     imageUrl: string
@@ -9,24 +12,19 @@ interface StreamCourseImageProps {
 }
 
 /**
- * COURSE_IMAGE-Füllgrafik: das hinterlegte Streckenbild, eingepasst (`object-fit: contain`)
- * in einen dezenten Rahmen. FULL_CENTER kümmert sich um die Platzierung (siehe
- * `streamPlacement.ts`), diese Karte begrenzt nur ihre eigene maximale Ausdehnung.
+ * COURSE_IMAGE: das hinterlegte Streckenbild, eingepasst (`object-fit: contain`) auf einer
+ * Tafel mit dem Kennzeichen „Strecke" in der Ecke. FULL_CENTER kümmert sich um die Platzierung,
+ * diese Grafik begrenzt nur ihre eigene Ausdehnung.
  *
- * BEKANNTE EINSCHRÄNKUNG: `imageUrl` zeigt auf einen Endpunkt, der eine Sitzung mit
- * READ EVENT voraussetzt — eine token-only-Bühne kann das Bild aktuell NICHT laden. Das ist
- * hier bewusst nicht gelöst (Backend-Folgeaufgabe ist vermerkt); diese Komponente rendert nur,
- * was die URL tatsächlich liefert, und behandelt einen Ladefehler genauso wie ein fehlendes
- * Bild — es erscheint nichts, statt eines kaputten Bild-Icons.
+ * BEKANNTE EINSCHRÄNKUNG: `imageUrl` zeigt auf einen Endpunkt, der eine Sitzung mit READ EVENT
+ * voraussetzt — eine token-only-Bühne kann das Bild aktuell NICHT laden (Backend-Folgeaufgabe).
+ * Ein Ladefehler zählt wie ein fehlendes Bild: es erscheint nichts, statt eines kaputten Icons.
  */
 const StreamCourseImage = ({imageUrl, size}: StreamCourseImageProps) => {
     const {t} = useTranslation()
-    const theme = useTheme()
-    const compact = size === 'COMPACT'
 
     // Ladefehler je URL merken statt global — ein neuer Push mit einer anderen `imageUrl`
-    // (anderes Streckenbild) soll wieder einen Ladeversuch bekommen, keinen eingefrorenen
-    // Fehlerzustand vom vorigen Bild.
+    // soll wieder einen Ladeversuch bekommen, keinen eingefrorenen Fehlerzustand.
     const [failedUrl, setFailedUrl] = useState<string | null>(null)
     useEffect(() => {
         setFailedUrl(current => (current === imageUrl ? current : null))
@@ -35,33 +33,30 @@ const StreamCourseImage = ({imageUrl, size}: StreamCourseImageProps) => {
     if (failedUrl === imageUrl) return null
 
     return (
-        <Box
-            sx={{
-                // Bühnenfeste rem statt vw/vh: siehe `StreamBandShell` — Fenstermaße ließen
-                // den Rahmen in der Regie-Vorschau anders ausfallen als in der OBS-Quelle.
-                // (84/98rem ≙ 70/82 % der 120rem breiten Bühne, 40/52rem ≙ 60/78 % der Höhe.)
-                maxWidth: compact ? '84rem' : '98rem',
-                maxHeight: compact ? '40rem' : '52rem',
-                p: compact ? 1 : 1.5,
-                borderRadius: 2,
-                boxShadow: '0 24px 56px rgba(0, 0, 0, 0.45)',
-                backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                border: `1px solid ${theme.palette.common.white}22`,
-                display: 'flex',
-            }}>
+        <StreamPlate
+            form="board"
+            size={size}
+            // Feste Breite statt „so breit wie das Bild": Ein SVG ohne Eigenmaß (nur viewBox) hat
+            // keine intrinsische Größe und kollabierte auf einer inhaltsbreiten Fläche zu einem
+            // Punkt. Mit fester Breite skaliert jedes Bild in die Fläche hinein.
+            sx={{width: '100em', maxHeight: '56em', position: 'relative', p: '0.6em'}}>
+            <Box sx={{position: 'absolute', top: '1.2em', left: '1.2em', fontSize: '1.05em', zIndex: 1}}>
+                <StreamTag label={t('event.stream.courseImage')} />
+            </Box>
             <img
                 src={imageUrl}
                 alt={t('event.stream.courseImage')}
                 onError={() => setFailedUrl(imageUrl)}
                 style={{
                     display: 'block',
-                    maxWidth: '100%',
-                    maxHeight: compact ? '39rem' : '51rem',
+                    width: '100%',
+                    height: 'auto',
+                    maxHeight: '54.8em',
                     objectFit: 'contain',
-                    borderRadius: 4,
+                    borderRadius: STREAM_PLATE.radius,
                 }}
             />
-        </Box>
+        </StreamPlate>
     )
 }
 

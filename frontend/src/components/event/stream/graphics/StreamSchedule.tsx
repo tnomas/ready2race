@@ -1,10 +1,15 @@
-import {alpha, Box, Stack, Typography, useTheme} from '@mui/material'
+import {Box, Typography} from '@mui/material'
 import {format} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardMatch, StreamGraphicSize} from '@api/types.gen'
 import FlipList from '../../board/FlipList.tsx'
 import FitToHeight from '../../board/streamOverlay/FitToHeight.tsx'
 import {competitionLabel, roundMatchLabel} from '../../board/streamOverlay/streamDisplay.ts'
+import StreamHeader from './design/StreamHeader.tsx'
+import StreamPlate from './design/StreamPlate.tsx'
+import StreamTag from './design/StreamTag.tsx'
+import {scheduleColumns, splitColumns} from './design/streamLayout.ts'
+import {STREAM_DISPLAY_FONT, STREAM_PLATE, useStreamAccent} from './design/streamTheme.ts'
 import {scheduleRows} from './streamSchedule.ts'
 
 interface StreamScheduleProps {
@@ -13,111 +18,124 @@ interface StreamScheduleProps {
 }
 
 /**
- * SCHEDULE-Füllgrafik: halbtransparente FULL_CENTER-Karte mit den nächsten anstehenden
- * Läufen (Zeit + Wettkampf/Runde), der erste hervorgehoben. Anders als die Startliste zeigt
- * diese Karte bewusst KEINE Besatzungen — sie ist das Tagesprogramm, keine Aufstellung, und
- * eine Zeile je Lauf muss kompakt bleiben, um mehrere Läufe gleichzeitig zu zeigen.
- *
- * Die Deckelung selbst steckt in `scheduleRows` (siehe dort) — der Server schneidet `schedule`
- * bereits auf `listLength` zu, diese Karte verlässt sich darauf aber nicht blind.
+ * SCHEDULE: Vollbild-Tafel mit den nächsten anstehenden Läufen — Zeit, Wettkampf, Runde/Lauf,
+ * der erste hervorgehoben. Bewusst KEINE Besatzungen: Das ist das Tagesprogramm, keine
+ * Aufstellung, und eine Zeile je Lauf muss kompakt bleiben. Ab elf Zeilen zwei Spalten
+ * (`scheduleColumns`) statt einer geschrumpften Liste. Ausgefallene Läufe und Pausen
+ * (`cancelled`, `name`) bleiben an ihrer Stelle und sind als solche gekennzeichnet.
  */
 const StreamSchedule = ({schedule, size}: StreamScheduleProps) => {
     const {t} = useTranslation()
-    const theme = useTheme()
-    const compact = size === 'COMPACT'
+    const accent = useStreamAccent()
     const rows = scheduleRows(schedule)
 
-    // Leer bleibt die Karte unsichtbar statt einer leeren Hülle — GraphicFrame blendet zwar
-    // ohnehin per `visible` aus, aber ein Push ohne Läufe (z. B. Tagesende) soll auch dann
-    // nichts zeigen, wenn `visible` aus irgendeinem Grund noch `true` wäre.
+    // Leer bleibt die Karte unsichtbar statt einer leeren Hülle.
     if (rows.length === 0) return null
 
+    const columnCount = scheduleColumns(rows.length)
+    const columns = splitColumns(rows, columnCount)
+
     return (
-        <Box
-            sx={{
-                // Bühnenfeste rem statt vw/vh: siehe `StreamBandShell` — Fenstermaße ließen
-                // die Karte in der Regie-Vorschau anders ausfallen als in der OBS-Quelle.
-                width: compact ? '46rem' : '58rem',
-                maxWidth: '100%',
-                maxHeight: compact ? '40rem' : '48rem',
-                overflow: 'hidden',
-                borderRadius: 3,
-                boxShadow: '0 24px 56px rgba(0, 0, 0, 0.5)',
-                backgroundColor: alpha(theme.palette.common.black, 0.72),
-                color: theme.palette.common.white,
-                display: 'flex',
-                flexDirection: 'column',
-            }}>
-            {/* Akzentbalken oben — dieselbe Geste wie `StreamBandShell`. */}
-            <Box
-                sx={{
-                    height: compact ? '0.35rem' : '0.5rem',
-                    flexShrink: 0,
-                    backgroundColor: theme.palette.primary.main,
-                }}
+        <StreamPlate form="board" size={size} sx={{width: columnCount === 1 ? '76em' : '104em'}}>
+            <StreamHeader
+                form="board"
+                tag={<StreamTag label={t('event.stream.schedule')} />}
+                title={t('event.stream.scheduleTitle')}
             />
-            <Stack
-                sx={{
-                    p: compact ? 2.5 : 3.5,
-                    gap: compact ? 1.5 : 2,
-                    overflow: 'hidden',
-                    minHeight: 0,
-                }}>
-                <Typography
-                    variant={compact ? 'h5' : 'h4'}
-                    sx={{fontWeight: 700, flexShrink: 0}}>
-                    {t('event.stream.schedule')}
-                </Typography>
-                {/* Keine Bildlaufleiste auf einer TV-Grafik — passt die Liste nicht in die
-                    Kartenhöhe, verkleinert FitToHeight sie, statt die letzte Zeile abzuschneiden. */}
-                <FitToHeight smooth>
-                    <Stack sx={{gap: compact ? 1 : 1.5}}>
-                        <FlipList
-                            items={rows}
-                            keyOf={match => match.matchId}
-                            render={(match, index) => {
-                                // Der erste Eintrag ist der nächste Lauf — hervorgehoben wie
-                                // der Punkt/die fette Zeit im NEXT_UP-Bauchband.
-                                const next = index === 0
-                                const label = [
-                                    competitionLabel(match.competitionName, match.competitionShortName, true),
-                                    roundMatchLabel(match.roundName, match.matchName),
-                                ]
-                                    .filter(Boolean)
-                                    .join(' · ')
-                                return (
-                                    <Stack
-                                        direction="row"
-                                        alignItems="baseline"
-                                        gap={2}
-                                        sx={{width: 1, opacity: next ? 1 : 0.78}}>
-                                        <Typography
-                                            variant={compact ? 'body1' : 'h6'}
+            <FitToHeight smooth>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                        columnGap: '1.5em',
+                        py: '0.5em',
+                    }}>
+                    {columns.map((column, columnIndex) => (
+                        <Box key={columnIndex}>
+                            <FlipList
+                                items={column}
+                                keyOf={match => match.matchId}
+                                render={(match, index) => {
+                                    // Der allererste Eintrag ist der nächste Lauf — hervorgehoben.
+                                    const next = columnIndex === 0 && index === 0
+                                    const isBreak = match.name != null
+                                    const title = isBreak
+                                        ? match.name
+                                        : competitionLabel(match.competitionName, match.competitionShortName, true)
+                                    const subtitle = isBreak ? null : roundMatchLabel(match.roundName, match.matchName)
+                                    return (
+                                        <Box
                                             sx={{
-                                                fontWeight: next ? 700 : 600,
-                                                fontVariantNumeric: 'tabular-nums',
-                                                minWidth: '4em',
-                                                flexShrink: 0,
-                                                color: next ? theme.palette.primary.light : 'inherit',
+                                                display: 'flex',
+                                                alignItems: 'baseline',
+                                                gap: '1em',
+                                                px: '1.35em',
+                                                py: '0.55em',
+                                                minHeight: '3.4em',
+                                                backgroundColor: index % 2 === 1 ? STREAM_PLATE.stripe : 'transparent',
+                                                opacity: match.cancelled ? 0.6 : 1,
                                             }}>
-                                            {match.startTime
-                                                ? format(new Date(match.startTime), t('format.time'))
-                                                : '–'}
-                                        </Typography>
-                                        <Typography
-                                            variant={compact ? 'body1' : 'h6'}
-                                            noWrap
-                                            sx={{fontWeight: next ? 700 : 500, minWidth: 0, flex: 1}}>
-                                            {label}
-                                        </Typography>
-                                    </Stack>
-                                )
-                            }}
-                        />
-                    </Stack>
-                </FitToHeight>
-            </Stack>
-        </Box>
+                                            <Typography
+                                                component="span"
+                                                sx={{
+                                                    fontFamily: STREAM_DISPLAY_FONT,
+                                                    fontWeight: 700,
+                                                    fontSize: '1.9em',
+                                                    lineHeight: 1,
+                                                    fontVariantNumeric: 'tabular-nums',
+                                                    minWidth: '3em',
+                                                    flexShrink: 0,
+                                                    color: next ? accent.main : STREAM_PLATE.text,
+                                                }}>
+                                                {match.startTime ? format(new Date(match.startTime), t('format.time')) : '–'}
+                                            </Typography>
+                                            <Typography
+                                                component="span"
+                                                noWrap
+                                                sx={{
+                                                    fontWeight: next ? 700 : 600,
+                                                    fontSize: '1.45em',
+                                                    lineHeight: 1.2,
+                                                    minWidth: 0,
+                                                    flexShrink: 0,
+                                                    maxWidth: '60%',
+                                                    fontStyle: isBreak ? 'italic' : 'normal',
+                                                    color: isBreak ? STREAM_PLATE.muted : STREAM_PLATE.text,
+                                                    textDecoration: match.cancelled ? 'line-through' : 'none',
+                                                }}>
+                                                {title}
+                                            </Typography>
+                                            {subtitle && (
+                                                <Typography
+                                                    component="span"
+                                                    noWrap
+                                                    sx={{
+                                                        fontFamily: STREAM_DISPLAY_FONT,
+                                                        fontWeight: 600,
+                                                        fontSize: '1.2em',
+                                                        lineHeight: 1.2,
+                                                        letterSpacing: '0.02em',
+                                                        color: STREAM_PLATE.muted,
+                                                        minWidth: 0,
+                                                        flex: 1,
+                                                    }}>
+                                                    {subtitle}
+                                                </Typography>
+                                            )}
+                                            {match.cancelled && (
+                                                <Box sx={{ml: 'auto', fontSize: '0.85em', flexShrink: 0}}>
+                                                    <StreamTag tone="warning" label={t('event.stream.cancelled')} />
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    )
+                                }}
+                            />
+                        </Box>
+                    ))}
+                </Box>
+            </FitToHeight>
+        </StreamPlate>
     )
 }
 

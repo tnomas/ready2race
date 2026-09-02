@@ -21,7 +21,7 @@ enum class StreamOverrideState { AUTO, FORCED_ON, FORCED_OFF }
 
 /** Erlaubte Plätze je Grafiktyp — die Verwaltungs-UI bietet nur diese an, der Service validiert dagegen. */
 val allowedPlacements: Map<StreamGraphicType, Set<StreamPlacement>> = mapOf(
-    StreamGraphicType.STARTLIST to setOf(StreamPlacement.BOTTOM_CENTER, StreamPlacement.BOTTOM_LEFT, StreamPlacement.BOTTOM_RIGHT),
+    StreamGraphicType.STARTLIST to setOf(StreamPlacement.BOTTOM_CENTER, StreamPlacement.BOTTOM_LEFT, StreamPlacement.BOTTOM_RIGHT, StreamPlacement.FULL_CENTER),
     StreamGraphicType.CLOCK to setOf(StreamPlacement.TOP_RIGHT, StreamPlacement.TOP_LEFT),
     StreamGraphicType.LAPS to setOf(StreamPlacement.BOTTOM_CENTER, StreamPlacement.BOTTOM_LEFT, StreamPlacement.BOTTOM_RIGHT),
     StreamGraphicType.RESULT to setOf(StreamPlacement.BOTTOM_CENTER, StreamPlacement.FULL_CENTER),

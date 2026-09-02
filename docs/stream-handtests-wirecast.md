@@ -47,3 +47,33 @@ der Vor-Start-Countdown zählt auf den Startschuss herunter statt vom Sequenzsta
 wegzulaufen (Bezug ist `leadInMillis` der Sequenz, Anzeige klemmt bei 0:00);
 Einlauf-Ticker hängt an fester Oberkante statt zentriert zu wachsen; wirkungsloser
 `backdrop-filter` entfernt und Compositing-Hinweise ergänzt.
+
+## Neugestaltung der Grafiken (02.09.2026)
+
+Alle acht Grafiken tragen seit dem 02.09.2026 eine gemeinsame Bildsprache (Spezifikation
+`docs/superpowers/specs/2026-09-02-livestream-grafiken-redesign-design.md`): Bänder unten,
+Vollbild-Tafeln auf `FULL_CENTER` (Ergebnis UND Startliste), Seitenleiste für den Einlauf,
+Uhr-Platte oben. Die Zeilen richten sich nach der Feldgröße (bis 4 Boote zweizeilig, ab 5
+einzeilig; Tafeln ab 9 Booten zweispaltig) statt zu schrumpfen.
+
+**Galerie ohne Backend** — der visuelle Testkatalog dieser Runde:
+
+    cd frontend && npx vite --port 5181
+    http://localhost:5181/stream-demo.html            (Szenarienliste links)
+    http://localhost:5181/stream-demo.html?scenario=result-board-8&chrome=0   (nur Bühne)
+
+Alle Szenarien wurden am 02.09.2026 bei 1600×900 durchgesehen (Startliste 4/8/14, Ergebnis
+4/8/14 mit DNF/DSQ/DNS/Strafe/Abmeldung/vorläufig, Einlauf 1/8/10, Zwischenzeiten, Uhr in
+allen vier Zuständen, Als Nächstes, Tagesprogramm 8/16, Streckenbild, vier kombinierte
+Szenen, Sicherheitsbereich 10 %).
+
+Am echten Wirecast zusätzlich prüfen:
+
+8. **Schrift Barlow Condensed** lädt aus dem eigenen Bundle (`@fontsource/barlow-condensed`)
+   — in der Quelle darf kein Ersatzschnitt (Arial Narrow o. ä.) zu sehen sein; die Bühne
+   lädt beide Schriften vor der ersten Einblendung vor.
+9. **Vollbild-Startliste**: STARTLIST auf `FULL_CENTER` stellen (neu erlaubt) und die
+   Ablösung durch NEXT_UP/CLOCK beim Sequenzstart ansehen.
+10. **Feldgrößen**: einen Lauf mit 5+ Booten (einzeilige Bandzeilen) und einen mit 9+
+    Booten (zweispaltige Tafel) auf Sendung sehen — nirgends darf FitToHeight mehr
+    sichtbar verkleinern.
