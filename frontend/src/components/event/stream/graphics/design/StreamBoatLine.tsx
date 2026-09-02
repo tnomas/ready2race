@@ -2,11 +2,14 @@ import {Box, Typography} from '@mui/material'
 import {crewLines, StreamTeam} from '../../../board/streamOverlay/streamDisplay.ts'
 import RankBadge from './RankBadge.tsx'
 import {boatStatus, StreamRowMode, StreamStatusTone} from './streamLayout.ts'
+import {crewCharBudget, fitCrewLine} from './streamText.ts'
 import {STREAM_DISPLAY_FONT, STREAM_PLATE} from './streamTheme.ts'
 
 interface StreamBoatLineProps {
     team: StreamTeam
     mode: StreamRowMode
+    /** Spaltenzahl der umgebenden Liste — bestimmt das Zeichenbudget der Besatzung (`crewCharBudget`). */
+    columns: 1 | 2
     /** Links steht die Startnummer (Aufstellung) oder die Platzmarke samt kleiner Startnummer (Ergebnis). */
     leading: 'start' | 'place'
     /** Rückstand zum Sieger — nur im Ergebnis; die Spalte bleibt auch beim Sieger reserviert. */
@@ -33,10 +36,15 @@ const TONE_COLOR: Record<StreamStatusTone, string> = {
  * Linke Zelle: Startnummer groß in der Schaubühnen-Schrift (Aufstellung) oder Platzmarke plus
  * kleine Startnummer (Ergebnis). Rechte Zelle: Zeit mit Tabellenziffern, daneben der Rückstand
  * — oder an Stelle der Zeit ein Status (DNF, Abgemeldet) in seiner Tönung.
+ *
+ * Zu viel Text: Die Besatzung fällt über ihrem Zeichenbudget auf Initialen zurück
+ * (`fitCrewLine`, Kürzungsleiter in `streamText.ts`); die Vereinskette bleibt in Band und Tafel
+ * immer vollständig, gekürzt wird zuerst die Besatzung, die Ellipse ist nur das letzte Netz.
  */
 const StreamBoatLine = ({
     team,
     mode,
+    columns,
     leading,
     gap,
     withGap = false,
@@ -45,7 +53,11 @@ const StreamBoatLine = ({
     deregisteredFallback,
     striped,
 }: StreamBoatLineProps) => {
-    const {primary, secondary} = crewLines(team, 'CLUBS_FIRST', useShortClubNames)
+    const {primary} = crewLines(team, 'CLUBS_FIRST', useShortClubNames)
+    const secondary = fitCrewLine(
+        (team.participants ?? []).map(participant => participant.name),
+        crewCharBudget(mode, columns, primary),
+    )
     const status = boatStatus(team, {failed: failedFallback, deregistered: deregisteredFallback})
     const penalty =
         team.penaltySeconds != null || team.penaltyNote

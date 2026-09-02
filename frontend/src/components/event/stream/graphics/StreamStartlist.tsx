@@ -75,6 +75,7 @@ const StreamStartlist = ({match, size, placement}: StreamStartlistProps) => {
                                     <StreamBoatLine
                                         team={team}
                                         mode={layout.mode}
+                                        columns={layout.columns}
                                         leading="start"
                                         useShortClubNames
                                         failedFallback={t('event.info.athleteBoard.failed')}

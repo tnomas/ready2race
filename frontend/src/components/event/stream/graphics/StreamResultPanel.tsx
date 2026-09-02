@@ -67,6 +67,7 @@ const StreamResultPanel = ({result, provisional, size, placement}: StreamResultP
                                     <StreamBoatLine
                                         team={team}
                                         mode={layout.mode}
+                                        columns={layout.columns}
                                         leading="place"
                                         gap={gapFor(team)}
                                         withGap

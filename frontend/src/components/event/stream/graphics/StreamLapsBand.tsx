@@ -5,6 +5,7 @@ import FlipList from '../../board/FlipList.tsx'
 import {lastLaps} from '../../board/streamOverlay.ts'
 import {formatPlaceOrdinal} from '@utils/placeOrdinal.ts'
 import StreamPlate from './design/StreamPlate.tsx'
+import {collapseClubChain, LAPS_CHAIN_MAX_LINKS} from './design/streamText.ts'
 import {STREAM_DISPLAY_FONT, STREAM_PLATE, useStreamAccent} from './design/streamTheme.ts'
 
 interface StreamLapsBandProps {
@@ -20,6 +21,7 @@ const LAP_ENTER_OFFSET = -160
  * LAPS: die zuletzt eingetroffenen Zwischenzeiten nebeneinander, neueste links mit
  * Akzentkante. Jede Karte: Startnummer groß, Verein, darunter Marke · Rang · Tempo, rechts die
  * Zeit. Nutzt dieselbe Aufbereitung wie das frühere Rundenband (`lastLaps` samt Rang und Tempo).
+ * Schmalste Form: Vereinsketten werden auf das erste Glied zusammengezogen („A +1").
  */
 const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
     const {t} = useTranslation()
@@ -40,7 +42,7 @@ const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
                 // darf nicht in den Schlüssel, sonst gälte jede Runde bei jedem Takt als neuer
                 // Eintrag (siehe `board/streamOverlay/LapBand.tsx`).
                 keyOf={lap => `${lap.startNumber}-${lap.lapName}`}
-                itemStyle={{flex: '1 1 0', minWidth: '24em', maxWidth: '32em'}}
+                itemStyle={{flex: '1 1 0', minWidth: '26em', maxWidth: '34em'}}
                 render={(lap, index) => (
                     <Box
                         sx={{
@@ -74,7 +76,7 @@ const StreamLapsBand = ({match, size}: StreamLapsBandProps) => {
                                 component="div"
                                 noWrap
                                 sx={{fontWeight: 700, fontSize: '1.4em', lineHeight: 1.2}}>
-                                {lap.clubsShort ?? lap.clubsFull}
+                                {collapseClubChain(lap.clubsShort ?? lap.clubsFull, LAPS_CHAIN_MAX_LINKS)}
                             </Typography>
                             <Typography
                                 component="div"

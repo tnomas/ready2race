@@ -77,3 +77,7 @@ Am echten Wirecast zusätzlich prüfen:
 10. **Feldgrößen**: einen Lauf mit 5+ Booten (einzeilige Bandzeilen) und einen mit 9+
     Booten (zweispaltige Tafel) auf Sendung sehen — nirgends darf FitToHeight mehr
     sichtbar verkleinern.
+11. **Kürzungsleiter**: einen Vierer mit Steuerleuten neben einer dreigliedrigen
+    Renngemeinschaft auf Sendung sehen — im Band bleiben die vollen Namen, in der
+    Einlauf-Leiste stehen Initialen und „A / B +1", in der Zwischenzeiten-Karte „A +1".
+    Nirgends darf ein Nachname abgeschnitten sein.

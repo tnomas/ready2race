@@ -7,6 +7,13 @@ import RankBadge from './design/RankBadge.tsx'
 import StreamHeader from './design/StreamHeader.tsx'
 import StreamPlate from './design/StreamPlate.tsx'
 import StreamTag from './design/StreamTag.tsx'
+import {
+    collapseClubChain,
+    CREW_NAME_SEPARATOR,
+    fitCrewNames,
+    TICKER_CHAIN_MAX_LINKS,
+    TICKER_CREW_BUDGET,
+} from './design/streamText.ts'
 import {STREAM_DISPLAY_FONT, STREAM_PLATE} from './design/streamTheme.ts'
 
 interface StreamFinishTickerProps {
@@ -26,6 +33,9 @@ const ENTRY_ENTER_OFFSET = 32
  * Anders als Band und Tafel steckt hier KEIN `FitToHeight` dahinter: Die Liste soll sichtbar
  * WACHSEN, nicht in eine vorgegebene Höhe hineinschrumpfen. Sortiert defensiv nach `rank`
  * (`byNullsLast`), damit die Positionsanimation über mehrere Pushes hinweg stabil bleibt.
+ *
+ * Schmale Form: Vereinsketten ab drei Gliedern werden zusammengezogen („A / B +1"), die
+ * Besatzung fällt über ihrem Budget auf Initialen zurück (Kürzungsleiter in `streamText.ts`).
  */
 const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
     const {t} = useTranslation()
@@ -60,7 +70,7 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
                     keyOf={entry => String(entry.startNumber)}
                     enterOffset={ENTRY_ENTER_OFFSET}
                     render={(entry, index) => {
-                        const crew = entry.participants?.join(' · ')
+                        const crew = fitCrewNames(entry.participants ?? [], TICKER_CREW_BUDGET)
                         return (
                             <Box
                                 sx={{
@@ -92,17 +102,34 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
                                         component="div"
                                         noWrap
                                         sx={{fontWeight: 700, fontSize: '1.2em', lineHeight: 1.2}}>
-                                        {entry.clubsShort ?? entry.clubsFull}
+                                        {collapseClubChain(entry.clubsShort ?? entry.clubsFull, TICKER_CHAIN_MAX_LINKS)}
                                     </Typography>
                                     {/* Besatzung als Zweitzeile — dieselbe Punkt-Kette wie in
                                         Startliste und Ergebnis, damit der Einlauf nicht das
-                                        einzige Band ohne Namen bleibt. */}
-                                    {crew && (
+                                        einzige Band ohne Namen bleibt. Darf auf zwei Zeilen
+                                        umbrechen: Die Leiste wächst ohnehin je Einlauf, und ein
+                                        Vierer passt in 34em auch mit Initialen nicht in eine. */}
+                                    {crew.length > 0 && (
                                         <Typography
                                             component="div"
-                                            noWrap
-                                            sx={{fontSize: '0.95em', lineHeight: 1.2, color: STREAM_PLATE.muted}}>
-                                            {crew}
+                                            sx={{
+                                                fontSize: '0.95em',
+                                                lineHeight: 1.2,
+                                                color: STREAM_PLATE.muted,
+                                                display: '-webkit-box',
+                                                WebkitBoxOrient: 'vertical',
+                                                WebkitLineClamp: 2,
+                                                overflow: 'hidden',
+                                            }}>
+                                            {/* Jeder Name eine unumbrechbare Einheit: Der Umbruch
+                                                fällt nur zwischen ganze Namen, nie in „St. B. Kristensen“
+                                                hinein. Das Trennzeichen bleibt umbrechbar. */}
+                                            {crew.map((name, nameIndex) => (
+                                                <span key={nameIndex}>
+                                                    <span style={{whiteSpace: 'nowrap'}}>{name}</span>
+                                                    {nameIndex < crew.length - 1 && CREW_NAME_SEPARATOR}
+                                                </span>
+                                            ))}
                                         </Typography>
                                     )}
                                 </Box>

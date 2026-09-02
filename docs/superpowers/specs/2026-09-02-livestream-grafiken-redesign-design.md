@@ -43,7 +43,16 @@ bleiben unverändert; „je nach Situation einblenden" leistet das Panel bereits
 5. **Inhaltliche Ergänzungen, klein gehalten:** NEXT_UP zeigt die geplante Startzeit;
    RESULT trägt den Rückstand zum Sieger in der Zeile statt darunter; SCHEDULE markiert
    Ausfälle und Pausen; die Uhr bekommt eine Zeile, die Countdown und Rennzeit benennt.
-6. **Sichtprüfung über eine Demo-Galerie** (`frontend/stream-demo.html`,
+6. **Kürzungsleiter statt Messen** (`graphics/design/streamText.ts`, Vitest): Kurzformen
+   bleiben der Standard und kommen vom Server. Reicht auch die Kurzform nicht, greift in
+   fester Reihenfolge: (1) Vornamen der Besatzung zu Initialen, sobald die Zeile ihr
+   Zeichenbudget überschreitet — das Budget hängt an Zeilenmodus, Spaltenzahl und Länge der
+   Vereinskette; (2) in den schmalen Formen die Vereinskette zusammenziehen — Einlauf-Leiste
+   ab drei Gliedern („A / B +1"), Zwischenzeiten-Karte auf das erste Glied („A +1"); Band und
+   Tafel behalten die volle Kette; (3) die Ellipse als letztes Netz, sie trifft nie den
+   ersten Verein. Die Einlauf-Leiste darf die Besatzung auf zwei Zeilen umbrechen, aber nur
+   zwischen ganzen Namen. Keine Einstellung „Kurz/Lang" je Grafik (Entscheidung 02.09.).
+7. **Sichtprüfung über eine Demo-Galerie** (`frontend/stream-demo.html`,
    `src/demo/streamDemo.tsx`, `src/demo/streamDemoData.ts`, Muster Sprecher-Demo): rendert die
    echte Bühne mit festen Szenarien (kleine und volle Felder, lange Vereinsketten, DNF/Strafe/
    Abmeldung, vorläufig, Pause, kombinierte Szenen) über einem simulierten Kamerabild —

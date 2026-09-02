@@ -321,7 +321,7 @@ const RUNNING_QUADS: AthleteBoardMatch = match(
         toTeam(COXED_QUADS[3], {laps: [lap('Boje 1', 1500, 6 * 60000 + 2400, 30)]}),
         toTeam(COXED_QUADS[4], {laps: []}),
         toTeam(COXED_QUADS[5], {laps: [lap('Boje 1', 1500, 5 * 60000 + 58000, 34)]}),
-        toTeam(COXED_QUADS[6], {laps: [lap('Boje 1', 1500, 6 * 60000 + 9100, 27)]}),
+        toTeam(COXED_QUADS[6], {laps: [lap('Boje 1', 1500, 6 * 60000 + 9100, 6)]}),
         toTeam(COXED_QUADS[7], {laps: [lap('Boje 1', 1500, 6 * 60000 + 21500, 19)]}),
     ],
     {state: 'RUNNING', actualStartTime: inSeconds(-12 * 60 - 3)},
