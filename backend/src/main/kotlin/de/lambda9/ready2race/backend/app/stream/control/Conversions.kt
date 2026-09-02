@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.stream.control
 
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
+import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSize
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
@@ -39,5 +40,6 @@ fun StreamSceneRecord.toDto(graphics: List<StreamSceneGraphicDto> = emptyList())
     chromaColor = chromaColor,
     safeAreaPercent = safeAreaPercent ?: 0,
     trialMode = trialMode == true,
+    trialPhase = trialPhase?.let { StreamTrialPhase.valueOf(it) } ?: StreamTrialPhase.PREPARING,
     graphics = graphics,
 )

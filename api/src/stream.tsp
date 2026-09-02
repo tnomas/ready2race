@@ -68,6 +68,21 @@ enum StreamBackground {
   CHROMA;
 }
 
+// Phase of the synthetic demo race in trial mode, in the order of a real race. The control
+// panel steps through them by hand (setStreamSceneTrialPhase); nothing advances on its own.
+// Every display window (startlist, splits, result) runs from the moment the phase was set, so
+// setting the same phase again re-triggers it.
+enum StreamTrialPhase {
+  PREPARING;
+  COUNTDOWN;
+  RUNNING;
+  SPLIT;
+  FINISH;
+  FINISHED;
+  RESULT;
+  IDLE;
+}
+
 // AUTO exists only here and in the API - it means "no row in stream_override", not "a row with
 // value AUTO".
 enum StreamOverrideState {
@@ -110,6 +125,9 @@ model StreamSceneDto {
   chromaColor?: string;
   safeAreaPercent: int32;
   trialMode: boolean;
+
+  // The chosen demo-race phase; only meaningful while trialMode is on, stored regardless.
+  trialPhase: StreamTrialPhase;
   graphics: StreamSceneGraphicDto[];
 }
 
@@ -221,6 +239,9 @@ model StreamSceneViewDto {
   // Trial mode: the state is fed by a synthetic demo race, no real data is touched.
   trialMode: boolean;
 
+  // The demo-race phase currently shown - absent unless trialMode is on.
+  trialPhase?: StreamTrialPhase;
+
   // Server clock at resolution time, for the stage's clock correction.
   serverTime: dateTime;
 
@@ -277,6 +298,7 @@ model StreamSceneShareLinkDto {
 // POST /event/{eventId}/stream/{sceneId}/shareLink: require UpdateStreamGlobal OR UpdateEventGlobal
 // PUT/DELETE /event/{eventId}/stream/{sceneId}/override/{graphicType}: require UpdateStreamGlobal OR UpdateEventGlobal
 // PUT /event/{eventId}/stream/{sceneId}/trialMode: require UpdateStreamGlobal OR UpdateEventGlobal
+// PUT /event/{eventId}/stream/{sceneId}/trialPhase: require UpdateStreamGlobal OR UpdateEventGlobal
 // GET /event/{eventId}/stream/{sceneId}/view: require ReadStreamGlobal OR ReadEventGlobal, OR a
 //   scene device token (see the class doc above).
 
@@ -364,6 +386,17 @@ interface StreamRoutes {
     @path eventId: uuid,
     @path sceneId: uuid,
     @query trialMode: boolean,
+  ): void;
+
+  // Steps the demo race to `phase` - its display windows start now, so choosing the phase that
+  // is already set re-triggers them. Stored even while trial mode is off.
+  @put
+  @route("/{sceneId}/trialPhase")
+  @operationId("setStreamSceneTrialPhase")
+  setStreamSceneTrialPhase(
+    @path eventId: uuid,
+    @path sceneId: uuid,
+    @query phase: StreamTrialPhase,
   ): void;
 
   // See the class doc above - same payload as the scene's websocket channel.

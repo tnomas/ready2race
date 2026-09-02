@@ -2675,6 +2675,83 @@
           "FULL_CENTER": "Full center"
         }
       },
+      "director": {
+        "title": "Director",
+        "back": "Back to operations",
+        "fullscreen": "Fullscreen",
+        "program": "Program",
+        "programHint": "What the stage is sending right now",
+        "nothingOnAir": "No graphic on air right now.",
+        "scene": "Scene",
+        "shareLink": "Link for Wirecast",
+        "manageScenes": "Manage scenes",
+        "inactive": "Inactive graphics",
+        "inactiveHint": "Enable them under “Configure graphics”",
+        "forceHint": "Forcing on shows nothing without content.",
+        "health": {
+          "live": "Live",
+          "connecting": "Connecting …",
+          "stale": "No data for {{seconds}} s"
+        },
+        "feed": {
+          "onAir": "On air",
+          "ready": "Ready",
+          "off": "Off",
+          "noFeed": "No content"
+        },
+        "reason": {
+          "noPreparing": "No match being prepared.",
+          "noRunning": "No match on the water.",
+          "noSplit": "No split time yet.",
+          "noResult": "No finished match with a result yet.",
+          "noFinish": "No boat has finished yet.",
+          "noSchedule": "No upcoming matches in the schedule.",
+          "noImage": "No course image configured.",
+          "unresolved": "The chosen match has no content here."
+        },
+        "trial": {
+          "title": "Trial mode",
+          "chip": "Trial mode",
+          "off": "Off – the stage shows real data.",
+          "on": "On – the stage shows a demo race, no real data.",
+          "retrigger": "Re-trigger phase",
+          "retriggerHint": "Clicking the active phase restarts its display windows.",
+          "phase": {
+            "PREPARING": {
+              "label": "At the pontoon",
+              "hint": "Start list and “Up next”"
+            },
+            "COUNTDOWN": {
+              "label": "Start sequence",
+              "hint": "Clock counts down 90 s"
+            },
+            "RUNNING": {
+              "label": "Racing",
+              "hint": "Race clock, no mark yet"
+            },
+            "SPLIT": {
+              "label": "Split time",
+              "hint": "Splits band for 8 s"
+            },
+            "FINISH": {
+              "label": "Finishing",
+              "hint": "Two of four across the line"
+            },
+            "FINISHED": {
+              "label": "All finished",
+              "hint": "Clock frozen, finish order complete"
+            },
+            "RESULT": {
+              "label": "Result",
+              "hint": "Provisional result for 20 s"
+            },
+            "IDLE": {
+              "label": "Idle",
+              "hint": "Schedule and course image only"
+            }
+          }
+        }
+      },
       "panel": {
         "title": "Control panel",
         "open": "Open control panel",
@@ -2739,7 +2816,8 @@
       "livestream": {
         "title": "Livestream",
         "description": "Stream overlays for the video direction: transparent scenes for Wirecast/OBS, directed via the control panel.",
-        "open": "Manage livestream"
+        "open": "Manage livestream",
+        "openDirector": "Open director"
       },
       "helpers": {
         "title": "Helpers",

@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.stream.boundary
 
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
+import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicsRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
@@ -142,6 +143,17 @@ fun Route.stream() {
                 val trialMode = !queryParam("trialMode") { it.toBoolean() }
 
                 StreamSceneService.setTrialMode(eventId, sceneId, trialMode)
+            }
+        }
+
+        put("/{sceneId}/trialPhase") {
+            call.respondComprehension {
+                !authenticateAny(Privilege.UpdateStreamGlobal, Privilege.UpdateEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                val sceneId = !pathParam("sceneId", uuid)
+                val phase = !queryParam("phase", enum<StreamTrialPhase>())
+
+                StreamSceneService.setTrialPhase(eventId, sceneId, phase)
             }
         }
 

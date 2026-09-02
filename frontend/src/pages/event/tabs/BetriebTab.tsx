@@ -112,11 +112,18 @@ const BetriebTab = ({eventId, switchTab}: BetriebTabProps) => {
                         <LiveTvOutlined color="primary" />,
                         t('event.betrieb.livestream.title'),
                         t('event.betrieb.livestream.description'),
-                        <Link to={'/event/$eventId/streamScenes'} params={{eventId}}>
-                            <Button variant="outlined" fullWidth>
-                                {t('event.betrieb.livestream.open')}
-                            </Button>
-                        </Link>,
+                        <Stack spacing={1}>
+                            <Link to={'/event/$eventId/streamPanel'} params={{eventId}} target="_blank" rel="noopener">
+                                <Button variant="contained" fullWidth endIcon={<OpenInNewIcon />}>
+                                    {t('event.betrieb.livestream.openDirector')}
+                                </Button>
+                            </Link>
+                            <Link to={'/event/$eventId/streamScenes'} params={{eventId}}>
+                                <Button variant="outlined" fullWidth>
+                                    {t('event.betrieb.livestream.open')}
+                                </Button>
+                            </Link>
+                        </Stack>,
                     )}
                 {show('helpers') &&
                     tileCard(

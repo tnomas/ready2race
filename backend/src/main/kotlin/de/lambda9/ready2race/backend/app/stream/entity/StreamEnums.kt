@@ -9,6 +9,12 @@ enum class StreamPlacement { BOTTOM_CENTER, BOTTOM_LEFT, BOTTOM_RIGHT, TOP_LEFT,
 /** Größenvariante einer Einblendung — deckungsgleich mit `stream_scene_graphic.size`. */
 enum class StreamGraphicSize { COMPACT, NORMAL }
 
+/**
+ * Phase des Demo-Laufs im Probemodus — deckungsgleich mit `stream_scene.trial_phase`, in der
+ * Reihenfolge eines echten Laufs. Die Regie schaltet sie von Hand (siehe `StreamTrialData`).
+ */
+enum class StreamTrialPhase { PREPARING, COUNTDOWN, RUNNING, SPLIT, FINISH, FINISHED, RESULT, IDLE }
+
 /** Bühnenhintergrund einer Szene — deckungsgleich mit `stream_scene.background`. */
 enum class StreamBackground { TRANSPARENT, CHROMA }
 

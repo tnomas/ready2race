@@ -81,3 +81,21 @@ Am echten Wirecast zusätzlich prüfen:
     Renngemeinschaft auf Sendung sehen — im Band bleiben die vollen Namen, in der
     Einlauf-Leiste stehen Initialen und „A / B +1", in der Zwischenzeiten-Karte „A +1".
     Nirgends darf ein Nachname abgeschnitten sein.
+
+## Regie-Board und schaltbarer Probemodus (02.09.2026)
+
+Das Kontroll-Panel ist durch ein Vollbild-Regie-Board ersetzt (gleiche Adresse
+`/event/{id}/streamPanel`, Kachel „Regie öffnen" im Betrieb-Reiter; Spezifikation
+`docs/superpowers/specs/2026-09-02-livestream-regie-board-design.md`). Der Probemodus läuft
+nicht mehr als 3-Minuten-Schleife, sondern in acht Phasen, die die Regie anklickt
+(`PUT …/trialPhase?phase=`, Migration V202609021300). Am 02.09. gegen ein Wegwerf-Backend
+belegt: Phasenwechsel erreichen Programmvorschau und Karten sofort, Auto/An/Aus greifen, der
+Szenenwechsel baut den Kanal neu auf, „Kein Inhalt" nennt je Grafik den Grund.
+
+Am echten Wirecast zusätzlich prüfen:
+
+12. **Probemodus durchklicken**, während die Szene als Web-Quelle steht: Jede der acht Phasen
+    muss in der Quelle dasselbe zeigen wie die Programmvorschau der Regie; ein zweiter Klick
+    auf die aktive Phase startet Startliste/Zwischenzeiten/Ergebnis neu.
+13. **Regie auf dem Tablet** (Reihenfolge der Spalten unter 900 px: Programm, Probemodus,
+    Karten untereinander) — Schalter müssen mit dem Daumen treffbar bleiben.

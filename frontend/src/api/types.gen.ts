@@ -4360,6 +4360,10 @@ export type StreamSceneDto = {
     chromaColor?: string | null
     safeAreaPercent: number
     trialMode: boolean
+    /**
+     * The chosen demo-race phase; only meaningful while trialMode is on, stored regardless.
+     */
+    trialPhase: StreamTrialPhase
     graphics: Array<StreamSceneGraphicDto>
 }
 
@@ -4458,11 +4462,28 @@ export type StreamSceneViewDto = {
      */
     trialMode: boolean
     /**
+     * The demo-race phase currently shown - null unless trialMode is on.
+     */
+    trialPhase?: StreamTrialPhase | null
+    /**
      * Server clock at resolution time, for the stage's clock correction.
      */
     serverTime: string
     graphics: Array<StreamGraphicViewDto>
 }
+
+/**
+ * Phase of the synthetic demo race in trial mode, in the order of a real race: PREPARING (boats at the pontoon), COUNTDOWN (start sequence, the start falls 90 s after the phase was set), RUNNING (race under way, first mark long past), SPLIT (second mark just arrived), FINISH (two of four boats finished), FINISHED (all finished, clock frozen), RESULT (result published, provisional), IDLE (nothing running - schedule and course image only). Nothing advances on its own; the control panel steps through by hand.
+ */
+export type StreamTrialPhase =
+    | 'PREPARING'
+    | 'COUNTDOWN'
+    | 'RUNNING'
+    | 'SPLIT'
+    | 'FINISH'
+    | 'FINISHED'
+    | 'RESULT'
+    | 'IDLE'
 
 export type SubstitutionDto = {
     id: string
@@ -9749,6 +9770,20 @@ export type SetStreamSceneTrialModeData = {
 export type SetStreamSceneTrialModeResponse = void
 
 export type SetStreamSceneTrialModeError = ApiError
+
+export type SetStreamSceneTrialPhaseData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+    query: {
+        phase: StreamTrialPhase
+    }
+}
+
+export type SetStreamSceneTrialPhaseResponse = void
+
+export type SetStreamSceneTrialPhaseError = ApiError
 
 export type GetStreamSceneViewData = {
     path: {

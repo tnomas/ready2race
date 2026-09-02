@@ -43,7 +43,7 @@ import EventStreamScenesPage from './pages/event/EventStreamScenesPage.tsx'
 import AthleteBoardPage from './pages/event/AthleteBoardPage.tsx'
 import BoardDisplayPage from './pages/event/BoardDisplayPage.tsx'
 import StreamScenePage from './pages/event/StreamScenePage.tsx'
-import StreamPanelPage from './pages/event/StreamPanelPage.tsx'
+import StreamDirectorPage from './pages/event/StreamDirectorPage.tsx'
 import LiveDashboardPage from './pages/event/LiveDashboardPage.tsx'
 import RegistrationPage from './pages/user/RegistrationPage.tsx'
 import ResetPasswordPage from './pages/user/resetPassword/ResetPasswordPage.tsx'
@@ -362,7 +362,8 @@ export const eventLiveDashboardRoute = createRoute({
     },
 })
 
-// Wie `eventInfoRoute` (dort sitzt die Szenen-VERWALTUNG, Task 13) braucht das Kontroll-Panel
+// Das Regie-Board des Livestreams (seit 02.09.2026 ein Vollbild-Arbeitsplatz statt des alten
+// Kontroll-Panels, Adresse unverändert). Wie `eventStreamScenesRoute` braucht es
 // eines der beiden Leserechte, READ STREAM ODER READ EVENT — `checkAuth` kennt nur ein einzelnes
 // Privileg, deshalb hier von Hand wie bei `eventTimingStartDisplayRoute`. Diese Route liegt
 // bewusst unter `eventRoute` (angemeldete Veranstaltungsverwaltung) und trägt NUR das Segment
@@ -375,7 +376,7 @@ export const eventStreamPanelRoute = createRoute({
     path: 'streamPanel',
     component: function EventStreamPanel() {
         const {eventId} = eventRoute.useParams()
-        return <StreamPanelPage eventId={eventId} />
+        return <StreamDirectorPage eventId={eventId} />
     },
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)

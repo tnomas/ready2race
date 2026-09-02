@@ -25,6 +25,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
 import de.lambda9.ready2race.backend.app.stream.entity.StreamPlacement
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
+import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.testing.testComprehension
 import de.lambda9.tailwind.jooq.Jooq
@@ -35,6 +36,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -216,13 +218,8 @@ class StreamSceneViewTest {
         !activate(fixture.ownMatchId, LocalDateTime.now())
 
         val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
-        // Alle Grafiken, die in irgendeiner Phase der Demo-Schleife Inhalt tragen - und zwar
-        // mit Anzeigedauern, die die 180-Sekunden-Schleife LÜCKENLOS abdecken: Mit den
-        // Vorgabewerten (Startliste 15 s, Ergebnis 20 s) blieben die Fenster 15-30 s und
-        // 170-180 s der Schleife komplett leer, und der Test schlug je nach Uhrzeit des
-        // Laufs fehl. Startliste auf 30 s deckt die Vorbereitung (0-30) voll ab, Ergebnis
-        // auf 30 s das Ergebnisfenster (150-180); dazwischen trägt durchgehend die Uhr
-        // (Sequenz 30-60, Rennen 60-150).
+        // Einschalten setzt den Phasenbeginn auf jetzt: In der Vorgabephase (Vorbereitung)
+        // ist die Startliste damit sicher sichtbar, egal wann der Test läuft.
         !StreamSceneService.updateGraphics(
             fixture.eventId,
             sceneId,
@@ -240,7 +237,7 @@ class StreamSceneViewTest {
         assertTrue(view.trialMode, "Der Szenenstand muss den Probemodus ausweisen")
 
         val visible = view.graphics.filter { it.visible }
-        assertTrue(visible.isNotEmpty(), "In jeder Phase der Demo-Schleife ist etwas zu sehen")
+        assertTrue(visible.isNotEmpty(), "In der Vorbereitung ist die Startliste des Demo-Laufs zu sehen")
 
         val clubs = visible.flatMap { graphic ->
             graphic.match?.teams.orEmpty().mapNotNull { it.clubsShort } +
@@ -259,32 +256,39 @@ class StreamSceneViewTest {
     }
 
     /**
-     * Im Probemodus schreibt niemand und die Demo-Schleife wechselt ihre Phasen allein aus der
-     * Uhr heraus - der Umschaltpunkt ist deshalb der einzige Grund, aus dem der Kanal die
-     * nächste Phase je pusht. Er darf nie fehlen und muss innerhalb der laufenden Runde liegen.
+     * Die Regie schaltet den Demo-Lauf von Hand durch seine Phasen: Ein Phasenwechsel muss den
+     * Szenenstand sofort umstellen und die gewählte Phase ausweisen - ohne dass ein Ereignis der
+     * echten Zeitnahme nötig wäre.
      */
     @Test
-    fun trialModeAlwaysAnnouncesItsNextPhase() = testComprehension {
+    fun trialPhaseStepsTheDemoRaceByHand() = testComprehension {
         val fixture = !MyEventFixture.create()
         val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
-        // Bewusst eine Grafik OHNE Auto-Out-Fenster: dann kann der Umschaltpunkt nur aus der
-        // Demo-Schleife stammen, nicht aus einem visibleUntil des Resolvers.
         !StreamSceneService.updateGraphics(
             fixture.eventId,
             sceneId,
-            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+            listOf(
+                graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER),
+                graphic(StreamGraphicType.RESULT, StreamPlacement.FULL_CENTER),
+            ),
         )
         !StreamSceneService.setTrialMode(fixture.eventId, sceneId, true)
 
-        val resolved = !StreamSceneLogic.buildResolvedView(fixture.eventId, sceneId)
-        val next = resolved.nextEvaluationAt
+        val preparing = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        assertEquals(StreamTrialPhase.PREPARING, preparing.trialPhase, "Vorgabe ist die Vorbereitung")
+        assertTrue(preparing.graphics.first { it.type == StreamGraphicType.STARTLIST }.visible)
+        assertFalse(preparing.graphics.first { it.type == StreamGraphicType.RESULT }.visible)
 
-        assertNotNull(next, "Der Probemodus muss seinen nächsten Phasenwechsel melden")
-        assertTrue(next.isAfter(resolved.view.serverTime), "Der Umschaltpunkt muss in der Zukunft liegen: $next")
-        assertTrue(
-            !next.isAfter(resolved.view.serverTime.plusSeconds(180)),
-            "Der Umschaltpunkt darf nicht über die Schleifenrunde hinausgehen: $next",
-        )
+        !StreamSceneService.setTrialPhase(fixture.eventId, sceneId, StreamTrialPhase.RESULT)
+
+        val result = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        assertEquals(StreamTrialPhase.RESULT, result.trialPhase)
+        assertTrue(result.graphics.first { it.type == StreamGraphicType.RESULT }.visible, "Das Ergebnisfenster läuft ab dem Klick")
+        assertFalse(result.graphics.first { it.type == StreamGraphicType.STARTLIST }.visible)
+
+        // Ausgeschaltet trägt der Stand keine Phase mehr - die Bühne zeigt wieder echte Daten.
+        !StreamSceneService.setTrialMode(fixture.eventId, sceneId, false)
+        assertNull((!StreamSceneLogic.buildView(fixture.eventId, sceneId)).trialPhase)
     }
 
     /**

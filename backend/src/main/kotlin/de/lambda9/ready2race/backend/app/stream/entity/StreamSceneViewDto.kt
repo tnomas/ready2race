@@ -13,6 +13,8 @@ data class StreamSceneViewDto(
     val chromaColor: String? = null,
     val safeAreaPercent: Int,
     val trialMode: Boolean,
+    /** Gewählte Phase des Demo-Laufs — nur gesetzt, solange [trialMode] an ist. */
+    val trialPhase: StreamTrialPhase? = null,
     /** Für die Uhr-Korrektur wie bei [de.lambda9.ready2race.backend.app.eventInfo.entity.BoardViewDto.serverTime]. */
     val serverTime: LocalDateTime,
     val graphics: List<StreamGraphicViewDto>,

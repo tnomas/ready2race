@@ -18,6 +18,12 @@ interface StreamStageProps {
      * Kamerabild außerhalb des Dokuments, erst im Mischer).
      */
     backdrop?: ReactNode
+    /**
+     * Fläche, in die die Bühne passen soll — fehlt sie, ist es das Fenster (die echte Bühne
+     * füllt es ganz). Vorschauen der Regie geben ihren Kasten an und bekommen dieselbe Bühne
+     * verkleinert, statt einer zweiten Bühne mit eigenem Maßstab.
+     */
+    size?: {width: number; height: number}
 }
 
 /**
@@ -26,17 +32,19 @@ interface StreamStageProps {
  * Sicherheitsbereich und die acht Grafikplätze. Gemeinsamer Kern von Bühne (`StreamScenePage`)
  * und Demo-Galerie, damit die Grafiken nie zwei verschiedene Bühnen sehen.
  */
-const StreamStage = ({view, clockOffsetMs, stale, backdrop}: StreamStageProps) => {
+const StreamStage = ({view, clockOffsetMs, stale, backdrop, size}: StreamStageProps) => {
     const [windowSize, setWindowSize] = useState(() => ({
         width: window.innerWidth,
         height: window.innerHeight,
     }))
     useEffect(() => {
+        if (size) return
         const onResize = () => setWindowSize({width: window.innerWidth, height: window.innerHeight})
         window.addEventListener('resize', onResize)
         return () => window.removeEventListener('resize', onResize)
-    }, [])
-    const scale = stageScale(windowSize.width, windowSize.height)
+    }, [size])
+    const fit = size ?? windowSize
+    const scale = stageScale(fit.width, fit.height)
 
     return (
         <Box

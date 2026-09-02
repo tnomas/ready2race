@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.stream.control.toDto
 import de.lambda9.ready2race.backend.app.stream.control.toJsonb
 import de.lambda9.ready2race.backend.app.stream.entity.StreamError
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
+import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.app.stream.entity.StreamPickerMatchDto
@@ -323,13 +324,39 @@ object StreamSceneService {
     fun setTrialMode(eventId: UUID, sceneId: UUID, trialMode: Boolean): App<StreamError, ApiResponse.NoData> =
         KIO.comprehension {
             !requireOwnedScene(eventId, sceneId)
+            val now = LocalDateTime.now()
             !StreamSceneRepo.update(sceneId) {
                 this.trialMode = trialMode
-                updatedAt = LocalDateTime.now()
+                // Einschalten löst die gewählte Phase frisch aus: Ihre Einblendfenster
+                // (Startliste, Zwischenzeiten, Ergebnis) laufen ab jetzt, nicht ab einem Klick
+                // von vor einer Stunde.
+                if (trialMode) trialPhaseSince = now
+                updatedAt = now
             }.orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
 
             // Der Probemodus wechselt die ganze Datenquelle - die Bühne muss sofort umschalten,
             // sonst zeigte sie bis zum nächsten Ereignis noch die andere Welt.
+            notifyScene(sceneId)
+
+            noData
+        }
+
+    /**
+     * Schaltet den Demo-Lauf des Probemodus in [phase] - der Phasenbeginn ist immer JETZT, auch
+     * wenn dieselbe Phase noch einmal gewählt wird: Genau so löst die Regie ein abgelaufenes
+     * Einblendfenster erneut aus (siehe `trialInput`). Wirkt erst mit eingeschaltetem Probemodus,
+     * wird aber unabhängig davon gespeichert, damit die Wahl das Umschalten überlebt.
+     */
+    fun setTrialPhase(eventId: UUID, sceneId: UUID, phase: StreamTrialPhase): App<StreamError, ApiResponse.NoData> =
+        KIO.comprehension {
+            !requireOwnedScene(eventId, sceneId)
+            val now = LocalDateTime.now()
+            !StreamSceneRepo.update(sceneId) {
+                trialPhase = phase.name
+                trialPhaseSince = now
+                updatedAt = now
+            }.orDie().onNullFail { StreamError.SceneNotFound(sceneId) }
+
             notifyScene(sceneId)
 
             noData

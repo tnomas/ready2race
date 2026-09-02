@@ -2675,6 +2675,83 @@
           "FULL_CENTER": "Vollbild Mitte"
         }
       },
+      "director": {
+        "title": "Regie",
+        "back": "Zurück zum Betrieb",
+        "fullscreen": "Vollbild",
+        "program": "Programm",
+        "programHint": "Was die Bühne jetzt sendet",
+        "nothingOnAir": "Gerade keine Grafik auf Sendung.",
+        "scene": "Szene",
+        "shareLink": "Link für Wirecast",
+        "manageScenes": "Szenen verwalten",
+        "inactive": "Nicht aktive Grafiken",
+        "inactiveHint": "Über „Grafiken konfigurieren“ einschalten",
+        "forceHint": "Ohne Inhalt blendet Erzwingen nichts ein.",
+        "health": {
+          "live": "Live",
+          "connecting": "Verbinde …",
+          "stale": "Seit {{seconds}} s ohne Daten"
+        },
+        "feed": {
+          "onAir": "On Air",
+          "ready": "Bereit",
+          "off": "Aus",
+          "noFeed": "Kein Inhalt"
+        },
+        "reason": {
+          "noPreparing": "Kein Lauf in Vorbereitung.",
+          "noRunning": "Kein Lauf auf dem Wasser.",
+          "noSplit": "Noch keine Zwischenzeit eingetroffen.",
+          "noResult": "Noch kein beendeter Lauf mit Ergebnis.",
+          "noFinish": "Noch kein Boot im Ziel.",
+          "noSchedule": "Keine anstehenden Läufe im Programm.",
+          "noImage": "Kein Streckenbild hinterlegt.",
+          "unresolved": "Der gewählte Lauf hat hier keinen Inhalt."
+        },
+        "trial": {
+          "title": "Testmodus",
+          "chip": "Testmodus",
+          "off": "Aus – die Bühne zeigt echte Daten.",
+          "on": "An – die Bühne zeigt einen Demo-Lauf, keine echten Daten.",
+          "retrigger": "Phase erneut auslösen",
+          "retriggerHint": "Ein Klick auf die aktive Phase startet ihre Einblendungen neu.",
+          "phase": {
+            "PREPARING": {
+              "label": "Am Steg",
+              "hint": "Startliste und „Als Nächstes“"
+            },
+            "COUNTDOWN": {
+              "label": "Startsequenz",
+              "hint": "Uhr zählt 90 s herunter"
+            },
+            "RUNNING": {
+              "label": "Im Rennen",
+              "hint": "Laufuhr, noch keine Marke"
+            },
+            "SPLIT": {
+              "label": "Zwischenzeit",
+              "hint": "Rundenband für 8 s"
+            },
+            "FINISH": {
+              "label": "Einlauf",
+              "hint": "Zwei von vier im Ziel"
+            },
+            "FINISHED": {
+              "label": "Alle im Ziel",
+              "hint": "Uhr eingefroren, Einlauf voll"
+            },
+            "RESULT": {
+              "label": "Ergebnis",
+              "hint": "Vorläufiges Ergebnis für 20 s"
+            },
+            "IDLE": {
+              "label": "Leerlauf",
+              "hint": "Nur Tagesprogramm und Streckenbild"
+            }
+          }
+        }
+      },
       "panel": {
         "title": "Kontroll-Panel",
         "open": "Kontroll-Panel öffnen",
@@ -2739,7 +2816,8 @@
       "livestream": {
         "title": "Livestream",
         "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Regie über das Kontroll-Panel.",
-        "open": "Livestream verwalten"
+        "open": "Livestream verwalten",
+        "openDirector": "Regie öffnen"
       },
       "helpers": {
         "title": "Helfer:innen",

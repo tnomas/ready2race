@@ -928,6 +928,9 @@ import type {
     SetStreamSceneTrialModeData,
     SetStreamSceneTrialModeError,
     SetStreamSceneTrialModeResponse,
+    SetStreamSceneTrialPhaseData,
+    SetStreamSceneTrialPhaseError,
+    SetStreamSceneTrialPhaseResponse,
     GetStreamSceneViewData,
     GetStreamSceneViewError,
     GetStreamSceneViewResponse,
@@ -5305,6 +5308,22 @@ export const setStreamSceneTrialMode = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/stream/{sceneId}/trialMode',
+    })
+}
+
+/**
+ * Steps the scene's demo race (trial mode) to the given phase. The phase's display windows (startlist, splits, result) start at this moment, so choosing the phase that is already set re-triggers them. Stored even while trial mode is off; takes effect on the stage only while it is on. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one.
+ */
+export const setStreamSceneTrialPhase = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetStreamSceneTrialPhaseData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetStreamSceneTrialPhaseResponse,
+        SetStreamSceneTrialPhaseError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/trialPhase',
     })
 }
 

@@ -19,6 +19,8 @@ data class StreamSceneDto(
     val chromaColor: String? = null,
     val safeAreaPercent: Int,
     val trialMode: Boolean,
+    /** Gewählte Phase des Demo-Laufs — gilt nur, solange [trialMode] an ist. */
+    val trialPhase: StreamTrialPhase,
     val graphics: List<StreamSceneGraphicDto>,
 )
 

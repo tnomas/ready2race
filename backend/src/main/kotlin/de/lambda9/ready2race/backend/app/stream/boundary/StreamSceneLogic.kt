@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneViewDto
+import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneRecord
 import de.lambda9.tailwind.core.KIO
@@ -127,7 +128,9 @@ object StreamSceneLogic {
             }
 
             if (scene.trialMode == true) {
-                return@comprehension KIO.ok(trialInput(now, graphics, overrides))
+                return@comprehension KIO.ok(
+                    trialInput(now, trialPhaseOf(scene), scene.trialPhaseSince ?: now, graphics, overrides)
+                )
             }
 
             // Einmal je Aufbau, nicht je Mannschaft - dieselbe Begründung wie in
@@ -243,16 +246,10 @@ object StreamSceneLogic {
             val input = !buildInput(eventId, scene)
             val resolved = resolveScene(input)
 
-            // Im Probemodus treibt niemand die Szene: Es schreibt keiner, und die Demo-Schleife
-            // wechselt ihre Phasen allein aus der Uhr heraus. Der Resolver kennt nur die
-            // Einblendfenster (STARTLIST/LAPS/RESULT) und ließe die Szene danach einschlafen -
-            // die Schleife stünde still. Deshalb kommt hier der nächste Punkt der Schleife dazu;
-            // gewichtet wird nach „was zuerst fällig ist".
-            val nextEvaluationAt = if (scene.trialMode == true) {
-                listOfNotNull(resolved.nextEvaluationAt, nextTrialEvaluationAt(input.now)).minOrNull()
-            } else {
-                resolved.nextEvaluationAt
-            }
+            // Auch im Probemodus reicht der Umschaltpunkt des Resolvers: Die Phasen des Demo-Laufs
+            // wechselt die Regie von Hand (jeder Wechsel pusht über den Service), nur die
+            // Einblendfenster laufen von selbst ab - und die kennt der Resolver.
+            val nextEvaluationAt = resolved.nextEvaluationAt
 
             KIO.ok(
                 ResolvedSceneView(
@@ -263,6 +260,7 @@ object StreamSceneLogic {
                         chromaColor = scene.chromaColor,
                         safeAreaPercent = scene.safeAreaPercent ?: 0,
                         trialMode = scene.trialMode == true,
+                        trialPhase = if (scene.trialMode == true) trialPhaseOf(scene) else null,
                         // Der Anker für die Uhr-Korrektur der Bühne, wie bei BoardViewDto.serverTime:
                         // dieselbe `now`, mit der aufgelöst wurde.
                         serverTime = input.now,
@@ -272,6 +270,10 @@ object StreamSceneLogic {
                 )
             )
         }
+
+    /** Die gespeicherte Phase des Demo-Laufs; eine Zeile von vor der Migration gilt als Vorbereitung. */
+    private fun trialPhaseOf(scene: StreamSceneRecord): StreamTrialPhase =
+        scene.trialPhase?.let { StreamTrialPhase.valueOf(it) } ?: StreamTrialPhase.PREPARING
 
     /** Der Szenenstand für den GET-Einstieg — dieselbe Nutzlast wie der Push, ohne den Umschaltpunkt. */
     fun buildView(eventId: UUID, sceneId: UUID): App<StreamError, StreamSceneViewDto> =

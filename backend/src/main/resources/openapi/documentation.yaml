@@ -8731,6 +8731,36 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/stream/{sceneId}/trialPhase:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setStreamSceneTrialPhase
+      description: "Steps the scene's demo race (trial mode) to the given phase. The phase's display windows (startlist, splits, result) start at this moment, so choosing the phase that is already set re-triggers them. Stored even while trial mode is off; takes effect on the stage only while it is on. Requires a session with UPDATE STREAM or UPDATE EVENT. A sceneId belonging to another event answers 404, same as an unknown one."
+      parameters:
+        - name: phase
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/StreamTrialPhase'
+      responses:
+        204:
+          description: Trial phase updated
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /event/{eventId}/stream/{sceneId}/view:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -22807,6 +22837,19 @@ components:
         - TRANSPARENT
         - CHROMA
 
+    StreamTrialPhase:
+      type: string
+      description: "Phase of the synthetic demo race in trial mode, in the order of a real race: PREPARING (boats at the pontoon), COUNTDOWN (start sequence, the start falls 90 s after the phase was set), RUNNING (race under way, first mark long past), SPLIT (second mark just arrived), FINISH (two of four boats finished), FINISHED (all finished, clock frozen), RESULT (result published, provisional), IDLE (nothing running - schedule and course image only). Nothing advances on its own; the control panel steps through by hand."
+      enum:
+        - PREPARING
+        - COUNTDOWN
+        - RUNNING
+        - SPLIT
+        - FINISH
+        - FINISHED
+        - RESULT
+        - IDLE
+
     StreamOverrideState:
       type: string
       description: "AUTO exists only here and in the API - it means 'no row in stream_override', not 'a row with value AUTO'."
@@ -22863,6 +22906,7 @@ components:
         - background
         - safeAreaPercent
         - trialMode
+        - trialPhase
         - graphics
       properties:
         id:
@@ -22883,6 +22927,9 @@ components:
           type: integer
         trialMode:
           type: boolean
+        trialPhase:
+          $ref: '#/components/schemas/StreamTrialPhase'
+          description: "The chosen demo-race phase; only meaningful while trialMode is on, stored regardless."
         graphics:
           type: array
           items:
@@ -23098,6 +23145,11 @@ components:
         trialMode:
           type: boolean
           description: "Trial mode: the state is fed by a synthetic demo race, no real data is touched."
+        trialPhase:
+          allOf:
+            - $ref: '#/components/schemas/StreamTrialPhase'
+          nullable: true
+          description: "The demo-race phase currently shown - null unless trialMode is on."
         serverTime:
           type: string
           format: date-time
