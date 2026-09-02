@@ -28,10 +28,14 @@ import {byeExplanation} from '@components/event/match/matchBye.ts'
 import PlaceOrdinal from '@components/PlaceOrdinal'
 import {formatPlaceOrdinal} from '@utils/placeOrdinal'
 import {elementScale, slotForElement} from './boardView'
+import {sequenceLineFor} from './boardSequence.ts'
+import {formatCountdown} from './streamClock.ts'
 
 interface BoardMatchDetailElementProps {
     element: BoardElement
     view: BoardViewDto
+    /** Die servergeankerte Uhr der Seite (useServerClock) — für den Countdown der Startsequenz. */
+    now: Date
     effectiveColumns: number
     heightFraction: number
 }
@@ -46,6 +50,7 @@ interface BoardMatchDetailElementProps {
 const BoardMatchDetailElement = ({
     element,
     view,
+    now,
     effectiveColumns,
     heightFraction,
 }: BoardMatchDetailElementProps) => {
@@ -92,6 +97,9 @@ const BoardMatchDetailElement = ({
     const shortName = match?.competitionShortName ?? result?.competitionShortName
     const startTime = match?.startTime ?? result?.startTime
     const actualStartTime = match?.actualStartTime ?? result?.actualStartTime
+    // Die Startsequenz vor dem Start (Board-Sicht, siehe sequenceLineFor): „scharf" oder der
+    // Countdown auf den Feuerzeitpunkt, von minus hoch — für die Sprecherin die Ansage-Uhr.
+    const sequenceLine = match ? sequenceLineFor(view.sequence, match, now.getTime()) : null
 
     // Die Bedingungen kompakt hinter der Person: Icon + Name, erfüllt grün, offen als
     // Warnung — vorlesbar, ohne eine zweite Tabelle zu öffnen.
@@ -394,6 +402,29 @@ const BoardMatchDetailElement = ({
                                     />
                                 )}
                             </Stack>
+                            {sequenceLine && (
+                                <Typography
+                                    sx={{
+                                        fontSize: scaled('1.1rem', '1.8vw', '2.6rem'),
+                                        fontWeight: 700,
+                                        fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                    color={
+                                        sequenceLine.kind === 'countdown' && sequenceLine.paused
+                                            ? 'warning.dark'
+                                            : 'text.secondary'
+                                    }>
+                                    {sequenceLine.kind === 'armed'
+                                        ? t('event.boards.sequence.armed')
+                                        : sequenceLine.paused
+                                          ? t('event.boards.sequence.paused', {
+                                                time: formatCountdown(sequenceLine.remainingMs),
+                                            })
+                                          : t('event.boards.sequence.startsIn', {
+                                                time: formatCountdown(sequenceLine.remainingMs),
+                                            })}
+                                </Typography>
+                            )}
                             {match?.nextRoundName && (
                                 <Typography
                                     sx={{

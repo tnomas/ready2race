@@ -18212,6 +18212,46 @@ components:
           format: int64
           nullable: true
           description: "current delay in seconds: started_at minus start_time of the latest started match; negative = ahead of schedule; null while nothing has started or the board has no DELAY element"
+        sequence:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BoardSequenceDto'
+          description: "the active start sequence of the in-house timing the tiles show (the most recently touched active sequence of the event); null without one"
+
+    BoardSequenceDto:
+      type: object
+      description: "the start sequence the boards show, reduced to what a clock needs: the boards read the public, cached board endpoint while the sequence lives behind the timing session - so the planned start travels here, letting a tile's race clock count up from minus before the gun"
+      required:
+        - sequenceId
+        - state
+        - matchIds
+      properties:
+        sequenceId:
+          type: string
+          format: uuid
+        state:
+          $ref: '#/components/schemas/SequenceState'
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "anchor of the chain (sequence start plus booked pause shift); absent while only armed"
+        firesAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "planned time of the first still pending start - the same calculation the scheduler fires against; absent while only armed or once nothing is pending"
+        pausedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "start of the running pause, only while PAUSED; the clock freezes at firesAt - pausedAt"
+        matchIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: "setup matches of all boats in the sequence - a tile checks whether its match is meant"
 
     MyEventTeamMemberDto:
       type: object

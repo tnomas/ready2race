@@ -1,6 +1,6 @@
 import {Box, Stack, Typography, useTheme} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {AthleteBoardMatch, BoardElement} from '@api/types.gen.ts'
+import {AthleteBoardMatch, BoardElement, BoardSequenceDto} from '@api/types.gen.ts'
 import {sortRunningTeams} from '../../info/athleteBoard/common'
 import FitToHeight from './FitToHeight.tsx'
 import FlipList from '../FlipList.tsx'
@@ -19,6 +19,8 @@ interface RunningLowerThirdProps {
     match: AthleteBoardMatch
     element: BoardElement
     clockOffsetMs: number
+    /** Die aktive Startsequenz der Board-Sicht — die Laufuhr zählt damit vor dem Start von minus hoch. */
+    sequence?: BoardSequenceDto | null
 }
 
 /**
@@ -27,7 +29,7 @@ interface RunningLowerThirdProps {
  * (`sortRunningTeams` — gewertete Boote nach Platz oben, ungewertete nach Startnummer
  * darunter, DNF/DQ ans Ende; dieselbe Regel wie die Athleten-Anzeige).
  */
-const RunningLowerThird = ({match, element, clockOffsetMs}: RunningLowerThirdProps) => {
+const RunningLowerThird = ({match, element, clockOffsetMs, sequence}: RunningLowerThirdProps) => {
     const {t} = useTranslation()
     const theme = useTheme()
     const names = streamNameForms(element)
@@ -79,7 +81,7 @@ const RunningLowerThird = ({match, element, clockOffsetMs}: RunningLowerThirdPro
                                 names.competitions,
                             )}
                         </Typography>
-                        <StreamClockLabel match={match} clockOffsetMs={clockOffsetMs} />
+                        <StreamClockLabel match={match} clockOffsetMs={clockOffsetMs} sequence={sequence} />
                     </Stack>
                     {roundLine && (
                         <Typography variant="h6" noWrap sx={{fontWeight: 500, flexShrink: 0}}>

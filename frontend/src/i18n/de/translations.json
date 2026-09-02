@@ -2400,6 +2400,11 @@
       }
     },
     "boards": {
+      "sequence": {
+        "armed": "Startsequenz scharf",
+        "startsIn": "Start in {{time}}",
+        "paused": "Start pausiert · {{time}}"
+      },
       "title": "Boards",
       "none": "Noch keine Boards angelegt",
       "create": "Board anlegen",

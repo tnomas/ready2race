@@ -632,6 +632,30 @@ export type BoardRequest = {
 export type BoardScheduleMode = 'FOLLOW' | 'FULL'
 
 /**
+ * the start sequence the boards show, reduced to what a clock needs: the boards read the public, cached board endpoint while the sequence lives behind the timing session - so the planned start travels here, letting a tile's race clock count up from minus before the gun
+ */
+export type BoardSequenceDto = {
+    sequenceId: string
+    state: SequenceState
+    /**
+     * anchor of the chain (sequence start plus booked pause shift); absent while only armed
+     */
+    startedAt?: string | null
+    /**
+     * planned time of the first still pending start - the same calculation the scheduler fires against; absent while only armed or once nothing is pending
+     */
+    firesAt?: string | null
+    /**
+     * start of the running pause, only while PAUSED; the clock freezes at firesAt - pausedAt
+     */
+    pausedAt?: string | null
+    /**
+     * setup matches of all boats in the sequence - a tile checks whether its match is meant
+     */
+    matchIds: Array<string>
+}
+
+/**
  * The shareable board link. Repeatable like the station link: the same board returns the same link until its token is revoked. Deliberately not a TimingDeviceTokenDto - that one names a timing station, which a board token does not have (it is the same table, but with two different targets).
  */
 export type BoardShareLinkDto = {
@@ -715,6 +739,10 @@ export type BoardViewDto = {
      * current delay in seconds: started_at minus start_time of the latest started match; negative = ahead of schedule; null while nothing has started or the board has no DELAY element
      */
     currentDelaySeconds?: number | null
+    /**
+     * the active start sequence of the in-house timing the tiles show (the most recently touched active sequence of the event); null without one
+     */
+    sequence?: BoardSequenceDto | null
 }
 
 export type CaptchaDto = {

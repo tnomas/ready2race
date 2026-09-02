@@ -2380,6 +2380,11 @@
       }
     },
     "boards": {
+      "sequence": {
+        "armed": "Startsekvens klar",
+        "startsIn": "Start om {{time}}",
+        "paused": "Start på pause · {{time}}"
+      },
       "title": "Boards",
       "none": "Ingen boards oprettet endnu",
       "create": "Opret board",

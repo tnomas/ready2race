@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.awardCeremony.entity.AwardCeremonyRank
 import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
+import de.lambda9.ready2race.backend.app.timing.entity.SequenceState
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -56,6 +57,31 @@ data class BoardCeremonyDto(
     val ranks: List<AwardCeremonyRank>,
 )
 
+/**
+ * Die Startsequenz der hauseigenen Zeitnahme, die die Boards gerade zeigen - die zuletzt
+ * angefasste aktive Sequenz der Veranstaltung (`TimingSequenceService.activeTiming`, dieselbe
+ * Wahl wie die Stream-Uhr und der Startbildschirm ohne Posten).
+ *
+ * Warum sie hier reist: Die Boards lesen den öffentlichen, gecachten Poll-Endpunkt bzw. den
+ * Board-Kanal; die Sequenz lebt im Zeitnahme-Modul hinter Sitzung und Geräte-Token. Damit die
+ * Laufuhr einer Kachel schon VOR dem Start von minus hochzählen kann, muss der geplante
+ * Startzeitpunkt hier durchgereicht werden - der Zeitnahme-Kanal steht einem Board nicht offen.
+ * Preisgegeben werden nur Zeitpunkte und Lauf-Ids, keine Boote.
+ *
+ * [firesAt] ist der geplante ERSTE NOCH ANSTEHENDE Start (leer, solange die Sequenz nur scharf
+ * ist), [pausedAt] nur während der laufenden Pause belegt; die Uhr friert dann auf
+ * `firesAt − pausedAt` ein. [matchIds]: die Setup-Läufe aller Boote der Sequenz - daran erkennt
+ * eine Kachel, ob IHR Lauf gemeint ist.
+ */
+data class BoardSequenceDto(
+    val sequenceId: UUID,
+    val state: SequenceState,
+    val startedAt: LocalDateTime?,
+    val firesAt: LocalDateTime?,
+    val pausedAt: LocalDateTime?,
+    val matchIds: List<UUID>,
+)
+
 /** Alles, was die Anzeige eines Boards braucht, in einer Antwort. */
 data class BoardViewDto(
     val boardId: UUID,
@@ -75,4 +101,10 @@ data class BoardViewDto(
      * ist — oder das Board kein DELAY-Element hat (needs-Muster, siehe BoardDataNeeds.delay).
      */
     val currentDelaySeconds: Long? = null,
+    /**
+     * Die aktive Startsequenz, die die Kacheln zeigen - null ohne eine solche. Nicht ans
+     * needs-Muster gebunden: die Frage kostet eine kleine Abfrage je Bau, und der Bau läuft nur
+     * je Änderungsmarker, nicht je Poll (siehe boardViewCache).
+     */
+    val sequence: BoardSequenceDto? = null,
 )

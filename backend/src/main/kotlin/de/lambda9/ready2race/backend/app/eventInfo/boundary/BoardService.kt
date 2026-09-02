@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.awardCeremony.boundary.AwardCeremonyService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
@@ -284,6 +285,20 @@ object BoardService {
                     BoardLogic.currentDelaySeconds(!CompetitionMatchRepo.getLatestStartedTimes(eventId).orDie())
                 } else null
 
+                // Die aktive Startsequenz für die Uhren der Kacheln (siehe BoardSequenceDto) - jede
+                // Sequenz-Mutation bumpt den Änderungsmarker, der Stand hier ist also nie älter als
+                // der Cache-Eintrag selbst.
+                val sequence = (!TimingSequenceService.activeTiming(eventId))?.let {
+                    BoardSequenceDto(
+                        sequenceId = it.sequenceId,
+                        state = it.state,
+                        startedAt = it.startedAt,
+                        firesAt = it.firesAt,
+                        pausedAt = it.pausedAt,
+                        matchIds = it.matchIds,
+                    )
+                }
+
                 val dto = BoardViewDto(
                     boardId = board.id,
                     eventName = eventName!!,
@@ -305,6 +320,7 @@ object BoardService {
                     ceremonies = ceremonies,
 notice = notice,
                     currentDelaySeconds = currentDelaySeconds,
+                    sequence = sequence,
                 )
 
                 boardViewCache[boardId] = CachedView(now, marker, dto)

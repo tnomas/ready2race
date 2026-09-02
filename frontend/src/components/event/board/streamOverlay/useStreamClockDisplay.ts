@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
-import {AthleteBoardMatch} from '@api/types.gen.ts'
-import {formatElapsed, streamClockState} from '../streamClock.ts'
+import {AthleteBoardMatch, BoardSequenceDto} from '@api/types.gen.ts'
+import {formatCountdown, formatElapsed, streamClockState} from '../streamClock.ts'
+import {sequenceClockArgs} from '../boardSequence.ts'
 import useTicker from './useTicker.ts'
 
 const CLOCK_TICK_MS = 100
@@ -57,9 +58,19 @@ export interface StreamClockDisplay {
  * `false` vor, obwohl die Uhr die ganze Zeit sichtbar war: der Timer armt nie, der
  * Knoten bleibt für immer bei `opacity:0` im DOM.
  */
-const useStreamClockDisplay = (match: AthleteBoardMatch, clockOffsetMs: number): StreamClockDisplay => {
+const useStreamClockDisplay = (
+    match: AthleteBoardMatch,
+    clockOffsetMs: number,
+    sequence?: BoardSequenceDto | null,
+): StreamClockDisplay => {
     const matchId = match.matchId
-    const hasStart = match.actualStartTime != null
+    // „Start" im Sinne dieser Uhr heißt seit dem 02.09.2026: ein gestempelter Start ODER eine
+    // laufende Startsequenz mit Feuerzeitpunkt für diesen Lauf (BoardViewDto.sequence) — dann
+    // steht die Uhr schon vorher und zählt von minus hoch. Alle Übergänge unten hängen an
+    // dieser einen Größe, der Sequenz-Countdown ist für die Automatik nur eine weitere Phase.
+    const args = sequenceClockArgs({sequence}, match)
+    const countdownActive = match.actualStartTime == null && args.firesAt != null
+    const hasStart = match.actualStartTime != null || countdownActive
     const [frozenElapsedMs, setFrozenElapsedMs] = useState<number | null>(null)
     const [visible, setVisible] = useState(false)
     const [mounted, setMounted] = useState(false)
@@ -97,8 +108,13 @@ const useStreamClockDisplay = (match: AthleteBoardMatch, clockOffsetMs: number):
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [matchId, hasStart])
 
-    const now = useTicker(CLOCK_TICK_MS, hasStart && frozenElapsedMs === null)
-    const liveState = hasStart ? streamClockState(match, now, clockOffsetMs) : null
+    // Pausiert tickt nur der Countdown nicht — eine Uhr, die schon läuft (späteres Boot einer
+    // Einzelstart-Kette angehalten), läuft weiter.
+    const paused = match.actualStartTime == null && args.pausedAt != null
+    const now = useTicker(CLOCK_TICK_MS, hasStart && frozenElapsedMs === null && !paused)
+    const liveState = hasStart
+        ? streamClockState(match, now, clockOffsetMs, args.startedAt, args.firesAt, args.pausedAt)
+        : null
 
     useEffect(() => {
         if (liveState?.phase === 'frozen' && frozenElapsedMs === null) {
@@ -159,9 +175,9 @@ const useStreamClockDisplay = (match: AthleteBoardMatch, clockOffsetMs: number):
     }, [visible, mounted])
 
     if (!mounted) return {mounted: false, visible: false, text: null}
-    // `hasStart` schließt die Board-Kachel oben schon von `countdown` aus (sie ruft
-    // `streamClockState` ohne Sequenz-Parameter auf, siehe KDoc dort) - diese Prüfung ist
-    // deshalb reine Typ-Enge für den Compiler, kein Verhaltensunterschied zur früheren Fassung.
+    if (liveState?.phase === 'countdown' && frozenElapsedMs === null) {
+        return {mounted: true, visible, text: formatCountdown(liveState.remainingMs)}
+    }
     const liveElapsedMs =
         liveState && (liveState.phase === 'running' || liveState.phase === 'frozen') ? liveState.elapsedMs : null
     const elapsedMs = frozenElapsedMs ?? liveElapsedMs ?? 0

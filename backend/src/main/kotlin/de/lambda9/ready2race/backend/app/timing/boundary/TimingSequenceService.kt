@@ -211,6 +211,52 @@ object TimingSequenceService {
      * missed the terminal websocket broadcast) right after a sequence completes would see nothing
      * at all instead of the summary of what just happened.
      */
+    /**
+     * Die Sequenz, die eine Anzeige ohne Postenbindung gerade zeigt - siehe [ActiveSequenceTiming].
+     *
+     * Aus EINER Abfrage über alle aktiven Einträge der Veranstaltung: unter mehreren aktiven
+     * Sequenzen verschiedener START-Posten gewinnt die zuletzt angefasste (dieselbe Wahl wie
+     * `TimingSequenceRepo.getMostRecentActiveByEvent` und der Startbildschirm ohne Posten).
+     *
+     * Die aufgelaufene Pausendauer (`pause_shift_millis`) kommt auf den Sequenzstart drauf: der
+     * Scheduler feuert die ganze Kette um genau diese Summe versetzt (`plannedStartMillis`), also
+     * ist Start + Verschiebung der Anker. WÄHREND einer Pause wächst die Summe noch nicht (sie
+     * wird erst beim Fortsetzen verbucht) - dafür reist der Pausenbeginn mit: die Uhren frieren
+     * den Reststand von genau diesem Zeitpunkt ein, und das Fortsetzen rückt den Feuerzeitpunkt
+     * exakt um die Pausendauer nach hinten (fires' − resume = fires − pausedAt).
+     *
+     * [ActiveSequenceTiming.firesAt] ist der erste NOCH ANSTEHENDE Start: ein übersprungener
+     * erster Eintrag oder eine Skip-Verschiebung rücken den echten ersten Start nach hinten - eine
+     * Uhr, die stur auf Position 0 zählte, stünde auf 0:00, während noch niemand gestartet ist.
+     * Ohne anstehenden Eintrag bleibt `firesAt` leer.
+     */
+    fun activeTiming(eventId: UUID): App<Nothing, ActiveSequenceTiming?> = KIO.comprehension {
+        val rows = !TimingSequenceEntryRepo.getActiveEntriesByEvent(eventId).orDie()
+        val chosen = rows.groupBy { it.sequence.id }.values
+            .maxByOrNull { group -> group.first().sequence.updatedAt!! }
+            ?: return@comprehension KIO.ok(null)
+        val record = chosen.first().sequence
+        val startedAtMillis = record.startedAtMillis
+        val anchorMillis = startedAtMillis?.let { it + (record.pauseShiftMillis ?: 0L) }
+        val nextPendingPosition = chosen
+            .filter { it.entry.status == SequenceEntryStatus.PENDING.name }
+            .minOfOrNull { it.entry.position }
+        KIO.ok(
+            ActiveSequenceTiming(
+                sequenceId = record.id,
+                state = SequenceState.valueOf(record.state!!),
+                startedAt = anchorMillis?.let { TimingMatchStampLogic.stampFor(it) },
+                firesAt = nextPendingPosition
+                    ?.let { plannedStartMillis(record, it) }
+                    ?.let { TimingMatchStampLogic.stampFor(it) },
+                // `paused_at_millis` beschreibt per Vertrag nur die LAUFENDE Pause
+                // (resumeSequence leert es) - gesetzt heißt also PAUSED.
+                pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
+                matchIds = chosen.map { it.setupMatchId }.distinct(),
+            )
+        )
+    }
+
     fun getActiveSequence(
         eventId: UUID,
         stationId: UUID,

@@ -40,6 +40,7 @@ const BoardElementView = ({
                 <BoardMatchDetailElement
                     element={element}
                     view={view}
+                    now={now}
                     effectiveColumns={effectiveColumns}
                     heightFraction={heightFraction}
                 />

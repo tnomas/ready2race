@@ -1,6 +1,6 @@
 import {Box, Chip, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {AthleteBoardMatch} from '@api/types.gen'
+import {AthleteBoardMatch, BoardSequenceDto} from '@api/types.gen.ts'
 import {byeExplanation} from '@components/event/match/matchBye.ts'
 import AthleteBoardPenaltyNote from './AthleteBoardPenaltyNote'
 import AthleteBoardTeamLabel from './AthleteBoardTeamLabel'
@@ -23,6 +23,8 @@ import {
     sortRunningTeams,
 } from './common'
 import PlaceOrdinal from '@components/PlaceOrdinal'
+import {sequenceLineFor} from '@components/event/board/boardSequence.ts'
+import {formatCountdown} from '@components/event/board/streamClock.ts'
 
 /**
  * "running": Karte im Block "Aktueller Lauf" — das Boot ist bereits in der Arena,
@@ -54,6 +56,12 @@ interface AthleteBoardMatchCardProps {
     showAdvancement?: boolean
     // Meldender Verein als kleine Zeile am Boot.
     showRegisteringClub?: boolean
+    /**
+     * Die aktive Startsequenz der Board-Sicht (nur Boards liefern sie): vor dem Start steht
+     * „Startsequenz scharf" bzw. der Countdown auf den Feuerzeitpunkt — von minus hoch, wie die
+     * Stream-Uhr. Ohne Sequenz bleibt die Karte, wie sie war.
+     */
+    sequence?: BoardSequenceDto | null
 }
 
 const AthleteBoardMatchCard = ({
@@ -67,6 +75,7 @@ const AthleteBoardMatchCard = ({
     showBirthYears = false,
     showAdvancement = false,
     showRegisteringClub = false,
+    sequence = null,
 }: AthleteBoardMatchCardProps) => {
     const {t} = useTranslation()
     // Der Freilos-Schlüssel steht erst zur Laufzeit fest — dieselbe gelockerte Signatur wie in
@@ -96,9 +105,26 @@ const AthleteBoardMatchCard = ({
     // von den übrigen Anzeigen abweichen konnte. `actualStartTime` trägt jetzt nur noch die Uhrzeit
     // für "gestartet 14:32". Im Block "Nächster Lauf" ist sie immer leer (siehe KDoc von
     // AthleteBoardMatch im Backend).
+    // Die Startsequenz vor dem Start (siehe sequenceLineFor): sie ersetzt „in Vorbereitung",
+    // solange sie etwas Genaueres weiß. `now` ist die servergeankerte Uhr der Seite.
+    const sequenceLine = sequenceLineFor(sequence, match, now.getTime())
     const renderRunningStart = () =>
         // Ein Programmpunkt (FREE-Platzhalter) startet nicht und wird nicht gestempelt.
-        match.name ? null : match.state === 'PREPARING' ? (
+        match.name ? null : sequenceLine ? (
+            <Typography
+                sx={{
+                    fontSize: scaled('0.75rem', '1.3vw', '1.6rem'),
+                    fontVariantNumeric: 'tabular-nums',
+                    fontWeight: sequenceLine.kind === 'countdown' ? 700 : undefined,
+                }}
+                color={sequenceLine.kind === 'countdown' && sequenceLine.paused ? 'warning.dark' : 'text.secondary'}>
+                {sequenceLine.kind === 'armed'
+                    ? t('event.boards.sequence.armed')
+                    : sequenceLine.paused
+                      ? t('event.boards.sequence.paused', {time: formatCountdown(sequenceLine.remainingMs)})
+                      : t('event.boards.sequence.startsIn', {time: formatCountdown(sequenceLine.remainingMs)})}
+            </Typography>
+        ) : match.state === 'PREPARING' ? (
             <Typography
                 sx={{fontSize: scaled('0.75rem', '1.3vw', '1.6rem')}}
                 color="text.secondary">

@@ -46,7 +46,7 @@ const BoardStreamOverlayElement = ({view, element}: Props) => {
         return (
             <Box sx={{position: 'fixed', inset: 0, backgroundColor: keyColor}}>
                 {element.streamMode === 'CLOCK' && (
-                    <ClockPlate match={null} clockOffsetMs={clockOffsetMs} />
+                    <ClockPlate match={null} clockOffsetMs={clockOffsetMs} sequence={view.sequence} />
                 )}
             </Box>
         )
@@ -55,7 +55,12 @@ const BoardStreamOverlayElement = ({view, element}: Props) => {
     return (
         <Box sx={{position: 'fixed', inset: 0, backgroundColor: keyColor}}>
             {content.kind === 'running' && (
-                <RunningLowerThird match={content.match} element={element} clockOffsetMs={clockOffsetMs} />
+                <RunningLowerThird
+                    match={content.match}
+                    element={element}
+                    clockOffsetMs={clockOffsetMs}
+                    sequence={view.sequence}
+                />
             )}
             {content.kind === 'result' && <ResultPanel result={content.result} element={element} />}
             {content.kind === 'upcoming' && (
@@ -66,7 +71,7 @@ const BoardStreamOverlayElement = ({view, element}: Props) => {
             )}
             {content.kind === 'laps' && <LapBand laps={content.laps} element={element} />}
             {content.kind === 'clock' && (
-                <ClockPlate match={content.match} clockOffsetMs={clockOffsetMs} />
+                <ClockPlate match={content.match} clockOffsetMs={clockOffsetMs} sequence={view.sequence} />
             )}
         </Box>
     )

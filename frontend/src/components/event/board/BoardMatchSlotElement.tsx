@@ -86,6 +86,7 @@ const BoardMatchSlotElement = ({
                         showBirthYears={element.showBirthYears === true}
                         showAdvancement={element.showAdvancement === true}
                         showRegisteringClub={element.showRegisteringClub === true}
+                        sequence={view.sequence}
                     />
                 ) : content?.result ? (
                     // Dieselben Anzeige-Optionen wie die Lauf-Karte (12.08.2026): die

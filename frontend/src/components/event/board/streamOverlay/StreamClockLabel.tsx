@@ -1,10 +1,12 @@
 import {Typography} from '@mui/material'
-import {AthleteBoardMatch} from '@api/types.gen.ts'
+import {AthleteBoardMatch, BoardSequenceDto} from '@api/types.gen.ts'
 import useStreamClockDisplay from './useStreamClockDisplay.ts'
 
 interface StreamClockLabelProps {
     match: AthleteBoardMatch
     clockOffsetMs: number
+    /** Die aktive Startsequenz der Board-Sicht — Countdown von minus vor dem Start. */
+    sequence?: BoardSequenceDto | null
     /** Schriftgrad — h3 im Lower-Third-Kopf, h2 auf der separaten Uhr-Platte. */
     variant?: 'h3' | 'h2'
 }
@@ -14,8 +16,13 @@ interface StreamClockLabelProps {
  * Fade-in/-out laufen ausschließlich als TEXT-Opacity auf dem bereits deckenden Panel —
  * die Chroma-Fläche selbst blitzt dabei nie durch (siehe useStreamClockDisplay).
  */
-const StreamClockLabel = ({match, clockOffsetMs, variant = 'h3'}: StreamClockLabelProps) => {
-    const clock = useStreamClockDisplay(match, clockOffsetMs)
+const StreamClockLabel = ({
+    match,
+    clockOffsetMs,
+    sequence,
+    variant = 'h3',
+}: StreamClockLabelProps) => {
+    const clock = useStreamClockDisplay(match, clockOffsetMs, sequence)
     if (!clock.mounted) return null
     return (
         <Typography

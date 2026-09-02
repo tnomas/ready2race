@@ -18,11 +18,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
 import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneViewDto
-import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchStampLogic
-import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
-import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
-import de.lambda9.ready2race.backend.app.timing.control.plannedStartMillis
-import de.lambda9.ready2race.backend.app.timing.entity.SequenceEntryStatus
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneRecord
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -333,55 +329,22 @@ object StreamSceneLogic {
     )
 
     /**
-     * Anker und Feuerzeitpunkt der laufenden Startsequenz, oder beide null.
+     * Anker und Feuerzeitpunkt der laufenden Startsequenz, oder alles null.
      *
      * Die Szene hängt nicht an einem bestimmten Posten: sie zeigt, wie eine unverknüpfte Anzeige,
-     * die zuletzt angefasste aktive Sequenz der Veranstaltung
-     * ([TimingSequenceRepo.getMostRecentActiveByEvent]) - dieselbe Auswahl, die auch der
-     * Startbildschirm ohne Postenbindung trifft. Eine nur scharfgestellte (ARMED) Sequenz hat
-     * noch keinen Startzeitpunkt und zählt damit von selbst nicht.
-     *
-     * Die aufgelaufene Pausendauer (`pause_shift_millis`) kommt auf den Startzeitpunkt drauf:
-     * Der Server feuert die ganze Kette um genau diese Summe nach hinten versetzt
-     * (`plannedStartMillis`), also ist Start + Verschiebung der Anker, gegen den die Uhr laufen
-     * muss. WÄHREND einer Pause wächst die Summe noch nicht mit (sie wird erst beim Fortsetzen
-     * verbucht) - dafür reist der Pausenbeginn selbst mit ([SequenceTiming.pausedAt], nur bei
-     * PAUSED belegt): Die Bühne friert den Countdown auf dem Reststand von genau diesem
-     * Zeitpunkt ein, statt sichtbar weiter auf 0:00 zuzulaufen, obwohl niemand startet. Das
-     * Fortsetzen verbucht die Verschiebung, der Feuerzeitpunkt rückt exakt um die Pausendauer
-     * nach hinten - der eingefrorene Reststand läuft also nahtlos weiter (fires' − resume =
-     * fires − pausedAt).
-     *
-     * [SequenceTiming.firesAt] ist der geplante Zeitpunkt des ERSTEN NOCH ANSTEHENDEN Starts
-     * ([plannedStartMillis] der kleinsten PENDING-Position — dieselbe Rechnung, gegen die der
-     * Scheduler feuert): Für den Normalfall ist das Anker + `lead_in_millis`, aber ein
-     * übersprungener erster Eintrag oder eine Skip-Verschiebung der Kette rücken den echten
-     * ersten Start nach hinten — eine Uhr, die stur auf den Slot der Position 0 zählte, stünde
-     * dann auf 0:00, während in Wahrheit noch niemand gestartet ist. Ohne anstehenden Eintrag
-     * (alles gestartet/übersprungen, DONE steht bevor) bleibt `firesAt` leer — die Bühne zeigt
-     * dann bewusst keinen Countdown mehr.
+     * die zuletzt angefasste aktive Sequenz der Veranstaltung - die Rechnung dazu (Anker mit
+     * Pausenverschiebung, erster NOCH ANSTEHENDER Start, Pausenbeginn) liegt seit dem 02.09.2026
+     * in `TimingSequenceService.activeTiming`, gemeinsam mit den Boards; hier bleibt nur der
+     * Zuschnitt auf die drei Felder der CLOCK-Grafik. Eine nur scharfgestellte (ARMED) Sequenz
+     * hat keinen Startzeitpunkt und zählt damit von selbst nicht.
      */
     private fun sequenceTiming(eventId: UUID): App<Nothing, SequenceTiming> = KIO.comprehension {
-        val record = !TimingSequenceRepo.getMostRecentActiveByEvent(eventId).orDie()
-        val startedAtMillis = record?.startedAtMillis
-        if (record == null || startedAtMillis == null) {
-            return@comprehension KIO.ok(SequenceTiming(startedAt = null, firesAt = null, pausedAt = null))
-        }
-
-        val anchorMillis = startedAtMillis + (record.pauseShiftMillis ?: 0L)
-        val nextPendingPosition = (!TimingSequenceEntryRepo.getBySequence(record.id).orDie())
-            .filter { it.status == SequenceEntryStatus.PENDING.name }
-            .minOfOrNull { it.position ?: Int.MAX_VALUE }
+        val timing = !TimingSequenceService.activeTiming(eventId)
         KIO.ok(
             SequenceTiming(
-                startedAt = TimingMatchStampLogic.stampFor(anchorMillis),
-                firesAt = nextPendingPosition
-                    ?.let { plannedStartMillis(record, it) }
-                    ?.let { TimingMatchStampLogic.stampFor(it) },
-                // `paused_at_millis` beschreibt per Vertrag immer nur die LAUFENDE Pause
-                // (TimingSequenceService.resumeSequence leert es beim Fortsetzen) - gesetzt
-                // heißt also PAUSED, eine eigene Zustandsabfrage braucht es hier nicht.
-                pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
+                startedAt = timing?.startedAt,
+                firesAt = timing?.firesAt,
+                pausedAt = timing?.pausedAt,
             )
         )
     }

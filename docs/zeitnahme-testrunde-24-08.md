@@ -447,5 +447,14 @@ neues Recht. Die Karte zeigt einen Sequenz-Streifen (Zustand, „x/y gestartet",
 stummer Countdown auf Serveruhr; pausiert eingefroren) und beim Zeitfahren je Boot den geplanten
 Start. Neu dazu: der Rückruf hinterlässt `competition_match.false_start_at` (Migration
 V202609021000), die Karte sagt „Fehlstart um 14:03 – Lauf zurückgerufen", bis der nächste Start
-den Stempel leert. Offen bleibt der zweite Teil (Kachel-Dashboard und Stream-Uhr, die von minus
-hochzählt).
+den Stempel leert.
+
+**Nachtrag 02.09.2026 – Punkt 9, zweiter Teil (Kachel-Dashboard) umgesetzt:** Die Board-Sicht
+(`BoardViewDto.sequence`) trägt die zuletzt angefasste aktive Startsequenz der Veranstaltung
+(Zustand, Anker, Feuerzeitpunkt des ersten anstehenden Starts, Pausenbeginn, Läufe) – dieselbe
+Rechnung wie die Stream-Uhr, seit heute gemeinsam in `TimingSequenceService.activeTiming`. Die
+Uhr-Platte des Stream-Elements und die Laufuhr im Lower-Third zählen damit vor dem Start von minus
+hoch (`−0:07` … `0:00`, dann Laufzeit), pausiert steht der Reststand; Lauf-Kachel und
+Sprecher-Kachel zeigen „Startsequenz scharf" bzw. „Start in −0:07" / „Start pausiert · −0:05"
+statt „in Vorbereitung". Die Stream-Domäne (Wirecast-Szenen) konnte das schon seit dem 29.08.
+Punkt 9 ist damit abgeschlossen; Handtest am echten Board-Bildschirm steht aus.
