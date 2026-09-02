@@ -12,6 +12,7 @@ import {
     sortedEntries,
     splitRunningEntries,
 } from './sequenceDisplay.ts'
+import {DEFAULT_CAPTURE_TONE, DEFAULT_FALSE_START_SEQUENCE} from './tonePlan.ts'
 
 const entry = (overrides: Partial<TimingSequenceEntryDto>): TimingSequenceEntryDto => ({
     id: overrides.id ?? crypto.randomUUID(),
@@ -171,6 +172,16 @@ const timingMode = (overrides: Partial<TimingModeDto> = {}): TimingModeDto => ({
     name: 'Testtyp',
     startSequenceEnabled: true,
     boatKeysPrimary: '123456',
+    falseStartEnabled: true,
+    startGrouping: 'EINZEL',
+    leadInSeconds: 10,
+    resolvedToneSet: {
+        sequenceTonePlan: null,
+        splitTone: {...DEFAULT_CAPTURE_TONE},
+        falseStartTone: [...DEFAULT_FALSE_START_SEQUENCE],
+        finishTone: {...DEFAULT_CAPTURE_TONE},
+        tonePerBoat: true,
+    },
     ...overrides,
 })
 
