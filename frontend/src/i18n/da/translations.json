@@ -4094,7 +4094,9 @@
       "RUNNING": "Live",
       "FINISHED": "Afsluttet",
       "liveShort": "LIVE",
-      "CANCELLED": "Aflyst"
+      "CANCELLED": "Aflyst",
+      "CLARIFICATION": "Under afklaring",
+      "clarificationShort": "Afklaring"
     },
     "timeline": {
       "empty": "Ingen løb med starttid fundet.",
@@ -4155,7 +4157,6 @@
         "now": "Nu-linje / advarsler"
       },
       "resetColors": "Nulstil farver",
-      "refresh": "Opdatering",
       "turnaround": "Skiftetids-advarsel",
       "resetAll": "Nulstil alt"
     },

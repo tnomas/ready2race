@@ -2,7 +2,13 @@ import {Box, Button, Stack, Typography} from '@mui/material'
 import {format} from 'date-fns'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
-import {matchBadgeSummary, SpeakerBadges, SpeakerMatch, statusColorOf} from './speakerData.ts'
+import {
+    matchBadgeSummary,
+    matchDisplayColor,
+    SpeakerBadges,
+    SpeakerMatch,
+    statusColorOf,
+} from './speakerData.ts'
 import {useSpeakerColors} from './speakerSettings.ts'
 
 type Props = {
@@ -203,7 +209,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                         }}
                     />
                     {positioned.map(({match, x, row}) => {
-                        const color = statusColorOf(colors, match.status)
+                        const color = matchDisplayColor(colors, match)
                         const emoji = matchBadgeSummary(match, badges)
                         return (
                             <Box
@@ -245,11 +251,13 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                         {format(match.startTime, t('format.time'))}
                                         {match.cancelled
                                             ? ` · ${t('speaker.status.CANCELLED')}`
-                                            : match.status === 'RUNNING'
-                                              ? ` · ${t('speaker.status.liveShort')}`
-                                              : match.status === 'FINISHED'
-                                                ? ' · ✓'
-                                                : ''}
+                                            : match.clarification
+                                              ? ` · ⚖ ${t('speaker.status.clarificationShort')}`
+                                              : match.status === 'RUNNING'
+                                                ? ` · ${t('speaker.status.liveShort')}`
+                                                : match.status === 'FINISHED'
+                                                  ? ' · ✓'
+                                                  : ''}
                                     </Typography>
                                     <Typography variant={'caption'}>{emoji}</Typography>
                                 </Stack>

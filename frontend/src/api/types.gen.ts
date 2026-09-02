@@ -3908,6 +3908,10 @@ export type RunningMatchInfo = {
      */
     startedAt?: string | null
     elapsedMinutes?: number | null
+    /**
+     * An objection is running against this match (competition_match.clarification_since set). Only populated when the request asked for disputed matches (includeClarification); the referees' reason stays internal and is never part of this payload.
+     */
+    clarification?: boolean | null
     placeName?: string | null
     roundNumber?: number | null
     roundName?: string | null
@@ -9071,6 +9075,10 @@ export type GetRunningMatchesData = {
         eventId: string
     }
     query: {
+        /**
+         * True (speaker board) also returns matches under clarification, marked via the clarification flag. Default false keeps them out - the public displays and the board cursor must not hang on a disputed match.
+         */
+        includeClarification?: boolean
         limit: number
     }
 }

@@ -4261,7 +4261,9 @@
       "RUNNING": "Live",
       "FINISHED": "Finished",
       "liveShort": "LIVE",
-      "CANCELLED": "Cancelled"
+      "CANCELLED": "Cancelled",
+      "CLARIFICATION": "Under review",
+      "clarificationShort": "Review"
     },
     "timeline": {
       "empty": "No races with a start time found.",
@@ -4322,7 +4324,6 @@
         "now": "Now line / warnings"
       },
       "resetColors": "Reset colors",
-      "refresh": "Refresh",
       "turnaround": "Turnaround warning",
       "resetAll": "Reset everything"
     },

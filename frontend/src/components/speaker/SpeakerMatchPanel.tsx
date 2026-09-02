@@ -19,11 +19,11 @@ import {TimingSequenceDto} from '@api/types.gen.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import {
+    matchDisplayColor,
     medalEmoji,
     SpeakerBadges,
     SpeakerMatch,
     SpeakerTeam,
-    statusColorOf,
 } from './speakerData.ts'
 import {useSpeakerSettings} from './speakerSettings.ts'
 import {sequenceOfMatch, SpeakerTiming} from './speakerTiming.ts'
@@ -223,15 +223,17 @@ const SpeakerMatchPanel = ({
                         label={
                             match.cancelled
                                 ? t('speaker.status.CANCELLED')
-                                : match.status === 'RUNNING'
-                                  ? `● ${t('speaker.status.RUNNING')}`
-                                  : match.status === 'FINISHED'
-                                    ? `✓ ${t('speaker.status.FINISHED')}`
-                                    : t('speaker.status.UPCOMING')
+                                : match.clarification
+                                  ? `⚖ ${t('speaker.status.CLARIFICATION')}`
+                                  : match.status === 'RUNNING'
+                                    ? `● ${t('speaker.status.RUNNING')}`
+                                    : match.status === 'FINISHED'
+                                      ? `✓ ${t('speaker.status.FINISHED')}`
+                                      : t('speaker.status.UPCOMING')
                         }
                         sx={{
-                            bgcolor: `${match.cancelled ? colors.now : statusColorOf(colors, match.status)}22`,
-                            color: match.cancelled ? colors.now : statusColorOf(colors, match.status),
+                            bgcolor: `${matchDisplayColor(colors, match)}22`,
+                            color: matchDisplayColor(colors, match),
                             fontWeight: 'bold',
                         }}
                     />
@@ -242,7 +244,9 @@ const SpeakerMatchPanel = ({
                 (match.startTime
                     ? ` · ${t('speaker.match.start')} ${format(match.startTime, t('format.time'))}`
                     : '') +
-                (match.status === 'RUNNING' && match.elapsedMinutes != undefined
+                // Bei Klärung keine weiterlaufende "läuft seit"-Uhr — die Zahl wäre eine
+                // Aussage über ein Rennen, dessen Zustand gerade strittig ist.
+                (match.status === 'RUNNING' && !match.clarification && match.elapsedMinutes != undefined
                     ? ` · ${t('speaker.match.elapsed', {minutes: match.elapsedMinutes})}`
                     : '')
             }

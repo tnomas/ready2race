@@ -332,17 +332,19 @@ object EventInfoService {
     fun getRunningMatches(
         eventId: UUID,
         limit: Int = 10,
+        includeClarification: Boolean = false,
     ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
-        getRunningMatches(eventId, limit, !clubShortNames())
+        getRunningMatches(eventId, limit, !clubShortNames(), includeClarification)
     }
 
     internal fun getRunningMatches(
         eventId: UUID,
         limit: Int,
         clubShortNames: ClubShortNameSettings,
+        includeClarification: Boolean = false,
     ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
 
-        val matches = !CompetitionMatchRepo.getRunningMatches(eventId, limit).orDie()
+        val matches = !CompetitionMatchRepo.getRunningMatches(eventId, limit, includeClarification).orDie()
 
         val result = matches.map { match ->
             val matchId = match[COMPETITION_MATCH.COMPETITION_SETUP_MATCH]!!
@@ -364,6 +366,9 @@ object EventInfoService {
                 activatedAt = match[COMPETITION_MATCH.ACTIVATED_AT],
                 startedAt = startedAt,
                 elapsedMinutes = elapsedMinutes,
+                clarification = if (includeClarification)
+                    match[COMPETITION_MATCH.CLARIFICATION_SINCE] != null
+                else null,
                 placeName = null,
                 roundNumber = null,
                 roundName = match.get("round_name", String::class.java),

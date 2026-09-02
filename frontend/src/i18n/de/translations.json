@@ -4261,7 +4261,9 @@
       "RUNNING": "Live",
       "FINISHED": "Beendet",
       "liveShort": "LIVE",
-      "CANCELLED": "Abgesagt"
+      "CANCELLED": "Abgesagt",
+      "CLARIFICATION": "In Klärung",
+      "clarificationShort": "Klärung"
     },
     "timeline": {
       "empty": "Keine Rennen mit Startzeit gefunden.",
@@ -4322,7 +4324,6 @@
         "now": "Jetzt-Linie / Warnungen"
       },
       "resetColors": "Farben zurücksetzen",
-      "refresh": "Aktualisierung",
       "turnaround": "Wechselzeit-Warnung",
       "resetAll": "Alles zurücksetzen"
     },

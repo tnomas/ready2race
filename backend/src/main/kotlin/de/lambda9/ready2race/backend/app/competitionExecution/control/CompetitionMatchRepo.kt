@@ -338,13 +338,15 @@ object CompetitionMatchRepo {
 
     fun getRunningMatches(
         eventId: UUID,
-        limit: Int
+        limit: Int,
+        includeClarification: Boolean = false,
     ) = Jooq.query {
         select(
             COMPETITION_MATCH.COMPETITION_SETUP_MATCH,
             COMPETITION_MATCH.START_TIME,
             COMPETITION_MATCH.STARTED_AT,
             COMPETITION_MATCH.ACTIVATED_AT,
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
             COMPETITION_SETUP_MATCH.EXECUTION_ORDER,
             // Freilose zeigen ihren materialisierten Namen (V202608121300).
             DSL.coalesce(COMPETITION_MATCH.BYE_NAME, COMPETITION_SETUP_MATCH.NAME).`as`("match_name"),
@@ -370,7 +372,11 @@ object CompetitionMatchRepo {
             // Cursor fest, und Stream-Uhr, Lower-Third und Athleten-Anzeige rückten nicht nach.
             // Aus getUpcomingMatchesForBoard fällt er ohnehin heraus (die Abfrage verlangt
             // activated_at is null) - er kommt also auch nicht als "als nächstes" zurück.
-            .and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull)
+            // AUSNAHME auf ausdrückliche Anfrage (Sprecher-Board): Wer am Mikrofon sitzt, muss den
+            // strittigen Lauf weiter sehen und als "in Klärung" ansagen können - für diese Sicht
+            // kommt er mit, markiert über clarification_since; der Cursor der öffentlichen
+            // Anzeigen fragt nie mit includeClarification an.
+            .let { if (includeClarification) it else it.and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull) }
             .orderBy(
                 COMPETITION_MATCH.START_TIME.asc(),
                 COMPETITION_SETUP_MATCH.EXECUTION_ORDER.asc()

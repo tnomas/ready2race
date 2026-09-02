@@ -15,6 +15,7 @@ import {useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
     matchBadgeSummary,
+    matchDisplayColor,
     medalEmoji,
     SpeakerBadges,
     SpeakerMatch,
@@ -221,7 +222,7 @@ const SpeakerProgramPanel = ({
             ) : (
                 <Box sx={{p: 1, display: 'flex', flexDirection: 'column', gap: 0.5}}>
                     {filtered.map(match => {
-                        const color = statusColorOf(colors, match.status)
+                        const color = matchDisplayColor(colors, match)
                         const selected = match.matchId === selectedMatchId
                         const starting = startingMatchIds.has(match.matchId)
                         const falseStart = falseStartMatchIds.has(match.matchId)
@@ -238,7 +239,7 @@ const SpeakerProgramPanel = ({
                                     px: 1,
                                     py: settings.programCompact ? 0.25 : 0.75,
                                     borderRadius: 1,
-                                    borderLeft: `4px solid ${match.cancelled ? colors.now : color}`,
+                                    borderLeft: `4px solid ${color}`,
                                     bgcolor: selected ? colors.panelHover : 'transparent',
                                     outline: selected ? `1px solid ${color}` : 'none',
                                     cursor: 'pointer',
@@ -297,6 +298,13 @@ const SpeakerProgramPanel = ({
                                         fontWeight={'bold'}
                                         sx={{color: colors.now, whiteSpace: 'nowrap'}}>
                                         ⚠ {t('speaker.timing.falseStartShort')}
+                                    </Typography>
+                                ) : match.clarification ? (
+                                    <Typography
+                                        variant={'caption'}
+                                        fontWeight={'bold'}
+                                        sx={{color: colors.gold, whiteSpace: 'nowrap'}}>
+                                        ⚖ {t('speaker.status.clarificationShort')}
                                     </Typography>
                                 ) : starting ? (
                                     <Typography

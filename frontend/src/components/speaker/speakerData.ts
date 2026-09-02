@@ -50,6 +50,13 @@ export type SpeakerMatch = {
     cancelled?: boolean
     /** round not drawn yet: matchId points at the setup round and teams is empty */
     pendingRound?: boolean
+    /**
+     * Gegen den Lauf läuft ein Einspruch der Schiedsrichter ("in Klärung"). Nur das Flag -
+     * die Begründung ist eine interne Notiz und erreicht das Board bewusst nie. Läuft der
+     * Einspruch gegen einen unbeendeten Lauf, kommt er über includeClarification im
+     * Running-Feed mit; beendete strittige Läufe tragen das Flag im Ergebnis-Feed.
+     */
+    clarification?: boolean
     teams: SpeakerTeam[]
 }
 
@@ -93,6 +100,7 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
     startTime: parseDate(match.startTime),
     executionOrder: match.executionOrder,
     elapsedMinutes: match.elapsedMinutes,
+    clarification: match.clarification ?? undefined,
     teams: match.teams.map(team => ({
         teamId: team.teamId,
         teamName: team.teamName,
@@ -131,6 +139,7 @@ const fromResult = (match: LatestMatchResultInfo): SpeakerMatch => ({
     matchName: match.matchName,
     startTime: parseDate(match.startTime),
     updatedAt: parseDate(match.updatedAt),
+    clarification: match.clarification ?? undefined,
     teams: match.teams.map(fromResultTeam),
 })
 
@@ -301,3 +310,10 @@ export const statusColorOf = (colors: SpeakerColors, status: SpeakerStatus): str
         : status === 'FINISHED'
           ? colors.finished
           : colors.upcoming
+
+/**
+ * Anzeigefarbe eines Laufs: die Klärung schlägt den Status (gold), die Absage schlägt beides
+ * (warnrot) - dieselbe Rangfolge, in der eine Sprecherin die Lage ansagen würde.
+ */
+export const matchDisplayColor = (colors: SpeakerColors, match: SpeakerMatch): string =>
+    match.cancelled ? colors.now : match.clarification ? colors.gold : statusColorOf(colors, match.status)

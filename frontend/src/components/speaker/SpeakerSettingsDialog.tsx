@@ -162,34 +162,10 @@ const SpeakerSettingsDialog = ({open, onClose}: Props) => {
                             {t('speaker.settings.resetColors')}
                         </Button>
                     </Box>
+                    {/* Ein Aktualisierungs-Takt ist hier bewusst nicht mehr einstellbar: das Board
+                        hängt am Event-Push und an der Zeitnahme, das Polling ist nur noch ein
+                        festes Sicherheitsnetz (siehe SpeakerBoardPage). */}
                     <Stack direction={'row'} spacing={2}>
-                        <Box sx={{flex: 1}}>
-                            <Typography variant={'body2'} sx={labelSx}>
-                                {t('speaker.settings.refresh')}
-                            </Typography>
-                            <Select
-                                size={'small'}
-                                fullWidth
-                                value={settings.refreshSeconds}
-                                onChange={event =>
-                                    updateSettings({
-                                        refreshSeconds: Number(event.target.value),
-                                    })
-                                }
-                                sx={{
-                                    color: colors.text,
-                                    '& .MuiOutlinedInput-notchedOutline': {
-                                        borderColor: colors.border,
-                                    },
-                                    '& .MuiSvgIcon-root': {color: colors.textSecondary},
-                                }}>
-                                {[10, 20, 30, 60].map(seconds => (
-                                    <MenuItem key={seconds} value={seconds}>
-                                        {seconds} s
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </Box>
                         <Box sx={{flex: 1}}>
                             <Typography variant={'body2'} sx={labelSx}>
                                 {t('speaker.settings.turnaround')}

@@ -10,8 +10,6 @@ export type SpeakerSettings = {
     themePreset: SpeakerThemePreset
     // overall zoom of the board content in percent
     scalePercent: number
-    // polling interval for the live data in seconds
-    refreshSeconds: number
     // warn when a participant's next start is closer than this many minutes
     turnaroundMinutes: number
     customColors: Partial<Record<SpeakerAccentKey, string>>
@@ -32,7 +30,6 @@ export type SpeakerSettings = {
 export const DEFAULT_SPEAKER_SETTINGS: SpeakerSettings = {
     themePreset: 'dark',
     scalePercent: 100,
-    refreshSeconds: 20,
     turnaroundMinutes: 45,
     customColors: {},
     showTimeline: false,

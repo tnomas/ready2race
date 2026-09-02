@@ -7263,6 +7263,16 @@ paths:
             default: 10
             minimum: 1
             maximum: 100
+        - name: includeClarification
+          in: query
+          required: false
+          description: >-
+            True (speaker board) also returns matches under clarification, marked via the
+            clarification flag. Default false keeps them out - the public displays and the
+            board cursor must not hang on a disputed match.
+          schema:
+            type: boolean
+            default: false
       responses:
         200:
           description: Currently running matches retrieved successfully
@@ -18579,6 +18589,13 @@ components:
           type: integer
           format: int64
           nullable: true
+        clarification:
+          type: boolean
+          nullable: true
+          description: >-
+            An objection is running against this match (competition_match.clarification_since set).
+            Only populated when the request asked for disputed matches (includeClarification);
+            the referees' reason stays internal and is never part of this payload.
         placeName:
           type: string
           nullable: true

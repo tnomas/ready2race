@@ -3,11 +3,11 @@ import {format} from 'date-fns'
 import {Fragment} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
+    matchDisplayColor,
     medalEmoji,
     ParticipantStart,
     SpeakerBadges,
     SpeakerMatch,
-    statusColorOf,
     turnaroundMinutes,
 } from './speakerData.ts'
 import {useSpeakerSettings} from './speakerSettings.ts'
@@ -118,7 +118,7 @@ const SpeakerParticipantPanel = ({participantId, badges, now, onClose, onSelectM
                         const gap = index > 0 ? turnaroundMinutes(starts[index - 1], start) : undefined
                         const tightGap = gap != undefined && gap <= settings.turnaroundMinutes
                         const result = startResult(start, t('speaker.match.failed'))
-                        const color = statusColorOf(colors, start.match.status)
+                        const color = matchDisplayColor(colors, start.match)
                         return (
                             <Fragment key={start.match.matchId}>
                                 {tightGap && (

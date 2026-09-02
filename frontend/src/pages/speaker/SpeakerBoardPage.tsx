@@ -38,6 +38,15 @@ import {useTranslation} from 'react-i18next'
 const FETCH_LIMIT = 500
 
 /**
+ * Fester Basis-Takt des Sicherheitsnetz-Pollings. Kein Nutzer-Regler mehr: Das Board hängt am
+ * Event-Push (jede relevante Schreibaktion bumpt den EventChangeMarker, auch Klärung und
+ * Zeitnahme) und am Timing-Kanal — der Poll fängt nur noch stumm gestorbene Verbindungen ab.
+ * Bei stehendem Push streckt stretchedPollMs die 30 s auf 4 min; nur ohne Socket wird wirklich
+ * alle 30 s geladen.
+ */
+const POLL_BASE_MS = 30_000
+
+/**
  * Das Sprecher-Board als Dashboard: Programm links, Details des gewählten Laufs in der Mitte,
  * rechts die Echtzeit-Lage der Zeitnahme und das Athlet:innen-Panel. Alles steht nebeneinander
  * statt in verschachtelten Dialogen — eine Sprecherin will Dinge stehen lassen können, während
@@ -92,15 +101,22 @@ const SpeakerBoardPage = () => {
     const {connected: pushConnected} = useEventChangeSocket(eventId, () => reloadAllRef.current())
     // Solange der Kanal steht, wird der eingestellte Takt zum trägen Sicherheitsnetz gestreckt —
     // reißt er ab, gilt unverändert der eingestellte Takt.
-    const reloadInterval = stretchedPollMs(settings.refreshSeconds * 1000, pushConnected)
+    const reloadInterval = stretchedPollMs(POLL_BASE_MS, pushConnected)
 
     const {data: upcomingData, reload: reloadUpcoming} = useFetch(
         signal => getUpcomingMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
         {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
+    // includeClarification: strittige Läufe fliegen aus den öffentlichen Anzeigen, aber die
+    // Sprecherin muss sie sehen und als "in Klärung" ansagen können.
     const {data: runningData, reload: reloadRunning} = useFetch(
-        signal => getRunningMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
+        signal =>
+            getRunningMatches({
+                signal,
+                path: {eventId},
+                query: {limit: FETCH_LIMIT, includeClarification: true},
+            }),
         {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
@@ -125,17 +141,22 @@ const SpeakerBoardPage = () => {
     }
     reloadAllRef.current = reloadAll
 
-    const runningCount = matches.filter(match => match.status === 'RUNNING').length
+    // Strittige Läufe zählen nicht als "live" — sie laufen gerade eben nicht, sie werden geklärt.
+    const runningCount = matches.filter(
+        match => match.status === 'RUNNING' && !match.clarification,
+    ).length
 
     // Echtzeit-Zeitnahme (Sequenzen, Fehlstärte, Zieleinläufe) über denselben Kanal wie der
     // Leitstand — rein lesend, ohne Berechtigung degradiert das Panel zu einem Hinweis.
     const timing = useSpeakerTiming(eventId, settings.timingTickerLimit)
 
     // Zeitnahme-Aktivität lädt die Sprecher-Listen nach: Das Scharfstellen einer Sequenz oder ein
-    // Zieleinlauf verschiebt einen Lauf sofort zwischen den drei Info-Feeds, aber der allgemeine
-    // Event-Push feuert bei Zeitnahme-Aktionen nicht und der Poll ist als Sicherheitsnetz gestreckt.
-    // Der Schlüssel fasst alles zusammen, was einen Feed-Wechsel anzeigt; entprellt, weil eine
-    // Startwelle viele Nachrichten in kurzer Folge bringt.
+    // Zieleinlauf verschiebt einen Lauf sofort zwischen den drei Info-Feeds. Der Event-Push deckt
+    // diese Schreibpfade zwar auch ab (jede Sequenz-Mutation bumpt den EventChangeMarker), aber er
+    // stellt im verdeckten Tab zu und lebt auf einer eigenen Verbindung — der Timing-Kanal ist der
+    // zweite, unabhängige Signalweg, damit ein montiertes Sprecher-Display nicht an genau einer
+    // Socket-Gesundheit hängt. Der Schlüssel fasst alles zusammen, was einen Feed-Wechsel anzeigt;
+    // entprellt, weil eine Startwelle viele Nachrichten in kurzer Folge bringt.
     const timingActivityKey = [
         [...timing.sequences.values()]
             .map(
@@ -199,7 +220,9 @@ const SpeakerBoardPage = () => {
                 : undefined
             if (ref) return ref.match.competitionSetupMatch
         }
-        const running = matches.filter(match => match.status === 'RUNNING')
+        // Ein strittiger Lauf ist nicht "das Live-Geschehen auf dem Wasser" — er bleibt sichtbar,
+        // aber die Automatik springt nicht auf ihn.
+        const running = matches.filter(match => match.status === 'RUNNING' && !match.clarification)
         if (running.length > 0) return running[running.length - 1].matchId
         const upcoming = matches.find(
             match =>

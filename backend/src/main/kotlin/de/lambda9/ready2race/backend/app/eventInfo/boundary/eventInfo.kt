@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.calls.requests.queryParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
+import de.lambda9.ready2race.backend.parsing.Parser.Companion.boolean
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO
@@ -48,13 +49,16 @@ fun Route.eventInfo() {
                 }
             }
 
-            // Get currently running matches
+            // Get currently running matches. includeClarification=true (Sprecher-Board) liefert
+            // auch die strittigen Läufe mit gesetztem clarification-Flag - der Standardweg lässt
+            // sie weiter weg, damit Stream-Uhr und Anzeigen-Cursor nicht an ihnen hängen bleiben.
             get("/running-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
                     val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val includeClarification = !optionalQueryParam("includeClarification", boolean) ?: false
 
-                    EventInfoService.getRunningMatches(eventId, limit)
+                    EventInfoService.getRunningMatches(eventId, limit, includeClarification)
                 }
             }
 

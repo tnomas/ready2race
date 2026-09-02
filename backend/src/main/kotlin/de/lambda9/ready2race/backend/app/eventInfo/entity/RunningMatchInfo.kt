@@ -26,6 +26,14 @@ data class RunningMatchInfo(
      */
     val startedAt: LocalDateTime?,
     val elapsedMinutes: Long?,
+    /**
+     * Gegen diesen Lauf läuft ein Einspruch (`competition_match.clarification_since` gesetzt).
+     * Nur belegt, wenn die Abfrage strittige Läufe ausdrücklich mitbestellt hat
+     * (`includeClarification`, Sprecher-Board) - der öffentliche Standardweg liefert solche
+     * Läufe gar nicht erst. Bewusst nur das Flag: die Begründung der Schiedsrichter
+     * (`clarification_reason`) ist eine interne Notiz und verlässt das Dashboard nicht.
+     */
+    val clarification: Boolean? = null,
     val placeName: String?,
     val roundNumber: Int?,
     val roundName: String?,
