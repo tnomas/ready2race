@@ -19,3 +19,6 @@ deploy*.sh
 # Merge-Request. Die gepflegten Testseeds daneben (seed-dm-coastal-2026.sql und
 # Geschwister) bleiben versioniert.
 /docs/seeds/seed-prod-*.sql
+
+# Ein versehentlich im Wurzelverzeichnis gestarteter Vitest-Lauf legt hier einen Cache an.
+node_modules/
