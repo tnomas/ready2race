@@ -1,5 +1,4 @@
 import {
-    Alert,
     Box,
     Button,
     Dialog,
@@ -11,10 +10,9 @@ import {
     ToggleButtonGroup,
     Typography,
 } from '@mui/material'
-import React, {useEffect, useRef, useState} from 'react'
+import React, {useRef, useState} from 'react'
 import {updateQrCodeAppuser, updateQrCodeParticipant} from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
-import {useAppSession} from '@contexts/app/AppSessionContext'
 import PersonIcon from '@mui/icons-material/Person'
 import ParticipantAssignment, {
     DedupedParticipant,
@@ -22,7 +20,6 @@ import ParticipantAssignment, {
 import UserAssignment from '@components/qrApp/assign/UserAssignment'
 import SystemUserScanner from '@components/qrApp/assign/SystemUserScanner'
 import {useFeedback} from '@utils/hooks.ts'
-import AppTopTitle from '@components/qrApp/AppTopTitle.tsx'
 import {
     LiveDashboardApiError,
     qrAssignErrorKey,
@@ -37,26 +34,27 @@ interface ConfirmationData {
     additionalInfo?: string[]
 }
 
-const QrAssignPage = () => {
+type Props = {
+    eventId: string
+    qrCodeId: string
+    onDone: () => void
+}
+
+export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
     const {t} = useTranslation()
-    const {qr, appFunction, navigateTo, eventId} = useAppSession()
     const [userTyp, setUserTyp] = useState<UserTyp | null>('Participant')
     const [scanningSystemUser, setScanningSystemUser] = useState(false)
     const [confirmationOpen, setConfirmationOpen] = useState(false)
     const [selectedPerson, setSelectedPerson] = useState<ConfirmationData | null>(null)
+    // Sperre gegen den zweiten Tipper auf "OK", solange die erste Zuweisung noch läuft.
+    const [submitting, setSubmitting] = useState(false)
     const feedback = useFeedback()
     const qrCheckPending = useRef<boolean>(false)
 
-    useEffect(() => {
-        if (!qr.received) {
-            navigateTo('APP_Scanner')
-        }
-    }, [qr, navigateTo])
-
     /**
      * Warum die Zuweisung nicht geklappt hat. Beide bisherigen Meldungen klangen nach Scanfehler
-     * und schickten die Helfer dazu, es noch einmal zu scannen - beim mit Abstand haeufigsten
-     * Grund (Baendchen schon vergeben) hilft nur ein anderes Baendchen.
+     * und schickten die Helfer dazu, es noch einmal zu scannen - beim mit Abstand häufigsten
+     * Grund (Bändchen schon vergeben) hilft nur ein anderes Bändchen.
      */
     const showAssignError = (
         error: LiveDashboardApiError,
@@ -99,13 +97,20 @@ const QrAssignPage = () => {
         setConfirmationOpen(true)
     }
 
+    /**
+     * Der Dialog schließt in jedem Fall, aber weiter geht es nur nach einer geglückten
+     * Zuweisung: Beim häufigsten Fehler (Bändchen schon vergeben) muss die Bandausgabe hier
+     * bleiben und ein anderes Bändchen nehmen, statt zurück in den Scanner geworfen zu werden.
+     */
     const handleConfirmSelection = async () => {
-        if (!selectedPerson) return
+        if (!selectedPerson || submitting) return
+        setSubmitting(true)
 
+        let assigned = false
         if (selectedPerson.type === 'participant') {
             const {error} = await updateQrCodeParticipant({
                 body: {
-                    qrCodeId: qr.qrCodeId!,
+                    qrCodeId: qrCodeId,
                     eventId: eventId,
                     id: selectedPerson.id,
                 },
@@ -113,12 +118,13 @@ const QrAssignPage = () => {
             if (error) {
                 showAssignError(error, 'common.error.unexpected')
             } else {
+                assigned = true
                 feedback.success(t('qrAssign.successParticipant'))
             }
         } else {
             const {error} = await updateQrCodeAppuser({
                 body: {
-                    qrCodeId: qr.qrCodeId!,
+                    qrCodeId: qrCodeId,
                     eventId: eventId,
                     id: selectedPerson.id,
                 },
@@ -126,12 +132,16 @@ const QrAssignPage = () => {
             if (error) {
                 showAssignError(error, 'common.error.unexpected')
             } else {
+                assigned = true
                 feedback.success(t('qrAssign.successUser'))
             }
         }
 
+        setSubmitting(false)
         setConfirmationOpen(false)
-        navigateTo('APP_Scanner')
+        if (assigned) {
+            onDone()
+        }
     }
 
     const handleCloseConfirmation = () => {
@@ -149,7 +159,7 @@ const QrAssignPage = () => {
                     setScanningSystemUser(false)
                     const {error} = await updateQrCodeAppuser({
                         body: {
-                            qrCodeId: qr.qrCodeId!,
+                            qrCodeId: qrCodeId,
                             eventId: eventId,
                             id: data.appUserId,
                         },
@@ -158,7 +168,7 @@ const QrAssignPage = () => {
                         setScanningSystemUser(true)
                         showAssignError(error, 'qrAssign.notAssigned')
                     } else {
-                        navigateTo('APP_Scanner')
+                        onDone()
 
                         feedback.success(t('qrAssign.success'))
                     }
@@ -166,7 +176,7 @@ const QrAssignPage = () => {
                     setScanningSystemUser(false)
                     const {error} = await updateQrCodeParticipant({
                         body: {
-                            qrCodeId: qr.qrCodeId!,
+                            qrCodeId: qrCodeId,
                             eventId: eventId,
                             id: data.participantId,
                         },
@@ -175,7 +185,7 @@ const QrAssignPage = () => {
                         setScanningSystemUser(true)
                         showAssignError(error, 'qrAssign.notAssigned')
                     } else {
-                        navigateTo('APP_Scanner')
+                        onDone()
                         feedback.success(t('qrAssign.success'))
                     }
                 } else {
@@ -189,80 +199,44 @@ const QrAssignPage = () => {
         }
     }
 
-    const canAssign = appFunction === 'APP_QR_MANAGEMENT'
-
     return (
-        <Stack
-            spacing={3}
-            alignItems="center"
-            justifyContent="flex-start"
-            // mx: 'auto' zentriert die Spalte — das App-Layout streckt seine Kinder nur, auf dem
-            // Tablet klebte der auf 600px begrenzte Stack sonst am linken Rand.
-            sx={{width: '100%', maxWidth: 600, mx: 'auto', px: 2, py: 3}}>
-            <Box sx={{width: '100%', textAlign: 'center'}}>
-                <AppTopTitle title={t('qrAssign.title')} disableBackButton={scanningSystemUser} />
-                <Typography variant="body2" color="text.secondary">
-                    {qr.qrCodeId}
-                </Typography>
-            </Box>
+        <Stack spacing={2} sx={{width: 1}}>
+            <Stack spacing={2} sx={{width: '100%'}}>
+                <ToggleButtonGroup
+                    value={scanningSystemUser ? null : userTyp}
+                    exclusive
+                    onChange={handleUserTypChange}
+                    aria-label="user type selection"
+                    sx={{width: '100%'}}>
+                    <ToggleButton value="Participant" sx={{flex: 1, py: 1.5}}>
+                        {t('qrAssign.participant')}
+                    </ToggleButton>
+                    <ToggleButton value="User" sx={{flex: 1, py: 1.5}}>
+                        {t('qrAssign.user')}
+                    </ToggleButton>
+                </ToggleButtonGroup>
 
-            {!canAssign && (
-                <Alert severity="warning" sx={{width: '100%'}}>
-                    {t('qrAssign.notAssigned')}
-                </Alert>
+                <Button variant={'outlined'} fullWidth onClick={handleScanSystemUser} sx={{py: 1.5}}>
+                    {t('qrAssign.scanSystemUser')}
+                </Button>
+            </Stack>
+
+            {userTyp === 'Participant' && !scanningSystemUser && (
+                <ParticipantAssignment eventId={eventId} onSelectParticipant={handleParticipantClick} />
             )}
 
-            {canAssign && (
-                <>
-                    <Stack spacing={2} sx={{width: '100%'}}>
-                        <ToggleButtonGroup
-                            value={scanningSystemUser ? null : userTyp}
-                            exclusive
-                            onChange={handleUserTypChange}
-                            aria-label="user type selection"
-                            sx={{width: '100%'}}>
-                            <ToggleButton value="Participant" sx={{flex: 1}}>
-                                {t('qrAssign.participant')}
-                            </ToggleButton>
-                            <ToggleButton value="User" sx={{flex: 1}}>
-                                {t('qrAssign.user')}
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-
-                        <Button
-                            variant={'outlined'}
-                            fullWidth
-                            onClick={handleScanSystemUser}
-                            sx={{py: 1.5}}>
-                            {t('qrAssign.scanSystemUser')}
-                        </Button>
-                    </Stack>
-
-                    {userTyp === 'Participant' && !scanningSystemUser && (
-                        <ParticipantAssignment
-                            eventId={eventId}
-                            onSelectParticipant={handleParticipantClick}
-                        />
-                    )}
-
-                    {userTyp === 'User' && !scanningSystemUser && (
-                        <UserAssignment eventId={eventId} onSelectUser={handleUserClick} />
-                    )}
-                </>
+            {userTyp === 'User' && !scanningSystemUser && (
+                <UserAssignment eventId={eventId} onSelectUser={handleUserClick} />
             )}
 
-            {canAssign && scanningSystemUser && (
+            {scanningSystemUser && (
                 <SystemUserScanner
                     onScan={handleSystemUserScan}
                     onBack={() => setScanningSystemUser(false)}
                 />
             )}
 
-            <Dialog
-                open={confirmationOpen}
-                onClose={handleCloseConfirmation}
-                maxWidth="sm"
-                fullWidth>
+            <Dialog open={confirmationOpen} onClose={handleCloseConfirmation} maxWidth="sm" fullWidth>
                 <DialogTitle>{t('common.confirmation.title')}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{pt: 2}}>
@@ -272,10 +246,7 @@ const QrAssignPage = () => {
                                 <Typography variant="h6">{selectedPerson?.name}</Typography>
                                 {selectedPerson?.additionalInfo &&
                                     selectedPerson.additionalInfo.map((info, index) => (
-                                        <Typography
-                                            key={index}
-                                            variant="body2"
-                                            color="text.secondary">
+                                        <Typography key={index} variant="body2" color="text.secondary">
                                             {info}
                                         </Typography>
                                     ))}
@@ -287,7 +258,11 @@ const QrAssignPage = () => {
                     <Button onClick={handleCloseConfirmation} variant="outlined">
                         {t('common.back')}
                     </Button>
-                    <Button onClick={handleConfirmSelection} variant="contained" color="primary">
+                    <Button
+                        onClick={() => void handleConfirmSelection()}
+                        variant="contained"
+                        color="primary"
+                        disabled={submitting}>
                         {t('common.ok')}
                     </Button>
                 </DialogActions>
@@ -295,5 +270,3 @@ const QrAssignPage = () => {
         </Stack>
     )
 }
-
-export default QrAssignPage

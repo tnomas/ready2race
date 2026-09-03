@@ -3202,28 +3202,19 @@
     "loading": "Loading CAPTCHA..."
   },
   "qrAssign": {
-    "title": "Assign QR Code",
     "participant": "Participant",
     "user": "User",
-    "participantQrDetected": "Participant QR code detected",
-    "appUserQrDetected": "User QR code detected",
     "clubs": "Clubs",
     "participants": "Participants",
     "users": "Users",
     "noData": "No data",
-    "team": "Team",
     "scanSystemUser": "Scan User from System",
     "scanUserQr": "Scan User QR Code",
     "invalidUserQr": "Invalid User QR Code",
     "invalidQrFormat": "Invalid QR Code Format",
-    "userAssigned": "User {{userId}} assigned",
     "notAssigned": "This QR Code could not be assigned.",
     "successParticipant": "QR code successfully assigned to participant",
     "successUser": "QR code successfully assigned to user",
-    "selectClub": "Select club",
-    "search": "Search...",
-    "confirmSelection": "Confirm selection",
-    "confirm": "Add",
     "success": "QR Code successfully assigned",
     "deleteSuccess": "QR code assignment successfully removed",
     "errorReason": {
@@ -3253,8 +3244,6 @@
   },
   "qrAppuser": {
     "title": "QR Appuser",
-    "user": "User",
-    "underConstruction": "Site under construction",
     "removeAssignment": "Remove QR code assignment",
     "removeAssignmentTitle": "Remove QR code assignment",
     "removeAssignmentConfirm": "Do you really want to remove the QR code assignment?",
@@ -3262,12 +3251,8 @@
     "assignmentInfo": "Assignment information"
   },
   "qrParticipant": {
-    "title": "Participant",
-    "noRight": "You are not authorized for this QR code type.",
     "loading": "Loading...",
     "noRequirements": "No requirements with CheckInApp available.",
-    "enterArea": "Enter competition area",
-    "leaveArea": "Leave competition area",
     "removeAssignment": "Remove QR code assignment",
     "removeAssignmentTitle": "Remove assignment",
     "removeAssignmentConfirm": "Do you really want to remove the assignment?",
@@ -3292,42 +3277,21 @@
     }
   },
   "qrScanner": {
-    "title": "Scanner",
     "cameraError": "Camera could not be opened",
     "cameraErrorHint": "The camera may be in use by another app or access was denied.",
     "cameraRetry": "Restart camera"
   },
   "qrEvents": {
-    "title": "Events",
-    "switchApp": "Switch app",
     "operating": "In operation",
     "none": "No event is currently running.",
     "noneHint": "Operations begin with the accreditation of the first day.",
     "showAll": "All events",
-    "all": "All events",
-    "back": "Back",
-    "noDays": "No event days set"
+    "all": "All events"
   },
   "app": {
-    "functionSelect": {
-      "title": "Your Task",
-      "functions": {
-        "qrManagement": "QR Code Management",
-        "competitionCheck": "Competition Check",
-        "eventRequirement": "Event Requirements",
-        "caterer": "Catering",
-        "timing": "Timing",
-        "liveDashboard": "Referee dashboard"
-      },
-      "switchEvent": "Switch Event"
-    },
     "forbidden": {
       "title": "Not authorized",
-      "message": "You are not authorized for this page.",
-      "backButton": "Back to login"
-    },
-    "dashboard": {
-      "noEvent": "No event selected."
+      "message": "You are not authorized for this page."
     },
     "update": {
       "available": "New version available",
@@ -3341,6 +3305,73 @@
     "reset": {
       "button": "Reset app",
       "confirm": "Resets the app on this device and reloads it. You stay signed in."
+    },
+    "mode": {
+      "APP_QR_MANAGEMENT": "Manage wristbands",
+      "APP_COMPETITION_CHECK": "Check boats in and out",
+      "APP_EVENT_REQUIREMENT": "Check requirements",
+      "APP_CATERER": "Catering"
+    },
+    "result": {
+      "rescan": "Scan again",
+      "removeBand": "Remove wristband",
+      "helperBandNothingToDo": "Helper wristband – nothing to do here.",
+      "choose": {
+        "title": "What do you want to do with this wristband?",
+        "hint": "Your choice applies to the next scans on this device. Change it via the gear icon."
+      },
+      "band": {
+        "PARTICIPANT": "Participant",
+        "USER": "Helper",
+        "UNKNOWN": "Unknown wristband"
+      },
+      "loadError": "The wristband could not be loaded.",
+      "loadErrorTitle": "Wristband not loaded",
+      "otherEvent": {
+        "title": "Wrong event",
+        "message": "This wristband belongs to another event{{name}}."
+      },
+      "unknown": {
+        "title": "Unknown wristband",
+        "message": "This wristband is not assigned to anyone. Only the wristband desk may assign wristbands."
+      }
+    },
+    "header": {
+      "settings": "Settings"
+    },
+    "world": {
+      "SCAN": "Scan",
+      "TIMING": "Timing",
+      "DASHBOARD": "Referee dashboard"
+    },
+    "start": {
+      "title": "What do you want to do?"
+    },
+    "scan": {
+      "title": "Scan",
+      "modeChip": "Mode: {{mode}}",
+      "modeUnset": "Mode: asked on first scan"
+    },
+    "event": {
+      "title": "Choose event",
+      "noDays": "No event days set"
+    },
+    "settings": {
+      "title": "Settings",
+      "event": {
+        "title": "Event",
+        "switch": "Switch event"
+      },
+      "mode": {
+        "title": "Mode",
+        "hint": "Applies to all scans on this device."
+      },
+      "language": {
+        "title": "Language"
+      },
+      "account": {
+        "title": "Account"
+      }
     }
   },
   "timing": {
@@ -3353,7 +3384,6 @@
       }
     },
     "title": "Timing",
-    "selectEvent": "Select event",
     "selectStation": "Select station",
     "sections": {
       "timing": "Timing",
@@ -3845,12 +3875,9 @@
   },
   "caterer": {
     "canReceiveFood": "User can receive food",
-    "cannotReceiveFood": "User cannot receive food",
     "price": "Price (€)",
     "priceHelper": "Optional",
     "confirm": "Transact",
-    "previousTransactions": "Previous Transactions",
-    "scanError": "Error scanning user",
     "transactionError": "Error creating transaction",
     "transactionSuccess": "Transaction successfully completed"
   },

@@ -2,19 +2,23 @@ import {Stack, Typography, Card, CardContent, Box, Chip, Alert, Divider} from '@
 import {useTranslation} from 'react-i18next'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {checkInOutParticipant, getTeamsByParticipantQrCode} from '@api/sdk.gen.ts'
-import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 import {useState} from 'react'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {participantTrackingErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
 
-export const TeamCheckInOut = () => {
+type Props = {
+    eventId: string
+    qrCodeId: string
+    participantId: string
+    onDone: () => void
+}
+
+export const TeamCheckInOut = ({eventId, qrCodeId, participantId, onDone}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
     const [submitting, setSubmitting] = useState(false)
-
-    const {navigateTo, qr, eventId} = useAppSession()
 
     const {data: teamsData, pending: teamsPending} = useFetch(
         signal =>
@@ -22,7 +26,7 @@ export const TeamCheckInOut = () => {
                 signal,
                 path: {
                     eventId,
-                    qrCode: qr.qrCodeId!,
+                    qrCode: qrCodeId,
                 },
             }),
         {
@@ -35,20 +39,19 @@ export const TeamCheckInOut = () => {
                     )
                 }
             },
-            preCondition: () => qr.qrCodeId !== null,
-            deps: [eventId, qr],
+            deps: [eventId, qrCodeId],
         },
     )
 
     const selectedParticipant = teamsData
         ?.flatMap(team => team.participants)
-        .find(participant => participant.participantId === qr.response?.id)
+        .find(participant => participant.participantId === participantId)
 
     const anyTeamRequiresCheckInOut = teamsData?.some(team => team.checkInOutRequired) ?? false
 
     const handleCheckInOut = async (checkIn: boolean) => {
-        setSubmitting(true)
         if (!selectedParticipant) return
+        setSubmitting(true)
 
         const {error} = await checkInOutParticipant({
             path: {
@@ -72,14 +75,16 @@ export const TeamCheckInOut = () => {
                       ? t('club.participant.tracking.checkIn.error')
                       : t('club.participant.tracking.checkOut.error'),
             )
-        } else {
-            feedback.success(
-                checkIn
-                    ? t('club.participant.tracking.checkIn.success')
-                    : t('club.participant.tracking.checkOut.success'),
-            )
+            // Bei einem Fehler bleibt die Seite stehen, wie bei den anderen Ergebnis-Bausteinen:
+            // wer ihn übersieht und weiterscannt, verliert sonst den Check-in/-out kommentarlos.
+            return
         }
-        navigateTo('APP_Scanner')
+        feedback.success(
+            checkIn
+                ? t('club.participant.tracking.checkIn.success')
+                : t('club.participant.tracking.checkOut.success'),
+        )
+        onDone()
     }
 
     return (
@@ -179,13 +184,16 @@ export const TeamCheckInOut = () => {
                             width: 1,
                             display: 'flex',
                             justifyContent: 'center',
-                            py: 1,
+                            pt: 1,
+                            pb: 'calc(8px + env(safe-area-inset-bottom))',
                         }}
                         bgcolor={'background.default'}>
                         {anyTeamRequiresCheckInOut ? (
                             <LoadingButton
                                 pending={submitting || teamsPending}
                                 variant={'contained'}
+                                size="large"
+                                fullWidth
                                 onClick={() =>
                                     handleCheckInOut(
                                         selectedParticipant.currentStatus !== 'ENTRY',

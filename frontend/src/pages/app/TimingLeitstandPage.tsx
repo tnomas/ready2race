@@ -42,7 +42,7 @@ const TABS: LeitstandTab[] = ['overview', 'times', 'results', 'devices']
  * marks half is part of `/timing/state`.
  *
  * Route-unabhängig: die Seite hängt seit dem Betrieb-Umbau (22.08.2026) sowohl unter
- * `/app/timing/$eventId/leitstand` als auch kanonisch unter `/event/$eventId/timing/leitstand` —
+ * `/app/timing/leitstand` als auch kanonisch unter `/event/$eventId/timing/leitstand` —
  * Parameter und Rücksprungziel kommen deshalb als Props von der jeweiligen Route.
  */
 export type TimingLeitstandPageProps = {

@@ -79,16 +79,24 @@ function formatTimeOfDay(ms: number): string {
 }
 
 /**
- * Route-unabhängig: hängt unter `/app/timing/$eventId/$stationId` (App-Welt) und kanonisch unter
+ * Route-unabhängig: hängt unter `/app/timing/$stationId` (App-Welt) und kanonisch unter
  * `/event/$eventId/timing/$stationId` (Betrieb-Reiter, geteilte Posten-Links) — Parameter kommen
  * als Props von der jeweiligen Route.
  */
 export type TimingBoardPageProps = {
     eventId: string
     stationId: string
+    /**
+     * Nur von der `/app`-Route gereicht: alte Adressen aus Verläufen installierter Apps können
+     * eine Kennung tragen, die gar kein Posten dieser Veranstaltung ist (siehe
+     * `appTimingStationRoute` in routes.tsx). Unter `/event/$eventId/timing/$stationId` bleibt
+     * eine unbekannte Postenkennung dagegen ein Programmierfehler, kein Adress-Altlast — dort wird
+     * der Rückruf nicht gereicht.
+     */
+    onUnknownStation?: () => void
 }
 
-const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
+const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPageProps) => {
     const {t} = useTranslation()
     const user = useUser()
     const feedback = useFeedback()
@@ -188,6 +196,17 @@ const TimingBoardPage = ({eventId, stationId}: TimingBoardPageProps) => {
 
     const station = stations.find(s => s.id === stationId)
     const isStart = station?.type === 'START'
+
+    // Alte Zeitnahme-Adressen (siehe `appTimingStationRoute`) können eine Kennung tragen, die in
+    // Wirklichkeit eine Veranstaltungs- statt einer Postenkennung ist — die Route allein kann das
+    // nicht erkennen, weil sie die Postenliste nicht kennt. Erst wenn die Liste geladen ist
+    // (`stations.length > 0`), lässt sich „unbekannter Posten" von „lädt noch" unterscheiden;
+    // erst dann zurück zur Weiche, statt eines toten Boards ohne Posten.
+    useEffect(() => {
+        if (onUnknownStation && stations.length > 0 && station === undefined) {
+            onUnknownStation()
+        }
+    }, [onUnknownStation, stations, station])
 
     // --- Scharfschaltung ------------------------------------------------------------------------
     //

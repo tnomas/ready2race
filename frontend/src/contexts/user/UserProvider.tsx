@@ -17,6 +17,11 @@ import {
     writeSessionUser,
 } from './sessionToken.ts'
 import {clearCachedReads} from '@pwa/readCache.ts'
+import {
+    LEGACY_APP_FUNCTION_KEY,
+    REQUIREMENT_COMPETITION_KEY,
+    SCAN_MODE_KEY,
+} from '@components/qrApp/appMemory.ts'
 
 type Session = {
     token: string
@@ -204,7 +209,11 @@ const UserProvider = ({children}: PropsWithChildren) => {
             // dauerhaft auf dem Gerät. Auf einem geteilten Tablet soll der Nächste nicht die
             // Auswahl des Vorherigen vorfinden.
             localStorage.removeItem('eventId')
-            localStorage.removeItem('appFunction')
+            localStorage.removeItem(LEGACY_APP_FUNCTION_KEY)
+            localStorage.removeItem(SCAN_MODE_KEY)
+            // Der zuletzt gewählte Wettkampf an der Bedingungs-Station (siehe
+            // `ParticipantRequirements`) ist ebenso personenbezogen wie Veranstaltung und Modus.
+            localStorage.removeItem(REQUIREMENT_COMPETITION_KEY)
         }
         try {
             await userLogout()

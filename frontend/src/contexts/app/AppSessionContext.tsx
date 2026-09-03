@@ -5,120 +5,80 @@ import React, {
     useContext,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from 'react'
-import {EventDto, QrCodeAppuserResponse, QrCodeParticipantResponse} from '@api/types.gen.ts'
-import {useUser} from '@contexts/user/UserContext.ts'
-import {useNavigate} from '@tanstack/react-router'
-import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {getEvents} from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
+import {useNavigate} from '@tanstack/react-router'
+import {EventDto} from '@api/types.gen.ts'
+import {getEvents} from '@api/sdk.gen.ts'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {readCachedRead, writeCachedRead} from '@pwa/readCache.ts'
+import {AppWorld, ScanMode, scanRightsOf, worldsOf} from '@components/qrApp/appAccess.ts'
+import {
+    forgetLegacyAppFunction,
+    readRememberedEvent,
+    readScanMode,
+    writeRememberedEvent,
+    writeScanMode,
+} from '@components/qrApp/appMemory.ts'
 
-export type AppFunction =
-    | 'APP_QR_MANAGEMENT'
-    | 'APP_COMPETITION_CHECK'
-    | 'APP_EVENT_REQUIREMENT'
-    | 'APP_CATERER'
-    | 'APP_TIMING'
-    | null
-
-export type AppView =
-    | 'APP_Event_List'
-    | 'APP_Function_Select'
-    | 'APP_Scanner'
-    | 'APP_Participant'
-    | 'App_Assign'
-    | 'App_User'
-    | 'App_Login'
-    | 'APP_Forbidden'
-    | 'APP_Dashboard'
-
-const appViewPaths: Record<AppView, string> = {
-    APP_Event_List: '/app',
-    APP_Function_Select: '/app/function',
-    APP_Scanner: '/app/scanner',
-    APP_Participant: '/app/participant',
-    App_Assign: '/app/assign',
-    App_User: '/app/user',
-    App_Login: '/app/login',
-    APP_Forbidden: '/app/forbidden',
-    APP_Dashboard: '/app/dashboard',
-}
-
-export type AppViewState = {
-    view: AppView
-    replace?: boolean
-}
-
-// The app's QR scanning flow requires an authenticated staff session, so the backend
-// never returns the anonymous QrCodePublicResponse variant here.
-export type StaffQrCodeResponse = QrCodeParticipantResponse | QrCodeAppuserResponse
-
-export type QrState = {
-    qrCodeId: string | null
-    response: StaffQrCodeResponse | null
-    received: boolean
-    handled: boolean
-    update: (state: Omit<QrState, 'update' | 'reset'>) => void
-    reset: () => void
-}
-
-interface AppSessionContextType {
-    appFunction: AppFunction
-    setAppFunction: (fn: AppFunction) => void
-    setEventId: (fn: string) => void
-    eventId: string
-    qr: QrState
-    qrLastScanned: React.MutableRefObject<number>
+/**
+ * Das Gedächtnis der Helfer-App: Veranstaltung, Modus, Veranstaltungsliste und die daraus
+ * abgeleiteten Rechte. Kein Navigationszustand mehr — die Adresse trägt, wo man ist, und die
+ * Band-ID reist in der Adresse.
+ */
+export type AppSession = {
+    eventId: string | null
+    /** Die gemerkte Veranstaltung aus der Liste; fehlt, solange die Liste nicht geladen ist. */
+    event: EventDto | undefined
     events: EventDto[] | undefined
-    setEvents: (events: EventDto[]) => void
-    navigateTo: (view: AppView, replace?: boolean) => void
+    setEventId: (eventId: string) => void
+    scanRights: ScanMode[]
+    worlds: AppWorld[]
+    scanMode: ScanMode | null
+    setScanMode: (mode: ScanMode) => void
 }
 
-const AppSessionContext = createContext<AppSessionContextType | undefined>(undefined)
+const AppSessionContext = createContext<AppSession | undefined>(undefined)
 
 export const AppSessionProvider: React.FC<PropsWithChildren> = ({children}) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const user = useUser()
-    const [viewState, setViewState] = useState<AppViewState>()
-    // Ablage in localStorage, nicht sessionStorage: Beides gehört zur installierten Helfer-App und
-    // muss einen Neustart durch das Betriebssystem überstehen. Läge die Veranstaltung weiterhin
-    // in der Sitzungsablage, stünde nach einem Kaltstart im Flugmodus "Keine Veranstaltung
-    // gewählt" - und der Weg zurück führt über eine Liste, die das Netz braucht.
-    const [appFunction, setAppFunctionState] = useState<AppFunction>(() => {
-        return (localStorage.getItem('appFunction') as AppFunction) || null
-    })
+    const navigate = useNavigate()
 
+    const [eventId, setEventIdState] = useState<string | null>(() =>
+        readRememberedEvent(localStorage),
+    )
     const [events, setEvents] = useState<EventDto[]>()
-    const qrLastScanned = useRef<number>(0)
+    // Der Modus liegt im Speicher; dieser Zähler sorgt nur dafür, dass ein Schreiben neu liest.
+    const [modeVersion, setModeVersion] = useState(0)
 
-    const [eventId, setEventIdValue] = useState<string>(() => {
-        return localStorage.getItem('eventId') || ''
-    })
+    useEffect(() => {
+        forgetLegacyAppFunction(localStorage)
+    }, [])
 
-    const cacheUserId = user.loggedIn ? user.id : ''
+    const userId = user.loggedIn ? user.id : ''
+    const scanRights = useMemo(() => scanRightsOf(user.checkPrivilege), [user])
+    const worlds = useMemo(() => worldsOf(user.checkPrivilege), [user])
 
     // Die Veranstaltungsliste kommt beim Start aus dem Bestand, damit die Auswahl ohne Netz nicht
     // leer bleibt. Sie wird überschrieben, sobald ein echter Abruf durchkommt.
     useEffect(() => {
-        if (!cacheUserId) {
-            return
-        }
-        const cached = readCachedRead<EventDto[]>('events', cacheUserId, 'alle')
+        if (!userId) return
+        const cached = readCachedRead<EventDto[]>('events', userId, 'alle')
         if (cached) {
             setEvents(prev => prev ?? cached.payload)
         }
-    }, [cacheUserId])
+    }, [userId])
 
     useFetch(signal => getEvents({signal}), {
         onResponse: response => {
             if (response.data) {
                 setEvents(response.data.data)
-                if (cacheUserId) {
-                    writeCachedRead('events', cacheUserId, 'alle', response.data.data)
+                if (userId) {
+                    writeCachedRead('events', userId, 'alle', response.data.data)
                 }
             }
             if (response.error) {
@@ -129,80 +89,52 @@ export const AppSessionProvider: React.FC<PropsWithChildren> = ({children}) => {
         deps: [user.loggedIn],
     })
 
-    const navigate = useNavigate()
+    const setEventId = useCallback((id: string) => {
+        writeRememberedEvent(id, localStorage)
+        setEventIdState(id)
+    }, [])
 
-    useEffect(() => {
-        if (viewState !== undefined) {
-            void navigate({to: appViewPaths[viewState.view], replace: viewState.replace})
-        }
-    }, [viewState, navigate])
-
-    const setAppFunction = (fn: AppFunction) => {
-        setAppFunctionState(fn)
-        if (fn) {
-            localStorage.setItem('appFunction', fn)
-        } else {
-            localStorage.removeItem('appFunction')
-        }
-    }
-
-    const setEventId = (fn: string) => {
-        setEventIdValue(fn)
-        if (fn.length > 0) {
-            localStorage.setItem('eventId', fn)
-        } else {
-            localStorage.removeItem('eventId')
-        }
-    }
-
-    const [qrState, setQrState] = useState<Omit<QrState, 'update' | 'reset'>>({
-        qrCodeId: null,
-        response: null,
-        received: false,
-        handled: false,
-    })
-
-    const qr: QrState = useMemo(
-        () => ({
-            ...qrState,
-            update: (state: Omit<QrState, 'update' | 'reset'>) => {
-                setQrState(prev => ({...prev, ...state}))
-            },
-            reset: () => {
-                setQrState({
-                    qrCodeId: null,
-                    response: null,
-                    received: false,
-                    handled: false,
-                })
-            },
-        }),
-        [qrState],
+    const scanMode = useMemo(
+        () => (userId && eventId ? readScanMode(userId, eventId, scanRights, localStorage) : null),
+        // modeVersion ist absichtlich dabei: es ist der einzige Anstoß nach einem Schreiben.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [userId, eventId, scanRights, modeVersion],
     )
 
-    const navigateTo = useCallback((view: AppView, replace: boolean = false) => {
-        setViewState({view, replace})
-    }, [])
+    const setScanMode = useCallback(
+        (mode: ScanMode) => {
+            if (!userId || !eventId) return
+            writeScanMode(userId, eventId, mode, localStorage)
+            setModeVersion(v => v + 1)
+        },
+        [userId, eventId],
+    )
+
+    const event = useMemo(() => events?.find(e => e.id === eventId), [events, eventId])
+
+    // `appEntry.ts` (die Weiche) behandelt „Liste geladen, gemerkte Veranstaltung fehlt darin"
+    // schon richtig — aber nur dort, beim erneuten Aufruf der Weiche. Auf jeder anderen Seite
+    // navigiert man mit der gemerkten Veranstaltung sofort weg von `/app`, während `events` noch
+    // `undefined` ist; kommt die Liste danach an, entscheidet niemand mehr neu. Eine gelöschte
+    // oder nicht mehr sichtbare Veranstaltung darf den Helfer nicht in einem Scanner
+    // zurücklassen, an dem jedes Band mit „Falsche Veranstaltung" antwortet — deshalb hier, einmal
+    // zentral für die ganze App-Welt, zurück zur Weiche, die dann neu entscheidet. Strikt auf
+    // `events !== undefined` geprüft: der Offline-Start mit gemerkter Veranstaltung bleibt unberührt.
+    useEffect(() => {
+        if (events !== undefined && eventId !== null && !events.some(e => e.id === eventId)) {
+            void navigate({to: '/app', replace: true})
+        }
+    }, [events, eventId, navigate])
 
     return (
         <AppSessionContext.Provider
-            value={{
-                appFunction,
-                setAppFunction,
-                setEventId,
-                eventId,
-                qr,
-                qrLastScanned,
-                events,
-                setEvents: events => setEvents(events),
-                navigateTo,
-            }}>
+            value={{eventId, event, events, setEventId, scanRights, worlds, scanMode, setScanMode}}>
             {children}
         </AppSessionContext.Provider>
     )
 }
 
-export const useAppSession = (): AppSessionContextType => {
+export const useAppSession = (): AppSession => {
     const ctx = useContext(AppSessionContext)
     if (!ctx) throw new Error('AppSessionContext not found')
     return ctx

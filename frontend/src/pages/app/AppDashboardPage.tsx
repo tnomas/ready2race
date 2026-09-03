@@ -1,33 +1,37 @@
-import {Alert} from '@mui/material'
-import {useTranslation} from 'react-i18next'
+import {useEffect} from 'react'
+import {useNavigate} from '@tanstack/react-router'
 import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 import LiveDashboardPage from '../event/LiveDashboardPage.tsx'
 
 /**
  * Dasselbe Dashboard wie in der Verwaltungsoberfläche, nur im App-Layout.
- * Die Veranstaltung kommt aus der App-Sitzung statt aus der Route.
+ * Die Veranstaltung kommt aus dem Gedächtnis der App statt aus der Route.
  */
 const AppDashboardPage = () => {
-    const {t} = useTranslation()
-    const {eventId, navigateTo} = useAppSession()
+    const {eventId} = useAppSession()
+    const navigate = useNavigate()
 
-    if (!eventId) {
-        return <Alert severity="info">{t('app.dashboard.noEvent')}</Alert>
-    }
+    // `requireAppEvent` im `beforeLoad` der Route sichert die gemerkte Veranstaltung normalerweise
+    // schon zu; verschwindet sie danach (siehe `AppSessionProvider`, gegengeprüfte Veranstaltung),
+    // bliebe ohne diesen Effekt ein leerer Bildschirm stehen statt zurück zur Weiche zu gehen.
+    useEffect(() => {
+        if (!eventId) {
+            void navigate({to: '/app', replace: true})
+        }
+    }, [eventId, navigate])
+    if (!eventId) return null
 
-    // Kein eigener AppTopTitle mehr: das Dashboard zeigt seinen Titel selbst, ein zweiter
-    // darüber verschwendete nur Platz. Der Zurück-Pfeil wandert per `onBack` in die
-    // Dashboard-Kopfzeile — nötig bleibt er, weil in der installierten PWA (standalone, ohne
-    // Browser-Leiste) der Browser-Zurück-Knopf fehlt und man sonst im Dashboard festsäße
-    // (beobachtet am 10.08.2026). Ziel ist die Funktionsauswahl, nicht der Scanner: von dort
-    // ist man ins Dashboard gekommen.
+    // Kein eigener Titel darüber: das Dashboard zeigt seinen Titel selbst, ein zweiter
+    // verschwendete nur Platz. Der Zurück-Pfeil wandert per `onBack` in die Dashboard-Kopfzeile —
+    // nötig bleibt er, weil in der installierten PWA (standalone, ohne Browser-Leiste) der
+    // Browser-Zurück-Knopf fehlt und man sonst im Dashboard festsäße (beobachtet am 10.08.2026).
     // `cacheReads` nur hier: Der zuletzt geladene Stand gehört aufs Telefon am Steg, nicht in den
     // Speicher eines Arbeitsplatzrechners.
     return (
         <LiveDashboardPage
             eventId={eventId}
             cacheReads
-            onBack={() => navigateTo('APP_Function_Select')}
+            onBack={() => void navigate({to: '/app'})}
         />
     )
 }

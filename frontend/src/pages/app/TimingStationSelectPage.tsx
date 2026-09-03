@@ -1,43 +1,46 @@
-import {Box, Card, CardActionArea, Chip, Stack, Typography} from '@mui/material'
+import {useEffect} from 'react'
+import {Card, CardActionArea, Chip, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
-import {useEffect} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useFetch} from '@utils/hooks.ts'
 import {getTimingStations} from '@api/sdk.gen.ts'
-import {
-    updateAppCompetitionCheckGlobal,
-    updateAppTimingGlobal,
-    updateEventGlobal,
-} from '@authorization/privileges.ts'
-import {timingEventRoute} from '@routes'
+import {updateAppCompetitionCheckGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import Throbber from '@components/Throbber.tsx'
+import AppHeader from '@components/qrApp/AppHeader.tsx'
+import AppColumn from '@components/qrApp/AppColumn.tsx'
 import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 
 const TimingStationSelectPage = () => {
     const {t} = useTranslation()
     const user = useUser()
     const navigate = useNavigate()
-    const {eventId} = timingEventRoute.useParams()
-    const {setEventId, setAppFunction, navigateTo} = useAppSession()
-
-    useEffect(() => {
-        if (!user.checkPrivilege(updateAppTimingGlobal)) {
-            void navigate({to: '/app/forbidden'})
-        }
-    }, [user, navigate])
+    const {eventId, event, worlds, setScanMode} = useAppSession()
 
     const {data: stations, pending} = useFetch(
-        signal => getTimingStations({signal, path: {eventId}}),
-        {deps: [eventId]},
+        signal => getTimingStations({signal, path: {eventId: eventId ?? ''}}),
+        {preCondition: () => eventId !== null, deps: [eventId]},
     )
 
+    // `requireAppEvent` im `beforeLoad` der Route sichert die gemerkte Veranstaltung normalerweise
+    // schon zu; verschwindet sie danach (siehe `AppSessionProvider`, gegengeprüfte Veranstaltung),
+    // bliebe ohne diesen Effekt ein leerer Bildschirm stehen statt zurück zur Weiche zu gehen.
+    useEffect(() => {
+        if (!eventId) {
+            void navigate({to: '/app', replace: true})
+        }
+    }, [eventId, navigate])
+    if (!eventId) return null
+
     return (
-        <Box sx={{width: 1, maxWidth: 600}}>
+        <AppColumn>
+            <AppHeader
+                title={t('timing.selectStation')}
+                subtitle={event?.name}
+                onBack={worlds.length > 1 ? () => void navigate({to: '/app/start'}) : undefined}
+                settings
+            />
             <Stack spacing={2} sx={{width: 1}}>
-                <Typography variant="h4" textAlign="center" gutterBottom>
-                    {t('timing.selectStation')}
-                </Typography>
                 <Typography variant="subtitle2" color="text.secondary">
                     {t('timing.sections.timing')}
                 </Typography>
@@ -46,8 +49,8 @@ const TimingStationSelectPage = () => {
                         <CardActionArea
                             onClick={() =>
                                 void navigate({
-                                    to: '/app/timing/$eventId/$stationId',
-                                    params: {eventId, stationId: station.id},
+                                    to: '/app/timing/$stationId',
+                                    params: {stationId: station.id},
                                 })
                             }
                             sx={{
@@ -61,7 +64,10 @@ const TimingStationSelectPage = () => {
                                 py: 2,
                             }}>
                             <Typography variant="h6">{station.name}</Typography>
-                            <Chip label={t(`timing.station.types.${station.type}`)} color="primary" />
+                            <Chip
+                                label={t(`timing.station.types.${station.type}`)}
+                                color="primary"
+                            />
                         </CardActionArea>
                     </Card>
                 ))}
@@ -71,18 +77,13 @@ const TimingStationSelectPage = () => {
                         {t('timing.sections.other')}
                     </Typography>
                 )}
-                {/* The Leitstand is not a station: it is the control desk over all of them, and it
-                    writes into the event's results — hence the stricter privilege than the operator
-                    boards above. */}
+                {/* Der Leitstand ist kein Posten: Er ist der Schreibtisch über allen und schreibt in
+                    die Ergebnisse der Veranstaltung — daher das strengere Recht als bei den
+                    Erfassungsboards darüber. */}
                 {user.checkPrivilege(updateEventGlobal) && (
                     <Card sx={{minHeight: 96, width: 1}}>
                         <CardActionArea
-                            onClick={() =>
-                                void navigate({
-                                    to: '/app/timing/$eventId/leitstand',
-                                    params: {eventId},
-                                })
-                            }
+                            onClick={() => void navigate({to: '/app/timing/leitstand'})}
                             sx={{
                                 height: 1,
                                 minHeight: 96,
@@ -98,18 +99,14 @@ const TimingStationSelectPage = () => {
                         </CardActionArea>
                     </Card>
                 )}
-                {/* Schiedsrichter is not a timing station either: it re-uses the existing
-                    Wettkampf-Check app function (competition-check flow) for this same event.
-                    We hand the event over via AppSessionContext (setEventId + setAppFunction),
-                    the same mechanism the QR event list uses, then navigate into the shared
-                    scanner entry point. */}
+                {/* Schiedsrichter ist ebenfalls kein Posten: Die Karte setzt den Stationsmodus auf
+                    das An- und Abmelden der Boote und wechselt in die Scan-Welt. */}
                 {user.checkPrivilege(updateAppCompetitionCheckGlobal) && (
                     <Card sx={{minHeight: 96, width: 1}}>
                         <CardActionArea
                             onClick={() => {
-                                setEventId(eventId)
-                                setAppFunction('APP_COMPETITION_CHECK')
-                                navigateTo('APP_Scanner')
+                                setScanMode('APP_COMPETITION_CHECK')
+                                void navigate({to: '/app/scan'})
                             }}
                             sx={{
                                 height: 1,
@@ -122,16 +119,13 @@ const TimingStationSelectPage = () => {
                                 py: 2,
                             }}>
                             <Typography variant="h6">{t('timing.referee.title')}</Typography>
-                            <Chip
-                                label={t('app.functionSelect.functions.competitionCheck')}
-                                color="secondary"
-                            />
+                            <Chip label={t('app.mode.APP_COMPETITION_CHECK')} color="secondary" />
                         </CardActionArea>
                     </Card>
                 )}
                 {pending && <Throbber />}
             </Stack>
-        </Box>
+        </AppColumn>
     )
 }
 

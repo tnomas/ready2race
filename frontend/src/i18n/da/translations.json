@@ -3035,28 +3035,19 @@
     "loading": "Indlæser CAPTCHA..."
   },
   "qrAssign": {
-    "title": "Tildel QR-kode",
     "participant": "Deltager",
     "user": "Bruger",
     "clubs": "Klubber",
     "participants": "Deltagere",
     "users": "Brugere",
     "noData": "Ingen data",
-    "team": "Hold",
     "scanSystemUser": "Scan bruger fra system",
     "scanUserQr": "Scan bruger-QR-kode",
     "invalidUserQr": "Ugyldig bruger-QR-kode",
     "invalidQrFormat": "Ugyldigt QR-kodeformat",
-    "userAssigned": "Bruger {{userId}} tildelt",
-    "participantQrDetected": "Deltager-QR-kode registreret",
-    "appUserQrDetected": "Bruger-QR-kode registreret",
     "notAssigned": "Denne QR-kode kunne ikke tildeles.",
     "successParticipant": "QR-kode tildelt deltageren",
     "successUser": "QR-kode tildelt brugeren",
-    "selectClub": "Vælg klub",
-    "search": "Søg...",
-    "confirmSelection": "Bekræft valg",
-    "confirm": "Tilføj",
     "success": "QR-kode tildelt",
     "deleteSuccess": "QR-kode-tildeling ophævet",
     "errorReason": {
@@ -3086,8 +3077,6 @@
   },
   "qrAppuser": {
     "title": "QR-appbruger",
-    "user": "Bruger",
-    "underConstruction": "Side under opbygning",
     "removeAssignment": "Ophæv QR-kode-tildeling",
     "removeAssignmentTitle": "Ophæv QR-kode-tildeling",
     "removeAssignmentConfirm": "Vil du virkelig ophæve QR-kode-tildelingen?",
@@ -3095,12 +3084,8 @@
     "assignmentInfo": "Tildelingsinformation"
   },
   "qrParticipant": {
-    "title": "Deltager",
-    "noRight": "Du har ikke tilladelse til denne QR-kodetype.",
     "loading": "Indlæser...",
     "noRequirements": "Ingen betingelser med CheckInApp tilgængelige.",
-    "enterArea": "Indgang til konkurrenceområde",
-    "leaveArea": "Udgang fra konkurrenceområde",
     "removeAssignment": "Fjern QR-kode-tildeling",
     "removeAssignmentTitle": "Fjern tildeling",
     "removeAssignmentConfirm": "Vil du virkelig fjerne tildelingen?",
@@ -3125,42 +3110,21 @@
     }
   },
   "qrScanner": {
-    "title": "Scanner",
     "cameraError": "Kameraet kunne ikke åbnes",
     "cameraErrorHint": "Kameraet bruges muligvis af en anden app, eller adgangen blev nægtet.",
     "cameraRetry": "Genstart kameraet"
   },
   "qrEvents": {
-    "title": "Events",
-    "switchApp": "Skift app",
     "operating": "I drift",
     "none": "Der er intet igangværende event.",
     "noneHint": "Driften begynder med akkrediteringen den første dag.",
     "showAll": "Alle events",
-    "all": "Alle events",
-    "back": "Tilbage",
-    "noDays": "Ingen arrangementsdage angivet"
+    "all": "Alle events"
   },
   "app": {
-    "functionSelect": {
-      "title": "Din opgave",
-      "functions": {
-        "qrManagement": "QR-kodeadministration",
-        "competitionCheck": "Konkurrence-check",
-        "eventRequirement": "Kontrollér betingelser",
-        "caterer": "Forplejning",
-        "timing": "Tidtagning",
-        "liveDashboard": "Dommerpanel"
-      },
-      "switchEvent": "Skift arrangement"
-    },
     "forbidden": {
       "title": "Ingen adgang",
-      "message": "Du har ikke adgang til denne side.",
-      "backButton": "Tilbage til login"
-    },
-    "dashboard": {
-      "noEvent": "Ingen begivenhed valgt."
+      "message": "Du har ikke adgang til denne side."
     },
     "update": {
       "available": "Ny version tilgængelig",
@@ -3174,6 +3138,73 @@
     "reset": {
       "button": "Nulstil app",
       "confirm": "Nulstiller appen på denne enhed og genindlæser den. Du forbliver logget ind."
+    },
+    "mode": {
+      "APP_QR_MANAGEMENT": "Administrer armbånd",
+      "APP_COMPETITION_CHECK": "Tjek både ind og ud",
+      "APP_EVENT_REQUIREMENT": "Tjek krav",
+      "APP_CATERER": "Forplejning"
+    },
+    "result": {
+      "rescan": "Scan igen",
+      "removeBand": "Fjern armbånd",
+      "helperBandNothingToDo": "Hjælperarmbånd – intet at gøre her.",
+      "choose": {
+        "title": "Hvad vil du gøre med dette armbånd?",
+        "hint": "Dit valg gælder for de næste scanninger på denne enhed. Skift det via tandhjulet."
+      },
+      "band": {
+        "PARTICIPANT": "Deltager",
+        "USER": "Hjælper",
+        "UNKNOWN": "Ukendt armbånd"
+      },
+      "loadError": "Armbåndet kunne ikke indlæses.",
+      "loadErrorTitle": "Armbånd ikke indlæst",
+      "otherEvent": {
+        "title": "Forkert stævne",
+        "message": "Dette armbånd hører til et andet stævne{{name}}."
+      },
+      "unknown": {
+        "title": "Ukendt armbånd",
+        "message": "Dette armbånd er ikke tildelt nogen. Kun armbåndsudleveringen må tildele armbånd."
+      }
+    },
+    "header": {
+      "settings": "Indstillinger"
+    },
+    "world": {
+      "SCAN": "Scan",
+      "TIMING": "Tidtagning",
+      "DASHBOARD": "Dommer-dashboard"
+    },
+    "start": {
+      "title": "Hvad vil du gøre?"
+    },
+    "scan": {
+      "title": "Scan",
+      "modeChip": "Tilstand: {{mode}}",
+      "modeUnset": "Tilstand: spørges ved første scanning"
+    },
+    "event": {
+      "title": "Vælg stævne",
+      "noDays": "Ingen arrangementsdage angivet"
+    },
+    "settings": {
+      "title": "Indstillinger",
+      "event": {
+        "title": "Stævne",
+        "switch": "Skift stævne"
+      },
+      "mode": {
+        "title": "Tilstand",
+        "hint": "Gælder for alle scanninger på denne enhed."
+      },
+      "language": {
+        "title": "Sprog"
+      },
+      "account": {
+        "title": "Konto"
+      }
     }
   },
   "timing": {
@@ -3186,7 +3217,6 @@
       }
     },
     "title": "Tidtagning",
-    "selectEvent": "Vælg arrangement",
     "selectStation": "Vælg post",
     "sections": {
       "timing": "Tidtagning",
@@ -3678,12 +3708,9 @@
   },
   "caterer": {
     "canReceiveFood": "Bruger kan modtage mad",
-    "cannotReceiveFood": "Bruger kan ikke modtage mad",
     "price": "Pris (€)",
     "priceHelper": "Valgfrit",
     "confirm": "Bekræft",
-    "previousTransactions": "Tidligere transaktioner",
-    "scanError": "Fejl ved scanning af brugeren",
     "transactionError": "Fejl ved oprettelse af transaktion",
     "transactionSuccess": "Transaktion gennemført"
   },

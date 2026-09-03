@@ -4,7 +4,6 @@ import {Container, Box, Button} from '@mui/material'
 import {useSnackbar} from 'notistack'
 import {useTranslation} from 'react-i18next'
 import {AppSessionProvider} from '@contexts/app/AppSessionContext.tsx'
-import LanguageWidget from '@components/appbar/LanguageWidget.tsx'
 import {useRegisterAppSW} from '@pwa/registerAppSW.ts'
 
 const AppLayout = () => {
@@ -35,12 +34,12 @@ const AppLayout = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                py: {xs: 2, sm: 4},
                 px: {xs: 2, sm: 3},
+                // Safe-Areas: Die installierte App läuft ohne Browser-Leiste bis unter die Kerbe und die
+                // Home-Leiste, sonst liegt die Kopfzeile unter der Uhr.
+                pt: 'calc(env(safe-area-inset-top) + 12px)',
+                pb: 'calc(env(safe-area-inset-bottom) + 16px)',
             }}>
-            <Box sx={{width: '100%', display: 'flex', justifyContent: 'end'}}>
-                <LanguageWidget />
-            </Box>
             <Box
                 component="main"
                 sx={{

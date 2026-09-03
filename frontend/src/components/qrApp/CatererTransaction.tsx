@@ -17,7 +17,7 @@ export const CatererTransaction = ({ onConfirm, submitting }: CatererTransaction
     };
 
     return (
-        <Box sx={{ width: '100%', maxWidth: 600 }}>
+        <Box sx={{ width: '100%' }}>
             <Stack spacing={2}>
                 <Alert severity="success">
                     {t('caterer.canReceiveFood')}
@@ -40,7 +40,9 @@ export const CatererTransaction = ({ onConfirm, submitting }: CatererTransaction
                     color="primary"
                     onClick={handleConfirm}
                     disabled={submitting}
+                    size="large"
                     fullWidth
+                    sx={{ py: 1.5 }}
                 >
                     {t('caterer.confirm')}
                 </Button>

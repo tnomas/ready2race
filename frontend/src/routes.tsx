@@ -1,3 +1,4 @@
+import {useEffect} from 'react'
 import {
     createRootRouteWithContext,
     createRoute,
@@ -56,14 +57,16 @@ import AcceptInvitationPage from './pages/user/AcceptInvitationPage.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import LandingPage from './pages/LandingPage.tsx'
 import AppLayout from './layouts/AppLayout.tsx'
-import QrScannerPage from './pages/app/QrScannerPage.tsx'
-import QrEventsPage from './pages/app/QrEventsPage.tsx'
-import QrAppuserPage from './pages/app/QrAppuserPage.tsx'
-import QrParticipantPage from './pages/app/QrParticipantPage.tsx'
-import QrAssignPage from './pages/app/QrAssignPage.tsx'
 import AppLoginPage from './pages/app/AppLoginPage.tsx'
+import AppEntryPage from './pages/app/AppEntryPage.tsx'
+import EventChoicePage from './pages/app/EventChoicePage.tsx'
+import WorldsPage from './pages/app/WorldsPage.tsx'
+import ScanPage from './pages/app/ScanPage.tsx'
+import ScanResultPage from './pages/app/ScanResultPage.tsx'
+import SettingsPage from './pages/app/SettingsPage.tsx'
+import {readRememberedEvent} from './components/qrApp/appMemory.ts'
+import {scanRightsOf} from './components/qrApp/appAccess.ts'
 import ForbiddenPage from './pages/app/ForbiddenPage.tsx'
-import AppFunctionSelectPage from './pages/app/AppFunctionSelectPage.tsx'
 import AppDashboardPage from './pages/app/AppDashboardPage.tsx'
 import EventRegistrationPage from './pages/eventRegistration/EventRegistrationPage.tsx'
 import InvoicesPage from './pages/InvoicePage.tsx'
@@ -74,7 +77,6 @@ import ResultsQrCodePage from './pages/results/ResultsQrCodePage.tsx'
 import ResultsLayout from './layouts/ResultsLayout.tsx'
 import AdministrationPage from './pages/AdministrationPage.tsx'
 import ChallengePage from './pages/challenge/ChallengePage.tsx'
-import TimingEventsPage from './pages/app/TimingEventsPage.tsx'
 import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
 import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
 import TimingLeitstandPage from './pages/app/TimingLeitstandPage.tsx'
@@ -275,15 +277,6 @@ export const configurationIndexRoute = createRoute({
         checkAuth(context, location, updateEventGlobal)
     },
     validateSearch: validateTabSearch<ConfigurationTab>,
-})
-
-export const qrEventsRoute = createRoute({
-    getParentRoute: () => appRoute,
-    path: '/',
-    component: () => <QrEventsPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
 })
 
 export const eventsRoute = createRoute({
@@ -598,46 +591,37 @@ export const administrationIndexRoute = createRoute({
     },
 })
 
+// --- Helfer-App -------------------------------------------------------------------------------
+//
+// Der Ablauf beginnt mit dem Scanner; die Weiche `/app` entscheidet aus Rechten und Bestand, wohin
+// es geht. Die Veranstaltung steht nicht in der Adresse, sondern im Gedächtnis der App
+// (localStorage), deshalb prüfen die Wächter sie dort. Fehlt eine Voraussetzung, geht es zurück
+// zur Weiche — sie ist die einzige Stelle, die Umleitungen kennt.
+
+const requireAppEvent = () => {
+    if (readRememberedEvent(localStorage) === null) {
+        throw redirect({to: '/app'})
+    }
+}
+
+const requireAppRight = (context: User, allowed: (user: AuthenticatedUser) => boolean) => {
+    checkAuthApp(context)
+    if (!context.loggedIn || !allowed(context)) {
+        throw redirect({to: '/app'})
+    }
+}
+
 export const appRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'app',
     component: () => <AppLayout />,
 })
 
-export const qrScanRoute = createRoute({
+export const appIndexRoute = createRoute({
     getParentRoute: () => appRoute,
-    path: 'scanner',
-    component: () => <QrScannerPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
-})
-
-export const qrUserRoute = createRoute({
-    getParentRoute: () => appRoute,
-    path: 'user',
-    component: () => <QrAppuserPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
-})
-
-export const qrParticipantRoute = createRoute({
-    getParentRoute: () => appRoute,
-    path: 'participant',
-    component: () => <QrParticipantPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
-})
-
-export const qrAssignRoute = createRoute({
-    getParentRoute: () => appRoute,
-    path: 'assign',
-    component: () => <QrAssignPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
+    path: '/',
+    component: () => <AppEntryPage />,
+    beforeLoad: ({context}) => checkAuthApp(context),
 })
 
 export const appLoginRoute = createRoute({
@@ -652,73 +636,50 @@ export const appForbiddenRoute = createRoute({
     component: () => <ForbiddenPage />,
 })
 
-export const appFunctionSelectRoute = createRoute({
+export const appEventChoiceRoute = createRoute({
     getParentRoute: () => appRoute,
-    path: 'function',
-    component: () => <AppFunctionSelectPage />,
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
+    path: 'veranstaltung',
+    component: () => <EventChoicePage />,
+    beforeLoad: ({context}) => checkAuthApp(context),
 })
 
-export const timingRoute = createRoute({
+export const appStartRoute = createRoute({
     getParentRoute: () => appRoute,
-    path: 'timing',
-})
-
-export const timingEventsIndexRoute = createRoute({
-    getParentRoute: () => timingRoute,
-    path: '/',
-    component: () => <TimingEventsPage />,
+    path: 'start',
+    component: () => <WorldsPage />,
     beforeLoad: ({context}) => {
         checkAuthApp(context)
+        requireAppEvent()
     },
 })
 
-export const timingEventRoute = createRoute({
-    getParentRoute: () => timingRoute,
-    path: '$eventId',
+export const appScanRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'scan',
+    component: () => <ScanPage />,
+    beforeLoad: ({context}) => {
+        requireAppRight(context, user => scanRightsOf(user.checkPrivilege).length > 0)
+        requireAppEvent()
+    },
 })
 
-export const timingStationSelectIndexRoute = createRoute({
-    getParentRoute: () => timingEventRoute,
-    path: '/',
-    component: () => <TimingStationSelectPage />,
+export const appScanResultRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'scan/$qrCodeId',
+    component: () => <ScanResultPage />,
+    beforeLoad: ({context}) => {
+        requireAppRight(context, user => scanRightsOf(user.checkPrivilege).length > 0)
+        requireAppEvent()
+    },
+})
+
+export const appSettingsRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'einstellungen',
+    component: () => <SettingsPage />,
     beforeLoad: ({context}) => {
         checkAuthApp(context)
-    },
-})
-
-// Declared before `timingStationRoute` and matched ahead of it: `leitstand` is a static segment, so
-// it must win over the sibling `$stationId` param route.
-export const timingLeitstandRoute = createRoute({
-    getParentRoute: () => timingEventRoute,
-    path: 'leitstand',
-    component: function AppTimingLeitstand() {
-        const {eventId} = timingEventRoute.useParams()
-        const navigate = useNavigate()
-        return (
-            <TimingLeitstandPage
-                eventId={eventId}
-                onBack={() => void navigate({to: '/app/timing/$eventId', params: {eventId}})}
-            />
-        )
-    },
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
-    },
-})
-
-export const timingStationRoute = createRoute({
-    getParentRoute: () => timingEventRoute,
-    path: '$stationId',
-    component: function AppTimingStation() {
-        const {eventId} = timingEventRoute.useParams()
-        const {stationId} = timingStationRoute.useParams()
-        return <TimingBoardPage eventId={eventId} stationId={stationId} />
-    },
-    beforeLoad: ({context}) => {
-        checkAuthApp(context)
+        requireAppEvent()
     },
 })
 
@@ -727,7 +688,107 @@ export const appDashboardRoute = createRoute({
     path: 'dashboard',
     component: () => <AppDashboardPage />,
     beforeLoad: ({context}) => {
-        checkAuthApp(context)
+        requireAppRight(context, user => user.checkPrivilege(readLiveDashboardGlobal))
+        requireAppEvent()
+    },
+})
+
+export const appTimingRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: 'timing',
+})
+
+export const appTimingIndexRoute = createRoute({
+    getParentRoute: () => appTimingRoute,
+    path: '/',
+    component: () => <TimingStationSelectPage />,
+    beforeLoad: ({context}) => {
+        requireAppRight(context, user => user.checkPrivilege(updateAppTimingGlobal))
+        requireAppEvent()
+    },
+})
+
+// Vor `appTimingStationRoute` deklariert: das statische `leitstand` muss gegen `$stationId`
+// gewinnen.
+export const appTimingLeitstandRoute = createRoute({
+    getParentRoute: () => appTimingRoute,
+    path: 'leitstand',
+    component: function AppTimingLeitstand() {
+        const navigate = useNavigate()
+        const eventId = readRememberedEvent(localStorage)
+        // `requireAppEvent` im `beforeLoad` sichert die gemerkte Veranstaltung beim Betreten der
+        // Route zu; verschwindet sie danach (siehe `AppSessionProvider`, gegengeprüfte
+        // Veranstaltung), bliebe ohne diesen Effekt ein leerer Bildschirm stehen statt zurück zur
+        // Weiche zu gehen.
+        useEffect(() => {
+            if (eventId === null) {
+                void navigate({to: '/app', replace: true})
+            }
+        }, [eventId, navigate])
+        if (eventId === null) return null
+        return (
+            <TimingLeitstandPage
+                eventId={eventId}
+                onBack={() => void navigate({to: '/app/timing'})}
+            />
+        )
+    },
+    beforeLoad: ({context}) => {
+        // Der Leitstand schreibt in die Ergebnisse der Veranstaltung — strenger als die Posten.
+        requireAppRight(context, user => user.checkPrivilege(updateEventGlobal))
+        requireAppEvent()
+    },
+})
+
+export const appTimingStationRoute = createRoute({
+    getParentRoute: () => appTimingRoute,
+    path: '$stationId',
+    component: function AppTimingStation() {
+        const {stationId} = appTimingStationRoute.useParams()
+        const navigate = useNavigate()
+        const eventId = readRememberedEvent(localStorage)
+        // Wie beim Leitstand: `beforeLoad` sichert die gemerkte Veranstaltung beim Betreten zu,
+        // verschwindet sie danach, geht es zurück zur Weiche statt auf einen leeren Bildschirm.
+        useEffect(() => {
+            if (eventId === null) {
+                void navigate({to: '/app', replace: true})
+            }
+        }, [eventId, navigate])
+        if (eventId === null) return null
+        return (
+            <TimingBoardPage
+                eventId={eventId}
+                stationId={stationId}
+                // Nur hier, in der `/app`-Welt: eine unbekannte Postenkennung kann eine alte Adresse
+                // sein (siehe `beforeLoad` unten), also zurück zur Postenwahl statt auf einem toten
+                // Board zu bleiben. Unter `/event/$eventId/timing/$stationId` gibt es diesen Rückruf
+                // bewusst nicht — dort ist eine unbekannte Kennung ein Programmierfehler.
+                onUnknownStation={() => void navigate({to: '/app/timing', replace: true})}
+            />
+        )
+    },
+    beforeLoad: ({context, location, params}) => {
+        // Alte Adressen aus Verläufen installierter Apps (z. B. „…/timing/<eventId>/leitstand")
+        // tragen nach der vermeintlichen Postenkennung noch weitere Segmente. TanStack Router
+        // matcht so eine Adresse trotzdem gegen diese Route (die überzähligen Segmente landen im
+        // internen Rest-Pfad `**`, der Wert davor wird zur „Postenkennung") — ohne diese Prüfung
+        // entstünde ein Board mit einer geratenen, nie existierenden Postenkennung. Zurück zur
+        // Weiche, statt das zu versuchen.
+        if (!location.pathname.endsWith(`/app/timing/${params.stationId}`)) {
+            throw redirect({to: '/app/timing', replace: true})
+        }
+        requireAppRight(context, user => user.checkPrivilege(updateAppTimingGlobal))
+        requireAppEvent()
+    },
+})
+
+// Alte Adressen aus Verläufen installierter Apps (`/app/scanner`, `/app/function`, ...) landen
+// auf der Weiche statt auf einer leeren Seite.
+export const appCatchAllRoute = createRoute({
+    getParentRoute: () => appRoute,
+    path: '$',
+    beforeLoad: () => {
+        throw redirect({to: '/app', replace: true})
     },
 })
 
@@ -907,23 +968,21 @@ const routeTree = rootRoute.addChildren([
         invoicesRoute,
     ]),
     appRoute.addChildren([
+        appIndexRoute,
         appLoginRoute,
-        qrEventsRoute,
-        qrScanRoute,
-        qrUserRoute,
-        qrParticipantRoute,
-        qrAssignRoute,
-        appFunctionSelectRoute,
-        appDashboardRoute,
         appForbiddenRoute,
-        timingRoute.addChildren([
-            timingEventsIndexRoute,
-            timingEventRoute.addChildren([
-                timingStationSelectIndexRoute,
-                timingLeitstandRoute,
-                timingStationRoute,
-            ]),
+        appEventChoiceRoute,
+        appStartRoute,
+        appScanRoute,
+        appScanResultRoute,
+        appSettingsRoute,
+        appDashboardRoute,
+        appTimingRoute.addChildren([
+            appTimingIndexRoute,
+            appTimingLeitstandRoute,
+            appTimingStationRoute,
         ]),
+        appCatchAllRoute,
     ]),
     resultsRoute.addChildren([resultsIndexRoute, resultsQRCodeRoute, resultsEventRoute]),
     speakerRoute.addChildren([speakerIndexRoute, speakerEventRoute]),

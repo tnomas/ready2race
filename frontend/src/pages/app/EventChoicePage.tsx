@@ -1,26 +1,30 @@
-import {Alert, Box, Button, Divider, Stack, Typography} from '@mui/material'
+import {Alert, Button, Divider, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {useAppSession} from '@contexts/app/AppSessionContext'
-import {getUserAppRights} from '@components/qrApp/common.ts'
+import {useMemo, useState} from 'react'
+import {useNavigate} from '@tanstack/react-router'
 import LogoutIcon from '@mui/icons-material/Logout'
-import {useUser} from '@contexts/user/UserContext.ts'
-import {useEffect, useMemo, useRef, useState} from 'react'
 import {EventDto} from '@api/types.gen.ts'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
+import AppHeader from '@components/qrApp/AppHeader.tsx'
+import AppColumn from '@components/qrApp/AppColumn.tsx'
 import {parseEventDay, splitEventsByOperation} from '@components/qrApp/eventOperations.ts'
+import Throbber from '@components/Throbber.tsx'
 
 /**
- * Die Wahl der Veranstaltung — der erste Schritt in der Helfer-App.
+ * Die Wahl der Veranstaltung.
  *
  * Bis zum 11.08.2026 standen hier alle jemals angelegten Veranstaltungen als gleich aussehende
  * Knöpfe, nur mit dem Namen. Prompt wurde bei der Bandvergabe die Regatta von 2025 erwischt, und
- * weil die Wahl danach in der App-Sitzung sitzt, galt sie für jede weitere Zuordnung mit. Deshalb
- * steht oben nur noch, was gerade im Betrieb ist; alles Übrige liegt hinter einem zweiten Griff.
+ * weil die Wahl danach im Gedächtnis der App sitzt, galt sie für jede weitere Zuordnung mit.
+ * Deshalb steht oben nur noch, was gerade im Betrieb ist; alles Übrige liegt hinter einem zweiten
+ * Griff.
  */
-const QrEventsPage = () => {
+const EventChoicePage = () => {
     const {t} = useTranslation()
-    const {events, eventId, setEventId, navigateTo, setAppFunction} = useAppSession()
+    const {events, eventId, setEventId} = useAppSession()
     const user = useUser()
-    const availableAppFunctions = getUserAppRights(user)
+    const navigate = useNavigate()
 
     const [showAll, setShowAll] = useState(false)
 
@@ -32,41 +36,9 @@ const QrEventsPage = () => {
         [events, now],
     )
 
-    // Ob beim Öffnen schon eine Veranstaltung gewählt war, wird einmal festgehalten: `setEventId`
-    // unten ändert den Wert sofort, und ohne diesen Merker hinge das Überspringen an seiner
-    // eigenen Wirkung.
-    const hadEvent = useRef(eventId !== '')
-
-    // Das automatische Weiterspringen darf genau einmal greifen. Ohne diese Sperre trüge ein
-    // erneutes Rendern (etwa nach dem Nachladen der Liste) die Person ein zweites Mal weiter.
-    const skipped = useRef(false)
-
-    useEffect(() => {
-        // Nur bei genau einer laufenden Veranstaltung überspringen — früher genügte dafür eine
-        // einzige Veranstaltung überhaupt, und dann landete man auch in einer längst vergangenen.
-        //
-        // Und nur beim allerersten Mal: Wer über "Event wechseln" hierherkommt, hat bereits eine
-        // Veranstaltung und will genau diese Liste sehen. Ohne diese Bedingung spränge die Seite
-        // ihm sofort wieder vor der Nase weg, und die vollständige Liste wäre unerreichbar.
-        if (!skipped.current && !hadEvent.current && operating.length === 1) {
-            skipped.current = true
-            setEventId(operating[0].id)
-            goForward(true)
-        }
-    }, [operating])
-
-    function goForward(replace: boolean = false) {
-        if (availableAppFunctions.length === 1) {
-            setAppFunction(availableAppFunctions[0])
-            navigateTo('APP_Scanner', replace)
-        } else {
-            navigateTo('APP_Function_Select', replace)
-        }
-    }
-
     const dateRange = (event: EventDto) => {
         const from = event.firstEventDay ? parseEventDay(event.firstEventDay) : null
-        if (from === null) return t('qrEvents.noDays')
+        if (from === null) return t('app.event.noDays')
         const to = event.lastEventDay ? parseEventDay(event.lastEventDay) : null
         const short = (d: Date) =>
             d.toLocaleDateString(undefined, {day: '2-digit', month: '2-digit'})
@@ -81,7 +53,7 @@ const QrEventsPage = () => {
             key={event.id}
             onClick={() => {
                 setEventId(event.id)
-                goForward()
+                void navigate({to: '/app', replace: true})
             }}
             fullWidth
             variant={highlighted ? 'contained' : 'outlined'}
@@ -96,22 +68,23 @@ const QrEventsPage = () => {
         </Button>
     )
 
-    if (!events) return null
-
     // Läuft nichts, ist die volle Liste der einzige Weg — dann aber als bewusster Griff mit
     // Hinweis, damit niemand ahnungslos in eine alte Regatta tippt.
     const showList = showAll || operating.length === 0
 
     return (
-        // mx: 'auto' zentriert die Spalte - das App-Layout streckt seine Kinder nur,
-        // auf dem Tablet klebte die auf 600px begrenzte Box sonst am linken Rand.
-        <Box sx={{width: 1, maxWidth: 600, mx: 'auto'}}>
+        <AppColumn>
+            <AppHeader
+                title={t('app.event.title')}
+                onBack={eventId ? () => void navigate({to: '/app'}) : undefined}
+            />
             <Stack spacing={2} sx={{width: 1}}>
-                <Typography variant="h4" textAlign="center" gutterBottom>
-                    {t('qrEvents.title')}
-                </Typography>
+                {/* Nur die Liste wartet, nicht die ganze Seite: Scheitert der Abruf, bleibt
+                    `events` für immer leer — und ohne Kopfzeile und Abmelden-Knopf käme man aus
+                    der installierten App (keine Browser-Leiste) nur noch durch Beenden heraus. */}
+                {!events && <Throbber />}
 
-                {operating.length > 0 && (
+                {events && operating.length > 0 && (
                     <>
                         <Typography variant="overline" color="text.secondary">
                             {t('qrEvents.operating')}
@@ -120,7 +93,7 @@ const QrEventsPage = () => {
                     </>
                 )}
 
-                {operating.length === 0 && (
+                {events && operating.length === 0 && (
                     <Alert severity="info">
                         {t('qrEvents.none')}
                         <br />
@@ -128,13 +101,13 @@ const QrEventsPage = () => {
                     </Alert>
                 )}
 
-                {!showList && (
+                {events && !showList && (
                     <Button onClick={() => setShowAll(true)} variant="text" fullWidth>
                         {t('qrEvents.showAll')}
                     </Button>
                 )}
 
-                {showList && others.length > 0 && (
+                {events && showList && others.length > 0 && (
                     <>
                         <Divider />
                         <Typography variant="overline" color="text.secondary">
@@ -144,6 +117,8 @@ const QrEventsPage = () => {
                     </>
                 )}
 
+                {/* Der Abmelden-Knopf bleibt hier: Ohne Veranstaltung sind die Einstellungen
+                    nicht erreichbar, und dann gäbe es keinen Weg aus einem falschen Konto. */}
                 <Button
                     onClick={() => 'logout' in user && user.logout(true)}
                     variant="outlined"
@@ -153,8 +128,8 @@ const QrEventsPage = () => {
                     {t('user.settings.logout')}
                 </Button>
             </Stack>
-        </Box>
+        </AppColumn>
     )
 }
 
-export default QrEventsPage
+export default EventChoicePage

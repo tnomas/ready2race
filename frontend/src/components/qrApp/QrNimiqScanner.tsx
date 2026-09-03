@@ -8,7 +8,6 @@ import {useFeedback} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
 
 import QrScanner from 'qr-scanner'
-import {useAppSession} from '@contexts/app/AppSessionContext.tsx'
 import {startScannerWithRetry} from './startScannerWithRetry.ts'
 
 const QrNimiqScanner = (props: {callback: (qrCodeContent: string) => void}) => {
@@ -29,7 +28,9 @@ const QrNimiqScanner = (props: {callback: (qrCodeContent: string) => void}) => {
     const [restartCount, setRestartCount] = useState(0)
     const videoRef = useRef<HTMLVideoElement>(null)
     const scannerRef = useRef<QrScanner | null>(null)
-    const {qrLastScanned} = useAppSession()
+    // Die Entprellung gehört dem Scanner, nicht der Sitzung: sie muss nur innerhalb einer
+    // laufenden Vorschau gelten, nicht über Seitenwechsel hinweg.
+    const qrLastScanned = useRef<number>(0)
 
     // Callback und Feedback bekommen bei jedem Render neue Identitäten (der Aufrufer
     // übergibt eine Inline-Funktion, useFeedback baut sein Objekt jedes Mal neu).
@@ -131,14 +132,14 @@ const QrNimiqScanner = (props: {callback: (qrCodeContent: string) => void}) => {
             scanner.stop()
             void runPromise.finally(() => scanner.destroy())
         }
-        // t ist absichtlich keine Abhängigkeit: ein Sprachwechsel soll die laufende
-        // Kamera nicht neu starten.
+        // t und qrLastScanned sind absichtlich keine Abhängigkeiten: ein Sprachwechsel soll die
+        // laufende Kamera nicht neu starten, und der Ref selbst ändert sich nie.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cameraId, storedChecked, restartCount, qrLastScanned])
+    }, [cameraId, storedChecked, restartCount])
 
     return (
         <Stack spacing={2} direction="column" alignItems="center" justifyContent="center" p={2}>
-            <div style={{width: '100%'}}>
+            <div style={{width: '100%', maxWidth: 'min(100%, 70vh)'}}>
                 <video ref={videoRef} style={{width: '100%'}} muted playsInline />
             </div>
             {cameraFailed && (
