@@ -700,6 +700,19 @@ object LiveDashboardService {
     }
 
     /**
+     * Der Lauf muss zur Veranstaltung des Pfads gehören: ein Lauf einer anderen Veranstaltung ist
+     * unter diesem Pfad unbekannt ([LiveDashboardError.MatchNotFound]) - sonst könnte jede
+     * Sitzung mit Recht an Veranstaltung B einen Lauf von A anfassen, und der Änderungsmarker von
+     * B zählte für eine Änderung an A hoch.
+     */
+    private fun requireMatchOfEvent(eventId: UUID, matchId: UUID): App<LiveDashboardError, Unit> =
+        KIO.comprehension {
+            val matchEvent = !LiveDashboardRepo.getMatchEventId(matchId).orDie()
+            !KIO.failOn(matchEvent != eventId) { LiveDashboardError.MatchNotFound(matchId) }
+            KIO.unit
+        }
+
+    /**
      * Setzt einen Lauf in Klärung - der Weg für einen Einspruch, der noch nicht entschieden ist.
      *
      * `activated_at` bleibt ausdrücklich stehen: Der Lauf ist weiter an den Start gerufen, und nach
@@ -728,6 +741,7 @@ object LiveDashboardService {
         if (!exists) {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
+        !requireMatchOfEvent(eventId, matchId)
 
         val finished = !CompetitionMatchRepo.isFinished(matchId).orDie()
         if (finished) {
@@ -765,6 +779,7 @@ object LiveDashboardService {
         if (!exists) {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
+        !requireMatchOfEvent(eventId, matchId)
 
         !CompetitionMatchRepo.update(matchId) {
             clarificationSince = null
