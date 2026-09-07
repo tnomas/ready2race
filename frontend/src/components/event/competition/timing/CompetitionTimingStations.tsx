@@ -19,14 +19,12 @@ import {
 import {TimingStationDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
+import {splitStationAssignments, StationMeters} from './stationAssignments.ts'
 
 type Props = {
     eventId: string
     competitionId: string
 }
-
-/** Angehakt heißt: Der Posten steht auf dieser Strecke. Der Wert ist der Meter als Rohtext. */
-type Meters = Record<string, string>
 
 const isValidMeters = (value: string) => /^\d+$/.test(value.trim())
 
@@ -45,7 +43,7 @@ const CompetitionTimingStations = ({eventId, competitionId}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const [meters, setMeters] = useState<Meters>({})
+    const [meters, setMeters] = useState<StationMeters>({})
     const [submitting, setSubmitting] = useState(false)
 
     const {data: stationsData, pending: stationsPending} = useFetch(
@@ -126,7 +124,13 @@ const CompetitionTimingStations = ({eventId, competitionId}: Props) => {
         })
     }
 
-    const checkedEntries = Object.entries(meters)
+    // Nur was als Zeile zu sehen ist, zählt für Warnungen und Speichern. Zuordnungen zu
+    // Posten, die es nicht mehr gibt oder die inzwischen Anzeige-Posten sind, stehen als
+    // Warnzeile mit „Entfernen" darunter, statt unsichtbar bei jedem Speichern mitzugehen.
+    const {visible: checkedEntries, orphaned: orphanedEntries} = splitStationAssignments(
+        meters,
+        orderedStations.map(station => station.id),
+    )
     const validValues = checkedEntries
         .filter(([, value]) => isValidMeters(value))
         .map(([, value]) => Number(value))
@@ -226,6 +230,24 @@ const CompetitionTimingStations = ({eventId, competitionId}: Props) => {
                         })}
                     </Stack>
 
+                    {orphanedEntries.map(([stationId, value]) => (
+                        <Alert
+                            key={stationId}
+                            severity={'warning'}
+                            action={
+                                <Button
+                                    className={'cursor-pointer'}
+                                    color={'inherit'}
+                                    size={'small'}
+                                    onClick={() => toggle(stationId, false)}>
+                                    {t('common.remove')}
+                                </Button>
+                            }>
+                            {t('event.competition.timing.stations.warning.orphaned', {
+                                distance: value,
+                            })}
+                        </Alert>
+                    ))}
                     {missingDistance && (
                         <Alert severity={'warning'}>
                             {t('event.competition.timing.stations.warning.missingDistance')}

@@ -1373,7 +1373,8 @@
           "warning": {
             "missingDistance": "Mindst én valgt post mangler meteren.",
             "overDistance": "Mindst én post står længere ude end konkurrencens samlede distance ({{distance}} m).",
-            "duplicateDistance": "To poster står ved samme meter."
+            "duplicateDistance": "To poster står ved samme meter.",
+            "orphaned": "En tildeling ved {{distance}} m peger på en post, der ikke længere findes eller siden er blevet en tavlepost. Den skrives ikke længere med, når der gemmes."
           }
         }
       },
