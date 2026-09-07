@@ -307,7 +307,7 @@ export type SpeakerColors = {
     gold: string
 }
 
-// LOTG-inspired dark board palette (default)
+// dunkle Standardpalette des Boards
 export const speakerColors: SpeakerColors = {
     background: '#0f172a',
     panel: '#1e293b',

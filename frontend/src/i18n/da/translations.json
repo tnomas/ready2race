@@ -1928,6 +1928,8 @@
         "runningPlain": "I gang",
         "partiallyScored": "Delvist bedømt {{scored}}/{{total}}",
         "awaitingFinish": "Afventer afslutning",
+        "clarification": "Afklaring",
+        "provisional": "foreløbigt · under afklaring",
         "finished": "Afsluttet",
         "cancelled": "Aflyst",
         "unscheduled": "Ikke planlagt",
@@ -1942,6 +1944,7 @@
         "counter": {
           "preparing": "{{n}} forbereder",
           "running": "{{n}} i gang",
+          "clarification": "{{n}} under afklaring",
           "open": "{{n}} åbne",
           "finished": "{{n}} afsluttet",
           "cancelled": "{{n}} aflyst"
@@ -2251,6 +2254,9 @@
       "importDialog": {
         "title": "Excel-import",
         "choose": "Vælg fil",
+        "templateHint": "Ved du ikke, hvordan filen skal være opbygget?",
+        "template": "Download eksempelfil",
+        "templateError": "Eksempelfilen kunne ikke downloades.",
         "replacesAll": "Importen erstatter alle eksisterende slots.",
         "runningWarning": "Den aktuelle tidsplan indeholder allerede påbegyndte eller afsluttede løb. Disse bliver også erstattet af importen.",
         "row": "Række",
@@ -2258,6 +2264,9 @@
         "text": "Tekst",
         "rowLinked": "Forbundet: {{target}}",
         "rowFree": "Fri slot",
+        "rowCompetitionNotFound": "Konkurrence ikke fundet — importeres som ledig plads",
+        "rowMatchNotFound": "Løb ikke fundet — konkurrencen har: {{available}}",
+        "rowMatchNotFoundEmpty": "Konkurrencen har ingen løb — importeres som ledig plads",
         "rowAmbiguous": "Ikke entydig — importeres som en fri slot",
         "rowDuplicate": "Duplikeret i filen — import blokeret",
         "summary_one": "{{count}} række i filen: {{linked}} forbundet, {{free}} planlagt som fri slot.",
@@ -2340,6 +2349,7 @@
           "preparing": "Forbereder",
           "running": "Kører",
           "awaitingFinish": "Venter på afslutning",
+          "clarification": "Afklaring",
           "linked": "Tilknyttet",
           "waiting": "Løb ikke sat endnu",
           "free": "Programpunkt",
@@ -2559,6 +2569,230 @@
         }
       }
     },
+    "stream": {
+      "startlist": "Startliste",
+      "nextUp": "Næste",
+      "laps": "Mellemtider",
+      "result": "Resultat",
+      "finishTicker": "Målgang",
+      "schedule": "Dagsprogram",
+      "courseImage": "Banebillede",
+      "scheduleTitle": "Næste løb",
+      "cancelled": "Aflyst",
+      "clock": {
+        "countdown": "Start om",
+        "running": "Løbstid",
+        "paused": "Pause"
+      },
+      "scenes": {
+        "title": "Scener",
+        "none": "Endnu ingen scener oprettet",
+        "create": "Opret scene",
+        "edit": "Rediger scene",
+        "saved": "Scene gemt",
+        "deleted": "Scene slettet",
+        "confirmDelete": "Vil du virkelig slette scenen „{{name}}“? Scenevisningen og et eventuelt delt link viser derefter intet mere.",
+        "open": "Vis",
+        "copyUrl": "Kopiér URL",
+        "urlCopied": "URL kopieret",
+        "name": "Navn",
+        "background": {
+          "label": "Baggrund",
+          "TRANSPARENT": "Transparent",
+          "CHROMA": "Chroma key"
+        },
+        "chromaColor": "Chroma-farve",
+        "safeAreaPercent": "Sikkerhedsmargen (%)",
+        "safeAreaPercentHint": "Kant hele vejen rundt, som ingen grafik overskrider — til sendeteknikkens billedudsnit.",
+        "validation": {
+          "name": "Navnet må ikke være tomt",
+          "safeAreaPercent": "Skal ligge mellem 0 og 100",
+          "chromaColor": "Hex-farve påkrævet (f.eks. #00FF00), så længe baggrunden er chroma key"
+        },
+        "graphicsCount": "{{enabled}}/{{total}} grafikker aktive",
+        "configureGraphics": "Konfigurer grafikker",
+        "trialMode": {
+          "label": "Prøvetilstand",
+          "active": "Prøvetilstand aktiv",
+          "hint": "Fodrer scenen med et simuleret demoløb uden at røre rigtige data.",
+          "on": "Prøvetilstand slået til",
+          "off": "Prøvetilstand slået fra",
+          "error": "Prøvetilstanden kunne ikke skiftes."
+        },
+        "share": {
+          "action": "Del link",
+          "title": "Del scenen „{{name}}“",
+          "description": "Linket bærer denne scenes enhedsadgang: En Wirecast-/OBS-kilde behøver ingen login. Samme scene giver altid samme link — indtil det trækkes tilbage her.",
+          "copy": "Kopiér link",
+          "copied": "Link kopieret",
+          "revokeHint": "Linket kan altid hentes her igen. Det gælder kun for denne ene scene — en anden scene skal have sit eget link.",
+          "error": "Linket kunne ikke oprettes.",
+          "again": "Opret nyt link",
+          "revoke": {
+            "action": "Træk link tilbage",
+            "success": "Link trukket tilbage",
+            "error": "Linket kunne ikke trækkes tilbage.",
+            "done": "Linket er trukket tilbage og ugyldigt. „Opret nyt link“ udsteder et nyt — allerede uddelte kilder viser derefter intet mere.",
+            "confirm": {
+              "title": "Træk linket tilbage?",
+              "content": "Det delte link til „{{name}}“ bliver straks ugyldigt; en kilde, der har indlæst det, viser intet ved næste hentning. Deles der igen, oprettes et NYT link."
+            }
+          }
+        },
+        "graphicDialog": {
+          "title": "Grafikker – {{name}}",
+          "enabled": "Aktiv",
+          "placement": "Placering",
+          "size": {
+            "label": "Størrelse",
+            "COMPACT": "Kompakt",
+            "NORMAL": "Normal"
+          },
+          "displaySeconds": "Visningstid (sekunder)",
+          "listLength": "Antal rækker",
+          "image": "Billede",
+          "imageNone": "Intet billede valgt",
+          "imageHint": "Billeder uploades via stævnets dokumenter.",
+          "imageForbidden": "For at vælge et billede kræves læseret til stævnet (READ EVENT) — med ren stream-ret forbliver valget tomt. Grafikken kan alligevel aktiveres; den viser så foreløbig intet billede.",
+          "imageEmpty": "Endnu ingen dokumenter — upload først et billede via stævnets dokumenter.",
+          "imageLoadError": "Dokumenterne kunne ikke indlæses.",
+          "saved": "Grafikker gemt"
+        },
+        "type": {
+          "STARTLIST": "Startliste",
+          "CLOCK": "Ur",
+          "LAPS": "Mellemtider",
+          "RESULT": "Resultat",
+          "FINISH_TICKER": "Målgangs-ticker",
+          "NEXT_UP": "Næste",
+          "SCHEDULE": "Dagsprogram",
+          "COURSE_IMAGE": "Banebillede"
+        },
+        "placement": {
+          "BOTTOM_CENTER": "Nederst i midten",
+          "BOTTOM_LEFT": "Nederst til venstre",
+          "BOTTOM_RIGHT": "Nederst til højre",
+          "TOP_LEFT": "Øverst til venstre",
+          "TOP_RIGHT": "Øverst til højre",
+          "SIDE_LEFT": "I siden til venstre",
+          "SIDE_RIGHT": "I siden til højre",
+          "FULL_CENTER": "Fuld skærm i midten"
+        }
+      },
+      "director": {
+        "title": "Regi",
+        "back": "Tilbage til driften",
+        "fullscreen": "Fuld skærm",
+        "program": "Program",
+        "programHint": "Det, scenen sender lige nu",
+        "nothingOnAir": "Ingen grafik på skærmen lige nu.",
+        "scene": "Scene",
+        "shareLink": "Link til Wirecast",
+        "manageScenes": "Administrér scener",
+        "inactive": "Ikke aktive grafikker",
+        "inactiveHint": "Slå til under „Konfigurer grafikker“",
+        "forceHint": "Uden indhold viser tvunget visning intet.",
+        "health": {
+          "live": "Live",
+          "connecting": "Forbinder …",
+          "stale": "Ingen data i {{seconds}} s"
+        },
+        "feed": {
+          "onAir": "On air",
+          "ready": "Klar",
+          "off": "Fra",
+          "noFeed": "Intet indhold"
+        },
+        "reason": {
+          "noPreparing": "Intet løb under forberedelse.",
+          "noRunning": "Intet løb på vandet.",
+          "noSplit": "Endnu ingen mellemtid modtaget.",
+          "noResult": "Endnu intet afsluttet løb med resultat.",
+          "noFinish": "Endnu ingen båd i mål.",
+          "noSchedule": "Ingen kommende løb i programmet.",
+          "noImage": "Intet banebillede gemt.",
+          "unresolved": "Det valgte løb har intet indhold her."
+        },
+        "trial": {
+          "title": "Prøvetilstand",
+          "chip": "Prøvetilstand",
+          "off": "Fra – scenen viser rigtige data.",
+          "on": "Til – scenen viser et demoløb, ingen rigtige data.",
+          "retrigger": "Udløs fasen igen",
+          "retriggerHint": "Et klik på den aktive fase starter dens visninger forfra.",
+          "phase": {
+            "PREPARING": {
+              "label": "Ved broen",
+              "hint": "Startliste og „Næste“"
+            },
+            "COUNTDOWN": {
+              "label": "Startsekvens",
+              "hint": "Uret tæller 90 s ned"
+            },
+            "RUNNING": {
+              "label": "I løbet",
+              "hint": "Løbsur, endnu ingen markering"
+            },
+            "SPLIT": {
+              "label": "Mellemtid",
+              "hint": "Mellemtidsbånd i 8 s"
+            },
+            "FINISH": {
+              "label": "Målgang",
+              "hint": "To af fire i mål"
+            },
+            "FINISHED": {
+              "label": "Alle i mål",
+              "hint": "Ur fastfrosset, målgang fuld"
+            },
+            "RESULT": {
+              "label": "Resultat",
+              "hint": "Foreløbigt resultat i 20 s"
+            },
+            "IDLE": {
+              "label": "Tomgang",
+              "hint": "Kun dagsprogram og banebillede"
+            }
+          }
+        }
+      },
+      "panel": {
+        "title": "Kontrolpanel",
+        "open": "Åbn kontrolpanel",
+        "sceneSelect": "Scene",
+        "noGraphics": "Denne scene har endnu ingen aktiveret grafik.",
+        "health": {
+          "stale": "Scenen „{{name}}“ har ikke haft data i {{seconds}} s"
+        },
+        "trialMode": {
+          "activeWarning": "Prøvetilstand aktiv — denne scene viser et simuleret demoløb, ingen rigtige data."
+        },
+        "status": {
+          "onAir": "On air",
+          "ready": "Klar",
+          "off": "Fra"
+        },
+        "overrideState": {
+          "AUTO": "Automatik",
+          "FORCED_ON": "Tvunget til",
+          "FORCED_OFF": "Tvunget fra"
+        },
+        "overrideAction": {
+          "AUTO": "Auto",
+          "FORCED_ON": "Til",
+          "FORCED_OFF": "Fra"
+        },
+        "matchPicker": {
+          "label": "Løb",
+          "current": "Aktuelt indhold"
+        },
+        "duration": {
+          "label": "Varighed",
+          "untilRevoked": "Indtil det trækkes tilbage",
+          "seconds": "{{seconds}} s"
+        }
+      }
+    },
     "betrieb": {
       "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
       "referee": {
@@ -2586,7 +2820,8 @@
       "livestream": {
         "title": "Livestream",
         "description": "Stream-overlays til billedproduktionen: transparente scener til Wirecast/OBS, styret via kontrolpanelet.",
-        "open": "Administrér livestream"
+        "open": "Administrér livestream",
+        "openDirector": "Åbn regi"
       },
       "helpers": {
         "title": "Hjælpere",
@@ -2736,6 +2971,13 @@
       "invitation": "Invitation",
       "pendingInvitations": "Afventende invitationer",
       "accept": "Accepter invitation",
+      "expiresAt": "Udløber den",
+      "withdraw": "Træk invitation tilbage",
+      "withdrawConfirm": "Træk invitationen til {{email}} tilbage? Det allerede sendte link bliver dermed ugyldigt. Personen kan derefter inviteres igen.",
+      "withdrawSuccess": "Invitation trukket tilbage",
+      "resend": "Send invitation igen",
+      "resendConfirm": "Send invitationen til {{email}} igen? Personen får et nyt link med syv dages frist, og linket fra den første mail bliver ugyldigt.",
+      "resendSuccess": "Invitation sendt igen",
       "hint": "Angiv venligst en adgangskode for den konto, der skal oprettes.",
       "submitPassword": "Accepter invitation",
       "userCreated": {
