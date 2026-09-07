@@ -8,7 +8,7 @@ import java.util.UUID
  * nur für das dritte Ziel derselben Token-Infrastruktur (Migration V202608271000): Wirecast kann
  * sich nicht anmelden, bekommt also denselben geteilten Link mit Geräte-Token wie eine Anzeige.
  *
- * [path] ist wurzelrelativ (`/event/{eventId}/stream/{sceneId}?token=...`) - das Backend kennt
+ * [path] ist wurzelrelativ (`/event/{eventId}/stream/{sceneId}#token=...`) - das Backend kennt
  * den öffentlichen Origin nicht.
  */
 data class StreamSceneShareLinkDto(

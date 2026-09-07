@@ -22,16 +22,16 @@ client.setConfig({
     baseUrl: Config.api.baseUrl,
 })
 
-// Geteilte Zeitnahme-Geräte (Posten-Link mit ?token=…) authentifizieren sich ohne Sitzung über
+// Geteilte Zeitnahme-Geräte (Posten-Link mit #token=…) authentifizieren sich ohne Sitzung über
 // das abgelegte Geräte-Token - der Interceptor hängt es an alle Timing-Aufrufe der Veranstaltung.
 installTimingDeviceTokenInterceptor()
 
 // Dasselbe für die Kachel-Boards: Ein montierter Bildschirm oder eine OBS-Browserquelle kann sich
-// nicht anmelden und kommt über den geteilten Board-Link (?token=…) an seine Anzeige - der
+// nicht anmelden und kommt über den geteilten Board-Link (#token=…) an seine Anzeige - der
 // Interceptor hängt das dabei abgelegte Token an die beiden Board-Abrufe.
 installBoardDeviceTokenInterceptor()
 
-// Dasselbe für die Stream-Bühne: der geteilte Szenen-Link (?token=…) authentifiziert eine
+// Dasselbe für die Stream-Bühne: der geteilte Szenen-Link (#token=…) authentifiziert eine
 // OBS-/Wirecast-Quelle ohne Anmeldung am Szenen-Ansicht-Abruf.
 installStreamSceneDeviceTokenInterceptor()
 

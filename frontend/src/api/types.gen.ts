@@ -4250,11 +4250,11 @@ export type StreamFinishEntry = {
  */
 export type StreamGraphicSettings = {
     /**
-     * LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds.
+     * LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds. 1..600 when set.
      */
     displaySeconds?: number | null
     /**
-     * SCHEDULE: number of rows shown, default 8.
+     * SCHEDULE: number of rows shown, default 8. 1..50 when set.
      */
     listLength?: number | null
     /**
@@ -4307,7 +4307,7 @@ export type StreamGraphicViewDto = {
     finishEntries?: Array<StreamFinishEntry> | null
     schedule?: Array<AthleteBoardMatch> | null
     /**
-     * COURSE_IMAGE.
+     * COURSE_IMAGE: address of getStreamSceneCourseImage (/api/event/{eventId}/stream/{sceneId}/courseImage), reachable with the same session or scene token as the view itself.
      */
     imageUrl?: string | null
     /**
@@ -4425,7 +4425,7 @@ export type StreamSceneRequest = {
      */
     chromaColor?: string | null
     /**
-     * 0..100, defaults to 0.
+     * 0..20, defaults to 0.
      */
     safeAreaPercent?: number
 }
@@ -5223,8 +5223,10 @@ export type UpcomingMatchParticipantInfo = {
     firstName: string
     lastName: string
     namedRole?: string | null
+    /**
+     * Year of birth, shown behind the name in speaker and detail displays
+     */
     year?: number | null
-    gender?: string | null
     externalClubName?: string | null
 }
 
@@ -9197,7 +9199,7 @@ export type GetRunningMatchesData = {
     }
     query: {
         /**
-         * True (speaker board) also returns matches under clarification, marked via the clarification flag. Default false keeps them out - the public displays and the board cursor must not hang on a disputed match.
+         * True (speaker board) also returns matches under clarification, marked via the clarification flag. Default false keeps them out - the public displays and the board cursor must not hang on a disputed match. Honoured only for a session with READ BOARD or READ EVENT, or for a board device token of this event in the X-Timing-Device-Token header; an anonymous call is answered as if the parameter were false (no error).
          */
         includeClarification?: boolean
         limit: number
@@ -9846,6 +9848,17 @@ export type GetStreamSceneViewData = {
 export type GetStreamSceneViewResponse = StreamSceneViewDto
 
 export type GetStreamSceneViewError = ApiError
+
+export type GetStreamSceneCourseImageData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type GetStreamSceneCourseImageResponse = Blob | File
+
+export type GetStreamSceneCourseImageError = ApiError
 
 export type AddRatingCategoryData = {
     body: RatingCategoryRequest
