@@ -1,4 +1,4 @@
-import {ReactNode, useEffect, useState} from 'react'
+import {ReactNode, useEffect, useRef, useState} from 'react'
 import {Box} from '@mui/material'
 import {allowsNewlyVisible} from '../streamStale.ts'
 import {useStreamStale} from '../StreamStaleContext.ts'
@@ -16,6 +16,13 @@ interface GraphicFrameProps {
      */
     visibleSince?: string | null
     visibleUntil?: string | null
+    /**
+     * Wird gerufen, sobald die Hülle die Phase `hidden` erreicht — also NACH der
+     * Ausblendanimation nichts mehr rendert. `StreamGraphic` lässt daran seinen zurückgehaltenen
+     * Inhalt fallen (siehe `retainGraphicContent`): ab hier gibt es nichts mehr, das die
+     * Animation noch bräuchte.
+     */
+    onHidden?: () => void
     children: ReactNode
 }
 
@@ -51,8 +58,12 @@ const SLIDE_OFFSET_PX = 24
  * glätten soll. `willChange` gibt dem Browser stattdessen vorab einen echten Compositing-Hinweis
  * für die tatsächlich animierten Eigenschaften.
  */
-const GraphicFrame = ({visible, children}: GraphicFrameProps) => {
+const GraphicFrame = ({visible, onHidden, children}: GraphicFrameProps) => {
     const stale = useStreamStale()
+    // Immer die neueste Fassung rufen, ohne dass eine neue Funktions-Identität den Effekt unten
+    // erneut auslöst — er soll genau einmal je Erreichen von `hidden` feuern.
+    const onHiddenRef = useRef(onHidden)
+    onHiddenRef.current = onHidden
 
     const [wasVisible, setWasVisible] = useState(false)
     const effectiveVisible = visible && allowsNewlyVisible(stale, wasVisible)
@@ -116,6 +127,10 @@ const GraphicFrame = ({visible, children}: GraphicFrameProps) => {
             window.clearTimeout(timerId)
         }
     }, [effectiveVisible])
+
+    useEffect(() => {
+        if (phase === 'hidden') onHiddenRef.current?.()
+    }, [phase])
 
     if (phase === 'hidden') return null
 

@@ -29,12 +29,17 @@ export const hasGraphicContent = (graphic: StreamGraphicViewDto): boolean =>
  * Typ-Änderung ist eine Konfigurationsänderung, kein Ausblenden). `visible`, `visibleSince`,
  * `visibleUntil` und `overrideState` kommen IMMER vom aktuellen Push — `GraphicFrame` blendet
  * anhand von `visible` aus, nicht anhand des Inhalts; nur die Inhaltsfelder fallen zurück.
+ *
+ * Der Rückfall gilt AUSSCHLIESSLICH fürs Ausblenden (`current.visible === false`): Meldet der
+ * Server eine Grafik sichtbar, aber ohne Inhalt, bleibt sie leer — ein alter Inhalt darf nicht
+ * unter dem Etikett „sichtbar" wieder auf Sendung gehen.
  */
 export const retainGraphicContent = (
     current: StreamGraphicViewDto,
     previous: StreamGraphicViewDto | null,
 ): StreamGraphicViewDto => {
     if (hasGraphicContent(current)) return current
+    if (current.visible !== false) return current
     if (previous === null || previous.type !== current.type || !hasGraphicContent(previous)) {
         return current
     }
