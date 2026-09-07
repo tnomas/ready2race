@@ -26,6 +26,7 @@ import {
 import {
     deviceSessionForEvent,
     deviceSessionForStation,
+    readTokenFromLocation,
     writeDeviceSession,
 } from './utils/timing/deviceSession.ts'
 import {writeBoardDeviceToken} from './utils/board/deviceToken.ts'
@@ -400,10 +401,13 @@ export const eventStreamPanelRoute = createRoute({
 // sind route-unabhängig und werden von beiden Welten mit Props gemountet.
 //
 // Erfassung und Startbildschirm akzeptieren zusätzlich zur Nutzersitzung ein Geräte-Token aus
-// der URL (`?token=…`, ausgestellt und widerrufbar über den Leitstand-Geräte-Reiter): geteilte
-// Handys und Anzeige-Bildschirme am Posten haben keine Anmeldung. Das Token wird beim ersten
-// Aufruf clientseitig abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt,
-// damit es nicht in Verlauf oder Screenshots hängen bleibt.
+// der URL (ausgestellt und widerrufbar über den Leitstand-Geräte-Reiter): geteilte Handys und
+// Anzeige-Bildschirme am Posten haben keine Anmeldung. Das Token reist im Fragment (`#token=…`),
+// das der Browser nie mitschickt — es landet weder in Server- und Proxy-Protokollen noch im
+// Referer; ältere Links tragen es noch als `?token=` und bleiben gültig (`readTokenFromLocation`).
+// Beim ersten Aufruf wird es clientseitig abgelegt und per replace-Redirect aus der Adresszeile
+// entfernt, damit es nicht in Screenshots hängen bleibt. Aus dem Browserverlauf verschwindet es
+// dadurch nicht zuverlässig — deshalb sind Tokens widerrufbar und befristet.
 
 type TimingTokenSearch = {
     token?: string
@@ -457,9 +461,10 @@ export const eventTimingStartDisplayRoute = createRoute({
         return <TimingStartDisplayPage eventId={eventId} stationId={stationId} />
     },
     beforeLoad: ({context, location, params, search}) => {
-        if (search.token !== undefined) {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
             writeDeviceSession({
-                token: search.token,
+                token,
                 event: params.eventId,
                 station: params.stationId,
             })
@@ -467,6 +472,7 @@ export const eventTimingStartDisplayRoute = createRoute({
                 to: '/event/$eventId/timing/$stationId/anzeige',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -493,9 +499,10 @@ export const eventTimingStationRoute = createRoute({
         return <TimingBoardPage eventId={eventId} stationId={stationId} />
     },
     beforeLoad: ({context, location, params, search}) => {
-        if (search.token !== undefined) {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
             writeDeviceSession({
-                token: search.token,
+                token,
                 event: params.eventId,
                 station: params.stationId,
             })
@@ -503,6 +510,7 @@ export const eventTimingStationRoute = createRoute({
                 to: '/event/$eventId/timing/$stationId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -875,27 +883,30 @@ export const athleteBoardRoute = createRoute({
 // Die Anzeige eines konkreten Boards, ebenfalls ohne App-Layout.
 //
 // Wie Erfassung und Startbildschirm der Zeitnahme nimmt sie zusätzlich zur Nutzersitzung ein
-// Geräte-Token aus der Adresse an (`?token=…`, erzeugt vom „Link teilen" der Board-Verwaltung):
-// ein montierter Bildschirm und eine OBS-Browserquelle können sich nicht anmelden. Das Token wird
-// beim ersten Aufruf abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt, damit
-// es nicht in Verlauf oder Screenshots hängen bleibt. Anders als dort liegt es je Board (siehe
-// `utils/board/deviceToken.ts`): ein Anzeigegerät zeigt der Reihe nach mehrere Boards.
+// Geräte-Token aus der Adresse an (Fragment `#token=…`, ältere Links `?token=…`; erzeugt vom
+// „Link teilen" der Board-Verwaltung): ein montierter Bildschirm und eine OBS-Browserquelle
+// können sich nicht anmelden. Das Token wird beim ersten Aufruf abgelegt und per replace-Redirect
+// sofort aus der Adresszeile entfernt (Schutzwirkung und Grenzen: siehe den Kommentar über
+// `TimingTokenSearch`). Anders als dort liegt es je Board (siehe `utils/board/deviceToken.ts`):
+// ein Anzeigegerät zeigt der Reihe nach mehrere Boards.
 //
 // Es bleibt bei `validateTimingTokenSearch` — das Board-Token stammt aus derselben Tabelle und
-// reist im selben Query-Parameter; eine zweite, identische Prüffunktion wäre nur ein zweiter Ort,
-// an dem der leere Token-String vergessen werden kann.
+// reist im selben Fragment bzw. Query-Parameter; eine zweite, identische Prüffunktion wäre nur ein
+// zweiter Ort, an dem der leere Token-String vergessen werden kann.
 export const boardDisplayRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'board/$eventId/$boardId',
     validateSearch: validateTimingTokenSearch,
     component: () => <BoardDisplayPage />,
-    beforeLoad: ({params, search}) => {
-        if (search.token !== undefined) {
-            writeBoardDeviceToken(params.eventId, params.boardId, search.token)
+    beforeLoad: ({location, params, search}) => {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
+            writeBoardDeviceToken(params.eventId, params.boardId, token)
             throw redirect({
                 to: '/board/$eventId/$boardId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -908,7 +919,7 @@ export const boardDisplayRoute = createRoute({
 // Die Stream-Bühne einer Szene, ebenfalls ohne App-Layout — wortgetreue Kopie des Musters von
 // `boardDisplayRoute` (Geräte-Token aus der Adresse, replace-Redirect ohne Token in der
 // Adressleiste), aber unter dem vom Backend vorgegebenen Pfad: `StreamSceneShareLinkDto.path`
-// erzeugt genau diesen Link (`/event/{eventId}/stream/{sceneId}?token=…`), die Route MUSS also
+// erzeugt genau diesen Link (`/event/{eventId}/stream/{sceneId}#token=…`), die Route MUSS also
 // hier liegen, auch wenn `event/$eventId` sonst der angemeldeten Veranstaltungsverwaltung gehört
 // (`eventRoute`). Beide Zweige bleiben eindeutig unterscheidbar: Diese Route trägt selbst die
 // weiteren Segmente `stream/$sceneId`, die es unter `eventRoute` nicht gibt.
@@ -921,13 +932,15 @@ export const streamSceneRoute = createRoute({
     path: 'event/$eventId/stream/$sceneId',
     validateSearch: validateTimingTokenSearch,
     component: () => <StreamScenePage />,
-    beforeLoad: ({params, search}) => {
-        if (search.token !== undefined) {
-            writeStreamSceneDeviceToken(params.eventId, params.sceneId, search.token)
+    beforeLoad: ({location, params, search}) => {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
+            writeStreamSceneDeviceToken(params.eventId, params.sceneId, token)
             throw redirect({
                 to: '/event/$eventId/stream/$sceneId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }

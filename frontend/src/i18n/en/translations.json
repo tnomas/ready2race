@@ -3691,6 +3691,9 @@
         "title": "Times not submitted",
         "description": "These times were rejected by the server. You can submit them again or discard them permanently.",
         "item": "Station {{station}} · status {{status}}",
+        "reason": {
+          "noCredential": "No credential for this event on this device – log in and try again."
+        },
         "requeue": "Try again",
         "discard": "Discard permanently",
         "discardConfirm": {

@@ -3691,6 +3691,9 @@
         "title": "Nicht übertragene Zeiten",
         "description": "Diese Zeiten wurden vom Server abgelehnt. Sie können erneut übertragen oder endgültig verworfen werden.",
         "item": "Posten {{station}} · Status {{status}}",
+        "reason": {
+          "noCredential": "Keine Berechtigung für diese Veranstaltung auf diesem Gerät – nach einer Anmeldung erneut versuchen."
+        },
         "requeue": "Erneut versuchen",
         "discard": "Endgültig verwerfen",
         "discardConfirm": {

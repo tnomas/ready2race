@@ -43,8 +43,8 @@ export type SequenceStatusBarProps = {
  * Overlay — die große Visualisierung (Vollbild-Countdown mit Beeps) bleibt der Anzeige-Route,
  * das Board behält währenddessen Tagesablauf, Startknopf und Zeitenliste im Blick.
  *
- * `data-sequence-panel` lässt die Leertaste eines fokussierten Knopfs hier den Knopf auslösen
- * statt still eine Zeitmarke zu banken (siehe `shortcutGuards`).
+ * Die Leertaste eines fokussierten Knopfs löst hier den Knopf aus statt still eine Zeitmarke zu
+ * banken — das entscheidet `shortcutGuards` am fokussierten Element selbst.
  */
 const SequenceStatusBar = ({
     sequence,
@@ -66,7 +66,6 @@ const SequenceStatusBar = ({
     if (sequence.state === 'DONE' || sequence.state === 'ABORTED') {
         return (
             <Alert
-                data-sequence-panel=""
                 severity={sequence.state === 'DONE' ? 'success' : 'warning'}
                 sx={{flexShrink: 0}}
                 action={
@@ -87,7 +86,6 @@ const SequenceStatusBar = ({
 
     return (
         <Paper
-            data-sequence-panel=""
             variant="outlined"
             /* Pausiert muss man auf zwei Meter Abstand sehen: kräftig orange umrandet und
                hinterlegt statt der neutralen Umrandung. Der Bediener steht am Wasser und darf

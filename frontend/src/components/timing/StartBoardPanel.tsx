@@ -251,7 +251,6 @@ const StartBoardPanel = ({
                 onClick={handleStart}
                 disabled={startDisabled}
                 focusRipple
-                data-sequence-panel=""
                 sx={{
                     flexGrow: 1,
                     width: 1,

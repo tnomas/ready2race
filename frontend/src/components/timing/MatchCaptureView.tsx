@@ -19,7 +19,7 @@ import {
     cycleFocus,
     finishKeyTarget,
 } from '@utils/timing/boardFocus.ts'
-import {isTypingContext} from '@utils/timing/shortcutGuards.ts'
+import {isPrimaryPointer, isTypingContext} from '@utils/timing/shortcutGuards.ts'
 import {formatOfficialTime} from '@components/timing/leitstand/format.ts'
 import {boatReason} from '@components/timing/leitstand/officialTimeReason.ts'
 import {warningTextColor} from '@utils/warningText.ts'
@@ -331,10 +331,12 @@ const MatchCaptureView = ({
                             <ButtonBase
                                 key={team.competitionMatchTeam}
                                 // Wie bisher: der Zeitstempel gehört auf den physischen Druck,
-                                // nicht auf das Loslassen.
-                                onPointerDown={() =>
+                                // nicht auf das Loslassen — aber nur auf den Hauptdruck, ein
+                                // Rechtsklick fürs Kontextmenü bankt nichts.
+                                onPointerDown={event => {
+                                    if (!isPrimaryPointer(event)) return
                                     handleBoat({id: team.competitionMatchTeam, finished: done})
-                                }
+                                }}
                                 onClick={event => event.preventDefault()}
                                 disabled={dead || disabled}
                                 focusRipple

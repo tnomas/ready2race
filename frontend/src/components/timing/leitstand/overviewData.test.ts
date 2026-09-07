@@ -51,13 +51,25 @@ describe('recentlyActiveMatches', () => {
     })
 
     it('zählt einen von Hand gestarteten Lauf über seinen Ist-Start', () => {
-        const startedAt = new Date(4000).toISOString()
+        // Das echte Format des Servers: Wanduhrzeit ohne Zone. Der Zonenversatz hier ist bewusst
+        // keiner, den eine Entwicklermaschine haben könnte (fünf Stunden) — so kann der Test nicht
+        // zufällig über die Gerätezeit grün werden.
+        const startedAt = '2026-08-14T10:30:00'
+        const serverZoneOffsetMs = 5 * 60 * 60_000
         const matches = [match('a', ['t1'], {startedAt})]
+
+        const result = recentlyActiveMatches(matches, [], 10, serverZoneOffsetMs)
+
+        expect(result).toHaveLength(1)
+        expect(result[0].lastActivityMillis).toBe(Date.UTC(2026, 7, 14, 5, 30, 0))
+    })
+
+    it('ohne bekannten Zonenversatz zählt die Gerätezeit', () => {
+        const matches = [match('a', ['t1'], {startedAt: '2026-08-14T10:30:00'})]
 
         const result = recentlyActiveMatches(matches, [], 10)
 
-        expect(result).toHaveLength(1)
-        expect(result[0].lastActivityMillis).toBe(4000)
+        expect(result[0].lastActivityMillis).toBe(new Date(2026, 7, 14, 10, 30, 0).getTime())
     })
 
     it('begrenzt die Liste', () => {
