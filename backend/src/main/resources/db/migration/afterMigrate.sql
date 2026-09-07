@@ -1,5 +1,6 @@
 set search_path to ready2race, pg_catalog, public;
 
+drop view if exists material_item_view;
 drop view if exists event_data_for_competition_results;
 drop view if exists gap_document_template_assignment;
 drop view if exists gap_document_template_view;
@@ -1567,3 +1568,22 @@ from gap_document_template_usage u
          left join gap_document_placeholder gdp on gdt.id = gdp.template
 group by u.type, td.data, gdt.font_name, f.data
 ;
+
+-- Materialstück mit Typ, Kategorie, Anbieter und Zahl offener Schäden (Flotte, Task 1.3).
+create view material_item_view as
+select mi.id,
+       mi.material_provider,
+       mp.name                                         as material_provider_name,
+       mi.material_type,
+       mt.name                                         as material_type_name,
+       mt.category,
+       mi.number,
+       mi.label,
+       mi.note,
+       mi.status,
+       (select count(*) from material_damage md
+        where md.material_item = mi.id and md.status = 'REPORTED')::int as open_damages,
+       mi.created_at, mi.created_by, mi.updated_at, mi.updated_by
+from material_item mi
+         join material_type mt on mt.id = mi.material_type
+         join material_provider mp on mp.id = mi.material_provider;
