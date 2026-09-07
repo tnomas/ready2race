@@ -39,6 +39,11 @@ object WebDAVService {
             Config.WebDAV.Layout.NEXTCLOUD -> listOf("remote.php", "dav", "files", webDAVConfig.authUser)
             Config.WebDAV.Layout.PLAIN -> emptyList()
         }
+        // Schutznetz unter der Request-Validierung: ein `..` verließe den Zielordner. Lieber ein
+        // Defekt als eine Anfrage an den falschen Ort.
+        require(pathSegments.split("/").none { it == ".." }) {
+            "WebDAV path must not contain a '..' segment"
+        }
 
         return URLBuilder(
             protocol = URLProtocol.createOrDefault(webDAVConfig.urlScheme),
@@ -51,6 +56,15 @@ object WebDAVService {
                 .map { it.toNfc() },
         ).buildString() + if (asCollection) "/" else ""
     }
+
+    /**
+     * Entfernt das Nutzer-Segment des Nextcloud-Layouts (`remote.php/dav/files/<user>`) aus einer
+     * gebauten Adresse. Für Meldungen, die den Klienten erreichen: Host und Pfad helfen beim
+     * Suchen, der Anmeldename gehört nicht dorthin. Ohne dieses Segment (Plain-Layout) bleibt
+     * die Adresse unverändert.
+     */
+    fun redactUserSegment(url: String): String =
+        Regex("""/remote\.php/dav/files/[^/]+""").replaceFirst(url, "")
 
     fun buildBasicAuthHeader(webDAVConfig: Config.WebDAV): String {
         val credentials = "${webDAVConfig.authUser}:${webDAVConfig.authPassword}"

@@ -60,10 +60,22 @@ namespace Ready2Race;
 // Models
 // ==========================================================================
 
+// ANZEIGE is a read-only display station (start referee / athlete screen): it never captures a
+// time mark, it mirrors the start sequences of the START station it is linked to.
 enum TimingStationType {
   START;
   SPLIT;
   FINISH;
+  ANZEIGE;
+}
+
+// How a station reacts to a press. ONETOUCH captures immediately - right at the finish line, where
+// every press is intended. ARMED requires the station to be armed first (setTimingStationArmed):
+// out on the course the device lies in a boat or a pocket, and an accidental press must not become
+// a time mark.
+enum TimingCaptureMode {
+  ONETOUCH;
+  ARMED;
 }
 
 model TimingStationDto {
@@ -72,12 +84,32 @@ model TimingStationDto {
   name: string;
   type: TimingStationType;
   sorting: int32;
+
+  // Only set on ANZEIGE stations: the START station this display mirrors; absent = every start
+  // sequence of the event.
+  linkedStation?: uuid;
+  captureMode: TimingCaptureMode;
+
+  // Whether the station is currently armed. Only meaningful while `captureMode` is ARMED; flipped
+  // through setTimingStationArmed, never through updateTimingStation.
+  armed: boolean;
 }
 
 model TimingStationRequest {
   name: string;
   type: TimingStationType;
   sorting: int32;
+
+  // Only allowed for type ANZEIGE, and must reference a START station of the same event.
+  linkedStation?: uuid;
+
+  // Omit to leave the mode unchanged; on create it then becomes ONETOUCH. Deliberately not
+  // defaulted on update: a form that does not know the field must not silently reset it.
+  captureMode?: TimingCaptureMode;
+}
+
+model TimingStationArmedRequest {
+  armed: boolean;
 }
 
 model TimeMarkDto {
@@ -304,7 +336,22 @@ model TimingDeviceTokenDto {
   station: uuid;
   name: string;
   revoked: boolean;
+
+  // True for tokens issued automatically via the station share-link endpoint (the same link is
+  // returned on every click until revoked); false for manually issued hardware tokens.
+  autoIssued: boolean;
   createdAt: dateTime;
+}
+
+// The shareable station link. Unlike the manual token issue response this is repeatable: the same
+// station returns the same link until its token is revoked in the devices tab.
+model TimingShareLinkDto {
+  deviceToken: TimingDeviceTokenDto;
+  token: string;
+
+  // Root-relative frontend path including the token (`/event/{eventId}/timing/{stationId}?token=...`;
+  // ANZEIGE stations get the `/anzeige` display route). The client prepends its own origin.
+  path: string;
 }
 
 // Response of an issue call: the only moment the plaintext `token` exists outside the device. Only
@@ -327,11 +374,10 @@ model TimingDeviceTokenRequest {
 // No field is nullable - the fallback is the whole block, not a single field. Limits are enforced
 // by the service, not the database: the three scales 0.5..3.0, `followingCount` 0..20.
 //
-// The block reaches boards through the event's timing settings (`GET /timing/settings`, readable
-// with a device token) and is pushed live on every change via the `settingsChanged` websocket
-// message; it is written through the event timing config. Neither of those two carries a model in
-// this spec - they only exist in the hand-maintained backend OpenAPI document, from which the
-// frontend generates - so this model stands here on its own for now.
+// The block reaches boards through the event's timing settings (getTimingSettings, readable with a
+// device token, see TimingSettingsDto) and is pushed live on every change via the
+// `settingsChanged` websocket message; it is written through the event timing config, which only
+// exists in the hand-maintained backend OpenAPI document.
 model StartDisplaySettingsDto {
   // The running number in front of a boat (1st, 2nd, 3rd ...). Default false - the screen used to
   // show the position twice, once as a number in the row and once through the order of the list
@@ -359,6 +405,288 @@ model StartDisplaySettingsDto {
 }
 
 // ==========================================================================
+// Models - settings, tones, modes, matches
+// ==========================================================================
+
+// INTERN selects the built-in timing module (stations, time marks, start sequences, official
+// times); such competitions appear in the station start list (getTimingMatches).
+enum TimingSystem {
+  RACECLOCKER;
+  WEBSCORER;
+  INTERN;
+}
+
+// Precision of published official times. Raw data stays millisecond-exact; the setting only
+// affects what the write-back copies to the match teams and what is displayed. Values are
+// truncated, never rounded.
+enum TimingPrecision {
+  SEKUNDE;
+  ZEHNTEL;
+  HUNDERTSTEL;
+  MILLISEKUNDE;
+}
+
+model TimingAutoApplyRequest {
+  enabled: boolean;
+}
+
+// Waveform of a synthesized timing tone: the four basic shapes of the Web Audio OscillatorNode,
+// named like the browser's OscillatorType values (uppercased).
+enum ToneWaveform {
+  SINE;
+  TRIANGLE;
+  SQUARE;
+  SAWTOOTH;
+}
+
+// One tone of a tone sequence: a synthesized beep at a point in time relative to a reference. The
+// same shape carries both sequences of the system; only the DIRECTION of offsetMillis differs -
+// backwards to the start for the start sequence plan, forwards from the trigger for the false
+// start sequence.
+model ToneStepDto {
+  offsetMillis: int32;
+  frequencyHz: int32;
+  durationMillis: int32;
+
+  // Absent/null = sine; steps stored without the field keep their sound.
+  waveform?: ToneWaveform | null;
+
+  // Selects the tone's ENVELOPE: null = "decaying" (exponential decay across the whole nominal
+  // duration); 0..5000 = "held" (full level, then release over this many milliseconds).
+  releaseMillis?: int32 | null;
+}
+
+// A single configurable tone: the confirmation beep played when a FINISH/SPLIT station captures
+// a time. Deliberately a SINGLE tone - it confirms a key press and must be short.
+model CaptureToneDto {
+  frequencyHz: int32;
+  durationMillis: int32;
+
+  // Same semantics as ToneStepDto.waveform.
+  waveform?: ToneWaveform | null;
+
+  // Same semantics as ToneStepDto.releaseMillis.
+  releaseMillis?: int32 | null;
+}
+
+// The tones a board REALLY plays - the result of the resolution (mode's own set, else the event's
+// default set, else the built-in defaults) and thus the counterpart of TimingToneSetDto.
+model ResolvedToneSetDto {
+  // Tone plan of the start sequence, offsets counting BACKWARDS to the start. The only one of the
+  // four that stays nullable: its built-in default is derived from the mode's lead-in on the board.
+  sequenceTonePlan?: ToneStepDto[] | null;
+  splitTone: CaptureToneDto;
+  falseStartTone: ToneStepDto[];
+  finishTone: CaptureToneDto;
+
+  // Does the capture tone tell the boats apart? Without any set it is off - one tone for all.
+  tonePerBoat: boolean;
+}
+
+// A named set of the four tones of a timing ("Laut fürs Wasser", "Leise für die Halle") - the
+// template any number of timing modes share. All four tone fields are UNRESOLVED here: null keeps
+// meaning "built-in default", so the form can still offer "restore default".
+model TimingToneSetDto {
+  id: uuid;
+  name: string;
+
+  // The event's default set: timing modes without a pick of their own inherit it. Exactly one per
+  // event.
+  isDefault: boolean;
+  sequenceTonePlan?: ToneStepDto[] | null;
+  splitTone?: CaptureToneDto | null;
+  falseStartTone?: ToneStepDto[] | null;
+  finishTone?: CaptureToneDto | null;
+
+  // Position 1 plays the finish tone, the other five a pentatonic scale above it.
+  tonePerBoat: boolean;
+}
+
+model TimingToneSetRequest {
+  name: string;
+
+  // True takes the mark off the previous default in the same transaction; false on the current
+  // default is refused (409) while other sets exist.
+  isDefault?: boolean;
+
+  // Null restores the built-in default in each of the four fields.
+  sequenceTonePlan?: ToneStepDto[] | null;
+  splitTone?: CaptureToneDto | null;
+  falseStartTone?: ToneStepDto[] | null;
+  finishTone?: CaptureToneDto | null;
+
+  // Omitted means true.
+  tonePerBoat?: boolean;
+}
+
+// How many boats start per start action: EINZEL = one boat at a time (time trial), WELLE =
+// several together. A mass start is a WELLE containing every boat of the match, not a third value.
+enum TimingStartGrouping {
+  EINZEL;
+  WELLE;
+}
+
+// A timing mode of the event - the template for how a match is started ("Timetrial 30s",
+// "Wellenstart", "Massenstart"). How a match is measured is not part of it.
+model TimingModeDto {
+  id: uuid;
+  event: uuid;
+  name: string;
+
+  // The tone set this mode picked, or null - then it inherits the event's default tone set.
+  toneSet?: uuid | null;
+
+  // Does the app start matches of this mode at all? A race started by a judge on the pontoon has
+  // no countdown window.
+  startSequenceEnabled: boolean;
+
+  // The keys the finish station uses to hit the boats, in position order.
+  boatKeysPrimary: string;
+
+  // Optional second row of keys; null means there is none.
+  boatKeysSecondary?: string | null;
+
+  // Whether the start board may trigger an explicit false start (recall) for matches of this
+  // mode. Rowing time trials answer a false start with a time penalty instead.
+  falseStartEnabled: boolean;
+  startGrouping: TimingStartGrouping;
+
+  // Set: starts follow automatically at this fixed interval (time trial). Null: every start is
+  // triggered by hand.
+  intervalSeconds?: int32 | null;
+
+  // Countdown before the (first) start; feeds the start sequences' lead-in.
+  leadInSeconds: int32;
+
+  // The four tones a match of this mode actually makes, resolved.
+  resolvedToneSet: ResolvedToneSetDto;
+}
+
+model TimingModeRequest {
+  name: string;
+  startGrouping: TimingStartGrouping;
+  intervalSeconds?: int32 | null;
+  leadInSeconds: int32;
+
+  // Null (the default) means it inherits the event's default tone set.
+  toneSet?: uuid | null;
+
+  // Omitted means true.
+  startSequenceEnabled?: boolean;
+
+  // First row of finish keys, in position order. No key twice within a row nor across the two
+  // rows (case-insensitively), no whitespace, at most 6 keys.
+  boatKeysPrimary?: string;
+
+  // Optional second row; null means there is none. An empty string is rejected.
+  boatKeysSecondary?: string | null;
+
+  // Omitted means true.
+  falseStartEnabled?: boolean;
+}
+
+// The event's timing settings as one read. Writes stay separate - the switch via
+// setTimingAutoApply, the precision via the event timing config.
+model TimingSettingsDto {
+  autoApply: boolean;
+  precision: TimingPrecision;
+
+  // Whether the capture board of a START station shows the manual capture button.
+  showManualCapture: boolean;
+  startDisplay: StartDisplaySettingsDto;
+
+  // The event's DEFAULT tone set, resolved - the fallback for everything that belongs to no match.
+  defaultToneSet: ResolvedToneSetDto;
+}
+
+// The team's match as the boards need it: ACTIVE = called up or on the water, OPEN = still ahead,
+// DONE = finished. Deliberately coarser than the match state of the referee dashboard.
+enum TimingMatchPhase {
+  ACTIVE;
+  OPEN;
+  DONE;
+}
+
+// Where a match stands on its way from call-up to the finish line, derived (not stored): OPEN =
+// nothing happened yet, STARTING = an armed or running start sequence contains teams of this
+// match, STARTED = at least one team has a start mark, FINISHED = every team has a finish mark.
+enum TimingMatchProgress {
+  OPEN;
+  STARTING;
+  STARTED;
+  FINISHED;
+}
+
+model TimingMatchTeamDto {
+  competitionMatchTeam: uuid;
+
+  // The team's position in the match (its "lane").
+  startNumber: int32;
+  teamName?: string | null;
+  clubName?: string | null;
+
+  // The team has an assigned ACTIVE mark on a START station.
+  started: boolean;
+
+  // The team has an assigned ACTIVE mark on a FINISH station.
+  finished: boolean;
+}
+
+// One match of the internally timed competitions, delivered in start order (planned start time
+// first; matches without a time follow in setup order - race number, round chain, execution
+// order).
+model TimingMatchDto {
+  // Key of the match (competition_match carries the setup match id as its primary key).
+  competitionSetupMatch: uuid;
+  matchName?: string | null;
+  competition: uuid;
+  competitionName?: string | null;
+
+  // The race number.
+  competitionIdentifier?: string | null;
+
+  // Short name of the competition (e.g. "CM 4x+") - the compact label of the day schedule.
+  competitionShortName?: string | null;
+  round: uuid;
+  roundName?: string | null;
+
+  // Planned start time from the schedule.
+  startTime?: dateTime | null;
+
+  // Real start (referee action or timing).
+  startedAt?: dateTime | null;
+  finishedAt?: dateTime | null;
+  phase: TimingMatchPhase;
+  progress: TimingMatchProgress;
+
+  // The resolved timing mode (round entry beats competition entry); absent = not configured.
+  timingMode?: TimingModeDto;
+  teams: TimingMatchTeamDto[];
+}
+
+// A timing station on THIS competition's course. The station belongs to the event; only the metre
+// belongs to the competition, because the same station sits at 3000 m for the long distance and
+// at 250 m for the sprint.
+model CompetitionTimingStationDto {
+  timingStation: uuid;
+  name: string;
+  type: TimingStationType;
+
+  // The start is at 0, the finish at the total distance. Split times are ordered by this value.
+  distanceMeters: int32;
+}
+
+model CompetitionTimingStationEntry {
+  timingStation: uuid;
+  distanceMeters: int32;
+}
+
+model CompetitionTimingStationsRequest {
+  // The complete list; anything missing here is deleted.
+  stations: CompetitionTimingStationEntry[];
+}
+
+// ==========================================================================
 // Routes - event-scoped
 // ==========================================================================
 // GET /state, GET /stations, GET /teams: require UpdateAppTimingGlobal OR ReadEventGlobal
@@ -378,6 +706,13 @@ model StartDisplaySettingsDto {
 // GET /officialTimes: require UpdateAppTimingGlobal OR ReadEventGlobal
 // POST /officialTimes/compute, PUT /officialTimes/{id}, POST /officialTimes/push: require UpdateEventGlobal
 // GET /deviceTokens, POST /deviceTokens, DELETE /deviceTokens/{id}: require UpdateEventGlobal
+// PUT /stations/{id}/armed: session with UpdateAppTimingGlobal OR UpdateEventGlobal, or the station's OWN device token
+// POST /stations/{id}/share-link: require UpdateEventGlobal
+// GET /matches: like GET /state (session or device token)
+// POST /matches/{id}/retractAttempt, POST /matches/{id}/falseStart: require UpdateAppTimingGlobal OR UpdateEventGlobal
+// PUT /timeMarks/{id}/reactivate: require UpdateAppTimingGlobal OR UpdateEventGlobal (session only, no device token)
+// GET /settings: like GET /officialTimes (session or device token); PUT /autoApply: require UpdateEventGlobal
+// GET /modes, GET /tone-sets: require ReadEventGlobal; POST/PUT/DELETE of both: require UpdateEventGlobal
 
 @route("/event/{eventId}/timing")
 @tag("Timing")
@@ -415,12 +750,74 @@ interface TimingRoutes {
     @body request: TimingStationRequest,
   ): void;
 
+  // 409 TIMING_STATION_HAS_SEQUENCES while start sequences still reference the station.
   @delete
   @route("/stations/{stationId}")
   @operationId("deleteTimingStation")
   deleteTimingStation(
     @path eventId: uuid,
     @path stationId: uuid,
+  ): void;
+
+  // Arms or disarms the station. Only meaningful while its `captureMode` is ARMED: in ONETOUCH
+  // mode every press captures and this state lies idle. Deliberately separate from
+  // updateTimingStation: the capture mode belongs to the organizers and is set once, this state
+  // is flipped by the timekeeper many times a day. A device token may only flip its OWN station.
+  @put
+  @route("/stations/{stationId}/armed")
+  @operationId("setTimingStationArmed")
+  setTimingStationArmed(
+    @path eventId: uuid,
+    @path stationId: uuid,
+    @body request: TimingStationArmedRequest,
+  ): void;
+
+  // Issues a device token for the station automatically and returns the finished link. Reuse
+  // instead of inflation: as long as an automatically issued, unrevoked token exists for the
+  // station, every call returns the SAME link; revoking it makes the next call issue a fresh one.
+  @post
+  @route("/stations/{stationId}/share-link")
+  @operationId("createTimingStationShareLink")
+  createTimingStationShareLink(
+    @path eventId: uuid,
+    @path stationId: uuid,
+  ): TimingShareLinkDto;
+
+  // The station start list: every materialized match of the event's internally timed
+  // competitions, in start order, each with its resolved timing mode, teams and derived progress.
+  // Bye matches are excluded unless the bye must race. Pass `station` to narrow the list to the
+  // matches that station is expected to time (its competitions' courses).
+  @get
+  @route("/matches")
+  @operationId("getTimingMatches")
+  getTimingMatches(
+    @path eventId: uuid,
+    @query station?: uuid,
+  ): TimingMatchDto[];
+
+  // Bulk retraction behind the start board's "retract start and restart" action: every ACTIVE
+  // time mark assigned to a team of this match - start, finish and lap marks alike - is set to
+  // RETRACTED in one call. Finish marks must go with the start marks, because stale finish times
+  // of a discarded attempt would otherwise instantly recombine with the new start marks into
+  // wrong official times through the automatic write-back.
+  @post
+  @route("/matches/{matchId}/retractAttempt")
+  @operationId("retractMatchAttempt")
+  retractMatchAttempt(
+    @path eventId: uuid,
+    @path matchId: uuid,
+  ): void;
+
+  // The explicit false start ("recall") of a match, triggered from the start station's capture
+  // board: the active start sequences holding boats of this match are aborted first, then the
+  // whole attempt is retracted like retractMatchAttempt, and the `falseStart` websocket message
+  // is emitted. 409 when the match's resolved timing mode has `falseStartEnabled` switched off.
+  @post
+  @route("/matches/{matchId}/falseStart")
+  @operationId("falseStartMatch")
+  falseStartMatch(
+    @path eventId: uuid,
+    @path matchId: uuid,
   ): void;
 
   // Accepts either a normal session with UpdateAppTimingGlobal or UpdateEventGlobal, OR an
@@ -451,6 +848,18 @@ interface TimingRoutes {
     @path eventId: uuid,
     @path timeMarkId: uuid,
     @body request: AssignTimeMarkRequest,
+  ): void;
+
+  // The counterpart to retracting: sets a RETRACTED time mark back to ACTIVE. The mark's former
+  // team assignment was never detached, so it simply applies again, and the official time of the
+  // affected team is recomputed and written back immediately. Idempotent. Requires a user session;
+  // device tokens cannot reactivate.
+  @put
+  @route("/timeMarks/{timeMarkId}/reactivate")
+  @operationId("reactivateTimeMark")
+  reactivateTimeMark(
+    @path eventId: uuid,
+    @path timeMarkId: uuid,
   ): void;
 
   @post
@@ -585,6 +994,123 @@ interface TimingRoutes {
   revokeTimingDeviceToken(
     @path eventId: uuid,
     @path tokenId: uuid,
+  ): void;
+
+  // The event's timing settings in one fetch. Readable with a device token like
+  // getOfficialTimes, since the station boards need the precision to render official times.
+  @get
+  @route("/settings")
+  @operationId("getTimingSettings")
+  getTimingSettings(@path eventId: uuid): TimingSettingsDto;
+
+  // Persists the automatic write-back switch. Enabling it catches up once: every team with marks
+  // or an official-time row is recomputed and written back (frozen or foreign results are skipped
+  // and stay flagged dirty). Disabling only stops future writes.
+  @put
+  @route("/autoApply")
+  @operationId("setTimingAutoApply")
+  setTimingAutoApply(
+    @path eventId: uuid,
+    @body request: TimingAutoApplyRequest,
+  ): void;
+
+  @get
+  @route("/modes")
+  @operationId("getTimingModes")
+  getTimingModes(@path eventId: uuid): TimingModeDto[];
+
+  // 409 when a mode of that name exists in the event.
+  @post
+  @route("/modes")
+  @operationId("addTimingMode")
+  addTimingMode(
+    @path eventId: uuid,
+    @body request: TimingModeRequest,
+  ): Created;
+
+  @put
+  @route("/modes/{modeId}")
+  @operationId("updateTimingMode")
+  updateTimingMode(
+    @path eventId: uuid,
+    @path modeId: uuid,
+    @body request: TimingModeRequest,
+  ): void;
+
+  // Refused with 409 while the mode is still assigned to competitions or rounds - clear the
+  // assignments first, nothing is unconfigured silently.
+  @delete
+  @route("/modes/{modeId}")
+  @operationId("deleteTimingMode")
+  deleteTimingMode(
+    @path eventId: uuid,
+    @path modeId: uuid,
+  ): void;
+
+  // The named tone sets of the event, default first, then alphabetically.
+  @get
+  @route("/tone-sets")
+  @operationId("getTimingToneSets")
+  getTimingToneSets(@path eventId: uuid): TimingToneSetDto[];
+
+  // The FIRST tone set of an event always becomes the default, whatever the body asks for.
+  // Asking for isDefault on a later set moves the mark off the previous default.
+  @post
+  @route("/tone-sets")
+  @operationId("addTimingToneSet")
+  addTimingToneSet(
+    @path eventId: uuid,
+    @body request: TimingToneSetRequest,
+  ): Created;
+
+  // 409 when it would leave an event that still has other tone sets without a default.
+  @put
+  @route("/tone-sets/{toneSetId}")
+  @operationId("updateTimingToneSet")
+  updateTimingToneSet(
+    @path eventId: uuid,
+    @path toneSetId: uuid,
+    @body request: TimingToneSetRequest,
+  ): void;
+
+  // Timing modes pointing at the deleted set fall back to the default. The default itself may
+  // only go as the LAST tone set of the event (409 otherwise).
+  @delete
+  @route("/tone-sets/{toneSetId}")
+  @operationId("deleteTimingToneSet")
+  deleteTimingToneSet(
+    @path eventId: uuid,
+    @path toneSetId: uuid,
+  ): void;
+}
+
+// ==========================================================================
+// Routes - the stations on a competition's course
+// ==========================================================================
+// GET: require ReadEventGlobal; PUT: require UpdateEventGlobal
+
+@route("/event/{eventId}/competition/{competitionId}/timing-stations")
+@tag("Timing")
+interface CompetitionTimingStationRoutes {
+
+  // Ordered by distance.
+  @get
+  @operationId("getCompetitionTimingStations")
+  getCompetitionTimingStations(
+    @path eventId: uuid,
+    @path competitionId: uuid,
+  ): CompetitionTimingStationDto[];
+
+  // Replaces the WHOLE list: anything missing from the body is deleted, everything in it is
+  // created or moved to its new metre; an empty list clears the competition. 404 if the
+  // competition or a station does not belong to this event, 409 if the same station is listed
+  // twice, 400 for ANZEIGE stations (they never capture a time mark).
+  @put
+  @operationId("setCompetitionTimingStations")
+  setCompetitionTimingStations(
+    @path eventId: uuid,
+    @path competitionId: uuid,
+    @body request: CompetitionTimingStationsRequest,
   ): void;
 }
 

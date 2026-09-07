@@ -85,6 +85,12 @@ sealed interface CompetitionExecutionError : ServiceError {
      * Nutzer die Liste selbst durchzählen, um die Lücke zu finden.
      */
     data class PlacesNotContinuous(val expected: Int, val actual: Int) : CompetitionExecutionError
+
+    /**
+     * Mehrere Boote tragen denselben Platz, ohne dieselbe Zeit zu haben. Ein geteilter Platz ist
+     * nur als totes Rennen erlaubt - alles andere ist ein Tippfehler, der benannt werden muss.
+     */
+    data class DuplicatePlaces(val place: Int) : CompetitionExecutionError
     data object StartTimeManagedBySchedule : CompetitionExecutionError
 
     sealed interface ResultUploadError : CompetitionExecutionError {
@@ -281,6 +287,13 @@ sealed interface CompetitionExecutionError : ServiceError {
             message = "The places are not continuous: expected $expected, got $actual.",
             errorCode = ErrorCode.EXECUTION_PLACES_NOT_CONTINUOUS,
             details = mapOf("expected" to expected, "actual" to actual),
+        )
+
+        is DuplicatePlaces -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "Place $place is given to several teams with different times. A shared place needs equal times.",
+            errorCode = ErrorCode.COMPETITION_EXECUTION_DUPLICATE_PLACES,
+            details = mapOf("place" to place),
         )
 
         StartTimeManagedBySchedule -> ApiError(

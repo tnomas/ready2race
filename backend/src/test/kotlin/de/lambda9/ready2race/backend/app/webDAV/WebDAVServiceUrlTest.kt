@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.config.Config
 import java.text.Normalizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 
 /**
@@ -112,6 +113,46 @@ class WebDAVServiceUrlTest {
         assertEquals(
             "https://cloud.example.org/2026/Export/Datei.pdf",
             WebDAVService.getUrl(config(Config.WebDAV.Layout.PLAIN, folderPath = "/2026"), "Export/Datei.pdf"),
+        )
+    }
+
+    /**
+     * Schutznetz unter der Request-Validierung: Ein Pfadsegment `..` verließe den Zielordner. Die
+     * Adresse darf dann gar nicht erst entstehen - ein Defekt ist hier richtiger als eine
+     * Anfrage an den falschen Ort.
+     */
+    @Test
+    fun `Ein Punktverzeichnis im Pfad ist ein Fehler`() {
+        assertFailsWith<IllegalArgumentException> {
+            WebDAVService.getUrl(config(Config.WebDAV.Layout.PLAIN), "../fremd/Datei.pdf")
+        }
+        assertFailsWith<IllegalArgumentException> {
+            WebDAVService.getUrl(config(Config.WebDAV.Layout.PLAIN), "Export/../Datei.pdf")
+        }
+    }
+
+    /**
+     * Fehlermeldungen an den Klienten nennen Host und Pfad, nicht das Nutzer-Segment des
+     * Nextcloud-Layouts - der Anmeldename gehört nicht in eine Meldung, die im Browser landet.
+     */
+    @Test
+    fun `Das Nutzer-Segment wird aus der Adresse entfernt`() {
+        assertEquals(
+            "https://cloud.example.org/2026/Export/",
+            WebDAVService.redactUserSegment(
+                "https://cloud.example.org/remote.php/dav/files/regatta%40example.org/2026/Export/"
+            ),
+        )
+        assertEquals(
+            "https://cloud.example.org/nextcloud/Datei.pdf",
+            WebDAVService.redactUserSegment(
+                "https://cloud.example.org/nextcloud/remote.php/dav/files/regatta@example.org/Datei.pdf"
+            ),
+        )
+        // Ohne Nutzer-Segment (Plain-Layout) bleibt die Adresse, wie sie ist.
+        assertEquals(
+            "https://cloud.example.org/2026/Export/",
+            WebDAVService.redactUserSegment("https://cloud.example.org/2026/Export/"),
         )
     }
 

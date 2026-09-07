@@ -12040,6 +12040,7 @@ components:
         - EXECUTION_PLACES_NOT_CONTINUOUS
         - EXECUTION_START_TIME_MANAGED_BY_SCHEDULE
         - EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND
+        - COMPETITION_EXECUTION_DUPLICATE_PLACES
         - LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE
         - LIVE_DASHBOARD_MATCH_ALREADY_FINISHED
         - QR_CODE_ALREADY_IN_USE
@@ -20592,6 +20593,8 @@ components:
       properties:
         name:
           type: string
+          description: Name of the export folder on the WebDAV server. A single path segment - must not contain / or \ and must not be . or ..
+          maxLength: 255
         events:
           type: array
           items:
