@@ -17,6 +17,9 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
+import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
+import de.lambda9.ready2race.backend.app.stream.control.toJsonb
+import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneGraphicRecord
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
@@ -75,6 +78,33 @@ class StreamSceneViewTest {
             .set(COMPETITION_MATCH.ACTIVATED_AT, at)
             .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId))
             .execute()
+    }
+
+    /**
+     * Ein Altbestand mit unsinniger Zeilenzahl (vor der Eingabeprüfung geschrieben) darf den
+     * Szenenaufbau nicht reißen - das Tagesprogramm bleibt dann schlicht leer, die übrigen
+     * Grafiken der Szene kommen weiter durch.
+     */
+    @Test
+    fun aNegativeScheduleLengthYieldsAnEmptyScheduleInsteadOfADefect() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest())).dto.id
+        // Am Dienst vorbei, wie eine Zeile aus der Zeit vor der Prüfung.
+        !StreamSceneRepo.upsertGraphic(
+            StreamSceneGraphicRecord(
+                id = UUID.randomUUID(),
+                scene = sceneId,
+                type = StreamGraphicType.SCHEDULE.name,
+                enabled = true,
+                placement = StreamPlacement.FULL_CENTER.name,
+                size = StreamGraphicSize.NORMAL.name,
+                settings = StreamGraphicSettings(listLength = -1).toJsonb(),
+            )
+        ).orDie()
+
+        val view = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        val schedule = view.graphics.first { it.type == StreamGraphicType.SCHEDULE }
+        assertEquals(emptyList(), schedule.schedule)
     }
 
     @Test

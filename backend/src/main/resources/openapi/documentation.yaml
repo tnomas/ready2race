@@ -22870,11 +22870,15 @@ components:
         displaySeconds:
           type: integer
           nullable: true
-          description: "LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds."
+          description: "LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds. 1..600 when set."
+          minimum: 1
+          maximum: 600
         listLength:
           type: integer
           nullable: true
-          description: "SCHEDULE: number of rows shown, default 8."
+          description: "SCHEDULE: number of rows shown, default 8. 1..50 when set."
+          minimum: 1
+          maximum: 50
         imageDocument:
           type: string
           format: uuid
@@ -22958,7 +22962,9 @@ components:
           description: "Required to be a hex color (#RGB or #RRGGBB) when background is CHROMA."
         safeAreaPercent:
           type: integer
-          description: "0..100, defaults to 0."
+          description: "0..20, defaults to 0."
+          minimum: 0
+          maximum: 20
 
     StreamSceneGraphicsRequest:
       type: object

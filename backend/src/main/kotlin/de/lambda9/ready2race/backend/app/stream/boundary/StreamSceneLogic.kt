@@ -179,9 +179,11 @@ object StreamSceneLogic {
                 .toSet()
 
             val needsSchedule = graphics.any { it.type == StreamGraphicType.SCHEDULE }
-            val scheduleLength = graphics
+            // Auf null geklemmt: Eine Zeile aus der Zeit vor der Eingabeprüfung kann eine negative
+            // Zeilenzahl tragen, und `take(-1)` risse sonst den ganzen Szenenaufbau.
+            val scheduleLength = (graphics
                 .firstOrNull { it.type == StreamGraphicType.SCHEDULE }
-                ?.settings?.listLength ?: DEFAULT_SCHEDULE_LENGTH
+                ?.settings?.listLength ?: DEFAULT_SCHEDULE_LENGTH).coerceAtLeast(0)
 
             // Das Tagesprogramm zahlt nur eine Szene mit SCHEDULE-Grafik; die Regie-Auswahl
             // braucht denselben Block, um einen benannten anstehenden Lauf zu finden - und der
