@@ -6,7 +6,9 @@ import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardViewBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.DeviceTokenLookup
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
+import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.timing.boundary.DeviceTokenRevocation
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
@@ -14,6 +16,7 @@ import de.lambda9.ready2race.backend.calls.requests.authenticateAnyWithToken
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.fold
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -206,6 +209,16 @@ private suspend fun DefaultWebSocketServerSession.boardViewSocket(env: JEnv) {
         return
     }
 
+    // Der Sitzungsweg prüft die Zugehörigkeit selbst (der Token-Weg hat sie in validateForBoard
+    // schon): ein Board unter einer fremden Veranstaltung im Pfad bekommt keinen Kanal. Sonst
+    // hinge die Verbindung stumm am fremden Schlüssel und bekäme mit dem nächsten Ereignis doch
+    // noch dessen Stand - der HTTP-Zwilling antwortet hier 404.
+    if (sessionAuthorized && !boardBelongsToEvent(env, eventId, boardId)) {
+        logger.info { "Rejecting board ws handshake for board $boardId: not part of event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown board"))
+        return
+    }
+
     // Über den Token-Zweig hereingekommen: an das Token binden, damit ein Widerruf diese
     // Verbindung sofort schließt und nicht erst der nächste Handshake das Token ablehnt.
     val tokenBinding = if (sessionAuthorized) null
@@ -295,6 +308,14 @@ private suspend fun DefaultWebSocketServerSession.streamSceneSocket(env: JEnv) {
         )
     if (!authorized) {
         close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
+        return
+    }
+
+    // Wie beim Board-Kanal prüft der Sitzungsweg die Zugehörigkeit selbst - dieselbe Regel wie
+    // `requireOwnedScene` am HTTP-Zwilling; der Token-Weg hat sie in validateForStreamScene schon.
+    if (sessionAuthorized && !sceneBelongsToEvent(env, eventId, sceneId)) {
+        logger.info { "Rejecting stream ws handshake for scene $sceneId: not part of event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown scene"))
         return
     }
 
@@ -471,6 +492,28 @@ internal object DeviceTokenBoundSockets {
         }
     }
 }
+
+/** Gehört [boardId] zu [eventId]? Ein Lesefehler zählt als "nein" - im Zweifel kein Kanal. */
+private fun boardBelongsToEvent(env: JEnv, eventId: UUID, boardId: UUID): Boolean =
+    BoardRepo.findById(boardId).orDie().unsafeRunSync(env).fold(
+        onSuccess = { it?.eventId == eventId },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check board $boardId against event $eventId" }
+            false
+        },
+    )
+
+/** Gehört [sceneId] zu [eventId]? Dieselbe Prüfung wie `requireOwnedScene` am HTTP-Zwilling. */
+private fun sceneBelongsToEvent(env: JEnv, eventId: UUID, sceneId: UUID): Boolean =
+    StreamSceneService.requireOwnedScene(eventId, sceneId).unsafeRunSync(env).fold(
+        onSuccess = { true },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check scene $sceneId against event $eventId" }
+            false
+        },
+    )
 
 /**
  * Die Token-Kennung zu einem Klartext-Token, das der Token-Zweig eben erfolgreich geprüft hat -

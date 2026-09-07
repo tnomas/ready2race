@@ -20,6 +20,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.server.testing.ClientProvider
 import io.ktor.websocket.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -259,6 +260,36 @@ class StreamSceneSocketTest {
         }
     }
 
+    /**
+     * Auch der Sitzungsweg prüft die Zugehörigkeit: eine Szene unter einer FREMDEN Veranstaltung
+     * im Pfad bekommt keinen Kanal. Spiegelt `requireOwnedScene` am HTTP-Zwilling.
+     */
+    @Test
+    fun aSessionMayNotOpenASceneUnderAnotherEvent() = testApplicationComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+        val sessionHeader = loginAsAdmin()
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.webSocketSession("/api/ws/event/$otherEventId/stream/$sceneId") {
+            header(SESSION_HEADER, sessionHeader)
+        }
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+
+        assertNotNull(closeReason)
+        assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
+    }
+
+    private suspend fun ClientProvider.loginAsAdmin(): String {
+        val login = client.post("/api/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"admin","password":"admin"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status)
+        return login.headers[SESSION_HEADER] ?: error("login did not return a $SESSION_HEADER header")
+    }
+
     /** Spiegelt `new WebSocket(url, ["r2r", token])` im Browser. */
     private suspend fun HttpClient.sceneSocketSession(
         eventId: UUID,
@@ -271,4 +302,8 @@ class StreamSceneSocketTest {
 
     private suspend fun DefaultClientWebSocketSession.receiveText(): String =
         withTimeout(awaitTimeout) { (incoming.receive() as Frame.Text).readText() }
+
+    companion object {
+        private const val SESSION_HEADER = "X-Api-Session"
+    }
 }

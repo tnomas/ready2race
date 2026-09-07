@@ -71,6 +71,27 @@ class BoardServiceTest {
      * `columns` (z. B. die Default-Boards der Migration V202608102000). Beim Lesen wird
      * normalisiert — nach außen taucht `layout` nie mehr auf.
      */
+    /**
+     * Der Zwischenspeicher darf die Zugehörigkeitsprüfung nicht aushebeln: Ein unter der
+     * richtigen Veranstaltung gebauter Stand steht im Cache - ein Abruf desselben Boards unter
+     * einer FREMDEN Veranstaltung muss trotzdem ins Leere laufen, genau wie ohne Cache.
+     */
+    @Test
+    fun aCachedViewIsNotServedUnderAnotherEvent() = testComprehension {
+        val eventId = UUID.randomUUID()
+        val otherEventId = UUID.randomUUID()
+        !EVENT.insert(EventRecord(id = eventId, name = "Testregatta", createdAt = now, updatedAt = now))
+        !EVENT.insert(EventRecord(id = otherEventId, name = "Fremde Regatta", createdAt = now, updatedAt = now))
+        val boardId = (!BoardService.createBoard(eventId, BoardRequest.example)).dto.id
+
+        // Füllt den Cache unter der eigenen Veranstaltung.
+        assertEquals("Testregatta", (!BoardService.getBoardView(eventId, boardId)).dto.eventName)
+
+        assertKIOFails(EventInfoProblem.BoardNotFound(boardId)) {
+            BoardService.getBoardView(otherEventId, boardId)
+        }
+    }
+
     @Test
     fun aLegacyLayoutConfigIsNormalizedOnRead() = testComprehension {
         val eventId = UUID.randomUUID()

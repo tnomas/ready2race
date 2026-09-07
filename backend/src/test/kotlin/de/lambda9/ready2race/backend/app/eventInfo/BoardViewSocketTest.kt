@@ -181,6 +181,28 @@ class BoardViewSocketTest {
         }
     }
 
+    /**
+     * Auch der Sitzungsweg prüft die Zugehörigkeit: ein Board unter einer FREMDEN Veranstaltung
+     * im Pfad bekommt keinen Kanal - sonst hinge die Verbindung stumm am falschen Schlüssel und
+     * bekäme nach dem nächsten Ereignis doch noch den Stand des fremden Boards.
+     */
+    @Test
+    fun aSessionMayNotOpenABoardUnderAnotherEvent() = testApplicationComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val sessionHeader = loginAsAdmin()
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.webSocketSession("/api/ws/event/$otherEventId/board/$boardId") {
+            header(SESSION_HEADER, sessionHeader)
+        }
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+
+        assertNotNull(closeReason)
+        assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
+    }
+
     @Test
     fun aConfigChangePushesTheNewConfiguration() = testApplicationComprehension {
         // Der zweite Auslöser des Kanals: eine Konfigurationsänderung zählt den Änderungsmarker

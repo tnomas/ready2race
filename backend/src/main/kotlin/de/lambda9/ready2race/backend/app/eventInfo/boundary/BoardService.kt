@@ -38,7 +38,15 @@ object BoardService {
     // [marker] ist der [EventChangeMarker]-Stand beim Bau: schreibt danach jemand an der
     // Veranstaltung (Ergebnis, Beenden, Hinweis, …), gilt der Eintrag sofort als alt —
     // die TTL deckelt nur noch den Nichts-passiert-Fall.
-    private data class CachedView(val builtAt: LocalDateTime, val marker: Long, val dto: BoardViewDto)
+    // [eventId] ist die Veranstaltung, unter der gebaut wurde: ein Abruf desselben Boards
+    // unter einer fremden Veranstaltung darf den Eintrag nicht treffen, sonst hebelte der
+    // Zwischenspeicher die Zugehörigkeitsprüfung aus, die erst hinter ihm kommt.
+    private data class CachedView(
+        val eventId: UUID,
+        val builtAt: LocalDateTime,
+        val marker: Long,
+        val dto: BoardViewDto,
+    )
 
     private val boardViewCache = ConcurrentHashMap<UUID, CachedView>()
 
@@ -150,7 +158,7 @@ object BoardService {
             val marker = EventChangeMarker.current(eventId)
 
             val cached = boardViewCache[boardId]
-                ?.takeIf { BoardLogic.isCacheFresh(it.builtAt, now) && it.marker == marker }
+                ?.takeIf { it.eventId == eventId && BoardLogic.isCacheFresh(it.builtAt, now) && it.marker == marker }
             if (cached != null) {
                 KIO.ok(ApiResponse.Dto(cached.dto.copy(serverTime = now)))
             } else {
@@ -323,7 +331,7 @@ notice = notice,
                     sequence = sequence,
                 )
 
-                boardViewCache[boardId] = CachedView(now, marker, dto)
+                boardViewCache[boardId] = CachedView(eventId, now, marker, dto)
                 KIO.ok(ApiResponse.Dto(dto))
             }
         }
