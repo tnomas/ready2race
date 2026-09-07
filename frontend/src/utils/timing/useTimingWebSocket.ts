@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { buildTimingWsUrl, parseTimingWsMessage, TimingWsMessage } from './timingSocket'
-import { isInAppSurface, timingSocketTokens } from './socketTokens.ts'
+import { isInAppSurface, timingSocketTokens, tokenRoundInProgress } from './socketTokens.ts'
 
 export type TimingWsStatus = 'CONNECTING' | 'OPEN' | 'RECONNECTING' | 'UNAUTHORIZED'
 
@@ -123,8 +123,10 @@ export function useTimingWebSocket(
 		}
 
 		const armReconnectTimer = () => {
-			// Non-auth failures: clear the flag since this path means failure is unrelated to auth
-			deferOpenUntilStable = false
+			// Non-auth failures: clear the flag, since this path means the failure is unrelated to
+			// auth — unless a token round is still open: then the next attempt may well carry a token
+			// that comes back with 1008 again, and a bare `onopen` must not flash `'OPEN'` in between.
+			if (!tokenRoundInProgress(rejectedTokens)) deferOpenUntilStable = false
 			setStatus('RECONNECTING')
 			const delay = backoffMillis(attempt)
 			attempt += 1

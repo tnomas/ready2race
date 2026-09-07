@@ -164,8 +164,12 @@ const LeitstandOverviewTab = ({
     // Kopieren — die normale Board-URL ohne Token; der Token-Teilen-Fluss bleibt unverändert.
     const copyBoardUrl = useCallback(
         (station: TimingStationDto) => {
-            void navigator.clipboard.writeText(stationBoardUrl(eventId, station.id))
-            feedback.success(t('timing.station.urlCopied'))
+            void navigator.clipboard
+                .writeText(stationBoardUrl(eventId, station.id))
+                .then(() => feedback.success(t('timing.station.urlCopied')))
+                // Die Zwischenablage kann verweigert werden (unsicherer Kontext, Berechtigung) —
+                // dann lieber sagen als den Bediener mit einer leeren Zwischenablage weiterschicken.
+                .catch(() => feedback.error(t('timing.leitstand.devices.issue.copyError')))
         },
         [eventId, feedback, t],
     )

@@ -55,14 +55,12 @@ import WebDavExportImport from '@components/configurations/WebDavExportImport.ts
 import {readWebDavGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 
-const CONFIGURATION_TABS = [
-    'competition-templates',
-    'competition-elements',
-    'event-elements',
-    'global-settings',
-    'export-data',
-] as const
-export type ConfigurationTab = (typeof CONFIGURATION_TABS)[number]
+export type ConfigurationTab =
+    | 'competition-templates'
+    | 'competition-elements'
+    | 'event-elements'
+    | 'global-settings'
+    | 'export-data'
 
 const ConfigurationPage = () => {
     const {t} = useTranslation()

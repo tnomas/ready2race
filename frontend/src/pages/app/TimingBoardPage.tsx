@@ -509,11 +509,12 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
 
     // (d) Board mount: also refresh the counts immediately so the banner doesn't wait for the drain
     // to resolve, and drain right away — this covers "reload while offline, then reload online".
+    // Both callbacks are stable (their only dependency, `applyCounts`, has none), so listing them
+    // keeps this a mount-only effect.
     useEffect(() => {
         refreshCounts()
         runDrain()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [refreshCounts, runDrain])
 
     // (b) Regained connectivity.
     useEffect(() => {
