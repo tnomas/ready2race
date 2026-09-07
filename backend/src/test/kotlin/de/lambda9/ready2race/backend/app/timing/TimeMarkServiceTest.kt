@@ -36,6 +36,67 @@ class TimeMarkServiceTest {
         assertEquals(markId, marks.first().id)
     }
 
+    /**
+     * Die Idempotenz gilt nur im eigenen Zuschnitt: derselbe Posten, dieselbe Kennung. Trägt ein
+     * anderer Posten schon eine Marke mit dieser Kennung, ist das kein Wiederholen, sondern eine
+     * Kollision - sie wird abgewiesen, statt still "angelegt" zu melden und dabei die fremde Marke
+     * zu meinen.
+     */
+    @Test
+    fun createWithTheIdOfAnotherStationsMarkIsRejected() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationA = !addTestStation(eventId, userId, TimingStationType.START)
+        val stationB = !addTestStation(eventId, userId, TimingStationType.FINISH)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationA, 1755430000000), userId, eventId)
+
+        assertKIOFails(TimingError.TimeMarkIdTaken) {
+            TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationB, 1755430000001), userId, eventId)
+        }
+
+        val marks = !TimingTimeMarkRepo.getByEvent(eventId)
+        assertEquals(1, marks.size)
+        assertEquals(stationA, marks.single().station)
+    }
+
+    /**
+     * Auch über Veranstaltungsgrenzen: Vorher griff die Existenzprüfung VOR der Posten- und
+     * Veranstaltungsprüfung und antwortete mit 201, obwohl die Marke einer fremden Veranstaltung
+     * gehörte - ein Orakel dafür, welche Kennungen es gibt, und ein Weg an der Zugehörigkeit vorbei.
+     */
+    @Test
+    fun createWithTheIdOfAMarkOfAnotherEventIsRejected() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        val station = !addTestStation(eventId, userId)
+        val otherStation = !addTestStation(otherEventId, otherUserId)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, station, 1755430000000), userId, eventId)
+
+        assertKIOFails(TimingError.TimeMarkIdTaken) {
+            TimingService.createTimeMark(CreateTimeMarkRequest(markId, otherStation, 1755430000000), otherUserId, otherEventId)
+        }
+        assertEquals(0, (!TimingTimeMarkRepo.getByEvent(otherEventId)).size)
+    }
+
+    @Test
+    fun anzeigeCheckStillComesBeforeTheIdempotencyShortcut() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val display = !addTestStation(eventId, userId, TimingStationType.ANZEIGE)
+        val request = CreateTimeMarkRequest(UUID.randomUUID(), display, 1755430000000)
+
+        assertKIOFails(TimingError.StationNotCapturing) {
+            TimingService.createTimeMark(request, userId, eventId)
+        }
+    }
+
+    @Test
+    fun timeMarkIdTakenAnswersAsConflictWithItsCode() {
+        val error = TimingError.TimeMarkIdTaken.respond()
+        assertEquals(io.ktor.http.HttpStatusCode.Conflict, error.status)
+        assertEquals(de.lambda9.ready2race.backend.calls.responses.ErrorCode.TIMING_TIME_MARK_ID_TAKEN, error.errorCode)
+    }
+
     @Test
     fun createIfAbsentIsRaceSafe() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

@@ -331,17 +331,23 @@ object TimingService {
         source: String,
         createdBy: UUID?,
     ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
-        val exists = !TimingTimeMarkRepo.exists(request.id).orDie()
+        // Zugehörigkeit und Postentyp ZUERST - auch für die Wiederholung eines Klicks. Stünde die
+        // Existenzprüfung davor, antwortete eine fremde Kennung mit 201 und verriete damit, dass
+        // es sie gibt; und ein ANZEIGE-Posten käme mit einer bekannten Kennung an der Sperre vorbei.
+        val station = !TimingStationRepo.get(request.station).orDie()
+            .onNullFail { TimingError.StationNotFound }
+        !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+        // Eine Anzeige misst nichts: Marken auf einem ANZEIGE-Posten sind immer ein Fehler,
+        // egal ob per Sitzung oder Geräte-Token erfasst.
+        !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.StationNotCapturing }
+
+        // Idempotent nur im eigenen Zuschnitt: dieselbe Kennung an DIESEM Posten ist derselbe
+        // Klick (Offline-Warteschlange, Doppelklick, Wiederholung nach Netzabriss). Dieselbe
+        // Kennung an einem anderen Posten ist eine Kollision und keine Wiederholung.
+        val exists = !TimingTimeMarkRepo.existsForStation(request.id, request.station).orDie()
         if (exists) {
             KIO.ok(ApiResponse.Created(request.id))
         } else {
-            val station = !TimingStationRepo.get(request.station).orDie()
-                .onNullFail { TimingError.StationNotFound }
-            !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
-            // Eine Anzeige misst nichts: Marken auf einem ANZEIGE-Posten sind immer ein Fehler,
-            // egal ob per Sitzung oder Geräte-Token erfasst.
-            !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.StationNotCapturing }
-
             val record = TimingTimeMarkRecord(
                 id = request.id,
                 event = eventId,
@@ -355,6 +361,13 @@ object TimingService {
             val inserted = !TimingTimeMarkRepo.createIfAbsent(record).orDie()
             if (inserted > 0) {
                 broadcastAsync(eventId, TimingWsMessage.TimeMarkCreated(timeMarkDto(record, null)))
+            } else {
+                // Der Einfügeversuch ist an der Kennung abgeprallt. Entweder hat ein gleichzeitiger
+                // Zwilling desselben Postens gewonnen (dann ist das die gewöhnliche Idempotenz und
+                // der Klick hat sein Ziel erreicht) oder die Kennung gehört einem anderen Posten -
+                // dann ist es dieselbe Kollision wie oben, nur einen Wimpernschlag später erkannt.
+                val ownTwin = !TimingTimeMarkRepo.existsForStation(request.id, request.station).orDie()
+                !KIO.failOn(!ownTwin) { TimingError.TimeMarkIdTaken }
             }
             KIO.ok(ApiResponse.Created(request.id))
         }

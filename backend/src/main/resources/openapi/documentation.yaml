@@ -10345,6 +10345,12 @@ paths:
   /event/{eventId}/timing/timeMarks:
     post:
       operationId: createTimeMark
+      description: >-
+        Captures a time mark with a client-generated id. Idempotent only within its own scope:
+        the same id on the same station answers 201 again without a second row (offline queue,
+        double tap, retry). The same id on ANOTHER station is a collision and answers 409 with
+        error code TIMING_TIME_MARK_ID_TAKEN. Station, event and ANZEIGE checks always run first,
+        so a foreign id never learns whether it exists.
       parameters:
         - name: eventId
           in: path
@@ -10358,6 +10364,8 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '409':
+          $ref: '#/components/responses/409'
         '500':
           description: Server error
           content:
@@ -11986,6 +11994,7 @@ components:
         - TIMING_PROFILE_KIND_MISMATCH
         - TIMING_PROFILE_SCOPE_INVALID
         - TIMING_STATION_HAS_SEQUENCES
+        - TIMING_TIME_MARK_ID_TAKEN
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED
