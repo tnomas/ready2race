@@ -1,5 +1,19 @@
 import {describe, expect, test} from 'vitest'
-import {controlOwnsSpace, elementIsTypingTarget} from './shortcutGuards.ts'
+import {controlOwnsSpace, elementIsTypingTarget, isPrimaryPointer} from './shortcutGuards.ts'
+
+/**
+ * Erfasst wird auf `pointerdown`; dort melden Maus-Rechtsklick (2), Mittelklick (1) und Radtaste
+ * einen anderen `button`-Wert als der Hauptdruck. Finger und Stift melden 0.
+ */
+describe('isPrimaryPointer', () => {
+    test('Hauptdruck von Maus, Finger oder Stift zaehlt', () => {
+        expect(isPrimaryPointer({button: 0})).toBe(true)
+    })
+
+    test.each([1, 2, 3, 4])('Nebentaste %i erfasst nicht', button => {
+        expect(isPrimaryPointer({button})).toBe(false)
+    })
+})
 
 /**
  * Die Wächter arbeiten auf dem fokussierten Element; hier bekommen sie nur dessen Merkmale

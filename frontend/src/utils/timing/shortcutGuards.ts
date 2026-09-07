@@ -80,3 +80,12 @@ export function isSpaceOwnedByFocusedControl(): boolean {
     if (active === null || active === document.body) return false
     return controlOwnsSpace({tagName: active.tagName, role: active.getAttribute('role')})
 }
+
+/**
+ * Ob ein `pointerdown` vom Hauptdruck stammt: linke Maustaste, Finger oder Stift melden `button`
+ * 0. Rechts-, Mittel- und Zusatztasten der Maus melden andere Werte — ein Kontextmenü-Klick auf den
+ * Erfassungsknopf darf keine Zeitmarke banken.
+ */
+export function isPrimaryPointer(event: {button: number}): boolean {
+    return event.button === 0
+}

@@ -1,8 +1,9 @@
 import {ButtonBase, Stack, Typography} from '@mui/material'
 import FlagIcon from '@mui/icons-material/Flag'
 import {useTranslation} from 'react-i18next'
-import {MouseEvent, useCallback} from 'react'
+import {MouseEvent, PointerEvent, useCallback} from 'react'
 import {TimingStationDto} from '@api/types.gen.ts'
+import {isPrimaryPointer} from '@utils/timing/shortcutGuards.ts'
 
 export type CaptureButtonProps = {
     /** The current station, or undefined while the board's initial state load is still in flight. */
@@ -59,10 +60,15 @@ const CaptureButton = ({station, now, onCapture, compact, disarmed}: CaptureButt
     const stationLoading = station === undefined
     const disabled = clockNotSynced || stationLoading
 
-    const handlePointerDown = useCallback(() => {
-        if (disabled) return
-        onCapture()
-    }, [disabled, onCapture])
+    const handlePointerDown = useCallback(
+        (event: PointerEvent) => {
+            if (disabled) return
+            // Nur der Hauptdruck erfasst — Rechts- oder Mittelklick öffnen Menüs, banken aber nichts.
+            if (!isPrimaryPointer(event)) return
+            onCapture()
+        },
+        [disabled, onCapture],
+    )
 
     // Guard double-fire: capture already happened on pointerdown above — this only swallows the
     // synthetic click that follows.
