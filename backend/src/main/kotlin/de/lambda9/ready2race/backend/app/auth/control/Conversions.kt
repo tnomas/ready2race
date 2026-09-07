@@ -18,6 +18,7 @@ fun AppUserWithPrivilegesRecord.loginDto(): App<Nothing, LoginDto> =
         LoginDto(
             id = id!!,
             clubId = club,
+            materialProviderId = materialProvider,
             privileges = it
         )
     }

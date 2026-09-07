@@ -11915,6 +11915,7 @@ components:
         - LIVE_DASHBOARD
         - BOARD
         - STREAM
+        - MATERIAL
 
     Scope:
       type: string
@@ -12357,6 +12358,9 @@ components:
           items:
             $ref: '#/components/schemas/PrivilegeDto'
         clubId:
+          type: string
+          format: uuid
+        materialProviderId:
           type: string
           format: uuid
 

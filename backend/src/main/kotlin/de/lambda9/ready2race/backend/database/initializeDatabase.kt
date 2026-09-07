@@ -145,6 +145,13 @@ fun initializeDatabase(env: JEnv) {
             )
         )
 
+        // Nicht statisch, damit der Admin sie in der Nutzerverwaltung vergeben kann - statische
+        // Rollen filtert role_with_privileges heraus und RoleService.checkAssignable weist sie ab.
+        !persistRole(
+            now, allPrivileges, MATERIAL_PROVIDER_ROLE, "Materialanbieter", "Verleiht Boote und Material",
+            listOf(Privilege.ReadMaterialOwn, Privilege.UpdateMaterialOwn), static = false
+        )
+
         // Add missing sequences
 
         !SequenceRepo.addMissing()
@@ -162,7 +169,8 @@ private fun persistRole(
     roleId: UUID,
     name: String,
     description: String,
-    privileges: List<Privilege>
+    privileges: List<Privilege>,
+    static: Boolean = true
 ) = KIO.comprehension {
 
     val userRoleExisting = !RoleRepo.exists(roleId)
@@ -173,7 +181,7 @@ private fun persistRole(
                 id = roleId,
                 name = name,
                 description = description,
-                static = true,
+                static = static,
                 createdAt = now,
                 createdBy = SYSTEM_USER,
                 updatedAt = now,

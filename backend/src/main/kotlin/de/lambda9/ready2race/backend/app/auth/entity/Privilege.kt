@@ -31,6 +31,7 @@ sealed class Privilege(
         BOARD,
         STREAM,
         ADMINISTRATION,
+        MATERIAL,
     }
 
     enum class Scope(val level: Int) {
@@ -113,6 +114,13 @@ sealed class Privilege(
 
     data object UpdateAdministrationConfigGlobal : Privilege(Action.UPDATE, Resource.ADMINISTRATION, Scope.GLOBAL)
     data object ReadAdministrationConfigGlobal : Privilege(Action.READ, Resource.ADMINISTRATION, Scope.GLOBAL)
+
+    // Materialvermietung (Spec 2026-09-07): OWN meint den Anbieter, dem der Nutzer über
+    // app_user.material_provider zugeordnet ist - dieselbe Mechanik wie beim Verein.
+    data object ReadMaterialOwn : Privilege(Action.READ, Resource.MATERIAL, Scope.OWN)
+    data object ReadMaterialGlobal : Privilege(Action.READ, Resource.MATERIAL, Scope.GLOBAL)
+    data object UpdateMaterialOwn : Privilege(Action.UPDATE, Resource.MATERIAL, Scope.OWN)
+    data object UpdateMaterialGlobal : Privilege(Action.UPDATE, Resource.MATERIAL, Scope.GLOBAL)
 
     companion object {
         val entries get() = Privilege::class.sealedSubclasses.map { it.objectInstance!! }

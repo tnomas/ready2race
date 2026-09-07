@@ -2716,6 +2716,7 @@ export type LoginDto = {
     id: string
     privileges: Array<PrivilegeDto>
     clubId?: string
+    materialProviderId?: string
 }
 
 export type LoginRequest = {
@@ -3874,6 +3875,7 @@ export type Resource =
     | 'LIVE_DASHBOARD'
     | 'BOARD'
     | 'STREAM'
+    | 'MATERIAL'
 
 export type ResultChallengeClubDto = {
     id: string

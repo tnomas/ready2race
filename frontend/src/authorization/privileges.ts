@@ -200,3 +200,27 @@ export const readAdministrationConfigGlobal: Privilege = {
     resource: 'ADMINISTRATION',
     scope: 'GLOBAL',
 }
+
+export const readMaterialOwn: Privilege = {
+    action: 'READ',
+    resource: 'MATERIAL',
+    scope: 'OWN',
+}
+
+export const readMaterialGlobal: Privilege = {
+    action: 'READ',
+    resource: 'MATERIAL',
+    scope: 'GLOBAL',
+}
+
+export const updateMaterialOwn: Privilege = {
+    action: 'UPDATE',
+    resource: 'MATERIAL',
+    scope: 'OWN',
+}
+
+export const updateMaterialGlobal: Privilege = {
+    action: 'UPDATE',
+    resource: 'MATERIAL',
+    scope: 'GLOBAL',
+}

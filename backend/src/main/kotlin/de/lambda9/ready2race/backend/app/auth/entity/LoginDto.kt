@@ -5,5 +5,6 @@ import java.util.*
 data class LoginDto(
     val id: UUID,
     val clubId: UUID?,
+    val materialProviderId: UUID?,
     val privileges: List<PrivilegeDto>,
 )

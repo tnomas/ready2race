@@ -8,6 +8,7 @@ export type AuthenticatedUser = {
     loggedIn: true
     id: string
     clubId?: string
+    materialProviderId?: string
     login: (data: LoginDto, headers: Headers, isInApp?: boolean) => void
     logout: (isInApp?: boolean) => void
     getPrivilegeScope: (action: Action, resource: Resource) => Scope | undefined

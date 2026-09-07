@@ -271,6 +271,7 @@ const UserProvider = ({children}: PropsWithChildren) => {
             loggedIn: true,
             id: userData.userInfo.id,
             clubId: userData.userInfo.clubId,
+            materialProviderId: userData.userInfo.materialProviderId,
             login: setAuth,
             logout,
             checkPrivilege,
