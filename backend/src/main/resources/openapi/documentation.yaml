@@ -20593,6 +20593,8 @@ components:
       properties:
         name:
           type: string
+          description: Name of the export folder on the WebDAV server. A single path segment - must not contain / or \ and must not be . or ..
+          maxLength: 255
         events:
           type: array
           items:
