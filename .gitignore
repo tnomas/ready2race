@@ -3,7 +3,6 @@
 
 deploy*.sh
 /.cursor/
-/CLAUDE.md
 
 # Arbeitsverzeichnis der KI-Sitzungen: Hilfsskripte, Screenshots - und unter
 # worktrees/ die parallelen Arbeitskopien selbst, die zusammen mehrere Gigabyte
