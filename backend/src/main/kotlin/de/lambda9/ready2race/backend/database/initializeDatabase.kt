@@ -93,6 +93,8 @@ fun initializeDatabase(env: JEnv) {
                     name = "Admin",
                     description = "Global admin role",
                     static = true,
+                    job = "ADMIN",
+                    level = "GLOBAL",
                     createdAt = now,
                     createdBy = SYSTEM_USER,
                     updatedAt = now,
@@ -124,14 +126,15 @@ fun initializeDatabase(env: JEnv) {
 
         // Add default user role & privileges
         !persistRole(
-            now, allPrivileges, USER_ROLE, "User", "Global user role", listOf(
+            now, allPrivileges, USER_ROLE, "User", "Global user role", job = "USER", level = "SELF", listOf(
                 Privilege.ReadUserOwn,
                 Privilege.UpdateUserOwn
             )
         )
 
         !persistRole(
-            now, allPrivileges, CLUB_REPRESENTATIVE_ROLE, "Club representative", "Club representative role", listOf(
+            now, allPrivileges, CLUB_REPRESENTATIVE_ROLE, "Club representative", "Club representative role",
+            job = "CLUB_REPRESENTATIVE", level = "CLUB", listOf(
                 Privilege.ReadClubOwn,
                 Privilege.UpdateClubOwn,
                 Privilege.ReadEventOwn,
@@ -162,6 +165,8 @@ private fun persistRole(
     roleId: UUID,
     name: String,
     description: String,
+    job: String,
+    level: String,
     privileges: List<Privilege>
 ) = KIO.comprehension {
 
@@ -174,6 +179,8 @@ private fun persistRole(
                 name = name,
                 description = description,
                 static = true,
+                job = job,
+                level = level,
                 createdAt = now,
                 createdBy = SYSTEM_USER,
                 updatedAt = now,

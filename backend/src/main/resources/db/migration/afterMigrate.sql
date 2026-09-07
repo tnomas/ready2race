@@ -87,6 +87,8 @@ select r.id,
        r.name,
        r.description,
        r.static,
+       r.job,
+       r.level,
        coalesce(array_agg(p) filter ( where p.id is not null ), '{}') as privileges
 from role r
          left join role_has_privilege rhp on r.id = rhp.role
@@ -98,6 +100,8 @@ create view role_with_privileges as
 select r.id,
        r.name,
        r.description,
+       r.job,
+       r.level,
        r.privileges
 from every_role_with_privileges r
 where r.static is false;
@@ -117,7 +121,7 @@ select au.id,
         limit 1)                                                          as qr_code_id
 from app_user au
          left join app_user_has_role auhr on au.id = auhr.app_user
-         left join role_with_privileges rwp on auhr.role = rwp.id
+         left join every_role_with_privileges rwp on auhr.role = rwp.id
 group by au.id;
 
 -- refactor this and similar views to use where-clause in API instead
@@ -132,7 +136,7 @@ select au.id,
 from every_app_user_with_roles au
 where not exists(select *
                  from app_user_has_role auhr2
-                 where auhr2.role = '00000000-0000-0000-0000-000000000000'
+                 where auhr2.role = '00000000-0000-0000-0000-000000000003'
                    and auhr2.app_user = au.id)
 ;
 
@@ -151,13 +155,14 @@ from every_app_user_with_roles au
          left join qr_codes qc on qc.app_user = au.id
 ;
 
+-- Rechte kommen nur noch über role_has_privilege; die Jobs werden beim Start synchronisiert.
 create view app_user_with_privileges as
 select au.*,
        coalesce(array_agg(distinct p) filter ( where p.id is not null ), '{}') as privileges
 from app_user au
          left join app_user_has_role auhr on au.id = auhr.app_user
          left join role_has_privilege rhp on auhr.role = rhp.role
-         left join privilege p on rhp.privilege = p.id or auhr.role = '00000000-0000-0000-0000-000000000000'
+         left join privilege p on rhp.privilege = p.id
 group by au.id;
 
 create view named_participant_for_competition_properties as
