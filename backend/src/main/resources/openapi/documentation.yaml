@@ -17369,9 +17369,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/board/{eventId}/{boardId}?token=...`). The client prepends its own origin. The
-            display sends the token as the X-Timing-Device-Token header.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/board/{eventId}/{boardId}#token=...`; the fragment never leaves the browser). The
+            client prepends its own origin. The display sends the token as the
+            X-Timing-Device-Token header.
 
     BoardRequest:
       type: object
@@ -22189,6 +22190,15 @@ components:
         createdAt:
           type: string
           format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            When the token stops being accepted. Set for share-link tokens (end of the day after
+            the event's last day, or 30 days after issuing when the event has no days or is
+            already over); null for manually issued hardware tokens, which never expire because
+            they live in device configurations nobody re-enters after every regatta.
 
     TimingDeviceTokenIssuedDto:
       type: object
@@ -22229,9 +22239,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige`
-            display route). The client prepends its own origin.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/event/{eventId}/timing/{stationId}#token=...`, ANZEIGE stations get the `/anzeige`
+            display route). The fragment never leaves the browser - no server log, no referer -
+            which is why it is not a query parameter. The client prepends its own origin.
 
     TimingStartGrouping:
       type: string
@@ -23218,9 +23229,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin.
-            The stage sends the token as the X-Timing-Device-Token header.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/event/{eventId}/stream/{sceneId}#token=...`; the fragment never leaves the browser).
+            The client prepends its own origin. The stage sends the token as the
+            X-Timing-Device-Token header.
 
     StreamPickerMatchState:
       type: string

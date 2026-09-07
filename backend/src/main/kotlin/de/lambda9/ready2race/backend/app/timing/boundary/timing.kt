@@ -585,19 +585,26 @@ fun Route.timing() {
                 }
             }
 
-            // Widerruf ist auch der Weg der Stream-Rolle: `StreamSceneShareDialog` bietet ihn
-            // jeder Nutzerin mit UPDATE STREAM an, nicht nur UPDATE EVENT - dieselbe Tabelle
-            // trägt aber auch Posten- und Board-Tokens, die eine reine Stream-Rolle nichts
-            // angehen. `revoke` selbst zieht die Grenze auf die eigenen Szenen-Tokens.
+            // Widerruf ist auch der Weg der Stream- und der Board-Rolle: `StreamSceneShareDialog`
+            // bietet ihn jeder Nutzerin mit UPDATE STREAM an, der Teilen-Dialog der
+            // Board-Verwaltung jeder mit UPDATE BOARD - dieselbe Tabelle trägt aber auch
+            // Posten-Tokens, die beide Rollen nichts angehen. `revoke` selbst zieht die Grenze auf
+            // die Tokens des eigenen Typs.
             delete("/{tokenId}") {
                 call.respondComprehension {
-                    val user = !authenticateAny(Privilege.UpdateEventGlobal, Privilege.UpdateStreamGlobal)
+                    val user = !authenticateAny(
+                        Privilege.UpdateEventGlobal,
+                        Privilege.UpdateStreamGlobal,
+                        Privilege.UpdateBoardGlobal,
+                    )
                     val eventId = !pathParam("eventId", uuid)
                     val tokenId = !pathParam("tokenId", uuid)
                     TimingDeviceTokenService.revoke(
                         eventId,
                         tokenId,
                         hasEventPrivilege = user.hasPrivilege(Privilege.UpdateEventGlobal),
+                        hasStreamPrivilege = user.hasPrivilege(Privilege.UpdateStreamGlobal),
+                        hasBoardPrivilege = user.hasPrivilege(Privilege.UpdateBoardGlobal),
                     )
                 }
             }

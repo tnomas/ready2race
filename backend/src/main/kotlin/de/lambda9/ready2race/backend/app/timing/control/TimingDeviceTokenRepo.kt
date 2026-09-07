@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingDev
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_DEVICE_TOKEN
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
+import java.time.LocalDateTime
 import java.util.UUID
 
 object TimingDeviceTokenRepo {
@@ -39,8 +40,15 @@ object TimingDeviceTokenRepo {
     fun update(id: UUID, f: TimingDeviceTokenRecord.() -> Unit) = TIMING_DEVICE_TOKEN.update(f) { ID.eq(id) }
 
     /**
+     * Lebende Tokens: ohne Ablauf (Hardware-Tokens) oder noch vor ihrem Ablauf. Wiederverwendung
+     * gilt nur für sie - ein abgelaufener Link wäre als Antwort auf „Link teilen" wertlos.
+     */
+    private fun notExpired() =
+        TIMING_DEVICE_TOKEN.EXPIRES_AT.isNull.or(TIMING_DEVICE_TOKEN.EXPIRES_AT.gt(LocalDateTime.now()))
+
+    /**
      * Das wiederverwendbare Link-Token eines Postens: automatisch ausgestellt (share_link_token
-     * gesetzt) und nicht widerrufen. Der Service stellt kein zweites aus, solange eines lebt
+     * gesetzt), nicht widerrufen und nicht abgelaufen. Der Service stellt kein zweites aus, solange eines lebt
      * (Wiederverwendung statt Inflation) - aber zwei GLEICHZEITIGE erste Klicks können sich am
      * Check vorbeimogeln und je ein Token anlegen (real passiert am 23.08.2026 durch Reacts
      * StrictMode-Doppeleffekt im Teilen-Dialog). Deshalb kein selectOne, das an Duplikaten mit
@@ -54,6 +62,7 @@ object TimingDeviceTokenRepo {
                 TIMING_DEVICE_TOKEN.STATION.eq(stationId)
                     .and(TIMING_DEVICE_TOKEN.REVOKED.isFalse)
                     .and(TIMING_DEVICE_TOKEN.SHARE_LINK_TOKEN.isNotNull)
+                    .and(notExpired())
             )
             .orderBy(TIMING_DEVICE_TOKEN.CREATED_AT.asc(), TIMING_DEVICE_TOKEN.ID.asc())
             .limit(1)
@@ -72,6 +81,7 @@ object TimingDeviceTokenRepo {
                 TIMING_DEVICE_TOKEN.BOARD.eq(boardId)
                     .and(TIMING_DEVICE_TOKEN.REVOKED.isFalse)
                     .and(TIMING_DEVICE_TOKEN.SHARE_LINK_TOKEN.isNotNull)
+                    .and(notExpired())
             )
             .orderBy(TIMING_DEVICE_TOKEN.CREATED_AT.asc(), TIMING_DEVICE_TOKEN.ID.asc())
             .limit(1)
@@ -88,6 +98,7 @@ object TimingDeviceTokenRepo {
                 TIMING_DEVICE_TOKEN.STREAM_SCENE.eq(sceneId)
                     .and(TIMING_DEVICE_TOKEN.REVOKED.isFalse)
                     .and(TIMING_DEVICE_TOKEN.SHARE_LINK_TOKEN.isNotNull)
+                    .and(notExpired())
             )
             .orderBy(TIMING_DEVICE_TOKEN.CREATED_AT.asc(), TIMING_DEVICE_TOKEN.ID.asc())
             .limit(1)
