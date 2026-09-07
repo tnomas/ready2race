@@ -4383,6 +4383,10 @@
     "selectEvent": "Veranstaltung auswählen",
     "liveCount": "{{count}} live",
     "openBoard": "Sprecher-Board öffnen",
+    "error": {
+      "feed_one": "Eine der drei Listen (Programm, laufende Läufe, Ergebnisse) konnte nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter.",
+      "feed_other": "{{count}} der drei Listen (Programm, laufende Läufe, Ergebnisse) konnten nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter."
+    },
     "tabs": {
       "timeline": "Zeitstrahl",
       "program": "Programm",

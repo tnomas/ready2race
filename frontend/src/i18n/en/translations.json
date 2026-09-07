@@ -4383,6 +4383,10 @@
     "selectEvent": "Select an event",
     "liveCount": "{{count}} live",
     "openBoard": "Open speaker board",
+    "error": {
+      "feed_one": "One of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying.",
+      "feed_other": "{{count}} of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying."
+    },
     "tabs": {
       "timeline": "Timeline",
       "program": "Program",

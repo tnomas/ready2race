@@ -18,6 +18,7 @@ import {
     mergeSpeakerMatches,
     SpeakerMatch,
 } from '@components/speaker/speakerData.ts'
+import {summarizeFeeds} from '@components/speaker/speakerFeeds.ts'
 import {useSpeakerTiming} from '@components/speaker/speakerTiming.ts'
 import {
     loadSpeakerSettings,
@@ -103,14 +104,22 @@ const SpeakerBoardPage = () => {
     // reißt er ab, gilt unverändert der eingestellte Takt.
     const reloadInterval = stretchedPollMs(POLL_BASE_MS, pushConnected)
 
-    const {data: upcomingData, reload: reloadUpcoming} = useFetch(
+    const {
+        data: upcomingData,
+        error: upcomingError,
+        reload: reloadUpcoming,
+    } = useFetch(
         signal => getUpcomingMatches({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
         {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
     // includeClarification: strittige Läufe fliegen aus den öffentlichen Anzeigen, aber die
     // Sprecherin muss sie sehen und als "in Klärung" ansagen können.
-    const {data: runningData, reload: reloadRunning} = useFetch(
+    const {
+        data: runningData,
+        error: runningError,
+        reload: reloadRunning,
+    } = useFetch(
         signal =>
             getRunningMatches({
                 signal,
@@ -120,12 +129,24 @@ const SpeakerBoardPage = () => {
         {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
-    const {data: resultsData, reload: reloadResults} = useFetch(
+    const {
+        data: resultsData,
+        error: resultsError,
+        reload: reloadResults,
+    } = useFetch(
         signal => getLatestMatchResults({signal, path: {eventId}, query: {limit: FETCH_LIMIT}}),
         {deps: [eventId, reloadInterval], autoReloadInterval: reloadInterval},
     )
 
-    const loaded = upcomingData != null || runningData != null || resultsData != null
+    // Geladen, sobald ein Feed da ist - oder alle drei gescheitert sind: dann zeigt das Board
+    // den Banner statt ewig den Wartekreis. Ein gescheiterter Feed bei stehenden anderen ist
+    // ein leiser Fehler, den die Sprecherin sonst nie sähe (die Listen wären nur unvollständig).
+    const feeds = summarizeFeeds([
+        {data: upcomingData, error: upcomingError},
+        {data: runningData, error: runningError},
+        {data: resultsData, error: resultsError},
+    ])
+    const loaded = feeds.loaded
 
     const matches = useMemo(
         () => mergeSpeakerMatches(upcomingData ?? [], runningData ?? [], resultsData ?? []),
@@ -156,7 +177,9 @@ const SpeakerBoardPage = () => {
     // stellt im verdeckten Tab zu und lebt auf einer eigenen Verbindung — der Timing-Kanal ist der
     // zweite, unabhängige Signalweg, damit ein montiertes Sprecher-Display nicht an genau einer
     // Socket-Gesundheit hängt. Der Schlüssel fasst alles zusammen, was einen Feed-Wechsel anzeigt;
-    // entprellt, weil eine Startwelle viele Nachrichten in kurzer Folge bringt.
+    // entprellt, weil eine Startwelle viele Nachrichten in kurzer Folge bringt. Ein Fehlstart
+    // gehört nicht hinein: Er verschiebt keinen Lauf zwischen den Feeds, und sein Banner kommt
+    // und geht (Wegklicken, Ablauf) - jedes Mal ein Nachladen ohne neuen Stand.
     const timingActivityKey = [
         [...timing.sequences.values()]
             .map(
@@ -167,10 +190,17 @@ const SpeakerBoardPage = () => {
             )
             .join('|'),
         timing.finishTicker[0]?.markId ?? '',
-        timing.falseStarts.length,
     ].join('·')
     const activityReloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const seenActivityKey = useRef<string | null>(null)
     useEffect(() => {
+        // Erstlauf: Die drei Feeds laden gerade ohnehin - ein zweiter Schwung 1,2 s später
+        // brächte nur dieselben Daten noch einmal.
+        if (seenActivityKey.current === null) {
+            seenActivityKey.current = timingActivityKey
+            return
+        }
+        seenActivityKey.current = timingActivityKey
         if (activityReloadTimer.current !== null) clearTimeout(activityReloadTimer.current)
         activityReloadTimer.current = setTimeout(() => {
             activityReloadTimer.current = null
@@ -338,6 +368,24 @@ const SpeakerBoardPage = () => {
                         {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                     </IconButton>
                 </Stack>
+                {feeds.failed > 0 && (
+                    <Box
+                        role={'alert'}
+                        sx={{
+                            mx: 2,
+                            mt: 2,
+                            px: 1.5,
+                            py: 1,
+                            borderRadius: 1,
+                            border: `1px solid ${colors.now}`,
+                            bgcolor: `${colors.now}1f`,
+                            flexShrink: 0,
+                        }}>
+                        <Typography variant={'body2'} fontWeight={'bold'} sx={{color: colors.now}}>
+                            ⚠ {t('speaker.error.feed', {count: feeds.failed})}
+                        </Typography>
+                    </Box>
+                )}
                 {!loaded ? (
                     <Throbber />
                 ) : (

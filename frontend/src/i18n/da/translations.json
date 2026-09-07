@@ -4141,6 +4141,10 @@
     "selectEvent": "Vælg et stævne",
     "liveCount": "{{count}} live",
     "openBoard": "Åbn speaker-board",
+    "error": {
+      "feed_one": "En af de tre lister (program, igangværende løb, resultater) kunne ikke indlæses – tavlen er ufuldstændig. Den prøver videre.",
+      "feed_other": "{{count}} af de tre lister (program, igangværende løb, resultater) kunne ikke indlæses – tavlen er ufuldstændig. Den prøver videre."
+    },
     "tabs": {
       "timeline": "Tidslinje",
       "program": "Program",
