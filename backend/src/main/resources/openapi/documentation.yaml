@@ -11915,6 +11915,9 @@ components:
         - LIVE_DASHBOARD
         - BOARD
         - STREAM
+        - ROLE
+        - STAFF
+        - SYSTEM
 
     Scope:
       type: string

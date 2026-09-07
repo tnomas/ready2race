@@ -77,12 +77,12 @@ export const updateRegistrationOwn: Privilege = {
     scope: 'OWN',
 }
 export const deleteRegistrationGlobal: Privilege = {
-    action: 'UPDATE',
+    action: 'DELETE',
     resource: 'REGISTRATION',
     scope: 'GLOBAL',
 }
 export const deleteRegistrationOwn: Privilege = {
-    action: 'UPDATE',
+    action: 'DELETE',
     resource: 'REGISTRATION',
     scope: 'OWN',
 }
@@ -200,3 +200,16 @@ export const readAdministrationConfigGlobal: Privilege = {
     resource: 'ADMINISTRATION',
     scope: 'GLOBAL',
 }
+
+// Rollen verwalten (anlegen als Kopie eines Jobs, ändern, löschen).
+export const createRoleGlobal: Privilege = {action: 'CREATE', resource: 'ROLE', scope: 'GLOBAL'}
+export const readRoleGlobal: Privilege = {action: 'READ', resource: 'ROLE', scope: 'GLOBAL'}
+export const updateRoleGlobal: Privilege = {action: 'UPDATE', resource: 'ROLE', scope: 'GLOBAL'}
+export const deleteRoleGlobal: Privilege = {action: 'DELETE', resource: 'ROLE', scope: 'GLOBAL'}
+
+// Rollen zuweisen und entziehen.
+export const readStaffGlobal: Privilege = {action: 'READ', resource: 'STAFF', scope: 'GLOBAL'}
+export const updateStaffGlobal: Privilege = {action: 'UPDATE', resource: 'STAFF', scope: 'GLOBAL'}
+
+// Die Sperre nach oben: nur der Superadmin trägt es.
+export const updateSystemGlobal: Privilege = {action: 'UPDATE', resource: 'SYSTEM', scope: 'GLOBAL'}
