@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.stream.control
 
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
+import de.lambda9.ready2race.backend.app.stream.entity.StreamOverrideState
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.records.StreamOverrideRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.STREAM_OVERRIDE
@@ -36,4 +37,19 @@ object StreamOverrideRepo {
 
     fun delete(sceneId: UUID, type: StreamGraphicType) =
         STREAM_OVERRIDE.delete { SCENE.eq(sceneId).and(GRAPHIC_TYPE.eq(type.name)) }
+
+    /**
+     * Räumt die FORCED_ON-Zeilen der übergebenen Grafiktypen weg - für
+     * [de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService.setOverride], das
+     * damit die Konkurrenten auf demselben Platz zurücknimmt, bevor es den neuen Eingriff schreibt.
+     * FORCED_OFF-Zeilen bleiben: sie belegen keinen Platz.
+     */
+    fun deleteForcedOn(sceneId: UUID, types: Collection<StreamGraphicType>): JIO<Int> = Jooq.query {
+        if (types.isEmpty()) return@query 0
+        deleteFrom(STREAM_OVERRIDE)
+            .where(STREAM_OVERRIDE.SCENE.eq(sceneId))
+            .and(STREAM_OVERRIDE.STATE.eq(StreamOverrideState.FORCED_ON.name))
+            .and(STREAM_OVERRIDE.GRAPHIC_TYPE.`in`(types.map { it.name }))
+            .execute()
+    }
 }

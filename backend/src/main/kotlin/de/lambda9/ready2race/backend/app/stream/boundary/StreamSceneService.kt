@@ -277,6 +277,12 @@ object StreamSceneService {
      * auf denselben Weg wie [clearOverride] hinaus (keine Zeile = AUTO, siehe [StreamOverrideState]).
      * Bei FORCED_ON/FORCED_OFF ersetzt [StreamOverrideRepo.setOverride] die Zeile komplett - jeder
      * Aufruf ist damit "der jüngste Eingriff", was die Platz-Priorität im Resolver braucht.
+     *
+     * Ein FORCED_ON nimmt außerdem jedes andere FORCED_ON auf DEMSELBEN Platz zurück (Platz laut
+     * Grafik-Konfiguration der Szene). Der Resolver ließe zwar die jüngere Zeile gewinnen, aber die
+     * verdrängte bliebe liegen: Sie käme wieder hoch, sobald der Sieger abläuft, und das Panel
+     * zeigte sie weiter als "erzwungen", obwohl sie nicht zu sehen ist. Wer eine zweite Grafik auf
+     * den Platz zwingt, hat die erste damit gemeint zurückzunehmen.
      */
     fun setOverride(
         eventId: UUID,
@@ -289,6 +295,9 @@ object StreamSceneService {
         if (request.state == StreamOverrideState.AUTO) {
             !StreamOverrideRepo.delete(sceneId, type).orDie()
         } else {
+            if (request.state == StreamOverrideState.FORCED_ON) {
+                !StreamOverrideRepo.deleteForcedOn(sceneId, !competitorsOnSamePlacement(sceneId, type)).orDie()
+            }
             val now = LocalDateTime.now()
             !StreamOverrideRepo.setOverride(
                 StreamOverrideRecord(
@@ -309,6 +318,18 @@ object StreamSceneService {
 
         noData
     }
+
+    /**
+     * Die anderen Grafiktypen der Szene, die laut Konfiguration auf demselben Platz liegen wie
+     * [type]. Ohne Konfigurationszeile für [type] ist der Platz unbekannt - dann gibt es keine
+     * Konkurrenten und nichts wird angefasst.
+     */
+    private fun competitorsOnSamePlacement(sceneId: UUID, type: StreamGraphicType): App<Nothing, List<StreamGraphicType>> =
+        StreamSceneRepo.getGraphics(sceneId).orDie().map { rows ->
+            val placement = rows.firstOrNull { it.type == type.name }?.placement ?: return@map emptyList()
+            rows.filter { it.placement == placement && it.type != type.name }
+                .map { StreamGraphicType.valueOf(it.type) }
+        }
 
     /** Nimmt einen Regie-Eingriff zurück - keine Zeile heißt AUTO, ein fehlender Eingriff ist deshalb kein Fehler. */
     fun clearOverride(eventId: UUID, sceneId: UUID, type: StreamGraphicType): App<StreamError, ApiResponse.NoData> =
