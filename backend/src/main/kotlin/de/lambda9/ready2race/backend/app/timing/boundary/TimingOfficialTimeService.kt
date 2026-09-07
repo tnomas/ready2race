@@ -490,6 +490,11 @@ object TimingOfficialTimeService {
         userId: UUID,
         teams: List<UUID>? = null,
     ): App<ServiceError, ApiResponse.Dto<OfficialTimeComputeResultDto>> = KIO.comprehension {
+        // Wie beim Override: nur eigene Teams. Ein fremdes ginge sonst mit den Einstellungen
+        // DIESER Veranstaltung in die Übernahme, und weil es hier keine Marken hat, würde sein
+        // Rechenergebnis abgeräumt.
+        !teams.orEmpty().traverse { teamId -> checkTeamOfEvent(teamId, eventId) }
+
         val markTimes = !resolveMarkTimes(eventId)
         val candidates = markTimes.filterKeys { teams == null || teams.contains(it) }
 

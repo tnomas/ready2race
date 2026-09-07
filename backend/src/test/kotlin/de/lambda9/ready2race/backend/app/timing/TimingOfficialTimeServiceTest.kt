@@ -35,6 +35,31 @@ class TimingOfficialTimeServiceTest {
 
     // ---------------------------------------------------------------- compute
 
+    /**
+     * Der Rechenknopf mit Team-Liste rechnet nur eigene Teams: Ein Team einer fremden
+     * Veranstaltung ginge sonst mit den Einstellungen DIESER Veranstaltung in die Übernahme, und
+     * weil es unter dieser Veranstaltung keine Marken hat, würde sein Rechenergebnis abgeräumt.
+     */
+    @Test
+    fun computeRejectsTeamsOfAnotherEventAndLeavesTheirTimesAlone() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val (otherEventId, otherUserId) = !createTestEventWithAdmin()
+        val otherStart = !addTestStation(otherEventId, otherUserId, TimingStationType.START)
+        val otherFinish = !addTestStation(otherEventId, otherUserId, TimingStationType.FINISH)
+        val otherTeam = !createTestMatchTeam(otherEventId)
+        !addAssignedMark(otherEventId, otherUserId, otherStart, otherTeam, startMillis)
+        !addAssignedMark(otherEventId, otherUserId, otherFinish, otherTeam, finishMillis)
+        assertEquals(90_000L, (!TimingOfficialTimeRepo.getByTeam(otherTeam))!!.computedMillis)
+
+        assertKIOFails(TimingError.EventMismatch) {
+            TimingOfficialTimeService.computeOfficialTimes(eventId, userId, teams = listOf(otherTeam))
+        }
+
+        val untouched = !TimingOfficialTimeRepo.getByTeam(otherTeam)
+        assertEquals(90_000L, untouched!!.computedMillis)
+        assertEquals(otherEventId, untouched.event)
+    }
+
     @Test
     fun computeUsesAssignedStartAndFinishMarks() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()

@@ -329,7 +329,7 @@ object TimingSequenceService {
         userId: UUID,
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        val sequence = !lockAndGetSequenceOfEvent(sequenceId, eventId)
         // Aus jedem aktiven Zustand heraus, ausdrücklich auch aus der Pause: „doch nicht
         // weiterlaufen lassen" ist die zweite Antwort, die der Posten aus der Pause heraus
         // braucht - neben dem Fortsetzen.
@@ -370,18 +370,18 @@ object TimingSequenceService {
      * Nur aus RUNNING: eine scharfgestellte Sequenz hat nichts anzuhalten (dort ist "abbrechen"
      * das richtige Werkzeug), eine beendete erst recht nicht.
      *
-     * Rennen mit dem Scheduler: ein Tick, der bereits mitten in seiner eigenen Transaktion
-     * steckt, kann noch einen fälligen Eintrag feuern, während dieser Aufruf pausiert - ein
-     * Fenster von unter einer Sekunde. Das ist bewusst nicht abgedichtet: der Posten drückt die
-     * Pause zwischen zwei Starts, und ein in derselben Sekunde ohnehin fälliger Start ist genau
-     * der, den [rewindSequence] anschließend zurücknehmen kann.
+     * Rennen mit dem Scheduler: die Pause nimmt zuerst dieselbe Zeilensperre wie der Tick
+     * ([lockAndGetSequenceOfEvent]). Ein Tick, der gerade feuert, wird damit zu Ende gewartet,
+     * und die Pause entscheidet über den Zustand, der danach wirklich steht; ein Tick, der danach
+     * kommt, sieht PAUSED und feuert nichts. Ein in derselben Sekunde ohnehin fälliger Start, den
+     * der Tick noch gewonnen hat, ist genau der, den [rewindSequence] anschließend zurücknimmt.
      */
     fun pauseSequence(
         sequenceId: UUID,
         userId: UUID,
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        val sequence = !lockAndGetSequenceOfEvent(sequenceId, eventId)
         !KIO.failOn(sequence.stateEnum != SequenceState.RUNNING) { TimingError.SequenceStateConflict }
 
         // Die Serveruhr ist auch hier das Protokoll: aus DIESEM Zeitpunkt und dem des Fortsetzens
@@ -483,7 +483,7 @@ object TimingSequenceService {
         userId: UUID,
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        val sequence = !lockAndGetSequenceOfEvent(sequenceId, eventId)
         !KIO.failOn(sequence.stateEnum != SequenceState.PAUSED) { TimingError.SequenceStateConflict }
 
         val entry = !TimingSequenceEntryRepo.getLastStarted(sequenceId).orDie()
@@ -522,14 +522,15 @@ object TimingSequenceService {
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
         val entry = !TimingSequenceEntryRepo.get(entryId).orDie().onNullFail { TimingError.SequenceEntryNotFound }
-        val sequence = !getSequenceOfEvent(entry.sequence, eventId)
-        !KIO.failOn(!sequence.stateEnum.isActive) { TimingError.SequenceStateConflict }
-        !KIO.failOn(entry.status != SequenceEntryStatus.PENDING.name) { TimingError.SequenceStateConflict }
 
-        // FOR UPDATE wie im Scheduler: solange dieser Skip läuft, feuert kein paralleler Tick in
-        // dieselben Zeilen hinein - sonst könnte der eben übersprungene "nächste" Slot noch
-        // schnell einen Start setzen, während hier die Kette verschoben wird.
-        val pendingBefore = !TimingSequenceEntryRepo.getPendingForUpdate(entry.sequence).orDie()
+        // FOR UPDATE wie im Scheduler, und zwar VOR jeder Entscheidung: solange dieser Skip läuft,
+        // feuert kein paralleler Tick in dieselben Zeilen hinein - sonst könnte der eben
+        // übersprungene "nächste" Slot noch schnell einen Start setzen, während hier die Kette
+        // verschoben wird. Ob der Eintrag noch ansteht, steht deshalb erst mit den gesperrten
+        // Zeilen fest - nicht mit dem Stand, der vor dem Warten auf die Sperre gelesen wurde.
+        val (sequence, pendingBefore) = !lockAndGetSequenceOfEventWithPending(entry.sequence, eventId)
+        !KIO.failOn(!sequence.stateEnum.isActive) { TimingError.SequenceStateConflict }
+        !KIO.failOn(pendingBefore.none { it.id == entryId }) { TimingError.SequenceStateConflict }
 
         !TimingSequenceEntryRepo.update(entryId) {
             status = SequenceEntryStatus.SKIPPED.name
@@ -702,13 +703,14 @@ object TimingSequenceService {
         val fired = !due.traverse { entry -> fireEntry(sequence, entry) }
 
         // Everything that was pending and did not just fire is what remains; a sequence with
-        // nothing left (all started or skipped) is finished.
+        // nothing left (all started or skipped) is finished. Der Übergang schreibt nur aus
+        // RUNNING heraus: Abbruch und Pause nehmen zwar dieselbe Zeilensperre und können diesen
+        // Lauf nicht mehr unterlaufen, aber die Sequenzzeile selbst wurde am Anfang des Ticks ohne
+        // Sperre gelesen - ein Prädikat im Update kostet nichts und lässt einen Abbruch, der
+        // dazwischenkam, in jedem Fall stehen.
         val completed = pending.size == due.size
         if (completed) {
-            !TimingSequenceRepo.update(sequence.id) {
-                state = SequenceState.DONE.name
-                updatedAt = LocalDateTime.now()
-            }.orDie()
+            !TimingSequenceRepo.updateStateIf(sequence.id, SequenceState.RUNNING, SequenceState.DONE).orDie()
         }
 
         if (fired.isEmpty() && !completed) {
@@ -813,6 +815,29 @@ object TimingSequenceService {
         val sequence = !TimingSequenceRepo.get(sequenceId).orDie().onNullFail { TimingError.SequenceNotFound }
         !KIO.failOn(sequence.event != eventId) { TimingError.EventMismatch }
         KIO.ok(sequence)
+    }
+
+    /**
+     * Die Sequenz für eine Mutation, die gegen den Scheduler-Takt läuft: erst die Zugehörigkeit
+     * prüfen (ein fremder Aufruf sperrt nichts), dann dieselbe Zeilensperre nehmen wie
+     * [fireSequence] ([TimingSequenceEntryRepo.getPendingForUpdate]) und die Sequenzzeile DANACH
+     * noch einmal lesen. Erst dieser zweite Stand ist der, über den die Mutation entscheidet: Ein
+     * Tick, der gerade feuert, ist bis dahin zu Ende, und was er geändert hat, steht drin.
+     */
+    private fun lockAndGetSequenceOfEvent(
+        sequenceId: UUID,
+        eventId: UUID,
+    ): App<TimingError, TimingStartSequenceRecord> =
+        lockAndGetSequenceOfEventWithPending(sequenceId, eventId).map { it.first }
+
+    private fun lockAndGetSequenceOfEventWithPending(
+        sequenceId: UUID,
+        eventId: UUID,
+    ): App<TimingError, Pair<TimingStartSequenceRecord, List<TimingStartSequenceEntryRecord>>> = KIO.comprehension {
+        !getSequenceOfEvent(sequenceId, eventId)
+        val pending = !TimingSequenceEntryRepo.getPendingForUpdate(sequenceId).orDie()
+        val current = !getSequenceOfEvent(sequenceId, eventId)
+        KIO.ok(current to pending)
     }
 
     private val TimingStartSequenceRecord.stateEnum: SequenceState

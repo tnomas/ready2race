@@ -174,7 +174,12 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
             // hang the broadcasts off. The scheduler runs outside `respondKIO`, so `AfterCommit` has
             // no buffer installed and would fire effects mid-transaction; broadcasting from `map` -
             // which only runs once `transact` committed - reproduces the after-commit guarantee.
-            scheduleDynamic("Fire due start sequence entries", 1.seconds) {
+            //
+            // defectDelay: Nach einem Defekt (etwa einer abgerissenen Datenbankverbindung) darf
+            // dieser Takt nicht die Vorgabe von einer Minute schweigen - in der Zeit stünden alle
+            // Countdowns am Start still, während die Boards weiterzählen. Zwei Sekunden geben dem
+            // Verbindungspool Luft und halten den nächsten Start trotzdem im Fenster.
+            scheduleDynamic("Fire due start sequence entries", 1.seconds, defectDelay = 2.seconds) {
                 TimingSequenceService.fireDueEntries()
                     .transact()
                     .map { result ->
