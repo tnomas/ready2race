@@ -25,11 +25,16 @@ object TimingSequenceEntryRepo {
     }
 
     /**
-     * Row-locks the still-pending entries of a sequence for the surrounding transaction. The
-     * scheduler job is the only caller: without the lock two application instances (or a job run
+     * Row-locks the still-pending entries of a sequence for the surrounding transaction. Der
+     * Scheduler nimmt sie beim Feuern: without the lock two application instances (or a job run
      * overlapping a slow predecessor) could both read the same PENDING entry and fire two start
      * marks for one team. Under READ COMMITTED a blocked `for update` re-checks the predicate after
      * the lock is released, so the loser simply sees no pending rows left.
+     *
+     * Dieselbe Sperre nehmen Abbruch, Pause, Zurücksetzen und Überspringen, BEVOR sie über den
+     * Zustand entscheiden (`TimingSequenceService.lockAndGetSequenceOfEvent`): Sie warten damit
+     * einen gerade feuernden Tick zu Ende und sehen anschließend, was er geändert hat, statt in
+     * das Fenster zwischen seinem Lesen und Schreiben hineinzuschreiben.
      */
     fun getPendingForUpdate(sequenceId: UUID) = Jooq.query {
         selectFrom(TIMING_START_SEQUENCE_ENTRY)

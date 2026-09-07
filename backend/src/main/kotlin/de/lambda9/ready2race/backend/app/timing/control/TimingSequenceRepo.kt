@@ -118,4 +118,22 @@ object TimingSequenceRepo {
     fun getRunning() = TIMING_START_SEQUENCE.select { STATE.eq(SequenceState.RUNNING.name) }
 
     fun update(id: UUID, f: TimingStartSequenceRecord.() -> Unit) = TIMING_START_SEQUENCE.update(f) { ID.eq(id) }
+
+    /**
+     * Zustandswechsel mit Vorbedingung: schreibt [new] nur, wenn die Zeile gerade in [expected]
+     * steht, und liefert die Zahl der geänderten Zeilen (0 oder 1).
+     *
+     * Für den DONE-Übergang des Schedulers: Zwischen dem Lesen der laufenden Sequenzen und dem
+     * Schreiben kann ein Abbruch die Sequenz beendet haben - ein stumpfes „state = DONE"
+     * überschriebe dann den Abbruch. Das Prädikat sitzt im Update selbst, damit die Entscheidung
+     * und das Schreiben ein Statement sind.
+     */
+    fun updateStateIf(id: UUID, expected: SequenceState, new: SequenceState): JIO<Int> = Jooq.query {
+        update(TIMING_START_SEQUENCE)
+            .set(TIMING_START_SEQUENCE.STATE, new.name)
+            .set(TIMING_START_SEQUENCE.UPDATED_AT, LocalDateTime.now())
+            .where(TIMING_START_SEQUENCE.ID.eq(id))
+            .and(TIMING_START_SEQUENCE.STATE.eq(expected.name))
+            .execute()
+    }
 }
