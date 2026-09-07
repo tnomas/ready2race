@@ -73,5 +73,13 @@ object RoleRepo {
 
     fun getOverlapIds(ids: List<UUID>) = ROLE.select({ ID }) { ID.`in`(ids) }
 
+    fun getByJob(job: String): JIO<List<RoleRecord>> = Jooq.query {
+        with(ROLE) {
+            selectFrom(this)
+                .where(JOB.eq(job))
+                .fetch()
+        }
+    }
+
     fun insertJsonData(data: String) = ROLE.insertJsonData(data)
 }

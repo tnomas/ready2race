@@ -14,6 +14,10 @@ object RoleHasPrivilegeRepo {
 
     fun deleteByRole(roleId: UUID) = ROLE_HAS_PRIVILEGE.delete { ROLE.eq(roleId) }
 
+    fun delete(roleId: UUID, privilegeIds: Collection<UUID>) = ROLE_HAS_PRIVILEGE.delete {
+        ROLE.eq(roleId).and(PRIVILEGE.`in`(privilegeIds))
+    }
+
     fun getPrivilegesByRole(
         roleId: UUID,
     ): JIO<List<UUID>> = Jooq.query {
