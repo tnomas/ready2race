@@ -40,8 +40,11 @@ import kotlin.time.Duration.Companion.seconds
 private val logger = KotlinLogging.logger {}
 
 fun main(args: Array<String>): Unit = runBlocking {
+    // Ohne Datei lesen wir die Konfiguration allein aus der Umgebung - so läuft der Container,
+    // der seine Werte über docker compose bekommt und keine .env im Image mitführt.
     val config = dotenv {
         filename = args.getOrNull(0) ?: ".env"
+        ignoreIfMissing = true
     }.parseConfig()
     // Vor dem Verbindungspool: der Postgres-Treiber übernimmt die JVM-Zone als Sitzungszeitzone.
     AppZone.install(config.timezone)

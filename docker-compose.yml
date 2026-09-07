@@ -1,0 +1,70 @@
+# Ready2Race komplett: Datenbank, Backend und Web (Frontend + Reverse-Proxy).
+#
+#   cp .env.example .env      # ausfüllen
+#   docker compose up -d --build
+#
+# Nach außen gibt es einen einzigen HTTP-Port (R2R_PORT, Standard 8090). TLS
+# und Domain übernimmt der Reverse-Proxy des Hosters davor. Anleitung:
+# docs/docker.md
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ready2race
+      POSTGRES_USER: ready2race
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+      TZ: ${TZ:-Europe/Berlin}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ready2race -d ready2race"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    # Ohne R2R_IMAGE_PREFIX wird lokal gebaut. Mit einem Präfix wie
+    # ghcr.io/tnomas/ holt `docker compose pull` fertige Images aus der Registry.
+    image: ${R2R_IMAGE_PREFIX:-}ready2race-backend:${R2R_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    # Alles aus .env (SMTP, Admin, Pepper, WebDAV ...) landet im Container;
+    # die Werte darunter sind fest, weil sie sich aus diesem Verbund ergeben.
+    env_file: .env
+    environment:
+      MODE: ${MODE:-PROD}
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: "8080"
+      DATABASE_URL: jdbc:postgresql://db:5432/ready2race
+      DATABASE_USER: ready2race
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      STATIC_FILES_PATH: /data/static
+      TZ: ${TZ:-Europe/Berlin}
+      # Die App rechnet in ihrer eigenen Zone, nicht in der des Containers; beide folgen TZ.
+      APP_TIMEZONE: ${TZ:-Europe/Berlin}
+      # nginx im Dienst web hängt die Client-Adresse an X-Forwarded-For an. Steht ein weiterer
+      # Reverse-Proxy (Caddy, Traefik, nginx des Hosters) davor, in .env auf 2 setzen.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
+    volumes:
+      - static-data:/data/static
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    image: ${R2R_IMAGE_PREFIX:-}ready2race-web:${R2R_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      BACKEND_UPSTREAM: backend:8080
+    ports:
+      - "${R2R_PORT:-8090}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  static-data:

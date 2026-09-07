@@ -89,7 +89,20 @@ cp template.env .env          # VITE_API_BASE_URL auf das Backend zeigen lassen
 npm run dev                   # http://localhost:5123
 ```
 
-## Betrieb
+## Betrieb mit Docker
+
+Datenbank, Backend und Frontend laufen als ein Verbund mit einem einzigen Port nach außen (Standard 8090).
+Domain und TLS übernimmt ein Reverse-Proxy davor.
+
+```bash
+cp .env.example .env          # ausfüllen: POSTGRES_PASSWORD, ADMIN_*, SECURITY_PEPPER, SMTP_*, FRONTEND_ORIGINS
+docker compose up -d --build
+```
+
+Fertige Images aus der GitHub Container Registry, Reverse-Proxy, Sicherung und Aktualisierung:
+[`docs/docker.md`](docs/docker.md).
+
+## Betrieb ohne Docker
 
 - **Backend:** Das Jar braucht eine Java-Laufzeit ab Version 17 und eine PostgreSQL-17-Datenbank. Die
   Env-Datei wird als erstes Argument übergeben; echte Umgebungsvariablen haben Vorrang. Alle Schlüssel
@@ -134,6 +147,7 @@ backend/    Kotlin-API, Migrationen, OpenAPI-Spezifikation
 frontend/   React-Anwendung, Helfer-App (src/pwa), Demos (src/demo)
 api/        TypeSpec-Beschreibung der API (Dokumentation, nicht Quelle)
 docs/       ADRs, Specs, Pläne, Testkataloge, Seeds
+docker-compose.yml   Verbund für den Betrieb (Datenbank, Backend, Web)
 ```
 
 ## Herkunft und Lizenz

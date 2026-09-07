@@ -21,3 +21,6 @@ deploy*.sh
 
 # Ein versehentlich im Wurzelverzeichnis gestarteter Vitest-Lauf legt hier einen Cache an.
 node_modules/
+
+# Konfiguration des Docker-Verbunds (siehe .env.example)
+/.env

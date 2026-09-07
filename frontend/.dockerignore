@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-demo/
+.env
+.env.*
+!template.env
+Dockerfile
+*.log
+.vscode/
+.idea/
