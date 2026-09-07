@@ -73,6 +73,7 @@ Der Schnitt ersetzt UPDATE EVENT als Sammelrecht und die fünf APP_-Ressourcen.
 
 | Ressource | Deckt ab | Ebene | OWN |
 |---|---|---|---|
+| SYSTEM | Superadmin-Konten, Installation als Ganzes | Installation | nein |
 | ADMINISTRATION | Konfiguration, WebDAV, Betrieb | Installation | nein |
 | USER | Konten, Einladungen | Installation | ja (ich) |
 | ROLE | Rollen anlegen, kopieren, ändern, löschen | Installation | nein |
@@ -107,6 +108,9 @@ Entscheidungen darin:
 - **EVENT bedeutet nur noch Stammdaten.** Alles Operative hat eine eigene Ressource.
 - **„Veranstalter“-Ebene heißt bis zum Mandanten-Umbau GLOBAL.** Die Spalte in der Tabelle
   dokumentiert, welche Ressourcen später auf ORGANIZER wandern.
+- **SYSTEM ist die Sperre nach oben.** Ein einziges Privileg, `UPDATE SYSTEM GLOBAL`, das nur
+  der Superadmin trägt. Regel 1 verhindert damit, dass ein Admin Superadmin vergibt; Regel 3
+  hängt daran, wer Superadmin-Konten sieht.
 - **Aktionen bleiben CREATE, READ, UPDATE, DELETE.** Nicht jede Ressource hat jede Aktion; es
   werden nur Privilegien definiert, die auch geprüft werden.
 
@@ -181,8 +185,8 @@ reserviert). Statische Rollen sind genau die Jobs.
 
 | Job | Ebene | Kern |
 |---|---|---|
-| Superadmin | Installation | alles; einzige Rolle mit USER auf Admin-Konten und ROLE GLOBAL |
-| Admin | Installation | alles außer Superadmin-Konten und Rollenverwaltung nach oben |
+| Superadmin | Installation | alles; einzige Rolle mit `UPDATE SYSTEM GLOBAL`, dem Schlüssel für Superadmin-Konten |
+| Admin | Installation | alles außer SYSTEM; kann deshalb weder Superadmin vergeben noch Superadmin-Konten sehen (Regel 1 und 3) |
 | Wettkampfleitung (Anzeige: Regattaleitung) | Veranstalter | UPDATE auf EVENT, COMPETITION, TASK, TEMPLATE, STAFF und alle Ressourcen der Ebene Veranstaltung; lesend REGISTRATION, INVOICE, CLUB. Entspricht dem heutigen praktischen Sinn von UPDATE EVENT: alles außer Nutzer, Vereine, Rollen, Konfiguration |
 | Meldestelle | Veranstalter | REGISTRATION, SUBSTITUTION; lesend EVENT, COMPETITION, EXECUTION |
 | Kasse | Veranstalter | INVOICE; lesend REGISTRATION, CLUB |
@@ -235,8 +239,8 @@ Alle im Backend geprüft, in `RoleService` und `AppUserService`:
    Veranstaltung.
 2. **Nicht an sich selbst.** Niemand ändert die eigenen Rollenzuweisungen. Auch der Admin
    nicht, der Superadmin schon.
-3. **Nach oben ist dicht.** Konten mit Superadmin-Rolle sieht und bearbeitet nur ein
-   Superadmin. Der Systemnutzer bleibt technischer Superadmin. Der 404-statt-403-Sonderfall bei
+3. **Nach oben ist dicht.** Konten mit Superadmin-Rolle sieht und bearbeitet nur, wer
+   `UPDATE SYSTEM GLOBAL` hat. Der Systemnutzer trägt die Superadmin-Rolle. Der 404-statt-403-Sonderfall bei
    fremden Admins wird ein sauberes 403.
 
 ### 7.2 Wer vergibt was
