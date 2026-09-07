@@ -10274,6 +10274,10 @@ paths:
               $ref: '#/components/schemas/TimingStationRequest'
     delete:
       operationId: deleteTimingStation
+      description: >-
+        Deletes a station. Refused with 409 while the station still has captured time marks or
+        start sequences (also finished ones; error code TIMING_STATION_HAS_SEQUENCES) - both keep
+        referencing the station.
       parameters:
         - name: eventId
           in: path
@@ -10288,6 +10292,8 @@ paths:
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          $ref: '#/components/responses/409'
       tags:
         - Timing
   /event/{eventId}/timing/stations/{stationId}/armed:
@@ -11979,6 +11985,7 @@ components:
         - RACECLOCKER_RACE_STILL_ASSIGNED
         - TIMING_PROFILE_KIND_MISMATCH
         - TIMING_PROFILE_SCOPE_INVALID
+        - TIMING_STATION_HAS_SEQUENCES
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED

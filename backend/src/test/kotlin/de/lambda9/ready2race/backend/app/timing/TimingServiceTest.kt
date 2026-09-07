@@ -3,13 +3,18 @@ package de.lambda9.ready2race.backend.app.timing
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingSequenceService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
+import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
+import de.lambda9.ready2race.backend.app.timing.entity.SequenceMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingCaptureMode
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationRequest
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.app.timing.entity.TimingError
 import de.lambda9.ready2race.backend.app.timing.entity.TimingStationDto
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
+import de.lambda9.ready2race.backend.calls.responses.ErrorCode
+import io.ktor.http.HttpStatusCode
 import de.lambda9.ready2race.testing.testComprehension
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -104,6 +109,37 @@ class TimingServiceTest {
                 eventId,
             )
         }
+    }
+
+    /**
+     * Ein Posten mit Startsequenzen - auch längst beendeten - ist nicht löschbar: der Fremdschlüssel
+     * der Sequenzen steht auf `restrict`, und ohne diese Prüfung endete der Klick in einem 500er
+     * statt in einer Antwort, die der Leitstand anzeigen kann.
+     */
+    @Test
+    fun deleteStationWithSequencesFails() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        !TimingSequenceService.abortSequence((created as ApiResponse.Created).id, userId, eventId)
+
+        assertKIOFails(TimingError.StationHasSequences) {
+            TimingService.deleteStation(stationId, eventId)
+        }
+        val stations = (!TimingService.getStations(eventId)) as ApiResponse.ListDto<*>
+        assertEquals(1, stations.data.size)
+    }
+
+    @Test
+    fun stationHasSequencesAnswersAsConflictWithItsCode() {
+        val error = TimingError.StationHasSequences.respond()
+        assertEquals(HttpStatusCode.Conflict, error.status)
+        assertEquals(ErrorCode.TIMING_STATION_HAS_SEQUENCES, error.errorCode)
     }
 
     @Test

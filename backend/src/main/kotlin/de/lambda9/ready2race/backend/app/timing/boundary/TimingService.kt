@@ -179,6 +179,10 @@ object TimingService {
 
         val hasMarks = !TimingTimeMarkRepo.existsByStation(stationId).orDie()
         !KIO.failOn(hasMarks) { TimingError.StationHasTimeMarks }
+        // Auch beendete Sequenzen halten den Posten (Fremdschlüssel `restrict`): ohne die Prüfung
+        // fiele der Klick in den Constraint-Fehler und damit in einen 500er.
+        val hasSequences = !TimingSequenceRepo.existsByStation(stationId).orDie()
+        !KIO.failOn(hasSequences) { TimingError.StationHasSequences }
         !TimingStationRepo.delete(stationId).orDie()
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData

@@ -75,6 +75,9 @@ object TimingSequenceRepo {
         STATION.eq(stationId).and(STATE.`in`(activeStates))
     }
 
+    /** Irgendeine Sequenz des Postens, auch eine beendete - der Posten ist dann nicht löschbar. */
+    fun existsByStation(stationId: UUID) = TIMING_START_SEQUENCE.exists { STATION.eq(stationId) }
+
     /**
      * Die eine Sequenz, die eine unverknüpfte ANZEIGE (linked_station null = "alle Starts der
      * Veranstaltung") gerade zeigen soll: unter mehreren aktiven Sequenzen verschiedener

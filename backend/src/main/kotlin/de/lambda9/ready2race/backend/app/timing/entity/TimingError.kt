@@ -2,11 +2,19 @@ package de.lambda9.ready2race.backend.app.timing.entity
 
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.calls.responses.ApiError
+import de.lambda9.ready2race.backend.calls.responses.ErrorCode
 import io.ktor.http.*
 
 sealed interface TimingError : ServiceError {
     data object StationNotFound : TimingError
     data object StationHasTimeMarks : TimingError
+
+    /**
+     * Ein Posten mit Startsequenzen (auch beendeten) ist nicht löschbar - der Fremdschlüssel der
+     * Sequenzen steht auf `restrict`. Ohne diese Antwort liefe der Klick in den
+     * Constraint-Fehler und damit in einen 500er.
+     */
+    data object StationHasSequences : TimingError
     data object StationNameTaken : TimingError
     data object TimeMarkNotFound : TimingError
     data object TeamNotFound : TimingError
@@ -62,6 +70,11 @@ sealed interface TimingError : ServiceError {
         StationHasTimeMarks -> ApiError(
             HttpStatusCode.Conflict,
             message = "Timing station has captured time marks and cannot be deleted"
+        )
+        StationHasSequences -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "Timing station has start sequences and cannot be deleted",
+            errorCode = ErrorCode.TIMING_STATION_HAS_SEQUENCES,
         )
         StationNameTaken -> ApiError(
             HttpStatusCode.Conflict,
