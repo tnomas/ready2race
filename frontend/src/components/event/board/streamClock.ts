@@ -15,7 +15,13 @@ export type StreamClockState =
     | {phase: 'hidden'}
     | {phase: 'countdown'; remainingMs: number; paused: boolean}
     | {phase: 'running'; elapsedMs: number}
-    | {phase: 'frozen'; elapsedMs: number}
+    /**
+     * `anchored`: der Wert ist aus den Bootszeiten abgeleitet und damit bei jedem Aufruf neu
+     * bestimmbar — eine korrigierte Zielzeit soll die Uhr sofort zeigen. `false` nur im Rückfall
+     * auf die verstrichene Zeit (keine parsebare Bootszeit): DIESER Wert liefe bei weiteren
+     * Aufrufen weiter, der Aufrufer muss ihn selbst festhalten.
+     */
+    | {phase: 'frozen'; elapsedMs: number; anchored: boolean}
 
 /**
  * Reine Zustandsfunktion der Laufuhr: actualStartTime + Serverzeitversatz -> Phase.
@@ -29,7 +35,9 @@ export type StreamClockState =
  * steht. Nur wenn sich keine Zeit parsen lässt, fällt sie auf die verstrichene Zeit
  * zurück — und dieser Rückfall liefe bei weiteren Aufrufen mit fortschreitendem
  * clientNowMs weiter, weil die Funktion rein ist und keine Historie kennt. Wer sie
- * aufruft, hält den ersten frozen-Wert deshalb weiterhin selbst fest.
+ * aufruft, hält NUR diesen Rückfallwert (`anchored: false`) selbst fest; der aus den
+ * Bootszeiten abgeleitete Wert (`anchored: true`) wird bei jedem Aufruf neu genommen,
+ * damit eine nachträglich korrigierte Zielzeit auch die Uhr erreicht.
  *
  * `sequenceStartedAt`/`sequenceFiresAt` (optional, additive Ergänzung für die neue
  * Stream-Bandgrafik CLOCK — die Board-Kachel ruft weiterhin mit genau drei Argumenten
@@ -103,9 +111,9 @@ export const streamClockState = (
     const finishMillis = match.teams
         .map(team => (team.timeString != null ? parseResultTimeMillis(team.timeString) : null))
         .filter((millis): millis is number => millis !== null)
-    const frozenMs = finishMillis.length > 0 ? Math.max(...finishMillis) : elapsedMs
+    if (finishMillis.length === 0) return {phase: 'frozen', elapsedMs, anchored: false}
 
-    return {phase: 'frozen', elapsedMs: frozenMs}
+    return {phase: 'frozen', elapsedMs: Math.max(...finishMillis), anchored: true}
 }
 
 /** 'm:ss.z' bzw. ab einer Stunde 'h:mm:ss.z' - Zehntel, Tabellenziffern-tauglich. */
