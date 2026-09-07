@@ -28,6 +28,28 @@ import {
 } from './streamGraphicCatalog'
 import {extractErrorReason} from './streamApiError'
 import {classifyCourseImageDocuments} from './courseImageDocuments'
+import {parseBoundedInt} from './boundedInt'
+
+/** Grenzen der Zahlenfelder — dieselben, die der Server an `StreamGraphicSettings` prüft. */
+type NumberField = 'displaySeconds' | 'listLength'
+const NUMBER_BOUNDS: Record<NumberField, {min: number; max: number}> = {
+    displaySeconds: {min: 1, max: 600},
+    listLength: {min: 1, max: 50},
+}
+
+/** Rohtext der Zahlenfelder je Grafik-Typ — siehe `parseBoundedInt`, warum Text statt Zahl. */
+type NumberDrafts = Partial<Record<StreamSceneGraphicDto['type'], Partial<Record<NumberField, string>>>>
+
+const draftsFrom = (rows: StreamSceneGraphicDto[]): NumberDrafts =>
+    Object.fromEntries(
+        rows.map(row => [
+            row.type,
+            {
+                displaySeconds: row.settings.displaySeconds == null ? '' : String(row.settings.displaySeconds),
+                listLength: row.settings.listLength == null ? '' : String(row.settings.listLength),
+            },
+        ]),
+    )
 
 export type StreamGraphicConfigDialogProps = {
     open: boolean
@@ -48,11 +70,14 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
     const feedback = useFeedback()
 
     const [rows, setRows] = useState<StreamSceneGraphicDto[]>([])
+    const [drafts, setDrafts] = useState<NumberDrafts>({})
     const [saving, setSaving] = useState(false)
 
     useEffect(() => {
         if (!open) return
-        setRows(withAllGraphicTypes(scene.graphics))
+        const initial = withAllGraphicTypes(scene.graphics)
+        setRows(initial)
+        setDrafts(draftsFrom(initial))
     }, [open, scene])
 
     // Nur für COURSE_IMAGE gebraucht, aber unbedingt geladen (statt erst beim Aufklappen), damit
@@ -71,12 +96,56 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
         setRows(prev => prev.map(row => (row.type === type ? {...row, ...patch} : row)))
     }
 
+    const draftOf = (type: StreamSceneGraphicDto['type'], field: NumberField): string => drafts[type]?.[field] ?? ''
+    const parsedDraft = (type: StreamSceneGraphicDto['type'], field: NumberField): number | null =>
+        parseBoundedInt(draftOf(type, field), NUMBER_BOUNDS[field].min, NUMBER_BOUNDS[field].max)
+    const usesField = (type: StreamSceneGraphicDto['type'], field: NumberField): boolean =>
+        field === 'displaySeconds' ? usesDisplaySeconds(type) : usesListLength(type)
+
+    const setDraft = (type: StreamSceneGraphicDto['type'], field: NumberField, raw: string) =>
+        setDrafts(prev => ({...prev, [type]: {...prev[type], [field]: raw}}))
+
+    /** Beim Verlassen des Felds: geklemmt/gerundet zurück ins Feld und in die Zeile — leer bleibt leer (ungültig). */
+    const commitDraft = (type: StreamSceneGraphicDto['type'], field: NumberField) => {
+        const parsed = parsedDraft(type, field)
+        if (parsed === null) return
+        setDraft(type, field, String(parsed))
+        const row = rows.find(r => r.type === type)
+        if (row) updateRow(type, {settings: {...row.settings, [field]: parsed}})
+    }
+
+    /**
+     * Die Zeilen mit den gelesenen Zahlenfeldern — oder null, wenn ein benutztes Feld leer oder
+     * unlesbar ist. Gelesen wird aus dem Rohtext, damit auch ein nie verlassenes Feld zählt.
+     */
+    const rowsForSubmit = (): StreamSceneGraphicDto[] | null => {
+        const result: StreamSceneGraphicDto[] = []
+        for (const row of rows) {
+            const settings = {...row.settings}
+            for (const field of Object.keys(NUMBER_BOUNDS) as NumberField[]) {
+                if (!usesField(row.type, field)) continue
+                const parsed = parsedDraft(row.type, field)
+                if (parsed === null) return null
+                settings[field] = parsed
+            }
+            result.push({...row, settings})
+        }
+        return result
+    }
+
+    const [submitAttempted, setSubmitAttempted] = useState(false)
+    const fieldInvalid = (type: StreamSceneGraphicDto['type'], field: NumberField): boolean =>
+        parsedDraft(type, field) === null
+
     const handleSubmit = async () => {
+        setSubmitAttempted(true)
+        const graphics = rowsForSubmit()
+        if (graphics === null) return
         setSaving(true)
         try {
             const {data, error} = await updateStreamSceneGraphics({
                 path: {eventId, sceneId: scene.id},
-                body: {graphics: rows},
+                body: {graphics},
             })
             if (error || !data) {
                 feedback.error(extractErrorReason(error) ?? t('common.error.unexpected'))
@@ -138,49 +207,34 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
                                         </ToggleButton>
                                     </ToggleButtonGroup>
 
-                                    {usesDisplaySeconds(row.type) && (
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            label={t('event.stream.scenes.graphicDialog.displaySeconds')}
-                                            value={row.settings.displaySeconds ?? ''}
-                                            onChange={e => {
-                                                const value = Number(e.target.value)
-                                                updateRow(row.type, {
-                                                    settings: {
-                                                        ...row.settings,
-                                                        displaySeconds: Number.isFinite(value)
-                                                            ? Math.max(1, Math.round(value))
-                                                            : row.settings.displaySeconds,
-                                                    },
-                                                })
-                                            }}
-                                            slotProps={{htmlInput: {min: 1}}}
-                                            sx={{width: 160}}
-                                        />
-                                    )}
-
-                                    {usesListLength(row.type) && (
-                                        <TextField
-                                            type="number"
-                                            size="small"
-                                            label={t('event.stream.scenes.graphicDialog.listLength')}
-                                            value={row.settings.listLength ?? ''}
-                                            onChange={e => {
-                                                const value = Number(e.target.value)
-                                                updateRow(row.type, {
-                                                    settings: {
-                                                        ...row.settings,
-                                                        listLength: Number.isFinite(value)
-                                                            ? Math.max(1, Math.round(value))
-                                                            : row.settings.listLength,
-                                                    },
-                                                })
-                                            }}
-                                            slotProps={{htmlInput: {min: 1}}}
-                                            sx={{width: 140}}
-                                        />
-                                    )}
+                                    {(['displaySeconds', 'listLength'] as const)
+                                        .filter(field => usesField(row.type, field))
+                                        .map(field => {
+                                            const invalid = fieldInvalid(row.type, field)
+                                            return (
+                                                <TextField
+                                                    key={field}
+                                                    type="number"
+                                                    size="small"
+                                                    label={
+                                                        field === 'displaySeconds'
+                                                            ? t('event.stream.scenes.graphicDialog.displaySeconds')
+                                                            : t('event.stream.scenes.graphicDialog.listLength')
+                                                    }
+                                                    value={draftOf(row.type, field)}
+                                                    onChange={e => setDraft(row.type, field, e.target.value)}
+                                                    onBlur={() => commitDraft(row.type, field)}
+                                                    error={invalid}
+                                                    helperText={
+                                                        invalid && submitAttempted
+                                                            ? t('event.stream.scenes.graphicDialog.numberRange', NUMBER_BOUNDS[field])
+                                                            : undefined
+                                                    }
+                                                    slotProps={{htmlInput: NUMBER_BOUNDS[field]}}
+                                                    sx={{width: field === 'displaySeconds' ? 160 : 140}}
+                                                />
+                                            )
+                                        })}
 
                                     {/* Aktiv-Schalter bleibt in JEDEM Zustand nutzbar - fehlt die Bildwahl (403)
                                         oder ist noch nichts hochgeladen, bleibt imageDocument einfach unbelegt;

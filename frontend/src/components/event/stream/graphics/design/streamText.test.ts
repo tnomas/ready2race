@@ -10,8 +10,24 @@ describe('abbreviateFirstNames', () => {
         expect(abbreviateFirstNames(['St. Kim Lorenzen'])).toEqual(['St. K. Lorenzen'])
     })
 
-    it('kürzt mehrere Vornamen einzeln', () => {
-        expect(abbreviateFirstNames(['Anna Maria Petersen'])).toEqual(['A. M. Petersen'])
+    it('kürzt bei mehr als zwei Wörtern nur das erste — alles Weitere kann zum Nachnamen gehören', () => {
+        expect(abbreviateFirstNames(['Anna Sørensen Lund'])).toEqual(['A. Sørensen Lund'])
+        expect(abbreviateFirstNames(['Anna Maria Petersen'])).toEqual(['A. Maria Petersen'])
+    })
+
+    it('zählt Namenspartikel und alles dahinter zum Nachnamen', () => {
+        expect(abbreviateFirstNames(['Jan van der Berg'])).toEqual(['J. van der Berg'])
+        expect(abbreviateFirstNames(['Pieter de Jong'])).toEqual(['P. de Jong'])
+        expect(abbreviateFirstNames(["Kees 't Hart"])).toEqual(["K. 't Hart"])
+        expect(abbreviateFirstNames(['Karl zu Guttenberg'])).toEqual(['K. zu Guttenberg'])
+    })
+
+    it('lässt einen Namen ohne Vornamen vor dem Partikel unverändert', () => {
+        expect(abbreviateFirstNames(['van der Berg'])).toEqual(['van der Berg'])
+    })
+
+    it('kürzt einen groß geschriebenen Namen, der nur zufällig wie ein Partikel aussieht', () => {
+        expect(abbreviateFirstNames(['Van Petersen'])).toEqual(['V. Petersen'])
     })
 
     it('lässt einen einzelnen Namen unverändert', () => {

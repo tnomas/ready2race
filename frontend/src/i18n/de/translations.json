@@ -2650,6 +2650,7 @@
           },
           "displaySeconds": "Einblenddauer (Sekunden)",
           "listLength": "Anzahl Zeilen",
+          "numberRange": "Ganze Zahl zwischen {{min}} und {{max}}",
           "image": "Bild",
           "imageNone": "Kein Bild ausgewählt",
           "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",
@@ -2692,6 +2693,7 @@
         "inactive": "Nicht aktive Grafiken",
         "inactiveHint": "Über „Grafiken konfigurieren“ einschalten",
         "forceHint": "Ohne Inhalt blendet Erzwingen nichts ein.",
+        "sceneGone": "Diese Szene gibt es nicht mehr — sie wurde gelöscht oder gehört zu einer anderen Veranstaltung.",
         "health": {
           "live": "Live",
           "connecting": "Verbinde …",

@@ -147,6 +147,6 @@ export default defineConfig({
     port: 5123,
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
 })

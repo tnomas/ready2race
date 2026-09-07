@@ -1,10 +1,36 @@
 import {describe, expect, it, vi} from 'vitest'
+import {StreamSceneViewDto} from '@api/types.gen'
 import {
     buildStreamSceneWsUrl,
     dispatchStreamSceneFrame,
     isRecognizedStreamSceneFrame,
+    newerSceneView,
     parseStreamSceneMessage,
 } from './streamScenePush'
+
+describe('newerSceneView', () => {
+    const view = (serverTime: string) => ({sceneId: 's', serverTime}) as StreamSceneViewDto
+
+    it('nimmt die einzige vorhandene Quelle', () => {
+        const only = view('2026-08-14T10:00:00Z')
+        expect(newerSceneView(only, null)).toBe(only)
+        expect(newerSceneView(null, only)).toBe(only)
+        expect(newerSceneView(null, null)).toBeNull()
+    })
+
+    it('nimmt den Stand mit der jüngeren Serverzeit — ein Nachladen darf einen alten Push überholen', () => {
+        const pushed = view('2026-08-14T10:00:00Z')
+        const fetched = view('2026-08-14T10:00:05Z')
+        expect(newerSceneView(pushed, fetched)).toBe(fetched)
+        expect(newerSceneView(fetched, pushed)).toBe(fetched)
+    })
+
+    it('lässt bei gleicher Serverzeit den Push gewinnen', () => {
+        const pushed = view('2026-08-14T10:00:00Z')
+        const fetched = view('2026-08-14T10:00:00Z')
+        expect(newerSceneView(pushed, fetched)).toBe(pushed)
+    })
+})
 
 describe('buildStreamSceneWsUrl', () => {
     it('baut aus einer absoluten API-Basis die ws-URL', () => {
