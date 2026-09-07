@@ -6,20 +6,8 @@ import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
 import {Link, useNavigate} from '@tanstack/react-router'
-import {
-    getEvent,
-    getStreamPickerMatches,
-    getStreamSceneView,
-    getStreamScenes,
-    setStreamSceneTrialMode,
-    setStreamSceneTrialPhase,
-} from '@api/sdk.gen.ts'
-import {
-    StreamPickerMatchDto,
-    StreamSceneDto,
-    StreamSceneViewDto,
-    StreamTrialPhase,
-} from '@api/types.gen.ts'
+import {getEvent, getStreamPickerMatches, getStreamSceneView, getStreamScenes} from '@api/sdk.gen.ts'
+import {StreamPickerMatchDto, StreamSceneDto, StreamSceneViewDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {updateEventGlobal, updateStreamGlobal} from '@authorization/privileges.ts'
@@ -32,7 +20,10 @@ import DirectorGraphicCard, {
 import DirectorTrialPanel from '@components/event/stream/director/DirectorTrialPanel.tsx'
 import StreamPreview from '@components/event/stream/director/StreamPreview.tsx'
 import {DIRECTOR_COLORS, directorTheme} from '@components/event/stream/director/directorTheme.ts'
+import {sceneViewErrorKey} from '@components/event/stream/director/directorErrors.ts'
 import {graphicFeed} from '@components/event/stream/director/graphicFeed.ts'
+import {useTrialControls} from '@components/event/stream/director/useTrialControls.ts'
+import {newerSceneView} from '@components/event/stream/streamScenePush.ts'
 import StreamGraphicConfigDialog from '@components/event/stream/StreamGraphicConfigDialog.tsx'
 import StreamSceneShareDialog from '@components/event/stream/StreamSceneShareDialog.tsx'
 import {STREAM_GRAPHIC_TYPES} from '@components/event/stream/streamGraphicCatalog.ts'
@@ -226,7 +217,9 @@ const DirectorScene = ({
     const {connected} = useStreamSceneSocket(eventId, sceneId, onView, onFrame)
 
     // Der Kanal schickt den vollen Stand als ersten Rahmen — er überholt den Erstabruf von selbst.
-    const view = pushed ?? initial.data ?? null
+    // Nach Serverzeit zusammengeführt, damit ein Nachladen (siehe `useTrialControls`) einen
+    // Push überholen kann, der bei stehendem Kanal nie mehr käme.
+    const view = newerSceneView(pushed, initial.data)
 
     const clockOffsetMs = useMemo(
         () => (view ? Date.now() - Date.parse(view.serverTime) : 0),
@@ -268,32 +261,23 @@ const DirectorScene = ({
         wasConnectedRef.current = connected
     }, [connected])
 
-    const [trialBusy, setTrialBusy] = useState(false)
-    const toggleTrialMode = async (on: boolean) => {
-        setTrialBusy(true)
-        try {
-            const {error} = await setStreamSceneTrialMode({
-                path: {eventId, sceneId},
-                query: {trialMode: on},
-            })
-            if (error) feedback.error(t('event.stream.scenes.trialMode.error'))
-            else onScenesChanged()
-        } finally {
-            setTrialBusy(false)
-        }
-    }
-    const setTrialPhase = async (phase: StreamTrialPhase) => {
-        setTrialBusy(true)
-        try {
-            const {error} = await setStreamSceneTrialPhase({
-                path: {eventId, sceneId},
-                query: {phase},
-            })
-            if (error) feedback.error(t('common.error.unexpected'))
-        } finally {
-            setTrialBusy(false)
-        }
-    }
+    const {
+        busy: trialBusy,
+        toggleTrialMode,
+        setTrialPhase,
+    } = useTrialControls({
+        eventId,
+        sceneId,
+        onChanged: change => {
+            // Den Szenenstand nachladen statt nur auf den Push zu warten (Begründung im Hook).
+            initial.reload()
+            if (change === 'trialMode') onScenesChanged()
+        },
+        onError: change =>
+            feedback.error(
+                change === 'trialMode' ? t('event.stream.scenes.trialMode.error') : t('common.error.unexpected'),
+            ),
+    })
 
     const [configOpen, setConfigOpen] = useState(false)
     const [shareOpen, setShareOpen] = useState(false)
@@ -369,6 +353,12 @@ const DirectorScene = ({
                                     )}
                                 </Stack>
                             </>
+                        ) : initial.error ? (
+                            // Ein gescheiterter Erstabruf darf nicht wie ein ewiges „Verbinde …"
+                            // aussehen — eine gelöschte Szene heilt kein Warten.
+                            <Typography variant="caption" color="error.main">
+                                {t(sceneViewErrorKey(initial.error))}
+                            </Typography>
                         ) : (
                             <Typography variant="caption" color="text.secondary">
                                 {t('event.stream.director.health.connecting')}

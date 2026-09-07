@@ -2646,6 +2646,7 @@
           },
           "displaySeconds": "Display duration (seconds)",
           "listLength": "Number of rows",
+          "numberRange": "Whole number between {{min}} and {{max}}",
           "image": "Image",
           "imageNone": "No image selected",
           "imageHint": "Images are uploaded through the event's documents.",
@@ -2688,6 +2689,7 @@
         "inactive": "Inactive graphics",
         "inactiveHint": "Enable them under “Configure graphics”",
         "forceHint": "Forcing on shows nothing without content.",
+        "sceneGone": "This scene no longer exists — it was deleted or belongs to another event.",
         "health": {
           "live": "Live",
           "connecting": "Connecting …",
