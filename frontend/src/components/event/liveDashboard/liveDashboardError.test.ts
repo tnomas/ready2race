@@ -27,6 +27,14 @@ describe('liveDashboardErrorKey', () => {
         ).toBe('event.liveDashboard.control.errorReason.finishReservedForOffice')
     })
 
+    it('sagt beim Klären, dass der Lauf schon beendet ist', () => {
+        // Der Klärungsdialog schickte den Grund ab, der Server lehnte ab, und die Sprecherin las
+        // nur "Der Lauf konnte nicht geändert werden" - ohne zu wissen, dass er längst durch ist.
+        expect(
+            liveDashboardErrorKey(error({errorCode: 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED'})),
+        ).toBe('event.liveDashboard.clarification.error.alreadyFinished')
+    })
+
     it('überlässt Unbekanntes der Sammelmeldung der Karte', () => {
         expect(liveDashboardErrorKey(error({}))).toBeUndefined()
     })
@@ -72,6 +80,7 @@ describe('participantTrackingErrorKey', () => {
 describe('Übersetzungen', () => {
     const keys = [
         'event.liveDashboard.control.errorReason.finishReservedForOffice',
+        'event.liveDashboard.clarification.error.alreadyFinished',
         'qrAssign.errorReason.alreadyInUse',
         'club.participant.tracking.errorReason.alreadyCheckedIn',
         'club.participant.tracking.errorReason.notCheckedIn',

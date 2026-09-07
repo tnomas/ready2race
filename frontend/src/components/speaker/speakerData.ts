@@ -24,7 +24,12 @@ export type SpeakerTeam = {
     clubName?: string | null
     /** full club names of the crew - a composite crew rows for more than one club */
     clubsFull?: string | null
+    /** Gesamtplatz im Lauf */
     place?: number
+    /** Name der Wertungskategorie des Boots; null, wenn es keine hat */
+    ratingCategory?: string | null
+    /** Platz innerhalb der Wertungskategorie - die Zahl, die die Ergebnisliste zeigt */
+    categoryPlace?: number | null
     timeString?: string | null
     failed?: boolean
     failedReason?: string | null
@@ -117,10 +122,12 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
 const fromResultTeam = (team: MatchResultTeamInfo): SpeakerTeam => ({
     teamId: team.teamId,
     teamName: team.teamName,
-    startNumber: team.teamNumber,
+    startNumber: team.startNumber,
     clubName: team.clubName,
     clubsFull: team.clubsFull,
     place: team.place,
+    ratingCategory: team.ratingCategory?.name ?? null,
+    categoryPlace: team.categoryPlace ?? null,
     timeString: team.timeString,
     failed: team.failed,
     failedReason: team.failedReason,
@@ -173,6 +180,13 @@ export const matchLabel = (match: SpeakerMatch): string =>
         .filter(Boolean)
         .join(' ')
 
+/**
+ * Der Platz, den das Board zeigt: innerhalb der Wertungskategorie, wenn das Boot eine hat, sonst
+ * der Gesamtplatz - dieselbe Zahl wie in der Ergebnisliste.
+ */
+export const displayPlace = (team: SpeakerTeam): number | undefined =>
+    team.categoryPlace ?? team.place
+
 export type OtherStart = {
     matchId: string
     label: string
@@ -207,14 +221,18 @@ export const computeSpeakerBadges = (matches: SpeakerMatch[]): SpeakerBadges => 
     matches.forEach(match => {
         match.teams.forEach(team => {
             if (team.deregistered) return
-            const isMedal = match.status === 'FINISHED' && team.place != undefined && team.place <= 3
+            const place = displayPlace(team)
+            const isMedal = match.status === 'FINISHED' && place != undefined && place <= 3
+            const medalLabel = team.ratingCategory
+                ? `${matchLabel(match)} (${team.ratingCategory})`
+                : matchLabel(match)
             team.participants.forEach(participant => {
                 const list = starts.get(participant.participantId) ?? []
                 list.push({match, team, participant})
                 starts.set(participant.participantId, list)
                 if (isMedal) {
                     const medalList = medals.get(participant.participantId) ?? []
-                    medalList.push({place: team.place!, label: matchLabel(match)})
+                    medalList.push({place: place!, label: medalLabel})
                     medals.set(participant.participantId, medalList)
                 }
             })
@@ -289,7 +307,7 @@ export type SpeakerColors = {
     gold: string
 }
 
-// LOTG-inspired dark board palette (default)
+// dunkle Standardpalette des Boards
 export const speakerColors: SpeakerColors = {
     background: '#0f172a',
     panel: '#1e293b',

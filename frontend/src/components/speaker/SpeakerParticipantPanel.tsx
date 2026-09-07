@@ -3,6 +3,7 @@ import {format} from 'date-fns'
 import {Fragment} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
+    displayPlace,
     matchDisplayColor,
     medalEmoji,
     ParticipantStart,
@@ -24,9 +25,11 @@ type Props = {
 const startResult = (start: ParticipantStart, failedLabel: string): string | null => {
     if (start.match.status !== 'FINISHED') return null
     if (start.team.failed) return start.team.failedReason || failedLabel
-    if (start.team.place == undefined) return null
-    const medal = start.team.place <= 3 ? `${medalEmoji(start.team.place)} ` : ''
-    return `${medal}${start.team.place}.${start.team.timeString ? ` · ${start.team.timeString}` : ''}`
+    const place = displayPlace(start.team)
+    if (place == undefined) return null
+    const medal = place <= 3 ? `${medalEmoji(place)} ` : ''
+    const category = start.team.ratingCategory ? ` ${start.team.ratingCategory}` : ''
+    return `${medal}${place}.${category}${start.team.timeString ? ` · ${start.team.timeString}` : ''}`
 }
 
 /**

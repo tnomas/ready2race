@@ -1373,7 +1373,8 @@
           "warning": {
             "missingDistance": "At least one selected station has no metre.",
             "overDistance": "At least one station stands beyond the competition's total distance ({{distance}} m).",
-            "duplicateDistance": "Two stations stand at the same metre."
+            "duplicateDistance": "Two stations stand at the same metre.",
+            "orphaned": "An assignment at {{distance}} m points to a station that no longer exists or has since become a display station. It is no longer written when saving."
           }
         }
       },
@@ -1748,10 +1749,10 @@
         },
         "intervalSeconds": "Start interval (seconds)",
         "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
-        "invalidInterval": "The interval must be at least 1 second — or stay empty for manual starts.",
+        "invalidInterval": "The interval must be a whole number of at least 1 second — or stay empty for manual starts.",
         "leadInSeconds": "Countdown lead-in (seconds)",
         "leadInHelp": "Countdown before the (first) start.",
-        "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
+        "invalidLeadIn": "Please enter a whole number of seconds of 0 or more.",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",
@@ -2057,7 +2058,10 @@
         "reasonLabel": "Reason",
         "reasonPlaceholder": "Objection, lane contact",
         "submit": "Mark under review",
-        "since": "since {{time}}"
+        "since": "since {{time}}",
+        "error": {
+          "alreadyFinished": "The race has already been finished."
+        }
       },
       "substitution": {
         "short": "Substitution",
@@ -4379,6 +4383,10 @@
     "selectEvent": "Select an event",
     "liveCount": "{{count}} live",
     "openBoard": "Open speaker board",
+    "error": {
+      "feed_one": "One of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying.",
+      "feed_other": "{{count}} of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying."
+    },
     "tabs": {
       "timeline": "Timeline",
       "program": "Program",

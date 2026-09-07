@@ -12,6 +12,7 @@ import {ErrorCode} from '@api/types.gen.ts'
 
 const dashboardKeys = {
     finishReservedForOffice: 'event.liveDashboard.control.errorReason.finishReservedForOffice',
+    clarifyAlreadyFinished: 'event.liveDashboard.clarification.error.alreadyFinished',
 } as const
 
 const qrAssignKeys = {
@@ -46,10 +47,17 @@ export type LiveDashboardApiError = {
  */
 export const liveDashboardErrorKey = (
     error: LiveDashboardApiError,
-): LiveDashboardErrorKey | undefined =>
-    error.errorCode === 'LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE'
-        ? dashboardKeys.finishReservedForOffice
-        : undefined
+): LiveDashboardErrorKey | undefined => {
+    switch (error.errorCode) {
+        case 'LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE':
+            return dashboardKeys.finishReservedForOffice
+        // Die Klärung lässt sich nur gegen einen unbeendeten Lauf setzen. Wer den Dialog offen
+        // hatte, während das Ergebnis eintraf, erfährt hier den Grund statt einer Sammelmeldung.
+        case 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED':
+            return dashboardKeys.clarifyAlreadyFinished
+    }
+    return undefined
+}
 
 /**
  * Der i18n-Key zur abgelehnten QR-Code-Zuweisung. "Dieser QR-Code konnte nicht zugewiesen werden"

@@ -350,11 +350,13 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     })
 
     // Zurück im Netz: nicht bis zum nächsten Takt warten. Der Browser meldet das selbst, und beim
-    // Abgleich im Minutentakt ist das der Unterschied zwischen "sofort" und "irgendwann".
+    // Abgleich im Minutentakt ist das der Unterschied zwischen "sofort" und "irgendwann". Der
+    // Listener geht über dieselbe Ref wie der Push-Kanal, damit er einmal hängt und trotzdem die
+    // aktuelle Fassung von reloadProgress ruft.
     useEffect(() => {
-        window.addEventListener('online', reloadProgress)
-        return () => window.removeEventListener('online', reloadProgress)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const onOnline = () => reloadProgressRef.current()
+        window.addEventListener('online', onOnline)
+        return () => window.removeEventListener('online', onOnline)
     }, [])
 
     /** Nach dem Sprung kurz aufleuchtende Lauf-Karte (siehe [focusMatchId]). */
