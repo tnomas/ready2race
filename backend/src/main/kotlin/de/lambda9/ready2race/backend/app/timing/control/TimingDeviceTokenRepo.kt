@@ -14,8 +14,6 @@ object TimingDeviceTokenRepo {
 
     fun get(id: UUID) = TIMING_DEVICE_TOKEN.selectOne { ID.eq(id) }
 
-    fun getByEvent(eventId: UUID) = TIMING_DEVICE_TOKEN.select { EVENT.eq(eventId) }
-
     /**
      * Nur die POSTEN-Tokens der Veranstaltung: seit Migration V202608250900 trägt dieselbe
      * Tabelle auch Board-Tokens (station null, board gesetzt).

@@ -7353,6 +7353,8 @@ paths:
         or a board device token in the X-Timing-Device-Token header. Any board token OF THIS EVENT
         is accepted here, because a shared screen has to find its own board before it knows its id;
         the contents stay behind the per-board endpoint. A timing station token is rejected.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Boards retrieved successfully
@@ -7388,6 +7390,8 @@ paths:
         token issued for EXACTLY THIS board in the X-Timing-Device-Token header (see
         createBoardShareLink). A token of another board, a timing station token and a revoked token
         are all answered alike with 401.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Board view retrieved successfully
@@ -8781,6 +8785,8 @@ paths:
 
         Same payload as the scene's websocket channel, so a stage or panel does not have to wait
         for the first push - see StreamSceneViewDto for the channel itself.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Resolved scene state retrieved successfully
@@ -10129,6 +10135,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10147,6 +10154,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10331,6 +10339,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
@@ -10357,6 +10366,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '201':
           description: The request has succeeded and a new resource has been created as a result.
@@ -10460,6 +10470,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
@@ -10530,6 +10541,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10585,6 +10597,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10624,6 +10637,7 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11069,6 +11083,7 @@ paths:
           schema:
             $ref: '#/components/schemas/uuid'
           explode: false
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11246,6 +11261,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11774,6 +11790,19 @@ components:
       schema:
         type: string
         format: uuid
+
+    TimingDeviceToken:
+      name: X-Timing-Device-Token
+      in: header
+      required: false
+      description: >-
+        Device token instead of a session, for shared devices that cannot log in (station
+        boards, displays, stream stages). Only consulted when the request carries no session.
+        Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401
+        without saying which it was. Which token kind a route accepts is stated in its
+        description.
+      schema:
+        type: string
 
     eventDayId:
       name: eventDayId
