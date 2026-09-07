@@ -11,8 +11,13 @@
  * neue Nachricht eine neue Einblendung auslösen könnten.
  */
 
-/** Nach dieser Stille seit dem letzten Rahmen gilt die Bühne als veraltet. */
-export const STREAM_STALE_AFTER_MS = 15_000
+/**
+ * Nach dieser Stille seit dem letzten Rahmen gilt die Bühne als veraltet — mindestens
+ * 2 × Server-Herzschlag (20 s, `StreamSceneBroadcaster.heartbeatLoop`): ein einzelner
+ * verspäteter Herzschlag ist Alltag und darf keine Einblendung sperren, erst zwei
+ * ausgebliebene sind ein Zeichen für einen stehenden Kanal.
+ */
+export const STREAM_STALE_AFTER_MS = 45_000
 
 /**
  * Ob die Bühne veraltet ist. `null` (noch nie ein Rahmen angekommen) gilt NICHT als veraltet —

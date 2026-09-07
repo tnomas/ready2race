@@ -24,7 +24,8 @@ interface DirectorHeaderProps {
  * Kopfzeile des Regie-Boards: Zurück, Titel, die Szenen als Reiter (eine Szene ist ein Shot in
  * Wirecast — die Regie springt zwischen ihnen wie zwischen Kameras), rechts der Kanalzustand
  * und der Vollbild-Schalter. Die Sendepause-Warnung nutzt die 30-s-Schwelle des Panels
- * (`streamPanelHealth.ts`), nicht die 15 s der Bühne — hier liest ein Mensch mit.
+ * (`streamPanelHealth.ts`), nicht die 45 s der Bühne — hier liest ein Mensch mit, der früher
+ * hinsehen soll, als die Bühne von sich aus Einblendungen sperrt.
  */
 const DirectorHeader = ({
     eventName,
