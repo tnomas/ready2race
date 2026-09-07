@@ -21555,6 +21555,10 @@ components:
         timestampMillis:
           type: integer
           format: int64
+          description: >-
+            Epoch millis of the capture as seen by the device. Must lie within 24 hours of the
+            server clock in either direction (400 otherwise): a device with a badly set clock
+            must not place marks in a distant year.
 
     AssignTimeMarkRequest:
       type: object
@@ -21649,6 +21653,11 @@ components:
         intervalMillis:
           type: integer
           format: int64
+          minimum: 1000
+          maximum: 3600000
+          description: >-
+            Cadence between two starts, required for mode INTERVAL and ignored for MASS. Between
+            one second and one hour (400 outside).
         teams:
           type: array
           items:
@@ -21656,6 +21665,11 @@ components:
         leadInMillis:
           type: integer
           format: int64
+          minimum: 3000
+          maximum: 600000
+          description: >-
+            Countdown before the first start. Absent = one full cadence (INTERVAL) or 10 s (MASS);
+            when given between 3 s and 10 min (400 outside).
 
     SequenceEntryStatus:
       type: string

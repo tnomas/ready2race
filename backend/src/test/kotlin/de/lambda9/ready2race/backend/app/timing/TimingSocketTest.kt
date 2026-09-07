@@ -74,7 +74,7 @@ class TimingSocketTest {
             val response = client.post("/api/event/$eventId/timing/timeMarks") {
                 header(SESSION_HEADER, sessionHeader)
                 contentType(ContentType.Application.Json)
-                setBody("""{"id":"$markId","station":"$stationId","timestampMillis":1755430000000}""")
+                setBody("""{"id":"$markId","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
             }
             assertEquals(HttpStatusCode.Created, response.status)
 
@@ -96,7 +96,7 @@ class TimingSocketTest {
         val created = client.post("/api/event/$eventId/timing/timeMarks") {
             header(SESSION_HEADER, sessionHeader)
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
         assertEquals(HttpStatusCode.Created, created.status)
 
@@ -139,7 +139,7 @@ class TimingSocketTest {
                         client.post("/api/event/$eventId/timing/timeMarks") {
                             header(SESSION_HEADER, sessionHeader)
                             contentType(ContentType.Application.Json)
-                            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":1755430000000}""")
+                            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
                         }
                     }
                 }.awaitAll()
