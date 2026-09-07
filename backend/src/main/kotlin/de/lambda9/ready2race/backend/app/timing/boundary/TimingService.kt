@@ -686,31 +686,26 @@ object TimingService {
                 .onNullFail { TimingError.TeamNotFound }
             !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
 
-            if (existing == null) {
-                !TimingAssignmentRepo.create(
-                    TimingAssignmentRecord(
-                        id = UUID.randomUUID(),
-                        timeMark = timeMarkId,
-                        competitionMatchTeam = team,
-                        createdAt = LocalDateTime.now(),
-                        createdBy = userId,
-                        createdByDevice = deviceId,
-                        updatedAt = LocalDateTime.now(),
-                        updatedBy = userId,
-                        updatedByDevice = deviceId,
-                    )
-                ).orDie()
-            } else {
-                !TimingAssignmentRepo.update(existing.id) {
-                    competitionMatchTeam = team
-                    updatedAt = LocalDateTime.now()
-                    // Genau EIN Akteur je Änderung: die jeweils andere Spalte wird geleert, damit
-                    // die Revisionsspur den letzten Handelnden eindeutig benennt (Nutzer ODER
-                    // Gerät), statt Reste des vorletzten stehen zu lassen.
-                    updatedBy = userId
-                    updatedByDevice = deviceId
-                }.orDie()
-            }
+            // Ein Upsert statt "anlegen oder aktualisieren" nach dem oben gelesenen Stand: zwei
+            // Zuordnungen, die sich kreuzen, sähen beide "noch keine" und die zweite liefe in
+            // den Unique-Defekt. Beim Umhängen bleibt die Zeile, `created_*` behält den ersten
+            // Handelnden, und `updated_*` benennt den letzten eindeutig - genau EIN Akteur je
+            // Änderung (Nutzer ODER Gerät), die jeweils andere Spalte wird geleert, statt Reste des
+            // vorletzten stehen zu lassen.
+            val now = LocalDateTime.now()
+            !TimingAssignmentRepo.create(
+                TimingAssignmentRecord(
+                    id = UUID.randomUUID(),
+                    timeMark = timeMarkId,
+                    competitionMatchTeam = team,
+                    createdAt = now,
+                    createdBy = userId,
+                    createdByDevice = deviceId,
+                    updatedAt = now,
+                    updatedBy = userId,
+                    updatedByDevice = deviceId,
+                )
+            ).orDie()
         }
         // Both ends of a move are affected: the team that loses the mark and the one that gains it.
         // A freshly created mark needs no hook of its own - it carries no assignment yet, so the

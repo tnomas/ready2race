@@ -215,6 +215,58 @@ class TimeMarkServiceTest {
         }
     }
 
+    /**
+     * Die Zuordnung ist ein Upsert über die Marke: zwei Zuordnungen derselben Marke - auch zwei,
+     * die sich im Fenster zwischen Lesen und Schreiben kreuzen und deshalb beide "noch keine
+     * Zuordnung" sehen - ergeben EINE Zeile, die letzte gewinnt, und kein Unique-Defekt.
+     */
+    @Test
+    fun assigningTheSameMarkTwiceKeepsOneRowAndTheLastTeamWins() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val teams = !createTestMatchTeams(eventId, 2)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+
+        val now = LocalDateTime.now()
+        fun assignment(team: UUID) = de.lambda9.ready2race.backend.database.generated.tables.records.TimingAssignmentRecord(
+            id = UUID.randomUUID(),
+            timeMark = markId,
+            competitionMatchTeam = team,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+        // Direkt über das Repo, wie zwei Requests, die beide keine bestehende Zuordnung gesehen
+        // haben - der Service-Weg allein käme hier nie an, er nähme beim zweiten Mal den Update-Zweig.
+        val firstId = !TimingAssignmentRepo.create(assignment(teams[0]))
+        val secondId = !TimingAssignmentRepo.create(assignment(teams[1]))
+
+        val rows = !TimingAssignmentRepo.getByTimeMarks(listOf(markId))
+        assertEquals(1, rows.size)
+        assertEquals(teams[1], rows.single().competitionMatchTeam)
+        // Die Zeile bleibt dieselbe - der Upsert liefert die Kennung der bestehenden zurück.
+        assertEquals(firstId, secondId)
+        assertEquals(firstId, rows.single().id)
+    }
+
+    @Test
+    fun assigningViaTheServiceTwiceMovesTheMarkAndKeepsOneRow() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val teams = !createTestMatchTeams(eventId, 2)
+        val markId = UUID.randomUUID()
+        !TimingService.createTimeMark(CreateTimeMarkRequest(markId, stationId, 1755430000000), userId, eventId)
+
+        !TimingService.assignTimeMark(AssignTimeMarkRequest(teams[0]), userId, markId, eventId)
+        !TimingService.assignTimeMark(AssignTimeMarkRequest(teams[1]), userId, markId, eventId)
+
+        val rows = !TimingAssignmentRepo.getByTimeMarks(listOf(markId))
+        assertEquals(1, rows.size)
+        assertEquals(teams[1], rows.single().competitionMatchTeam)
+    }
+
     @Test
     fun detachWithoutExistingAssignmentSucceeds() = testComprehension {
         val (eventId, userId) = !createTestEventWithAdmin()
