@@ -236,7 +236,7 @@ object StreamSceneLogic {
                     overriddenMatches = overriddenMatches,
                     overriddenResults = overriddenResults,
                     schedule = if (needsSchedule) upcoming.take(scheduleLength) else emptyList(),
-                    courseImageUrl = courseImageUrl(eventId, graphics),
+                    courseImageUrl = courseImageUrl(eventId, sceneId, graphics),
                 )
             )
         }
@@ -354,17 +354,17 @@ object StreamSceneLogic {
     }
 
     /**
-     * Die Adresse des Streckenbilds aus der Grafik-Konfiguration.
+     * Die Adresse des Streckenbilds, sofern die COURSE_IMAGE-Grafik ein Dokument benennt.
      *
-     * Es liegt als Veranstaltungsdokument (`event_document`); ausgeliefert wird es vom
-     * bestehenden Download-Endpunkt `GET /api/event/{eventId}/eventDocument/{id}`. Der verlangt
-     * eine Sitzung mit READ EVENT - ein Szenen-Token öffnet ihn NICHT. Für das Panel und für
-     * eine angemeldete Vorschau trägt die Adresse also, für eine reine Token-Bühne (Wirecast,
-     * OBS) noch nicht; ein öffentlich bzw. per Szenen-Token erreichbarer Auslieferweg fehlt und
-     * ist als offener Punkt an die Bühnen-Aufgaben notiert.
+     * Das Bild liegt als Veranstaltungsdokument (`event_document`), ausgeliefert wird es aber
+     * NICHT über den allgemeinen Download `GET /api/event/{eventId}/eventDocument/{id}` - der
+     * verlangt eine Sitzung mit READ EVENT, die eine reine Token-Bühne (Wirecast, OBS) nicht
+     * hat. Stattdessen zeigt die Adresse auf den szeneneigenen Weg
+     * `GET /api/event/{eventId}/stream/{sceneId}/courseImage`, der dieselbe Tür hat wie der
+     * Szenenstand selbst (Sitzung ODER Szenen-Token, siehe [StreamSceneService.getCourseImage]).
      */
-    private fun courseImageUrl(eventId: UUID, graphics: List<StreamSceneGraphicDto>): String? =
+    private fun courseImageUrl(eventId: UUID, sceneId: UUID, graphics: List<StreamSceneGraphicDto>): String? =
         graphics.firstOrNull { it.type == StreamGraphicType.COURSE_IMAGE }
             ?.settings?.imageDocument
-            ?.let { "/api/event/$eventId/eventDocument/$it" }
+            ?.let { "/api/event/$eventId/stream/$sceneId/courseImage" }
 }

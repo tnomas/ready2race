@@ -8797,6 +8797,41 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /event/{eventId}/stream/{sceneId}/courseImage:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getStreamSceneCourseImage
+      description: >-
+        The course image configured on the scene's COURSE_IMAGE graphic, as the stored document
+        (its content type follows the file name). Same door as getStreamSceneView: a session with
+        READ STREAM or READ EVENT, or the device token issued for EXACTLY THIS scene in the
+        X-Timing-Device-Token header. StreamGraphicViewDto.imageUrl points here. 404 when the scene
+        has no COURSE_IMAGE graphic, no document is configured, the document is gone, or it belongs
+        to another event.
+      responses:
+        200:
+          description: Course image retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
   /ratingCategory:
     post:
       operationId: addRatingCategory
@@ -23080,7 +23115,7 @@ components:
         imageUrl:
           type: string
           nullable: true
-          description: "COURSE_IMAGE."
+          description: "COURSE_IMAGE: address of getStreamSceneCourseImage (/api/event/{eventId}/stream/{sceneId}/courseImage), reachable with the same session or scene token as the view itself."
         sequenceStartedAt:
           type: string
           format: date-time
