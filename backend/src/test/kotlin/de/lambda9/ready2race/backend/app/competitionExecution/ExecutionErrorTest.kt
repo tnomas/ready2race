@@ -73,6 +73,15 @@ class ExecutionErrorTest {
         )
     }
 
+    /** Der geteilte Platz mit verschiedenen Zeiten ist keine Lücke - er braucht seinen eigenen Code. */
+    @Test
+    fun aSharedPlaceWithDifferentTimesIsNotAGap() {
+        val error = CompetitionExecutionError.DuplicatePlaces(place = 2).respond()
+
+        assertEquals(ErrorCode.COMPETITION_EXECUTION_DUPLICATE_PLACES, error.errorCode)
+        assertEquals(2, error.details?.get("place"))
+    }
+
     /**
      * Ohne die beiden Zahlen muss der Nutzer die Ergebnisliste selbst durchzählen, um die Lücke zu
      * finden - bei einem Massenfeld ist das genau die Arbeit, die die Meldung abnehmen soll.

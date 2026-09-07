@@ -838,11 +838,26 @@ object CompetitionExecutionService {
 
         val noPlaces = request.teamResults.filter { !it.failed }.any { it.place == null }
 
-        // Validate places are continuous when provided
+        // Validate places when provided
         if (!noPlaces) {
-            val places = request.teamResults.filter { !it.failed }.mapNotNull { it.place }.sorted()
-            places.forEachIndexed { index, place ->
-                val expected = index + 1
+            val placed = request.teamResults.filter { !it.failed }
+
+            // Ein geteilter Platz ist nur als totes Rennen erlaubt: alle Boote auf dem Platz
+            // tragen dieselbe Zeit (oder alle keine). Verschiedene Zeiten sind ein Tippfehler.
+            placed.groupBy { it.place!! }.forEach { (place, teams) ->
+                if (teams.size > 1) {
+                    val times = teams.map { team ->
+                        team.timeString?.let { (!Parser.timecode(it) { task -> task.orDie() }).millis }
+                    }.toSet()
+                    !KIO.failOn(times.size > 1) { CompetitionExecutionError.DuplicatePlaces(place = place) }
+                }
+            }
+
+            // Lückenlos im Sinne der Wettkampfwertung: Auf ein totes Rennen um Platz 1 folgt
+            // Platz 3. Jeder vergebene Platz muss also gleich der Anzahl der Boote vor ihm plus 1 sein.
+            val places = placed.map { it.place!! }.sorted()
+            places.distinct().forEach { place ->
+                val expected = places.count { it < place } + 1
                 !KIO.failOn(expected != place) {
                     CompetitionExecutionError.PlacesNotContinuous(expected = expected, actual = place)
                 }
