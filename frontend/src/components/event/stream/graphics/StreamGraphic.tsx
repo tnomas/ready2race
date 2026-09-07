@@ -98,6 +98,7 @@ const StreamGraphic = ({graphic, clockOffsetMs}: StreamGraphicProps) => {
             visible={graphic.visible}
             visibleSince={graphic.visibleSince}
             visibleUntil={graphic.visibleUntil}
+            clockOffsetMs={clockOffsetMs}
             onHidden={() => {
                 lastWithContentRef.current = null
             }}>

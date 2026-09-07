@@ -2,20 +2,24 @@ import {ReactNode, useEffect, useRef, useState} from 'react'
 import {Box} from '@mui/material'
 import {allowsNewlyVisible} from '../streamStale.ts'
 import {useStreamStale} from '../StreamStaleContext.ts'
-import {GRAPHIC_TRANSITION_MS, visibilityPhase} from './graphicVisibility.ts'
+import {expiredWhileStale, GRAPHIC_TRANSITION_MS, visibilityPhase} from './graphicVisibility.ts'
 
 interface GraphicFrameProps {
     visible: boolean
     /**
      * Zeitpunkt/-fenster des Servers für diese Einblendung — Teil des DTO-Vertrags
-     * (`StreamGraphicViewDto.visibleSince`/`visibleUntil`), hier bewusst nicht ausgewertet:
-     * Der Server pusht ohnehin einen neuen Rahmen mit `visible=false`, sobald `visibleUntil`
-     * erreicht ist (siehe `StreamSceneResolver.nextEvaluationAt`), die Bühne muss also nicht
-     * selbst mitzählen. Beide Felder bleiben Teil der Signatur, damit ein künftiger Bedarf
-     * (z. B. eine Auslauf-Anzeige) sie ohne Schnittstellenänderung bekommt.
+     * (`StreamGraphicViewDto.visibleSince`/`visibleUntil`). Im Normalbetrieb NICHT ausgewertet:
+     * Der Server pusht einen neuen Rahmen mit `visible=false`, sobald `visibleUntil` erreicht
+     * ist (siehe `StreamSceneResolver.nextEvaluationAt`). Nur in einer Störung (Bühne veraltet)
+     * zählt die Hülle anhand von `visibleUntil` selbst mit — siehe `expiredWhileStale`.
      */
     visibleSince?: string | null
     visibleUntil?: string | null
+    /**
+     * Client-Server-Zeitversatz (`clientNow − serverTime`, siehe `StreamScenePage`), um
+     * `visibleUntil` in die Geräteuhr umzurechnen. Fehlt er, gilt die Serveruhr als Geräteuhr.
+     */
+    clockOffsetMs?: number
     /**
      * Wird gerufen, sobald die Hülle die Phase `hidden` erreicht — also NACH der
      * Ausblendanimation nichts mehr rendert. `StreamGraphic` lässt daran seinen zurückgehaltenen
@@ -58,15 +62,38 @@ const SLIDE_OFFSET_PX = 24
  * glätten soll. `willChange` gibt dem Browser stattdessen vorab einen echten Compositing-Hinweis
  * für die tatsächlich animierten Eigenschaften.
  */
-const GraphicFrame = ({visible, onHidden, children}: GraphicFrameProps) => {
+const GraphicFrame = ({
+    visible,
+    visibleUntil,
+    clockOffsetMs = 0,
+    onHidden,
+    children,
+}: GraphicFrameProps) => {
     const stale = useStreamStale()
     // Immer die neueste Fassung rufen, ohne dass eine neue Funktions-Identität den Effekt unten
     // erneut auslöst — er soll genau einmal je Erreichen von `hidden` feuern.
     const onHiddenRef = useRef(onHidden)
     onHiddenRef.current = onHidden
 
+    const [now, setNow] = useState(() => Date.now())
+
+    // Ablauf bei Verbindungsverlust (siehe `expiredWhileStale`): In der Störung kommt der
+    // Ausblende-Push nicht — die Hülle stellt sich deshalb selbst einen Wecker auf das
+    // Fensterende und rechnet `now` dann einmal neu. Ohne Störung oder ohne Fenster kein Wecker.
+    useEffect(() => {
+        if (!stale || visibleUntil == null) return
+        const untilMs = Date.parse(visibleUntil)
+        if (Number.isNaN(untilMs)) return
+        setNow(Date.now())
+        const remaining = untilMs + clockOffsetMs - Date.now()
+        if (remaining <= 0) return
+        const id = window.setTimeout(() => setNow(Date.now()), remaining + 16)
+        return () => window.clearTimeout(id)
+    }, [stale, visibleUntil, clockOffsetMs])
+    const expired = expiredWhileStale(stale, visibleUntil, clockOffsetMs, now)
+
     const [wasVisible, setWasVisible] = useState(false)
-    const effectiveVisible = visible && allowsNewlyVisible(stale, wasVisible)
+    const effectiveVisible = visible && !expired && allowsNewlyVisible(stale, wasVisible)
     useEffect(() => {
         setWasVisible(effectiveVisible)
     }, [effectiveVisible])
@@ -89,7 +116,6 @@ const GraphicFrame = ({visible, onHidden, children}: GraphicFrameProps) => {
         setChangedAt(Date.now())
     }
 
-    const [now, setNow] = useState(() => Date.now())
     const phase = visibilityPhase(effectiveVisible, changedAt, now)
 
     // Treibt den Phasenübergang voran, ohne dass eine neue Nachricht vom Server nötig wäre —
