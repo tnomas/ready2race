@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.timing.boundary
 
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
@@ -310,6 +311,9 @@ object TimingDeviceTokenService {
             // Link-Token des Postens" (der nächste Klick stellt ein frisches aus).
             shareLinkToken = null
         }.orDie().onNullFail { TimingError.DeviceTokenNotFound }
+        // Offene Push-Kanäle dieses Tokens schließen - erst nach dem Commit, damit ein
+        // zurückgerollter Widerruf keine Verbindung kappt.
+        AfterCommit.register { DeviceTokenRevocation.notify(tokenId) }
         noData
     }
 

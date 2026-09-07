@@ -12041,6 +12041,7 @@ components:
         - EXECUTION_START_TIME_MANAGED_BY_SCHEDULE
         - EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND
         - LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE
+        - LIVE_DASHBOARD_MATCH_ALREADY_FINISHED
         - QR_CODE_ALREADY_IN_USE
         - TRACKING_TEAM_ALREADY_CHECKED_IN
         - TRACKING_TEAM_NOT_CHECKED_IN
@@ -17617,6 +17618,7 @@ components:
       type: object
       required:
         - teamId
+        - startNumber
         - participants
         - failed
         - deregistered
@@ -17630,6 +17632,9 @@ components:
         teamNumber:
           type: integer
           nullable: true
+        startNumber:
+          type: integer
+          description: "the start number (lane) of this boat in the match"
         clubName:
           type: string
           nullable: true

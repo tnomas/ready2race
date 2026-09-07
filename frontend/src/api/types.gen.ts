@@ -1710,6 +1710,7 @@ export type ErrorCode =
     | 'EXECUTION_START_TIME_MANAGED_BY_SCHEDULE'
     | 'EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND'
     | 'LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE'
+    | 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED'
     | 'QR_CODE_ALREADY_IN_USE'
     | 'TRACKING_TEAM_ALREADY_CHECKED_IN'
     | 'TRACKING_TEAM_NOT_CHECKED_IN'
@@ -2817,6 +2818,10 @@ export type MatchResultTeamInfo = {
     teamId: string
     teamName?: string | null
     teamNumber?: number | null
+    /**
+     * the start number (lane) of this boat in the match
+     */
+    startNumber: number
     clubName?: string | null
     /**
      * the clubs the athletes of this boat wear, chained in boat order, in short form
