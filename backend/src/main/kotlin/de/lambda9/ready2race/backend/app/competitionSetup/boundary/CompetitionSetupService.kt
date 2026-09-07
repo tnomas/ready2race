@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.competitionSetup.entity.*
 import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
+import de.lambda9.ready2race.backend.app.timingProfile.control.TimingProfileRepo
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
@@ -20,10 +21,21 @@ import de.lambda9.tailwind.core.KIO.Companion.unit
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.LocalDateTime
 import java.util.*
 
 object CompetitionSetupService {
+
+    private val logger = KotlinLogging.logger {}
+
+    /**
+     * Die Stelle einer Partie innerhalb ihrer Runde, unabhängig von Kennungen: Gewichtung der
+     * Gruppe (nur in Gruppenrunden) und Gewichtung der Partie. Beide sind je Runde eindeutig
+     * (Validierung der Request-DTOs), also findet eine alte Zuordnung darüber ihre neue Partie.
+     */
+    private data class MatchPosition(val roundIndex: Int, val groupWeighting: Int?, val matchWeighting: Int)
+
     fun createCompetitionSetup(
         userId: UUID,
         competitionPropertiesId: UUID,
@@ -101,6 +113,23 @@ object CompetitionSetupService {
         // then delete every round that is not a locked/created round (they are replaced below).
         !CompetitionSetupRoundRepo.clearNextRounds(setupKey).orDie()
         val roundIdsToDelete = existingRounds.map { it.id }.filter { !createdRoundIds.contains(it) }
+
+        // Die Zeitnahmeprofil-Zuordnungen hängen per Cascade an den Runden, die gleich gelöscht
+        // werden. Vorher lesen und ihre Stelle im Ablauf festhalten; nach dem Neuanlegen wandern sie
+        // auf die neuen Kennungen (siehe unten).
+        val positionedAssignments = if (roundIdsToDelete.isNotEmpty()) {
+            !TimingProfileRepo.getAssignmentsForRounds(roundIdsToDelete).orDie()
+        } else {
+            emptyList()
+        }
+        // Alte Runde -> ihr Index im Request: bevorzugt über die mitgeschickte Kennung, sonst über
+        // dieselbe Stelle in der Ausführungsreihenfolge.
+        val existingRoundsInOrder = sortRoundRecords(existingRounds)
+        val oldRoundIndexInRequest: Map<UUID, Int> = roundIdsToDelete.associateWith { oldId ->
+            val byId = requestRounds.indexOfFirst { it.id == oldId }
+            if (byId >= 0) byId else existingRoundsInOrder.indexOfFirst { it.id == oldId }
+        }
+
         if (roundIdsToDelete.isNotEmpty()) {
             !CompetitionSetupRoundRepo.deleteByIds(roundIdsToDelete).orDie()
         }
@@ -117,6 +146,7 @@ object CompetitionSetupService {
         )
 
         val records = Batches()
+        val newMatchIdByPosition = mutableMapOf<MatchPosition, UUID>()
 
         requestRounds.forEachIndexed { index, round ->
             // Created rounds and their children are kept exactly as they are in the database.
@@ -144,6 +174,7 @@ object CompetitionSetupService {
                 round.matches.forEach { match ->
                     val matchRecord = match.toRecord(roundRecord.id, null)
                     records.matches.add(matchRecord)
+                    newMatchIdByPosition[MatchPosition(index, null, match.weighting)] = matchRecord.id
 
                     addParticipants(match.participants, matchRecord.id, null)
                 }
@@ -155,6 +186,7 @@ object CompetitionSetupService {
                     group.matches.forEach { match ->
                         val matchRecord = match.toRecord(roundRecord.id, groupRecord.id)
                         records.matches.add(matchRecord)
+                        newMatchIdByPosition[MatchPosition(index, group.weighting, match.weighting)] = matchRecord.id
                     }
 
                     addParticipants(group.participants, null, groupRecord.id)
@@ -195,6 +227,34 @@ object CompetitionSetupService {
         !CompetitionSetupPlaceRepo.create(records.places).orDie()
         if (records.matchNamings.isNotEmpty()) {
             !CompetitionSetupMatchNamingRepo.create(records.matchNamings).orDie()
+        }
+
+        // Die vorher gelesenen Zeitnahmeprofil-Zuordnungen auf die neuen Kennungen abbilden. Eine
+        // Zuordnung, deren Runde oder Partie es im neuen Ablauf nicht mehr gibt, wird verworfen.
+        val carriedAssignments = positionedAssignments.mapNotNull { row ->
+            val roundIndex = oldRoundIndexInRequest[row.round]?.takeIf { it in finalRoundIds.indices }
+            val newRoundId = roundIndex?.let { finalRoundIds[it] }?.takeIf { !createdRoundIds.contains(it) }
+            if (roundIndex == null || newRoundId == null) {
+                logger.info { "Zeitnahmeprofil-Zuordnung verworfen: Runde ${row.round} hat im neuen Ablauf keine Stelle." }
+                return@mapNotNull null
+            }
+            if (row.match == null) {
+                return@mapNotNull row.copy(round = newRoundId)
+            }
+            val newMatchId = row.matchWeighting?.let {
+                newMatchIdByPosition[MatchPosition(roundIndex, row.groupWeighting, it)]
+            }
+            if (newMatchId == null) {
+                logger.info {
+                    "Zeitnahmeprofil-Zuordnung verworfen: Partie ${row.match} (Gewichtung ${row.matchWeighting}) " +
+                        "hat im neuen Ablauf der Runde $newRoundId keine Stelle."
+                }
+                return@mapNotNull null
+            }
+            row.copy(round = newRoundId, match = newMatchId)
+        }
+        if (carriedAssignments.isNotEmpty()) {
+            !TimingProfileRepo.insertAssignments(carriedAssignments).orDie()
         }
 
         // Re-link the kept/created rounds to their (possibly new) following round. Their next_round pointers were
