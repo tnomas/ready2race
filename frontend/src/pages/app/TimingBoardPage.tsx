@@ -26,7 +26,8 @@ import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {updateAppTimingGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
-import {deviceSessionForStation} from '@utils/timing/deviceSession.ts'
+import {deviceSessionForStation, readDeviceSession} from '@utils/timing/deviceSession.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
@@ -61,6 +62,7 @@ import {
     counts as queueCounts,
     discardDead,
     drain as drainQueue,
+    hasCredentialFor,
     listDead,
     PendingTimeMark,
     PostOutcome,
@@ -389,6 +391,20 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
 
     const postQueuedItem = useCallback(
         async (item: PendingTimeMark): Promise<PostResult> => {
+            // Eine Marke, für deren Veranstaltung dieses Gerät weder Sitzung noch Geräte-Token hat
+            // (das Handy hing gestern an einem anderen Posten-Link), käme bei jedem Drain mit 401
+            // zurück — retryable, also für immer. Sie wandert stattdessen mit Grund in die toten
+            // Marken, wo der Bediener sie sieht und nach einer Anmeldung erneut einreihen kann.
+            if (
+                !hasCredentialFor(item, {
+                    deviceEventId: readDeviceSession()?.event ?? null,
+                    userLoggedIn: user.loggedIn,
+                })
+            ) {
+                if (item.eventId === eventId && item.station === stationId) markFailed(item.id)
+                return {outcome: 'permanent', reason: 'NO_CREDENTIAL'}
+            }
+
             let outcome: PostOutcome
             let status: number | undefined
             try {
@@ -445,7 +461,16 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
             }
             return {outcome, status}
         },
-        [eventId, stationId, handleMarkSaved, markFailed, applyLocalAssignment, feedback, t],
+        [
+            eventId,
+            stationId,
+            user.loggedIn,
+            handleMarkSaved,
+            markFailed,
+            applyLocalAssignment,
+            feedback,
+            t,
+        ],
     )
     // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
     // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
@@ -1438,6 +1463,11 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                                         status: item.lastStatus ?? '–',
                                     })}
                                 </Typography>
+                                {item.deadReason === 'NO_CREDENTIAL' && (
+                                    <Typography variant="caption" sx={{color: warningTextColor}}>
+                                        {t('timing.board.deadDialog.reason.noCredential')}
+                                    </Typography>
+                                )}
                             </Stack>
                         ))}
                     </Stack>

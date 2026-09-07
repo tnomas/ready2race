@@ -38,7 +38,17 @@ export type PendingTimeMark = {
      * leaves the mark unassigned and falls back to the ordinary two-step assignment UI.
      */
     competitionMatchTeam?: string
+    /**
+     * Warum die Marke als tot abgelegt wurde, sofern der Grund nicht der HTTP-Status ist. Heute nur
+     * `NO_CREDENTIAL`: keine Berechtigung für ihre Veranstaltung auf diesem Gerät (siehe
+     * [hasCredentialFor]). Optional und rein additiv — kein `DB_VERSION`-Sprung; ein Requeue
+     * (`requeueDead`) baut die Zeile ohne diesen Grund neu auf.
+     */
+    deadReason?: DeadReason
 }
+
+/** Gründe für eine tote Marke jenseits des HTTP-Status. */
+export type DeadReason = 'NO_CREDENTIAL'
 
 /**
  * Result of a single `post` attempt:
@@ -50,8 +60,53 @@ export type PendingTimeMark = {
  */
 export type PostOutcome = 'ok' | 'retryable' | 'permanent'
 
-/** Either the bare outcome, or the outcome plus the HTTP status that produced it. */
-export type PostResult = PostOutcome | {outcome: PostOutcome; status?: number}
+/**
+ * Either the bare outcome, or the outcome plus the HTTP status that produced it — and, for a
+ * `permanent` outcome that no status explains, the reason (see [DeadReason]).
+ */
+export type PostResult = PostOutcome | {outcome: PostOutcome; status?: number; reason?: DeadReason}
+
+/** Was dieses Gerät gerade an Berechtigungen hat — Eingabe für [hasCredentialFor]. */
+export type Credentials = {
+    /** Veranstaltung des abgelegten Geräte-Tokens, `null` ohne Token. */
+    deviceEventId: string | null
+    /** Ob eine Nutzersitzung besteht — sie gilt veranstaltungsübergreifend. */
+    userLoggedIn: boolean
+}
+
+/**
+ * Ob dieses Gerät eine Berechtigung hat, mit der der POST dieser Marke überhaupt durchgehen kann.
+ * Eine Nutzersitzung reicht immer (der Server prüft die Privilegien); ein Geräte-Token nur für
+ * seine eigene Veranstaltung. Fehlt beides, käme jeder Versuch mit 401 zurück — retryable, also
+ * für immer: der Drain legt solche Marken deshalb gleich als tot mit Grund `NO_CREDENTIAL` ab.
+ */
+export function hasCredentialFor(
+    item: Pick<PendingTimeMark, 'eventId'>,
+    credentials: Credentials,
+): boolean {
+    return credentials.userLoggedIn || credentials.deviceEventId === item.eventId
+}
+
+/**
+ * Die Zeile nach einem fehlgeschlagenen Versuch: Zähler hoch, letzter Status gemerkt (ohne
+ * Antwort bleibt der alte stehen), und bei einem endgültigen Aus der Grund, sofern einer genannt
+ * wurde. Pur, damit die Buchführung ohne IndexedDB testbar ist.
+ */
+export function failedAttempt(
+    item: PendingTimeMark,
+    result: {outcome: Exclude<PostOutcome, 'ok'>; status?: number; reason?: DeadReason},
+): PendingTimeMark {
+    const updated: PendingTimeMark = {
+        ...item,
+        attempts: nextAttempts(item),
+        lastStatus: result.status ?? item.lastStatus,
+    }
+    delete updated.deadReason
+    if (result.outcome === 'permanent' && result.reason !== undefined) {
+        updated.deadReason = result.reason
+    }
+    return updated
+}
 
 export type QueueCounts = {
     /** Items still waiting to be (re-)posted. */
@@ -395,7 +450,11 @@ function nextAttempts(item: PendingTimeMark): number {
     return typeof current === 'number' ? current + 1 : 1
 }
 
-function normalizeResult(result: PostResult): {outcome: PostOutcome; status?: number} {
+function normalizeResult(result: PostResult): {
+    outcome: PostOutcome
+    status?: number
+    reason?: DeadReason
+} {
     return typeof result === 'string' ? {outcome: result} : result
 }
 
@@ -442,10 +501,12 @@ export async function drain(
         for (const item of items) {
             let outcome: PostOutcome
             let status: number | undefined
+            let reason: DeadReason | undefined
             try {
                 const result = normalizeResult(await post(item))
                 outcome = result.outcome
                 status = result.status
+                reason = result.reason
             } catch (error) {
                 console.warn('[timing] offline queue post threw, keeping item queued', error)
                 outcome = 'retryable'
@@ -456,11 +517,7 @@ export async function drain(
                 if (outcome === 'ok') {
                     await remove(item.id)
                 } else {
-                    const updated: PendingTimeMark = {
-                        ...item,
-                        attempts: nextAttempts(item),
-                        lastStatus: status ?? item.lastStatus,
-                    }
+                    const updated = failedAttempt(item, {outcome, status, reason})
                     const written = await commitFailedAttempt(updated, outcome)
                     if (!written) {
                         console.info(
