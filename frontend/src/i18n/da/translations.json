@@ -1748,10 +1748,10 @@
         },
         "intervalSeconds": "Startinterval (sekunder)",
         "intervalHelp": "Lad feltet stå tomt, hvis hver start udløses manuelt. Med en værdi følger starterne automatisk med dette interval (enkeltstart mod uret).",
-        "invalidInterval": "Intervallet skal være mindst 1 sekund — eller stå tomt for manuel start.",
+        "invalidInterval": "Intervallet skal være et helt tal på mindst 1 sekund — eller stå tomt for manuel start.",
         "leadInSeconds": "Nedtælling før start (sekunder)",
         "leadInHelp": "Nedtælling før den (første) start.",
-        "invalidLeadIn": "Angiv venligst et antal sekunder på 0 eller mere.",
+        "invalidLeadIn": "Angiv venligst et helt antal sekunder på 0 eller mere.",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manuel start",

@@ -1748,10 +1748,10 @@
         },
         "intervalSeconds": "Start interval (seconds)",
         "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
-        "invalidInterval": "The interval must be at least 1 second — or stay empty for manual starts.",
+        "invalidInterval": "The interval must be a whole number of at least 1 second — or stay empty for manual starts.",
         "leadInSeconds": "Countdown lead-in (seconds)",
         "leadInHelp": "Countdown before the (first) start.",
-        "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
+        "invalidLeadIn": "Please enter a whole number of seconds of 0 or more.",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",

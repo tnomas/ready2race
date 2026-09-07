@@ -1748,10 +1748,10 @@
         },
         "intervalSeconds": "Startintervall (Sekunden)",
         "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
-        "invalidInterval": "Das Intervall muss mindestens 1 Sekunde betragen — oder leer bleiben für Start von Hand.",
+        "invalidInterval": "Das Intervall muss eine ganze Zahl ab 1 Sekunde sein — oder leer bleiben für Start von Hand.",
         "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
         "leadInHelp": "Countdown vor dem (ersten) Start.",
-        "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
+        "invalidLeadIn": "Bitte eine ganze Anzahl Sekunden ab 0 angeben.",
         "describe": {
           "interval": "Intervall {{seconds}} s",
           "manualStart": "Start von Hand",

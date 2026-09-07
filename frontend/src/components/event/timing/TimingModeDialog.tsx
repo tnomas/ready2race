@@ -20,6 +20,7 @@ import {addTimingMode, getTimingToneSets, updateTimingMode} from '@api/sdk.gen.t
 import {TimingModeDto, TimingModeRequest, TimingStartGrouping} from '@api/types.gen.ts'
 import {DEFAULT_BOAT_KEYS} from '@utils/timing/boardFocus.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {validateModeNumbers} from './timingModeNumbers.ts'
 
 export type TimingModeDialogProps = {
     open: boolean
@@ -63,8 +64,9 @@ const validBoatKeys = (primary: string, secondary: string | null): boolean => {
 /**
  * Anlegen/Bearbeiten eines Zeitnahmetyps. Die Zahlenfelder werden als Strings geführt,
  * damit sie beim Tippen vorübergehend leer sein dürfen (gleiche Begründung wie im
- * Sequenz-Setup-Formular); validiert wird beim Speichern. Ein leeres Intervall ist dabei kein
- * Fehler, sondern die bewusste Bedeutung „jeder Start wird von Hand ausgelöst".
+ * Sequenz-Setup-Formular); validiert wird beim Speichern über [validateModeNumbers]: nur ganze
+ * Sekunden, nichts wird still gerundet. Ein leeres Intervall ist dabei kein Fehler, sondern die
+ * bewusste Bedeutung „jeder Start wird von Hand ausgelöst"; ein leerer Vorlauf ist einer.
  *
  * Der Typ beschreibt, wie ein Lauf gestartet und gemessen wird — und trägt seit dem 26.08.2026
  * alles dazu: die Startart, den Fehlstart-Rückruf, ob die App den Lauf überhaupt startet, die
@@ -156,17 +158,9 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             setInvalidField('name')
             return
         }
-        const intervalSeconds = intervalInput.trim() === '' ? null : Number(intervalInput)
-        if (
-            intervalSeconds !== null &&
-            (!Number.isFinite(intervalSeconds) || Math.floor(intervalSeconds) < 1)
-        ) {
-            setInvalidField('interval')
-            return
-        }
-        const leadInSeconds = Number(leadInInput)
-        if (!Number.isFinite(leadInSeconds) || leadInSeconds < 0) {
-            setInvalidField('leadIn')
+        const numbers = validateModeNumbers(intervalInput, leadInInput)
+        if (!numbers.ok) {
+            setInvalidField(numbers.field)
             return
         }
         const primaryKeys = boatKeysPrimary.trim()
@@ -184,8 +178,8 @@ const TimingModeDialog = ({open, onClose, eventId, entity, reloadData}: TimingMo
             name: trimmedName,
             falseStartEnabled,
             startGrouping,
-            intervalSeconds: intervalSeconds !== null ? Math.floor(intervalSeconds) : null,
-            leadInSeconds: Math.floor(leadInSeconds),
+            intervalSeconds: numbers.intervalSeconds,
+            leadInSeconds: numbers.leadInSeconds,
             toneSet: selectedToneSet === INHERIT_VALUE ? null : selectedToneSet,
             startSequenceEnabled,
             boatKeysPrimary: primaryKeys,
