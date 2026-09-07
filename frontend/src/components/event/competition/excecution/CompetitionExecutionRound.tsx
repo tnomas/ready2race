@@ -70,6 +70,7 @@ import {
 import StatusChip from '@components/event/match/StatusChip.tsx'
 import {useNow} from '@components/event/match/useNow.ts'
 import ClarificationDialog from '@components/event/liveDashboard/ClarificationDialog.tsx'
+import {liveDashboardErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
 
 /**
  * DOM-Id der Lauf-Karte — Ankerpunkt für den Sprung aus dem Zeitplan (Veranstaltungs-Modus):
@@ -1144,16 +1145,18 @@ const CompetitionExecutionRound = ({
                 open={clarifyingMatchId !== null}
                 onClose={() => setClarifyingMatchId(null)}
                 onSubmit={async reason => {
-                    if (clarifyingMatchId !== null) {
-                        const {error} = await setMatchClarification({
-                            path: {eventId, matchId: clarifyingMatchId},
-                            body: {reason},
-                        })
-                        if (error) {
-                            feedback.error(t('event.liveDashboard.control.error'))
-                        }
-                        props.reloadRoundDto()
+                    if (clarifyingMatchId === null) return false
+                    const {error} = await setMatchClarification({
+                        path: {eventId, matchId: clarifyingMatchId},
+                        body: {reason},
+                    })
+                    if (error) {
+                        feedback.error(
+                            t(liveDashboardErrorKey(error) ?? 'event.liveDashboard.control.error'),
+                        )
                     }
+                    props.reloadRoundDto()
+                    return !error
                 }}
             />
         </Fragment>

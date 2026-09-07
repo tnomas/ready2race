@@ -2057,7 +2057,10 @@
         "reasonLabel": "Reason",
         "reasonPlaceholder": "Objection, lane contact",
         "submit": "Mark under review",
-        "since": "since {{time}}"
+        "since": "since {{time}}",
+        "error": {
+          "alreadyFinished": "The race has already been finished."
+        }
       },
       "substitution": {
         "short": "Substitution",

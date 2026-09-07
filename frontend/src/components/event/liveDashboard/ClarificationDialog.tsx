@@ -14,6 +14,9 @@ import {canSubmitNote} from './common.ts'
  * Der Grund ist Pflicht — hier durch den deaktivierten Knopf, im Server durch den Validator und
  * in der Datenbank durch `check (btrim(clarification_reason) <> '')`. Der Knopf bietet nicht an,
  * was der Server ohnehin ablehnt; dieselbe Regel wie bei den Schiedsrichter-Notizen.
+ *
+ * `onSubmit` meldet, ob der Server angenommen hat. Nur dann schließt der Dialog — bei einer
+ * Ablehnung bleibt der eingetippte Grund stehen, statt mit dem Dialog zu verschwinden.
  */
 const ClarificationDialog = ({
     open,
@@ -22,7 +25,7 @@ const ClarificationDialog = ({
 }: {
     open: boolean
     onClose: () => void
-    onSubmit: (reason: string) => Promise<void>
+    onSubmit: (reason: string) => Promise<boolean>
 }) => {
     const {t} = useTranslation()
     const [reason, setReason] = useState('')
@@ -55,8 +58,9 @@ const ClarificationDialog = ({
                     onClick={async () => {
                         setBusy(true)
                         try {
-                            await onSubmit(reason.trim())
-                            close()
+                            if (await onSubmit(reason.trim())) {
+                                close()
+                            }
                         } finally {
                             setBusy(false)
                         }

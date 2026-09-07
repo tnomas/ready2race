@@ -2046,6 +2046,19 @@
           "finishReservedForOffice": "Ved dette stævne afslutter regattakontoret løbene via tidsplanen. Løbet forbliver aktivt — meld til regattakontoret, at det er i mål."
         }
       },
+      "clarification": {
+        "sectionTitle": "Afklaring ({{n}})",
+        "set": "Under afklaring",
+        "resolve": "Ophæv afklaring",
+        "dialogTitle": "Sæt løbet under afklaring",
+        "reasonLabel": "Begrundelse",
+        "reasonPlaceholder": "Protest fra RK Hansa, baneberøring",
+        "submit": "Sæt under afklaring",
+        "since": "siden {{time}}",
+        "error": {
+          "alreadyFinished": "Løbet er allerede afsluttet."
+        }
+      },
       "substitution": {
         "short": "Ombytning",
         "for": "Ombyttet for {{name}}"

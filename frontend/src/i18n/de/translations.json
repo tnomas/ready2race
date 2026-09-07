@@ -2057,7 +2057,10 @@
         "reasonLabel": "Grund",
         "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
         "submit": "In Klärung setzen",
-        "since": "seit {{time}}"
+        "since": "seit {{time}}",
+        "error": {
+          "alreadyFinished": "Der Lauf ist bereits beendet."
+        }
       },
       "substitution": {
         "short": "Ummeldung",
