@@ -42,6 +42,7 @@ import {useFalseStartTone} from '@utils/timing/useFalseStartTone.ts'
 import {isFalseStartOnDisplay} from '@utils/timing/falseStart.ts'
 import {useTimingSettings} from '@utils/timing/useTimingSettings.ts'
 import {useAudioUnlocked} from '@utils/timing/useAudioUnlocked.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 import {useTouchOnly} from '@utils/touch.ts'
 
 /**
@@ -425,7 +426,9 @@ const TimingStartDisplayPage = ({eventId, stationId}: TimingStartDisplayPageProp
         const time =
             next.match.startTime == null
                 ? null
-                : new Date(next.match.startTime).toLocaleTimeString([], {
+                : new Date(
+                      parseServerLocalDateTime(next.match.startTime, serverZoneOffsetMs()),
+                  ).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',
                   })

@@ -49,6 +49,7 @@ import {
 import {stationBoardUrl} from '@utils/timing/stationLink.ts'
 import StationBoardLink from '@components/timing/StationBoardLink.tsx'
 import {StationArmedBadge, stationArmedBadge} from '@utils/timing/armed.ts'
+import {serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 /** Die Farbe des Scharf-Abzeichens: nur „entschärft" soll ins Auge springen. */
 const ARMED_BADGE_COLOR: Record<StationArmedBadge, 'success' | 'warning' | 'default'> = {
@@ -213,8 +214,11 @@ const LeitstandOverviewTab = ({
         [officialTimes],
     )
 
+    // Der Zonenversatz wird beim Rechnen gelesen; er ändert sich höchstens einmal je Sitzung und
+    // jede neue Marke rechnet ohnehin neu.
     const recent = useMemo(
-        () => recentlyActiveMatches(matchesData ?? [], marks, RECENT_MATCH_LIMIT),
+        () =>
+            recentlyActiveMatches(matchesData ?? [], marks, RECENT_MATCH_LIMIT, serverZoneOffsetMs()),
         [matchesData, marks],
     )
 

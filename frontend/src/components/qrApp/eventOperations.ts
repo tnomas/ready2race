@@ -1,3 +1,5 @@
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
+
 /**
  * Welche Veranstaltungen die Helfer-App gerade zur Wahl stellt.
  *
@@ -46,8 +48,9 @@ const endOfDayExclusive = (isoDate: string): number | null => {
     return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).getTime()
 }
 
+/** `operationsStartsAt` ist eine Wanduhrzeit des Servers ohne Zone, siehe `serverTime.ts`. */
 const startOfWindow = (isoDateTime: string): number | null => {
-    const time = new Date(isoDateTime).getTime()
+    const time = parseServerLocalDateTime(isoDateTime, serverZoneOffsetMs())
     return Number.isNaN(time) ? null : time
 }
 
