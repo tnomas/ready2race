@@ -962,8 +962,9 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
     // an input/textarea/select has focus (so typing a space in a field doesn't fire a capture), while a
     // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board) — both via
     // `isTypingContext` — or while a focused control owns the Space key itself (`isSpaceOwnedByFocused
-    // Control`: the start-sequence panel and the capture-view toggle, where an operator pressing space
-    // must activate the button rather than silently record a time mark). Notably *not* skipped while
+    // Control`: any focused button, link or control role anywhere on the board, where an operator
+    // pressing space must activate the control rather than silently record a time mark). Notably *not*
+    // skipped while
     // the session is unauthorized: like the button itself, the shortcut still captures, and the mark
     // waits in the offline queue until the operator has logged in again.
     useEffect(() => {
