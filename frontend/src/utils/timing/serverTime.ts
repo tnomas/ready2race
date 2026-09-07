@@ -9,11 +9,10 @@
  * Servers, sobald der bekannt ist.
  *
  * Woher der Versatz kommt: aus einem Paar Wanduhrzeit + Epoch-Millis DESSELBEN Augenblicks
- * ([zoneOffsetFromPair]). Ein solches Paar liefert heute kein Endpunkt — `/timing/serverTime`
- * kennt nur `serverTimeMillis`, `BoardViewDto.serverTime` nur die Wanduhr, `TimingStateDto` gar
- * keine Uhr. Bis das Backend das Paar liefert (etwa `serverLocalTime` neben `serverTimeMillis`),
- * bleibt [serverZoneOffsetMs] `null`, und alles fällt auf die Gerätezeit zurück — das bisherige
- * Verhalten, nur an einer Stelle.
+ * ([zoneOffsetFromPair]). `/timing/serverTime` liefert es als `serverLocalTime` neben
+ * `serverTimeMillis`; `useServerClock` merkt sich den Versatz bei jeder Probe
+ * ([rememberServerZoneOffset]). Bis zur ersten erfolgreichen Probe bleibt [serverZoneOffsetMs]
+ * `null`, und alles fällt auf die Gerätezeit zurück — das bisherige Verhalten, nur an einer Stelle.
  */
 
 const LOCAL_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/

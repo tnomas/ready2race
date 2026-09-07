@@ -6054,6 +6054,9 @@ export const updateTimingStation = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Deletes a station. Refused with 409 while the station still has captured time marks or start sequences (also finished ones; error code TIMING_STATION_HAS_SEQUENCES) - both keep referencing the station.
+ */
 export const deleteTimingStation = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DeleteTimingStationData, ThrowOnError>,
 ) => {
@@ -6089,6 +6092,9 @@ export const setTimingStationArmed = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Captures a time mark with a client-generated id. Idempotent only within its own scope: the same id on the same station answers 201 again without a second row (offline queue, double tap, retry). The same id on ANOTHER station is a collision and answers 409 with error code TIMING_TIME_MARK_ID_TAKEN. Station, event and ANZEIGE checks always run first, so a foreign id never learns whether it exists.
+ */
 export const createTimeMark = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimeMarkData, ThrowOnError>,
 ) => {

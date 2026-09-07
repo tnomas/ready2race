@@ -27,4 +27,22 @@ class ServerTimeTest {
         val millis = Regex("\\d{13}").find(body)!!.value.toLong()
         assertTrue(millis in before..after)
     }
+
+    @Test
+    fun serverTimeCarriesTheWallClockOfTheSameInstant() = testApplication {
+        application {
+            routing {
+                route("/api") { timingGlobal() }
+            }
+        }
+        val body = client.post("/api/timing/serverTime").bodyAsText()
+        val millis = Regex("\"serverTimeMillis\":(\\d+)").find(body)!!.groupValues[1].toLong()
+        val wallClock = Regex("\"serverLocalTime\":\"([^\"]+)\"").find(body)!!.groupValues[1]
+        val parsed = java.time.LocalDateTime.parse(wallClock)
+        val expected = java.time.LocalDateTime.ofInstant(
+            java.time.Instant.ofEpochMilli(millis),
+            java.time.ZoneId.systemDefault(),
+        )
+        assertEquals(expected, parsed)
+    }
 }

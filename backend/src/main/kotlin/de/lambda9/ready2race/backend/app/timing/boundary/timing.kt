@@ -648,8 +648,16 @@ fun Route.competitionTimingStations() {
 fun Route.timingGlobal() {
     route("/timing") {
         post("/serverTime") {
+            // Beide Werte beschreiben DENSELBEN Augenblick: aus Epoch-Millis und Wanduhrzeit leitet
+            // das Frontend den Zonenversatz des Servers ab und deutet damit alle zonenlosen
+            // Zeitstempel der API richtig, auch wenn das Gerät in einer anderen Zone läuft.
+            val nowMillis = System.currentTimeMillis()
+            val wallClock = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(nowMillis),
+                java.time.ZoneId.systemDefault(),
+            ).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             call.respondText(
-                """{"serverTimeMillis":${System.currentTimeMillis()}}""",
+                """{"serverTimeMillis":$nowMillis,"serverLocalTime":"$wallClock"}""",
                 ContentType.Application.Json,
             )
         }

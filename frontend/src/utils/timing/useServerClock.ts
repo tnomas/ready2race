@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getServerTime } from '../../api/sdk.gen'
+import { rememberServerZoneOffset } from './serverTime'
 import {
 	CLOCK_OFFSET_STORAGE_KEY,
 	ClockQuality,
@@ -94,6 +95,7 @@ export function useServerClock(): UseServerClockResult {
 				const latency = t1 - t0
 				const midpoint = t0 + latency / 2
 				const offset = res.data.serverTimeMillis - midpoint
+				rememberServerZoneOffset(res.data.serverLocalTime, res.data.serverTimeMillis)
 
 				sync.ingest({ offset, latency }, performance.now())
 				const current = sync.offset()

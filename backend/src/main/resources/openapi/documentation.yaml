@@ -21627,10 +21627,14 @@ components:
       type: object
       required:
         - serverTimeMillis
+        - serverLocalTime
       properties:
         serverTimeMillis:
           type: integer
           format: int64
+        serverLocalTime:
+          type: string
+          description: "the server's wall-clock time (local date-time without zone) at the same instant as serverTimeMillis; clients derive the server zone offset from the pair"
 
     uuid:
       type: string
