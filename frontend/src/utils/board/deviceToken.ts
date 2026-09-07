@@ -2,9 +2,10 @@
  * Ablage der Board-Geräte-Tokens auf Anzeigegeräten.
  *
  * „Link teilen" in der Board-Verwaltung erzeugt einen Link auf die Anzeige-Route mit dem
- * Geräte-Token als Query-Parameter (`/board/{eventId}/{boardId}?token=…`). Beim ersten Aufruf
- * übernimmt die Route das Token hierher und entfernt es aus der Adresszeile (replace-Redirect),
- * damit es nicht in Verlauf und Screenshots hängen bleibt. Ab dann authentifizieren sich die
+ * Geräte-Token im Fragment (`/board/{eventId}/{boardId}#token=…`; ältere Links `?token=…`).
+ * Beim ersten Aufruf übernimmt die Route das Token hierher und entfernt es aus der Adresszeile
+ * (replace-Redirect) — Schutzwirkung und Grenzen wie bei `utils/timing/deviceSession.ts`
+ * beschrieben. Ab dann authentifizieren sich die
  * Board-Aufrufe des Geräts über den `X-Timing-Device-Token`-Header — es ist dieselbe Token-Tabelle
  * wie bei der Zeitnahme, nur mit einem Board statt eines Postens als Ziel.
  *
