@@ -1905,6 +1905,8 @@ object CompetitionExecutionService {
             activatedAt = null
             startedAt = null
             finishedAt = null
+            // Der Fehlstart gehört zum Start, der hier zurückgenommen wird.
+            falseStartAt = null
             // Ein zurückgesetzter Lauf muss wieder gefahren werden können - genau das ist der Fall
             // nach einem Einspruch (Streit → Reset → Wiederholung). Bliebe die Klärung stehen,
             // leitete der Lauf ohne finished_at dauerhaft CLARIFICATION ab, und `ScheduleChain`
@@ -2000,6 +2002,8 @@ object CompetitionExecutionService {
                 } else {
                     activatedAt = null
                     startedAt = null
+                    // Ohne Start kein Fehlstart: der Stempel gehört zum zurückgenommenen Start.
+                    falseStartAt = null
                 }
                 updatedBy = userId
                 updatedAt = now

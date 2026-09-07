@@ -95,6 +95,9 @@ class CompetitionMatchResetTest {
         assertNull(match.activatedAt, "Aktivierung steht noch")
         assertNull(match.startedAt, "Ist-Start steht noch")
         assertNull(match.finishedAt, "Beenden-Stempel steht noch")
+        assertNull(match.falseStartAt, "Fehlstart steht noch")
+        assertNull(match.clarificationSince, "Klärung steht noch")
+        assertNull(match.clarificationReason, "Klärungsgrund steht noch")
         // GESETZT, nicht geleert: Der Reset pausiert den automatischen Abruf, sonst spielte der
         // nächste Takt die gelöschten Ergebnisse sofort wieder ein (siehe eigener Testfall unten).
         assertNotNull(match.raceclockerAutoPausedAt, "Der Reset muss den automatischen Abruf pausieren")
@@ -229,6 +232,27 @@ class CompetitionMatchResetTest {
         )
     }
 
+    /**
+     * Das Deaktivieren eines Laufs ("In Vorbereitung" zurücknehmen) ist der kleine Bruder des
+     * Resets: Aktivierung und Ist-Start gehen - und mit ihnen der Fehlstart, sonst stünde am
+     * frisch deaktivierten Lauf noch die Fehlstart-Anzeige eines Starts, den es nicht mehr gibt.
+     */
+    @Test
+    fun deaktivierenLoeschtDenFehlstart() = testComprehension {
+        val seeded = seedClubChain()
+        !CompetitionMatchRepo.update(seeded.matchId) {
+            startedAt = startedAtSeed
+            falseStartAt = startedAtSeed.plusSeconds(3)
+        }
+
+        !CompetitionExecutionService.setMatchActivation(seeded.matchId, activated = false, userId = SYSTEM_USER)
+
+        val match = matchRecord(seeded.matchId)
+        assertNull(match.activatedAt, "Aktivierung steht noch")
+        assertNull(match.startedAt, "Ist-Start steht noch")
+        assertNull(match.falseStartAt, "Fehlstart steht noch")
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun pollServiceFingerprints(): MutableMap<UUID, String> {
         val field = RaceClockerPollService::class.java.getDeclaredField("fingerprints")
@@ -279,6 +303,9 @@ class CompetitionMatchResetTest {
             finishedAt = startedAtSeed.plusMinutes(10)
             raceclockerAutoPausedAt = startedAtSeed.plusMinutes(5)
             raceclockerPollError = "RACECLOCKER_UNREACHABLE"
+            falseStartAt = startedAtSeed.plusSeconds(3)
+            clarificationSince = startedAtSeed.plusMinutes(11)
+            clarificationReason = "Einspruch Bahn 2"
         }
 
         return team.id
