@@ -75,7 +75,8 @@ Der Schnitt ersetzt UPDATE EVENT als Sammelrecht und die fünf APP_-Ressourcen.
 |---|---|---|---|
 | ADMINISTRATION | Konfiguration, WebDAV, Betrieb | Installation | nein |
 | USER | Konten, Einladungen | Installation | ja (ich) |
-| ROLE | Rollen, Zuweisungen, Einladung in Jobs | Installation, Veranstaltung | nein |
+| ROLE | Rollen anlegen, kopieren, ändern, löschen | Installation | nein |
+| STAFF | Zuweisungen von Rollen an Konten, Einladung in Jobs | Installation, Veranstaltung | nein |
 | CLUB | Vereine | Installation | ja |
 | TEMPLATE | Wettkampf-, Aufbau-, Dokument- und Urkundenvorlagen | Installation | nein |
 | EVENT | Stammdaten, Tage, Kontakte, Dokumente, Dokumenttypen, Export | Veranstalter | ja (lesend, beteiligt) |
@@ -182,7 +183,7 @@ reserviert). Statische Rollen sind genau die Jobs.
 |---|---|---|
 | Superadmin | Installation | alles; einzige Rolle mit USER auf Admin-Konten und ROLE GLOBAL |
 | Admin | Installation | alles außer Superadmin-Konten und Rollenverwaltung nach oben |
-| Wettkampfleitung (Anzeige: Regattaleitung) | Veranstalter | EVENT, COMPETITION, EXECUTION, TASK, TEMPLATE, ROLE EVENT; lesend alles Operative |
+| Wettkampfleitung (Anzeige: Regattaleitung) | Veranstalter | UPDATE auf EVENT, COMPETITION, TASK, TEMPLATE, STAFF und alle Ressourcen der Ebene Veranstaltung; lesend REGISTRATION, INVOICE, CLUB. Entspricht dem heutigen praktischen Sinn von UPDATE EVENT: alles außer Nutzer, Vereine, Rollen, Konfiguration |
 | Meldestelle | Veranstalter | REGISTRATION, SUBSTITUTION; lesend EVENT, COMPETITION, EXECUTION |
 | Kasse | Veranstalter | INVOICE; lesend REGISTRATION, CLUB |
 | Schiedsrichter | Veranstaltung | JUDGING; lesend EXECUTION, TIMING, RESULT |
@@ -240,16 +241,17 @@ Alle im Backend geprüft, in `RoleService` und `AppUserService`:
 
 ### 7.2 Wer vergibt was
 
-- **Rollen verwalten** (anlegen, kopieren, ändern, löschen): `UPDATE ROLE GLOBAL`. Haben Admin
-  und Superadmin.
-- **Installations- und Vereins-Rollen zuweisen**: `UPDATE USER GLOBAL` plus Regel 1.
-- **Veranstaltungs-Jobs zuweisen**: `UPDATE ROLE EVENT` für die Veranstaltung. Hat die
-  Wettkampfleitung. Sie stellt ihr Tagesteam selbst zusammen, ohne Konten oder Rollen ändern zu
-  können.
+- **Rollen verwalten** (anlegen, kopieren, ändern, löschen): `CREATE/UPDATE/DELETE ROLE
+  GLOBAL`. Haben Admin und Superadmin. ROLE kennt nur GLOBAL.
+- **Rollen zuweisen und entziehen**: `UPDATE STAFF`. Mit GLOBAL für jede Rolle an jedem Konto,
+  mit EVENT nur für Rollen der Ebene Veranstaltung an dieser Veranstaltung. Immer plus Regel 1.
+  Die Wettkampfleitung hat `UPDATE STAFF GLOBAL` und stellt ihr Tagesteam selbst zusammen; Regel 1
+  hält sie von Admin-, Kassen- und Vereinsrollen fern, weil ihr deren Privilegien fehlen.
+  `UPDATE USER GLOBAL` bearbeitet nur noch Kontodaten.
 - **In einen Job einladen**: derselbe Aufruf. Die Einladung trägt Rolle plus Veranstaltung, das
   Konto entsteht beim Annehmen mit dem Job „Nutzer“ plus dem Veranstaltungs-Job. Wer einlädt,
-  braucht nur `UPDATE ROLE EVENT`, nicht `CREATE USER GLOBAL`. Damit fehlt in der Kette kein
-  Recht, wenn am Regattatag schnell jemand dazukommt.
+  braucht nur `UPDATE STAFF` für die Veranstaltung, nicht `CREATE USER GLOBAL`. Damit fehlt in
+  der Kette kein Recht, wenn am Regattatag schnell jemand dazukommt.
 
 ### 7.3 Bänder und QR-Codes
 
@@ -267,7 +269,7 @@ Bänder sind Schlüssel, keine Subjekte des Rechtesystems.
 - Lese-Endpunkte für mögliche Ummeldungen prüfen READ statt CREATE.
 - `CREATE CLUB OWN`, `CREATE REGISTRATION GLOBAL`, `DELETE REGISTRATION GLOBAL/OWN` entfallen.
   Abmeldung ist ein eigener Ablauf mit eigener Prüfung.
-- `UPDATE USER GLOBAL` verliert die Rollenverwaltung an ROLE.
+- `UPDATE USER GLOBAL` verliert die Rollenverwaltung an ROLE und die Zuweisung an STAFF.
 - Öffentliche Endpunkte stehen in einer expliziten Liste (Abschnitt 8).
 
 ## 8. Prüfbarkeit und Doku
@@ -299,7 +301,7 @@ Bänder sind Schlüssel, keine Subjekte des Rechtesystems.
   Vorlage“.
 - **Team-Reiter an der Veranstaltung.** Liste der zugeordneten Konten mit Job und Helferband.
   Hinzufügen aus bestehenden Konten oder per Einladung mit E-Mail und Job, Entfernen. Sichtbar
-  ab `READ ROLE EVENT`, bearbeitbar ab `UPDATE ROLE EVENT`.
+  ab `READ STAFF EVENT`, bearbeitbar ab `UPDATE STAFF EVENT`.
 - **Helfer-App.** Die Veranstaltungsauswahl zeigt nur Veranstaltungen, denen das Konto
   zugeordnet ist oder für die es GLOBAL-Rechte hat.
 - **Vereinsvertreter.** Sieht Zeitplan, Startlisten, Ergebnisse und Check-ins jeder
@@ -337,7 +339,7 @@ UPDATE EVENT hatte, darf danach alles Operative, und der Betreiber engt über Jo
 
 Jeder für sich mergebar, jeder mit eigener Migration und eigenem Handtest:
 
-1. **Jobs, ROLE, Vergaberegeln, Superadmin.** Noch alles GLOBAL. Schließt Rechteausweitung und
+1. **Jobs, ROLE, STAFF, Vergaberegeln, Superadmin.** Noch alles GLOBAL. Schließt Rechteausweitung und
    Nachtragen. Rollendialog mit Namen, Gruppierung, Kopie-von-Job.
 2. **Ressourcen-Schnitt.** EVENT wird in 38 Modulen ersetzt, Umschreibung in der Migration,
    Frontend-Konstanten und Matrix erzeugt.
@@ -363,8 +365,8 @@ Der spätere Umbau findet vor:
 - **Ebene ORGANIZER** in `role.level` ist reserviert.
 - **Die Ressourcen der Ebene „Veranstalter“** (Tabelle in Abschnitt 4) sind die, deren
   GLOBAL-Privilegien dann auf ORGANIZER wandern: EVENT, COMPETITION, REGISTRATION,
-  SUBSTITUTION, INVOICE, TASK. Die Jobs Wettkampfleitung, Meldestelle und Kasse wechseln von
-  GLOBAL auf ORGANIZER.
+  SUBSTITUTION, INVOICE, TASK, STAFF. Die Jobs Wettkampfleitung, Meldestelle und Kasse wechseln
+  von GLOBAL auf ORGANIZER.
 - **Die Zuweisung** bekommt neben `event` eine Spalte `organizer`. Rollen der Ebene ORGANIZER
   brauchen eine, wie EVENT-Rollen eine Veranstaltung. Die Bedingung für ORGANIZER in der Prüfung
   lautet „Veranstaltung gehört zum Veranstalter, dem der Nutzer zugeordnet ist“.
