@@ -128,8 +128,12 @@ object StreamSceneLogic {
             }
 
             if (scene.trialMode == true) {
+                // Eine Altzeile ohne Phasenbeginn ankert auf ihrer letzten Änderung - NICHT auf
+                // „jetzt": sonst stünde die Startliste des Demo-Laufs bei jedem Aufbau frisch
+                // im Fenster, und der Kanal rechnete alle 15 s neu, ohne dass sich je etwas täte.
+                val phaseSince = scene.trialPhaseSince ?: scene.updatedAt
                 return@comprehension KIO.ok(
-                    trialInput(now, trialPhaseOf(scene), scene.trialPhaseSince ?: now, graphics, overrides)
+                    trialInput(now, trialPhaseOf(scene), phaseSince, graphics, overrides)
                 )
             }
 
