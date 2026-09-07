@@ -3,12 +3,14 @@ package de.lambda9.ready2race.backend.app.liveDashboard
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.club.CHAIN_SEED_TIME
 import de.lambda9.ready2race.backend.app.club.seedClubChain
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardService
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardError
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchDto
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardMatchState
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.LiveDashboardScope
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.MatchClarificationRequest
+import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER
 import de.lambda9.ready2race.backend.database.insert
@@ -133,6 +135,41 @@ class MatchClarificationTest {
         assertEquals(LiveDashboardMatchState.FINISHED, match.state)
         assertNull(match.clarificationSince)
         assertNull(match.clarificationReason)
+    }
+
+    /**
+     * Die Klärung hängt am Pfad der Veranstaltung: ein Lauf einer ANDEREN Veranstaltung ist unter
+     * diesem Pfad unbekannt (404), nichts wird geschrieben, und der Änderungsmarker der
+     * angesprochenen Veranstaltung bleibt stehen - sonst könnte jede Sitzung mit Recht an
+     * Veranstaltung B einen Lauf von A streitig stellen oder freigeben.
+     */
+    @Test
+    fun aMatchOfAnotherEventIsUnknownUnderThisEventAndNothingChanges() = testComprehension {
+        val seeded = seedClubChain()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val userId = seedAuthor("Rita", "Ricci")
+        val markerBefore = EventChangeMarker.current(otherEventId)
+
+        assertKIOFails(LiveDashboardError.MatchNotFound(seeded.matchId)) {
+            LiveDashboardService.setMatchClarification(
+                otherEventId, seeded.matchId, MatchClarificationRequest("Einspruch"), userId,
+            )
+        }
+        val untouched = dashboardMatch(seeded.eventId, seeded.matchId)
+        assertNull(untouched.clarificationSince)
+        assertNull(untouched.clarificationReason)
+
+        // Und die Gegenrichtung: eine echte Klärung lässt sich über die fremde Veranstaltung
+        // nicht aufheben.
+        !LiveDashboardService.setMatchClarification(
+            seeded.eventId, seeded.matchId, MatchClarificationRequest("Einspruch"), userId,
+        )
+        assertKIOFails(LiveDashboardError.MatchNotFound(seeded.matchId)) {
+            LiveDashboardService.clearMatchClarification(otherEventId, seeded.matchId, userId)
+        }
+        assertEquals(LiveDashboardMatchState.CLARIFICATION, dashboardMatch(seeded.eventId, seeded.matchId).state)
+
+        assertEquals(markerBefore, EventChangeMarker.current(otherEventId), "kein Bump für die fremde Veranstaltung")
     }
 
     private fun TestComprehensionScope<JEnv>.dashboardMatch(

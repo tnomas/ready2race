@@ -37,11 +37,28 @@ class EventChangeSocketTest {
         assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
     }
 
+    /**
+     * Ohne diese Prüfung ließe sich der Kanal für beliebige Kennungen öffnen - jede davon
+     * legte serverseitig einen Zähler und eine Abonnentenliste an, die nie wieder verschwinden.
+     */
+    @Test
+    fun handshakeForAnUnknownEventIsRejected() = testApplicationComprehension {
+        val wsClient = createClient { install(WebSockets) }
+
+        val session = wsClient.webSocketSession("/api/ws/event/${UUID.randomUUID()}/info")
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+
+        assertNotNull(closeReason)
+        assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
+    }
+
     @Test
     fun connectWithoutAnyAuthReceivesTheCurrentMarkerImmediately() = testApplicationComprehension {
         // Öffentlich wie die Anzeige-Endpunkte unter /event/{eventId}/info: kein Token, keine
-        // Sitzung — die Verbindung steht trotzdem und liefert sofort den Stand.
-        val eventId = UUID.randomUUID()
+        // Sitzung — die Verbindung steht trotzdem und liefert sofort den Stand. Die
+        // Veranstaltung muss es nur geben; veröffentlicht sein muss sie hier nicht, der Kanal
+        // trägt keine Nutzdaten.
+        val (eventId, _) = !createTestEventWithAdmin()
         val wsClient = createClient { install(WebSockets) }
 
         val session = wsClient.webSocketSession("/api/ws/event/$eventId/info")

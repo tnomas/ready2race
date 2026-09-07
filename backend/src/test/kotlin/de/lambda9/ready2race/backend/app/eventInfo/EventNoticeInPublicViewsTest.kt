@@ -60,7 +60,7 @@ class EventNoticeInPublicViewsTest {
     @Test
     fun theLiveMatchesEnvelopeCarriesTheNotice() = testComprehension {
         val eventId = UUID.randomUUID()
-        !EVENT.insert(EventRecord(id = eventId, name = "Testregatta", createdAt = now, updatedAt = now))
+        !EVENT.insert(EventRecord(id = eventId, name = "Testregatta", published = true, createdAt = now, updatedAt = now))
 
         !EventService.updateEventNotice(eventId, SYSTEM_USER, request)
 
