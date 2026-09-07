@@ -78,6 +78,17 @@ export class ClockSync {
 	}
 
 	/**
+	 * Einen früher gemessenen Versatz vorgeben (aus der Ablage, siehe [restoreClockOffset]). Er
+	 * trägt sofort — ein Neustart ohne Netz hat sonst keine Uhr und dürfte nicht erfassen —, gilt
+	 * aber nur als DEGRADED, bis die erste echte Probe ihn ablöst: unendliche Latenz verliert gegen
+	 * jede gemessene, und ohne `lastSampleAt` bleibt die Güte unter OK.
+	 */
+	seed(offset: number) {
+		if (this.best !== null) return
+		this.best = {offset, latency: Number.POSITIVE_INFINITY, at: Number.NEGATIVE_INFINITY}
+	}
+
+	/**
 	 * Get the current time offset in milliseconds.
 	 * @returns offset or null if no valid sample yet
 	 */
@@ -95,5 +106,48 @@ export class ClockSync {
 		if (this.lastSampleAt === null || nowMonotonic - this.lastSampleAt > 30_000)
 			return 'DEGRADED'
 		return 'OK'
+	}
+}
+
+// --- Ablage des Versatzes über einen Neustart hinweg ---------------------------------------------
+
+/** `localStorage`-Schlüssel des zuletzt gemessenen Versatzes. */
+export const CLOCK_OFFSET_STORAGE_KEY = 'timing.clockOffset'
+/** Älter darf die Sicherung nicht sein — danach hat die Geräteuhr zu lange ungeprüft gelaufen. */
+export const CLOCK_OFFSET_MAX_AGE_MILLIS = 12 * 60 * 60_000
+
+type StoredClockOffset = {
+	offset: number
+	/** Wanduhr des Geräts (`Date.now()`) zum Zeitpunkt der Sicherung. */
+	sampledAt: number
+}
+
+/** Der Versatz als Ablagewert, zusammen mit der Geräte-Wanduhr des Messzeitpunkts. */
+export function serializeClockOffset(offset: number, sampledAt: number): string {
+	return JSON.stringify({offset, sampledAt} satisfies StoredClockOffset)
+}
+
+/**
+ * Den gesicherten Versatz zurücklesen, sofern die Sicherung brauchbar ist: gültiges JSON, Zahlen,
+ * nicht älter als [CLOCK_OFFSET_MAX_AGE_MILLIS] und nicht aus der Zukunft (eine zurückgestellte
+ * Geräteuhr macht jede Altersrechnung wertlos). Sonst `null` — wirft nie.
+ */
+export function restoreClockOffset(
+	raw: string | null,
+	now: number,
+	maxAgeMillis: number = CLOCK_OFFSET_MAX_AGE_MILLIS,
+): number | null {
+	if (raw === null) return null
+	try {
+		const parsed: unknown = JSON.parse(raw)
+		if (parsed === null || typeof parsed !== 'object') return null
+		const {offset, sampledAt} = parsed as Partial<Record<keyof StoredClockOffset, unknown>>
+		if (typeof offset !== 'number' || !Number.isFinite(offset)) return null
+		if (typeof sampledAt !== 'number' || !Number.isFinite(sampledAt)) return null
+		const age = now - sampledAt
+		if (age < 0 || age > maxAgeMillis) return null
+		return offset
+	} catch {
+		return null
 	}
 }

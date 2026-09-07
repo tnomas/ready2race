@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { getServerTime } from '../../api/sdk.gen'
-import { ClockQuality, ClockSync } from './serverClock'
+import {
+	CLOCK_OFFSET_STORAGE_KEY,
+	ClockQuality,
+	ClockSync,
+	restoreClockOffset,
+	serializeClockOffset,
+} from './serverClock'
 
 export interface UseServerClockResult {
 	/**
@@ -18,18 +24,50 @@ export interface UseServerClockResult {
 }
 
 /**
+ * Der zuletzt gemessene Versatz aus der Ablage — oder `null`, wenn keiner (mehr) trägt oder die
+ * Ablage nicht erreichbar ist (privater Modus, gesperrter Speicher). Wirft nie.
+ */
+function readPersistedOffset(): number | null {
+	try {
+		return restoreClockOffset(localStorage.getItem(CLOCK_OFFSET_STORAGE_KEY), Date.now())
+	} catch {
+		return null
+	}
+}
+
+/** Den aktuellen Versatz sichern; ein voller oder gesperrter Speicher darf nichts aufhalten. */
+function persistOffset(offset: number): void {
+	try {
+		localStorage.setItem(CLOCK_OFFSET_STORAGE_KEY, serializeClockOffset(offset, Date.now()))
+	} catch {
+		// Ablage nicht verfügbar — dann eben ohne Sicherung
+	}
+}
+
+/**
  * Hook for server clock synchronization.
  * Samples server time immediately on mount and every 5 seconds.
  * Tracks the lowest-latency sample to estimate server-client offset.
  * Returns a function to query server time and quality indicators.
+ *
+ * Der Versatz wird nach jeder Probe in `localStorage` gesichert und beim Start wieder übernommen
+ * (jünger als zwölf Stunden), als DEGRADED: Ein Handy, das nach einem Neustart keinen Server
+ * erreicht, kann so trotzdem erfassen — die Marke landet in der Offline-Warteschlange, und das
+ * Banner der Uhr-Güte sagt dem Bediener, dass die Zeit aus dem letzten bekannten Versatz stammt.
  */
 export function useServerClock(): UseServerClockResult {
-	const syncRef = useRef(new ClockSync())
-	const [quality, setQuality] = useState<ClockQuality>('SYNCING')
+	const syncRef = useRef<ClockSync | null>(null)
+	if (syncRef.current === null) {
+		const sync = new ClockSync()
+		const persisted = readPersistedOffset()
+		if (persisted !== null) sync.seed(persisted)
+		syncRef.current = sync
+	}
+	const sync = syncRef.current
+	const [quality, setQuality] = useState<ClockQuality>(() => sync.quality(performance.now()))
 	const disposedRef = useRef(false)
 
 	useEffect(() => {
-		const sync = syncRef.current
 		disposedRef.current = false
 
 		// Sample immediately on mount
@@ -58,6 +96,8 @@ export function useServerClock(): UseServerClockResult {
 				const offset = res.data.serverTimeMillis - midpoint
 
 				sync.ingest({ offset, latency }, performance.now())
+				const current = sync.offset()
+				if (current !== null) persistOffset(current)
 			} catch {
 				// Network error or parse failure — skip this sample
 				// quality will degrade automatically after 30s
@@ -83,13 +123,13 @@ export function useServerClock(): UseServerClockResult {
 			clearInterval(sampleInterval)
 			clearInterval(qualityTicker)
 		}
-	}, [])
+	}, [sync])
 
-	const offset = syncRef.current.offset()
+	const offset = sync.offset()
 
 	return {
 		now: () => {
-			const off = syncRef.current.offset()
+			const off = sync.offset()
 			return off === null ? null : Date.now() + off
 		},
 		quality,

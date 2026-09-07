@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest'
-import {ClockSync} from './serverClock.ts'
+import {ClockSync, restoreClockOffset, serializeClockOffset} from './serverClock.ts'
 
 const MINUTE = 60_000
 
@@ -67,6 +67,21 @@ describe('ClockSync', () => {
         expect(sync.offset()).toBe(50)
     })
 
+    test('ein gesaeter Versatz traegt sofort, aber nur als DEGRADED', () => {
+        const sync = new ClockSync()
+        sync.seed(75)
+        expect(sync.offset()).toBe(75)
+        expect(sync.quality(0)).toBe('DEGRADED')
+    })
+
+    test('die erste echte Probe verdraengt den gesaeten Versatz', () => {
+        const sync = new ClockSync()
+        sync.seed(75)
+        ingest(sync, 12, 400, 0)
+        expect(sync.offset()).toBe(12)
+        expect(sync.quality(1_000)).toBe('OK')
+    })
+
     test('hoechstens acht Proben zaehlen: die neunte verdraengt die aelteste', () => {
         const sync = new ClockSync()
         ingest(sync, 0, 5, 0)
@@ -75,5 +90,36 @@ describe('ClockSync', () => {
         }
         // Die schnelle Erstprobe ist aus dem Fenster gefallen, obwohl sie jünger als 10 min ist.
         expect(sync.offset()).toBe(100)
+    })
+})
+
+const HOUR = 60 * MINUTE
+
+/**
+ * Der persistierte Versatz überbrückt einen Neustart ohne Netz: Ein Handy, das nach dem Neustart
+ * keinen Server erreicht, hätte sonst keine Uhr und dürfte nicht erfassen — mit dem letzten
+ * bekannten Versatz darf es, gekennzeichnet als DEGRADED.
+ */
+describe('restoreClockOffset', () => {
+    test('Roundtrip: ein frisch gesicherter Versatz kommt zurueck', () => {
+        const raw = serializeClockOffset(123, 1_000_000)
+        expect(restoreClockOffset(raw, 1_000_000 + HOUR)).toBe(123)
+    })
+
+    test('aelter als zwoelf Stunden zaehlt nicht mehr', () => {
+        const raw = serializeClockOffset(123, 1_000_000)
+        expect(restoreClockOffset(raw, 1_000_000 + 12 * HOUR + 1)).toBeNull()
+    })
+
+    test('eine Sicherung aus der Zukunft (Geraeteuhr zurueckgestellt) zaehlt nicht', () => {
+        const raw = serializeClockOffset(123, 2_000_000)
+        expect(restoreClockOffset(raw, 1_000_000)).toBeNull()
+    })
+
+    test('fehlende oder kaputte Ablage ergibt null statt zu werfen', () => {
+        expect(restoreClockOffset(null, 0)).toBeNull()
+        expect(restoreClockOffset('kein json', 0)).toBeNull()
+        expect(restoreClockOffset('{"offset":"x","sampledAt":1}', 5)).toBeNull()
+        expect(restoreClockOffset('{"offset":1}', 5)).toBeNull()
     })
 })
