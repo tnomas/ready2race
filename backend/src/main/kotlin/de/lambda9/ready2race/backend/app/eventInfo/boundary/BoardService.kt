@@ -69,10 +69,8 @@ object BoardService {
      */
     fun getProgram(eventId: UUID): App<EventInfoProblem, ApiResponse.ListDto<BoardProgramEntry>> =
         KIO.comprehension {
-            val exists = !EventRepo.exists(eventId).orDie()
-            if (!exists) {
-                !KIO.fail<EventInfoProblem>(EventInfoProblem.EventNotFound(eventId))
-            }
+            // Öffentlicher Weg: nur veröffentlichte Veranstaltungen (siehe EventInfoService.requirePublished).
+            !EventInfoService.requirePublished(eventId)
             val program = !buildProgram(eventId)
             KIO.ok(ApiResponse.ListDto(program))
         }

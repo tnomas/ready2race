@@ -50,6 +50,20 @@ object EventInfoService {
 
     private val liveMatchesCache = ConcurrentHashMap<Pair<UUID, Int>, CachedLiveMatches>()
 
+    /**
+     * Die Tür der öffentlichen Info-Endpunkte: nur eine veröffentlichte Veranstaltung ist
+     * bekannt. Eine unveröffentlichte antwortet wie eine, die es nicht gibt
+     * ([EventInfoProblem.EventNotFound]) - die Anzeigen dürfen nicht verraten, was noch nicht
+     * angekündigt ist. Die inneren Überladungen (Board-Ansicht, Stream-Szene) prüfen das
+     * bewusst NICHT: dort steht eine Sitzung oder ein Geräte-Token davor, und eine Anzeige
+     * wird vor der Veröffentlichung eingerichtet und angesehen.
+     */
+    internal fun requirePublished(eventId: UUID): App<EventInfoProblem, Unit> = KIO.comprehension {
+        val published = !EventRepo.getPublished(eventId).orDie()
+        !KIO.failOn(published != true) { EventInfoProblem.EventNotFound(eventId) }
+        KIO.unit
+    }
+
     // Data Fetching Methods
 
 
@@ -71,7 +85,8 @@ object EventInfoService {
         // Sichtbarkeitsregel: ein Lauf, den die Ergebnisseite nicht zeigt, kommt auch hier
         // als leere Liste zurück.
         matchId: UUID? = null,
-    ): App<Nothing, ApiResponse.ListDto<LatestMatchResultInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<LatestMatchResultInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getLatestMatchResults(eventId, limit, competitionId, !clubShortNames(), matchId)
     }
 
@@ -127,7 +142,8 @@ object EventInfoService {
     fun getUpcomingCompetitionMatches(
         eventId: UUID,
         limit: Int = 10,
-    ): App<Nothing, ApiResponse.ListDto<UpcomingCompetitionMatchInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<UpcomingCompetitionMatchInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getUpcomingCompetitionMatches(eventId, limit, !clubShortNames())
     }
 
@@ -333,7 +349,8 @@ object EventInfoService {
         eventId: UUID,
         limit: Int = 10,
         includeClarification: Boolean = false,
-    ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getRunningMatches(eventId, limit, !clubShortNames(), includeClarification)
     }
 
@@ -450,7 +467,8 @@ object EventInfoService {
     fun getLiveMatches(
         eventId: UUID,
         limit: Int,
-    ): App<Nothing, ApiResponse.Dto<LiveMatchesDto>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.Dto<LiveMatchesDto>> = KIO.comprehension {
+        !requirePublished(eventId)
         val now = LocalDateTime.now()
         val key = eventId to limit
 
@@ -668,7 +686,6 @@ object EventInfoService {
                                 lastName = record[PARTICIPANT.LASTNAME] ?: "",
                                 namedRole = record.get("named_role", String::class.java),
                                 year = record[PARTICIPANT.YEAR],
-                                gender = record[PARTICIPANT.GENDER]?.name,
                                 externalClubName = record[PARTICIPANT.EXTERNAL_CLUB_NAME],
                                 wornClubName = ClubComposition.clubWorn(
                                     external = record[PARTICIPANT.EXTERNAL],
@@ -722,7 +739,6 @@ object EventInfoService {
                                 lastName = record[PARTICIPANT.LASTNAME] ?: "",
                                 namedRole = record.get("named_role", String::class.java),
                                 year = record[PARTICIPANT.YEAR],
-                                gender = record[PARTICIPANT.GENDER]?.name,
                                 externalClubName = record[PARTICIPANT.EXTERNAL_CLUB_NAME],
                                 wornClubName = ClubComposition.clubWorn(
                                     external = record[PARTICIPANT.EXTERNAL],

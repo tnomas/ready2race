@@ -7185,6 +7185,9 @@ paths:
       - $ref: '#/components/parameters/eventId'
     get:
       operationId: getUpcomingMatches
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7226,6 +7229,9 @@ paths:
           format: uuid
     get:
       operationId: getLatestMatchResults
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7254,6 +7260,9 @@ paths:
       - $ref: '#/components/parameters/eventId'
     get:
       operationId: getRunningMatches
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7269,7 +7278,10 @@ paths:
           description: >-
             True (speaker board) also returns matches under clarification, marked via the
             clarification flag. Default false keeps them out - the public displays and the
-            board cursor must not hang on a disputed match.
+            board cursor must not hang on a disputed match. Honoured only for a session with
+            READ BOARD or READ EVENT, or for a board device token of this event in the
+            X-Timing-Device-Token header; an anonymous call is answered as if the parameter
+            were false (no error).
           schema:
             type: boolean
             default: false
@@ -7297,6 +7309,7 @@ paths:
         with the upcoming ones, each carrying its derived state. Finished matches and matches whose
         boats are all scored are deliberately absent - those are results and are governed by
         Event.publicResultsVisibility through /latest-match-results.
+        Only published events are known here - an unpublished event answers 404.
       parameters:
         - name: limit
           in: query
@@ -7328,6 +7341,7 @@ paths:
         each slot with its derived state - the same entries the SCHEDULE boards render. Carries
         no lineups and no results; times and places remain behind /latest-match-results and thus
         behind Event.publicResultsVisibility.
+        Only published events are known here - an unpublished event answers 404.
       responses:
         200:
           description: Program retrieved successfully
@@ -7415,7 +7429,7 @@ paths:
           type: string
     get:
       operationId: getMyEvent
-      description: "Personal dashboard of one participant, reachable without login through the QR code on the wristband"
+      description: "Personal dashboard of one participant, reachable without login through the QR code on the wristband. Only published events are known here - an unpublished event answers 404."
       responses:
         200:
           description: Personal dashboard retrieved successfully
@@ -17579,9 +17593,7 @@ components:
         year:
           type: integer
           nullable: true
-        gender:
-          type: string
-          nullable: true
+          description: "Year of birth, shown behind the name in speaker and detail displays"
         externalClubName:
           type: string
           nullable: true

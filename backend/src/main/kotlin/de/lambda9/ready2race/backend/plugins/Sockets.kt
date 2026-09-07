@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.plugins
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardViewBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.DeviceTokenLookup
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
@@ -81,7 +82,7 @@ fun Application.configureSockets(env: JEnv) {
         // ohne Anmeldung, also verbinden sie sich auch ohne. Preisgegeben wird nur „es hat sich
         // etwas geändert" samt Zählerstand, nie Nutzdaten.
         webSocket(EVENT_CHANGE_WS_PATH) {
-            eventChangeSocket()
+            eventChangeSocket(env)
         }
 
         // Der Board-Kanal: schickt die FERTIGE Ansicht (BoardViewDto), nicht bloß einen
@@ -114,7 +115,7 @@ fun Application.configureSockets(env: JEnv) {
     }
 }
 
-private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
+private suspend fun DefaultWebSocketServerSession.eventChangeSocket(env: JEnv) {
     val rawEventId = call.parameters["eventId"]
     val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
     if (eventId == null) {
@@ -123,6 +124,15 @@ private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
         val sanitized = rawEventId?.replace(Regex("[\r\n]"), "")
         logger.info { "Rejecting event-change ws handshake: invalid eventId '$sanitized'" }
         close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid eventId"))
+        return
+    }
+
+    // Nur für Veranstaltungen, die es gibt: sonst legte jede beliebige Kennung serverseitig
+    // einen Zähler und eine Abonnentenliste an, die nie wieder verschwinden. Veröffentlicht
+    // sein muss sie nicht - der Kanal trägt keine Nutzdaten, nur "es hat sich etwas geändert".
+    if (!eventExists(env, eventId)) {
+        logger.info { "Rejecting event-change ws handshake: unknown event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown event"))
         return
     }
 
@@ -494,6 +504,17 @@ internal object DeviceTokenBoundSockets {
 }
 
 /** Gehört [boardId] zu [eventId]? Ein Lesefehler zählt als "nein" - im Zweifel kein Kanal. */
+/** Gibt es [eventId]? Für den Veranstaltungs-Kanal, der sonst keine Tür hat. */
+private fun eventExists(env: JEnv, eventId: UUID): Boolean =
+    EventRepo.exists(eventId).orDie().unsafeRunSync(env).fold(
+        onSuccess = { it },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check event $eventId for the event-change channel" }
+            false
+        },
+    )
+
 private fun boardBelongsToEvent(env: JEnv, eventId: UUID, boardId: UUID): Boolean =
     BoardRepo.findById(boardId).orDie().unsafeRunSync(env).fold(
         onSuccess = { it?.eventId == eventId },
