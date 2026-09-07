@@ -130,7 +130,8 @@ sealed class Job(
     )
 
     companion object {
-        val entries: List<Job> get() = Job::class.sealedSubclasses.map { it.objectInstance!! }
+        /** Über Reflexion ermittelt, deshalb einmalig: [byKey] liegt auf dem Anfrageweg. */
+        val entries: List<Job> by lazy { Job::class.sealedSubclasses.map { it.objectInstance!! } }
         fun byKey(key: String): Job? = entries.firstOrNull { it.key == key }
     }
 }

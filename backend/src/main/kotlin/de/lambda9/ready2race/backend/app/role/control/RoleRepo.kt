@@ -2,14 +2,14 @@ package de.lambda9.ready2race.backend.app.role.control
 
 import de.lambda9.ready2race.backend.app.role.entity.RoleWithPrivilegesSort
 import de.lambda9.ready2race.backend.database.*
-import de.lambda9.ready2race.backend.database.generated.tables.RoleWithPrivileges
+import de.lambda9.ready2race.backend.database.generated.tables.EveryRoleWithPrivileges
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserHasRoleRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RoleRecord
-import de.lambda9.ready2race.backend.database.generated.tables.records.RoleWithPrivilegesRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.EveryRoleWithPrivilegesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER
 import de.lambda9.ready2race.backend.database.generated.tables.references.BANK_ACCOUNT
 import de.lambda9.ready2race.backend.database.generated.tables.references.ROLE
-import de.lambda9.ready2race.backend.database.generated.tables.references.ROLE_WITH_PRIVILEGES
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVERY_ROLE_WITH_PRIVILEGES
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
@@ -18,7 +18,7 @@ import java.util.UUID
 
 object RoleRepo {
 
-    private fun RoleWithPrivileges.searchFields() = listOf(NAME)
+    private fun EveryRoleWithPrivileges.searchFields() = listOf(NAME)
 
     fun exists(id: UUID) = ROLE.exists { ID.eq(id) }
 
@@ -56,15 +56,15 @@ object RoleRepo {
     fun countWithPrivileges(
         search: String?
     ): JIO<Int> = Jooq.query {
-        with(ROLE_WITH_PRIVILEGES) {
+        with(EVERY_ROLE_WITH_PRIVILEGES) {
             fetchCount(this, search.metaSearch(searchFields()))
         }
     }
 
     fun pageWithPrivileges(
         params: PaginationParameters<RoleWithPrivilegesSort>
-    ): JIO<List<RoleWithPrivilegesRecord>> = Jooq.query {
-        with(ROLE_WITH_PRIVILEGES) {
+    ): JIO<List<EveryRoleWithPrivilegesRecord>> = Jooq.query {
+        with(EVERY_ROLE_WITH_PRIVILEGES) {
             selectFrom(this)
                 .page(params, searchFields())
                 .fetch()

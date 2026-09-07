@@ -57,7 +57,7 @@ fun Route.user() {
                     val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.USER)
                     val body = !receiveKIO(UpdateAppUserRequest.example)
 
-                    AppUserService.update(body, scope, user.id!!, id)
+                    AppUserService.update(body, scope, user, id)
                 }
             }
 

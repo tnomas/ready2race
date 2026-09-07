@@ -7,10 +7,15 @@ import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.
 import de.lambda9.ready2race.backend.validation.validators.StringValidators.notBlank
 import java.util.*
 
+/**
+ * [job] ist der Schlüssel des Jobs, dessen Kopie die Rolle wird. Beim Anlegen Pflicht, beim
+ * Ändern ohne Wirkung: der Job einer Rolle steht fest.
+ */
 data class RoleRequest(
     val name: String,
     val description: String?,
     val privileges: List<UUID>,
+    val job: String? = null,
 ): Validatable {
     override fun validate(): ValidationResult =
         ValidationResult.allOf(
@@ -26,7 +31,8 @@ data class RoleRequest(
             privileges = listOf(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
-            )
+            ),
+            job = "TIMEKEEPER",
         )
     }
 }

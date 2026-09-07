@@ -121,9 +121,11 @@ object AppUserService {
     fun update(
         request: UpdateAppUserRequest,
         scope: Privilege.Scope,
-        requestingUserId: UUID,
+        requester: AppUserWithPrivilegesRecord,
         targetUserId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+
+        val requestingUserId = requester.id!!
 
         val targetIsAdmin = !AppUserHasRoleRepo.exists(targetUserId, ADMIN_ROLE).orDie()
 
@@ -144,9 +146,9 @@ object AppUserService {
             .map { ApiResponse.NoData }
 
         if (scope == Privilege.Scope.GLOBAL) {
-            !RoleService.checkAssignable(request.roles)
+            !RoleService.checkAssignable(requester, request.roles, targetUserId)
 
-            !AppUserHasRoleRepo.deleteExceptSystem(targetUserId).orDie()
+            !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
             !AppUserHasRoleRepo.create(
                 request.roles.map {
                     AppUserHasRoleRecord(
@@ -211,7 +213,7 @@ object AppUserService {
                 return@comprehension KIO.fail(AuthError.SystemUserOnly)
             }
         } else {
-            !RoleService.checkAssignable(request.roles)
+            !RoleService.checkAssignable(inviter, request.roles, null)
             !AppUserInvitationHasRoleRepo.create(
                 request.roles.map {
                     AppUserInvitationHasRoleRecord(
@@ -318,8 +320,14 @@ object AppUserService {
 
         val roles = invitation.roles!!.map { it!!.id!! }
 
-        if (invitation.createdBy?.id != SYSTEM_USER) {
-            !RoleService.checkAssignable(roles)
+        // Die Vergabe wird noch einmal gegen die heutigen Rechte des Einladenden geprüft; ist das
+        // Konto inzwischen weg, bleibt die Einladung gültig.
+        val invitedBy = invitation.createdBy?.id
+        if (invitedBy != SYSTEM_USER && invitedBy != null) {
+            val inviter = !AppUserRepo.getWithPrivileges(invitedBy).orDie()
+            if (inviter != null) {
+                !RoleService.checkAssignable(inviter, roles, id)
+            }
         }
         !AppUserHasRoleRepo.create(
             roles.map {
