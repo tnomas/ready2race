@@ -1,6 +1,7 @@
 import {Box, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {StreamFinishEntry, StreamGraphicSize} from '@api/types.gen'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import FlipList from '../../board/FlipList.tsx'
 import {byNullsLast} from '../../board/streamOverlay/streamDisplay.ts'
 import RankBadge from './design/RankBadge.tsx'
@@ -19,6 +20,8 @@ import {STREAM_DISPLAY_FONT, STREAM_PLATE} from './design/streamTheme.ts'
 interface StreamFinishTickerProps {
     entries: StreamFinishEntry[]
     size: StreamGraphicSize
+    /** Spiegel von `StreamGraphicSettings.showMaterial` — siehe `materialLabel` (Materialvermietung). */
+    showMaterial: boolean
 }
 
 /** Startversatz eines neu eintreffenden Einlaufs — positiv: die neue Zeile schiebt sich von
@@ -37,7 +40,7 @@ const ENTRY_ENTER_OFFSET = 32
  * Schmale Form: Vereinsketten ab drei Gliedern werden zusammengezogen („A / B +1"), die
  * Besatzung fällt über ihrem Budget auf Initialen zurück (Kürzungsleiter in `streamText.ts`).
  */
-const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
+const StreamFinishTicker = ({entries, size, showMaterial}: StreamFinishTickerProps) => {
     const {t} = useTranslation()
     const sorted = [...entries].sort(byNullsLast(entry => entry.rank))
 
@@ -71,6 +74,9 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
                     enterOffset={ENTRY_ENTER_OFFSET}
                     render={(entry, index) => {
                         const crew = fitCrewNames(entry.participants ?? [], TICKER_CREW_BUDGET)
+                        const m = materialLabel(entry.material, showMaterial ? 'always' : 'deviationsOnly')
+                        const materialText = m === 'own' ? t('event.stream.material.own') : m?.text
+                        const materialDeviates = typeof m === 'object' && m !== null && m.deviates
                         return (
                             <Box
                                 sx={{
@@ -130,6 +136,22 @@ const StreamFinishTicker = ({entries, size}: StreamFinishTickerProps) => {
                                                     {nameIndex < crew.length - 1 && CREW_NAME_SEPARATOR}
                                                 </span>
                                             ))}
+                                        </Typography>
+                                    )}
+                                    {/* Materialhinweis: kleines Anhängsel unter der Besatzung, in
+                                        Warnfarbe nur bei einer echten Abweichung von der
+                                        Startnummer — dieselbe Zurückhaltung wie bei Startliste
+                                        und Ergebnis (StreamBoatLine). */}
+                                    {materialText && (
+                                        <Typography
+                                            component="div"
+                                            noWrap
+                                            sx={{
+                                                fontSize: '0.95em',
+                                                lineHeight: 1.2,
+                                                color: materialDeviates ? STREAM_PLATE.warning : STREAM_PLATE.muted,
+                                            }}>
+                                            {materialText}
                                         </Typography>
                                     )}
                                 </Box>

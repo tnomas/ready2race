@@ -9,6 +9,7 @@ import {
     AthleteBoardResult,
     AthleteBoardResultTeam,
     AthleteBoardTeam,
+    MaterialForTeamDto,
     MatchTeamLapDto,
     PaceReferenceDto,
     StreamFinishEntry,
@@ -143,6 +144,15 @@ const toTeam = (b: Boat, extra: Partial<AthleteBoardTeam> = {}): AthleteBoardTea
     ...extra,
 })
 
+/** Ein Materialboot, das von der Startnummer abweicht — für die eine Zeile der Galerie, die den
+ *  Materialhinweis zeigen soll (Task 6.5). */
+const DEVIATING_MATERIAL: MaterialForTeamDto = {
+    number: 7,
+    label: 'Boot 7',
+    category: 'BOAT',
+    deviatesFromStartNumber: true,
+}
+
 interface ResultSpec {
     place?: number | null
     time?: string | null
@@ -150,6 +160,7 @@ interface ResultSpec {
     penaltyNote?: string
     failed?: string
     deregistered?: string
+    material?: MaterialForTeamDto | null
 }
 
 const toResultTeam = (b: Boat, spec: ResultSpec): AthleteBoardResultTeam => ({
@@ -170,6 +181,7 @@ const toResultTeam = (b: Boat, spec: ResultSpec): AthleteBoardResultTeam => ({
     deregisteredReason: spec.deregistered ?? null,
     laps: [],
     participants: b.crew.map(person),
+    material: spec.material ?? null,
 })
 
 interface CompetitionSpec {
@@ -248,6 +260,7 @@ const graphic = (
     visibleSince: null,
     visibleUntil: null,
     overrideState: 'AUTO',
+    showMaterial: false,
     ...content,
 })
 
@@ -265,7 +278,8 @@ const scene = (graphics: StreamGraphicViewDto[], safeAreaPercent = 3): StreamSce
 
 const QUAD_RESULT: AthleteBoardResult = result(COMPETITIONS.w4x, [
     toResultTeam(COXED_QUADS[2], {place: 1, time: '17:42.6'}),
-    toResultTeam(COXED_QUADS[0], {place: 2, time: '17:48.1'}),
+    // Boot 1 rudert Boot 7 (Materialtausch) — die einzige Zeile der Galerie mit Abweichung.
+    toResultTeam(COXED_QUADS[0], {place: 2, time: '17:48.1', material: DEVIATING_MATERIAL}),
     toResultTeam(COXED_QUADS[5], {place: 3, time: '18:03.9'}),
     toResultTeam(COXED_QUADS[1], {place: 4, time: '18:21.4', penalty: 10, penaltyNote: 'Boje berührt'}),
     toResultTeam(COXED_QUADS[3], {place: 5, time: '18:44.0'}),

@@ -33,7 +33,12 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
     switch (graphic.type) {
         case 'STARTLIST':
             return graphic.match ? (
-                <StreamStartlist match={graphic.match} size={graphic.size} placement={graphic.placement} />
+                <StreamStartlist
+                    match={graphic.match}
+                    size={graphic.size}
+                    placement={graphic.placement}
+                    showMaterial={graphic.showMaterial}
+                />
             ) : null
         case 'NEXT_UP':
             return graphic.match ? <StreamNextUp match={graphic.match} size={graphic.size} /> : null
@@ -46,6 +51,7 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
                     provisional={graphic.provisional}
                     size={graphic.size}
                     placement={graphic.placement}
+                    showMaterial={graphic.showMaterial}
                 />
             ) : null
         case 'CLOCK':
@@ -61,7 +67,11 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
             ) : null
         case 'FINISH_TICKER':
             return graphic.finishEntries && graphic.finishEntries.length > 0 ? (
-                <StreamFinishTicker entries={graphic.finishEntries} size={graphic.size} />
+                <StreamFinishTicker
+                    entries={graphic.finishEntries}
+                    size={graphic.size}
+                    showMaterial={graphic.showMaterial}
+                />
             ) : null
         case 'SCHEDULE':
             return graphic.schedule && graphic.schedule.length > 0 ? (

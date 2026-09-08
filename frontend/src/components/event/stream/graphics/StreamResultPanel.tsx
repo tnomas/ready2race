@@ -1,6 +1,7 @@
 import {Box} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardResult, AthleteBoardResultTeam, StreamGraphicSize, StreamPlacement} from '@api/types.gen'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import FlipList from '../../board/FlipList.tsx'
 import FitToHeight from '../../board/streamOverlay/FitToHeight.tsx'
 import {byNullsLast, competitionLabel, roundMatchLabel} from '../../board/streamOverlay/streamDisplay.ts'
@@ -17,6 +18,8 @@ interface StreamResultPanelProps {
     provisional?: boolean | null
     size: StreamGraphicSize
     placement: StreamPlacement
+    /** Spiegel von `StreamGraphicSettings.showMaterial` — siehe `materialLabel` (Materialvermietung). */
+    showMaterial: boolean
 }
 
 /**
@@ -25,7 +28,7 @@ interface StreamResultPanelProps {
  * Ergebniszeiten gerechnet (`winnerGap`); lässt sich eine Zeile nicht parsen, bleibt die Stelle
  * leer statt eine Zahl zu erfinden. Bei laufender Klärung trägt der Kopf ein „Vorläufig".
  */
-const StreamResultPanel = ({result, provisional, size, placement}: StreamResultPanelProps) => {
+const StreamResultPanel = ({result, provisional, size, placement, showMaterial}: StreamResultPanelProps) => {
     const {t} = useTranslation()
     const form = formForPlacement(placement) === 'board' ? 'board' : 'band'
     const teams = [...result.teams].sort(byNullsLast(team => team.place))
@@ -63,20 +66,25 @@ const StreamResultPanel = ({result, provisional, size, placement}: StreamResultP
                             <FlipList
                                 items={column}
                                 keyOf={team => String(team.startNumber)}
-                                render={(team, index) => (
-                                    <StreamBoatLine
-                                        team={team}
-                                        mode={layout.mode}
-                                        columns={layout.columns}
-                                        leading="place"
-                                        gap={gapFor(team)}
-                                        withGap
-                                        useShortClubNames
-                                        failedFallback={t('event.info.athleteBoard.failed')}
-                                        deregisteredFallback={t('event.info.athleteBoard.deregistered')}
-                                        striped={index % 2 === 1}
-                                    />
-                                )}
+                                render={(team, index) => {
+                                    const m = materialLabel(team.material, showMaterial ? 'always' : 'deviationsOnly')
+                                    return (
+                                        <StreamBoatLine
+                                            team={team}
+                                            mode={layout.mode}
+                                            columns={layout.columns}
+                                            leading="place"
+                                            gap={gapFor(team)}
+                                            withGap
+                                            useShortClubNames
+                                            failedFallback={t('event.info.athleteBoard.failed')}
+                                            deregisteredFallback={t('event.info.athleteBoard.deregistered')}
+                                            striped={index % 2 === 1}
+                                            materialText={m === 'own' ? t('event.stream.material.own') : m?.text}
+                                            materialDeviates={typeof m === 'object' && m !== null && m.deviates}
+                                        />
+                                    )
+                                }}
                             />
                         </Box>
                     ))}

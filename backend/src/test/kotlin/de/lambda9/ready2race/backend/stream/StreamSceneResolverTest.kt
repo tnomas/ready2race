@@ -76,12 +76,13 @@ class StreamSceneResolverTest {
         type: StreamGraphicType,
         placement: StreamPlacement,
         displaySeconds: Int? = null,
+        showMaterial: Boolean? = null,
     ): StreamSceneGraphicDto = StreamSceneGraphicDto(
         type = type,
         enabled = true,
         placement = placement,
         size = StreamGraphicSize.NORMAL,
-        settings = StreamGraphicSettings(displaySeconds = displaySeconds),
+        settings = StreamGraphicSettings(displaySeconds = displaySeconds, showMaterial = showMaterial),
     )
 
     /** Alle Eingaben defaulten auf "nichts los" — jeder Test setzt gezielt, was er prüft. */
@@ -565,5 +566,21 @@ class StreamSceneResolverTest {
     fun `nextEvaluationAt ist null ohne kuenftigen Umschaltpunkt`() {
         val resolved = resolveScene(baseInput(now = t0))
         assertNull(resolved.nextEvaluationAt, "Ohne Zeitgeber darf kein Umschaltpunkt entstehen")
+    }
+
+    @Test
+    fun `showMaterial spiegelt die Grafik-Einstellung, false ohne eigene Angabe`() {
+        val preparing = testMatch(state = MatchState.PREPARING)
+        val graphics = listOf(
+            graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER, showMaterial = true),
+            graphic(StreamGraphicType.NEXT_UP, StreamPlacement.TOP_LEFT),
+        )
+
+        val resolved = resolveScene(
+            baseInput(now = t0, graphics = graphics, preparing = preparing, preparingSince = t0)
+        )
+
+        assertTrue(resolved.graphic(StreamGraphicType.STARTLIST).showMaterial, "muss die gesetzte Einstellung übernehmen")
+        assertFalse(resolved.graphic(StreamGraphicType.NEXT_UP).showMaterial, "muss ohne eigene Angabe auf false fallen")
     }
 }

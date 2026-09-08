@@ -4720,6 +4720,10 @@ export type StreamGraphicViewDto = {
      * CLOCK: start of the sequence's CURRENT pause - only set while it is paused. The stage freezes the countdown at the remainder as of this instant (sequenceFiresAt minus sequencePausedAt, a pure server-time difference); resuming shifts sequenceFiresAt by exactly the pause duration, so the frozen value continues seamlessly.
      */
     sequencePausedAt?: string | null
+    /**
+     * STARTLIST/LAPS/RESULT/FINISH_TICKER: mirrors the graphic's StreamGraphicSettings.showMaterial (false when unset) - whether the boat lines show material even without a deviation from the start number, not only on deviation.
+     */
+    showMaterial: boolean
 }
 
 /**

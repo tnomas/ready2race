@@ -307,6 +307,7 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
             sequenceStartedAt = sequenceStartedAt,
             sequenceFiresAt = sequenceFiresAt,
             sequencePausedAt = sequencePausedAt,
+            showMaterial = row.settings.showMaterial ?: false,
         )
     }
 

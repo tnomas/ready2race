@@ -8,6 +8,7 @@ const base = (patch: Partial<StreamGraphicViewDto>): StreamGraphicViewDto => ({
     size: 'NORMAL',
     visible: false,
     overrideState: 'AUTO',
+    showMaterial: false,
     ...patch,
 })
 

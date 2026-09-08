@@ -27,6 +27,7 @@ const graphic = (overrides: Partial<StreamGraphicViewDto>): StreamGraphicViewDto
     schedule: null,
     imageUrl: null,
     sequenceStartedAt: null,
+    showMaterial: false,
     ...overrides,
 })
 

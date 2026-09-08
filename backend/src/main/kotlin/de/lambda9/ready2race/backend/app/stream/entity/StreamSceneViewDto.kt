@@ -63,6 +63,12 @@ data class StreamGraphicViewDto(
      * Wert läuft also nahtlos weiter.
      */
     val sequencePausedAt: LocalDateTime? = null,
+    /**
+     * STARTLIST/LAPS/RESULT/FINISH_TICKER: Spiegel von [StreamGraphicSettings.showMaterial]
+     * (`false`, wenn dort nicht gesetzt) — die Bootszeilen der Szene lesen ihn, um `materialLabel`
+     * denselben Modus mitzugeben wie die ältere Stream-Overlay-Kachel.
+     */
+    val showMaterial: Boolean = false,
 )
 
 /** Ein Einlauf auf dem FINISH_TICKER-Band, in der Reihenfolge der Zieldurchfahrt. */

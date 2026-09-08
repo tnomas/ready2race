@@ -1,5 +1,12 @@
 import {describe, expect, it} from 'vitest'
-import {abbreviateFirstNames, collapseClubChain, crewCharBudget, fitCrewLine, fitCrewNames} from './streamText'
+import {
+    abbreviateFirstNames,
+    collapseClubChain,
+    crewCharBudget,
+    fitCrewLine,
+    fitCrewNames,
+    materialFitsBudget,
+} from './streamText'
 
 describe('abbreviateFirstNames', () => {
     it('kürzt jeden Vornamen auf die Initiale und lässt den Nachnamen stehen', () => {
@@ -37,6 +44,22 @@ describe('fitCrewLine', () => {
     it('gibt die Namen auch als Liste heraus, damit umbrechende Formen je Name eine Einheit setzen können', () => {
         expect(fitCrewNames(['Anna Petersen', 'Jonas Feddersen'], 200)).toEqual(['Anna Petersen', 'Jonas Feddersen'])
         expect(fitCrewNames(['Anna Petersen', 'Jonas Feddersen'], 10)).toEqual(['A. Petersen', 'J. Feddersen'])
+    })
+})
+
+describe('materialFitsBudget', () => {
+    it('passt der Materialhinweis noch neben eine kurze Besatzungszeile, ist er dabei', () => {
+        expect(materialFitsBudget('A. Petersen', 'Boot 7', 60)).toBe(true)
+    })
+
+    it('ist das Material das Erste, was fällt, wenn die Zeile schon ohne es voll ist', () => {
+        const secondary = 'A. Petersen · L. Brodersen · M. Sørensen · I. Clausen · St. K. Lorenzen'
+        expect(materialFitsBudget(secondary, 'Boot 7', secondary.length)).toBe(false)
+    })
+
+    it('passt ohne Besatzungszeile allein, solange das Budget reicht', () => {
+        expect(materialFitsBudget(null, 'eigenes Boot', 20)).toBe(true)
+        expect(materialFitsBudget(null, 'eigenes Boot', 5)).toBe(false)
     })
 })
 

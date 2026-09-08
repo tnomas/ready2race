@@ -84,6 +84,18 @@ export const crewCharBudget = (mode: StreamRowMode, columns: 1 | 2, clubLabel: s
         ? STACKED_CREW_BUDGET[columns]
         : Math.max(0, Math.round(LINE_ROW_BUDGET[columns] - clubLabel.length * CLUB_CHAR_WEIGHT))
 
+/** Trennzeichen zwischen Besatzungszeile und Materialhinweis, wenn beide in derselben Zeile stehen. */
+export const MATERIAL_SUFFIX_SEPARATOR = ' · '
+
+/**
+ * Ob der Materialhinweis noch neben die (schon aufs Budget gekürzte) Besatzungszeile passt —
+ * derselbe Zeichenmaßstab wie `crewCharBudget`. Reicht der Platz nicht, ist das Material das
+ * Erste, was aus der Zeile fällt: Die Besatzung wird seinetwegen nicht zusätzlich abgekürzt, sie
+ * bleibt auf dem Stand, den `fitCrewLine` schon liefert.
+ */
+export const materialFitsBudget = (secondary: string | null, materialText: string, budgetChars: number): boolean =>
+    (secondary?.length ?? 0) + MATERIAL_SUFFIX_SEPARATOR.length + materialText.length <= budgetChars
+
 /** Ab so vielen Gliedern zieht die Einlauf-Leiste (34em) die Vereinskette zusammen. */
 export const TICKER_CHAIN_MAX_LINKS = 2
 

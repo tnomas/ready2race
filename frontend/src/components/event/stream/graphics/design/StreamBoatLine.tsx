@@ -2,7 +2,7 @@ import {Box, Typography} from '@mui/material'
 import {crewLines, StreamTeam} from '../../../board/streamOverlay/streamDisplay.ts'
 import RankBadge from './RankBadge.tsx'
 import {boatStatus, StreamRowMode, StreamStatusTone} from './streamLayout.ts'
-import {crewCharBudget, fitCrewLine} from './streamText.ts'
+import {crewCharBudget, fitCrewLine, materialFitsBudget} from './streamText.ts'
 import {STREAM_DISPLAY_FONT, STREAM_PLATE} from './streamTheme.ts'
 
 interface StreamBoatLineProps {
@@ -20,6 +20,15 @@ interface StreamBoatLineProps {
     failedFallback: string
     deregisteredFallback: string
     striped: boolean
+    /**
+     * Materialhinweis („Boot 7", „eigenes Boot") hinter der Besatzungszeile — nur in der Langform,
+     * d. h. wenn diese Zeile ohnehin eine Zweitzeile zeigt (Besatzung oder Zeitstrafe); ohne eine
+     * von beiden bliebe der Hinweis die einzige Zweitzeile und stünde unmotiviert für sich.
+     * Siehe `materialLabel` (Materialvermietung).
+     */
+    materialText?: string
+    /** Ob [materialText] eine Abweichung von der Startnummer ist — dann in Warnfarbe statt neutral. */
+    materialDeviates?: boolean
 }
 
 const TONE_COLOR: Record<StreamStatusTone, string> = {
@@ -52,12 +61,15 @@ const StreamBoatLine = ({
     failedFallback,
     deregisteredFallback,
     striped,
+    materialText,
+    materialDeviates = false,
 }: StreamBoatLineProps) => {
     const {primary} = crewLines(team, 'CLUBS_FIRST', useShortClubNames)
-    const secondary = fitCrewLine(
-        (team.participants ?? []).map(participant => participant.name),
-        crewCharBudget(mode, columns, primary),
-    )
+    const budget = crewCharBudget(mode, columns, primary)
+    const secondary = fitCrewLine((team.participants ?? []).map(participant => participant.name), budget)
+    // Kürzungsleiter: passt der Materialhinweis nicht mehr neben die (schon gekürzte)
+    // Besatzung, fällt ER zuerst weg — die Besatzung wird seinetwegen nicht weiter gekürzt.
+    const material = materialText && materialFitsBudget(secondary, materialText, budget) ? materialText : null
     const status = boatStatus(team, {failed: failedFallback, deregistered: deregisteredFallback})
     const penalty =
         team.penaltySeconds != null || team.penaltyNote
@@ -149,7 +161,7 @@ const StreamBoatLine = ({
                     }}>
                     {primary}
                 </Typography>
-                {(secondary || penalty) && (
+                {(secondary || penalty || material) && (
                     <Typography
                         component="div"
                         noWrap
@@ -174,6 +186,18 @@ const StreamBoatLine = ({
                             </Box>
                         )}
                         {secondary}
+                        {/* Materialhinweis: kleines Anhängsel am Ende der Zweitzeile, in
+                            Warnfarbe nur bei einer echten Abweichung von der Startnummer. */}
+                        {material && (
+                            <Box
+                                component="span"
+                                sx={{
+                                    ml: secondary ? '0.7em' : 0,
+                                    color: materialDeviates ? STREAM_PLATE.warning : undefined,
+                                }}>
+                                {material}
+                            </Box>
+                        )}
                     </Typography>
                 )}
             </Box>

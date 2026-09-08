@@ -24602,6 +24602,7 @@ components:
         - size
         - visible
         - overrideState
+        - showMaterial
       properties:
         type:
           $ref: '#/components/schemas/StreamGraphicType'
@@ -24673,6 +24674,12 @@ components:
             freezes the countdown at the remainder as of this instant (sequenceFiresAt minus
             sequencePausedAt, a pure server-time difference); resuming shifts sequenceFiresAt by
             exactly the pause duration, so the frozen value continues seamlessly.
+        showMaterial:
+          type: boolean
+          description: >-
+            STARTLIST/LAPS/RESULT/FINISH_TICKER: mirrors the graphic's StreamGraphicSettings.showMaterial
+            (false when unset) - whether the boat lines show material even without a deviation from
+            the start number, not only on deviation.
 
     StreamSceneViewDto:
       type: object
