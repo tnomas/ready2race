@@ -49,6 +49,7 @@ export type StreamTeam = Pick<
     | 'deregisteredReason'
     | 'laps'
     | 'participants'
+    | 'material'
 >
 
 export type StreamCrewMode = 'CLUBS_FIRST' | 'PARTICIPANTS_FIRST' | 'CLUBS_ONLY'

@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.stream.entity
 
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardMatch
 import de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardResult
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -77,6 +78,8 @@ data class StreamFinishEntry(
      * Verein, während Startliste und Ergebnis längst Namen zeigen.
      */
     val participants: List<String> = emptyList(),
+    /** Wie bei [de.lambda9.ready2race.backend.app.eventInfo.entity.AthleteBoardTeam.material]: das wirksame Materialstück dieses Teams in diesem Lauf. */
+    val material: MaterialForTeamDto? = null,
 )
 
 /**

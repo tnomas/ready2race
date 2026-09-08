@@ -2595,6 +2595,9 @@
       "courseImage": "Streckenbild",
       "scheduleTitle": "Nächste Läufe",
       "cancelled": "Fällt aus",
+      "material": {
+        "own": "eigenes Boot"
+      },
       "clock": {
         "countdown": "Start in",
         "running": "Rennzeit",
@@ -2666,6 +2669,7 @@
           },
           "displaySeconds": "Einblenddauer (Sekunden)",
           "listLength": "Anzahl Zeilen",
+          "showMaterial": "Material immer zeigen",
           "image": "Bild",
           "imageNone": "Kein Bild ausgewählt",
           "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",

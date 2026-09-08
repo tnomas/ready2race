@@ -6,6 +6,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    FormControlLabel,
     MenuItem,
     Stack,
     Switch,
@@ -24,6 +25,7 @@ import {
     usesDisplaySeconds,
     usesImageDocument,
     usesListLength,
+    usesMaterialToggle,
     withAllGraphicTypes,
 } from './streamGraphicCatalog'
 import {extractErrorReason} from './streamApiError'
@@ -186,6 +188,26 @@ const StreamGraphicConfigDialog = ({open, onClose, eventId, scene, onSaved}: Str
                                         oder ist noch nichts hochgeladen, bleibt imageDocument einfach unbelegt;
                                         die Grafik zeigt dann serverseitig nichts an (siehe StreamGraphic.tsx),
                                         statt das Speichern zu blockieren. */}
+                                    {usesMaterialToggle(row.type) && (
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    size="small"
+                                                    checked={row.settings.showMaterial === true}
+                                                    onChange={e =>
+                                                        updateRow(row.type, {
+                                                            settings: {
+                                                                ...row.settings,
+                                                                showMaterial: e.target.checked,
+                                                            },
+                                                        })
+                                                    }
+                                                />
+                                            }
+                                            label={t('event.stream.scenes.graphicDialog.showMaterial')}
+                                        />
+                                    )}
+
                                     {usesImageDocument(row.type) && documentsState.kind === 'loaded' && (
                                         <TextField
                                             select

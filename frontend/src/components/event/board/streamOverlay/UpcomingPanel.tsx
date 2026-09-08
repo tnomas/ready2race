@@ -2,6 +2,7 @@ import {Stack, Typography, useTheme} from '@mui/material'
 import {format} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardMatch, BoardElement} from '@api/types.gen.ts'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import FitToHeight from './FitToHeight.tsx'
 import FlipList from '../FlipList.tsx'
 import StreamBoatRow from './StreamBoatRow.tsx'
@@ -103,16 +104,24 @@ const UpcomingPanel = ({match, element, clockOffsetMs}: UpcomingPanelProps) => {
                     <FlipList
                         items={teams}
                         keyOf={team => String(team.startNumber)}
-                        render={team => (
-                            <StreamBoatRow
-                                team={team}
-                                crewMode={streamCrew}
-                                useShortClubNames={names.clubs}
-                                failedFallback={t('event.info.athleteBoard.failed')}
-                                deregisteredFallback={t('event.info.athleteBoard.deregistered')}
-                                size="large"
-                            />
-                        )}
+                        render={team => {
+                            const m = materialLabel(
+                                team.material,
+                                element.showMaterial === true ? 'always' : 'deviationsOnly',
+                            )
+                            return (
+                                <StreamBoatRow
+                                    team={team}
+                                    crewMode={streamCrew}
+                                    useShortClubNames={names.clubs}
+                                    failedFallback={t('event.info.athleteBoard.failed')}
+                                    deregisteredFallback={t('event.info.athleteBoard.deregistered')}
+                                    size="large"
+                                    materialText={m === 'own' ? t('event.stream.material.own') : m?.text}
+                                    materialDeviates={typeof m === 'object' && m !== null && m.deviates}
+                                />
+                            )
+                        }}
                     />
                 </Stack>
             </FitToHeight>

@@ -49,6 +49,12 @@ data class StreamGraphicSettings(
     val listLength: Int? = null,
     /** COURSE_IMAGE: Referenz auf das hinterlegte Streckenbild. */
     val imageDocument: UUID? = null,
+    /**
+     * STARTLIST/LAPS/RESULT/FINISH_TICKER: Material auch ohne Abweichung von der Startnummer
+     * zeigen (inklusive „eigenes Boot"), nicht nur bei Abweichung. Default `false`/`null`, damit
+     * bereits gespeicherte Szenen gültig bleiben.
+     */
+    val showMaterial: Boolean? = null,
 )
 
 /** Regie-Eingriff aus dem Kontroll-Panel; `match`/`seconds` bleiben unbelegt, wenn nicht gesetzt. */

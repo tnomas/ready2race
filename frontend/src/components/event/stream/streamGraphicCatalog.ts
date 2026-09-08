@@ -41,6 +41,14 @@ export const usesListLength = (type: StreamGraphicType): boolean => type === 'SC
 /** COURSE_IMAGE: Bildwahl über ein hinterlegtes Event-Dokument. */
 export const usesImageDocument = (type: StreamGraphicType): boolean => type === 'COURSE_IMAGE'
 
+/**
+ * STARTLIST/LAPS/RESULT/FINISH_TICKER: die einzigen vier Typen, die überhaupt Bootszeilen
+ * zeigen (Materialvermietung, Task 6.5) - CLOCK/NEXT_UP/SCHEDULE/COURSE_IMAGE haben keine
+ * Zeile, an der ein Materialhinweis stehen könnte.
+ */
+export const usesMaterialToggle = (type: StreamGraphicType): boolean =>
+    type === 'STARTLIST' || type === 'LAPS' || type === 'RESULT' || type === 'FINISH_TICKER'
+
 /** Vorbelegte Einblenddauer, wenn ein Typ noch nie konfiguriert wurde (Kommentare in StreamSceneGraphicDtos.kt). */
 const DEFAULT_DISPLAY_SECONDS: Partial<Record<StreamGraphicType, number>> = {
     STARTLIST: 15,
@@ -62,6 +70,7 @@ export const defaultGraphicRow = (type: StreamGraphicType): StreamSceneGraphicDt
         displaySeconds: usesDisplaySeconds(type) ? DEFAULT_DISPLAY_SECONDS[type] : null,
         listLength: usesListLength(type) ? DEFAULT_LIST_LENGTH : null,
         imageDocument: null,
+        showMaterial: usesMaterialToggle(type) ? false : null,
     },
 })
 

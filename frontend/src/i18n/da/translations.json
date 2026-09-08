@@ -2565,6 +2565,16 @@
         }
       }
     },
+    "stream": {
+      "material": {
+        "own": "egen båd"
+      },
+      "scenes": {
+        "graphicDialog": {
+          "showMaterial": "Vis altid materiel"
+        }
+      }
+    },
     "betrieb": {
       "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
       "referee": {

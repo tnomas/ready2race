@@ -2595,6 +2595,9 @@
       "courseImage": "Course map",
       "scheduleTitle": "Up next",
       "cancelled": "Cancelled",
+      "material": {
+        "own": "own boat"
+      },
       "clock": {
         "countdown": "Start in",
         "running": "Race time",
@@ -2666,6 +2669,7 @@
           },
           "displaySeconds": "Display duration (seconds)",
           "listLength": "Number of rows",
+          "showMaterial": "Always show material",
           "image": "Image",
           "imageNone": "No image selected",
           "imageHint": "Images are uploaded through the event's documents.",

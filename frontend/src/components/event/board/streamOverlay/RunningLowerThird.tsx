@@ -1,6 +1,7 @@
 import {Box, Stack, Typography, useTheme} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {AthleteBoardMatch, BoardElement, BoardSequenceDto} from '@api/types.gen.ts'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import {sortRunningTeams} from '../../info/athleteBoard/common'
 import FitToHeight from './FitToHeight.tsx'
 import FlipList from '../FlipList.tsx'
@@ -99,18 +100,26 @@ const RunningLowerThird = ({match, element, clockOffsetMs, sequence}: RunningLow
                             <FlipList
                                 items={teams}
                                 keyOf={team => String(team.startNumber)}
-                                render={team => (
-                                    <StreamBoatRow
-                                        team={team}
-                                        crewMode={streamCrew}
-                                        useShortClubNames={names.clubs}
-                                        failedFallback={t('event.info.athleteBoard.failed')}
-                                        deregisteredFallback={t('event.info.athleteBoard.deregistered')}
-                                        size="compact"
-                                        showLaps={teams.length <= 4}
-                                        showSecondary={teams.length <= 5}
-                                    />
-                                )}
+                                render={team => {
+                                    const m = materialLabel(
+                                        team.material,
+                                        element.showMaterial === true ? 'always' : 'deviationsOnly',
+                                    )
+                                    return (
+                                        <StreamBoatRow
+                                            team={team}
+                                            crewMode={streamCrew}
+                                            useShortClubNames={names.clubs}
+                                            failedFallback={t('event.info.athleteBoard.failed')}
+                                            deregisteredFallback={t('event.info.athleteBoard.deregistered')}
+                                            size="compact"
+                                            showLaps={teams.length <= 4}
+                                            showSecondary={teams.length <= 5}
+                                            materialText={m === 'own' ? t('event.stream.material.own') : m?.text}
+                                            materialDeviates={typeof m === 'object' && m !== null && m.deviates}
+                                        />
+                                    )
+                                }}
                             />
                         </Stack>
                     </FitToHeight>

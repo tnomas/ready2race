@@ -56,6 +56,15 @@ interface StreamBoatRowProps {
      * lesbar ist — lieber die Vereine groß als alles winzig.
      */
     showSecondary?: boolean
+    /**
+     * Materialhinweis („Boot 7") hinter der Vereins-/Besatzungszeile — nur in der Langform
+     * ([showSecondary] true), siehe `materialLabel` (Materialvermietung). Fehlt er, zeigt die
+     * Zeile nichts zusätzlich; eine Kurzform lässt ihn IMMER weg, auch wenn er gesetzt ist —
+     * für sie ist ohnehin schon die Vereinszeile selbst abgeschaltet.
+     */
+    materialText?: string
+    /** Ob [materialText] eine Abweichung von der Startnummer ist — dann in Akzentfarbe statt neutral. */
+    materialDeviates?: boolean
 }
 
 /**
@@ -72,6 +81,8 @@ const StreamBoatRow = ({
     size,
     showLaps = true,
     showSecondary = true,
+    materialText,
+    materialDeviates = false,
 }: StreamBoatRowProps) => {
     const theme = useTheme()
     const large = size === 'large'
@@ -102,6 +113,21 @@ const StreamBoatRow = ({
                 {showSecondary && secondary && (
                     <Typography variant={large ? 'h6' : 'body2'} sx={{...twoLineClamp, ...(large && {fontWeight: 400})}}>
                         {unitSpans(secondary)}
+                    </Typography>
+                )}
+                {/* Materialhinweis: nur in der Langform, hinter der Vereins-/Besatzungszeile —
+                    dieselbe Zurückhaltung wie die Zeitstrafe, nur ohne deren Warnfarbe außer
+                    bei einer echten Abweichung. */}
+                {showSecondary && materialText && (
+                    <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{
+                            color: materialDeviates
+                                ? solidOr(theme.palette.warning.light, '#ffb74d')
+                                : undefined,
+                        }}>
+                        {materialText}
                     </Typography>
                 )}
                 {/* Rundenzeiten: eigene Zeile, tabularNums, kleiner. */}

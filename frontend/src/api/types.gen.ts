@@ -4633,6 +4633,10 @@ export type StreamFinishEntry = {
      * Crew names in boat order; empty when no crew is recorded.
      */
     participants?: Array<string>
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 /**
@@ -4651,6 +4655,10 @@ export type StreamGraphicSettings = {
      * COURSE_IMAGE: reference to the stored course image document.
      */
     imageDocument?: string | null
+    /**
+     * STARTLIST/LAPS/RESULT/FINISH_TICKER: show material even without a deviation from the start number (including 'own boat'), not only on deviation. Defaults to false/null so already stored scenes stay valid.
+     */
+    showMaterial?: boolean | null
 }
 
 export type StreamGraphicSize = 'COMPACT' | 'NORMAL'

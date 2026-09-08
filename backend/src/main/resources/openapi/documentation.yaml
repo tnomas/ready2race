@@ -24447,6 +24447,10 @@ components:
           format: uuid
           nullable: true
           description: "COURSE_IMAGE: reference to the stored course image document."
+        showMaterial:
+          type: boolean
+          nullable: true
+          description: "STARTLIST/LAPS/RESULT/FINISH_TICKER: show material even without a deviation from the start number (including 'own boat'), not only on deviation. Defaults to false/null so already stored scenes stay valid."
 
     StreamSceneGraphicDto:
       type: object
@@ -24581,6 +24585,11 @@ components:
           items:
             type: string
           description: "Crew names in boat order; empty when no crew is recorded."
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     StreamGraphicViewDto:
       type: object

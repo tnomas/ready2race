@@ -320,6 +320,7 @@ object StreamSceneLogic {
                     clubsFull = team.clubsFull,
                     timeString = team.timeString!!,
                     participants = team.participants.map { it.name },
+                    material = team.material,
                 )
             }
 
