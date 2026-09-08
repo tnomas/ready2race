@@ -3348,6 +3348,10 @@ export type MyEventMatchDto = {
     actualStartTime?: string | null
     startState: AthleteBoardStartState
     lane?: number | null
+    /**
+     * the registration's start number (competition_registration.team_number), compared against the boat's material number; not to be confused with lane, which is the match's lane/position
+     */
+    teamNumber?: number | null
     teamName?: string | null
     clubName?: string | null
     teamMembers: Array<MyEventTeamMemberDto>

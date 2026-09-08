@@ -56,6 +56,8 @@ object MyEventLogic {
         val allTeamsScored: Boolean,
         val currentlyRunning: Boolean,
         val lane: Int?,
+        /** Startnummer der Meldung - siehe [MyEventMatchDto.teamNumber]. */
+        val teamNumber: Int? = null,
         val teamName: String?,
         val clubName: String?,
         val teamMembers: List<MyEventTeamMemberDto>,
@@ -157,6 +159,7 @@ object MyEventLogic {
         // hinunterzählt, den es nicht gibt, schickt jemanden an den Steg.
         startState = AthleteBoardLogic.startState(startTime, now, showCountdown && !deregistered),
         lane = lane,
+        teamNumber = teamNumber,
         teamName = teamName,
         clubName = clubName,
         teamMembers = teamMembers,

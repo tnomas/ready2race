@@ -25,6 +25,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.Substitut
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
@@ -341,6 +342,7 @@ object MyEventService {
             // weiterhin nur, ob der Lauf gerufen wurde.
             currentlyRunning = first[COMPETITION_MATCH.ACTIVATED_AT] != null,
             lane = first[COMPETITION_MATCH_TEAM.START_NUMBER],
+            teamNumber = first[COMPETITION_REGISTRATION.TEAM_NUMBER],
             teamName = first.get("team_name", String::class.java),
             clubName = first.get("club_name", String::class.java),
             // Nach Nachnamen sortiert wie zuvor - die Reihenfolge kam bis hierher aus dem

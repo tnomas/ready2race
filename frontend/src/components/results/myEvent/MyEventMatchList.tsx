@@ -87,10 +87,14 @@ const TeamMemberLine = ({members}: {members: MyEventTeamMemberDto[]}) => {
 }
 
 /**
- * Materialhinweis hinter der Startposition — Regel `materialLabel` (Spec Abschnitt 11), hier
- * immer im Modus "always": in Mein Event geht es genau um dieses eine Team, da steht auch das
- * eigene Boot mit da, nicht nur die Abweichung. Kategorie OTHER kommt aus `materialLabel` nie
- * hier an, die zeigt der Materialblock der Meldung (`MyEventMaterial`).
+ * Materialhinweis hinter der Startnummer der Meldung — Regel `materialLabel` (Spec Abschnitt
+ * 11), hier immer im Modus "always": in Mein Event geht es genau um dieses eine Team, da steht
+ * auch das eigene Boot mit da, nicht nur die Abweichung. Kategorie OTHER kommt aus
+ * `materialLabel` nie hier an, die zeigt der Materialblock der Meldung (`MyEventMaterial`).
+ *
+ * Die vorangestellte Nummer ist `teamNumber` (`competition_registration.team_number`), gegen
+ * die die Bootsnummer verglichen wird — nicht `lane`, das die Bahn des Laufs ist und mit der
+ * Materialabweichung nichts zu tun hat.
  */
 const MatchMaterialNote = ({match}: {match: MyEventMatchDto}) => {
     const {t} = useTranslation()
@@ -107,7 +111,7 @@ const MatchMaterialNote = ({match}: {match: MyEventMatchDto}) => {
         return null
     }
 
-    const text = match.lane != null ? `#${match.lane} · ${note.text}` : note.text
+    const text = match.teamNumber != null ? `#${match.teamNumber} · ${note.text}` : note.text
     return (
         <Stack direction="row" gap={0.5} alignItems="center">
             <Typography variant="body2" color="text.secondary">

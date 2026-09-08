@@ -19852,6 +19852,10 @@ components:
         lane:
           type: integer
           nullable: true
+        teamNumber:
+          type: integer
+          nullable: true
+          description: "the registration's start number (competition_registration.team_number), compared against the boat's material number; not to be confused with lane, which is the match's lane/position"
         teamName:
           type: string
           nullable: true

@@ -41,6 +41,12 @@ data class MyEventMatchDto(
     val actualStartTime: LocalDateTime?,
     val startState: AthleteBoardStartState,
     val lane: Int?,
+    /**
+     * Startnummer der Meldung (`competition_registration.team_number`), gegen die die
+     * Bootsnummer verglichen wird - nicht zu verwechseln mit `lane`, das die Bahn des Laufs
+     * ist. Die Materialabweichung vergleicht das Boot mit dieser Nummer, nicht mit der Bahn.
+     */
+    val teamNumber: Int?,
     val teamName: String?,
     val clubName: String?,
     val teamMembers: List<MyEventTeamMemberDto>,
