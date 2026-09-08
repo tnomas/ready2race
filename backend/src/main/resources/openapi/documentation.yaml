@@ -4762,6 +4762,33 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/damage/csv:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialDamagesCsv
+      description: Schadensakte des Anbieters an dieser Veranstaltung als CSV-Export, gleiches Kriterium wie getMaterialDamages mit eventId-Filter. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      responses:
+        200:
+          $ref: '#/components/responses/file'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
   /event/{eventId}/competitionRegistration/{competitionRegistrationId}/materialRequests:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -5076,6 +5103,229 @@ paths:
           $ref: '#/components/responses/401'
         403:
           $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/damage:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialDamages
+      description: Schadensakte des Anbieters, seitenweise und veranstaltungsübergreifend, wahlweise nach Veranstaltung oder Materialstück gefiltert. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: itemId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      responses:
+        200:
+          description: Seite mit Schäden
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaterialDamageDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: addMaterialDamage
+      description: Legt einen Schaden für ein Materialstück des Anbieters an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialDamageRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/damage/{damageId}:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: damageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialDamage
+      description: Einzelnen Schaden lesen, mit Fotos. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      responses:
+        200:
+          description: Schaden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialDamageDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    put:
+      operationId: updateMaterialDamage
+      description: Aktualisiert einen Schaden. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialDamageRequest'
+      responses:
+        204:
+          description: Schaden erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/damage/{damageId}/photo:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: damageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: addMaterialDamagePhotos
+      description: Lädt ein oder mehrere Fotos zu einem Schaden hoch. Jede Datei einzeln gegen die maximale Größe geprüft. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        204:
+          $ref: '#/components/responses/204'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/photo/{photoId}:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialDamagePhoto
+      description: Lädt die Bytes eines Schadensfotos. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      responses:
+        200:
+          $ref: '#/components/responses/file'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteMaterialDamagePhoto
+      description: Löscht ein Schadensfoto. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      responses:
+        204:
+          description: Foto erfolgreich gelöscht
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
         500:
           $ref: '#/components/responses/500'
   /materialType:
@@ -12846,6 +13096,7 @@ components:
         - MATERIAL_TYPE_NAME_TAKEN
         - MATERIAL_ITEM_NUMBER_TAKEN
         - MATERIAL_OFFER_TYPE_TAKEN
+        - MATERIAL_PHOTO_TOO_LARGE
 
     Gender:
       type: string
@@ -18838,6 +19089,66 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MaterialAssignmentEntry'
+
+    MaterialDamageSeverity:
+      type: string
+      enum: [MINOR, MAJOR, TOTAL, OUTAGE_ONLY]
+
+    MaterialDamageStatus:
+      type: string
+      enum: [REPORTED, REPAIRED]
+
+    MaterialDamagePhotoDto:
+      type: object
+      description: Metadaten eines Schadensfotos - die Bytes gibt es nur einzeln über den Download.
+      required: [id, name, contentType, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        contentType: {type: string}
+        createdAt: {type: string, format: date-time}
+
+    MaterialDamageDto:
+      type: object
+      description: Eine Zeile der Schadensakte - Stück und Materialart aufgelöst, Verursacher als Momentaufnahme der Meldung.
+      required: [id, materialItem, itemLabel, materialTypeName, reportedAt, description, severity, status, photos]
+      properties:
+        id: {type: string, format: uuid}
+        materialItem: {type: string, format: uuid}
+        itemLabel: {type: string}
+        itemNumber: {type: integer}
+        materialTypeName: {type: string}
+        reportedAt: {type: string, format: date-time}
+        reportedByName: {type: string}
+        description: {type: string}
+        severity: {$ref: '#/components/schemas/MaterialDamageSeverity'}
+        status: {$ref: '#/components/schemas/MaterialDamageStatus'}
+        causedByRegistration: {type: string, format: uuid}
+        causedByTeam: {type: string}
+        causedByClub: {type: string}
+        causedByCompetition: {type: string}
+        outOfServiceFrom: {type: string, format: date-time}
+        outOfServiceUntil: {type: string, format: date-time}
+        repairedAt: {type: string, format: date-time}
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialDamagePhotoDto'
+
+    MaterialDamageRequest:
+      type: object
+      description: Ausfallende darf nicht vor Ausfallbeginn liegen, repairedAt ist bei status REPAIRED Pflicht.
+      required: [materialItem, reportedAt, description, severity, status]
+      properties:
+        materialItem: {type: string, format: uuid}
+        reportedAt: {type: string, format: date-time}
+        description: {type: string}
+        severity: {$ref: '#/components/schemas/MaterialDamageSeverity'}
+        status: {$ref: '#/components/schemas/MaterialDamageStatus'}
+        causedByRegistration: {type: string, format: uuid}
+        outOfServiceFrom: {type: string, format: date-time}
+        outOfServiceUntil: {type: string, format: date-time}
+        repairedAt: {type: string, format: date-time}
 
     AthleteBoardStartState:
       type: string

@@ -1745,6 +1745,7 @@ export type ErrorCode =
     | 'MATERIAL_TYPE_NAME_TAKEN'
     | 'MATERIAL_ITEM_NUMBER_TAKEN'
     | 'MATERIAL_OFFER_TYPE_TAKEN'
+    | 'MATERIAL_PHOTO_TOO_LARGE'
 
 export type EventDayDto = {
     id: string
@@ -3017,6 +3018,59 @@ export type MaterialAssignmentsRequest = {
 export type MaterialCapacityLevel = 'GREEN' | 'YELLOW'
 
 export type MaterialCategory = 'BOAT' | 'OTHER'
+
+/**
+ * Eine Zeile der Schadensakte - Stück und Materialart aufgelöst, Verursacher als Momentaufnahme der Meldung.
+ */
+export type MaterialDamageDto = {
+    id: string
+    materialItem: string
+    itemLabel: string
+    itemNumber?: number
+    materialTypeName: string
+    reportedAt: string
+    reportedByName?: string
+    description: string
+    severity: MaterialDamageSeverity
+    status: MaterialDamageStatus
+    causedByRegistration?: string
+    causedByTeam?: string
+    causedByClub?: string
+    causedByCompetition?: string
+    outOfServiceFrom?: string
+    outOfServiceUntil?: string
+    repairedAt?: string
+    photos: Array<MaterialDamagePhotoDto>
+}
+
+/**
+ * Metadaten eines Schadensfotos - die Bytes gibt es nur einzeln über den Download.
+ */
+export type MaterialDamagePhotoDto = {
+    id: string
+    name: string
+    contentType: string
+    createdAt: string
+}
+
+/**
+ * Ausfallende darf nicht vor Ausfallbeginn liegen, repairedAt ist bei status REPAIRED Pflicht.
+ */
+export type MaterialDamageRequest = {
+    materialItem: string
+    reportedAt: string
+    description: string
+    severity: MaterialDamageSeverity
+    status: MaterialDamageStatus
+    causedByRegistration?: string
+    outOfServiceFrom?: string
+    outOfServiceUntil?: string
+    repairedAt?: string
+}
+
+export type MaterialDamageSeverity = 'MINOR' | 'MAJOR' | 'TOTAL' | 'OUTAGE_ONLY'
+
+export type MaterialDamageStatus = 'REPORTED' | 'REPAIRED'
 
 /**
  * Entscheidung des Anbieters über eine Anfrage - status ist CONFIRMED, WAITLISTED oder DECLINED.
@@ -8224,6 +8278,17 @@ export type SetMaterialAssignmentsResponse = void
 
 export type SetMaterialAssignmentsError = BadRequestError | ApiError | UnprocessableEntityError
 
+export type GetMaterialDamagesCsvData = {
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type GetMaterialDamagesCsvResponse = Blob | File
+
+export type GetMaterialDamagesCsvError = BadRequestError | ApiError
+
 export type SetMaterialRequestsData = {
     body: MaterialRequestsUpsertRequest
     path: {
@@ -8377,6 +8442,109 @@ export type GetMaterialProviderEventsData = {
 export type GetMaterialProviderEventsResponse = Array<MaterialProviderEventDto>
 
 export type GetMaterialProviderEventsError = BadRequestError | ApiError
+
+export type GetMaterialDamagesData = {
+    path: {
+        providerId: string
+    }
+    query?: {
+        eventId?: string
+        itemId?: string
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetMaterialDamagesResponse = {
+    data: Array<MaterialDamageDto>
+    pagination: Pagination
+}
+
+export type GetMaterialDamagesError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type AddMaterialDamageData = {
+    body: MaterialDamageRequest
+    path: {
+        providerId: string
+    }
+}
+
+export type AddMaterialDamageResponse = string
+
+export type AddMaterialDamageError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetMaterialDamageData = {
+    path: {
+        damageId: string
+        providerId: string
+    }
+}
+
+export type GetMaterialDamageResponse = MaterialDamageDto
+
+export type GetMaterialDamageError = BadRequestError | ApiError
+
+export type UpdateMaterialDamageData = {
+    body: MaterialDamageRequest
+    path: {
+        damageId: string
+        providerId: string
+    }
+}
+
+export type UpdateMaterialDamageResponse = void
+
+export type UpdateMaterialDamageError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type AddMaterialDamagePhotosData = {
+    body: {
+        files?: Array<Blob | File>
+    }
+    path: {
+        damageId: string
+        providerId: string
+    }
+}
+
+export type AddMaterialDamagePhotosResponse = void
+
+export type AddMaterialDamagePhotosError = BadRequestError | ApiError
+
+export type GetMaterialDamagePhotoData = {
+    path: {
+        photoId: string
+        providerId: string
+    }
+}
+
+export type GetMaterialDamagePhotoResponse = Blob | File
+
+export type GetMaterialDamagePhotoError = BadRequestError | ApiError
+
+export type DeleteMaterialDamagePhotoData = {
+    path: {
+        photoId: string
+        providerId: string
+    }
+}
+
+export type DeleteMaterialDamagePhotoResponse = void
+
+export type DeleteMaterialDamagePhotoError = BadRequestError | ApiError
 
 export type GetMaterialTypesData = {
     query?: {

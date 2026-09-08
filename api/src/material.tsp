@@ -259,6 +259,60 @@ model MaterialAssignmentsRequest {
   assignments: MaterialAssignmentEntry[];
 }
 
+enum MaterialDamageSeverity {
+  MINOR,
+  MAJOR,
+  TOTAL,
+  OUTAGE_ONLY,
+}
+
+enum MaterialDamageStatus {
+  REPORTED,
+  REPAIRED,
+}
+
+// Metadaten eines Schadensfotos - die Bytes gibt es nur einzeln über den Download.
+model MaterialDamagePhotoDto {
+  id: uuid;
+  name: string;
+  contentType: string;
+  createdAt: utcDateTime;
+}
+
+// Eine Zeile der Schadensakte - Stück und Materialart aufgelöst, Verursacher als Momentaufnahme der Meldung.
+model MaterialDamageDto {
+  id: uuid;
+  materialItem: uuid;
+  itemLabel: string;
+  itemNumber?: int32;
+  materialTypeName: string;
+  reportedAt: utcDateTime;
+  reportedByName?: string;
+  description: string;
+  severity: MaterialDamageSeverity;
+  status: MaterialDamageStatus;
+  causedByRegistration?: uuid;
+  causedByTeam?: string;
+  causedByClub?: string;
+  causedByCompetition?: string;
+  outOfServiceFrom?: utcDateTime;
+  outOfServiceUntil?: utcDateTime;
+  repairedAt?: utcDateTime;
+  photos: MaterialDamagePhotoDto[];
+}
+
+model MaterialDamageRequest {
+  materialItem: uuid;
+  reportedAt: utcDateTime;
+  description: string;
+  severity: MaterialDamageSeverity;
+  status: MaterialDamageStatus;
+  causedByRegistration?: uuid;
+  outOfServiceFrom?: utcDateTime;
+  outOfServiceUntil?: utcDateTime;
+  repairedAt?: utcDateTime;
+}
+
 @route("/materialProvider")
 @tag("Material")
 interface MaterialRoutes {
@@ -336,6 +390,72 @@ interface MaterialRoutes {
   deleteMaterialItem(
     @path providerId: string, // UUID
     @path itemId: string, // UUID
+  ): void;
+
+  // Get paginated damage records of a provider, across events, optionally filtered by event or item
+  @get
+  @route("/{providerId}/damage")
+  @operationId("")
+  getMaterialDamages(
+    @path providerId: string, // UUID
+    @query eventId?: string, // UUID
+    @query itemId?: string, // UUID
+    // Pagination parameters
+  ): MaterialDamageDto[];
+
+  // Add a damage record
+  @post
+  @route("/{providerId}/damage")
+  @operationId("")
+  addMaterialDamage(
+    @path providerId: string, // UUID
+    @body request: MaterialDamageRequest,
+  ): uuid;
+
+  // Get a single damage record with its photos
+  @get
+  @route("/{providerId}/damage/{damageId}")
+  @operationId("")
+  getMaterialDamage(
+    @path providerId: string, // UUID
+    @path damageId: string, // UUID
+  ): MaterialDamageDto;
+
+  // Update a damage record
+  @put
+  @route("/{providerId}/damage/{damageId}")
+  @operationId("")
+  updateMaterialDamage(
+    @path providerId: string, // UUID
+    @path damageId: string, // UUID
+    @body request: MaterialDamageRequest,
+  ): void;
+
+  // Upload one or more photos for a damage record (multipart, field "files"), checked individually against the size limit
+  @post
+  @route("/{providerId}/damage/{damageId}/photo")
+  @operationId("")
+  addMaterialDamagePhotos(
+    @path providerId: string, // UUID
+    @path damageId: string, // UUID
+  ): void;
+
+  // Download the bytes of a damage photo
+  @get
+  @route("/{providerId}/photo/{photoId}")
+  @operationId("")
+  getMaterialDamagePhoto(
+    @path providerId: string, // UUID
+    @path photoId: string, // UUID
+  ): bytes;
+
+  // Delete a damage photo
+  @delete
+  @route("/{providerId}/photo/{photoId}")
+  @operationId("")
+  deleteMaterialDamagePhoto(
+    @path providerId: string, // UUID
+    @path photoId: string, // UUID
   ): void;
 }
 
@@ -494,6 +614,15 @@ interface EventMaterialRoutes {
     @path requestId: string, // UUID
     @body request: MaterialAssignmentsRequest,
   ): void;
+
+  // Schadensakte des Anbieters an dieser Veranstaltung als CSV-Export
+  @get
+  @route("/{providerId}/damage/csv")
+  @operationId("")
+  getMaterialDamagesCsv(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+  ): bytes;
 }
 
 // Anfragen einer Meldung - OWN meint hier den Verein des Nutzers (wie bei competitionRegistration).

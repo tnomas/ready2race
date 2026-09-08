@@ -524,6 +524,9 @@ import type {
     SetMaterialAssignmentsData,
     SetMaterialAssignmentsError,
     SetMaterialAssignmentsResponse,
+    GetMaterialDamagesCsvData,
+    GetMaterialDamagesCsvError,
+    GetMaterialDamagesCsvResponse,
     SetMaterialRequestsData,
     SetMaterialRequestsError,
     SetMaterialRequestsResponse,
@@ -557,6 +560,27 @@ import type {
     GetMaterialProviderEventsData,
     GetMaterialProviderEventsError,
     GetMaterialProviderEventsResponse,
+    GetMaterialDamagesData,
+    GetMaterialDamagesError,
+    GetMaterialDamagesResponse,
+    AddMaterialDamageData,
+    AddMaterialDamageError,
+    AddMaterialDamageResponse,
+    GetMaterialDamageData,
+    GetMaterialDamageError,
+    GetMaterialDamageResponse,
+    UpdateMaterialDamageData,
+    UpdateMaterialDamageError,
+    UpdateMaterialDamageResponse,
+    AddMaterialDamagePhotosData,
+    AddMaterialDamagePhotosError,
+    AddMaterialDamagePhotosResponse,
+    GetMaterialDamagePhotoData,
+    GetMaterialDamagePhotoError,
+    GetMaterialDamagePhotoResponse,
+    DeleteMaterialDamagePhotoData,
+    DeleteMaterialDamagePhotoError,
+    DeleteMaterialDamagePhotoResponse,
     GetMaterialTypesData,
     GetMaterialTypesError,
     GetMaterialTypesResponse,
@@ -3556,6 +3580,22 @@ export const setMaterialAssignments = <ThrowOnError extends boolean = false>(
 }
 
 /**
+ * Schadensakte des Anbieters an dieser Veranstaltung als CSV-Export, gleiches Kriterium wie getMaterialDamages mit eventId-Filter. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const getMaterialDamagesCsv = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialDamagesCsvData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialDamagesCsvResponse,
+        GetMaterialDamagesCsvError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/damage/csv',
+    })
+}
+
+/**
  * Ersetzt die Materialanfragen einer Meldung durch die übergebene Wunschliste. Braucht UPDATE REGISTRATION (OWN oder GLOBAL); mit OWN nur die eigene Meldung.
  */
 export const setMaterialRequests = <ThrowOnError extends boolean = false>(
@@ -3728,6 +3768,123 @@ export const getMaterialProviderEvents = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/materialProvider/{providerId}/event',
+    })
+}
+
+/**
+ * Schadensakte des Anbieters, seitenweise und veranstaltungsübergreifend, wahlweise nach Veranstaltung oder Materialstück gefiltert. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const getMaterialDamages = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialDamagesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialDamagesResponse,
+        GetMaterialDamagesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/damage',
+    })
+}
+
+/**
+ * Legt einen Schaden für ein Materialstück des Anbieters an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const addMaterialDamage = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialDamageData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialDamageResponse,
+        AddMaterialDamageError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/damage',
+    })
+}
+
+/**
+ * Einzelnen Schaden lesen, mit Fotos. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const getMaterialDamage = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialDamageData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialDamageResponse,
+        GetMaterialDamageError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/damage/{damageId}',
+    })
+}
+
+/**
+ * Aktualisiert einen Schaden. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const updateMaterialDamage = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMaterialDamageData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMaterialDamageResponse,
+        UpdateMaterialDamageError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/damage/{damageId}',
+    })
+}
+
+/**
+ * Lädt ein oder mehrere Fotos zu einem Schaden hoch. Jede Datei einzeln gegen die maximale Größe geprüft. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const addMaterialDamagePhotos = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialDamagePhotosData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialDamagePhotosResponse,
+        AddMaterialDamagePhotosError,
+        ThrowOnError
+    >({
+        ...options,
+        ...formDataBodySerializer,
+        headers: {
+            'Content-Type': null,
+            ...options?.headers,
+        },
+        url: '/materialProvider/{providerId}/damage/{damageId}/photo',
+    })
+}
+
+/**
+ * Lädt die Bytes eines Schadensfotos. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const getMaterialDamagePhoto = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialDamagePhotoData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialDamagePhotoResponse,
+        GetMaterialDamagePhotoError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/photo/{photoId}',
+    })
+}
+
+/**
+ * Löscht ein Schadensfoto. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const deleteMaterialDamagePhoto = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteMaterialDamagePhotoData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteMaterialDamagePhotoResponse,
+        DeleteMaterialDamagePhotoError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/photo/{photoId}',
     })
 }
 
