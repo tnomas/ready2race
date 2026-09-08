@@ -21,6 +21,7 @@ class RunningMatchesClarificationTest {
     @Test
     fun clarificationMatchesComeOnlyOnRequestAndFlagged() = testComprehension {
         val (eventId, _) = !createTestEventWithAdmin()
+        !publishEvent(eventId)
         val now = LocalDateTime.now()
 
         val disputed = !createTestMatchFixture(eventId, 1)

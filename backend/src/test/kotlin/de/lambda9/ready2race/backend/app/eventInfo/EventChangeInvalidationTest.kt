@@ -94,7 +94,7 @@ class EventChangeInvalidationTest {
     @Test
     fun aWriteInvalidatesTheLiveMatchesImmediately() = testComprehension {
         val eventId = UUID.randomUUID()
-        !EVENT.insert(EventRecord(id = eventId, name = "Testregatta", createdAt = now, updatedAt = now))
+        !EVENT.insert(EventRecord(id = eventId, name = "Testregatta", published = true, createdAt = now, updatedAt = now))
 
         val first = (!EventInfoService.getLiveMatches(eventId, limit = 100)).dto
         assertNull(first.notice)

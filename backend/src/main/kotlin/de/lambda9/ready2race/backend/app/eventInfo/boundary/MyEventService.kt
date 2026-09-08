@@ -63,10 +63,9 @@ object MyEventService {
 
     fun getMyEvent(eventId: UUID, qrCode: String): App<EventInfoProblem, ApiResponse.Dto<MyEventDto>> =
         KIO.comprehension {
-            val exists = !EventRepo.exists(eventId).orDie()
-            if (!exists) {
-                !KIO.fail<EventInfoProblem>(EventInfoProblem.EventNotFound(eventId))
-            }
+            // Öffentlicher Weg wie die Anzeigen: nur veröffentlichte Veranstaltungen (siehe
+            // EventInfoService.requirePublished).
+            !EventInfoService.requirePublished(eventId)
 
             val record = !QrCodeRepo.findByCode(qrCode).orDie()
             // Drei Fälle, eine Antwort: der Code ist unbekannt, er gehört zu einer anderen

@@ -6,6 +6,7 @@ import {
     TimingStartGrouping,
 } from '@api/types.gen.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 /**
  * Reine Logik der Partie-orientierten Posten-Boards (Start und Ziel), herausgezogen aus den
@@ -262,7 +263,10 @@ function localDayKey(date: Date): string {
 export function groupMatchesByDay(matches: TimingMatchDto[]): DayScheduleGroup[] {
     const groups = new Map<string, DayScheduleGroup>()
     for (const match of matches) {
-        const parsed = match.startTime != null ? new Date(match.startTime) : null
+        const parsed =
+            match.startTime != null
+                ? new Date(parseServerLocalDateTime(match.startTime, serverZoneOffsetMs()))
+                : null
         const date = parsed !== null && !Number.isNaN(parsed.getTime()) ? parsed : null
         const dayKey = date !== null ? localDayKey(date) : 'none'
         const existing = groups.get(dayKey)

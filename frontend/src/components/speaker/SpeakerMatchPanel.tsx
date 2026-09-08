@@ -19,6 +19,7 @@ import {TimingSequenceDto} from '@api/types.gen.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import {
+    displayPlace,
     matchDisplayColor,
     medalEmoji,
     SpeakerBadges,
@@ -42,9 +43,12 @@ type Props = {
 const sortTeams = (teams: SpeakerTeam[], finished: boolean): SpeakerTeam[] =>
     [...teams].sort((a, b) => {
         if (finished) {
-            if (a.place != undefined && b.place != undefined) return a.place - b.place
-            if (a.place != undefined) return -1
-            if (b.place != undefined) return 1
+            // Gesamtplatz sortiert die Tabelle; der angezeigte Platz je Kategorie steht in der Zelle
+            const aPlace = a.place ?? displayPlace(a)
+            const bPlace = b.place ?? displayPlace(b)
+            if (aPlace != undefined && bPlace != undefined) return aPlace - bPlace
+            if (aPlace != undefined) return -1
+            if (bPlace != undefined) return 1
         }
         return (a.startNumber ?? Number.MAX_SAFE_INTEGER) - (b.startNumber ?? Number.MAX_SAFE_INTEGER)
     })
@@ -312,6 +316,7 @@ const SpeakerMatchPanel = ({
                             team.startNumber != undefined
                                 ? progressByStartNumber.get(team.startNumber)
                                 : undefined
+                        const place = displayPlace(team)
                         return (
                             <TableRow key={team.teamId} sx={{'&:last-child td': {border: 0}}}>
                                 <TableCell sx={{...bodyCellSx, whiteSpace: 'nowrap'}}>
@@ -326,10 +331,9 @@ const SpeakerMatchPanel = ({
                                             <Typography variant={'body2'} sx={{color: colors.now}}>
                                                 {team.failedReason || t('speaker.match.failed')}
                                             </Typography>
-                                        ) : team.place != undefined ? (
+                                        ) : place != undefined ? (
                                             <Typography fontWeight={'bold'}>
-                                                {team.place <= 3 ? medalEmoji(team.place) : ''}{' '}
-                                                {team.place}.
+                                                {place <= 3 ? medalEmoji(place) : ''} {place}.
                                             </Typography>
                                         ) : (
                                             '–'
@@ -348,6 +352,19 @@ const SpeakerMatchPanel = ({
                                             sx={{color: colors.textSecondary}}>
                                             {team.teamName}
                                         </Typography>
+                                    )}
+                                    {team.ratingCategory && (
+                                        <Chip
+                                            size={'small'}
+                                            label={team.ratingCategory}
+                                            variant={'outlined'}
+                                            sx={{
+                                                ml: team.teamName ? 1 : 0,
+                                                color: colors.textSecondary,
+                                                borderColor: colors.border,
+                                                height: 20,
+                                            }}
+                                        />
                                     )}
                                 </TableCell>
                                 <TableCell sx={bodyCellSx}>

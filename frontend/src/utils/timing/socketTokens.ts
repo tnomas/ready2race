@@ -37,9 +37,12 @@ export const socketTokens = (
     now: number = Date.now(),
     stores: TokenStores = browserStores(),
 ): string[] => {
+    // Nur lesen: Die Übernahme eines alten Tab-gebundenen Tokens in die Verwaltungsablage ist
+    // Sache des UserProviders, nicht eines Kanals, der bloß wissen will, was er anbieten kann.
+    const readOnly = {migrate: false}
     const ordered = [
-        readSessionToken(isInApp, now, stores),
-        readSessionToken(!isInApp, now, stores),
+        readSessionToken(isInApp, now, stores, readOnly),
+        readSessionToken(!isInApp, now, stores, readOnly),
         deviceToken,
     ]
     // Doppelte raus: Dieselbe Person kann in beiden Ablagen denselben Token haben (Anmeldung in
@@ -61,6 +64,14 @@ export const timingSocketTokens = (
         now,
         stores,
     )
+
+/**
+ * Ob gerade eine Token-Runde läuft: mindestens ein Token wurde in dieser Runde abgewiesen. Solange
+ * das gilt, darf ein Netzfehler das Warten auf die stabile Verbindung nicht aufheben — der
+ * nächste Versuch trägt womöglich wieder einen Token, der mit 1008 zurückkommt.
+ */
+export const tokenRoundInProgress = (rejectedTokens: ReadonlySet<string>): boolean =>
+    rejectedTokens.size > 0
 
 /** Die Oberfläche, auf der die Seite gerade läuft — gleiche Regel wie im UserProvider. */
 export const isInAppSurface = (): boolean => window.location.pathname.startsWith('/app')

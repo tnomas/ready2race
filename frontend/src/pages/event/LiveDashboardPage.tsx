@@ -506,14 +506,16 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
 
     /**
      * Setzt den Lauf in Klärung. Der Grund kommt aus dem Dialog und ist Pflicht — der Knopf dort
-     * ist ohne Text deaktiviert, der Server lehnt ihn zusätzlich ab.
+     * ist ohne Text deaktiviert, der Server lehnt ihn zusätzlich ab. Liefert, ob der Server
+     * angenommen hat; der Dialog bleibt sonst mit dem Text offen.
      */
-    const handleClarify = async (matchId: string, reason: string) => {
+    const handleClarify = async (matchId: string, reason: string): Promise<boolean> => {
         const {error} = await setMatchClarification({path: {eventId, matchId}, body: {reason}})
         if (error) {
-            feedback.error(t('event.liveDashboard.control.error'))
+            feedback.error(t(liveDashboardErrorKey(error) ?? 'event.liveDashboard.control.error'))
         }
         dashboardData.reload()
+        return !error
     }
 
     /** Hebt die Klärung auf; der Lauf ist danach wieder das, was er vorher war. */
@@ -858,11 +860,9 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             <ClarificationDialog
                 open={clarifyMatchId !== null}
                 onClose={() => setClarifyMatchId(null)}
-                onSubmit={async reason => {
-                    if (clarifyMatchId !== null) {
-                        await handleClarify(clarifyMatchId, reason)
-                    }
-                }}
+                onSubmit={async reason =>
+                    clarifyMatchId !== null ? handleClarify(clarifyMatchId, reason) : false
+                }
             />
             {/* Nur schmal: breit stehen beide Ansichten nebeneinander, eine über die ganze
                 Fensterbreite geklebte Telefonleiste hätte dort nichts zu schalten. */}

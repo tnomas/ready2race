@@ -7204,6 +7204,9 @@ paths:
       - $ref: '#/components/parameters/eventId'
     get:
       operationId: getUpcomingMatches
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7245,6 +7248,9 @@ paths:
           format: uuid
     get:
       operationId: getLatestMatchResults
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7273,6 +7279,9 @@ paths:
       - $ref: '#/components/parameters/eventId'
     get:
       operationId: getRunningMatches
+      description: >-
+        Public, no login. Only published events are known here - an unpublished event answers
+        404 like a non-existent one.
       parameters:
         - name: limit
           in: query
@@ -7288,7 +7297,10 @@ paths:
           description: >-
             True (speaker board) also returns matches under clarification, marked via the
             clarification flag. Default false keeps them out - the public displays and the
-            board cursor must not hang on a disputed match.
+            board cursor must not hang on a disputed match. Honoured only for a session with
+            READ BOARD or READ EVENT, or for a board device token of this event in the
+            X-Timing-Device-Token header; an anonymous call is answered as if the parameter
+            were false (no error).
           schema:
             type: boolean
             default: false
@@ -7316,6 +7328,7 @@ paths:
         with the upcoming ones, each carrying its derived state. Finished matches and matches whose
         boats are all scored are deliberately absent - those are results and are governed by
         Event.publicResultsVisibility through /latest-match-results.
+        Only published events are known here - an unpublished event answers 404.
       parameters:
         - name: limit
           in: query
@@ -7347,6 +7360,7 @@ paths:
         each slot with its derived state - the same entries the SCHEDULE boards render. Carries
         no lineups and no results; times and places remain behind /latest-match-results and thus
         behind Event.publicResultsVisibility.
+        Only published events are known here - an unpublished event answers 404.
       responses:
         200:
           description: Program retrieved successfully
@@ -7372,6 +7386,8 @@ paths:
         or a board device token in the X-Timing-Device-Token header. Any board token OF THIS EVENT
         is accepted here, because a shared screen has to find its own board before it knows its id;
         the contents stay behind the per-board endpoint. A timing station token is rejected.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Boards retrieved successfully
@@ -7407,6 +7423,8 @@ paths:
         token issued for EXACTLY THIS board in the X-Timing-Device-Token header (see
         createBoardShareLink). A token of another board, a timing station token and a revoked token
         are all answered alike with 401.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Board view retrieved successfully
@@ -7434,7 +7452,7 @@ paths:
           type: string
     get:
       operationId: getMyEvent
-      description: "Personal dashboard of one participant, reachable without login through the QR code on the wristband"
+      description: "Personal dashboard of one participant, reachable without login through the QR code on the wristband. Only published events are known here - an unpublished event answers 404."
       responses:
         200:
           description: Personal dashboard retrieved successfully
@@ -8800,6 +8818,8 @@ paths:
 
         Same payload as the scene's websocket channel, so a stage or panel does not have to wait
         for the first push - see StreamSceneViewDto for the channel itself.
+      parameters:
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         200:
           description: Resolved scene state retrieved successfully
@@ -8807,6 +8827,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StreamSceneViewDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+
+  /event/{eventId}/stream/{sceneId}/courseImage:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getStreamSceneCourseImage
+      description: >-
+        The course image configured on the scene's COURSE_IMAGE graphic, as the stored document
+        (its content type follows the file name). Same door as getStreamSceneView: a session with
+        READ STREAM or READ EVENT, or the device token issued for EXACTLY THIS scene in the
+        X-Timing-Device-Token header. StreamGraphicViewDto.imageUrl points here. 404 when the scene
+        has no COURSE_IMAGE graphic, no document is configured, the document is gone, or it belongs
+        to another event.
+      responses:
+        200:
+          description: Course image retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         401:
           $ref: '#/components/responses/401'
         403:
@@ -10148,6 +10203,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10166,6 +10222,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10293,6 +10350,10 @@ paths:
               $ref: '#/components/schemas/TimingStationRequest'
     delete:
       operationId: deleteTimingStation
+      description: >-
+        Deletes a station. Refused with 409 while the station still has captured time marks or
+        start sequences (also finished ones; error code TIMING_STATION_HAS_SEQUENCES) - both keep
+        referencing the station.
       parameters:
         - name: eventId
           in: path
@@ -10307,6 +10368,8 @@ paths:
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
+        '409':
+          $ref: '#/components/responses/409'
       tags:
         - Timing
   /event/{eventId}/timing/stations/{stationId}/armed:
@@ -10344,6 +10407,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
@@ -10358,12 +10422,19 @@ paths:
   /event/{eventId}/timing/timeMarks:
     post:
       operationId: createTimeMark
+      description: >-
+        Captures a time mark with a client-generated id. Idempotent only within its own scope:
+        the same id on the same station answers 201 again without a second row (offline queue,
+        double tap, retry). The same id on ANOTHER station is a collision and answers 409 with
+        error code TIMING_TIME_MARK_ID_TAKEN. Station, event and ANZEIGE checks always run first,
+        so a foreign id never learns whether it exists.
       parameters:
         - name: eventId
           in: path
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '201':
           description: The request has succeeded and a new resource has been created as a result.
@@ -10371,6 +10442,8 @@ paths:
             text/plain:
               schema:
                 $ref: '#/components/schemas/uuid'
+        '409':
+          $ref: '#/components/responses/409'
         '500':
           description: Server error
           content:
@@ -10465,6 +10538,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '204':
           description: 'There is no content to send for this request, but the headers may be useful. '
@@ -10535,6 +10609,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10590,6 +10665,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -10629,6 +10705,7 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11074,6 +11151,7 @@ paths:
           schema:
             $ref: '#/components/schemas/uuid'
           explode: false
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11251,6 +11329,7 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/uuid'
+        - $ref: '#/components/parameters/TimingDeviceToken'
       responses:
         '200':
           description: The request has succeeded.
@@ -11780,6 +11859,19 @@ components:
         type: string
         format: uuid
 
+    TimingDeviceToken:
+      name: X-Timing-Device-Token
+      in: header
+      required: false
+      description: >-
+        Device token instead of a session, for shared devices that cannot log in (station
+        boards, displays, stream stages). Only consulted when the request carries no session.
+        Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401
+        without saying which it was. Which token kind a route accepts is stated in its
+        description.
+      schema:
+        type: string
+
     eventDayId:
       name: eventDayId
       in: path
@@ -12028,6 +12120,8 @@ components:
         - RACECLOCKER_RACE_STILL_ASSIGNED
         - TIMING_PROFILE_KIND_MISMATCH
         - TIMING_PROFILE_SCOPE_INVALID
+        - TIMING_STATION_HAS_SEQUENCES
+        - TIMING_TIME_MARK_ID_TAKEN
         - STARTLIST_CONFIG_NOT_CONFIGURED
         - STARTLIST_MATCHES_WITHOUT_START_TIME
         - RESULT_IMPORT_CONFIG_NOT_CONFIGURED
@@ -12089,7 +12183,9 @@ components:
         - EXECUTION_PLACES_NOT_CONTINUOUS
         - EXECUTION_START_TIME_MANAGED_BY_SCHEDULE
         - EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND
+        - COMPETITION_EXECUTION_DUPLICATE_PLACES
         - LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE
+        - LIVE_DASHBOARD_MATCH_ALREADY_FINISHED
         - QR_CODE_ALREADY_IN_USE
         - TRACKING_TEAM_ALREADY_CHECKED_IN
         - TRACKING_TEAM_NOT_CHECKED_IN
@@ -17415,9 +17511,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/board/{eventId}/{boardId}?token=...`). The client prepends its own origin. The
-            display sends the token as the X-Timing-Device-Token header.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/board/{eventId}/{boardId}#token=...`; the fragment never leaves the browser). The
+            client prepends its own origin. The display sends the token as the
+            X-Timing-Device-Token header.
 
     BoardRequest:
       type: object
@@ -17606,9 +17703,7 @@ components:
         year:
           type: integer
           nullable: true
-        gender:
-          type: string
-          nullable: true
+          description: "Year of birth, shown behind the name in speaker and detail displays"
         externalClubName:
           type: string
           nullable: true
@@ -17680,6 +17775,7 @@ components:
       type: object
       required:
         - teamId
+        - startNumber
         - participants
         - failed
         - deregistered
@@ -17693,6 +17789,9 @@ components:
         teamNumber:
           type: integer
           nullable: true
+        startNumber:
+          type: integer
+          description: "the start number (lane) of this boat in the match"
         clubName:
           type: string
           nullable: true
@@ -20650,6 +20749,8 @@ components:
       properties:
         name:
           type: string
+          description: Name of the export folder on the WebDAV server. A single path segment - must not contain / or \ and must not be . or ..
+          maxLength: 255
         events:
           type: array
           items:
@@ -21606,6 +21707,10 @@ components:
         timestampMillis:
           type: integer
           format: int64
+          description: >-
+            Epoch millis of the capture as seen by the device. Must lie within 24 hours of the
+            server clock in either direction (400 otherwise): a device with a badly set clock
+            must not place marks in a distant year.
 
     AssignTimeMarkRequest:
       type: object
@@ -21632,10 +21737,14 @@ components:
       type: object
       required:
         - serverTimeMillis
+        - serverLocalTime
       properties:
         serverTimeMillis:
           type: integer
           format: int64
+        serverLocalTime:
+          type: string
+          description: "the server's wall-clock time (local date-time without zone) at the same instant as serverTimeMillis; clients derive the server zone offset from the pair"
 
     uuid:
       type: string
@@ -21700,6 +21809,11 @@ components:
         intervalMillis:
           type: integer
           format: int64
+          minimum: 1000
+          maximum: 3600000
+          description: >-
+            Cadence between two starts, required for mode INTERVAL and ignored for MASS. Between
+            one second and one hour (400 outside).
         teams:
           type: array
           items:
@@ -21707,6 +21821,11 @@ components:
         leadInMillis:
           type: integer
           format: int64
+          minimum: 3000
+          maximum: 600000
+          description: >-
+            Countdown before the first start. Absent = one full cadence (INTERVAL) or 10 s (MASS);
+            when given between 3 s and 10 min (400 outside).
 
     SequenceEntryStatus:
       type: string
@@ -22217,6 +22336,15 @@ components:
         createdAt:
           type: string
           format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            When the token stops being accepted. Set for share-link tokens (end of the day after
+            the event's last day, or 30 days after issuing when the event has no days or is
+            already over); null for manually issued hardware tokens, which never expire because
+            they live in device configurations nobody re-enters after every regatta.
 
     TimingDeviceTokenIssuedDto:
       type: object
@@ -22257,9 +22385,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige`
-            display route). The client prepends its own origin.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/event/{eventId}/timing/{stationId}#token=...`, ANZEIGE stations get the `/anzeige`
+            display route). The fragment never leaves the browser - no server log, no referer -
+            which is why it is not a query parameter. The client prepends its own origin.
 
     TimingStartGrouping:
       type: string
@@ -22928,11 +23057,15 @@ components:
         displaySeconds:
           type: integer
           nullable: true
-          description: "LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds."
+          description: "LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds. 1..600 when set."
+          minimum: 1
+          maximum: 600
         listLength:
           type: integer
           nullable: true
-          description: "SCHEDULE: number of rows shown, default 8."
+          description: "SCHEDULE: number of rows shown, default 8. 1..50 when set."
+          minimum: 1
+          maximum: 50
         imageDocument:
           type: string
           format: uuid
@@ -23016,7 +23149,9 @@ components:
           description: "Required to be a hex color (#RGB or #RRGGBB) when background is CHROMA."
         safeAreaPercent:
           type: integer
-          description: "0..100, defaults to 0."
+          description: "0..20, defaults to 0."
+          minimum: 0
+          maximum: 20
 
     StreamSceneGraphicsRequest:
       type: object
@@ -23132,7 +23267,7 @@ components:
         imageUrl:
           type: string
           nullable: true
-          description: "COURSE_IMAGE."
+          description: "COURSE_IMAGE: address of getStreamSceneCourseImage (/api/event/{eventId}/stream/{sceneId}/courseImage), reachable with the same session or scene token as the view itself."
         sequenceStartedAt:
           type: string
           format: date-time
@@ -23246,9 +23381,10 @@ components:
         path:
           type: string
           description: >-
-            Root-relative frontend path including the token query parameter
-            (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin.
-            The stage sends the token as the X-Timing-Device-Token header.
+            Root-relative frontend path carrying the token in the URL fragment
+            (`/event/{eventId}/stream/{sceneId}#token=...`; the fragment never leaves the browser).
+            The client prepends its own origin. The stage sends the token as the
+            X-Timing-Device-Token header.
 
     StreamPickerMatchState:
       type: string

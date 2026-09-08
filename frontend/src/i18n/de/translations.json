@@ -1373,7 +1373,8 @@
           "warning": {
             "missingDistance": "Für mindestens einen angehakten Posten fehlt der Meter.",
             "overDistance": "Mindestens ein Posten steht weiter als die Gesamtdistanz des Wettkampfs ({{distance}} m).",
-            "duplicateDistance": "Zwei Posten stehen beim selben Meter."
+            "duplicateDistance": "Zwei Posten stehen beim selben Meter.",
+            "orphaned": "Eine Zuordnung bei {{distance}} m zeigt auf einen Posten, den es nicht mehr gibt oder der inzwischen ein Anzeige-Posten ist. Sie wird beim Speichern nicht mehr mitgeschrieben."
           }
         }
       },
@@ -1748,10 +1749,10 @@
         },
         "intervalSeconds": "Startintervall (Sekunden)",
         "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
-        "invalidInterval": "Das Intervall muss mindestens 1 Sekunde betragen — oder leer bleiben für Start von Hand.",
+        "invalidInterval": "Das Intervall muss eine ganze Zahl ab 1 Sekunde sein — oder leer bleiben für Start von Hand.",
         "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
         "leadInHelp": "Countdown vor dem (ersten) Start.",
-        "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
+        "invalidLeadIn": "Bitte eine ganze Anzahl Sekunden ab 0 angeben.",
         "describe": {
           "interval": "Intervall {{seconds}} s",
           "manualStart": "Start von Hand",
@@ -2057,7 +2058,10 @@
         "reasonLabel": "Grund",
         "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
         "submit": "In Klärung setzen",
-        "since": "seit {{time}}"
+        "since": "seit {{time}}",
+        "error": {
+          "alreadyFinished": "Der Lauf ist bereits beendet."
+        }
       },
       "substitution": {
         "short": "Ummeldung",
@@ -2646,6 +2650,7 @@
           },
           "displaySeconds": "Einblenddauer (Sekunden)",
           "listLength": "Anzahl Zeilen",
+          "numberRange": "Ganze Zahl zwischen {{min}} und {{max}}",
           "image": "Bild",
           "imageNone": "Kein Bild ausgewählt",
           "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",
@@ -2688,6 +2693,7 @@
         "inactive": "Nicht aktive Grafiken",
         "inactiveHint": "Über „Grafiken konfigurieren“ einschalten",
         "forceHint": "Ohne Inhalt blendet Erzwingen nichts ein.",
+        "sceneGone": "Diese Szene gibt es nicht mehr — sie wurde gelöscht oder gehört zu einer anderen Veranstaltung.",
         "health": {
           "live": "Live",
           "connecting": "Verbinde …",
@@ -3734,6 +3740,9 @@
         "title": "Nicht übertragene Zeiten",
         "description": "Diese Zeiten wurden vom Server abgelehnt. Sie können erneut übertragen oder endgültig verworfen werden.",
         "item": "Posten {{station}} · Status {{status}}",
+        "reason": {
+          "noCredential": "Keine Berechtigung für diese Veranstaltung auf diesem Gerät – nach einer Anmeldung erneut versuchen."
+        },
         "requeue": "Erneut versuchen",
         "discard": "Endgültig verwerfen",
         "discardConfirm": {
@@ -4428,6 +4437,10 @@
     "selectEvent": "Veranstaltung auswählen",
     "liveCount": "{{count}} live",
     "openBoard": "Sprecher-Board öffnen",
+    "error": {
+      "feed_one": "Eine der drei Listen (Programm, laufende Läufe, Ergebnisse) konnte nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter.",
+      "feed_other": "{{count}} der drei Listen (Programm, laufende Läufe, Ergebnisse) konnten nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter."
+    },
     "tabs": {
       "timeline": "Zeitstrahl",
       "program": "Programm",

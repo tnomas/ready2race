@@ -2,7 +2,7 @@
  * Ablage der Szenen-Geräte-Tokens auf Bühnen-Geräten.
  *
  * „Link teilen" in der Szenen-Verwaltung erzeugt einen Link auf die Bühnen-Route mit dem
- * Geräte-Token als Query-Parameter (`/event/{eventId}/stream/{sceneId}?token=…`). Beim ersten
+ * Geräte-Token im Fragment (`/event/{eventId}/stream/{sceneId}#token=…`; ältere Links `?token=…`). Beim ersten
  * Aufruf übernimmt die Route das Token hierher und entfernt es aus der Adresszeile
  * (replace-Redirect), damit es nicht in Verlauf und Screenshots hängen bleibt. Ab dann
  * authentifizieren sich die Szenen-Aufrufe des Geräts über den `X-Timing-Device-Token`-Header —

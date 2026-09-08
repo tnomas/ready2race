@@ -4,6 +4,7 @@ import {boatLabel, displayPlace, fieldSections} from './myEventField.ts'
 
 const team = (o: Partial<MatchResultTeamInfo>): MatchResultTeamInfo => ({
     teamId: crypto.randomUUID(),
+    startNumber: 1,
     failed: false,
     deregistered: false,
     participants: [],

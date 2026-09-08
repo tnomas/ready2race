@@ -296,7 +296,7 @@ class BoardPrivilegeHttpIT {
         }
         assertEquals(HttpStatusCode.OK, share.status, share.bodyAsText())
         assertTrue(
-            share.bodyAsText().contains("/board/${seeded.eventId}/$boardId?token="),
+            share.bodyAsText().contains("/board/${seeded.eventId}/$boardId#token="),
             share.bodyAsText(),
         )
 

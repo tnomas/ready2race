@@ -1,6 +1,7 @@
 import {ReactNode, useEffect, useState} from 'react'
 import {Box} from '@mui/material'
 import {StreamSceneViewDto} from '@api/types.gen'
+import GraphicErrorBoundary from './GraphicErrorBoundary.tsx'
 import StreamGraphic from './graphics/StreamGraphic.tsx'
 import {stageScale, STREAM_STAGE_HEIGHT, STREAM_STAGE_WIDTH} from './stageScale.ts'
 import {STREAM_PLACEMENTS, STREAM_SLOT_STYLE} from './streamPlacement.ts'
@@ -75,7 +76,12 @@ const StreamStage = ({view, clockOffsetMs, stale, backdrop, size}: StreamStagePr
                                     // Grafik mit nicht umbrechbarem Inhalt die Grid-Spur über die
                                     // Platzbreite hinaus auf und ragte über die Bühne.
                                     <Box key={graphic.type} sx={{gridArea: '1 / 1', minWidth: 0, maxWidth: '100%'}}>
-                                        <StreamGraphic graphic={graphic} clockOffsetMs={clockOffsetMs} />
+                                        {/* Je Grafik eine eigene Fehlergrenze: wirft eine, bleiben die
+                                            Nachbarn und die Sendung stehen; der nächste Push (neue
+                                            serverTime) gibt ihr eine neue Chance. */}
+                                        <GraphicErrorBoundary resetKey={view.serverTime}>
+                                            <StreamGraphic graphic={graphic} clockOffsetMs={clockOffsetMs} />
+                                        </GraphicErrorBoundary>
                                     </Box>
                                 ))}
                             </Box>

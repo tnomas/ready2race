@@ -42,11 +42,13 @@ const ClockPlate = ({match, clockOffsetMs, sequence}: ClockPlateProps) => {
     const now = useTicker(100, ticking)
     const state = clockState(now)
 
-    // Einfrieren heißt festhalten: streamClockState ist eine reine Funktion, ihr
-    // elapsedMs liefe sonst weiter — der erste frozen-Wert bleibt stehen, bis wieder
-    // ein Lauf tickt (dann beginnt die nächste Messung bei dessen Startzeit).
+    // Einfrieren heißt festhalten — aber nur den RÜCKFALL-Wert (keine parsebare Bootszeit,
+    // `anchored: false`): streamClockState ist eine reine Funktion, dieser elapsedMs liefe
+    // sonst weiter. Der aus den Bootszeiten abgeleitete Wert (`anchored: true`) wird jedes Mal
+    // neu genommen, damit eine korrigierte Zielzeit auch die Platte erreicht. Verlässt die Uhr
+    // die Phase `frozen`, fällt der festgehaltene Wert weg.
     const frozenMs = useRef<number | null>(null)
-    if (state.phase === 'frozen') {
+    if (state.phase === 'frozen' && !state.anchored) {
         frozenMs.current ??= state.elapsedMs
     } else {
         frozenMs.current = null

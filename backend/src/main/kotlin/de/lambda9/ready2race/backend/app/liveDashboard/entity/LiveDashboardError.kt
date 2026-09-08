@@ -8,6 +8,9 @@ import java.util.UUID
 
 sealed interface LiveDashboardError : ServiceError {
     data class EventNotFound(val eventId: UUID) : LiveDashboardError
+
+    /** Den Lauf gibt es unter dieser Veranstaltung nicht - auch dann, wenn er zu einer anderen gehört. */
+    data class MatchNotFound(val matchId: UUID) : LiveDashboardError
     data class TeamNotFound(val teamId: UUID) : LiveDashboardError
     data class NoteNotFound(val noteId: UUID) : LiveDashboardError
 
@@ -28,6 +31,11 @@ sealed interface LiveDashboardError : ServiceError {
         is EventNotFound -> ApiError(
             status = HttpStatusCode.NotFound,
             message = "Event with id $eventId not found"
+        )
+
+        is MatchNotFound -> ApiError(
+            status = HttpStatusCode.NotFound,
+            message = "Match with id $matchId not found in this event"
         )
 
         is TeamNotFound -> ApiError(

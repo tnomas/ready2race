@@ -107,6 +107,9 @@ function playTone(
     try {
         unlockAudio()
         if (ctx === null) return
+        // Ein gesperrter Kontext spielt nichts — er würde die angemeldeten Töne aber sammeln und
+        // beim späteren Entsperren auf einen Schlag nachholen. Deshalb hier still bleiben.
+        if (ctx.state !== 'running') return
         const osc = ctx.createOscillator()
         const gain = ctx.createGain()
         osc.frequency.value = frequency

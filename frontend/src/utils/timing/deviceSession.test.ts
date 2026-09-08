@@ -5,6 +5,7 @@ import {
     deviceSessionForEvent,
     deviceSessionForStation,
     readDeviceSession,
+    readTokenFromLocation,
     writeDeviceSession,
 } from './deviceSession.ts'
 
@@ -60,5 +61,40 @@ describe('deviceSession', () => {
         writeDeviceSession(session, storage)
         clearDeviceSession(storage)
         expect(readDeviceSession(storage)).toBeNull()
+    })
+})
+
+/**
+ * Das Token reist im Fragment (`#token=…`), das der Browser nie an den Server schickt — es taucht
+ * damit weder in Server- noch in Proxy-Protokollen noch im Referer auf. Alte Links mit `?token=`
+ * müssen weiter funktionieren, der Query-Parameter ist der Rückfall.
+ */
+describe('readTokenFromLocation', () => {
+    test('liest das Token aus dem Fragment', () => {
+        expect(readTokenFromLocation('#token=abc123', undefined)).toBe('abc123')
+    })
+
+    test('findet das Token auch neben anderen Fragment-Parametern', () => {
+        expect(readTokenFromLocation('#foo=1&token=abc123&bar=2', undefined)).toBe('abc123')
+    })
+
+    test('dekodiert URL-kodierte Zeichen', () => {
+        expect(readTokenFromLocation('#token=a%2Fb%3Dc', undefined)).toBe('a/b=c')
+    })
+
+    test('faellt auf den Query-Parameter alter Links zurueck', () => {
+        expect(readTokenFromLocation('', 'alt456')).toBe('alt456')
+        expect(readTokenFromLocation('#other=1', 'alt456')).toBe('alt456')
+    })
+
+    test('das Fragment geht vor dem Query-Parameter', () => {
+        expect(readTokenFromLocation('#token=neu', 'alt')).toBe('neu')
+    })
+
+    test('ohne Token null, leere Werte zaehlen nicht', () => {
+        expect(readTokenFromLocation('', undefined)).toBeNull()
+        expect(readTokenFromLocation('#token=', undefined)).toBeNull()
+        expect(readTokenFromLocation('#token=', '')).toBeNull()
+        expect(readTokenFromLocation('#section', undefined)).toBeNull()
     })
 })

@@ -76,6 +76,7 @@ const OfficialTimeEditDialog = ({
         )
         setPenaltyNoteInput(official?.penaltyNote ?? '')
         setStatus(official?.resultStatus ?? 'NONE')
+        // `official` bewusst ausgelassen (Begründung oben): ein Push darf die Eingabe nicht überschreiben.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, competitionMatchTeam])
 

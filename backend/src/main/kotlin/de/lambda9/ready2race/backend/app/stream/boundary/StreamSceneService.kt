@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.stream.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.event.entity.PublicResultsVisibility
+import de.lambda9.ready2race.backend.app.eventDocument.control.EventDocumentRepo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.AthleteBoardLogic
 import de.lambda9.ready2race.backend.app.stream.control.StreamOverrideRepo
 import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
@@ -277,6 +278,12 @@ object StreamSceneService {
      * auf denselben Weg wie [clearOverride] hinaus (keine Zeile = AUTO, siehe [StreamOverrideState]).
      * Bei FORCED_ON/FORCED_OFF ersetzt [StreamOverrideRepo.setOverride] die Zeile komplett - jeder
      * Aufruf ist damit "der jüngste Eingriff", was die Platz-Priorität im Resolver braucht.
+     *
+     * Ein FORCED_ON nimmt außerdem jedes andere FORCED_ON auf DEMSELBEN Platz zurück (Platz laut
+     * Grafik-Konfiguration der Szene). Der Resolver ließe zwar die jüngere Zeile gewinnen, aber die
+     * verdrängte bliebe liegen: Sie käme wieder hoch, sobald der Sieger abläuft, und das Panel
+     * zeigte sie weiter als "erzwungen", obwohl sie nicht zu sehen ist. Wer eine zweite Grafik auf
+     * den Platz zwingt, hat die erste damit gemeint zurückzunehmen.
      */
     fun setOverride(
         eventId: UUID,
@@ -289,6 +296,9 @@ object StreamSceneService {
         if (request.state == StreamOverrideState.AUTO) {
             !StreamOverrideRepo.delete(sceneId, type).orDie()
         } else {
+            if (request.state == StreamOverrideState.FORCED_ON) {
+                !StreamOverrideRepo.deleteForcedOn(sceneId, !competitorsOnSamePlacement(sceneId, type)).orDie()
+            }
             val now = LocalDateTime.now()
             !StreamOverrideRepo.setOverride(
                 StreamOverrideRecord(
@@ -309,6 +319,18 @@ object StreamSceneService {
 
         noData
     }
+
+    /**
+     * Die anderen Grafiktypen der Szene, die laut Konfiguration auf demselben Platz liegen wie
+     * [type]. Ohne Konfigurationszeile für [type] ist der Platz unbekannt - dann gibt es keine
+     * Konkurrenten und nichts wird angefasst.
+     */
+    private fun competitorsOnSamePlacement(sceneId: UUID, type: StreamGraphicType): App<Nothing, List<StreamGraphicType>> =
+        StreamSceneRepo.getGraphics(sceneId).orDie().map { rows ->
+            val placement = rows.firstOrNull { it.type == type.name }?.placement ?: return@map emptyList()
+            rows.filter { it.placement == placement && it.type != type.name }
+                .map { StreamGraphicType.valueOf(it.type) }
+        }
 
     /** Nimmt einen Regie-Eingriff zurück - keine Zeile heißt AUTO, ein fehlender Eingriff ist deshalb kein Fehler. */
     fun clearOverride(eventId: UUID, sceneId: UUID, type: StreamGraphicType): App<StreamError, ApiResponse.NoData> =
@@ -361,6 +383,32 @@ object StreamSceneService {
 
             noData
         }
+
+    /**
+     * Das Streckenbild der Szene als Datei - der Auslieferweg, den [StreamSceneLogic.buildInput]
+     * in `imageUrl` einträgt. Der allgemeine Dokument-Download verlangt eine Sitzung mit READ
+     * EVENT; eine reine Token-Bühne (Wirecast, OBS) käme über ihn nie an ihr Bild. Deshalb hängt
+     * das Bild hier hinter derselben Tür wie der Szenenstand (Route `GET .../courseImage`).
+     *
+     * Das Dokument muss zur Veranstaltung der Szene gehören: Die Grafik-Konfiguration trägt eine
+     * freie UUID, und über eine eigene Szene darf sich kein fremdes Dokument herausholen lassen.
+     * Alle Fehlfälle antworten gleich ([StreamError.CourseImageNotFound]), damit der Weg nicht
+     * verrät, welche Dokument-Kennungen es gibt.
+     */
+    fun getCourseImage(eventId: UUID, sceneId: UUID): App<StreamError, ApiResponse.File> = KIO.comprehension {
+        !requireOwnedScene(eventId, sceneId)
+
+        val documentId = (!StreamSceneRepo.getGraphics(sceneId).orDie())
+            .firstOrNull { it.type == StreamGraphicType.COURSE_IMAGE.name }
+            ?.toDto()?.settings?.imageDocument
+        !KIO.failOn(documentId == null) { StreamError.CourseImageNotFound(sceneId) }
+
+        val document = !EventDocumentRepo.getDownload(documentId!!).orDie()
+            .onNullFail { StreamError.CourseImageNotFound(sceneId) }
+        !KIO.failOn(document.event != eventId) { StreamError.CourseImageNotFound(sceneId) }
+
+        KIO.ok(ApiResponse.File(name = document.name!!, bytes = document.data!!))
+    }
 
     /**
      * Stellt (bzw. gibt erneut) den geteilten Link samt Geräte-Token für die Szene aus - reiner

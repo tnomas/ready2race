@@ -936,6 +936,9 @@ import type {
     GetStreamSceneViewData,
     GetStreamSceneViewError,
     GetStreamSceneViewResponse,
+    GetStreamSceneCourseImageData,
+    GetStreamSceneCourseImageError,
+    GetStreamSceneCourseImageResponse,
     AddRatingCategoryData,
     AddRatingCategoryError,
     AddRatingCategoryResponse,
@@ -4587,6 +4590,9 @@ export const deletePaceReference = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Public, no login. Only published events are known here - an unpublished event answers 404 like a non-existent one.
+ */
 export const getUpcomingMatches = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetUpcomingMatchesData, ThrowOnError>,
 ) => {
@@ -4600,6 +4606,9 @@ export const getUpcomingMatches = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Public, no login. Only published events are known here - an unpublished event answers 404 like a non-existent one.
+ */
 export const getLatestMatchResults = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetLatestMatchResultsData, ThrowOnError>,
 ) => {
@@ -4613,6 +4622,9 @@ export const getLatestMatchResults = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Public, no login. Only published events are known here - an unpublished event answers 404 like a non-existent one.
+ */
 export const getRunningMatches = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetRunningMatchesData, ThrowOnError>,
 ) => {
@@ -4627,7 +4639,7 @@ export const getRunningMatches = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * The "live" tab of the public results page: activated matches (PREPARING, RUNNING) together with the upcoming ones, each carrying its derived state. Finished matches and matches whose boats are all scored are deliberately absent - those are results and are governed by Event.publicResultsVisibility through /latest-match-results.
+ * The "live" tab of the public results page: activated matches (PREPARING, RUNNING) together with the upcoming ones, each carrying its derived state. Finished matches and matches whose boats are all scored are deliberately absent - those are results and are governed by Event.publicResultsVisibility through /latest-match-results. Only published events are known here - an unpublished event answers 404.
  */
 export const getLiveMatches = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetLiveMatchesData, ThrowOnError>,
@@ -4643,7 +4655,7 @@ export const getLiveMatches = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * The "schedule" tab of the public results page: the whole day program from the timeline, each slot with its derived state - the same entries the SCHEDULE boards render. Carries no lineups and no results; times and places remain behind /latest-match-results and thus behind Event.publicResultsVisibility.
+ * The "schedule" tab of the public results page: the whole day program from the timeline, each slot with its derived state - the same entries the SCHEDULE boards render. Carries no lineups and no results; times and places remain behind /latest-match-results and thus behind Event.publicResultsVisibility. Only published events are known here - an unpublished event answers 404.
  */
 export const getPublicProgram = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetPublicProgramData, ThrowOnError>,
@@ -4687,7 +4699,7 @@ export const getBoardView = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Personal dashboard of one participant, reachable without login through the QR code on the wristband
+ * Personal dashboard of one participant, reachable without login through the QR code on the wristband. Only published events are known here - an unpublished event answers 404.
  */
 export const getMyEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetMyEventData, ThrowOnError>,
@@ -5352,6 +5364,22 @@ export const getStreamSceneView = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/stream/{sceneId}/view',
+    })
+}
+
+/**
+ * The course image configured on the scene's COURSE_IMAGE graphic, as the stored document (its content type follows the file name). Same door as getStreamSceneView: a session with READ STREAM or READ EVENT, or the device token issued for EXACTLY THIS scene in the X-Timing-Device-Token header. StreamGraphicViewDto.imageUrl points here. 404 when the scene has no COURSE_IMAGE graphic, no document is configured, the document is gone, or it belongs to another event.
+ */
+export const getStreamSceneCourseImage = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetStreamSceneCourseImageData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetStreamSceneCourseImageResponse,
+        GetStreamSceneCourseImageError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/stream/{sceneId}/courseImage',
     })
 }
 
@@ -6065,6 +6093,9 @@ export const updateTimingStation = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Deletes a station. Refused with 409 while the station still has captured time marks or start sequences (also finished ones; error code TIMING_STATION_HAS_SEQUENCES) - both keep referencing the station.
+ */
 export const deleteTimingStation = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DeleteTimingStationData, ThrowOnError>,
 ) => {
@@ -6100,6 +6131,9 @@ export const setTimingStationArmed = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Captures a time mark with a client-generated id. Idempotent only within its own scope: the same id on the same station answers 201 again without a second row (offline queue, double tap, retry). The same id on ANOTHER station is a collision and answers 409 with error code TIMING_TIME_MARK_ID_TAKEN. Station, event and ANZEIGE checks always run first, so a foreign id never learns whether it exists.
+ */
 export const createTimeMark = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<CreateTimeMarkData, ThrowOnError>,
 ) => {

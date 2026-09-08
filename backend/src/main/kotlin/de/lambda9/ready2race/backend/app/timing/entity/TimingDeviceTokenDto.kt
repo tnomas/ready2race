@@ -17,6 +17,12 @@ data class TimingDeviceTokenDto(
      */
     val autoIssued: Boolean,
     val createdAt: LocalDateTime,
+    /**
+     * Ab wann das Token nicht mehr gilt (Migration V202609071000). Gesetzt für Link-Tokens (Tag
+     * nach dem letzten Veranstaltungstag, sonst 30 Tage nach dem Ausstellen); null für manuell
+     * ausgestellte Hardware-Tokens, die in Gerätekonfigurationen liegen und nicht ablaufen.
+     */
+    val expiresAt: LocalDateTime?,
 )
 
 /**

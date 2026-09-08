@@ -47,7 +47,7 @@ class StreamSceneShareLinkTest {
         assertEquals(first.token, second.token)
         assertEquals(first.deviceTokenId, second.deviceTokenId)
         assertEquals(first.path, second.path)
-        assertTrue(first.path.startsWith("/event/$eventId/stream/$sceneId?token="))
+        assertTrue(first.path.startsWith("/event/$eventId/stream/$sceneId#token="))
     }
 
     @Test

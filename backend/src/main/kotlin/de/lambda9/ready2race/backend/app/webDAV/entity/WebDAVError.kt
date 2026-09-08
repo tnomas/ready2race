@@ -44,6 +44,7 @@ sealed interface WebDAVError {
                 ManifestNotFound -> HttpStatusCode.NotFound
                 ManifestParsingFailed -> HttpStatusCode.InternalServerError
                 is MissingDependency -> HttpStatusCode.BadRequest
+                InvalidFolderName -> HttpStatusCode.BadRequest
                 OnlyDataImportsAllowed -> HttpStatusCode.BadGateway
             },
             message = message,
@@ -62,6 +63,9 @@ sealed interface WebDAVError {
     data object ManifestNotFound : WebDAVExternError("Manifest.json file not found in the specified folder.")
     data object ManifestParsingFailed : WebDAVExternError("Failed to parse manifest.json file from the WebDAV Server.")
     data object OnlyDataImportsAllowed : WebDAVExternError("Only Data import types allowed.")
+    data object InvalidFolderName :
+        WebDAVExternError("The folder name must be a single path segment without / or \\ and must not be . or ..")
+
     data class MissingDependency(val requester: WebDAVExportType, val dependency: WebDAVExportType) :
         WebDAVExternError("Export type ${requester.name} requires ${dependency.name} to be selected as well.")
 

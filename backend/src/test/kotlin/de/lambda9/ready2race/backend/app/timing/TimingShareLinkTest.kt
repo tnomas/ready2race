@@ -7,6 +7,7 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.testing.testComprehension
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -29,7 +30,10 @@ class TimingShareLinkTest {
         assertEquals(first.deviceToken.id, second.deviceToken.id)
         assertEquals(first.path, second.path)
         assertTrue(first.deviceToken.autoIssued)
-        assertTrue(first.path.startsWith("/event/$eventId/timing/$stationId?token="))
+        // Das Token reist im Fragment, nicht in der Query: das Fragment verlässt den Browser nie
+        // (kein Server-Log, kein Referer), die Query stünde in jedem Zugriffsprotokoll.
+        assertTrue(first.path.startsWith("/event/$eventId/timing/$stationId#token="))
+        assertFalse(first.path.contains("?"))
 
         // Und der Geräte-Reiter führt genau EIN Token für den Posten.
         val listed = (!TimingDeviceTokenService.list(eventId)).data
@@ -95,7 +99,7 @@ class TimingShareLinkTest {
 
         val link = (!TimingDeviceTokenService.shareLink(eventId, displayId, userId)).dto
 
-        assertTrue(link.path.startsWith("/event/$eventId/timing/$displayId/anzeige?token="))
+        assertTrue(link.path.startsWith("/event/$eventId/timing/$displayId/anzeige#token="))
     }
 
     @Test

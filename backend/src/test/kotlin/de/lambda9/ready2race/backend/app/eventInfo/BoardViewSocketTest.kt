@@ -181,6 +181,28 @@ class BoardViewSocketTest {
         }
     }
 
+    /**
+     * Auch der Sitzungsweg prüft die Zugehörigkeit: ein Board unter einer FREMDEN Veranstaltung
+     * im Pfad bekommt keinen Kanal - sonst hinge die Verbindung stumm am falschen Schlüssel und
+     * bekäme nach dem nächsten Ereignis doch noch den Stand des fremden Boards.
+     */
+    @Test
+    fun aSessionMayNotOpenABoardUnderAnotherEvent() = testApplicationComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val sessionHeader = loginAsAdmin()
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.webSocketSession("/api/ws/event/$otherEventId/board/$boardId") {
+            header(SESSION_HEADER, sessionHeader)
+        }
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+
+        assertNotNull(closeReason)
+        assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
+    }
+
     @Test
     fun aConfigChangePushesTheNewConfiguration() = testApplicationComprehension {
         // Der zweite Auslöser des Kanals: eine Konfigurationsänderung zählt den Änderungsmarker
@@ -256,6 +278,29 @@ class BoardViewSocketTest {
             remaining = BoardViewBroadcaster.subscriptionCount(boardId)
         }
         assertNull(remaining, "the board channel must vanish with its last subscriber")
+    }
+
+    /**
+     * Der Widerruf wirkt sofort auch auf einen schon offenen Kanal: eine Anzeige an der Hallenwand
+     * mit einem soeben widerrufenen Token bekäme sonst weiter jeden Stand gepusht, bis sie
+     * irgendwann von sich aus neu verbindet. Der Server schließt mit VIOLATED_POLICY - derselbe
+     * Code, mit dem er den Handshake mit diesem Token ablehnen würde.
+     */
+    @Test
+    fun revokingTheBoardTokenClosesTheOpenChannel() = testApplicationComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val link = (!TimingDeviceTokenService.shareLinkForBoard(eventId, boardId, userId)).dto
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.boardSocketSession(eventId, boardId, link.token)
+        session.receiveText()
+
+        !TimingDeviceTokenService.revoke(eventId, link.deviceTokenId)
+
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+        assertNotNull(closeReason, "the channel must be closed by the server after the revocation")
+        assertEquals(CloseReason.Codes.VIOLATED_POLICY.code, closeReason.code)
     }
 
     private suspend fun ClientProvider.loginAsAdmin(): String {

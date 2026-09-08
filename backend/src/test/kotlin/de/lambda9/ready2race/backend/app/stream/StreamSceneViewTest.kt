@@ -17,6 +17,9 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
+import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
+import de.lambda9.ready2race.backend.app.stream.control.toJsonb
+import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneGraphicRecord
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
@@ -27,6 +30,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.STREAM_SCENE
 import de.lambda9.ready2race.testing.testComprehension
 import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
@@ -75,6 +79,33 @@ class StreamSceneViewTest {
             .set(COMPETITION_MATCH.ACTIVATED_AT, at)
             .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId))
             .execute()
+    }
+
+    /**
+     * Ein Altbestand mit unsinniger Zeilenzahl (vor der Eingabeprüfung geschrieben) darf den
+     * Szenenaufbau nicht reißen - das Tagesprogramm bleibt dann schlicht leer, die übrigen
+     * Grafiken der Szene kommen weiter durch.
+     */
+    @Test
+    fun aNegativeScheduleLengthYieldsAnEmptyScheduleInsteadOfADefect() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest())).dto.id
+        // Am Dienst vorbei, wie eine Zeile aus der Zeit vor der Prüfung.
+        !StreamSceneRepo.upsertGraphic(
+            StreamSceneGraphicRecord(
+                id = UUID.randomUUID(),
+                scene = sceneId,
+                type = StreamGraphicType.SCHEDULE.name,
+                enabled = true,
+                placement = StreamPlacement.FULL_CENTER.name,
+                size = StreamGraphicSize.NORMAL.name,
+                settings = StreamGraphicSettings(listLength = -1).toJsonb(),
+            )
+        ).orDie()
+
+        val view = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        val schedule = view.graphics.first { it.type == StreamGraphicType.SCHEDULE }
+        assertEquals(emptyList(), schedule.schedule)
     }
 
     @Test
@@ -253,6 +284,45 @@ class StreamSceneViewTest {
         // Und kein echter Lauf der Veranstaltung darf durchschlagen.
         val matchIds = visible.mapNotNull { it.match?.matchId } + visible.mapNotNull { it.result?.matchId }
         assertFalse(matchIds.contains(fixture.ownMatchId), "Der Probemodus fasst die echten Daten nicht an")
+    }
+
+    /**
+     * Eine Szene aus der Zeit vor dem Phasenbeginn (`trial_phase_since` leer) darf ihren Anker
+     * nicht bei jedem Aufbau neu auf „jetzt" setzen: Dann stünde die Startliste des Demo-Laufs
+     * ewig im Bild, und der Szenen-Kanal rechnete alle 15 s neu, ohne dass sich je etwas
+     * änderte. Stattdessen gilt die letzte Änderung der Szene als Phasenbeginn.
+     */
+    @Test
+    fun aLegacyTrialSceneWithoutPhaseStartAnchorsOnItsLastChange() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
+        !StreamSceneService.updateGraphics(
+            fixture.eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER, displaySeconds = 15)),
+        )
+        !StreamSceneService.setTrialMode(fixture.eventId, sceneId, true)
+
+        // Die Altzeile nachstellen: kein Phasenbeginn, letzte Änderung vor einer Minute.
+        val now = LocalDateTime.now()
+        !Jooq.query {
+            update(STREAM_SCENE)
+                .setNull(STREAM_SCENE.TRIAL_PHASE_SINCE)
+                .set(STREAM_SCENE.UPDATED_AT, now.minusSeconds(60))
+                .where(STREAM_SCENE.ID.eq(sceneId))
+                .execute()
+        }
+
+        val resolved = !StreamSceneLogic.buildResolvedView(fixture.eventId, sceneId)
+        assertFalse(
+            resolved.view.graphics.first { it.type == StreamGraphicType.STARTLIST }.visible,
+            "Das Startlisten-Fenster ist seit 45 s zu",
+        )
+        val next = resolved.nextEvaluationAt
+        assertTrue(
+            next == null || next.isBefore(now) || next.isAfter(now.plusSeconds(16)),
+            "kein Umschaltpunkt in 15 s, der nur vom neu gesetzten Anker käme: $next",
+        )
     }
 
     /**

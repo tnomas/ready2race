@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.timingProfile.entity.TimingProfileKind
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_GROUP
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_ROUND
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMING_PROFILE_ASSIGNMENT
@@ -38,6 +39,110 @@ object TimingProfileRepo {
         val matchName: String?,
         val executionOrder: Int?,
     )
+
+    /**
+     * Eine Runden- oder Partie-Zuordnung mit ihrer Stelle im Ablauf: Gewichtung der Partie und —
+     * bei Gruppenrunden — Gewichtung der Gruppe. Über diese Stelle findet die Zuordnung ihre neue
+     * Zeile wieder, wenn das Setup-Speichern die Runde mit frischer Kennung neu anlegt.
+     */
+    data class PositionedAssignment(
+        val event: UUID,
+        val competition: UUID,
+        val round: UUID,
+        val match: UUID?,
+        val matchWeighting: Int?,
+        val groupWeighting: Int?,
+        val race: UUID?,
+        val mode: UUID?,
+        val createdAt: LocalDateTime,
+        val createdBy: UUID?,
+        val updatedAt: LocalDateTime,
+        val updatedBy: UUID?,
+    )
+
+    /**
+     * Alle Zuordnungen, die an einer dieser Runden hängen — direkt (Runden-Zeile) oder über eine
+     * Partie der Runde. Gelesen, BEVOR die Runden gelöscht werden: danach hätte der Cascade sie
+     * schon mitgenommen.
+     */
+    fun getAssignmentsForRounds(roundIds: Collection<UUID>) = Jooq.query {
+        select(
+            TIMING_PROFILE_ASSIGNMENT.EVENT,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_ROUND,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_MATCH,
+            COMPETITION_SETUP_MATCH.WEIGHTING,
+            COMPETITION_SETUP_GROUP.WEIGHTING,
+            TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE,
+            TIMING_PROFILE_ASSIGNMENT.TIMING_MODE,
+            TIMING_PROFILE_ASSIGNMENT.CREATED_AT,
+            TIMING_PROFILE_ASSIGNMENT.CREATED_BY,
+            TIMING_PROFILE_ASSIGNMENT.UPDATED_AT,
+            TIMING_PROFILE_ASSIGNMENT.UPDATED_BY,
+        )
+            .from(TIMING_PROFILE_ASSIGNMENT)
+            .leftJoin(COMPETITION_SETUP_MATCH)
+            .on(COMPETITION_SETUP_MATCH.ID.eq(TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_MATCH))
+            .leftJoin(COMPETITION_SETUP_GROUP)
+            .on(COMPETITION_SETUP_GROUP.ID.eq(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_GROUP))
+            .where(TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_ROUND.`in`(roundIds))
+            .fetch {
+                PositionedAssignment(
+                    // Runden-Zeilen tragen laut Pfad-Constraint immer Wettkampf und Runde.
+                    event = it[TIMING_PROFILE_ASSIGNMENT.EVENT]!!,
+                    competition = it[TIMING_PROFILE_ASSIGNMENT.COMPETITION]!!,
+                    round = it[TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_ROUND]!!,
+                    match = it[TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_MATCH],
+                    matchWeighting = it[COMPETITION_SETUP_MATCH.WEIGHTING],
+                    groupWeighting = it[COMPETITION_SETUP_GROUP.WEIGHTING],
+                    race = it[TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE],
+                    mode = it[TIMING_PROFILE_ASSIGNMENT.TIMING_MODE],
+                    createdAt = it[TIMING_PROFILE_ASSIGNMENT.CREATED_AT]!!,
+                    createdBy = it[TIMING_PROFILE_ASSIGNMENT.CREATED_BY],
+                    updatedAt = it[TIMING_PROFILE_ASSIGNMENT.UPDATED_AT]!!,
+                    updatedBy = it[TIMING_PROFILE_ASSIGNMENT.UPDATED_BY],
+                )
+            }
+    }
+
+    /**
+     * Fügt Zuordnungen mit frischer Kennung ein — das Gegenstück zu [getAssignmentsForRounds],
+     * nachdem [PositionedAssignment.round] und [PositionedAssignment.match] auf die neuen Zeilen
+     * zeigen. Die Prüfspur (created/updated) reist mit; die Zuordnung ist fachlich dieselbe.
+     */
+    fun insertAssignments(rows: Collection<PositionedAssignment>) = Jooq.query {
+        if (rows.isEmpty()) return@query 0
+        var insert = insertInto(
+            TIMING_PROFILE_ASSIGNMENT,
+            TIMING_PROFILE_ASSIGNMENT.ID,
+            TIMING_PROFILE_ASSIGNMENT.EVENT,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_ROUND,
+            TIMING_PROFILE_ASSIGNMENT.COMPETITION_SETUP_MATCH,
+            TIMING_PROFILE_ASSIGNMENT.RACECLOCKER_RACE,
+            TIMING_PROFILE_ASSIGNMENT.TIMING_MODE,
+            TIMING_PROFILE_ASSIGNMENT.CREATED_AT,
+            TIMING_PROFILE_ASSIGNMENT.CREATED_BY,
+            TIMING_PROFILE_ASSIGNMENT.UPDATED_AT,
+            TIMING_PROFILE_ASSIGNMENT.UPDATED_BY,
+        )
+        rows.forEach { row ->
+            insert = insert.values(
+                UUID.randomUUID(),
+                row.event,
+                row.competition,
+                row.round,
+                row.match,
+                row.race,
+                row.mode,
+                row.createdAt,
+                row.createdBy,
+                row.updatedAt,
+                row.updatedBy,
+            )
+        }
+        insert.execute()
+    }
 
     /**
      * Die Zuordnungen einer Veranstaltung — ausschließlich die der geltenden Art [kind].

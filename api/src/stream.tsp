@@ -207,7 +207,9 @@ model StreamGraphicViewDto {
   // SCHEDULE: AthleteBoardMatch entries.
   schedule?: unknown[];
 
-  // COURSE_IMAGE.
+  // COURSE_IMAGE: root-relative address of the image, served by getStreamSceneCourseImage
+  // (`/api/event/{eventId}/stream/{sceneId}/courseImage`). The stage fetches it with the same
+  // credentials as `/view` - a plain <img> would not carry the scene token.
   imageUrl?: string;
 
   // CLOCK: countdown anchor of the running start sequence.
@@ -407,4 +409,19 @@ interface StreamRoutes {
     @path eventId: uuid,
     @path sceneId: uuid,
   ): StreamSceneViewDto;
+
+  // The file behind the scene's COURSE_IMAGE graphic - the address
+  // `StreamGraphicViewDto.imageUrl` points at. Same door as `/view`: a session with READ STREAM
+  // or READ EVENT, or the scene's own device token in the X-Timing-Device-Token header. 404 when
+  // the scene has no course image configured. Content-Type is the stored document's.
+  @get
+  @route("/{sceneId}/courseImage")
+  @operationId("getStreamSceneCourseImage")
+  getStreamSceneCourseImage(
+    @path eventId: uuid,
+    @path sceneId: uuid,
+  ): {
+    @header contentType: "application/octet-stream";
+    @body body: bytes;
+  };
 }

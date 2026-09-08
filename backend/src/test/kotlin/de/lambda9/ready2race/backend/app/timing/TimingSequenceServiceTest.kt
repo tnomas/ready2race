@@ -21,6 +21,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingSta
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.testing.testComprehension
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1206,6 +1207,194 @@ class TimingSequenceServiceTest {
         assertEquals(marker, EventChangeMarker.current(eventId))
         TimingSequenceService.broadcastFireResult(result)
         assertEquals(marker + 1, EventChangeMarker.current(eventId))
+    }
+
+    // ------------------------------------------------------------ Sperren gegen den Scheduler-Takt
+
+    /**
+     * Abbruch, Pause und Zurücksetzen laufen gegen den Scheduler, der im Sekundentakt dieselben
+     * Einträge feuert. Ohne Sperre kann ein Tick zwischen dem Lesen des Zustands und dem Schreiben
+     * noch einen Start setzen, den der Abbruch dann nicht mehr sieht. Deshalb nehmen diese drei
+     * Mutationen als Erstes dieselbe Zeilensperre wie der Scheduler (`getPendingForUpdate`) und
+     * entscheiden erst danach. Nachweis über pg_locks: `select … for update` hält ein
+     * ROW SHARE-Schloss auf der Eintragstabelle bis zum Ende der Transaktion; ein gewöhnliches
+     * Lesen oder Aktualisieren nimmt es nicht.
+     */
+    @Test
+    fun abortLocksThePendingEntriesBeforeChangingTheState() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !shiftStart(sequenceId, System.currentTimeMillis() - 100)
+        assertFalse(!holdsEntryRowLock(), "vor dem Abbruch darf noch keine Eintragssperre stehen")
+
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+
+        assertTrue(!holdsEntryRowLock(), "der Abbruch muss die anstehenden Einträge sperren")
+        assertEquals(SequenceState.ABORTED.name, (!TimingSequenceRepo.get(sequenceId).orDie())!!.state)
+        assertTrue(
+            (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+                .none { it.status == SequenceEntryStatus.STARTED.name }
+        )
+    }
+
+    @Test
+    fun pauseLocksThePendingEntriesBeforeChangingTheState() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, listOf(team), LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        assertFalse(!holdsEntryRowLock())
+
+        !TimingSequenceService.pauseSequence(sequenceId, userId, eventId)
+
+        assertTrue(!holdsEntryRowLock(), "die Pause muss die anstehenden Einträge sperren")
+        assertEquals(SequenceState.PAUSED.name, (!TimingSequenceRepo.get(sequenceId).orDie())!!.state)
+    }
+
+    @Test
+    fun rewindLocksThePendingEntriesBeforeChangingThem() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 2)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        // Direkt über die Repos in die Lage „pausiert, ein Eintrag gestartet" bringen: der
+        // Scheduler und die Pause nähmen die Sperre selbst - dann wäre hier nichts mehr zu belegen.
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()).sortedBy { it.position }
+        val markId = !addAssignedMark(eventId, userId, stationId, teams[0], System.currentTimeMillis())
+        !TimingSequenceEntryRepo.update(entries[0].id) {
+            status = SequenceEntryStatus.STARTED.name
+            timeMark = markId
+        }.orDie()
+        !TimingSequenceRepo.update(sequenceId) {
+            state = SequenceState.PAUSED.name
+            pausedAtMillis = System.currentTimeMillis()
+        }.orDie()
+        assertFalse(!holdsEntryRowLock())
+
+        !TimingSequenceService.rewindSequence(sequenceId, userId, eventId)
+
+        assertTrue(!holdsEntryRowLock(), "das Zurücksetzen muss die anstehenden Einträge sperren")
+        assertEquals(
+            SequenceEntryStatus.PENDING.name,
+            (!TimingSequenceEntryRepo.get(entries[0].id).orDie())!!.status,
+        )
+    }
+
+    /**
+     * Der DONE-Übergang des Schedulers schreibt nur, wenn die Sequenz zwischen Lesen und Schreiben
+     * nicht anderweitig beendet wurde: ein Abbruch, der in diesem Fenster landet, darf nicht von
+     * einem stumpfen „state = DONE" überschrieben werden.
+     */
+    @Test
+    fun updateStateIfLeavesASequenceInAnotherStateAlone() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        !TimingSequenceService.abortSequence(sequenceId, userId, eventId)
+
+        val changed = !TimingSequenceRepo.updateStateIf(sequenceId, SequenceState.RUNNING, SequenceState.DONE).orDie()
+
+        assertEquals(0, changed)
+        assertEquals(SequenceState.ABORTED.name, (!TimingSequenceRepo.get(sequenceId).orDie())!!.state)
+    }
+
+    @Test
+    fun updateStateIfMovesASequenceInTheExpectedState() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val team = !createTestMatchTeam(eventId)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, listOf(team)),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+
+        val changed = !TimingSequenceRepo.updateStateIf(sequenceId, SequenceState.RUNNING, SequenceState.DONE).orDie()
+
+        assertEquals(1, changed)
+        assertEquals(SequenceState.DONE.name, (!TimingSequenceRepo.get(sequenceId).orDie())!!.state)
+    }
+
+    /**
+     * Ob der Eintrag noch ansteht, entscheidet sich NACH der Sperre - aus den gesperrten Zeilen,
+     * nicht aus dem Stand, der vor dem Warten gelesen wurde. Ein Eintrag, den ein Tick inzwischen
+     * gefeuert hat, ist dann kein Kandidat mehr.
+     */
+    @Test
+    fun skippingAStartedEntryDecidesAfterTakingTheLock() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val teams = !createTestMatchTeams(eventId, 2)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.INTERVAL, 60000, teams, LEAD_IN),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val entries = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie()).sortedBy { it.position }
+        // Gestartet ohne den Scheduler (der nähme die Sperre selbst und ließe hier nichts belegen).
+        !TimingSequenceEntryRepo.update(entries[0].id) { status = SequenceEntryStatus.STARTED.name }.orDie()
+        assertFalse(!holdsEntryRowLock())
+
+        assertKIOFails(TimingError.SequenceStateConflict) {
+            TimingSequenceService.skipEntry(entries[0].id, userId, eventId)
+        }
+
+        assertTrue(!holdsEntryRowLock(), "die Ablehnung muss nach der Sperre fallen, nicht davor")
+    }
+
+    // Ob DIESE Transaktion die Eintragstabelle mit `for update` gesperrt hält. Das ROW SHARE-Schloss
+    // steht bis zum Ende der Transaktion und ist in pg_locks sichtbar; jeder Test läuft in genau
+    // einer Transaktion, deshalb muss die Sperre in jedem Fall von der geprüften Mutation stammen -
+    // die Vorbereitung darf sie nicht schon genommen haben (kein fireDueEntries davor).
+    private fun holdsEntryRowLock() = Jooq.query {
+        val count = fetchValue(
+            """
+            select count(*)
+            from pg_locks l
+            join pg_class c on c.oid = l.relation
+            where l.pid = pg_backend_pid()
+              and c.relname = 'timing_start_sequence_entry'
+              and l.mode = 'RowShareLock'
+            """.trimIndent()
+        )
+        (count as Number).toLong() > 0
     }
 
     // Die geplanten Startzeiten so, wie die Boards sie sehen - über den Endpunkt statt über die
