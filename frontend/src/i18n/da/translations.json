@@ -1382,6 +1382,9 @@
         "places": "Placeringer",
         "tabTitle": "Placeringer",
         "noPlaces": "Der er endnu ingen placeringer for denne konkurrence."
+      },
+      "material": {
+        "demand": "Behov"
       }
     },
     "participantRequirement": {
@@ -2581,6 +2584,16 @@
         "openApp": "Åbn hjælper-app",
         "shifts": "Til vagtplanen (organisation)"
       }
+    },
+    "material": {
+      "providers": "Materieludbydere",
+      "invite": "Inviter udbyder",
+      "uninvite": "Fjern invitation",
+      "uninviteConfirm": "Udbyderen fjernes fra invitationen, og deres tilbud fjernes. Fortsæt?",
+      "openRequests": "Åbne forespørgsler",
+      "openDamages": "Åbne skader",
+      "closed": "Lukket",
+      "none": "Ingen udbyder inviteret."
     }
   },
   "task": {
@@ -4289,7 +4302,8 @@
     },
     "events": {
       "title": "Arrangementer",
-      "none": "Udbyderen er ikke inviteret til noget arrangement."
+      "none": "Udbyderen er ikke inviteret til noget arrangement.",
+      "open": "Forespørgsler åbne"
     },
     "dashboard": {
       "tabs": {
@@ -4299,6 +4313,33 @@
         "settings": "Indstillinger"
       },
       "comingSoon": "Udfyldes i en senere opgave."
+    },
+    "offer": {
+      "offer": "Tilbud",
+      "offers": "Tilbud",
+      "type": "Materieltype",
+      "priceText": "Prisangivelse",
+      "plannedCount": "Planlagt antal",
+      "changeoverMinutes": "Skiftetid (minutter)",
+      "add": "Tilføj tilbud"
+    },
+    "demand": {
+      "demand": "Behov",
+      "count": "Antal",
+      "add": "Tilføj materieltype",
+      "none": "Intet behov angivet.",
+      "error": {
+        "duplicates": {
+          "one": "Materieltypen {{label}} bliver brugt flere gange.",
+          "multiple": "Materieltyperne {{labels}} bliver brugt flere gange.",
+          "message": "Vælg venligst en entydig materieltype for hvert behov."
+        }
+      }
+    },
+    "settings": {
+      "title": "Indstillinger",
+      "requestsClosed": "Forespørgsler lukket",
+      "requestsClosedHint": "Så længe forespørgsler er lukket, kan der ikke oprettes nye forespørgsler."
     }
   }
 }

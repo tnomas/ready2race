@@ -824,17 +824,33 @@ export const materialRoute = createRoute({
     },
 })
 
+type MaterialIndexSearch = {
+    provider?: string
+}
+
 export const materialIndexRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: '/',
     component: () => <SelectMaterialEventPage />,
+    validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialIndexSearch => ({
+        provider,
+    }),
 })
+
+type MaterialEventSearch = TabSearch<MaterialTab> & {
+    // Nur für Konten ohne eigene Anbieter-Zuordnung mit READ MATERIAL GLOBAL relevant - der
+    // eigene Anbieter (materialProviderId am Konto) hat immer Vorrang, siehe MaterialDashboardPage.
+    provider?: string
+}
 
 export const materialEventRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'event/$eventId',
     component: () => <MaterialDashboardPage />,
-    validateSearch: validateTabSearch<MaterialTab>,
+    validateSearch: ({tab, provider}: MaterialEventSearch & SearchSchemaInput): MaterialEventSearch => ({
+        tab,
+        provider,
+    }),
 })
 
 type MaterialFleetSearch = {

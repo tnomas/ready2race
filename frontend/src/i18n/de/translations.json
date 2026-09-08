@@ -1382,6 +1382,9 @@
         "places": "Platzierungen",
         "tabTitle": "Platzierungen",
         "noPlaces": "Für diesen Wettbewerb gibt es noch keine Platzierungen."
+      },
+      "material": {
+        "demand": "Bedarf"
       }
     },
     "participantRequirement": {
@@ -2826,6 +2829,16 @@
         "openApp": "Helfer-App öffnen",
         "shifts": "Zum Schichtplan (Organisation)"
       }
+    },
+    "material": {
+      "providers": "Materialanbieter",
+      "invite": "Anbieter einladen",
+      "uninvite": "Ausladen",
+      "uninviteConfirm": "Der Anbieter wird ausgeladen, seine Angebote fallen weg. Fortfahren?",
+      "openRequests": "Offene Anfragen",
+      "openDamages": "Offene Schäden",
+      "closed": "Geschlossen",
+      "none": "Kein Anbieter eingeladen."
     }
   },
   "task": {
@@ -4541,7 +4554,8 @@
     },
     "events": {
       "title": "Veranstaltungen",
-      "none": "Der Anbieter ist zu keiner Veranstaltung eingeladen."
+      "none": "Der Anbieter ist zu keiner Veranstaltung eingeladen.",
+      "open": "Anfragen offen"
     },
     "dashboard": {
       "tabs": {
@@ -4551,6 +4565,33 @@
         "settings": "Einstellungen"
       },
       "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt."
+    },
+    "offer": {
+      "offer": "Angebot",
+      "offers": "Angebote",
+      "type": "Materialart",
+      "priceText": "Preisangabe",
+      "plannedCount": "Geplante Anzahl",
+      "changeoverMinutes": "Wechselzeit (Minuten)",
+      "add": "Angebot hinzufügen"
+    },
+    "demand": {
+      "demand": "Bedarf",
+      "count": "Anzahl",
+      "add": "Materialart hinzufügen",
+      "none": "Kein Bedarf hinterlegt.",
+      "error": {
+        "duplicates": {
+          "one": "Die Materialart {{label}} wird mehrfach verwendet.",
+          "multiple": "Die Materialarten {{labels}} werden mehrfach verwendet.",
+          "message": "Bitte wählen Sie für jeden Bedarf eine einzigartige Materialart aus."
+        }
+      }
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "requestsClosed": "Vergabe geschlossen",
+      "requestsClosedHint": "Solange die Vergabe geschlossen ist, können keine neuen Anfragen gestellt werden."
     }
   }
 }

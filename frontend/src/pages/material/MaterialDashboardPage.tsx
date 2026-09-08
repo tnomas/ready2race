@@ -9,26 +9,36 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getEvent} from '@api/sdk.gen.ts'
 import Throbber from '@components/Throbber.tsx'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {readMaterialGlobal} from '@authorization/privileges.ts'
+import MaterialSettingsPanel from '@components/material/MaterialSettingsPanel.tsx'
 
 export const MATERIAL_TABS = ['requests', 'assignment', 'damages', 'settings'] as const
 export type MaterialTab = (typeof MATERIAL_TABS)[number]
 
 /**
- * Gerüst für die Material-Planung einer Veranstaltung: die Reiter selbst kommen erst mit den
- * Aufgaben 2.3 (Anfragen), 4.3 (Zuteilung) und 5.3 (Schäden/Einstellungen) — hier stehen bis
- * dahin nur Platzhalter, damit Route und Navigation schon jetzt stehen.
+ * Material-Planung einer Veranstaltung. providerId ist der eigene Anbieter (materialProviderId
+ * am Konto), sonst - für Konten mit READ MATERIAL GLOBAL ohne eigene Zuordnung - der über die
+ * Adresse gewählte Anbieter (`?provider=`, siehe SelectMaterialEventPage). Die Reiter Anfragen
+ * (2.3 selbst bleibt hier Platzhalter), Zuteilung und Schäden kommen erst mit den Aufgaben 4.3
+ * und 5.3 - bis dahin stehen dort nur Hinweise.
  */
 const MaterialDashboardPage = () => {
     const {t} = useTranslation()
     const feedback = useFeedback()
+    const user = useUser()
 
     const {eventId} = materialEventRoute.useParams()
-    const {tab} = materialEventRoute.useSearch()
-    const activeTab = tab ?? 'requests'
+    const search = materialEventRoute.useSearch()
+    const activeTab = search.tab ?? 'requests'
+
+    const mayReadGlobal = user.checkPrivilege(readMaterialGlobal)
+    const ownProviderId = user.loggedIn ? user.materialProviderId : undefined
+    const providerId = ownProviderId ?? (mayReadGlobal ? search.provider : undefined)
 
     const navigate = useNavigate()
     const switchTab = (tab: MaterialTab) => {
-        navigate({from: materialEventRoute.fullPath, search: {tab}}).then()
+        navigate({from: materialEventRoute.fullPath, search: prev => ({...prev, tab})}).then()
     }
 
     const tabProps = (tab: MaterialTab) => a11yProps('material', tab)
@@ -64,7 +74,11 @@ const MaterialDashboardPage = () => {
                 <Typography>{t('material.dashboard.comingSoon')}</Typography>
             </TabPanel>
             <TabPanel index={'settings'} activeTab={activeTab}>
-                <Typography>{t('material.dashboard.comingSoon')}</Typography>
+                {providerId ? (
+                    <MaterialSettingsPanel eventId={eventId} providerId={providerId} />
+                ) : (
+                    <Typography>{t('material.fleet.noProvider')}</Typography>
+                )}
             </TabPanel>
         </Box>
     )

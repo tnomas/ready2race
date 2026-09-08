@@ -37,6 +37,10 @@ export type CompetitionForm = {
         amount: string
         lateAmount: string
     }[]
+    materialTypes: {
+        materialType: AutocompleteOption
+        count: string
+    }[]
     setupTemplate: AutocompleteOption
     lateRegistrationAllowed: boolean
     ratingCategoryRequired: boolean
@@ -56,6 +60,7 @@ export const competitionFormDefaultValues: CompetitionForm = {
     competitionCategory: null,
     namedParticipants: [],
     fees: [],
+    materialTypes: [],
     setupTemplate: null,
     lateRegistrationAllowed: false,
     ratingCategoryRequired: false,
@@ -90,9 +95,10 @@ export function mapCompetitionFormToCompetitionPropertiesRequest(
             amount: value.amount.replace(',', '.'),
             lateAmount: takeIfNotEmpty(value.lateAmount.replace(',', '.')),
         })),
-        // Der Bedarf je Materialart bekommt seine echte Bedienung erst in Task 2.3 - bis dahin
-        // schickt das Formular immer eine leere Liste.
-        materialTypes: [],
+        materialTypes: formData.materialTypes.map(value => ({
+            materialType: value.materialType?.id ?? '',
+            count: Number(value.count),
+        })),
         setupTemplate: !isChallengeEvent ? takeIfNotEmpty(formData.setupTemplate?.id) : undefined,
         lateRegistrationAllowed: formData.lateRegistrationAllowed,
         ratingCategoryRequired: formData.ratingCategoryRequired,
@@ -139,6 +145,10 @@ export function mapCompetitionPropertiesToCompetitionForm(
             required: value.required,
             amount: value.amount.replace('.', decimalPoint),
             lateAmount: value.lateAmount?.replace('.', decimalPoint) ?? '',
+        })),
+        materialTypes: dto.materialTypes.map(value => ({
+            materialType: {id: value.materialType, label: value.name},
+            count: value.count.toString(),
         })),
         setupTemplate: setupTemplate
             ? {

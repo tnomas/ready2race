@@ -1382,6 +1382,9 @@
         "places": "Places",
         "tabTitle": "Results",
         "noPlaces": "There are no places for this competition yet."
+      },
+      "material": {
+        "demand": "Demand"
       }
     },
     "participantRequirement": {
@@ -2826,6 +2829,16 @@
         "openApp": "Open helper app",
         "shifts": "Go to shift plan (organisation)"
       }
+    },
+    "material": {
+      "providers": "Equipment providers",
+      "invite": "Invite provider",
+      "uninvite": "Uninvite",
+      "uninviteConfirm": "The provider will be uninvited and their offers removed. Continue?",
+      "openRequests": "Open requests",
+      "openDamages": "Open damages",
+      "closed": "Closed",
+      "none": "No provider invited."
     }
   },
   "task": {
@@ -4541,7 +4554,8 @@
     },
     "events": {
       "title": "Events",
-      "none": "The provider is not invited to any event."
+      "none": "The provider is not invited to any event.",
+      "open": "Requests open"
     },
     "dashboard": {
       "tabs": {
@@ -4551,6 +4565,33 @@
         "settings": "Settings"
       },
       "comingSoon": "Will be filled in a later task."
+    },
+    "offer": {
+      "offer": "Offer",
+      "offers": "Offers",
+      "type": "Equipment type",
+      "priceText": "Price note",
+      "plannedCount": "Planned count",
+      "changeoverMinutes": "Changeover time (minutes)",
+      "add": "Add offer"
+    },
+    "demand": {
+      "demand": "Demand",
+      "count": "Count",
+      "add": "Add equipment type",
+      "none": "No demand set.",
+      "error": {
+        "duplicates": {
+          "one": "The equipment type {{label}} is used more than once.",
+          "multiple": "The equipment types {{labels}} are used more than once.",
+          "message": "Please choose a unique equipment type for each demand entry."
+        }
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "requestsClosed": "Requests closed",
+      "requestsClosedHint": "While requests are closed, no new requests can be made."
     }
   }
 }

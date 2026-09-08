@@ -13,6 +13,7 @@ import {
     getFees,
     getCompetitionSetupTemplateOverview,
     getPaceReferences,
+    getMaterialTypes,
 } from '@api/sdk.gen.ts'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
 import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
@@ -68,6 +69,27 @@ export const CompetitionPropertiesFormInputs = (props: Props) => {
 
     const fees: AutocompleteOption[] =
         feesData?.data.map(dto => ({
+            id: dto.id,
+            label: dto.name,
+        })) ?? []
+
+    const {data: materialTypesData, pending: materialTypesPending} = useFetch(
+        signal => getMaterialTypes({signal, query: {limit: 200}}),
+        {
+            onResponse: ({error}) => {
+                if (error) {
+                    feedback.error(
+                        t('common.load.error.multiple.short', {
+                            entity: t('material.type.types'),
+                        }),
+                    )
+                }
+            },
+        },
+    )
+
+    const materialTypeOptions: AutocompleteOption[] =
+        materialTypesData?.data.map(dto => ({
             id: dto.id,
             label: dto.name,
         })) ?? []
@@ -249,6 +271,44 @@ export const CompetitionPropertiesFormInputs = (props: Props) => {
                 }
 
                 setNamedParticipantsError(null)
+                return undefined
+            },
+        },
+    })
+
+    const [materialTypesError, setMaterialTypesError] = useState<string | null>(null)
+
+    const {
+        fields: materialTypeFields,
+        append: appendMaterialType,
+        remove: removeMaterialType,
+    } = useFieldArray({
+        control: props.formContext.control,
+        name: 'materialTypes',
+        keyName: 'fieldId',
+        rules: {
+            validate: values => {
+                const duplicates = Array.from(groupBy(values, val => val.materialType?.id))
+                    .filter(([, items]) => items.length > 1)
+                    .map(([, items]) => items[0].materialType?.label)
+                    .filter(label => label !== undefined)
+
+                if (duplicates.length > 0) {
+                    setMaterialTypesError(
+                        duplicates.length > 1
+                            ? t('material.demand.error.duplicates.multiple', {
+                                  labels: duplicates.reduce((acc, val) => acc + val + ' '),
+                              })
+                            : t('material.demand.error.duplicates.one', {
+                                  label: duplicates[0],
+                              }) +
+                                  ' ' +
+                                  t('material.demand.error.duplicates.message'),
+                    )
+                    return 'duplicates'
+                }
+
+                setMaterialTypesError(null)
                 return undefined
             },
         },
@@ -503,6 +563,67 @@ export const CompetitionPropertiesFormInputs = (props: Props) => {
                     }}
                     sx={{width: 1}}>
                     {t('event.competition.fee.add')}
+                </Button>
+            </Box>
+            <Divider />
+            <FormInputLabel label={t('event.competition.material.demand')}>
+                {materialTypesError && (
+                    <Typography color={'error'}>{materialTypesError}</Typography>
+                )}
+                <Stack spacing={2}>
+                    {materialTypeFields.map((field, index) => (
+                        <Stack
+                            direction="row"
+                            spacing={2}
+                            alignItems={'center'}
+                            key={field.fieldId}>
+                            <Card
+                                sx={{
+                                    p: 2,
+                                    flex: 1,
+                                }}>
+                                <Stack direction="row" spacing={2}>
+                                    <Box sx={{flex: 2}}>
+                                        <FormInputAutocomplete
+                                            name={'materialTypes[' + index + '].materialType'}
+                                            options={materialTypeOptions}
+                                            label={t('material.type.type')}
+                                            loading={materialTypesPending}
+                                            required
+                                        />
+                                    </Box>
+                                    <FormInputNumber
+                                        name={'materialTypes[' + index + '].count'}
+                                        label={t('material.demand.count')}
+                                        min={1}
+                                        integer
+                                        required
+                                        sx={{flex: 1}}
+                                    />
+                                </Stack>
+                            </Card>
+                            <Tooltip title={t('common.delete')}>
+                                <IconButton
+                                    onClick={() => {
+                                        removeMaterialType(index)
+                                    }}>
+                                    <DeleteIcon />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                    ))}
+                </Stack>
+            </FormInputLabel>
+            <Box sx={{minWidth: 200, margin: 'auto'}}>
+                <Button
+                    onClick={() => {
+                        appendMaterialType({
+                            materialType: null,
+                            count: '1',
+                        })
+                    }}
+                    sx={{width: 1}}>
+                    {t('material.demand.add')}
                 </Button>
             </Box>
         </>

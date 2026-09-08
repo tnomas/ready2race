@@ -92,6 +92,7 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
 import CheckSeverityDialog from '@components/event/liveDashboard/CheckSeverityDialog.tsx'
 import EventNoticeCard from '@components/eventNotice/EventNoticeCard.tsx'
+import EventMaterialProvidersCard from '@components/event/material/EventMaterialProvidersCard.tsx'
 import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
 import SplitButton from '@components/SplitButton.tsx'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
@@ -578,6 +579,7 @@ const EventPage = () => {
                                 <TaskTable {...taskProps.table} title={t('task.tasks')}/>
                                 <TaskDialog {...taskProps.dialog} eventId={eventId}/>
                                 <Shiftplan/>
+                                <EventMaterialProvidersCard eventId={eventId}/>
                             </Stack>
                         </TabPanel>
                         <TabPanel index={'schedule'} activeTab={activeTab}>
