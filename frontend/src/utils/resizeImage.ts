@@ -20,11 +20,11 @@ export const targetSize = (width: number, height: number, maxEdge: number): {wid
     if (longEdge <= maxEdge) {
         return {width, height}
     }
-    const scale = maxEdge / longEdge
-    return {
-        width: Math.ceil(width * scale),
-        height: Math.ceil(height * scale),
-    }
+    const shortEdge = Math.min(width, height)
+    const short = Math.min(maxEdge, Math.max(1, Math.ceil(shortEdge * maxEdge / longEdge)))
+    return width > height
+        ? {width: maxEdge, height: short}
+        : {width: short, height: maxEdge}
 }
 
 /**

@@ -27,4 +27,12 @@ describe('targetSize', () => {
     test('ein quadratisches Bild über der Grenze wird auf maxEdge gestutzt', () => {
         expect(targetSize(4000, 4000, 2000)).toEqual({width: 2000, height: 2000})
     })
+
+    test('151×100 mit maxEdge 100 bleibt bei 100 Pixeln lange Kante', () => {
+        expect(targetSize(151, 100, 100)).toEqual({width: 100, height: 67})
+    })
+
+    test('2141×1000 mit maxEdge 2000 hat genau 2000 lange Kante', () => {
+        expect(targetSize(2141, 1000, 2000)).toEqual({width: 2000, height: 935})
+    })
 })
