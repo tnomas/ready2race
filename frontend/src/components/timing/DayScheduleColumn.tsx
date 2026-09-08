@@ -12,6 +12,7 @@ import {
 } from '@utils/timing/matchBoard.ts'
 import {ModeChip} from '@components/timing/matchDisplay.tsx'
 import {touchTargetSx} from '@utils/touch.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 /** Chip-Farbe je Status — dieselbe Sprache wie der ProgressChip der Arbeitsfläche. */
 const STATUS_COLOR = {
@@ -57,7 +58,9 @@ function dayHeaderLabel(date: Date): string {
 /** „09:20" aus dem geplanten Start — ohne Zeit bleibt der Platz leer statt „Invalid Date". */
 function startTimeLabel(match: TimingMatchDto): string | null {
     if (match.startTime == null) return null
-    return new Date(match.startTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+    return new Date(
+        parseServerLocalDateTime(match.startTime, serverZoneOffsetMs()),
+    ).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
 }
 
 /**

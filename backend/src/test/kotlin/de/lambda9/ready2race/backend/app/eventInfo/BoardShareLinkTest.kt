@@ -51,7 +51,7 @@ class BoardShareLinkTest {
         assertEquals(first.token, second.token)
         assertEquals(first.deviceTokenId, second.deviceTokenId)
         assertEquals(first.path, second.path)
-        assertTrue(first.path.startsWith("/board/$eventId/$boardId?token="))
+        assertTrue(first.path.startsWith("/board/$eventId/$boardId#token="))
     }
 
     @Test

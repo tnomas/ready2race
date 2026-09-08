@@ -42,7 +42,7 @@ describe('streamClockState', () => {
         // die Uhr muss trotzdem auf 1:23.4 stehen, der Zahl aus Einlauf und Ergebnis.
         const clientNowMs = start.getTime() + 100_000
         const state = streamClockState(match, clientNowMs, 0)
-        expect(state).toEqual({phase: 'frozen', elapsedMs: 83_400})
+        expect(state).toEqual({phase: 'frozen', elapsedMs: 83_400, anchored: true})
     })
 
     it('friert auf der GRÖSSTEN Bootszeit ein — der letzte Einlauf stoppt die Uhr', () => {
@@ -57,10 +57,22 @@ describe('streamClockState', () => {
         })
         const clientNowMs = start.getTime() + 370_000
         const state = streamClockState(match, clientNowMs, 0)
-        expect(state).toEqual({phase: 'frozen', elapsedMs: 366_800})
+        expect(state).toEqual({phase: 'frozen', elapsedMs: 366_800, anchored: true})
     })
 
-    it('fällt auf die verstrichene Zeit zurück, wenn sich keine Bootszeit parsen lässt', () => {
+    it('folgt einer korrigierten Bootszeit — der eingefrorene Wert ist aus den Zeiten ableitbar', () => {
+        const start = new Date('2026-08-13T10:00:00.000Z')
+        const before = matchWith({
+            actualStartTime: start.toISOString(),
+            teams: [team({timeString: '6:06.8'})],
+        })
+        const after = matchWith({...before, teams: [team({timeString: '6:10.0'})]})
+        const clientNowMs = start.getTime() + 500_000
+        expect(streamClockState(before, clientNowMs, 0)).toEqual({phase: 'frozen', elapsedMs: 366_800, anchored: true})
+        expect(streamClockState(after, clientNowMs, 0)).toEqual({phase: 'frozen', elapsedMs: 370_000, anchored: true})
+    })
+
+    it('fällt auf die verstrichene Zeit zurück, wenn sich keine Bootszeit parsen lässt — nicht verankert', () => {
         const start = new Date('2026-08-13T10:00:00.000Z')
         const match = matchWith({
             actualStartTime: start.toISOString(),
@@ -68,7 +80,9 @@ describe('streamClockState', () => {
         })
         const clientNowMs = start.getTime() + 10_000
         const state = streamClockState(match, clientNowMs, 0)
-        expect(state).toEqual({phase: 'frozen', elapsedMs: 10_000})
+        // `anchored: false`: dieser Wert liefe bei weiteren Aufrufen weiter, der Aufrufer muss ihn
+        // selbst festhalten (siehe KDoc).
+        expect(state).toEqual({phase: 'frozen', elapsedMs: 10_000, anchored: false})
     })
 
     it('läuft weiter, solange mindestens ein Boot ohne Zeit und ohne failed ist', () => {

@@ -1,12 +1,16 @@
-import {useCallback, useEffect, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {getActiveTimingSequence} from '@api/sdk.gen.ts'
 import {TimingSequenceDto, TimingStationDto} from '@api/types.gen.ts'
+import {StationVersions} from './stationVersions.ts'
 
 /**
  * Die Sequenzlage aller START-Posten für die Leitstand-Übersicht: einmal initial je Posten geladen
  * (der Endpunkt liefert auch eine gerade beendete Sequenz noch nach, siehe `ActiveSequenceDto`),
  * danach ausschließlich über die `sequenceChanged`-Websocket-Nachrichten aktuell gehalten -
  * [applyChanged] wird dafür als `onSequenceChanged` an `useTimingBoardState` gereicht.
+ *
+ * Trifft ein Push für einen Posten ein, während dessen initialer GET noch läuft, ist der Push der
+ * jüngere Stand: die Antwort des GET wird dann verworfen (siehe `StationVersions`).
  */
 export function useStationSequences(
     eventId: string,
@@ -17,8 +21,10 @@ export function useStationSequences(
     applyChanged: (sequence: TimingSequenceDto) => void
 } {
     const [sequences, setSequences] = useState<Map<string, TimingSequenceDto>>(new Map())
+    const versionsRef = useRef(new StationVersions())
 
     const applyChanged = useCallback((sequence: TimingSequenceDto) => {
+        versionsRef.current.bump(sequence.station)
         setSequences(prev => new Map(prev).set(sequence.station, sequence))
     }, [])
 
@@ -39,17 +45,21 @@ export function useStationSequences(
         const ids = startStationKey.length === 0 ? [] : startStationKey.split(',')
         if (ids.length === 0) return
         let disposed = false
+        const versions = versionsRef.current
         void (async () => {
             for (const stationId of ids) {
+                const snapshot = versions.snapshot(stationId)
                 try {
                     const {data} = await getActiveTimingSequence({
                         path: {eventId},
                         query: {stationId},
                     })
                     if (disposed) return
+                    // Ein Push für diesen Posten kam zwischen Anfrage und Antwort — er ist jünger.
+                    if (versions.isStale(stationId, snapshot)) continue
                     const sequence = data?.sequence
                     if (sequence !== undefined && sequence !== null) {
-                        applyChanged(sequence)
+                        setSequences(prev => new Map(prev).set(sequence.station, sequence))
                     }
                 } catch {
                     // Die Übersicht bleibt ohne Sequenzstand benutzbar; der nächste
@@ -60,7 +70,7 @@ export function useStationSequences(
         return () => {
             disposed = true
         }
-    }, [eventId, startStationKey, applyChanged])
+    }, [eventId, startStationKey])
 
     return {sequences, applyChanged}
 }

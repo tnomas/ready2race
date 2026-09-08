@@ -372,6 +372,7 @@ fun TimingDeviceTokenRecord.toDto(): TimingDeviceTokenDto = TimingDeviceTokenDto
     // nie - er taucht nur in der Share-Link-Antwort auf.
     autoIssued = shareLinkToken != null,
     createdAt = createdAt,
+    expiresAt = expiresAt,
 )
 
 fun timeMarkDto(record: TimingTimeMarkRecord, assignedTeam: UUID?): TimeMarkDto = TimeMarkDto(

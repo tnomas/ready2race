@@ -283,3 +283,48 @@ describe('playToneStep waveform', () => {
         ])
     })
 })
+
+// --- Gesperrter Kontext --------------------------------------------------------------------------
+
+describe('playToneStep bei gesperrtem Kontext', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    test('solange der Kontext nicht laeuft, wird kein Oszillator angemeldet', async () => {
+        const contexts: RecordingAudioContext[] = []
+        vi.stubGlobal(
+            'AudioContext',
+            class extends RecordingAudioContext {
+                constructor() {
+                    super()
+                    // Bleibt gesperrt, auch nach resume(): so verhält sich WebAudio ohne echte
+                    // Nutzergeste.
+                    this.state = 'suspended'
+                    contexts.push(this)
+                }
+                resume() {
+                    return Promise.resolve()
+                }
+            },
+        )
+        const {playToneStep} = await load()
+        playToneStep({frequencyHz: 900, durationMillis: 400})
+        expect(contexts).toHaveLength(1)
+        expect(contexts[0].oscillators).toHaveLength(0)
+    })
+
+    test('ein laufender Kontext spielt weiterhin', async () => {
+        const contexts: RecordingAudioContext[] = []
+        vi.stubGlobal(
+            'AudioContext',
+            class extends RecordingAudioContext {
+                constructor() {
+                    super()
+                    contexts.push(this)
+                }
+            },
+        )
+        const {playToneStep} = await load()
+        playToneStep({frequencyHz: 900, durationMillis: 400})
+        expect(contexts[0].oscillators).toHaveLength(1)
+    })
+})

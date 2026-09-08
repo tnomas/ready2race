@@ -32,6 +32,15 @@ object TimingTimeMarkRepo {
 
     fun exists(id: UUID) = TIMING_TIME_MARK.exists { ID.eq(id) }
 
+    /**
+     * Gibt es DIESE Marke schon an DIESEM Posten? Der Zuschnitt der idempotenten Erfassung: nur
+     * die Wiederholung desselben Klicks zählt als "schon da"; dieselbe Kennung an einem anderen
+     * Posten ist eine Kollision (TimingService.createMark).
+     */
+    fun existsForStation(id: UUID, stationId: UUID) = TIMING_TIME_MARK.exists {
+        ID.eq(id).and(STATION.eq(stationId))
+    }
+
     fun getByEvent(eventId: UUID) = TIMING_TIME_MARK.select { EVENT.eq(eventId) }
 
     fun existsByStation(stationId: UUID) = TIMING_TIME_MARK.exists { STATION.eq(stationId) }

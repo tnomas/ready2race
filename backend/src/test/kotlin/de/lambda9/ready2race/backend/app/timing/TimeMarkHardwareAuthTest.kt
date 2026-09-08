@@ -34,7 +34,7 @@ class TimeMarkHardwareAuthTest {
         val response = client.post("/api/event/$eventId/timing/timeMarks") {
             header(TIMING_DEVICE_TOKEN_HEADER, issued.token)
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"$markId","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
 
         assertEquals(HttpStatusCode.Created, response.status)
@@ -52,7 +52,7 @@ class TimeMarkHardwareAuthTest {
         val response = client.post("/api/event/$eventId/timing/timeMarks") {
             header(TIMING_DEVICE_TOKEN_HEADER, "nope")
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -73,7 +73,7 @@ class TimeMarkHardwareAuthTest {
         val response = client.post("/api/event/$eventId/timing/timeMarks") {
             header(TIMING_DEVICE_TOKEN_HEADER, issued.token)
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"$markId","station":"$otherStationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"$markId","station":"$otherStationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -94,7 +94,7 @@ class TimeMarkHardwareAuthTest {
         val response = client.post("/api/event/$eventId/timing/timeMarks") {
             header(TIMING_DEVICE_TOKEN_HEADER, issued.token)
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -107,7 +107,7 @@ class TimeMarkHardwareAuthTest {
 
         val response = client.post("/api/event/$eventId/timing/timeMarks") {
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":1755430000000}""")
+            setBody("""{"id":"${UUID.randomUUID()}","station":"$stationId","timestampMillis":${System.currentTimeMillis()}}""")
         }
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)

@@ -118,7 +118,7 @@ const EventPage = () => {
     const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const {tab} = eventIndexRoute.useSearch()
-    const activeTab = tab ?? 'general'
+    const activeTab: EventTab = tab ?? EVENT_TABS[0]
 
     const navigate = useNavigate()
     const switchTab = (tab: EventTab) => {

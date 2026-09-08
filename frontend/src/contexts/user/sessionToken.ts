@@ -69,10 +69,21 @@ const writeStored = (stores: TokenStores, key: string, token: string, now: numbe
     stores.local.setItem(key, JSON.stringify({token, lastUsedAt: now} satisfies StoredToken))
 }
 
+export type ReadSessionTokenOptions = {
+    /**
+     * Ob ein alter Tab-gebundener Verwaltungstoken (`sessionStorage['session']`) beim Lesen in die
+     * `localStorage`-Ablage übernommen werden darf. Standard `true` — das ist der Übergangspfad des
+     * UserProviders. Reine Leser (der Live-Kanal) setzen `false`: Sie dürfen die Ablage nicht
+     * nebenbei umbauen.
+     */
+    migrate?: boolean
+}
+
 export const readSessionToken = (
     isInApp: boolean,
     now: number = Date.now(),
     stores: TokenStores = browserStores(),
+    options: ReadSessionTokenOptions = {},
 ): string | null => {
     const stored = readStored(stores, tokenKey(isInApp))
     if (stored === null) {
@@ -80,8 +91,9 @@ export const readSessionToken = (
         if (legacy === null) {
             return null
         }
-        if (isInApp) {
-            // Bestehende Helfer-Sitzung aus der Zeit vor der localStorage-Ablage: nur lesen.
+        if (isInApp || options.migrate === false) {
+            // Bestehende Helfer-Sitzung aus der Zeit vor der localStorage-Ablage (oder ein reiner
+            // Leser): nur lesen.
             return legacy
         }
         // Verwaltung: alten Tab-gebundenen Token übernehmen, damit das Deploy niemanden

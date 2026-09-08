@@ -1,5 +1,7 @@
 package de.lambda9.ready2race.backend.app.stream.boundary
 
+import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicType
 import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
@@ -18,9 +20,11 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO
+import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import java.util.UUID
 
 /**
  * Livestream-Regie (Task 6 der Domäne `app/stream`): Szenen-Verwaltung, Grafik-Konfiguration,
@@ -170,16 +174,42 @@ fun Route.stream() {
             call.respondComprehension {
                 val eventId = !pathParam("eventId", uuid)
                 val sceneId = !pathParam("sceneId", uuid)
-                val deviceToken = call.request.header(TIMING_DEVICE_TOKEN_HEADER)
-                if (deviceToken != null && call.sessions.get<UserSession>()?.token == null) {
-                    !TimingDeviceTokenService.validateForStreamScene(deviceToken, eventId, sceneId)
-                } else {
-                    !authenticateAny(Privilege.ReadStreamGlobal, Privilege.ReadEventGlobal)
-                    !StreamSceneService.requireOwnedScene(eventId, sceneId)
-                }
+                !call.authenticateSceneReader(eventId, sceneId)
 
                 KIO.ok(ApiResponse.Dto(!StreamSceneLogic.buildView(eventId, sceneId)))
             }
         }
+
+        // Das Streckenbild der COURSE_IMAGE-Grafik, hinter derselben Tür wie der Szenenstand -
+        // der allgemeine Dokument-Download (`/eventDocument/{id}`) verlangt READ EVENT, und die
+        // Token-Bühne hat das nicht. `imageUrl` im Szenenstand zeigt genau hierher.
+        get("/{sceneId}/courseImage") {
+            call.respondComprehension {
+                val eventId = !pathParam("eventId", uuid)
+                val sceneId = !pathParam("sceneId", uuid)
+                !call.authenticateSceneReader(eventId, sceneId)
+
+                StreamSceneService.getCourseImage(eventId, sceneId)
+            }
+        }
     }
 }
+
+/**
+ * Die gemeinsame Tür von Szenenstand und Streckenbild, Muster getBoardView (eventInfo.kt): eine
+ * Sitzung mit READ STREAM oder READ EVENT, oder ein für GENAU DIESE Szene ausgestelltes
+ * Geräte-Token im Header. Der Token-Zweig greift nur ohne Sitzung - ein angemeldeter Nutzer nimmt
+ * immer den Rechte-Weg. `validateForStreamScene` prüft die Zugehörigkeit zur Veranstaltung schon
+ * selbst; der Sitzungszweig holt sie sich zusätzlich über `requireOwnedScene`.
+ */
+private fun ApplicationCall.authenticateSceneReader(eventId: UUID, sceneId: UUID): App<ServiceError, Unit> =
+    KIO.comprehension {
+        val deviceToken = request.header(TIMING_DEVICE_TOKEN_HEADER)
+        if (deviceToken != null && sessions.get<UserSession>()?.token == null) {
+            !TimingDeviceTokenService.validateForStreamScene(deviceToken, eventId, sceneId)
+        } else {
+            !authenticateAny(Privilege.ReadStreamGlobal, Privilege.ReadEventGlobal)
+            !StreamSceneService.requireOwnedScene(eventId, sceneId)
+        }
+        KIO.unit
+    }

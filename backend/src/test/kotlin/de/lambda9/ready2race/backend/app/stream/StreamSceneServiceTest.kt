@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.stream
 
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.control.StreamOverrideRepo
 import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
@@ -280,6 +281,79 @@ class StreamSceneServiceTest {
         assertKIOFails(StreamError.SceneNotFound(unknownId)) {
             StreamSceneService.clearOverride(eventId, unknownId, StreamGraphicType.CLOCK)
         }
+    }
+
+    private fun graphic(type: StreamGraphicType, placement: StreamPlacement) = StreamSceneGraphicDto(
+        type = type,
+        enabled = true,
+        placement = placement,
+        size = StreamGraphicSize.NORMAL,
+        settings = StreamGraphicSettings(),
+    )
+
+    private fun forcedOn(seconds: Int? = null) =
+        StreamOverrideRequest(state = StreamOverrideState.FORCED_ON, match = null, seconds = seconds)
+
+    /**
+     * Zwei FORCED_ON auf demselben Platz sind kein Zustand, den die Regie meint: Wer eine zweite
+     * Grafik auf den Platz zwingt, nimmt die erste damit zurück. Sonst bliebe die verdrängte
+     * Zeile liegen und käme wieder hoch, sobald der Sieger abläuft - und das Panel zeigte für die
+     * verdrängte Grafik weiter "erzwungen", obwohl sie nicht zu sehen ist.
+     */
+    @Test
+    fun forcingASecondGraphicOntoTheSamePlacementClearsTheFirstForcedOn() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(
+                graphic(StreamGraphicType.RESULT, StreamPlacement.BOTTOM_CENTER),
+                graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER),
+            ),
+        )
+
+        !StreamSceneService.setOverride(eventId, sceneId, StreamGraphicType.RESULT, forcedOn(seconds = 60))
+        !StreamSceneService.setOverride(eventId, sceneId, StreamGraphicType.STARTLIST, forcedOn())
+
+        assertNull(
+            !StreamOverrideRepo.findOne(sceneId, StreamGraphicType.RESULT).orDie(),
+            "Die verdrängte RESULT-Zeile darf nicht liegen bleiben",
+        )
+        assertNotNull(!StreamOverrideRepo.findOne(sceneId, StreamGraphicType.STARTLIST).orDie())
+
+        val view = !StreamSceneLogic.buildView(eventId, sceneId)
+        assertEquals(StreamOverrideState.AUTO, view.graphics.first { it.type == StreamGraphicType.RESULT }.overrideState)
+        assertEquals(StreamOverrideState.FORCED_ON, view.graphics.first { it.type == StreamGraphicType.STARTLIST }.overrideState)
+    }
+
+    /** Ein FORCED_ON auf einem ANDEREN Platz konkurriert nicht und bleibt unangetastet. */
+    @Test
+    fun forcingAGraphicLeavesForcedOnRowsOnOtherPlacementsAlone() = testComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(
+                graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT),
+                graphic(StreamGraphicType.RESULT, StreamPlacement.FULL_CENTER),
+                graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER),
+            ),
+        )
+
+        !StreamSceneService.setOverride(eventId, sceneId, StreamGraphicType.CLOCK, forcedOn())
+        !StreamSceneService.setOverride(
+            eventId,
+            sceneId,
+            StreamGraphicType.RESULT,
+            StreamOverrideRequest(state = StreamOverrideState.FORCED_OFF, match = null, seconds = null),
+        )
+        !StreamSceneService.setOverride(eventId, sceneId, StreamGraphicType.STARTLIST, forcedOn())
+
+        assertNotNull(!StreamOverrideRepo.findOne(sceneId, StreamGraphicType.CLOCK).orDie())
+        assertNotNull(!StreamOverrideRepo.findOne(sceneId, StreamGraphicType.RESULT).orDie(), "FORCED_OFF belegt keinen Platz")
+        assertNotNull(!StreamOverrideRepo.findOne(sceneId, StreamGraphicType.STARTLIST).orDie())
     }
 
     @Test

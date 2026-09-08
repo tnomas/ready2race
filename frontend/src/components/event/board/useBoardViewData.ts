@@ -80,9 +80,14 @@ export const useBoardViewData = (eventId: string, boardId: string): BoardViewSta
 
     // Die jüngere der beiden Quellen gewinnt. Nicht „Push schlägt Takt": nach einem
     // Kanalabbruch ist der zuletzt getaktete Abruf der aktuellere, und dann muss er auch
-    // angezeigt werden.
+    // angezeigt werden. Verglichen wird die SERVERZEIT der beiden Stände, nicht der Moment
+    // ihres Eintreffens: eine HTTP-Antwort kann Sekunden unterwegs sein und trotzdem nach
+    // einem Push ankommen, der auf dem Server längst nach ihr berechnet wurde — nach
+    // Empfangszeit gewönne dann der ältere Stand.
     const pushIsNewer =
-        pushed !== null && (polled.lastUpdated === null || pushed.at > polled.lastUpdated)
+        pushed !== null &&
+        (polled.data === null ||
+            Date.parse(pushed.view.serverTime) >= Date.parse(polled.data.serverTime))
 
     const data = pushIsNewer ? pushed.view : polled.data
     const lastUpdated = pushIsNewer ? pushed.at : polled.lastUpdated

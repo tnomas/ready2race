@@ -585,19 +585,26 @@ fun Route.timing() {
                 }
             }
 
-            // Widerruf ist auch der Weg der Stream-Rolle: `StreamSceneShareDialog` bietet ihn
-            // jeder Nutzerin mit UPDATE STREAM an, nicht nur UPDATE EVENT - dieselbe Tabelle
-            // trägt aber auch Posten- und Board-Tokens, die eine reine Stream-Rolle nichts
-            // angehen. `revoke` selbst zieht die Grenze auf die eigenen Szenen-Tokens.
+            // Widerruf ist auch der Weg der Stream- und der Board-Rolle: `StreamSceneShareDialog`
+            // bietet ihn jeder Nutzerin mit UPDATE STREAM an, der Teilen-Dialog der
+            // Board-Verwaltung jeder mit UPDATE BOARD - dieselbe Tabelle trägt aber auch
+            // Posten-Tokens, die beide Rollen nichts angehen. `revoke` selbst zieht die Grenze auf
+            // die Tokens des eigenen Typs.
             delete("/{tokenId}") {
                 call.respondComprehension {
-                    val user = !authenticateAny(Privilege.UpdateEventGlobal, Privilege.UpdateStreamGlobal)
+                    val user = !authenticateAny(
+                        Privilege.UpdateEventGlobal,
+                        Privilege.UpdateStreamGlobal,
+                        Privilege.UpdateBoardGlobal,
+                    )
                     val eventId = !pathParam("eventId", uuid)
                     val tokenId = !pathParam("tokenId", uuid)
                     TimingDeviceTokenService.revoke(
                         eventId,
                         tokenId,
                         hasEventPrivilege = user.hasPrivilege(Privilege.UpdateEventGlobal),
+                        hasStreamPrivilege = user.hasPrivilege(Privilege.UpdateStreamGlobal),
+                        hasBoardPrivilege = user.hasPrivilege(Privilege.UpdateBoardGlobal),
                     )
                 }
             }
@@ -641,8 +648,16 @@ fun Route.competitionTimingStations() {
 fun Route.timingGlobal() {
     route("/timing") {
         post("/serverTime") {
+            // Beide Werte beschreiben DENSELBEN Augenblick: aus Epoch-Millis und Wanduhrzeit leitet
+            // das Frontend den Zonenversatz des Servers ab und deutet damit alle zonenlosen
+            // Zeitstempel der API richtig, auch wenn das Gerät in einer anderen Zone läuft.
+            val nowMillis = System.currentTimeMillis()
+            val wallClock = java.time.LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(nowMillis),
+                java.time.ZoneId.systemDefault(),
+            ).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             call.respondText(
-                """{"serverTimeMillis":${System.currentTimeMillis()}}""",
+                """{"serverTimeMillis":$nowMillis,"serverLocalTime":"$wallClock"}""",
                 ContentType.Application.Json,
             )
         }

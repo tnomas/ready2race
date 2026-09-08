@@ -1,6 +1,14 @@
 import {describe, expect, it} from 'vitest'
 import {allowsNewlyVisible, isStreamStale, STREAM_STALE_AFTER_MS} from './streamStale'
 
+describe('STREAM_STALE_AFTER_MS', () => {
+    it('lässt mindestens zwei Herzschläge des Servers (20 s) aus, bevor die Bühne als veraltet gilt', () => {
+        // Ein einzelner verspäteter Herzschlag ist im Betrieb Alltag und darf keine Einblendung
+        // sperren — erst zwei ausgebliebene sind ein Zeichen für einen stehenden Kanal.
+        expect(STREAM_STALE_AFTER_MS).toBeGreaterThanOrEqual(2 * 20_000)
+    })
+})
+
 describe('isStreamStale', () => {
     it('gilt nicht als veraltet, solange kein Rahmen kam — das ist der Ladezustand', () => {
         expect(isStreamStale(null, 1_000_000)).toBe(false)

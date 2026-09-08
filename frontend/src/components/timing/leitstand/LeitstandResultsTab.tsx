@@ -36,6 +36,7 @@ import Throbber from '@components/Throbber.tsx'
 import OfficialTimeEditDialog from '@components/timing/leitstand/OfficialTimeEditDialog.tsx'
 import OfficialTimeReasonChip from '@components/timing/leitstand/OfficialTimeReasonChip.tsx'
 import {computedReason} from '@components/timing/leitstand/officialTimeReason.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 import {
     formatDuration,
     formatOfficialTime,
@@ -439,7 +440,12 @@ const LeitstandResultsTab = ({
                                             {official?.pushedAt !== undefined && (
                                                 <Typography variant="caption" color="text.secondary">
                                                     {format(
-                                                        new Date(official.pushedAt),
+                                                        new Date(
+                                                            parseServerLocalDateTime(
+                                                                official.pushedAt,
+                                                                serverZoneOffsetMs(),
+                                                            ),
+                                                        ),
                                                         t('format.datetime'),
                                                     )}
                                                 </Typography>

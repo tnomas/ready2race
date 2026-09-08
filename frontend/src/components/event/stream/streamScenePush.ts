@@ -94,3 +94,20 @@ export const dispatchStreamSceneFrame = (
     const view = parseStreamSceneMessage(raw)
     if (view !== null) onView(view)
 }
+
+/**
+ * Welcher von zwei Szenenständen der jüngere ist — nach der SERVERZEIT, mit der jeder Stand
+ * berechnet wurde, nicht nach seinem Eintreffen. Bühne und Regie-Board halten den letzten
+ * Push und den letzten HTTP-Abruf nebeneinander: Ein Nachladen (etwa nach einem
+ * Regie-Eingriff bei stehendem Kanal) muss einen alten Push überholen dürfen, und ein
+ * verspäteter Erstabruf darf einen frischen Push nicht überdecken. Bei Gleichstand gewinnt
+ * der Push — er ist der reguläre Weg.
+ */
+export const newerSceneView = (
+    pushed: StreamSceneViewDto | null,
+    fetched: StreamSceneViewDto | null,
+): StreamSceneViewDto | null => {
+    if (pushed === null) return fetched
+    if (fetched === null) return pushed
+    return Date.parse(fetched.serverTime) > Date.parse(pushed.serverTime) ? fetched : pushed
+}

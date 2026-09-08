@@ -7,8 +7,8 @@ data class UpcomingMatchParticipantInfo(
     val firstName: String,
     val lastName: String,
     val namedRole: String?,
+    /** Jahrgang - in Sprecher- und Detail-Anzeigen hinter dem Namen. Das Geschlecht reist bewusst nicht mit: keine Anzeige zeigt es. */
     val year: Int?,
-    val gender: String?,
     val externalClubName: String?,
     /** Der getragene Verein (Gastverein vor Heimatverein) — nur für Detail-Anzeigen befüllt. */
     val wornClubName: String? = null

@@ -124,6 +124,7 @@ class BoardDeviceTokenAuthTest {
     @Test
     fun withoutTokenAndWithoutSessionTheBoardsAreClosed() = testApplicationComprehension {
         val (eventId, _) = !createTestEventWithAdmin()
+        !publishEvent(eventId)
         val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
 
         // Der eigentliche Punkt dieses Pakets: genau das ging bis zum 25.08.2026 ohne alles.

@@ -6,6 +6,7 @@ import {useFetch} from '@utils/hooks.ts'
 import {streamSceneRoute} from '@routes'
 import {useStreamSceneSocket} from '@components/event/stream/useStreamSceneSocket.ts'
 import {isStreamStale} from '@components/event/stream/streamStale.ts'
+import {newerSceneView} from '@components/event/stream/streamScenePush.ts'
 import StreamStage from '@components/event/stream/StreamStage.tsx'
 import {STREAM_PRELOAD_FONT_FACES} from '@components/event/stream/graphics/design/streamTheme.ts'
 
@@ -58,8 +59,9 @@ const StreamScenePage = () => {
     useStreamSceneSocket(eventId, sceneId, onView, onFrame)
 
     // Der Kanal schickt den vollen Stand als ersten Rahmen jeder Verbindung — er überholt den
-    // Erstabruf binnen kurzem von selbst. Bis dahin trägt der Erstabruf allein.
-    const view = pushed ?? initial.data ?? null
+    // Erstabruf binnen kurzem von selbst. Bis dahin trägt der Erstabruf allein. Zusammengeführt
+    // nach Serverzeit: ein verspäteter Erstabruf darf einen frischen Push nicht überdecken.
+    const view = newerSceneView(pushed, initial.data)
 
     // Serverzeitversatz für die CLOCK-Grafik: einmal je frisch eingetroffener Ansicht gemessen
     // (`serverTime` ändert sich nur bei einem echten neuen Stand), nicht bei jedem Render —

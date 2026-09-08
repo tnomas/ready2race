@@ -666,7 +666,7 @@ export type BoardShareLinkDto = {
     board: string
     token: string
     /**
-     * Root-relative frontend path including the token query parameter (`/board/{eventId}/{boardId}?token=...`). The client prepends its own origin. The display sends the token as the X-Timing-Device-Token header.
+     * Root-relative frontend path carrying the token in the URL fragment (`/board/{eventId}/{boardId}#token=...`; the fragment never leaves the browser). The client prepends its own origin. The display sends the token as the X-Timing-Device-Token header.
      */
     path: string
 }
@@ -1503,14 +1503,23 @@ export type CreateEventRequest = {
 export type CreateSequenceRequest = {
     station: uuid
     mode: SequenceMode
+    /**
+     * Cadence between two starts, required for mode INTERVAL and ignored for MASS. Between one second and one hour (400 outside).
+     */
     intervalMillis?: number
     teams: Array<uuid>
+    /**
+     * Countdown before the first start. Absent = one full cadence (INTERVAL) or 10 s (MASS); when given between 3 s and 10 min (400 outside).
+     */
     leadInMillis?: number
 }
 
 export type CreateTimeMarkRequest = {
     id: uuid
     station: uuid
+    /**
+     * Epoch millis of the capture as seen by the device. Must lie within 24 hours of the server clock in either direction (400 otherwise): a device with a badly set clock must not place marks in a distant year.
+     */
     timestampMillis: number
 }
 
@@ -1648,6 +1657,8 @@ export type ErrorCode =
     | 'RACECLOCKER_RACE_STILL_ASSIGNED'
     | 'TIMING_PROFILE_KIND_MISMATCH'
     | 'TIMING_PROFILE_SCOPE_INVALID'
+    | 'TIMING_STATION_HAS_SEQUENCES'
+    | 'TIMING_TIME_MARK_ID_TAKEN'
     | 'STARTLIST_CONFIG_NOT_CONFIGURED'
     | 'STARTLIST_MATCHES_WITHOUT_START_TIME'
     | 'RESULT_IMPORT_CONFIG_NOT_CONFIGURED'
@@ -1709,7 +1720,9 @@ export type ErrorCode =
     | 'EXECUTION_PLACES_NOT_CONTINUOUS'
     | 'EXECUTION_START_TIME_MANAGED_BY_SCHEDULE'
     | 'EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND'
+    | 'COMPETITION_EXECUTION_DUPLICATE_PLACES'
     | 'LIVE_DASHBOARD_FINISH_RESERVED_FOR_OFFICE'
+    | 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED'
     | 'QR_CODE_ALREADY_IN_USE'
     | 'TRACKING_TEAM_ALREADY_CHECKED_IN'
     | 'TRACKING_TEAM_NOT_CHECKED_IN'
@@ -2817,6 +2830,10 @@ export type MatchResultTeamInfo = {
     teamId: string
     teamName?: string | null
     teamNumber?: number | null
+    /**
+     * the start number (lane) of this boat in the match
+     */
+    startNumber: number
     clubName?: string | null
     /**
      * the clubs the athletes of this boat wear, chained in boat order, in short form
@@ -3232,6 +3249,11 @@ export type Parametersearch = string
  * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
  */
 export type Parametersort = string
+
+/**
+ * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+ */
+export type ParameterTimingDeviceToken = string
 
 export type ParticipantClubDto = {
     id: string
@@ -4043,6 +4065,10 @@ export type SequenceState = 'ARMED' | 'RUNNING' | 'PAUSED' | 'DONE' | 'ABORTED'
 
 export type ServerTimeResponse = {
     serverTimeMillis: number
+    /**
+     * the server's wall-clock time (local date-time without zone) at the same instant as serverTimeMillis; clients derive the server zone offset from the pair
+     */
+    serverLocalTime: string
 }
 
 export type ShiftMode = 'PLUS_MINUTES' | 'SET_TIME' | 'COMPRESS_TO_TARGET' | 'PLUS_MINUTES_RANGE'
@@ -4224,11 +4250,11 @@ export type StreamFinishEntry = {
  */
 export type StreamGraphicSettings = {
     /**
-     * LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds.
+     * LAPS (default 8), RESULT (default 20), STARTLIST (default 15): how long the graphic stays visible, in seconds. 1..600 when set.
      */
     displaySeconds?: number | null
     /**
-     * SCHEDULE: number of rows shown, default 8.
+     * SCHEDULE: number of rows shown, default 8. 1..50 when set.
      */
     listLength?: number | null
     /**
@@ -4281,7 +4307,7 @@ export type StreamGraphicViewDto = {
     finishEntries?: Array<StreamFinishEntry> | null
     schedule?: Array<AthleteBoardMatch> | null
     /**
-     * COURSE_IMAGE.
+     * COURSE_IMAGE: address of getStreamSceneCourseImage (/api/event/{eventId}/stream/{sceneId}/courseImage), reachable with the same session or scene token as the view itself.
      */
     imageUrl?: string | null
     /**
@@ -4399,7 +4425,7 @@ export type StreamSceneRequest = {
      */
     chromaColor?: string | null
     /**
-     * 0..100, defaults to 0.
+     * 0..20, defaults to 0.
      */
     safeAreaPercent?: number
 }
@@ -4415,7 +4441,7 @@ export type StreamSceneShareLinkDto = {
     scene: string
     token: string
     /**
-     * Root-relative frontend path including the token query parameter (`/event/{eventId}/stream/{sceneId}?token=...`). The client prepends its own origin. The stage sends the token as the X-Timing-Device-Token header.
+     * Root-relative frontend path carrying the token in the URL fragment (`/event/{eventId}/stream/{sceneId}#token=...`; the fragment never leaves the browser). The client prepends its own origin. The stage sends the token as the X-Timing-Device-Token header.
      */
     path: string
 }
@@ -4635,6 +4661,10 @@ export type TimingDeviceTokenDto = {
      */
     autoIssued: boolean
     createdAt: string
+    /**
+     * When the token stops being accepted. Set for share-link tokens (end of the day after the event's last day, or 30 days after issuing when the event has no days or is already over); null for manually issued hardware tokens, which never expire because they live in device configurations nobody re-enters after every regatta.
+     */
+    expiresAt?: string | null
 }
 
 export type TimingDeviceTokenIssuedDto = {
@@ -4910,7 +4940,7 @@ export type TimingShareLinkDto = {
     deviceToken: TimingDeviceTokenDto
     token: string
     /**
-     * Root-relative frontend path including the token query parameter (`/event/{eventId}/timing/{stationId}?token=...`, ANZEIGE stations get the `/anzeige` display route). The client prepends its own origin.
+     * Root-relative frontend path carrying the token in the URL fragment (`/event/{eventId}/timing/{stationId}#token=...`, ANZEIGE stations get the `/anzeige` display route). The fragment never leaves the browser - no server log, no referer - which is why it is not a query parameter. The client prepends its own origin.
      */
     path: string
 }
@@ -5193,8 +5223,10 @@ export type UpcomingMatchParticipantInfo = {
     firstName: string
     lastName: string
     namedRole?: string | null
+    /**
+     * Year of birth, shown behind the name in speaker and detail displays
+     */
     year?: number | null
-    gender?: string | null
     externalClubName?: string | null
 }
 
@@ -5358,6 +5390,9 @@ export type WebDAVExportEventRequest = {
 }
 
 export type WebDAVExportRequest = {
+    /**
+     * Name of the export folder on the WebDAV server. A single path segment - must not contain / or \ and must not be . or ..
+     */
     name: string
     events: Array<WebDAVExportEventRequest>
     selectedDatabaseExports: Array<WebDAVExportType>
@@ -9164,7 +9199,7 @@ export type GetRunningMatchesData = {
     }
     query: {
         /**
-         * True (speaker board) also returns matches under clarification, marked via the clarification flag. Default false keeps them out - the public displays and the board cursor must not hang on a disputed match.
+         * True (speaker board) also returns matches under clarification, marked via the clarification flag. Default false keeps them out - the public displays and the board cursor must not hang on a disputed match. Honoured only for a session with READ BOARD or READ EVENT, or for a board device token of this event in the X-Timing-Device-Token header; an anonymous call is answered as if the parameter were false (no error).
          */
         includeClarification?: boolean
         limit: number
@@ -9199,6 +9234,12 @@ export type GetPublicProgramResponse = Array<BoardProgramEntry>
 export type GetPublicProgramError = ApiError
 
 export type GetPublicBoardsData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: string
     }
@@ -9209,6 +9250,12 @@ export type GetPublicBoardsResponse = Array<BoardNameDto>
 export type GetPublicBoardsError = ApiError
 
 export type GetBoardViewData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         boardId: string
         eventId: string
@@ -9786,6 +9833,12 @@ export type SetStreamSceneTrialPhaseResponse = void
 export type SetStreamSceneTrialPhaseError = ApiError
 
 export type GetStreamSceneViewData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: string
         sceneId: string
@@ -9795,6 +9848,17 @@ export type GetStreamSceneViewData = {
 export type GetStreamSceneViewResponse = StreamSceneViewDto
 
 export type GetStreamSceneViewError = ApiError
+
+export type GetStreamSceneCourseImageData = {
+    path: {
+        eventId: string
+        sceneId: string
+    }
+}
+
+export type GetStreamSceneCourseImageResponse = Blob | File
+
+export type GetStreamSceneCourseImageError = ApiError
 
 export type AddRatingCategoryData = {
     body: RatingCategoryRequest
@@ -10393,6 +10457,12 @@ export type DownloadCertificatesOfParticipationResponse = Blob | File
 export type DownloadCertificatesOfParticipationError = BadRequestError | ApiError
 
 export type GetTimingStateData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10403,6 +10473,12 @@ export type GetTimingStateResponse = TimingStateDto
 export type GetTimingStateError = unknown
 
 export type GetTimingStationsData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10468,10 +10544,16 @@ export type DeleteTimingStationData = {
 
 export type DeleteTimingStationResponse = void
 
-export type DeleteTimingStationError = unknown
+export type DeleteTimingStationError = ApiError
 
 export type SetTimingStationArmedData = {
     body: TimingStationArmedRequest
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
         stationId: uuid
@@ -10484,6 +10566,12 @@ export type SetTimingStationArmedError = unknown
 
 export type CreateTimeMarkData = {
     body: CreateTimeMarkRequest
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10492,6 +10580,7 @@ export type CreateTimeMarkData = {
 export type CreateTimeMarkResponse = uuid
 
 export type CreateTimeMarkError =
+    | ApiError
     | {
           status: 500
           message: string
@@ -10519,6 +10608,12 @@ export type CreateTimeMarkError =
 
 export type AssignTimeMarkData = {
     body: AssignTimeMarkRequest
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
         timeMarkId: uuid
@@ -10552,6 +10647,12 @@ export type ReactivateTimeMarkResponse = void
 export type ReactivateTimeMarkError = unknown
 
 export type GetTimingSettingsData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10577,6 +10678,12 @@ export type GetServerTimeResponse = ServerTimeResponse
 export type GetServerTimeError = unknown
 
 export type GetTimingTeamsData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10587,6 +10694,12 @@ export type GetTimingTeamsResponse = Array<TimingTeamDto>
 export type GetTimingTeamsError = unknown
 
 export type GetTimingMatchesData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10757,6 +10870,12 @@ export type CreateTimingSequenceError =
       }
 
 export type GetActiveTimingSequenceData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }
@@ -10850,6 +10969,12 @@ export type DeleteRetractedTimeMarksResponse = DeletedTimeMarksDto
 export type DeleteRetractedTimeMarksError = unknown
 
 export type GetOfficialTimesData = {
+    headers?: {
+        /**
+         * Device token instead of a session, for shared devices that cannot log in (station boards, displays, stream stages). Only consulted when the request carries no session. Every rejection - unknown, revoked, expired, wrong event, wrong target - answers 401 without saying which it was. Which token kind a route accepts is stated in its description.
+         */
+        'X-Timing-Device-Token'?: string
+    }
     path: {
         eventId: uuid
     }

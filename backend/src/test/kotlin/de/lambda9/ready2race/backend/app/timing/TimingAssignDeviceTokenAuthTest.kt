@@ -118,7 +118,7 @@ class TimingAssignDeviceTokenAuthTest {
         val capture = client.post("/api/event/$eventId/timing/timeMarks") {
             header(TIMING_DEVICE_TOKEN_HEADER, issued.token)
             contentType(ContentType.Application.Json)
-            setBody("""{"id":"${UUID.randomUUID()}","station":"$displayStation","timestampMillis":1000}""")
+            setBody("""{"id":"${UUID.randomUUID()}","station":"$displayStation","timestampMillis":${System.currentTimeMillis()}}""")
         }
         assertEquals(HttpStatusCode.BadRequest, capture.status)
     }

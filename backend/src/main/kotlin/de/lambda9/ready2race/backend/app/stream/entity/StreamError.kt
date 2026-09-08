@@ -15,6 +15,12 @@ sealed interface StreamError : ServiceError {
     /** Der gewählte Platz gehört nicht zu [allowedPlacements] dieses Grafiktyps. */
     data class PlacementNotAllowed(val type: StreamGraphicType, val placement: StreamPlacement) : StreamError
 
+    /**
+     * Die Szene hat kein ausliefbares Streckenbild: keine COURSE_IMAGE-Grafik, kein Dokument
+     * eingetragen, das Dokument gelöscht oder eines einer fremden Veranstaltung - alles eine Antwort.
+     */
+    data class CourseImageNotFound(val sceneId: UUID) : StreamError
+
     override fun respond(): ApiError = when (this) {
         is SceneNotFound -> ApiError(
             status = HttpStatusCode.NotFound,
@@ -30,6 +36,11 @@ sealed interface StreamError : ServiceError {
             status = HttpStatusCode.BadRequest,
             message = "Placement $placement is not allowed for graphic type $type",
             errorCode = ErrorCode.STREAM_PLACEMENT_NOT_ALLOWED,
+        )
+
+        is CourseImageNotFound -> ApiError(
+            status = HttpStatusCode.NotFound,
+            message = "Scene $sceneId has no course image"
         )
     }
 }

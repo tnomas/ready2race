@@ -14,6 +14,7 @@ import {format} from 'date-fns'
 import {useMemo, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
+    displayPlace,
     matchBadgeSummary,
     matchDisplayColor,
     medalEmoji,
@@ -100,11 +101,17 @@ const SpeakerProgramPanel = ({
         )
     }, [matches, view, search, statusFilter, settings.programShowFinished])
 
+    // Ein Sieger je Wertungskategorie - ohne Kategorien bleibt es der eine Gesamtsieger
     const winnerLine = (match: SpeakerMatch): string | null => {
-        const winner = match.teams.find(team => team.place === 1)
-        if (!winner) return null
-        const name = winner.clubName ?? winner.clubsFull ?? winner.teamName ?? ''
-        return `${medalEmoji(1)} ${name}${winner.timeString ? ` · ${winner.timeString}` : ''}`
+        const winners = match.teams.filter(team => displayPlace(team) === 1)
+        if (winners.length === 0) return null
+        return winners
+            .map(winner => {
+                const name = winner.clubName ?? winner.clubsFull ?? winner.teamName ?? ''
+                const category = winner.ratingCategory ? ` (${winner.ratingCategory})` : ''
+                return `${medalEmoji(1)} ${name}${category}${winner.timeString ? ` · ${winner.timeString}` : ''}`
+            })
+            .join('  ')
     }
 
     return (

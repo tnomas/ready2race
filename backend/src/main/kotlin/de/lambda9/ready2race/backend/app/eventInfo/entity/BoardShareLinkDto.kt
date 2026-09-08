@@ -11,7 +11,7 @@ import java.util.UUID
  * anmelden kann er sich aber auch nicht. Also bekommt er dasselbe, was die Zeitnahme-Posten
  * längst haben: einen Link, der das Geräte-Token trägt.
  *
- * [path] ist wurzelrelativ (`/board/{eventId}/{boardId}?token=...`) - das Backend kennt den
+ * [path] ist wurzelrelativ (`/board/{eventId}/{boardId}#token=...`) - das Backend kennt den
  * öffentlichen Origin nicht, die Oberfläche stellt `window.location.origin` voran (dieselbe
  * Adressbildung wie beim Posten-Link). [token] liegt zusätzlich einzeln bei, falls die Oberfläche
  * den Link anders zusammensetzen will.

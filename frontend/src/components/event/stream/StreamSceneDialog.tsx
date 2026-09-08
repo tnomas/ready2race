@@ -7,6 +7,11 @@ import {createStreamScene, updateStreamScene} from '@api/sdk.gen'
 import {StreamBackground, StreamSceneDto} from '@api/types.gen'
 import {hasStreamSceneFormErrors, validateStreamSceneForm} from './streamSceneValidation'
 import {extractErrorReason} from './streamApiError'
+import {parseBoundedInt} from './boundedInt'
+
+/** Grenzen des Sicherheitsabstands — dieselben wie in `validateStreamSceneForm` und im Backend. */
+const SAFE_AREA_MIN = 0
+const SAFE_AREA_MAX = 100
 
 export type StreamSceneDialogProps = {
     open: boolean
@@ -29,7 +34,9 @@ const StreamSceneDialog = ({open, onClose, eventId, scene, onSaved}: StreamScene
     const [name, setName] = useState('')
     const [background, setBackground] = useState<StreamBackground>('TRANSPARENT')
     const [chromaColor, setChromaColor] = useState('#00FF00')
-    const [safeAreaPercent, setSafeAreaPercent] = useState(0)
+    // Als Rohtext, nicht als Zahl: Während des Tippens wird weder geklemmt noch gerundet
+    // (siehe `parseBoundedInt`), gelesen wird erst beim Verlassen des Felds und beim Speichern.
+    const [safeAreaRaw, setSafeAreaRaw] = useState('0')
     const [touched, setTouched] = useState(false)
     const [saving, setSaving] = useState(false)
 
@@ -40,14 +47,23 @@ const StreamSceneDialog = ({open, onClose, eventId, scene, onSaved}: StreamScene
         setName(scene?.name ?? '')
         setBackground(scene?.background ?? 'TRANSPARENT')
         setChromaColor(scene?.chromaColor ?? '#00FF00')
-        setSafeAreaPercent(scene?.safeAreaPercent ?? 0)
+        setSafeAreaRaw(String(scene?.safeAreaPercent ?? 0))
         setTouched(false)
     }, [open, scene])
 
+    // Leer oder unlesbar → null → NaN → der Validator markiert das Feld; geklemmt wird hier nicht,
+    // eine Zahl außerhalb des Bereichs bleibt bis zum Verlassen des Felds als Fehler sichtbar.
+    const safeAreaPercent = parseBoundedInt(safeAreaRaw, SAFE_AREA_MIN, SAFE_AREA_MAX) ?? NaN
     const errors = validateStreamSceneForm({name, background, chromaColor, safeAreaPercent})
+
+    const commitSafeArea = () => {
+        const parsed = parseBoundedInt(safeAreaRaw, SAFE_AREA_MIN, SAFE_AREA_MAX)
+        if (parsed !== null) setSafeAreaRaw(String(parsed))
+    }
 
     const handleSubmit = async () => {
         setTouched(true)
+        commitSafeArea()
         if (hasStreamSceneFormErrors(errors)) return
 
         setSaving(true)
@@ -117,18 +133,16 @@ const StreamSceneDialog = ({open, onClose, eventId, scene, onSaved}: StreamScene
                     <TextField
                         type="number"
                         label={t('event.stream.scenes.safeAreaPercent')}
-                        value={safeAreaPercent}
-                        onChange={e => {
-                            const value = Number(e.target.value)
-                            setSafeAreaPercent(Number.isFinite(value) ? value : safeAreaPercent)
-                        }}
+                        value={safeAreaRaw}
+                        onChange={e => setSafeAreaRaw(e.target.value)}
+                        onBlur={commitSafeArea}
                         error={touched && errors.safeAreaPercent}
                         helperText={
                             touched && errors.safeAreaPercent
                                 ? t('event.stream.scenes.validation.safeAreaPercent')
                                 : t('event.stream.scenes.safeAreaPercentHint')
                         }
-                        slotProps={{htmlInput: {min: 0, max: 100}}}
+                        slotProps={{htmlInput: {min: SAFE_AREA_MIN, max: SAFE_AREA_MAX}}}
                         fullWidth
                     />
                 </Stack>

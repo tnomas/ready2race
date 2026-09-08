@@ -26,7 +26,8 @@ import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {updateAppTimingGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import BoardHeader from '@components/timing/BoardHeader.tsx'
-import {deviceSessionForStation} from '@utils/timing/deviceSession.ts'
+import {deviceSessionForStation, readDeviceSession} from '@utils/timing/deviceSession.ts'
+import {warningTextColor} from '@utils/warningText.ts'
 import {useTimingBoardState} from '@components/timing/useTimingBoardState.ts'
 import {useServerClock} from '@utils/timing/useServerClock.ts'
 import CaptureButton from '@components/timing/CaptureButton.tsx'
@@ -61,6 +62,7 @@ import {
     counts as queueCounts,
     discardDead,
     drain as drainQueue,
+    hasCredentialFor,
     listDead,
     PendingTimeMark,
     PostOutcome,
@@ -389,6 +391,20 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
 
     const postQueuedItem = useCallback(
         async (item: PendingTimeMark): Promise<PostResult> => {
+            // Eine Marke, für deren Veranstaltung dieses Gerät weder Sitzung noch Geräte-Token hat
+            // (das Handy hing gestern an einem anderen Posten-Link), käme bei jedem Drain mit 401
+            // zurück — retryable, also für immer. Sie wandert stattdessen mit Grund in die toten
+            // Marken, wo der Bediener sie sieht und nach einer Anmeldung erneut einreihen kann.
+            if (
+                !hasCredentialFor(item, {
+                    deviceEventId: readDeviceSession()?.event ?? null,
+                    userLoggedIn: user.loggedIn,
+                })
+            ) {
+                if (item.eventId === eventId && item.station === stationId) markFailed(item.id)
+                return {outcome: 'permanent', reason: 'NO_CREDENTIAL'}
+            }
+
             let outcome: PostOutcome
             let status: number | undefined
             try {
@@ -445,7 +461,16 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
             }
             return {outcome, status}
         },
-        [eventId, stationId, handleMarkSaved, markFailed, applyLocalAssignment, feedback, t],
+        [
+            eventId,
+            stationId,
+            user.loggedIn,
+            handleMarkSaved,
+            markFailed,
+            applyLocalAssignment,
+            feedback,
+            t,
+        ],
     )
     // Kept in a ref so the drain triggers below don't need `postQueuedItem` (and therefore
     // `eventId`/`stationId`/`markSaved`) as an effect dependency — only the latest version is ever
@@ -484,11 +509,12 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
 
     // (d) Board mount: also refresh the counts immediately so the banner doesn't wait for the drain
     // to resolve, and drain right away — this covers "reload while offline, then reload online".
+    // Both callbacks are stable (their only dependency, `applyCounts`, has none), so listing them
+    // keeps this a mount-only effect.
     useEffect(() => {
         refreshCounts()
         runDrain()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [refreshCounts, runDrain])
 
     // (b) Regained connectivity.
     useEffect(() => {
@@ -962,8 +988,9 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
     // an input/textarea/select has focus (so typing a space in a field doesn't fire a capture), while a
     // MUI dialog is open (the assignment/confirmation dialogs sit on top of the board) — both via
     // `isTypingContext` — or while a focused control owns the Space key itself (`isSpaceOwnedByFocused
-    // Control`: the start-sequence panel and the capture-view toggle, where an operator pressing space
-    // must activate the button rather than silently record a time mark). Notably *not* skipped while
+    // Control`: any focused button, link or control role anywhere on the board, where an operator
+    // pressing space must activate the control rather than silently record a time mark). Notably *not*
+    // skipped while
     // the session is unauthorized: like the button itself, the shortcut still captures, and the mark
     // waits in the offline queue until the operator has logged in again.
     useEffect(() => {
@@ -1437,6 +1464,11 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                                         status: item.lastStatus ?? '–',
                                     })}
                                 </Typography>
+                                {item.deadReason === 'NO_CREDENTIAL' && (
+                                    <Typography variant="caption" sx={{color: warningTextColor}}>
+                                        {t('timing.board.deadDialog.reason.noCredential')}
+                                    </Typography>
+                                )}
                             </Stack>
                         ))}
                     </Stack>
