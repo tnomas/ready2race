@@ -4647,6 +4647,115 @@ paths:
           $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/overview:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialOverview
+      description: Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu in einem Aufruf - Grundlage des Anbieter-Dashboards. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      responses:
+        200:
+          description: Übersicht
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialOverviewDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/request/{requestId}/decision:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: decideMaterialRequest
+      description: Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialDecisionRequest'
+      responses:
+        204:
+          description: Entscheidung erfolgreich gesetzt
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/request/{requestId}/assignments:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setMaterialAssignments
+      description: Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialAssignmentsRequest'
+      responses:
+        204:
+          description: Zuteilung erfolgreich gesetzt
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
   /event/{eventId}/competitionRegistration/{competitionRegistrationId}/materialRequests:
     parameters:
       - $ref: '#/components/parameters/eventId'
@@ -18592,6 +18701,137 @@ components:
           items:
             type: string
             format: uuid
+
+    MaterialOutageDto:
+      type: object
+      description: Ausfallfenster eines Schadens (status REPORTED, out_of_service_from gesetzt).
+      required: [damageId, from]
+      properties:
+        damageId: {type: string, format: uuid}
+        from: {type: string, format: date-time}
+        until: {type: string, format: date-time}
+
+    MaterialOverviewItemDto:
+      type: object
+      description: Ein Materialstück in der Anbieter-Übersicht, mit seinen offenen Ausfallfenstern.
+      required: [id, materialType, materialTypeName, category, label, status, outages]
+      properties:
+        id: {type: string, format: uuid}
+        materialType: {type: string, format: uuid}
+        materialTypeName: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        number: {type: integer}
+        label: {type: string, maxLength: 20}
+        status: {$ref: '#/components/schemas/MaterialItemStatus'}
+        outages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialOutageDto'
+
+    MaterialAssignmentDto:
+      type: object
+      required: [id, materialItem]
+      properties:
+        id: {type: string, format: uuid}
+        materialItem: {type: string, format: uuid}
+        competitionMatch: {type: string, format: uuid}
+
+    MaterialOverviewRequestDto:
+      type: object
+      description: Eine Anfrage in der Anbieter-Übersicht - Team, Verein, Wettkampf und die Zuteilungen, keine Teilnehmerdaten.
+      required: [
+        id, materialOffer, materialType, materialTypeName, category, count, status, requestedAt,
+        competitionRegistration, competition, competitionIdentifier, competitionName, clubId, clubName, assignments,
+      ]
+      properties:
+        id: {type: string, format: uuid}
+        materialOffer: {type: string, format: uuid}
+        materialType: {type: string, format: uuid}
+        materialTypeName: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        count: {type: integer}
+        status: {$ref: '#/components/schemas/MaterialRequestStatus'}
+        decisionNote: {type: string}
+        requestedAt: {type: string, format: date-time}
+        decidedAt: {type: string, format: date-time}
+        competitionRegistration: {type: string, format: uuid}
+        competition: {type: string, format: uuid}
+        competitionIdentifier: {type: string}
+        competitionName: {type: string}
+        teamName: {type: string}
+        teamNumber: {type: integer}
+        clubId: {type: string, format: uuid}
+        clubName: {type: string}
+        clubContactEmail: {type: string}
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialAssignmentDto'
+
+    MaterialOverviewMatchDto:
+      type: object
+      description: Ein Lauf, in dem eine Anfrage dieses Anbieters steht - Grundlage der Ausnahme je Lauf. id ist competition_match.competition_setup_match.
+      required: [id, competition, registrationIds]
+      properties:
+        id: {type: string, format: uuid}
+        competition: {type: string, format: uuid}
+        name: {type: string}
+        roundName: {type: string}
+        startTime: {type: string, format: date-time}
+        endTime: {type: string, format: date-time}
+        registrationIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    MaterialOverviewDto:
+      type: object
+      description: Alles für ein Dashboard-Laden - Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu.
+      required: [requestsClosed, offers, items, requests, matches]
+      properties:
+        requestsClosed: {type: boolean}
+        offers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialOfferDto'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialOverviewItemDto'
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialOverviewRequestDto'
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialOverviewMatchDto'
+
+    MaterialDecisionRequest:
+      type: object
+      description: Entscheidung des Anbieters über eine Anfrage - status ist CONFIRMED, WAITLISTED oder DECLINED.
+      required: [status]
+      properties:
+        status: {$ref: '#/components/schemas/MaterialRequestStatus'}
+        decisionNote: {type: string}
+
+    MaterialAssignmentEntry:
+      type: object
+      required: [materialItem]
+      properties:
+        materialItem: {type: string, format: uuid}
+        competitionMatch: {type: string, format: uuid}
+
+    MaterialAssignmentsRequest:
+      type: object
+      description: Vollständige Zuteilung einer Anfrage - kein Delta, jeder Aufruf ersetzt die bisherigen Zuteilungen.
+      required: [assignments]
+      properties:
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialAssignmentEntry'
 
     AthleteBoardStartState:
       type: string

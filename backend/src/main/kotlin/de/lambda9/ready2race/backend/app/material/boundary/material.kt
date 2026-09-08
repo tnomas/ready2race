@@ -3,6 +3,8 @@ package de.lambda9.ready2race.backend.app.material.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.material.entity.MaterialAssignmentsRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
@@ -292,6 +294,44 @@ fun Route.eventMaterial() {
                             val offerId = !pathParam("offerId", uuid)
                             MaterialService.deleteOffer(eventId, providerId, offerId)
                         }
+                    }
+                }
+            }
+
+            // Übersicht, Entscheidung und Zuteilung - das Anbieter-Dashboard für diese Veranstaltung.
+            get("/overview") {
+                call.respondComprehension {
+                    val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                    val eventId = !pathParam("eventId", uuid)
+                    val providerId = !pathParam("providerId", uuid)
+                    !ownProviderCheck(user, scope, providerId)
+                    MaterialService.getOverview(eventId, providerId)
+                }
+            }
+
+            route("/request/{requestId}") {
+
+                put("/decision") {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                        val eventId = !pathParam("eventId", uuid)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val requestId = !pathParam("requestId", uuid)
+                        val body = !receiveKIO(MaterialDecisionRequest.example)
+                        MaterialService.decideRequest(eventId, providerId, requestId, body, user.id!!)
+                    }
+                }
+
+                put("/assignments") {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                        val eventId = !pathParam("eventId", uuid)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val requestId = !pathParam("requestId", uuid)
+                        val body = !receiveKIO(MaterialAssignmentsRequest.example)
+                        MaterialService.setAssignments(eventId, providerId, requestId, body, user.id!!)
                     }
                 }
             }

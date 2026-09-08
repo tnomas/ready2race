@@ -173,6 +173,92 @@ model EventRegistrationMaterialDemandDto {
   offers: EventRegistrationMaterialOfferDto[];
 }
 
+// Ausfallfenster eines Schadens (status REPORTED, out_of_service_from gesetzt).
+model MaterialOutageDto {
+  damageId: uuid;
+  from: utcDateTime;
+  until?: utcDateTime;
+}
+
+// Ein Materialstück in der Anbieter-Übersicht, mit seinen offenen Ausfallfenstern.
+model MaterialOverviewItemDto {
+  id: uuid;
+  materialType: uuid;
+  materialTypeName: string;
+  category: MaterialCategory;
+  number?: int32;
+  label: string;
+  status: MaterialItemStatus;
+  outages: MaterialOutageDto[];
+}
+
+model MaterialAssignmentDto {
+  id: uuid;
+  materialItem: uuid;
+  competitionMatch?: uuid;
+}
+
+// Eine Anfrage in der Anbieter-Übersicht - Team, Verein, Wettkampf und die Zuteilungen, keine Teilnehmerdaten.
+model MaterialOverviewRequestDto {
+  id: uuid;
+  materialOffer: uuid;
+  materialType: uuid;
+  materialTypeName: string;
+  category: MaterialCategory;
+  count: int32;
+  status: MaterialRequestStatus;
+  decisionNote?: string;
+  requestedAt: utcDateTime;
+  decidedAt?: utcDateTime;
+  competitionRegistration: uuid;
+  competition: uuid;
+  competitionIdentifier: string;
+  competitionName: string;
+  teamName?: string;
+  teamNumber?: int32;
+  clubId: uuid;
+  clubName: string;
+  // Kontakt = E-Mail des Nutzers, der die Anmeldung angelegt hat.
+  clubContactEmail?: string;
+  assignments: MaterialAssignmentDto[];
+}
+
+// Ein Lauf, in dem eine Anfrage dieses Anbieters steht. id ist competition_match.competition_setup_match.
+model MaterialOverviewMatchDto {
+  id: uuid;
+  competition: uuid;
+  name?: string;
+  roundName?: string;
+  startTime?: utcDateTime;
+  endTime?: utcDateTime;
+  registrationIds: uuid[];
+}
+
+// Alles für ein Dashboard-Laden - Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu.
+model MaterialOverviewDto {
+  requestsClosed: boolean;
+  offers: MaterialOfferDto[];
+  items: MaterialOverviewItemDto[];
+  requests: MaterialOverviewRequestDto[];
+  matches: MaterialOverviewMatchDto[];
+}
+
+// Entscheidung des Anbieters über eine Anfrage - status ist CONFIRMED, WAITLISTED oder DECLINED.
+model MaterialDecisionRequest {
+  status: MaterialRequestStatus;
+  decisionNote?: string;
+}
+
+model MaterialAssignmentEntry {
+  materialItem: uuid;
+  competitionMatch?: uuid;
+}
+
+// Vollständige Zuteilung einer Anfrage - kein Delta.
+model MaterialAssignmentsRequest {
+  assignments: MaterialAssignmentEntry[];
+}
+
 @route("/materialProvider")
 @tag("Material")
 interface MaterialRoutes {
@@ -376,6 +462,37 @@ interface EventMaterialRoutes {
     @path eventId: string, // UUID
     @path providerId: string, // UUID
     @path offerId: string, // UUID
+  ): void;
+
+  // Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu in einem Aufruf - das Anbieter-Dashboard.
+  @get
+  @route("/{providerId}/overview")
+  @operationId("")
+  getMaterialOverview(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+  ): MaterialOverviewDto;
+
+  // Entscheidet über eine Anfrage (bestätigen, Warteliste, ablehnen)
+  @put
+  @route("/{providerId}/request/{requestId}/decision")
+  @operationId("")
+  decideMaterialRequest(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @path requestId: string, // UUID
+    @body request: MaterialDecisionRequest,
+  ): void;
+
+  // Ersetzt die Zuteilung einer bestätigten Anfrage vollständig
+  @put
+  @route("/{providerId}/request/{requestId}/assignments")
+  @operationId("")
+  setMaterialAssignments(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @path requestId: string, // UUID
+    @body request: MaterialAssignmentsRequest,
   ): void;
 }
 

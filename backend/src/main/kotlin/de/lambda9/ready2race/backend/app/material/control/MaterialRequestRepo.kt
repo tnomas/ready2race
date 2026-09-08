@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.MATERI
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
 import de.lambda9.ready2race.backend.database.insertReturning
 import de.lambda9.ready2race.backend.database.select
+import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
 import de.lambda9.ready2race.backend.database.updateMany
 import de.lambda9.tailwind.jooq.JIO
@@ -26,6 +27,8 @@ import java.util.UUID
 object MaterialRequestRepo {
 
     fun create(record: MaterialRequestRecord) = MATERIAL_REQUEST.insertReturning(record) { ID }
+
+    fun get(id: UUID) = MATERIAL_REQUEST.selectOne { ID.eq(id) }
 
     fun forRegistration(competitionRegistrationId: UUID) =
         MATERIAL_REQUEST.select { COMPETITION_REGISTRATION.eq(competitionRegistrationId) }

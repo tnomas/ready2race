@@ -10,21 +10,26 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailTemplateKey
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialAssignmentRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialItemRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialOfferRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialOverviewRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialRequestRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialTypeRepo
 import de.lambda9.ready2race.backend.app.material.control.toDto
 import de.lambda9.ready2race.backend.app.material.control.toRecord
 import de.lambda9.ready2race.backend.app.material.entity.EventMaterialProviderDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialAssignmentsRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderEventDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
@@ -38,6 +43,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialRequestRecord
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
@@ -556,5 +562,133 @@ object MaterialService {
                 EmailService.enqueue(recipient = email, content = content).map { }
             }
         }
+    }
+
+    // -------------------------------------------------------------------
+    // Übersicht, Entscheidung, Zuteilung
+    // -------------------------------------------------------------------
+
+    /**
+     * Alles für ein Dashboard-Laden (Spec Abschnitt 9): Angebote, Flotte, Anfragen und die Läufe
+     * dazu. Der Anbieter muss zur Veranstaltung eingeladen sein - sonst gäbe es auch keine
+     * `requests_closed`, die die Oberfläche braucht.
+     */
+    fun getOverview(
+        eventId: UUID,
+        providerId: UUID,
+    ): App<MaterialError, ApiResponse.Dto<MaterialOverviewDto>> = KIO.comprehension {
+        val invitation = !EventHasMaterialProviderRepo.get(eventId, providerId).orDie().onNullFail { MaterialError.NotInvited }
+        val offers = !MaterialOfferRepo.listForEventAndProvider(eventId, providerId).orDie()
+        val items = !MaterialOverviewRepo.itemsForProvider(providerId).orDie()
+        val requests = !MaterialOverviewRepo.requestsForEventAndProvider(eventId, providerId).orDie()
+        val matches = !MaterialOverviewRepo.matchesForEventAndProvider(eventId, providerId).orDie()
+
+        KIO.ok(
+            ApiResponse.Dto(
+                MaterialOverviewDto(
+                    requestsClosed = invitation.requestsClosed!!,
+                    offers = offers,
+                    items = items,
+                    requests = requests,
+                    matches = matches,
+                )
+            )
+        )
+    }
+
+    /**
+     * Lädt die Anfrage, sofern sie zu einem Angebot dieses Anbieters an dieser Veranstaltung
+     * gehört. Eine zurückgezogene Anfrage gilt als nicht gefunden - WITHDRAWN ist ein Endzustand,
+     * den weder Entscheidung noch Zuteilung mehr ändern dürfen.
+     */
+    private fun requestOfProvider(
+        eventId: UUID,
+        providerId: UUID,
+        requestId: UUID,
+    ): App<MaterialError, MaterialRequestRecord> = KIO.comprehension {
+        val request = !MaterialRequestRepo.get(requestId).orDie().onNullFail { MaterialError.RequestNotFound }
+        val offer = !MaterialOfferRepo.get(request.materialOffer).orDie().onNullFail { MaterialError.RequestNotFound }
+        !KIO.ok(offer.event == eventId && offer.materialProvider == providerId).onFalseFail { MaterialError.RequestNotFound }
+        !KIO.failOn(request.status == MaterialRequestStatus.WITHDRAWN.name) { MaterialError.RequestNotFound }
+        KIO.ok(request)
+    }
+
+    /** Bestätigen, Warteliste oder Ablehnen mit Notiz (Spec Abschnitt 9). */
+    fun decideRequest(
+        eventId: UUID,
+        providerId: UUID,
+        requestId: UUID,
+        request: MaterialDecisionRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !requestOfProvider(eventId, providerId, requestId)
+
+        val now = LocalDateTime.now()
+        !MaterialRequestRepo.update(requestId) {
+            status = request.status.name
+            decisionNote = request.decisionNote
+            decidedAt = now
+            updatedAt = now
+            updatedBy = userId
+        }.orDie().onNullFail { MaterialError.RequestNotFound }
+        noData
+    }
+
+    /**
+     * Ersetzt die Zuteilungen einer Anfrage vollständig (Spec Abschnitt 9). Harte Prüfungen vor
+     * jeder Schreibaktion, damit eine ungültige Zeile die anderen nicht halb anwendet: die Anfrage
+     * muss bestätigt sein, jedes Stück muss dem Anbieter gehören und die Art des Angebots tragen,
+     * ein genannter Lauf muss die Meldung wirklich enthalten.
+     */
+    fun setAssignments(
+        eventId: UUID,
+        providerId: UUID,
+        requestId: UUID,
+        request: MaterialAssignmentsRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        val materialRequest = !requestOfProvider(eventId, providerId, requestId)
+        !KIO.failOn(materialRequest.status != MaterialRequestStatus.CONFIRMED.name) { MaterialError.RequestNotConfirmed }
+
+        val offer = !MaterialOfferRepo.get(materialRequest.materialOffer).orDie().onNullFail { MaterialError.RequestNotFound }
+
+        !request.assignments.traverse { entry ->
+            KIO.comprehension {
+                val item = !MaterialItemRepo.get(entry.materialItem).orDie().onNullFail { MaterialError.ItemNotOfProvider }
+                !KIO.failOn(item.materialProvider != providerId) { MaterialError.ItemNotOfProvider }
+                !KIO.failOn(item.materialType != offer.materialType) { MaterialError.WrongItemType }
+
+                if (entry.competitionMatch != null) {
+                    val inMatch =
+                        !MaterialAssignmentRepo.matchContainsRegistration(entry.competitionMatch, materialRequest.competitionRegistration)
+                            .orDie()
+                    !KIO.failOn(!inMatch) { MaterialError.MatchNotOfRegistration }
+                }
+
+                KIO.unit
+            }
+        }
+
+        !MaterialAssignmentRepo.deleteForRequest(requestId).orDie()
+
+        if (request.assignments.isNotEmpty()) {
+            val now = LocalDateTime.now()
+            !MaterialAssignmentRepo.create(
+                request.assignments.map { entry ->
+                    MaterialAssignmentRecord(
+                        id = UUID.randomUUID(),
+                        materialRequest = requestId,
+                        materialItem = entry.materialItem,
+                        competitionMatch = entry.competitionMatch,
+                        createdAt = now,
+                        createdBy = userId,
+                        updatedAt = now,
+                        updatedBy = userId,
+                    )
+                }
+            ).orDie()
+        }
+
+        noData
     }
 }

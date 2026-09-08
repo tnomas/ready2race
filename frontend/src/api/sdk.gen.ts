@@ -515,6 +515,15 @@ import type {
     DeleteMaterialOfferData,
     DeleteMaterialOfferError,
     DeleteMaterialOfferResponse,
+    GetMaterialOverviewData,
+    GetMaterialOverviewError,
+    GetMaterialOverviewResponse,
+    DecideMaterialRequestData,
+    DecideMaterialRequestError,
+    DecideMaterialRequestResponse,
+    SetMaterialAssignmentsData,
+    SetMaterialAssignmentsError,
+    SetMaterialAssignmentsResponse,
     SetMaterialRequestsData,
     SetMaterialRequestsError,
     SetMaterialRequestsResponse,
@@ -3495,6 +3504,54 @@ export const deleteMaterialOffer = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/materialProvider/{providerId}/offer/{offerId}',
+    })
+}
+
+/**
+ * Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu in einem Aufruf - Grundlage des Anbieter-Dashboards. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const getMaterialOverview = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialOverviewData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialOverviewResponse,
+        GetMaterialOverviewError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/overview',
+    })
+}
+
+/**
+ * Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden.
+ */
+export const decideMaterialRequest = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DecideMaterialRequestData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        DecideMaterialRequestResponse,
+        DecideMaterialRequestError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/request/{requestId}/decision',
+    })
+}
+
+/**
+ * Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten.
+ */
+export const setMaterialAssignments = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetMaterialAssignmentsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetMaterialAssignmentsResponse,
+        SetMaterialAssignmentsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/request/{requestId}/assignments',
     })
 }
 

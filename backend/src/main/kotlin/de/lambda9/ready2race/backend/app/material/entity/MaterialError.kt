@@ -52,6 +52,21 @@ sealed interface MaterialError : ServiceError {
     /** Zwei Angebote derselben Materialart in einer Anfrage-Liste - höchstens eines je Art. */
     data object DuplicateTypeForRegistration : MaterialError
 
+    /** Anfrage existiert nicht, gehört nicht zu einem Angebot dieses Anbieters an dieser Veranstaltung, oder ist WITHDRAWN. */
+    data object RequestNotFound : MaterialError
+
+    /** Zuteilung setzt eine bestätigte Anfrage voraus (Spec Abschnitt 9). */
+    data object RequestNotConfirmed : MaterialError
+
+    /** Zugeteiltes Stück gehört nicht der Materialart des Angebots. */
+    data object WrongItemType : MaterialError
+
+    /** Die Ausnahme je Lauf verlangt, dass die Meldung in diesem Lauf tatsächlich startet. */
+    data object MatchNotOfRegistration : MaterialError
+
+    /** Zugeteiltes Stück gehört nicht dem Anbieter der Anfrage. */
+    data object ItemNotOfProvider : MaterialError
+
     override fun respond(): ApiError = when (this) {
         ProviderNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material provider not found")
         ProviderNameTaken -> ApiError(
@@ -91,5 +106,11 @@ sealed interface MaterialError : ServiceError {
         RequestsClosed -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider has closed requests for this event")
         TypeNotDemanded -> ApiError(status = HttpStatusCode.Conflict, message = "Material type is not demanded by this competition")
         DuplicateTypeForRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "At most one offer per material type is allowed")
+
+        RequestNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material request not found")
+        RequestNotConfirmed -> ApiError(status = HttpStatusCode.Conflict, message = "Material request is not confirmed")
+        WrongItemType -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not match the offer's type")
+        MatchNotOfRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "Competition match does not contain this registration")
+        ItemNotOfProvider -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not belong to this provider")
     }
 }

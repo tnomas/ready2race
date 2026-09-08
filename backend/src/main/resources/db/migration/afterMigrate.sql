@@ -1,5 +1,7 @@
 set search_path to ready2race, pg_catalog, public;
 
+drop view if exists material_item_schedule;
+drop view if exists material_request_view;
 drop view if exists material_item_view;
 drop view if exists event_data_for_competition_results;
 drop view if exists gap_document_template_assignment;
@@ -1631,3 +1633,59 @@ select mi.id,
 from material_item mi
          join material_type mt on mt.id = mi.material_type
          join material_provider mp on mp.id = mi.material_provider;
+
+-- Anfrage mit Angebot, Typ, Meldung, Wettkampf und Verein aufgelöst (Anbieter-Übersicht, Task 4.1;
+-- spätere Aufgaben lesen dieselbe Sicht). Inner-Join auf competition_registration statt Fremdschlüssel
+-- (material_request hat bewusst keinen, siehe Migration) - Waisen verschwinden damit einfach aus der
+-- Sicht, der aufgeschobene Aufräum-Trigger holt sie am Commit ohnehin weg.
+create view material_request_view as
+select mr.id,
+       mr.competition_registration,
+       mr.material_offer,
+       mo.event,
+       mo.material_provider,
+       mo.material_type,
+       mt.name                                       as material_type_name,
+       mt.category,
+       mr.count,
+       mr.status,
+       mr.decision_note,
+       mr.requested_at,
+       mr.decided_at,
+       cr.competition,
+       cp.identifier                                  as competition_identifier,
+       cp.name                                        as competition_name,
+       cr.name                                        as team_name,
+       cr.team_number,
+       cl.id                                          as club_id,
+       cl.name                                        as club_name,
+       au.email                                       as club_contact_email
+from material_request mr
+         join material_offer mo on mo.id = mr.material_offer
+         join material_type mt on mt.id = mo.material_type
+         join competition_registration cr on cr.id = mr.competition_registration
+         join competition_properties cp on cp.competition = cr.competition
+         join club cl on cl.id = cr.club
+         join event_registration er on er.id = cr.event_registration
+         left join app_user au on au.id = er.created_by;
+
+-- Je Zuteilung der Lauf, in dem sie greift, mit Startzeit - für die Einteilung "nach Materialstück"
+-- und die Konfliktprüfung (beides im Frontend, Task 4.3). Eine Zuteilung ohne competition_match gilt
+-- für den ganzen Wettkampf: der Join über competition_match_team.competition_registration (nicht nur
+-- über die Ausnahme) fächert sie auf alle Läufe der Meldung auf; eine Zuteilung mit competition_match
+-- bleibt über die and-Bedingung auf genau diesen Lauf beschränkt.
+create view material_item_schedule as
+select ma.material_item,
+       ma.id                    as material_assignment,
+       ma.material_request,
+       cmt.competition_match,
+       cm.start_time,
+       mr.competition_registration,
+       cmt.start_number
+from material_assignment ma
+         join material_request mr on mr.id = ma.material_request
+         join competition_registration cr on cr.id = mr.competition_registration
+         join competition_match_team cmt
+              on cmt.competition_registration = cr.id
+                  and (ma.competition_match is null or ma.competition_match = cmt.competition_match)
+         join competition_match cm on cm.competition_setup_match = cmt.competition_match;

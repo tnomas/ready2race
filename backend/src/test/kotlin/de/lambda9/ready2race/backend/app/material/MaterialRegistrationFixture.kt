@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.material
 
 import de.lambda9.ready2race.backend.app.JEnv
+import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetupPlacesOption
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.CompetitionRegistrationNamedParticipantUpsertDto
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.CompetitionRegistrationTeamUpsertDto
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.CompetitionRegistrationUpsertDto
@@ -10,17 +11,27 @@ import de.lambda9.ready2race.backend.database.generated.enums.Gender
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.ClubRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchTeamRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasNamedParticipantRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupMatchRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionSetupRoundRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.NamedParticipantRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.ParticipantRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER
 import de.lambda9.ready2race.backend.database.generated.tables.references.CLUB
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES_HAS_NAMED_PARTICIPANT
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_ROUND
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.NAMED_PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
@@ -206,3 +217,69 @@ fun upsertDto(
     message = null,
     callbackUrl = null,
 )
+
+data class SeededMatch(val roundId: UUID, val matchId: UUID)
+
+/**
+ * Ein Lauf für den Wettkampf aus [seedOpenTeamEvent] - Runde, ein Lauf mit Startzeit, die Meldung
+ * als Team mit Startnummer. Nach dem Vorbild von `ClubChainFixture.seedClubChain`, hier ohne die
+ * Vereinskette - nur das Minimum, das [de.lambda9.ready2race.backend.app.material.control.MaterialOverviewRepo]
+ * für die Läufe einer Meldung braucht (Task 4.1).
+ */
+fun TestComprehensionScope<JEnv>.seedMatch(
+    propertiesId: UUID,
+    registrationId: UUID,
+    startTime: LocalDateTime? = seedTime,
+    startNumber: Int = 1,
+): SeededMatch {
+    val roundId = UUID.randomUUID()
+    val matchId = UUID.randomUUID()
+
+    !COMPETITION_SETUP.insert(
+        CompetitionSetupRecord(
+            competitionProperties = propertiesId,
+            createdAt = seedTime,
+            updatedAt = seedTime,
+        )
+    )
+    !COMPETITION_SETUP_ROUND.insert(
+        CompetitionSetupRoundRecord(
+            id = roundId,
+            competitionSetup = propertiesId,
+            name = "Vorlauf",
+            required = true,
+            useDefaultSeeding = true,
+            placesOption = CompetitionSetupPlacesOption.EQUAL.name,
+        )
+    )
+    !COMPETITION_SETUP_MATCH.insert(
+        CompetitionSetupMatchRecord(
+            id = matchId,
+            competitionSetupRound = roundId,
+            weighting = 1,
+            name = "Lauf 1",
+            executionOrder = 1,
+            teams = 1,
+        )
+    )
+    !COMPETITION_MATCH.insert(
+        CompetitionMatchRecord(
+            competitionSetupMatch = matchId,
+            startTime = startTime,
+            createdAt = seedTime,
+            updatedAt = seedTime,
+        )
+    )
+    !COMPETITION_MATCH_TEAM.insert(
+        CompetitionMatchTeamRecord(
+            id = UUID.randomUUID(),
+            competitionMatch = matchId,
+            competitionRegistration = registrationId,
+            startNumber = startNumber,
+            createdAt = seedTime,
+            updatedAt = seedTime,
+        )
+    )
+
+    return SeededMatch(roundId = roundId, matchId = matchId)
+}

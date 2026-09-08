@@ -2996,9 +2996,35 @@ export type MatchTeamNoteRequest = {
     note: string
 }
 
+export type MaterialAssignmentDto = {
+    id: string
+    materialItem: string
+    competitionMatch?: string
+}
+
+export type MaterialAssignmentEntry = {
+    materialItem: string
+    competitionMatch?: string
+}
+
+/**
+ * Vollständige Zuteilung einer Anfrage - kein Delta, jeder Aufruf ersetzt die bisherigen Zuteilungen.
+ */
+export type MaterialAssignmentsRequest = {
+    assignments: Array<MaterialAssignmentEntry>
+}
+
 export type MaterialCapacityLevel = 'GREEN' | 'YELLOW'
 
 export type MaterialCategory = 'BOAT' | 'OTHER'
+
+/**
+ * Entscheidung des Anbieters über eine Anfrage - status ist CONFIRMED, WAITLISTED oder DECLINED.
+ */
+export type MaterialDecisionRequest = {
+    status: MaterialRequestStatus
+    decisionNote?: string
+}
 
 /**
  * Bedarf einer Materialart am Wettkampf, mit aufgelöstem Namen und Kategorie.
@@ -3059,6 +3085,79 @@ export type MaterialOfferRequest = {
     priceText?: string
     plannedCount: number
     changeoverMinutes: number
+}
+
+/**
+ * Ausfallfenster eines Schadens (status REPORTED, out_of_service_from gesetzt).
+ */
+export type MaterialOutageDto = {
+    damageId: string
+    from: string
+    until?: string
+}
+
+/**
+ * Alles für ein Dashboard-Laden - Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu.
+ */
+export type MaterialOverviewDto = {
+    requestsClosed: boolean
+    offers: Array<MaterialOfferDto>
+    items: Array<MaterialOverviewItemDto>
+    requests: Array<MaterialOverviewRequestDto>
+    matches: Array<MaterialOverviewMatchDto>
+}
+
+/**
+ * Ein Materialstück in der Anbieter-Übersicht, mit seinen offenen Ausfallfenstern.
+ */
+export type MaterialOverviewItemDto = {
+    id: string
+    materialType: string
+    materialTypeName: string
+    category: MaterialCategory
+    number?: number
+    label: string
+    status: MaterialItemStatus
+    outages: Array<MaterialOutageDto>
+}
+
+/**
+ * Ein Lauf, in dem eine Anfrage dieses Anbieters steht - Grundlage der Ausnahme je Lauf. id ist competition_match.competition_setup_match.
+ */
+export type MaterialOverviewMatchDto = {
+    id: string
+    competition: string
+    name?: string
+    roundName?: string
+    startTime?: string
+    endTime?: string
+    registrationIds: Array<string>
+}
+
+/**
+ * Eine Anfrage in der Anbieter-Übersicht - Team, Verein, Wettkampf und die Zuteilungen, keine Teilnehmerdaten.
+ */
+export type MaterialOverviewRequestDto = {
+    id: string
+    materialOffer: string
+    materialType: string
+    materialTypeName: string
+    category: MaterialCategory
+    count: number
+    status: MaterialRequestStatus
+    decisionNote?: string
+    requestedAt: string
+    decidedAt?: string
+    competitionRegistration: string
+    competition: string
+    competitionIdentifier: string
+    competitionName: string
+    teamName?: string
+    teamNumber?: number
+    clubId: string
+    clubName: string
+    clubContactEmail?: string
+    assignments: Array<MaterialAssignmentDto>
 }
 
 export type MaterialProviderDto = {
@@ -8083,6 +8182,43 @@ export type DeleteMaterialOfferData = {
 export type DeleteMaterialOfferResponse = void
 
 export type DeleteMaterialOfferError = BadRequestError | ApiError
+
+export type GetMaterialOverviewData = {
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type GetMaterialOverviewResponse = MaterialOverviewDto
+
+export type GetMaterialOverviewError = BadRequestError | ApiError
+
+export type DecideMaterialRequestData = {
+    body: MaterialDecisionRequest
+    path: {
+        eventId: string
+        providerId: string
+        requestId: string
+    }
+}
+
+export type DecideMaterialRequestResponse = void
+
+export type DecideMaterialRequestError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type SetMaterialAssignmentsData = {
+    body: MaterialAssignmentsRequest
+    path: {
+        eventId: string
+        providerId: string
+        requestId: string
+    }
+}
+
+export type SetMaterialAssignmentsResponse = void
+
+export type SetMaterialAssignmentsError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type SetMaterialRequestsData = {
     body: MaterialRequestsUpsertRequest
