@@ -158,6 +158,12 @@ object AppUserService {
                     )
                 }
             ).orDie()
+
+            // Die Rolle Materialanbieter wird ausschließlich von der Anbieter-Zuordnung abgeleitet,
+            // damit Rolle und `app_user.material_provider` nicht auseinanderlaufen können - egal
+            // was die Rollenliste in diesem Request enthielt.
+            val targetUser = !AppUserRepo.get(targetUserId).orDie().onNullFail { AppUserError.NotFound }
+            !ensureMaterialProviderRole(targetUserId, targetUser.materialProvider != null)
         }
 
         noData
@@ -183,7 +189,21 @@ object AppUserService {
             updatedBy = requestingUserId
         }.orDie().onNullFail { AppUserError.NotFound }
 
-        if (providerId != null) {
+        !ensureMaterialProviderRole(targetUserId, providerId != null)
+
+        noData
+    }
+
+    /**
+     * Sorgt dafür, dass die Rolle Materialanbieter genau dann gesetzt ist, wenn `shouldHaveRole`
+     * es verlangt - gemeinsam genutzt von `update` und `setMaterialProvider`, damit die Rolle immer
+     * der Anbieter-Zuordnung folgt und nirgendwo eigenständig gepflegt wird.
+     */
+    private fun ensureMaterialProviderRole(
+        targetUserId: UUID,
+        shouldHaveRole: Boolean,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        if (shouldHaveRole) {
             val hasRole = !AppUserHasRoleRepo.exists(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
             if (!hasRole) {
                 !AppUserHasRoleRepo.create(
@@ -197,7 +217,7 @@ object AppUserService {
             !AppUserHasRoleRepo.deleteRole(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
         }
 
-        noData
+        unit
     }
 
     fun pageInvitations(

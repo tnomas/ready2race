@@ -9,7 +9,7 @@ import Throbber from '@components/Throbber.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {updateUserGlobal} from '@authorization/privileges.ts'
+import {MATERIAL_PROVIDER_ROLE_ID, updateUserGlobal} from '@authorization/privileges.ts'
 import RolesSelect from '@components/user/RolesSelect.tsx'
 import {UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
@@ -94,17 +94,26 @@ const UserPage = () => {
         }
         setSubmitting(false)
 
+        // Auch wenn nur der zweite Aufruf (Anbieter) fehlschlägt, ist der erste (Name/Rollen)
+        // bereits gespeichert - neu laden, damit die Seite den persistierten Stand zeigt.
+        if (!error) {
+            setReloadUserData(!reloadUserData)
+        }
+
         if (error || providerError) {
             feedback.error(t('user.update.error'))
         } else {
             feedback.success(t('user.update.success'))
-            setReloadUserData(!reloadUserData)
         }
     }
 
     const {data} = useFetch(signal => getRoles({signal}), {
         preCondition: () => user.checkPrivilege(updateUserGlobal), // The backend checks for the privilege READUserGlobal
     })
+
+    // Materialanbieter wird über den eigenen Select oben gepflegt, nicht über RolesSelect -
+    // sonst könnten Rolle und Anbieter-Zuordnung auseinanderlaufen.
+    const assignableRoles = data?.data.filter(r => r.id !== MATERIAL_PROVIDER_ROLE_ID)
 
     return (
         <Box sx={{maxWidth: 600}}>
@@ -126,8 +135,8 @@ const UserPage = () => {
                                 />
                                 <Typography>{userData.email}</Typography>
                                 {user.checkPrivilege(updateUserGlobal)
-                                    ? (data?.data.length ?? 0) > 0 && (
-                                          <RolesSelect availableRoles={data?.data} />
+                                    ? (assignableRoles?.length ?? 0) > 0 && (
+                                          <RolesSelect availableRoles={assignableRoles} />
                                       )
                                     : userData.roles.length > 0 && (
                                           <Box>
@@ -184,6 +193,8 @@ function mapFormToRequest(formData: Form, editRoles: boolean): UpdateAppUserRequ
     return {
         firstname: formData.firstname,
         lastname: formData.lastname,
-        roles: editRoles ? formData.roles : [],
+        // Materialanbieter-Rolle nie mitsenden - das Backend leitet sie allein aus der
+        // Anbieter-Zuordnung ab (siehe AppUserService.update).
+        roles: editRoles ? formData.roles.filter(id => id !== MATERIAL_PROVIDER_ROLE_ID) : [],
     }
 }

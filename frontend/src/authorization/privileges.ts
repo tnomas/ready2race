@@ -1,5 +1,10 @@
 import {Privilege} from '@api/types.gen.ts'
 
+// Die Rolle Materialanbieter wird ausschließlich über die Anbieter-Zuordnung auf der Nutzerseite
+// gepflegt (Backend leitet sie aus `app_user.material_provider` ab) - sie darf deshalb nicht als
+// normale Rolle über RolesSelect an-/abwählbar sein.
+export const MATERIAL_PROVIDER_ROLE_ID = '00000000-0000-0000-0000-000000000003'
+
 export const createUserGlobal: Privilege = {action: 'CREATE', resource: 'USER', scope: 'GLOBAL'}
 export const readUserGlobal: Privilege = {action: 'READ', resource: 'USER', scope: 'GLOBAL'}
 export const readUserOwn: Privilege = {action: 'READ', resource: 'USER', scope: 'OWN'}
