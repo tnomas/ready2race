@@ -1,6 +1,6 @@
-import {Box, Tab, Typography} from '@mui/material'
+import {Box, Button, Tab, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {useNavigate} from '@tanstack/react-router'
+import {Link, useNavigate} from '@tanstack/react-router'
 import {materialEventRoute} from '@routes'
 import TabSelectionContainer from '@components/tab/TabSelectionContainer.tsx'
 import TabPanel from '@components/tab/TabPanel.tsx'
@@ -76,6 +76,13 @@ const MaterialDashboardPage = () => {
             <TabPanel index={'settings'} activeTab={activeTab}>
                 {providerId ? (
                     <MaterialSettingsPanel eventId={eventId} providerId={providerId} />
+                ) : mayReadGlobal ? (
+                    <Box>
+                        <Typography>{t('material.dashboard.chooseProvider')}</Typography>
+                        <Button component={Link} to={'/material'} sx={{mt: 1}}>
+                            {t('material.material')}
+                        </Button>
+                    </Box>
                 ) : (
                     <Typography>{t('material.fleet.noProvider')}</Typography>
                 )}

@@ -367,11 +367,11 @@ const CompetitionPage = () => {
                                         </List>
                                     </Card>
                                 )}
-                                {competitionData.properties.materialTypes.length > 0 && (
-                                    <Card sx={{p: 2, flex: 1}}>
-                                        <Typography sx={{mb: 1}} variant="h6">
-                                            {t('event.competition.material.demand')}
-                                        </Typography>
+                                <Card sx={{p: 2, flex: 1}}>
+                                    <Typography sx={{mb: 1}} variant="h6">
+                                        {t('event.competition.material.demand')}
+                                    </Typography>
+                                    {competitionData.properties.materialTypes.length > 0 ? (
                                         <List>
                                             {competitionData.properties.materialTypes.map(m => (
                                                 <ListItem key={m.materialType}>
@@ -381,8 +381,12 @@ const CompetitionPage = () => {
                                                 </ListItem>
                                             ))}
                                         </List>
-                                    </Card>
-                                )}
+                                    ) : (
+                                        <Typography color="text.secondary">
+                                            {t('material.demand.none')}
+                                        </Typography>
+                                    )}
+                                </Card>
                                 {!eventData.challengeEvent && (
                                     <Card sx={{p: 2, flex: 1}}>
                                         {(eventDaysData && assignedEventDaysData && (

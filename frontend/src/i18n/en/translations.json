@@ -2838,7 +2838,8 @@
       "openRequests": "Open requests",
       "openDamages": "Open damages",
       "closed": "Closed",
-      "none": "No provider invited."
+      "none": "No provider invited.",
+      "inviteNeedsMaterialRead": "Inviting requires the right to read providers."
     }
   },
   "task": {
@@ -4564,7 +4565,8 @@
         "damages": "Damages",
         "settings": "Settings"
       },
-      "comingSoon": "Will be filled in a later task."
+      "comingSoon": "Will be filled in a later task.",
+      "chooseProvider": "Please choose a provider first."
     },
     "offer": {
       "offer": "Offer",

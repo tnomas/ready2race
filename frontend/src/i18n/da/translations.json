@@ -2593,7 +2593,8 @@
       "openRequests": "Åbne forespørgsler",
       "openDamages": "Åbne skader",
       "closed": "Lukket",
-      "none": "Ingen udbyder inviteret."
+      "none": "Ingen udbyder inviteret.",
+      "inviteNeedsMaterialRead": "Invitation kræver ret til at læse udlejere."
     }
   },
   "task": {
@@ -4312,7 +4313,8 @@
         "damages": "Skader",
         "settings": "Indstillinger"
       },
-      "comingSoon": "Udfyldes i en senere opgave."
+      "comingSoon": "Udfyldes i en senere opgave.",
+      "chooseProvider": "Vælg først en udlejer."
     },
     "offer": {
       "offer": "Tilbud",

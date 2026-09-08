@@ -2838,7 +2838,8 @@
       "openRequests": "Offene Anfragen",
       "openDamages": "Offene Schäden",
       "closed": "Geschlossen",
-      "none": "Kein Anbieter eingeladen."
+      "none": "Kein Anbieter eingeladen.",
+      "inviteNeedsMaterialRead": "Zum Einladen fehlt das Recht, Anbieter zu lesen."
     }
   },
   "task": {
@@ -4564,7 +4565,8 @@
         "damages": "Schäden",
         "settings": "Einstellungen"
       },
-      "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt."
+      "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt.",
+      "chooseProvider": "Bitte zuerst einen Anbieter auswählen."
     },
     "offer": {
       "offer": "Angebot",

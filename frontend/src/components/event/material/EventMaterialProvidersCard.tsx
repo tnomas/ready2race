@@ -21,7 +21,7 @@ import {useTranslation} from 'react-i18next'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {updateEventGlobal} from '@authorization/privileges.ts'
+import {readMaterialGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import {
     getEventMaterialProviders,
     getMaterialProviders,
@@ -46,6 +46,7 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
     const mayManage = user.checkPrivilege(updateEventGlobal)
+    const mayInvite = mayManage && user.checkPrivilege(readMaterialGlobal)
 
     const [lastRequested, setLastRequested] = useState(Date.now())
     const reload = () => setLastRequested(Date.now())
@@ -72,7 +73,7 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
     const {data: allProviders, pending: allProvidersPending} = useFetch(
         signal => getMaterialProviders({signal, query: {limit: 200}}),
         {
-            preCondition: () => mayManage,
+            preCondition: () => mayInvite,
             onResponse: ({error}) => {
                 if (error) {
                     feedback.error(
@@ -174,35 +175,40 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
             ) : (
                 <Typography color="text.secondary">{t('event.material.none')}</Typography>
             )}
-            {mayManage && (
-                <Stack direction="row" spacing={2} sx={{mt: 2, alignItems: 'center'}}>
-                    <FormControl sx={{minWidth: 260}} size="small">
-                        <InputLabel id={'event-material-provider-invite-label'}>
-                            {t('material.provider.provider')}
-                        </InputLabel>
-                        <Select
-                            labelId={'event-material-provider-invite-label'}
-                            label={t('material.provider.provider')}
-                            value={selectedProviderId}
-                            disabled={allProvidersPending || availableProviders.length === 0}
-                            onChange={e => setSelectedProviderId(e.target.value)}>
-                            {availableProviders.map(provider => (
-                                <MenuItem key={provider.id} value={provider.id}>
-                                    {provider.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <Box>
-                        <Button
-                            variant="contained"
-                            disabled={!selectedProviderId || inviting}
-                            onClick={handleInvite}>
-                            {t('event.material.invite')}
-                        </Button>
-                    </Box>
-                </Stack>
-            )}
+            {mayManage &&
+                (mayInvite ? (
+                    <Stack direction="row" spacing={2} sx={{mt: 2, alignItems: 'center'}}>
+                        <FormControl sx={{minWidth: 260}} size="small">
+                            <InputLabel id={'event-material-provider-invite-label'}>
+                                {t('material.provider.provider')}
+                            </InputLabel>
+                            <Select
+                                labelId={'event-material-provider-invite-label'}
+                                label={t('material.provider.provider')}
+                                value={selectedProviderId}
+                                disabled={allProvidersPending || availableProviders.length === 0}
+                                onChange={e => setSelectedProviderId(e.target.value)}>
+                                {availableProviders.map(provider => (
+                                    <MenuItem key={provider.id} value={provider.id}>
+                                        {provider.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Box>
+                            <Button
+                                variant="contained"
+                                disabled={!selectedProviderId || inviting}
+                                onClick={handleInvite}>
+                                {t('event.material.invite')}
+                            </Button>
+                        </Box>
+                    </Stack>
+                ) : (
+                    <Typography color="text.secondary" sx={{mt: 2}}>
+                        {t('event.material.inviteNeedsMaterialRead')}
+                    </Typography>
+                ))}
         </Card>
     )
 }
