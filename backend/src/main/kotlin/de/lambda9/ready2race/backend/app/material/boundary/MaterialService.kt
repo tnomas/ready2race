@@ -401,9 +401,10 @@ object MaterialService {
     /**
      * Ersetzt die Anfragen einer Meldung durch die übergebene Wunschliste (Spec Abschnitt 7):
      * bestehende Anfragen zu weiterhin gewünschten Angeboten bleiben unverändert (auch bestätigte),
-     * nicht mehr genannte werden zurückgezogen. Ein zurückgezogenes Angebot kann wegen des
-     * Unique-Index (competition_registration, material_offer) nicht neu angefragt werden - die
-     * Zeile bleibt zurückgezogen liegen, auch wenn ihr Angebot später wieder genannt wird.
+     * nicht mehr genannte werden zurückgezogen. Ein zurückgezogenes oder abgelehntes Angebot, das
+     * wieder genannt wird, gilt als neue Anfrage (siehe [MaterialRequestRepo.reactivate]) - eine
+     * echte zweite Zeile lässt der Unique-Index (competition_registration, material_offer) ohnehin
+     * nicht zu.
      */
     fun setRequestsForRegistration(
         eventId: UUID,
@@ -439,27 +440,43 @@ object MaterialService {
 
         val now = LocalDateTime.now()
 
-        // requests_closed gilt nur für wirklich neue Anfragen - ein Angebot, das die Meldung schon
-        // einmal angefragt hatte (gleich welcher Status), zählt nicht als neu.
-        !offers.filter { !existingByOffer.containsKey(it.id) }.traverse { offer ->
+        // requests_closed gilt nur für wirklich neue Anfragen. Eine Zeile zählt auch dann als neu,
+        // wenn es sie schon einmal gab, aber zurückgezogen oder abgelehnt wurde - nur eine weiterhin
+        // aktive Anfrage (REQUESTED/CONFIRMED/WAITLISTED) für dasselbe Angebot ist keine neue.
+        !offers.filter {
+            val previousStatus = existingByOffer[it.id]?.status
+            previousStatus == null ||
+                previousStatus == MaterialRequestStatus.WITHDRAWN.name ||
+                previousStatus == MaterialRequestStatus.DECLINED.name
+        }.traverse { offer ->
             KIO.comprehension {
                 val invitation = !EventHasMaterialProviderRepo.get(eventId, offer.materialProvider).orDie()
                 !KIO.failOn(invitation?.requestsClosed == true) { MaterialError.RequestsClosed }
 
-                MaterialRequestRepo.create(
-                    MaterialRequestRecord(
-                        id = UUID.randomUUID(),
-                        competitionRegistration = competitionRegistrationId,
-                        materialOffer = offer.id,
-                        count = demand.getValue(offer.materialType),
-                        status = MaterialRequestStatus.REQUESTED.name,
-                        requestedAt = now,
-                        createdAt = now,
-                        createdBy = userId,
-                        updatedAt = now,
-                        updatedBy = userId,
-                    )
-                ).orDie()
+                val previous = existingByOffer[offer.id]
+                if (previous == null) {
+                    !MaterialRequestRepo.create(
+                        MaterialRequestRecord(
+                            id = UUID.randomUUID(),
+                            competitionRegistration = competitionRegistrationId,
+                            materialOffer = offer.id,
+                            count = demand.getValue(offer.materialType),
+                            status = MaterialRequestStatus.REQUESTED.name,
+                            requestedAt = now,
+                            createdAt = now,
+                            createdBy = userId,
+                            updatedAt = now,
+                            updatedBy = userId,
+                        )
+                    ).orDie()
+                } else {
+                    // Zurückgezogen oder abgelehnt und jetzt erneut genannt: dieselbe Zeile wird
+                    // reaktiviert statt neu angelegt (Unique-Index lässt keine zweite Zeile zum
+                    // selben Angebot zu), damit ein Verein nach einem Rückzug erneut anfragen kann.
+                    !MaterialRequestRepo.reactivate(previous.id, now, userId).orDie()
+                }
+
+                KIO.unit
             }
         }
 
@@ -522,6 +539,7 @@ object MaterialService {
                 val event = !EventRepo.get(eventId).orDie()
                 val competition = !CompetitionRepo.getById(competitionId).orDie()
 
+                // TODO: fest auf Deutsch, weil material_provider noch kein Sprachfeld hat.
                 val content = !EmailService.getTemplate(
                     EmailTemplateKey.MATERIAL_REQUEST_WITHDRAWN,
                     EmailLanguage.DE,

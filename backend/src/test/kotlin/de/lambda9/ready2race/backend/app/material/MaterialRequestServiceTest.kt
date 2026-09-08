@@ -141,6 +141,35 @@ class MaterialRequestServiceTest {
     }
 
     @Test
+    fun withdrawnRequestIsReactivatedWhenNamedAgain() = testComprehension {
+        val s = setupScenario()
+
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, listOf(s.offerBoat), s.userId)
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, emptyList(), s.userId)
+        val withdrawn = (!MaterialRequestRepo.forRegistration(s.regId)).single()
+        assertEquals("WITHDRAWN", withdrawn.status)
+
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, listOf(s.offerBoat), s.userId)
+        val reactivated = (!MaterialRequestRepo.forRegistration(s.regId)).single()
+        assertEquals(withdrawn.id, reactivated.id)
+        assertEquals("REQUESTED", reactivated.status)
+        assertEquals(null, reactivated.decidedAt)
+    }
+
+    @Test
+    fun reactivationRespectsClosedProvider() = testComprehension {
+        val s = setupScenario()
+
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, listOf(s.offerBoat), s.userId)
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, emptyList(), s.userId)
+        !MaterialService.setRequestsClosed(s.eventId, s.providerId, true, s.userId)
+
+        assertKIOFails(MaterialError.RequestsClosed) {
+            MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, listOf(s.offerBoat), s.userId)
+        }
+    }
+
+    @Test
     fun capacityTurnsYellowAtPlannedCount() = testComprehension {
         val s = setupScenario()
 

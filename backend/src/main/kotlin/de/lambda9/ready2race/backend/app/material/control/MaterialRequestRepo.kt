@@ -40,6 +40,21 @@ object MaterialRequestRepo {
         }) { ID.`in`(ids) }
 
     /**
+     * Holt eine zurückgezogene oder abgelehnte Anfrage wieder in den Anfrage-Status - eine neue
+     * Zeile kann wegen des Unique-Index (competition_registration, material_offer) nicht angelegt
+     * werden, und ein Verein muss nach einem Rückzug erneut anfragen können.
+     */
+    fun reactivate(id: UUID, now: LocalDateTime, userId: UUID) =
+        MATERIAL_REQUEST.update({
+            status = MaterialRequestStatus.REQUESTED.name
+            requestedAt = now
+            decidedAt = null
+            decisionNote = null
+            updatedAt = now
+            updatedBy = userId
+        }) { ID.eq(id) }
+
+    /**
      * Angefragte und bestätigte Mengen je Angebot einer Veranstaltung - Grundlage der Ampel
      * (Gegenstück zu den planned_count aus [MaterialOfferRepo.forEvent]).
      */
