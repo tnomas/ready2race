@@ -3094,7 +3094,7 @@
       "added": "Added compared to the job",
       "missing": "Missing compared to the job"
     },
-    "notAssignable": "This role contains privileges you do not have yourself.",
+    "notAssignable": "Roles containing privileges you do not have yourself are not offered here.",
     "error": {
       "cannotAssign": "Role(s) could not be assigned to the user",
       "privilegesBeyondOwn": "You can only assign privileges you have yourself.",

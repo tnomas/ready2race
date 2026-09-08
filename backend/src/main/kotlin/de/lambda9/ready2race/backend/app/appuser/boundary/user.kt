@@ -28,7 +28,7 @@ fun Route.user() {
                 // Superadmin-Konten; für alle anderen blendet der View sie aus.
                 if (user.hasPrivilege(Privilege.UpdateSystemGlobal)) {
                     val params = !pagination<EveryAppUserWithRolesSort>()
-                    AppUserService.pageIncludingAdmins(params, noClub)
+                    AppUserService.pageIncludingSuperadmins(params, noClub)
                 } else {
                     val params = !pagination<AppUserWithRolesSort>()
                     AppUserService.page(params, noClub)
@@ -44,7 +44,7 @@ fun Route.user() {
                     if (scope == Privilege.Scope.OWN && user.id != id) {
                         KIO.fail(AuthError.PrivilegeMissing)
                     } else if (user.hasPrivilege(Privilege.UpdateSystemGlobal) || user.id == id) {
-                        AppUserService.getIncludingAllAdmins(id)
+                        AppUserService.getIncludingSuperadmins(id)
                     } else {
                         AppUserService.get(id)
                     }

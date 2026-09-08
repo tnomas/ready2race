@@ -3094,7 +3094,7 @@
       "added": "Zusätzlich zum Job",
       "missing": "Fehlt gegenüber dem Job"
     },
-    "notAssignable": "Diese Rolle enthält Rechte, die Sie selbst nicht haben.",
+    "notAssignable": "Rollen mit Rechten, die Sie selbst nicht haben, stehen hier nicht zur Auswahl.",
     "error": {
       "cannotAssign": "Rolle(n) konnte(n) dem Benutzer nicht zugewiesen werden",
       "privilegesBeyondOwn": "Sie können nur Rechte vergeben, die Sie selbst haben.",

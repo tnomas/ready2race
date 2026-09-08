@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.appuser.control.AppUserHasRoleRepo
 import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
 import de.lambda9.ready2race.backend.app.auth.control.PrivilegeRepo
+import de.lambda9.ready2race.backend.app.club.seedClubChain
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
 import de.lambda9.ready2race.backend.app.role.control.RoleHasPrivilegeRepo
@@ -15,7 +16,10 @@ import de.lambda9.ready2race.backend.database.USER_ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserHasRoleRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RoleHasPrivilegeRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.QrCodesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.RoleRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.QR_CODES
+import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.security.PasswordUtilities
 import de.lambda9.ready2race.testing.TestApplicationComprehensionScope
 import de.lambda9.ready2race.testing.testApplicationComprehension
@@ -137,6 +141,19 @@ class RolePrivilegeHttpIT {
 
         return email
     }
+
+    /** Ein Zugangsband (QR-Code) für ein Konto an einer Veranstaltung. */
+    private fun seedBand(eventId: UUID, userId: UUID, code: String) = QR_CODES.insert(
+        QrCodesRecord(
+            id = UUID.randomUUID(),
+            qrCodeId = code,
+            appUser = userId,
+            participant = null,
+            event = eventId,
+            createdAt = now,
+            createdBy = SYSTEM_USER,
+        )
+    )
 
     private suspend fun TestApplicationComprehensionScope<JEnv>.login(
         email: String,
@@ -277,7 +294,7 @@ class RolePrivilegeHttpIT {
     /**
      * Ein Admin sieht keine Superadmin-Konten, ein Superadmin schon. Geprüft an einem zweiten
      * Superadmin-Konto, weil das Systemkonto selbst aus der Nutzerliste ohnehin herausfällt
-     * (`AppUserRepo.pageWithRolesIncludingAdmins` blendet es über seine Kennung aus).
+     * (`AppUserRepo.pageWithRolesIncludingSuperadmins` blendet es über seine Kennung aus).
      */
     @Test
     fun superadminAccountsAreHiddenFromAdmins() = testApplicationComprehension {
@@ -296,6 +313,65 @@ class RolePrivilegeHttpIT {
         val all = client.get("/api/user?limit=100") { header("X-Api-Session", boss) }
         assertEquals(HttpStatusCode.OK, all.status, all.bodyAsText())
         assertTrue(all.bodyAsText().contains(superEmail), all.bodyAsText())
+    }
+
+    /**
+     * Regel 3 gilt auch für die Listen, die an den Helfer-Rechten hängen: die Übersicht der
+     * Konten einer Veranstaltung (Bänder/Zugangspässe) darf kein Superadmin-Konto zeigen, obwohl
+     * sie nur `UPDATE APP_QR_MANAGEMENT` verlangt. Vor Schritt 1 fiel das Systemkonto über seine
+     * Admin-Rolle aus der Sicht; seit es die Superadmin-Rolle trägt, muss die Sicht danach fragen.
+     */
+    @Test
+    fun theEventUserListHidesSuperadmins() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val chain = seedClubChain()
+
+        val superEmail = seedUser(password, emptyList())
+        val superId = assertNotNull(!AppUserRepo.getByEmail(superEmail), "Konto muss angelegt sein").id!!
+        !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = superId, role = SUPERADMIN_ROLE))
+
+        val plainEmail = seedUser(password, emptyList())
+
+        val helper = login(seedUser(password, listOf(Privilege.UpdateAppQrManagementGlobal)), password)
+        val response = client.get("/api/user/event/${chain.eventId}?limit=100") {
+            header("X-Api-Session", helper)
+        }
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val body = response.bodyAsText()
+        assertFalse(body.contains(superEmail), body)
+        assertTrue(body.contains(plainEmail), body)
+    }
+
+    /**
+     * Dieselbe Regel für die Bänder-Sicht der Veranstaltung. Sie las bis zum Review über
+     * `every_app_user_with_roles` und zeigte damit auch Superadmin-Konten, obwohl sie nur
+     * `READ USER GLOBAL` verlangt.
+     */
+    @Test
+    fun theEventQrCodeListHidesSuperadmins() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val chain = seedClubChain()
+
+        val superEmail = seedUser(password, emptyList())
+        val superId = assertNotNull(!AppUserRepo.getByEmail(superEmail), "Konto muss angelegt sein").id!!
+        !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = superId, role = SUPERADMIN_ROLE))
+
+        val plainEmail = seedUser(password, emptyList())
+        val plainId = assertNotNull(!AppUserRepo.getByEmail(plainEmail), "Konto muss angelegt sein").id!!
+
+        // Die Sicht zeigt nur Konten mit Band für diese Veranstaltung - beide bekommen eines,
+        // sonst ist die Liste leer und der Test belegt nichts.
+        !seedBand(chain.eventId, superId, "band-super")
+        !seedBand(chain.eventId, plainId, "band-plain")
+
+        val reader = login(seedUser(password, listOf(Privilege.ReadUserGlobal)), password)
+        val response = client.get("/api/event/${chain.eventId}/appUserWithQrCode?limit=100") {
+            header("X-Api-Session", reader)
+        }
+        assertEquals(HttpStatusCode.OK, response.status, response.bodyAsText())
+        val body = response.bodyAsText()
+        assertFalse(body.contains(superEmail), body)
+        assertTrue(body.contains(plainEmail), body)
     }
 
     /**

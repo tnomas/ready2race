@@ -69,10 +69,10 @@ object AppUserService {
         }
     }
 
-    fun getIncludingAllAdmins(
+    fun getIncludingSuperadmins(
         id: UUID,
     ): App<AppUserError, ApiResponse.Dto<AppUserDto>> = KIO.comprehension {
-        val record = !AppUserRepo.getWithRolesIncludingAllAdmins(id).orDie().onNullFail { AppUserError.NotFound }
+        val record = !AppUserRepo.getWithRolesIncludingSuperadmins(id).orDie().onNullFail { AppUserError.NotFound }
         record.appUserDto().map {
             ApiResponse.Dto(it)
         }
@@ -105,12 +105,12 @@ object AppUserService {
         }
     }
 
-    fun pageIncludingAdmins(
+    fun pageIncludingSuperadmins(
         params: PaginationParameters<EveryAppUserWithRolesSort>,
         noClub: Boolean?
     ): App<Nothing, ApiResponse.Page<AppUserDto, EveryAppUserWithRolesSort>> = KIO.comprehension {
-        val total = !AppUserRepo.countWithRolesIncludingAdmins(params.search, noClub).orDie()
-        val page = !AppUserRepo.pageWithRolesIncludingAdmins(params, noClub).orDie()
+        val total = !AppUserRepo.countWithRolesIncludingSuperadmins(params.search, noClub).orDie()
+        val page = !AppUserRepo.pageWithRolesIncludingSuperadmins(params, noClub).orDie()
 
         page.traverse { it.appUserDto() }.map {
             ApiResponse.Page(

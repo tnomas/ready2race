@@ -49,6 +49,10 @@ sealed class Job(
         ),
     )
 
+    /**
+     * Trägt STAFF schon jetzt; nutzbar wird es mit dem Team-Reiter der Veranstaltung in
+     * Schritt 3 - die Nutzerseite verlangt zusätzlich UPDATE USER.
+     */
     data object CompetitionManagement : Job(
         "COMPETITION_MANAGEMENT", COMPETITION_MANAGEMENT_ROLE, RoleLevel.GLOBAL, "Competition management",
         listOf(

@@ -52,7 +52,7 @@ object AppUserRepo {
         }
     }
 
-    fun getWithRolesIncludingAllAdmins(
+    fun getWithRolesIncludingSuperadmins(
         id: UUID,
     ): JIO<EveryAppUserWithRolesRecord?> = Jooq.query {
         with(EVERY_APP_USER_WITH_ROLES) {
@@ -142,7 +142,7 @@ object AppUserRepo {
         }
     }
 
-    fun countWithRolesIncludingAdmins(
+    fun countWithRolesIncludingSuperadmins(
         search: String?,
         noClub: Boolean?
     ): JIO<Int> = Jooq.query {
@@ -156,7 +156,7 @@ object AppUserRepo {
         }
     }
 
-    fun pageWithRolesIncludingAdmins(
+    fun pageWithRolesIncludingSuperadmins(
         params: PaginationParameters<EveryAppUserWithRolesSort>,
         noClub: Boolean?
     ): JIO<List<EveryAppUserWithRolesRecord>> = Jooq.query {

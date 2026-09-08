@@ -2842,7 +2842,7 @@
       "added": "Tilføjet i forhold til jobbet",
       "missing": "Mangler i forhold til jobbet"
     },
-    "notAssignable": "Denne rolle indeholder rettigheder, du ikke selv har.",
+    "notAssignable": "Roller med rettigheder, du ikke selv har, kan ikke vælges her.",
     "error": {
       "cannotAssign": "Rolle(r) kunne ikke tildeles brugeren",
       "privilegesBeyondOwn": "Du kan kun tildele rettigheder, du selv har.",

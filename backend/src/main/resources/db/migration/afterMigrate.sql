@@ -95,17 +95,6 @@ from role r
          left join privilege p on rhp.privilege = p.id
 group by r.id;
 
--- refactor this and similar views to use where-clause in API instead
-create view role_with_privileges as
-select r.id,
-       r.name,
-       r.description,
-       r.job,
-       r.level,
-       r.privileges
-from every_role_with_privileges r
-where r.static is false;
-
 create view every_app_user_with_roles as
 select au.id,
        au.firstname,
@@ -140,6 +129,7 @@ where not exists(select *
                    and auhr2.app_user = au.id)
 ;
 
+-- Regel 3: Superadmin-Konten erscheinen in keiner Liste, die nicht UPDATE SYSTEM verlangt.
 create view app_user_with_qr_code_for_event as
 select au.id,
        au.firstname,
@@ -151,7 +141,7 @@ select au.id,
        qc.event as event_id,
        qc.created_at,
        qc.created_by
-from every_app_user_with_roles au
+from app_user_with_roles au
          left join qr_codes qc on qc.app_user = au.id
 ;
 
@@ -1361,9 +1351,13 @@ from app_user au
          cross join event e
          left join qr_codes qc on qc.app_user = au.id and qc.event = e.id
 -- TODO: maybe want to allow q-codes also for admins
+-- Regel 3: Superadmin-Konten erscheinen in keiner Liste, die nicht UPDATE SYSTEM verlangt.
+-- Seit Schritt 1 trägt das Systemkonto die Superadmin- statt der Admin-Rolle; ohne die zweite
+-- Zeile stünde es wieder in dieser Liste.
 where not exists(select *
                  from app_user_has_role auhr2
-                 where auhr2.role = '00000000-0000-0000-0000-000000000000'
+                 where auhr2.role in ('00000000-0000-0000-0000-000000000000',
+                                      '00000000-0000-0000-0000-000000000003')
                    and auhr2.app_user = au.id)
 ;
 

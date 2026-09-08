@@ -9,7 +9,7 @@ import Throbber from '@components/Throbber.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {updateStaffGlobal} from '@authorization/privileges.ts'
+import {updateStaffGlobal, updateUserGlobal} from '@authorization/privileges.ts'
 import RolesSelect from '@components/user/RolesSelect.tsx'
 import {UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
@@ -58,17 +58,34 @@ const UserPage = () => {
         },
     )
 
+    // Die Rollenauswahl hilft nur, wenn das Speichern auch durchgeht: PUT /user/{id} hängt an
+    // UPDATE USER, die Rollenvergabe zusätzlich an UPDATE STAFF. Wer nur eines von beiden trägt
+    // (z.B. der Job Wettkampfleitung), bekommt die Auswahl gar nicht erst zu sehen.
+    const mayEditRoles = user.checkPrivilege(updateStaffGlobal) && user.checkPrivilege(updateUserGlobal)
+
     const handleSubmit = async (formData: Form) => {
         setSubmitting(true)
         const {error} = await updateUser({
             path: {userId: userId},
-            body: mapFormToRequest(formData, user.checkPrivilege(updateStaffGlobal)),
+            body: mapFormToRequest(formData, mayEditRoles),
         })
         setSubmitting(false)
 
         if (error) {
-            if (error.status.value === 403 && 'errorCode' in error && error.errorCode === 'SELF_ASSIGNMENT') {
-                feedback.error(t('role.error.selfAssignment'))
+            if (error.status.value === 403 && 'errorCode' in error) {
+                if (error.errorCode === 'SELF_ASSIGNMENT') {
+                    feedback.error(t('role.error.selfAssignment'))
+                } else if (error.errorCode === 'PRIVILEGES_BEYOND_OWN') {
+                    feedback.error(t('role.error.privilegesBeyondOwn'))
+                } else {
+                    feedback.error(t('user.update.error'))
+                }
+            } else if (
+                error.status.value === 409 &&
+                'errorCode' in error &&
+                error.errorCode === 'CANNOT_ASSIGN_ROLES'
+            ) {
+                feedback.error(t('role.error.cannotAssign'))
             } else {
                 feedback.error(t('user.update.error'))
             }
@@ -79,7 +96,7 @@ const UserPage = () => {
     }
 
     const {data} = useFetch(signal => getRoles({signal}), {
-        preCondition: () => user.checkPrivilege(updateStaffGlobal), // The backend checks for the privilege READRoleGlobal
+        preCondition: () => mayEditRoles, // The backend checks for the privilege READRoleGlobal
     })
 
     return (
@@ -101,7 +118,7 @@ const UserPage = () => {
                                     required
                                 />
                                 <Typography>{userData.email}</Typography>
-                                {user.checkPrivilege(updateStaffGlobal)
+                                {mayEditRoles
                                     ? (data?.data.length ?? 0) > 0 && (
                                           <RolesSelect availableRoles={data?.data} />
                                       )

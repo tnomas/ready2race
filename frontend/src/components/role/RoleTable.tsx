@@ -76,7 +76,7 @@ const RoleTable = (props: BaseEntityTableProps<RoleDto>) => {
             deleteRequest={deleteRequest}
             editableIf={r => !r.static}
             deletableIf={r => !r.static}
-            parentResource={'ROLE'}
+            resource={'ROLE'}
         />
     )
 }
