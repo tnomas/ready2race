@@ -432,4 +432,33 @@ class RolePrivilegeHttpIT {
         }
         assertEquals(HttpStatusCode.NoContent, response.status, response.bodyAsText())
     }
+
+    /**
+     * Regressionstest zum Review-Befund: das Frontend blendet die Rollenauswahl ohne STAFF-Recht
+     * aus und schickt dann gar kein `roles`-Feld mehr (statt vorher `roles: []`). Ein Konto mit
+     * Job-Rolle, aber ohne STAFF, muss seinen eigenen Namen weiter ändern können, ohne dass ihm
+     * dabei die Job-Rolle entzogen wird.
+     */
+    @Test
+    fun savingOwnNameWithoutRolesFieldKeepsRoles() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val email = seedUser(password, Job.Timekeeper.privileges)
+        val session = login(email, password)
+        val userId = assertNotNull(!AppUserRepo.getByEmail(email), "Das gesäte Konto muss auffindbar sein").id!!
+
+        // seedUser legt nur eine Kopie mit denselben Privilegien an; die echte Zeitnahme-Jobrolle
+        // kommt hier zusätzlich dazu, um den ursprünglichen Fehlerfall (current = {TIMEKEEPER})
+        // nachzustellen.
+        !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = userId, role = Job.Timekeeper.roleId))
+
+        val response = client.put("/api/user/$userId") {
+            header("X-Api-Session", session)
+            contentType(ContentType.Application.Json)
+            setBody("""{"firstname":"Neu","lastname":"Name"}""")
+        }
+        assertEquals(HttpStatusCode.NoContent, response.status, response.bodyAsText())
+
+        val rolesAfter = (!AppUserHasRoleRepo.getRoleIds(userId)).toSet()
+        assertTrue(rolesAfter.contains(Job.Timekeeper.roleId), "Die Zeitnahme-Rolle darf nicht verschwinden")
+    }
 }

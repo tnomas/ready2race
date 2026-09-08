@@ -5244,7 +5244,7 @@ export type UpcomingMatchTeamInfo = {
 export type UpdateAppUserRequest = {
     firstname: string
     lastname: string
-    roles: Array<string>
+    roles?: Array<string>
 }
 
 export type UpdateCheckSeverityRequest = {

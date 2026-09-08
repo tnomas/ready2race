@@ -145,39 +145,46 @@ object AppUserService {
             .onNullFail { AppUserError.NotFound }
             .map { ApiResponse.NoData }
 
-        // Rollen nur anfassen, wenn sich die verwalteten Rollen ändern; sonst griffe Regel 2
-        // schon beim Ändern des eigenen Namens.
-        val current = (!AppUserHasRoleRepo.getRoleIds(targetUserId).orDie())
-            .filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }
-            .toSet()
-        val wanted = request.roles.filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }.toSet()
+        // roles == null heißt: Rollen bleiben, wie sie sind (Formulare ohne Rollenauswahl,
+        // z.B. das eigene Profil ohne STAFF-Recht). Dann greift der ganze Block hier nicht -
+        // insbesondere nicht die STAFF-Wache, die sonst das bloße Ändern des eigenen Namens
+        // verhindern würde.
+        val requestedRoles = request.roles
+        if (requestedRoles != null) {
+            // Rollen nur anfassen, wenn sich die verwalteten Rollen ändern; sonst griffe Regel 2
+            // schon beim Ändern des eigenen Namens.
+            val current = (!AppUserHasRoleRepo.getRoleIds(targetUserId).orDie())
+                .filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }
+                .toSet()
+            val wanted = requestedRoles.filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }.toSet()
 
-        if (wanted != current) {
-            // Die Rollen des Systemkontos sind per API nicht änderbar - sonst könnte ein
-            // Fehlgriff der Anlage den letzten Superadmin nehmen.
-            !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
+            if (wanted != current) {
+                // Die Rollen des Systemkontos sind per API nicht änderbar - sonst könnte ein
+                // Fehlgriff der Anlage den letzten Superadmin nehmen.
+                !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
 
-            // `checkAssignable` kurzschließt bei leerer Rollenliste (das trägt die rollenlose
-            // Einladung), das darf beim Entziehen aber nicht der einzige Wächter sein - sonst
-            // schickt ein Konto mit bloßem UPDATE USER GLOBAL `roles: []` an ein fremdes Konto
-            // und entzieht ohne STAFF-Recht alle verwalteten Rollen. Deshalb hier unabhängig
-            // von der übergebenen Liste geprüft.
-            !KIO.failOn(!requester.hasPrivilege(Privilege.UpdateStaffGlobal)) { AuthError.PrivilegeMissing }
-            !KIO.failOn(targetUserId == requestingUserId) { RoleError.SelfAssignment }
+                // `checkAssignable` kurzschließt bei leerer Rollenliste (das trägt die rollenlose
+                // Einladung), das darf beim Entziehen aber nicht der einzige Wächter sein - sonst
+                // schickt ein Konto mit bloßem UPDATE USER GLOBAL `roles: []` an ein fremdes Konto
+                // und entzieht ohne STAFF-Recht alle verwalteten Rollen. Deshalb hier unabhängig
+                // von der übergebenen Liste geprüft.
+                !KIO.failOn(!requester.hasPrivilege(Privilege.UpdateStaffGlobal)) { AuthError.PrivilegeMissing }
+                !KIO.failOn(targetUserId == requestingUserId) { RoleError.SelfAssignment }
 
-            // Regel 1 gilt für Vergeben und Entziehen: geprüft wird die Vereinigung aus alter
-            // und neuer Menge, damit auch das Entziehen einer Rolle nicht über die eigenen
-            // Privilegien hinausgeht.
-            !RoleService.checkAssignable(requester, (wanted + current).toList(), targetUserId)
-            !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
-            !AppUserHasRoleRepo.create(
-                wanted.map {
-                    AppUserHasRoleRecord(
-                        appUser = targetUserId,
-                        role = it
-                    )
-                }
-            ).orDie()
+                // Regel 1 gilt für Vergeben und Entziehen: geprüft wird die Vereinigung aus alter
+                // und neuer Menge, damit auch das Entziehen einer Rolle nicht über die eigenen
+                // Privilegien hinausgeht.
+                !RoleService.checkAssignable(requester, (wanted + current).toList(), targetUserId)
+                !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
+                !AppUserHasRoleRepo.create(
+                    wanted.map {
+                        AppUserHasRoleRecord(
+                            appUser = targetUserId,
+                            role = it
+                        )
+                    }
+                ).orDie()
+            }
         }
 
         noData

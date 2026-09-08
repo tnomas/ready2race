@@ -12514,7 +12514,6 @@ components:
       required:
         - firstname
         - lastname
-        - roles
       properties:
         firstname:
           type: string

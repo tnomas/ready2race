@@ -136,6 +136,6 @@ function mapFormToRequest(formData: Form, editRoles: boolean): UpdateAppUserRequ
     return {
         firstname: formData.firstname,
         lastname: formData.lastname,
-        roles: editRoles ? formData.roles : [],
+        roles: editRoles ? formData.roles : undefined,
     }
 }
