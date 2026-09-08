@@ -111,6 +111,14 @@ object RoleService {
             .onNullFail { RoleError.NotFound }
             .failIf(condition = { it.static }) { RoleError.Static }
         val level = RoleLevel.valueOf(record.level!!) // not null in der Datenbank
+
+        // Regel 1 gilt auch für den Ist-Zustand: wer ändert, muss auch die bisherigen
+        // Privilegien der Rolle selbst decken – sonst könnte man sich fremde Privilegien
+        // durch bloßes Stehenlassen "leihen".
+        val existing = !RoleHasPrivilegeRepo.getPrivilegeRecordsByRoles(listOf(id)).orDie()
+        val existingBeyond = (existing[id] ?: emptyList()).filter { !requester.covers(it) }.map { it.id }
+        !KIO.failOn(existingBeyond.isNotEmpty()) { RoleError.PrivilegesBeyondOwn(existingBeyond) }
+
         val privileges = !resolvePrivileges(request.privileges, level, requester)
 
         !RoleRepo.update(record) {
@@ -128,10 +136,17 @@ object RoleService {
 
     fun deleteRole(
         id: UUID,
-    ): App<RoleError, ApiResponse.NoData> = KIO.comprehension {
+        requester: AppUserWithPrivilegesRecord,
+    ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         val record = !RoleRepo.get(id).orDie()
             .onNullFail { RoleError.NotFound }
             .failIf(condition = { it.static }) { RoleError.Static }
+
+        // Wer löscht, muss die Privilegien der Rolle ebenfalls decken (Spec 7.1 Regel 1).
+        val existing = !RoleHasPrivilegeRepo.getPrivilegeRecordsByRoles(listOf(id)).orDie()
+        val beyond = (existing[id] ?: emptyList()).filter { !requester.covers(it) }.map { it.id }
+        !KIO.failOn(beyond.isNotEmpty()) { RoleError.PrivilegesBeyondOwn(beyond) }
+
         record.delete() // todo: @style  -> Repo
 
         noData
@@ -142,12 +157,20 @@ object RoleService {
      *  1. Jede Rolle nur, wenn der Aufrufende all ihre Privilegien selbst deckt.
      *  2. Nicht an sich selbst.
      *  3. Konten mit Superadmin-Rolle nur, wenn der Aufrufende UPDATE SYSTEM trägt.
+     *
+     * Eine leere Rollenliste ist fachlich keine Vergabe – "null Rollen zuweisen" ändert nichts
+     * an der bestehenden Zuweisung, also greift keine der drei Regeln und `UPDATE STAFF GLOBAL`
+     * wird dafür nicht verlangt.
      */
     fun checkAssignable(
         requester: AppUserWithPrivilegesRecord,
         roles: List<UUID>,
         targetUserId: UUID?,
     ): App<ServiceError, Unit> = KIO.comprehension {
+        if (roles.isEmpty()) {
+            return@comprehension KIO.unit
+        }
+
         !KIO.failOn(!requester.hasPrivilege(Privilege.UpdateStaffGlobal)) { AuthError.PrivilegeMissing }
         !KIO.failOn(targetUserId != null && targetUserId == requester.id) { RoleError.SelfAssignment }
 
@@ -158,21 +181,17 @@ object RoleService {
             }
         }
 
-        if (roles.isEmpty()) {
-            KIO.unit
-        } else {
-            val found = !RoleRepo.getIfExist(roles).orDie()
-            val notFound = roles.filter { id -> found.none { it.id == id } }
-            val privilegesByRole = !RoleHasPrivilegeRepo.getPrivilegeRecordsByRoles(found.map { it.id }).orDie()
-            val notAssignable = found
-                .filter { role -> (privilegesByRole[role.id] ?: emptyList()).any { !requester.covers(it) } }
-                .map { it.id }
+        val found = !RoleRepo.getIfExist(roles).orDie()
+        val notFound = roles.filter { id -> found.none { it.id == id } }
+        val privilegesByRole = !RoleHasPrivilegeRepo.getPrivilegeRecordsByRoles(found.map { it.id }).orDie()
+        val notAssignable = found
+            .filter { role -> (privilegesByRole[role.id] ?: emptyList()).any { !requester.covers(it) } }
+            .map { it.id }
 
-            if (notFound.isNotEmpty() || notAssignable.isNotEmpty()) {
-                KIO.fail(RoleError.CannotAssignRoles(notFound, notAssignable))
-            } else {
-                KIO.unit
-            }
+        if (notFound.isNotEmpty() || notAssignable.isNotEmpty()) {
+            KIO.fail(RoleError.CannotAssignRoles(notFound, notAssignable))
+        } else {
+            KIO.unit
         }
     }
 }

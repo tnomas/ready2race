@@ -44,9 +44,9 @@ fun Route.role() {
 
             delete {
                 call.respondComprehension {
-                    !authenticate(Privilege.UpdateUserGlobal)
+                    val user = !authenticate(Privilege.UpdateUserGlobal)
                     val id = !pathParam("roleId", uuid)
-                    RoleService.deleteRole(id)
+                    RoleService.deleteRole(id, user)
                 }
             }
         }

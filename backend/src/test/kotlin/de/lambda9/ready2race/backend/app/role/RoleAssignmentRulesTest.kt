@@ -130,8 +130,8 @@ class RoleAssignmentRulesTest {
     fun aRoleIsCreatedOnlyAsCopyOfAJobAndWithinOwnPrivileges() = testComprehension {
         val requester = userWith(listOf(Privilege.CreateRoleGlobal) + Job.Timekeeper.privileges)
         val all = !PrivilegeRepo.all()
-        val timing = all.first { it.resource == "APP_TIMING" }.id
-        val system = all.first { it.resource == "SYSTEM" }.id
+        val timing = all.first { it.action == "UPDATE" && it.resource == "APP_TIMING" && it.scope == "GLOBAL" }.id
+        val system = all.first { it.action == "UPDATE" && it.resource == "SYSTEM" && it.scope == "GLOBAL" }.id
 
         assertKIOFails(RoleError.JobRequired) {
             RoleService.addRole(RoleRequest("Ohne Job", null, listOf(timing), null), requester)
@@ -158,5 +158,66 @@ class RoleAssignmentRulesTest {
         assertKIOFails(RoleError.ScopeNotAllowedForLevel(RoleLevel.SELF)) {
             RoleService.addRole(RoleRequest("Nutzer plus", null, listOf(global), Job.User.key), boss)
         }
+    }
+
+    @Test
+    fun emptyRoleListNeedsNoStaffRight() = testComprehension {
+        val requester = userWith(emptyList())
+        val target = userWith(emptyList())
+        assertKIOSucceeds { RoleService.checkAssignable(requester, emptyList(), target.id!!) }
+        assertKIOSucceeds { RoleService.checkAssignable(requester, emptyList(), requester.id!!) }
+    }
+
+    @Test
+    fun updatingARoleRequiresCoveringItsExistingPrivileges() = testComprehension {
+        val boss = userWith(Job.Superadmin.privileges)
+        val all = !PrivilegeRepo.all()
+        val liveDashboard = all.first {
+            it.action == "UPDATE" && it.resource == "LIVE_DASHBOARD" && it.scope == "GLOBAL"
+        }.id
+        val timing = all.first {
+            it.action == "UPDATE" && it.resource == "APP_TIMING" && it.scope == "GLOBAL"
+        }.id
+
+        val created = !RoleService.addRole(
+            RoleRequest("Schiedsrichter Kopie", null, listOf(liveDashboard), Job.Judge.key),
+            boss,
+        )
+
+        val requester = userWith(listOf(Privilege.UpdateRoleGlobal) + Job.Timekeeper.privileges)
+        assertKIOFails(RoleError.PrivilegesBeyondOwn(listOf(liveDashboard))) {
+            RoleService.updateRole(created.id, RoleRequest("Umbenannt", null, listOf(timing), null), requester)
+        }
+
+        assertKIOSucceeds {
+            RoleService.updateRole(created.id, RoleRequest("Umbenannt", null, listOf(timing), null), boss)
+        }
+        val record = assertNotNull(!RoleRepo.get(created.id))
+        assertEquals("JUDGE", record.job)
+        assertEquals("EVENT", record.level)
+        val privileges = !RoleHasPrivilegeRepo.getPrivilegeRecordsByRoles(listOf(created.id))
+        assertEquals(listOf(timing), (privileges[created.id] ?: emptyList()).map { it.id })
+    }
+
+    @Test
+    fun deletingARoleRequiresCoveringItsPrivileges() = testComprehension {
+        val boss = userWith(Job.Superadmin.privileges)
+        val all = !PrivilegeRepo.all()
+        val liveDashboard = all.first {
+            it.action == "UPDATE" && it.resource == "LIVE_DASHBOARD" && it.scope == "GLOBAL"
+        }.id
+
+        val created = !RoleService.addRole(
+            RoleRequest("Schiedsrichter Kopie", null, listOf(liveDashboard), Job.Judge.key),
+            boss,
+        )
+
+        val requester = userWith(listOf(Privilege.UpdateRoleGlobal) + Job.Timekeeper.privileges)
+        assertKIOFails(RoleError.PrivilegesBeyondOwn(listOf(liveDashboard))) {
+            RoleService.deleteRole(created.id, requester)
+        }
+
+        assertKIOSucceeds { RoleService.deleteRole(created.id, boss) }
+        assertEquals(null, !RoleRepo.get(created.id))
     }
 }
