@@ -130,6 +130,17 @@
         "",
         "Bitte prüfe die Meldung in Ready2Race, falls dir die Änderung nicht bekannt war."
       ]
+    },
+    {
+      "key": "MATERIAL_REQUEST_WITHDRAWN",
+      "subject": "Ready2Race - Materialanfrage zurückgezogen",
+      "body": [
+        "Hallo,",
+        "",
+        "##club## hat die bereits bestätigte Anfrage zu ##competitions## bei der Veranstaltung '##event##' zurückgezogen.",
+        "",
+        "Bitte prüft eure Planung in Ready2Race."
+      ]
     }
   ]
 }

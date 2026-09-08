@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventRegistration.entity
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestDto
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.validate
@@ -13,6 +14,9 @@ data class CompetitionRegistrationTeamUpsertDto(
     val namedParticipants: List<CompetitionRegistrationNamedParticipantUpsertDto>,
     val ratingCategory: UUID?,
     val callbackUrl: String? = null,
+    // Nur zum Lesen im Template (Materialvermietung) - beim Upsert wird das Feld ignoriert, die
+    // Anfragen laufen über den eigenen Endpunkt (`PUT .../materialRequests`).
+    val materialRequests: List<MaterialRequestDto>? = null,
 ) : Validatable {
     override fun validate(): ValidationResult = ValidationResult.allOf(
         this::callbackUrl validate notNull

@@ -3,6 +3,10 @@ package de.lambda9.ready2race.backend.app.eventRegistration.control
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo.competitionRgistrationReferenced
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.*
 import de.lambda9.ready2race.backend.app.invoice.entity.RegistrationInvoiceType
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.database.*
 import de.lambda9.ready2race.backend.database.generated.tables.EventRegistrationsView
@@ -246,9 +250,13 @@ object EventRegistrationRepo {
         }
 
         val fees = selectFeesForEventRegistration()
+        // Nur zum Weiterreichen - die gesperrte Ansicht zeigt materialRequests nicht an, aber die
+        // select-Funktionen brauchen dieselbe Field-Instanz wie fees/namedParticipants.
+        val materialRequests = selectMaterialRequestsForRegistration()
 
         val singleCompetitions = selectSingleCompetitionsForEventRegistration(
             fees,
+            materialRequests,
             condition = when (filter) {
                 RegistrationFilter.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
                 RegistrationFilter.LATE -> COMPETITION_REGISTRATION.IS_LATE.isTrue
@@ -273,6 +281,7 @@ object EventRegistrationRepo {
         val teams = selectTeamsForEventRegistration(
             fees,
             namedParticipants,
+            materialRequests,
             clubId,
             condition = when (filter) {
                 RegistrationFilter.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
@@ -333,10 +342,12 @@ object EventRegistrationRepo {
         } else {
 
             val fees = selectFeesForEventRegistration()
+            val materialRequests = selectMaterialRequestsForRegistration()
 
             val singleCompetitions =
                 selectSingleCompetitionsForEventRegistration(
                     fees,
+                    materialRequests,
                     condition = when (filter) {
                         RegistrationFilter.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
                         RegistrationFilter.LATE -> COMPETITION_REGISTRATION.IS_LATE.isTrue
@@ -348,6 +359,7 @@ object EventRegistrationRepo {
                         it[fees],
                         it[COMPETITION_REGISTRATION.RATING_CATEGORY],
                         it[COMPETITION_REGISTRATION.ID],
+                        it[materialRequests],
                     )
                 }
 
@@ -362,6 +374,7 @@ object EventRegistrationRepo {
             val teams = selectTeamsForEventRegistration(
                 fees,
                 namedParticipants,
+                materialRequests,
                 clubId,
                 condition = when (filter) {
                     RegistrationFilter.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
@@ -375,6 +388,7 @@ object EventRegistrationRepo {
                     it[fees],
                     it[namedParticipants],
                     it[COMPETITION_REGISTRATION.RATING_CATEGORY],
+                    materialRequests = it[materialRequests],
                 )
             }
 
@@ -469,41 +483,108 @@ object EventRegistrationRepo {
         fees: Field<MutableList<EventRegistrationFeeDto>>,
         condition: Condition,
         alias: String
-    ) = DSL.select(
-        COMPETITION_VIEW.ID,
-        COMPETITION_VIEW.IDENTIFIER,
-        COMPETITION_VIEW.NAME,
-        COMPETITION_VIEW.SHORT_NAME,
-        COMPETITION_VIEW.DESCRIPTION,
-        COMPETITION_VIEW.CATEGORY_NAME,
-        COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED,
-        COMPETITION_VIEW.RATING_CATEGORY_REQUIRED,
-        namedParticipants,
-        fees,
-        competitionDays,
-    )
-        .from(COMPETITION_VIEW)
-        .where(COMPETITION_VIEW.EVENT.eq(EVENT.ID))
-        .and(condition)
-        .orderBy(COMPETITION_VIEW.NAME)
-        .asMultiset(alias)
-        .convertFrom {
-            it.map {
-                EventRegistrationCompetitionDto(
-                    it[COMPETITION_VIEW.ID]!!,
-                    it[COMPETITION_VIEW.IDENTIFIER]!!,
-                    it[COMPETITION_VIEW.NAME]!!,
-                    it[COMPETITION_VIEW.SHORT_NAME],
-                    it[COMPETITION_VIEW.DESCRIPTION],
-                    it[COMPETITION_VIEW.CATEGORY_NAME],
-                    it[namedParticipants],
-                    it[fees],
-                    it[competitionDays],
-                    it[COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED]!!,
-                    it[COMPETITION_VIEW.RATING_CATEGORY_REQUIRED]!!,
-                )
+    ) = run {
+        val materialDemands = selectMaterialDemandsForEventRegistrationInfo()
+
+        DSL.select(
+            COMPETITION_VIEW.ID,
+            COMPETITION_VIEW.IDENTIFIER,
+            COMPETITION_VIEW.NAME,
+            COMPETITION_VIEW.SHORT_NAME,
+            COMPETITION_VIEW.DESCRIPTION,
+            COMPETITION_VIEW.CATEGORY_NAME,
+            COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED,
+            COMPETITION_VIEW.RATING_CATEGORY_REQUIRED,
+            namedParticipants,
+            fees,
+            competitionDays,
+            materialDemands,
+        )
+            .from(COMPETITION_VIEW)
+            .where(COMPETITION_VIEW.EVENT.eq(EVENT.ID))
+            .and(condition)
+            .orderBy(COMPETITION_VIEW.NAME)
+            .asMultiset(alias)
+            .convertFrom {
+                it.map {
+                    EventRegistrationCompetitionDto(
+                        it[COMPETITION_VIEW.ID]!!,
+                        it[COMPETITION_VIEW.IDENTIFIER]!!,
+                        it[COMPETITION_VIEW.NAME]!!,
+                        it[COMPETITION_VIEW.SHORT_NAME],
+                        it[COMPETITION_VIEW.DESCRIPTION],
+                        it[COMPETITION_VIEW.CATEGORY_NAME],
+                        it[namedParticipants],
+                        it[fees],
+                        it[competitionDays],
+                        it[COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED]!!,
+                        it[COMPETITION_VIEW.RATING_CATEGORY_REQUIRED]!!,
+                        it[materialDemands],
+                    )
+                }
             }
-        }
+    }
+
+    /**
+     * Bedarf am Wettkampf mit den Angeboten der eingeladenen Anbieter dazu - verschachteltes
+     * Multiset wie bei `teams`/`participants` in [getCompetitionRegistrationsForEventAndClub].
+     * `capacity` ist ein Platzhalter, siehe [EventRegistrationMaterialOfferDto].
+     */
+    private fun selectMaterialDemandsForEventRegistrationInfo() = run {
+        val offers = DSL.select(
+            MATERIAL_OFFER.ID,
+            MATERIAL_OFFER.MATERIAL_PROVIDER,
+            MATERIAL_PROVIDER.NAME,
+            MATERIAL_OFFER.PRICE_TEXT,
+            EVENT_HAS_MATERIAL_PROVIDER.REQUESTS_CLOSED,
+        )
+            .from(MATERIAL_OFFER)
+            .join(MATERIAL_PROVIDER).on(MATERIAL_PROVIDER.ID.eq(MATERIAL_OFFER.MATERIAL_PROVIDER))
+            .join(EVENT_HAS_MATERIAL_PROVIDER).on(
+                EVENT_HAS_MATERIAL_PROVIDER.EVENT.eq(MATERIAL_OFFER.EVENT)
+                    .and(EVENT_HAS_MATERIAL_PROVIDER.MATERIAL_PROVIDER.eq(MATERIAL_OFFER.MATERIAL_PROVIDER))
+            )
+            .where(MATERIAL_OFFER.EVENT.eq(EVENT.ID))
+            .and(MATERIAL_OFFER.MATERIAL_TYPE.eq(MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.MATERIAL_TYPE))
+            .orderBy(MATERIAL_PROVIDER.NAME)
+            .asMultiset("offers")
+            .convertFrom {
+                it!!.map {
+                    EventRegistrationMaterialOfferDto(
+                        offerId = it[MATERIAL_OFFER.ID]!!,
+                        providerId = it[MATERIAL_OFFER.MATERIAL_PROVIDER]!!,
+                        providerName = it[MATERIAL_PROVIDER.NAME]!!,
+                        priceText = it[MATERIAL_OFFER.PRICE_TEXT],
+                        // Platzhalter - siehe KDoc oben.
+                        capacity = MaterialCapacityLevel.GREEN,
+                        requestsClosed = it[EVENT_HAS_MATERIAL_PROVIDER.REQUESTS_CLOSED]!!,
+                    )
+                }
+            }
+
+        DSL.select(
+            MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.MATERIAL_TYPE,
+            MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.NAME,
+            MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.CATEGORY,
+            MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.COUNT,
+            offers,
+        )
+            .from(MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES)
+            .where(MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.COMPETITION_PROPERTIES.eq(COMPETITION_VIEW.PROPERTIES_ID))
+            .orderBy(MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.NAME)
+            .asMultiset("materialDemands")
+            .convertFrom {
+                it!!.map {
+                    EventRegistrationMaterialDemandDto(
+                        materialType = it[MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.MATERIAL_TYPE]!!,
+                        name = it[MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.NAME]!!,
+                        category = MaterialCategory.valueOf(it[MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.CATEGORY]!!),
+                        count = it[MATERIAL_DEMAND_FOR_COMPETITION_PROPERTIES.COUNT]!!,
+                        offers = it[offers],
+                    )
+                }
+            }
+    }
 
     private fun selectNamedParticipantsForEventRegistrationInfo() = DSL.select(
         NAMED_PARTICIPANT_FOR_COMPETITION_PROPERTIES.ID,
@@ -630,9 +711,13 @@ object EventRegistrationRepo {
             }
 
 
+    // materialRequests wird vom Aufrufer übergeben (wie fees/namedParticipants) statt hier selbst
+    // gebaut - nur so kann der convert-Callback des Aufrufers dieselbe Field-Instanz zum Auslesen
+    // aus dem Record verwenden.
     private fun <A, NP> selectTeamsForEventRegistration(
         fees: Field<MutableList<UUID>>,
         namedParticipants: Field<MutableList<NP>>,
+        materialRequests: Field<MutableList<MaterialRequestDto>>,
         clubId: UUID,
         condition: Condition,
         convert: (Record) -> A
@@ -641,7 +726,8 @@ object EventRegistrationRepo {
         COMPETITION_REGISTRATION.IS_LATE,
         COMPETITION_REGISTRATION.RATING_CATEGORY,
         fees,
-        namedParticipants
+        namedParticipants,
+        materialRequests,
     )
         .from(COMPETITION_REGISTRATION)
         .where(COMPETITION_REGISTRATION.COMPETITION.eq(COMPETITION_VIEW.ID))
@@ -650,6 +736,53 @@ object EventRegistrationRepo {
         .asMultiset("teams")
         .convertFrom {
             it!!.map { convert(it) }
+        }
+
+    /**
+     * Materialanfragen einer Meldung, mit aufgelöstem Namen und Anbieter - nur zum Lesen im
+     * Anmelde-Template ([CompetitionRegistrationTeamUpsertDto], [CompetitionRegistrationSingleUpsertDto]).
+     * `material_request.competition_registration` hat bewusst keinen Fremdschlüssel (Task 1.1/3.0),
+     * der Gleichheitsvergleich hier funktioniert trotzdem wie ein normaler Join.
+     */
+    private fun selectMaterialRequestsForRegistration() = DSL.select(
+        MATERIAL_REQUEST.ID,
+        MATERIAL_REQUEST.COMPETITION_REGISTRATION,
+        MATERIAL_REQUEST.MATERIAL_OFFER,
+        MATERIAL_OFFER.MATERIAL_TYPE,
+        MATERIAL_TYPE.NAME,
+        MATERIAL_TYPE.CATEGORY,
+        MATERIAL_OFFER.MATERIAL_PROVIDER,
+        MATERIAL_PROVIDER.NAME,
+        MATERIAL_REQUEST.COUNT,
+        MATERIAL_REQUEST.STATUS,
+        MATERIAL_REQUEST.DECISION_NOTE,
+        MATERIAL_REQUEST.REQUESTED_AT,
+        MATERIAL_REQUEST.DECIDED_AT,
+    )
+        .from(MATERIAL_REQUEST)
+        .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+        .join(MATERIAL_TYPE).on(MATERIAL_TYPE.ID.eq(MATERIAL_OFFER.MATERIAL_TYPE))
+        .join(MATERIAL_PROVIDER).on(MATERIAL_PROVIDER.ID.eq(MATERIAL_OFFER.MATERIAL_PROVIDER))
+        .where(MATERIAL_REQUEST.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+        .asMultiset("materialRequests")
+        .convertFrom {
+            it!!.map {
+                MaterialRequestDto(
+                    id = it[MATERIAL_REQUEST.ID]!!,
+                    competitionRegistration = it[MATERIAL_REQUEST.COMPETITION_REGISTRATION]!!,
+                    materialOffer = it[MATERIAL_REQUEST.MATERIAL_OFFER]!!,
+                    materialType = it[MATERIAL_OFFER.MATERIAL_TYPE]!!,
+                    materialTypeName = it[MATERIAL_TYPE.NAME]!!,
+                    category = MaterialCategory.valueOf(it[MATERIAL_TYPE.CATEGORY]!!),
+                    providerId = it[MATERIAL_OFFER.MATERIAL_PROVIDER]!!,
+                    providerName = it[MATERIAL_PROVIDER.NAME]!!,
+                    count = it[MATERIAL_REQUEST.COUNT]!!,
+                    status = MaterialRequestStatus.valueOf(it[MATERIAL_REQUEST.STATUS]!!),
+                    decisionNote = it[MATERIAL_REQUEST.DECISION_NOTE],
+                    requestedAt = it[MATERIAL_REQUEST.REQUESTED_AT]!!,
+                    decidedAt = it[MATERIAL_REQUEST.DECIDED_AT],
+                )
+            }
         }
 
     private fun <A> selectNamedParticipantsForEventRegistration(
@@ -671,6 +804,7 @@ object EventRegistrationRepo {
 
     private fun <A> selectSingleCompetitionsForEventRegistration(
         fees: Field<MutableList<UUID>>,
+        materialRequests: Field<MutableList<MaterialRequestDto>>,
         condition: Condition,
         convert: (Record) -> A,
     ) = DSL.select(
@@ -679,6 +813,7 @@ object EventRegistrationRepo {
         COMPETITION_REGISTRATION.IS_LATE,
         COMPETITION_REGISTRATION.RATING_CATEGORY,
         fees,
+        materialRequests,
     ).from(COMPETITION_VIEW)
         .join(COMPETITION_REGISTRATION).on(COMPETITION_REGISTRATION.COMPETITION.eq(COMPETITION_VIEW.ID))
         .join(COMPETITION_REGISTRATION_NAMED_PARTICIPANT).on(

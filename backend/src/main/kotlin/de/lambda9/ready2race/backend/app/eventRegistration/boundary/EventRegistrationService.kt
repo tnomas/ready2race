@@ -27,6 +27,8 @@ import de.lambda9.ready2race.backend.app.eventDocument.control.EventDocumentRepo
 import de.lambda9.ready2race.backend.app.eventParticipant.control.EventParticipantRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.control.*
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.*
+import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
 import de.lambda9.ready2race.backend.app.namedParticipant.entity.NamedParticipantRequirements
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantForEventRepo
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
@@ -108,7 +110,34 @@ object EventRegistrationService {
         val lockedRegistration = !EventRegistrationRepo.getLockedEventRegistration(eventId, clubId, type).orDie()
             .onNullFail { EventRegistrationError.EventNotFound }
 
-        ok(EventRegistrationTemplateDto(info, upsertableRegistration, lockedRegistration)).map { ApiResponse.Dto(it) }
+        // Die Ampel je Angebot braucht den Bedarf aller Vereine an diesem Angebot, den die
+        // Wettkampf-Abfrage in EventRegistrationRepo nicht kennt - deshalb hier nachgetragen statt
+        // in SQL berechnet.
+        val capacityLevels = !MaterialService.capacityLevels(eventId)
+
+        ok(
+            EventRegistrationTemplateDto(info.withMaterialCapacity(capacityLevels), upsertableRegistration, lockedRegistration)
+        ).map { ApiResponse.Dto(it) }
+    }
+
+    private fun EventRegistrationInfoDto.withMaterialCapacity(
+        levels: Map<UUID, MaterialCapacityLevel>,
+    ): EventRegistrationInfoDto {
+        fun EventRegistrationCompetitionDto.withCapacity() = copy(
+            materialDemands = materialDemands.map { demand ->
+                demand.copy(
+                    offers = demand.offers.map { offer ->
+                        // levels enthält jedes Angebot der Veranstaltung - fehlt es trotzdem, bleibt
+                        // der Platzhalter aus EventRegistrationRepo stehen statt eines Absturzes.
+                        offer.copy(capacity = levels[offer.offerId] ?: offer.capacity)
+                    }
+                )
+            }
+        )
+        return copy(
+            competitionsSingle = competitionsSingle.map { it.withCapacity() },
+            competitionsTeam = competitionsTeam.map { it.withCapacity() },
+        )
     }
 
     fun upsertRegistrationForEvent(

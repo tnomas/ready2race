@@ -14,4 +14,5 @@ data class EventRegistrationCompetitionDto(
     val days: List<UUID>,
     val lateRegistrationAllowed: Boolean,
     val ratingCategoryRequired: Boolean,
+    val materialDemands: List<EventRegistrationMaterialDemandDto>,
 )

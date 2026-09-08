@@ -15,6 +15,19 @@ enum MaterialItemStatus {
   RETIRED,
 }
 
+enum MaterialRequestStatus {
+  REQUESTED,
+  CONFIRMED,
+  WAITLISTED,
+  DECLINED,
+  WITHDRAWN,
+}
+
+enum MaterialCapacityLevel {
+  GREEN,
+  YELLOW,
+}
+
 model MaterialProviderDto {
   id: uuid;
   name: string;
@@ -117,6 +130,47 @@ model MaterialOfferRequest {
   priceText?: string;
   plannedCount: int32;
   changeoverMinutes: int32;
+}
+
+// Eine Materialanfrage je Meldung und Angebot, mit aufgelöstem Namen und Anbieter.
+model MaterialRequestDto {
+  id: uuid;
+  competitionRegistration: uuid;
+  materialOffer: uuid;
+  materialType: uuid;
+  materialTypeName: string;
+  category: MaterialCategory;
+  providerId: uuid;
+  providerName: string;
+  count: int32;
+  status: MaterialRequestStatus;
+  decisionNote?: string;
+  requestedAt: utcDateTime;
+  decidedAt?: utcDateTime;
+}
+
+// Vollständige Liste der gewünschten Angebote einer Meldung - kein Delta.
+model MaterialRequestsUpsertRequest {
+  offerIds: uuid[];
+}
+
+// Ein Angebot zu einer Materialart im Anmelde-Template, mit der Ampel für die Auslastung.
+model EventRegistrationMaterialOfferDto {
+  offerId: uuid;
+  providerId: uuid;
+  providerName: string;
+  priceText?: string;
+  capacity: MaterialCapacityLevel;
+  requestsClosed: boolean;
+}
+
+// Bedarf einer Materialart am Wettkampf im Anmelde-Template, mit den Angeboten dazu.
+model EventRegistrationMaterialDemandDto {
+  materialType: uuid;
+  name: string;
+  category: MaterialCategory;
+  count: int32;
+  offers: EventRegistrationMaterialOfferDto[];
 }
 
 @route("/materialProvider")
@@ -322,5 +376,19 @@ interface EventMaterialRoutes {
     @path eventId: string, // UUID
     @path providerId: string, // UUID
     @path offerId: string, // UUID
+  ): void;
+}
+
+// Anfragen einer Meldung - OWN meint hier den Verein des Nutzers (wie bei competitionRegistration).
+@route("/event/{eventId}/competitionRegistration/{competitionRegistrationId}/materialRequests")
+@tag("Material")
+interface MaterialRequestRoutes {
+  // Ersetzt die gewünschten Angebote einer Meldung
+  @put
+  @operationId("")
+  setMaterialRequests(
+    @path eventId: string, // UUID
+    @path competitionRegistrationId: string, // UUID
+    @body request: MaterialRequestsUpsertRequest,
   ): void;
 }

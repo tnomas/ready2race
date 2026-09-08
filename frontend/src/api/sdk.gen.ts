@@ -515,6 +515,9 @@ import type {
     DeleteMaterialOfferData,
     DeleteMaterialOfferError,
     DeleteMaterialOfferResponse,
+    SetMaterialRequestsData,
+    SetMaterialRequestsError,
+    SetMaterialRequestsResponse,
     GetMaterialProvidersData,
     GetMaterialProvidersError,
     GetMaterialProvidersResponse,
@@ -3492,6 +3495,22 @@ export const deleteMaterialOffer = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/event/{eventId}/materialProvider/{providerId}/offer/{offerId}',
+    })
+}
+
+/**
+ * Ersetzt die Materialanfragen einer Meldung durch die übergebene Wunschliste. Braucht UPDATE REGISTRATION (OWN oder GLOBAL); mit OWN nur die eigene Meldung.
+ */
+export const setMaterialRequests = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetMaterialRequestsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetMaterialRequestsResponse,
+        SetMaterialRequestsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/competitionRegistration/{competitionRegistrationId}/materialRequests',
     })
 }
 

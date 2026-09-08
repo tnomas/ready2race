@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestsUpsertRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
 import de.lambda9.ready2race.backend.app.material.entity.SetRequestsClosedRequest
@@ -293,6 +294,21 @@ fun Route.eventMaterial() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Anfragen einer Meldung - nicht unter /materialProvider, weil OWN hier den Verein des
+    // Nutzers meint (wie bei competitionRegistration), nicht dessen Materialanbieter.
+    route("/competitionRegistration/{competitionRegistrationId}/materialRequests") {
+
+        put {
+            call.respondComprehension {
+                val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.REGISTRATION)
+                val eventId = !pathParam("eventId", uuid)
+                val competitionRegistrationId = !pathParam("competitionRegistrationId", uuid)
+                val body = !receiveKIO(MaterialRequestsUpsertRequest.example)
+                MaterialService.setRequestsForRegistration(eventId, competitionRegistrationId, scope to user.club, body.offerIds, user.id!!)
             }
         }
     }

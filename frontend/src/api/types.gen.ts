@@ -1214,6 +1214,10 @@ export type CompetitionRegistrationSingleUpsertDto = {
     optionalFees?: Array<string>
     ratingCategory?: string
     id?: string | null
+    /**
+     * Nur zum Lesen im Template (Materialvermietung) - beim Upsert wird das Feld ignoriert.
+     */
+    materialRequests?: Array<MaterialRequestDto>
 }
 
 export type CompetitionRegistrationsWithoutTeamNumberDto = {
@@ -1266,6 +1270,10 @@ export type CompetitionRegistrationTeamUpsertDto = {
     namedParticipants?: Array<CompetitionRegistrationNamedParticipantUpsertDto>
     ratingCategory?: string
     callbackUrl?: string
+    /**
+     * Nur zum Lesen im Template (Materialvermietung) - beim Upsert wird das Feld ignoriert.
+     */
+    materialRequests?: Array<MaterialRequestDto>
 }
 
 export type CompetitionRegistrationUpsertDto = {
@@ -1598,6 +1606,7 @@ export type EmailTemplateKey =
     | 'CERTIFICATE_OF_PARTICIPATION_PARTICIPANT'
     | 'CLUB_REPRESENTATIVE_APPROVAL_REQUESTED'
     | 'COMPETITION_REGISTRATION_EDITED'
+    | 'MATERIAL_REQUEST_WITHDRAWN'
 
 export type EmailTemplateRequest = {
     subject: string
@@ -1943,6 +1952,7 @@ export type EventRegistrationCompetitionDto = {
     days: Array<string>
     lateRegistrationAllowed: boolean
     ratingCategoryRequired: boolean
+    materialDemands: Array<EventRegistrationMaterialDemandDto>
 }
 
 export type EventRegistrationDayDto = {
@@ -1988,6 +1998,29 @@ export type EventRegistrationInfoDto = {
 export type EventRegistrationLockedDto = {
     participants: Array<EventRegistrationParticipantLockedDto>
     competitionRegistrations: Array<CompetitionRegistrationLockedDto>
+}
+
+/**
+ * Bedarf einer Materialart am Wettkampf im Anmelde-Template, mit den Angeboten der eingeladenen Anbieter dazu.
+ */
+export type EventRegistrationMaterialDemandDto = {
+    materialType: string
+    name: string
+    category: MaterialCategory
+    count: number
+    offers: Array<EventRegistrationMaterialOfferDto>
+}
+
+/**
+ * Ein Angebot zu einer Materialart im Anmelde-Template, mit der Ampel für die Auslastung.
+ */
+export type EventRegistrationMaterialOfferDto = {
+    offerId: string
+    providerId: string
+    providerName: string
+    priceText?: string
+    capacity: MaterialCapacityLevel
+    requestsClosed: boolean
 }
 
 export type EventRegistrationNamedParticipantDto = {
@@ -2963,6 +2996,8 @@ export type MatchTeamNoteRequest = {
     note: string
 }
 
+export type MaterialCapacityLevel = 'GREEN' | 'YELLOW'
+
 export type MaterialCategory = 'BOAT' | 'OTHER'
 
 /**
@@ -3050,6 +3085,39 @@ export type MaterialProviderRequest = {
     contactEmail?: string
     contactPhone?: string
     note?: string
+}
+
+/**
+ * Eine Materialanfrage je Meldung und Angebot, mit aufgelöstem Namen und Anbieter.
+ */
+export type MaterialRequestDto = {
+    id: string
+    competitionRegistration: string
+    materialOffer: string
+    materialType: string
+    materialTypeName: string
+    category: MaterialCategory
+    providerId: string
+    providerName: string
+    count: number
+    status: MaterialRequestStatus
+    decisionNote?: string
+    requestedAt: string
+    decidedAt?: string
+}
+
+export type MaterialRequestStatus =
+    | 'REQUESTED'
+    | 'CONFIRMED'
+    | 'WAITLISTED'
+    | 'DECLINED'
+    | 'WITHDRAWN'
+
+/**
+ * Vollständige Liste der gewünschten Angebote einer Meldung - kein Delta, jeder Aufruf ersetzt den bisherigen Stand.
+ */
+export type MaterialRequestsUpsertRequest = {
+    offerIds: Array<string>
 }
 
 export type MaterialTypeDto = {
@@ -8000,6 +8068,18 @@ export type DeleteMaterialOfferData = {
 export type DeleteMaterialOfferResponse = void
 
 export type DeleteMaterialOfferError = BadRequestError | ApiError
+
+export type SetMaterialRequestsData = {
+    body: MaterialRequestsUpsertRequest
+    path: {
+        competitionRegistrationId: string
+        eventId: string
+    }
+}
+
+export type SetMaterialRequestsResponse = void
+
+export type SetMaterialRequestsError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetMaterialProvidersData = {
     query?: {

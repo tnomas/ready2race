@@ -329,6 +329,11 @@ object EmailService {
                 EmailTemplatePlaceholder.CLUB.name.lowercase(),
                 EmailTemplatePlaceholder.EVENT.name.lowercase(),
                 EmailTemplatePlaceholder.COMPETITIONS.name.lowercase())
+        ),
+        EmailTemplateKey.MATERIAL_REQUEST_WITHDRAWN to EmailPlaceholders(
+            optional = listOf(EmailTemplatePlaceholder.CLUB.name.lowercase(),
+                EmailTemplatePlaceholder.EVENT.name.lowercase(),
+                EmailTemplatePlaceholder.COMPETITIONS.name.lowercase())
         )
     )
 

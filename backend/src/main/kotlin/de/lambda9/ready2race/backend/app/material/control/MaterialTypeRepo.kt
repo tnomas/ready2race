@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.MATERI
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.insertReturning
 import de.lambda9.ready2race.backend.database.page
+import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.jooq.JIO
@@ -23,6 +24,8 @@ object MaterialTypeRepo {
     private fun MaterialType.searchFields() = listOf(NAME)
 
     fun create(record: MaterialTypeRecord) = MATERIAL_TYPE.insertReturning(record) { ID }
+
+    fun get(id: UUID) = MATERIAL_TYPE.selectOne { ID.eq(id) }
 
     fun update(id: UUID, f: MaterialTypeRecord.() -> Unit) = MATERIAL_TYPE.update(f) { ID.eq(id) }
 

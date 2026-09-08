@@ -40,6 +40,18 @@ sealed interface MaterialError : ServiceError {
     /** Angebot mit Anfragen kann nicht gelöscht werden. */
     data object OfferInUse : MaterialError
 
+    /** Meldung existiert nicht, gehört nicht zur Veranstaltung, oder (bei OWN) nicht zum eigenen Verein. */
+    data object RegistrationNotFound : MaterialError
+
+    /** Anbieter hat neue Anfragen für diese Veranstaltung gesperrt - bestehende bleiben unberührt, Rückzug bleibt erlaubt. */
+    data object RequestsClosed : MaterialError
+
+    /** Die Materialart des Angebots steht nicht im Bedarf des Wettkampfs dieser Meldung. */
+    data object TypeNotDemanded : MaterialError
+
+    /** Zwei Angebote derselben Materialart in einer Anfrage-Liste - höchstens eines je Art. */
+    data object DuplicateTypeForRegistration : MaterialError
+
     override fun respond(): ApiError = when (this) {
         ProviderNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material provider not found")
         ProviderNameTaken -> ApiError(
@@ -74,5 +86,10 @@ sealed interface MaterialError : ServiceError {
             errorCode = ErrorCode.MATERIAL_OFFER_TYPE_TAKEN,
         )
         OfferInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material offer is in use")
+
+        RegistrationNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Competition registration not found")
+        RequestsClosed -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider has closed requests for this event")
+        TypeNotDemanded -> ApiError(status = HttpStatusCode.Conflict, message = "Material type is not demanded by this competition")
+        DuplicateTypeForRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "At most one offer per material type is allowed")
     }
 }

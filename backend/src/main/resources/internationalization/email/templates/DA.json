@@ -130,6 +130,17 @@
         "",
         "Tjek venligst tilmeldingen i Ready2Race, hvis du ikke var bekendt med denne ændring."
       ]
+    },
+    {
+      "key": "MATERIAL_REQUEST_WITHDRAWN",
+      "subject": "Ready2Race – Materialanmodning trukket tilbage",
+      "body": [
+        "Hej,",
+        "",
+        "##club## har trukket den allerede bekræftede anmodning til ##competitions## ved arrangementet \"##event##\" tilbage.",
+        "",
+        "Tjek venligst jeres planlægning i Ready2Race."
+      ]
     }
   ]
 }

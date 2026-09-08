@@ -130,6 +130,17 @@
         "",
         "Please check the registration in Ready2Race if you were not aware of this change."
       ]
+    },
+    {
+      "key": "MATERIAL_REQUEST_WITHDRAWN",
+      "subject": "Ready2Race - Material request withdrawn",
+      "body": [
+        "Hello,",
+        "",
+        "##club## has withdrawn the already confirmed request for ##competitions## at the event '##event##'.",
+        "",
+        "Please check your planning in Ready2Race."
+      ]
     }
   ]
 }

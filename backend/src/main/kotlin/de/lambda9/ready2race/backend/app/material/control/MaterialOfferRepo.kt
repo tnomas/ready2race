@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.MATERI
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.insertReturning
+import de.lambda9.ready2race.backend.database.select
 import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
 import de.lambda9.tailwind.jooq.JIO
@@ -20,6 +21,9 @@ object MaterialOfferRepo {
     fun create(record: MaterialOfferRecord) = MATERIAL_OFFER.insertReturning(record) { ID }
 
     fun get(id: UUID) = MATERIAL_OFFER.selectOne { ID.eq(id) }
+
+    /** Alle Angebote einer Veranstaltung - Grundlage für [de.lambda9.ready2race.backend.app.material.boundary.MaterialService.capacityLevels] (planned_count je Angebot). */
+    fun forEvent(eventId: UUID) = MATERIAL_OFFER.select { EVENT.eq(eventId) }
 
     fun update(id: UUID, f: MaterialOfferRecord.() -> Unit) = MATERIAL_OFFER.update(f) { ID.eq(id) }
 

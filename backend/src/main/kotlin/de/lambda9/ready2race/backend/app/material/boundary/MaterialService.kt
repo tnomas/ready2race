@@ -1,15 +1,24 @@
 package de.lambda9.ready2race.backend.app.material.boundary
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.club.control.ClubRepo
+import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
+import de.lambda9.ready2race.backend.app.email.boundary.EmailService
+import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
+import de.lambda9.ready2race.backend.app.email.entity.EmailTemplateKey
+import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialItemRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialOfferRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialProviderRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialRequestRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialTypeRepo
 import de.lambda9.ready2race.backend.app.material.control.toDto
 import de.lambda9.ready2race.backend.app.material.control.toRecord
 import de.lambda9.ready2race.backend.app.material.entity.EventMaterialProviderDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
@@ -20,6 +29,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderEventDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
@@ -28,11 +38,13 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialRequestRecord
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import de.lambda9.tailwind.core.extensions.kio.traverse
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -379,6 +391,152 @@ object MaterialService {
             KIO.fail(MaterialError.OfferNotFound)
         } else {
             noData
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // Anfragen
+    // -------------------------------------------------------------------
+
+    /**
+     * Ersetzt die Anfragen einer Meldung durch die übergebene Wunschliste (Spec Abschnitt 7):
+     * bestehende Anfragen zu weiterhin gewünschten Angeboten bleiben unverändert (auch bestätigte),
+     * nicht mehr genannte werden zurückgezogen. Ein zurückgezogenes Angebot kann wegen des
+     * Unique-Index (competition_registration, material_offer) nicht neu angefragt werden - die
+     * Zeile bleibt zurückgezogen liegen, auch wenn ihr Angebot später wieder genannt wird.
+     */
+    fun setRequestsForRegistration(
+        eventId: UUID,
+        competitionRegistrationId: UUID,
+        clubScope: Pair<Privilege.Scope, UUID?>,
+        offerIds: List<UUID>,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        val (scope, club) = clubScope
+
+        val ref = !MaterialRequestRepo.registrationRef(competitionRegistrationId).orDie()
+            .onNullFail { MaterialError.RegistrationNotFound }
+        !KIO.failOn(ref.event != eventId) { MaterialError.RegistrationNotFound }
+        !KIO.failOn(scope == Privilege.Scope.OWN && ref.club != club) { MaterialError.RegistrationNotFound }
+
+        val demand = !MaterialRequestRepo.demandForRegistration(competitionRegistrationId).orDie()
+        val existing = !MaterialRequestRepo.forRegistration(competitionRegistrationId).orDie()
+        val existingByOffer = existing.associateBy { it.materialOffer }
+
+        // Erst validieren, dann schreiben - eine ungültige Zeile in der Liste darf die anderen
+        // nicht halb anwenden.
+        val offers = !offerIds.distinct().traverse { offerId ->
+            KIO.comprehension {
+                val offer = !MaterialOfferRepo.get(offerId).orDie().onNullFail { MaterialError.OfferNotFound }
+                !KIO.failOn(offer.event != eventId) { MaterialError.OfferNotFound }
+                !KIO.failOn(!demand.containsKey(offer.materialType)) { MaterialError.TypeNotDemanded }
+                KIO.ok(offer)
+            }
+        }
+
+        val duplicateType = offers.groupBy { it.materialType }.values.any { it.size > 1 }
+        !KIO.failOn(duplicateType) { MaterialError.DuplicateTypeForRegistration }
+
+        val now = LocalDateTime.now()
+
+        // requests_closed gilt nur für wirklich neue Anfragen - ein Angebot, das die Meldung schon
+        // einmal angefragt hatte (gleich welcher Status), zählt nicht als neu.
+        !offers.filter { !existingByOffer.containsKey(it.id) }.traverse { offer ->
+            KIO.comprehension {
+                val invitation = !EventHasMaterialProviderRepo.get(eventId, offer.materialProvider).orDie()
+                !KIO.failOn(invitation?.requestsClosed == true) { MaterialError.RequestsClosed }
+
+                MaterialRequestRepo.create(
+                    MaterialRequestRecord(
+                        id = UUID.randomUUID(),
+                        competitionRegistration = competitionRegistrationId,
+                        materialOffer = offer.id,
+                        count = demand.getValue(offer.materialType),
+                        status = MaterialRequestStatus.REQUESTED.name,
+                        requestedAt = now,
+                        createdAt = now,
+                        createdBy = userId,
+                        updatedAt = now,
+                        updatedBy = userId,
+                    )
+                ).orDie()
+            }
+        }
+
+        val wantedOfferIds = offers.map { it.id }.toSet()
+        val toWithdraw = existing.filter {
+            it.materialOffer !in wantedOfferIds && it.status != MaterialRequestStatus.WITHDRAWN.name
+        }
+
+        !toWithdraw.traverse { request ->
+            if (request.status == MaterialRequestStatus.CONFIRMED.name) {
+                notifyProviderOfWithdrawal(ref.competition, ref.club, eventId, request)
+            } else {
+                KIO.unit
+            }
+        }
+
+        if (toWithdraw.isNotEmpty()) {
+            !MaterialRequestRepo.withdraw(toWithdraw.map { it.id }, now).orDie()
+        }
+
+        noData
+    }
+
+    /** GREEN wenn (CONFIRMED+REQUESTED Mengen) < planned_count, sonst YELLOW. */
+    fun capacityLevels(eventId: UUID): App<Nothing, Map<UUID, MaterialCapacityLevel>> = KIO.comprehension {
+        val offers = !MaterialOfferRepo.forEvent(eventId).orDie()
+        val requested = !MaterialRequestRepo.capacityForOffers(eventId).orDie()
+
+        KIO.ok(
+            offers.associate { offer ->
+                val sum = requested[offer.id!!] ?: 0
+                offer.id!! to if (sum < offer.plannedCount!!) MaterialCapacityLevel.GREEN else MaterialCapacityLevel.YELLOW
+            }
+        )
+    }
+
+    /**
+     * Anbieter haben kein eigenes Sprachfeld (anders als App-Nutzer über `app_user.language`) -
+     * Deutsch ist die einzige Sprache, die für sie bislang vorgesehen ist.
+     */
+    private fun notifyProviderOfWithdrawal(
+        competitionId: UUID,
+        clubId: UUID,
+        eventId: UUID,
+        request: MaterialRequestRecord,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val offer = !MaterialOfferRepo.get(request.materialOffer).orDie()
+
+        if (offer == null) {
+            KIO.unit
+        } else {
+            val provider = !MaterialProviderRepo.get(offer.materialProvider).orDie()
+            val email = provider?.contactEmail
+
+            if (email == null) {
+                KIO.unit
+            } else {
+                val type = !MaterialTypeRepo.get(offer.materialType).orDie()
+                val club = !ClubRepo.getName(clubId).orDie()
+                val event = !EventRepo.get(eventId).orDie()
+                val competition = !CompetitionRepo.getById(competitionId).orDie()
+
+                val content = !EmailService.getTemplate(
+                    EmailTemplateKey.MATERIAL_REQUEST_WITHDRAWN,
+                    EmailLanguage.DE,
+                ).map { template ->
+                    template.toContent(
+                        EmailTemplatePlaceholder.CLUB to (club ?: "-"),
+                        EmailTemplatePlaceholder.EVENT to (event?.name ?: "-"),
+                        // Kein eigener Platzhalter für die Materialart - der Name kommt mit in
+                        // COMPETITIONS, wie "C4x+ (JM4x)".
+                        EmailTemplatePlaceholder.COMPETITIONS to "${type?.name ?: "?"} (${competition?.name ?: "?"})",
+                    )
+                }
+
+                EmailService.enqueue(recipient = email, content = content).map { }
+            }
         }
     }
 }

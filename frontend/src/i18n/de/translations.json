@@ -4176,7 +4176,8 @@
         "PARTICIPANT_CHALLENGE_REGISTERED": "Anmeldebestätigung für Challenge",
         "CERTIFICATE_OF_PARTICIPATION_PARTICIPANT": "Teilnahmezertifikat",
         "CLUB_REPRESENTATIVE_APPROVAL_REQUESTED": "Verwalter-Anfrage für Verein",
-        "COMPETITION_REGISTRATION_EDITED": "Meldung bearbeitet"
+        "COMPETITION_REGISTRATION_EDITED": "Meldung bearbeitet",
+        "MATERIAL_REQUEST_WITHDRAWN": "Materialanfrage zurückgezogen"
       },
       "requiredPlaceholders": "Benötigte Platzhalter:",
       "optionalPlaceholders": "Optionale Platzhalter:",

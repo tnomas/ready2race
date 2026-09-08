@@ -4176,7 +4176,8 @@
         "PARTICIPANT_CHALLENGE_REGISTERED": "Challenge Registration Confirmed",
         "CERTIFICATE_OF_PARTICIPATION_PARTICIPANT": "Certificate of Participation",
         "CLUB_REPRESENTATIVE_APPROVAL_REQUESTED": "Club Manager Request",
-        "COMPETITION_REGISTRATION_EDITED": "Registration Edited"
+        "COMPETITION_REGISTRATION_EDITED": "Registration Edited",
+        "MATERIAL_REQUEST_WITHDRAWN": "Material Request Withdrawn"
       },
       "requiredPlaceholders": "Required Placeholders:",
       "optionalPlaceholders": "Optional Placeholders:",
