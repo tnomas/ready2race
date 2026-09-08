@@ -12,6 +12,7 @@ import {useFetch} from '@utils/hooks.ts'
 import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
 import {deviationOf, groupPrivileges} from './privilegeGroups.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {jobName} from '@authorization/roleLabels.ts'
 
 type RoleForm = {
     name: string
@@ -87,11 +88,11 @@ const RoleDialog = (props: BaseEntityDialogProps<RoleDto>) => {
                         name={'job'}
                         label={t('role.copyOf')}
                         required
-                        options={(jobs ?? []).map(j => ({id: j.key, label: t(`job.${j.key}.name` as never)}))}
+                        options={(jobs ?? []).map(j => ({id: j.key, label: jobName(j.key, t)}))}
                     />
                 ) : (
                     <Typography variant={'body2'}>
-                        {t('role.copyOf')}: {props.entity.job ? t(`job.${props.entity.job}.name` as never) : '–'}
+                        {t('role.copyOf')}: {props.entity.job ? jobName(props.entity.job, t) : t('role.noTemplate')}
                     </Typography>
                 )}
                 <FormInputText name={'name'} label={t('role.name')} required />

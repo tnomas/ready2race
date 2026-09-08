@@ -6,7 +6,7 @@ import {useTranslation} from 'react-i18next'
 import {RoleDto} from '@api/types.gen.ts'
 import {deleteRole, getRoles} from '@api/sdk.gen.ts'
 import {Chip, Stack} from '@mui/material'
-import {roleLabel} from '@authorization/roleLabels.ts'
+import {jobName, roleDescription, roleLabel} from '@authorization/roleLabels.ts'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -44,13 +44,15 @@ const RoleTable = (props: BaseEntityTableProps<RoleDto>) => {
             headerName: t('role.copyOf'),
             minWidth: 160,
             flex: 1,
-            valueGetter: (_, row) => (row.job ? t(`job.${row.job}.name` as never) : '–'),
+            sortable: false,
+            valueGetter: (_, row) => (row.job ? jobName(row.job, t) : t('role.noTemplate')),
         },
         {
             field: 'level',
             headerName: t('role.level.label'),
             minWidth: 140,
             flex: 1,
+            sortable: false,
             valueGetter: (_, row) => t(`role.level.${row.level}`),
         },
         {
@@ -59,6 +61,7 @@ const RoleTable = (props: BaseEntityTableProps<RoleDto>) => {
             minWidth: 200,
             flex: 1,
             sortable: false,
+            valueGetter: (_, row) => roleDescription(row, t),
         },
     ]
 

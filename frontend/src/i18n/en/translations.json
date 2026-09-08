@@ -3080,6 +3080,7 @@
     "rights": "Rights",
     "job": "Job",
     "copyOf": "Copy of",
+    "noTemplate": "No template",
     "static": "Predefined",
     "level": {
       "label": "Level",

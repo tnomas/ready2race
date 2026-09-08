@@ -2828,6 +2828,7 @@
     "rights": "Rettigheder",
     "job": "Job",
     "copyOf": "Kopi af",
+    "noTemplate": "Uden skabelon",
     "static": "Foruddefineret",
     "level": {
       "label": "Niveau",
