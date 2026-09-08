@@ -4436,6 +4436,217 @@ paths:
           $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+    get:
+      operationId: getEventMaterialProviders
+      description: Zur Veranstaltung eingeladene Anbieter, aus Sicht des Veranstalters. Braucht READ EVENT GLOBAL.
+      responses:
+        200:
+          description: Eingeladene Anbieter
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventMaterialProviderDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: inviteMaterialProvider
+      description: Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL.
+      responses:
+        204:
+          description: Anbieter erfolgreich eingeladen
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: uninviteMaterialProvider
+      description: Zieht die Einladung zurück, Angebote fallen per Kaskade. Braucht UPDATE EVENT GLOBAL. Anbieter mit bestehenden Anfragen können nicht ausgeladen werden.
+      responses:
+        204:
+          description: Einladung erfolgreich zurückgezogen
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/requestsClosed:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setMaterialRequestsClosed
+      description: Öffnet oder schließt die Materialanfragen des Anbieters für diese Veranstaltung. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetRequestsClosedRequest'
+      responses:
+        204:
+          description: Erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/offer:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialOffers
+      description: Angebote des Anbieters an dieser Veranstaltung. Braucht READ MATERIAL OWN (nur beim eigenen Anbieter) oder READ EVENT GLOBAL.
+      responses:
+        200:
+          description: Angebote
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaterialOfferDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: addMaterialOffer
+      description: Legt ein Angebot des Anbieters für diese Veranstaltung an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Der Anbieter muss eingeladen sein, je Materialart nur ein Angebot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialOfferRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+  /event/{eventId}/materialProvider/{providerId}/offer/{offerId}:
+    parameters:
+      - $ref: '#/components/parameters/eventId'
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: offerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateMaterialOffer
+      description: Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialOfferRequest'
+      responses:
+        204:
+          description: Angebot erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteMaterialOffer
+      description: Löscht ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Angebote mit Anfragen können nicht gelöscht werden.
+      responses:
+        204:
+          description: Angebot erfolgreich gelöscht
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
   /materialProvider:
     get:
       operationId: getMaterialProviders
@@ -4687,6 +4898,34 @@ paths:
           $ref: '#/components/responses/404'
         409:
           $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/event:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialProviderEvents
+      description: Veranstaltungen, zu denen der Anbieter eingeladen ist - Veranstaltungswahl des Anbieters. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+      responses:
+        200:
+          description: Veranstaltungen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MaterialProviderEventDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
         500:
           $ref: '#/components/responses/500'
   /materialType:
@@ -12456,6 +12695,7 @@ components:
         - MATERIAL_PROVIDER_NAME_TAKEN
         - MATERIAL_TYPE_NAME_TAKEN
         - MATERIAL_ITEM_NUMBER_TAKEN
+        - MATERIAL_OFFER_TYPE_TAKEN
 
     Gender:
       type: string
@@ -13706,6 +13946,7 @@ components:
         - lateRegistrationAllowed
         - resultConfirmationImageRequired
         - ratingCategoryRequired
+        - materialTypes
       properties:
         identifier:
           type: string
@@ -13728,6 +13969,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FeeForCompetitionDto'
+        materialTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialDemandDto'
         lateRegistrationAllowed:
           type: boolean
         challengeConfig:
@@ -13821,6 +14066,7 @@ components:
         - checkInOutRequired
         - namedParticipants
         - fees
+        - materialTypes
         - lateRegistrationAllowed
         - ratingCategoryRequired
       properties:
@@ -13846,6 +14092,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FeeForCompetitionRequestDto'
+        materialTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MaterialDemandRequestDto'
         lateRegistrationAllowed:
           type: boolean
         setupTemplate:
@@ -18157,6 +18407,73 @@ components:
         label: {type: string, maxLength: 20}
         note: {type: string}
         status: {$ref: '#/components/schemas/MaterialItemStatus'}
+
+    EventMaterialProviderDto:
+      type: object
+      description: Ein zur Veranstaltung eingeladener Anbieter, aus Sicht des Veranstalters. openRequests/openDamages werden erst mit den Anfragen und Schäden befüllt.
+      required: [materialProvider, name, requestsClosed, openRequests, openDamages]
+      properties:
+        materialProvider: {type: string, format: uuid}
+        name: {type: string}
+        requestsClosed: {type: boolean}
+        openRequests: {type: integer}
+        openDamages: {type: integer}
+
+    MaterialProviderEventDto:
+      type: object
+      description: Eine Veranstaltung, zu der der eigene Anbieter eingeladen ist - Veranstaltungswahl des Anbieters.
+      required: [event, eventName, requestsClosed]
+      properties:
+        event: {type: string, format: uuid}
+        eventName: {type: string}
+        requestsClosed: {type: boolean}
+
+    SetRequestsClosedRequest:
+      type: object
+      required: [requestsClosed]
+      properties:
+        requestsClosed: {type: boolean}
+
+    MaterialOfferDto:
+      type: object
+      required: [id, event, materialProvider, materialType, materialTypeName, category, plannedCount, changeoverMinutes]
+      properties:
+        id: {type: string, format: uuid}
+        event: {type: string, format: uuid}
+        materialProvider: {type: string, format: uuid}
+        materialType: {type: string, format: uuid}
+        materialTypeName: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        priceText: {type: string}
+        plannedCount: {type: integer}
+        changeoverMinutes: {type: integer}
+
+    MaterialOfferRequest:
+      type: object
+      required: [materialType, plannedCount, changeoverMinutes]
+      properties:
+        materialType: {type: string, format: uuid}
+        priceText: {type: string}
+        plannedCount: {type: integer}
+        changeoverMinutes: {type: integer}
+
+    MaterialDemandDto:
+      type: object
+      description: Bedarf einer Materialart am Wettkampf, mit aufgelöstem Namen und Kategorie.
+      required: [materialType, name, category, count]
+      properties:
+        materialType: {type: string, format: uuid}
+        name: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        count: {type: integer}
+
+    MaterialDemandRequestDto:
+      type: object
+      description: Bedarf einer Materialart am Wettkampf (oder an der Vorlage) - Gegenstück zu FeeForCompetitionRequestDto.
+      required: [materialType, count]
+      properties:
+        materialType: {type: string, format: uuid}
+        count: {type: integer}
 
     AthleteBoardStartState:
       type: string

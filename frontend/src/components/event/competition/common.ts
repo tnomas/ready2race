@@ -90,6 +90,9 @@ export function mapCompetitionFormToCompetitionPropertiesRequest(
             amount: value.amount.replace(',', '.'),
             lateAmount: takeIfNotEmpty(value.lateAmount.replace(',', '.')),
         })),
+        // Der Bedarf je Materialart bekommt seine echte Bedienung erst in Task 2.3 - bis dahin
+        // schickt das Formular immer eine leere Liste.
+        materialTypes: [],
         setupTemplate: !isChallengeEvent ? takeIfNotEmpty(formData.setupTemplate?.id) : undefined,
         lateRegistrationAllowed: formData.lateRegistrationAllowed,
         ratingCategoryRequired: formData.ratingCategoryRequired,

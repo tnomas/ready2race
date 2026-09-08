@@ -67,6 +67,58 @@ model MaterialItemRequest {
   status: MaterialItemStatus;
 }
 
+// Bedarf einer Materialart am Wettkampf (oder an der Vorlage) - Gegenstück zu FeeForCompetitionDto/RequestDto.
+model MaterialDemandDto {
+  materialType: uuid;
+  name: string;
+  category: MaterialCategory;
+  count: int32;
+}
+
+model MaterialDemandRequestDto {
+  materialType: uuid;
+  count: int32;
+}
+
+// Ein zur Veranstaltung eingeladener Anbieter, aus Sicht des Veranstalters.
+model EventMaterialProviderDto {
+  materialProvider: uuid;
+  name: string;
+  requestsClosed: boolean;
+  openRequests: int32;
+  openDamages: int32;
+}
+
+// Eine Veranstaltung, zu der der eigene Anbieter eingeladen ist - Veranstaltungswahl des Anbieters.
+model MaterialProviderEventDto {
+  event: uuid;
+  eventName: string;
+  requestsClosed: boolean;
+}
+
+model SetRequestsClosedRequest {
+  requestsClosed: boolean;
+}
+
+model MaterialOfferDto {
+  id: uuid;
+  event: uuid;
+  materialProvider: uuid;
+  materialType: uuid;
+  materialTypeName: string;
+  category: MaterialCategory;
+  priceText?: string;
+  plannedCount: int32;
+  changeoverMinutes: int32;
+}
+
+model MaterialOfferRequest {
+  materialType: uuid;
+  priceText?: string;
+  plannedCount: int32;
+  changeoverMinutes: int32;
+}
+
 @route("/materialProvider")
 @tag("Material")
 interface MaterialRoutes {
@@ -179,5 +231,96 @@ interface MaterialTypeRoutes {
   @operationId("")
   deleteMaterialType(
     @path typeId: string, // UUID
+  ): void;
+}
+
+@route("/materialProvider/{providerId}/event")
+@tag("Material")
+interface MaterialProviderEventRoutes {
+  // Veranstaltungen, zu denen der eigene Anbieter eingeladen ist
+  @get
+  @operationId("")
+  getMaterialProviderEvents(
+    @path providerId: string, // UUID
+  ): MaterialProviderEventDto[];
+}
+
+// Einladung, Freigabe und Angebote je Veranstaltung - eingehängt unter /event/{eventId}.
+@route("/event/{eventId}/materialProvider")
+@tag("Material")
+interface EventMaterialRoutes {
+  // Zur Veranstaltung eingeladene Anbieter
+  @get
+  @operationId("")
+  getEventMaterialProviders(
+    @path eventId: string, // UUID
+  ): EventMaterialProviderDto[];
+
+  // Anbieter zur Veranstaltung einladen (idempotent)
+  @put
+  @route("/{providerId}")
+  @operationId("")
+  inviteMaterialProvider(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+  ): void;
+
+  // Einladung zurückziehen
+  @delete
+  @route("/{providerId}")
+  @operationId("")
+  uninviteMaterialProvider(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+  ): void;
+
+  // Materialanfragen des Anbieters öffnen/schließen
+  @put
+  @route("/{providerId}/requestsClosed")
+  @operationId("")
+  setMaterialRequestsClosed(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @body request: SetRequestsClosedRequest,
+  ): void;
+
+  // Angebote des Anbieters an dieser Veranstaltung
+  @get
+  @route("/{providerId}/offer")
+  @operationId("")
+  getMaterialOffers(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+  ): MaterialOfferDto[];
+
+  // Angebot anlegen
+  @post
+  @route("/{providerId}/offer")
+  @operationId("")
+  addMaterialOffer(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @body request: MaterialOfferRequest,
+  ): uuid;
+
+  // Angebot aktualisieren
+  @put
+  @route("/{providerId}/offer/{offerId}")
+  @operationId("")
+  updateMaterialOffer(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @path offerId: string, // UUID
+    @body request: MaterialOfferRequest,
+  ): void;
+
+  // Angebot löschen
+  @delete
+  @route("/{providerId}/offer/{offerId}")
+  @operationId("")
+  deleteMaterialOffer(
+    @path eventId: string, // UUID
+    @path providerId: string, // UUID
+    @path offerId: string, // UUID
   ): void;
 }

@@ -1118,6 +1118,7 @@ export type CompetitionPropertiesDto = {
     competitionCategory?: CompetitionCategoryDto
     namedParticipants: Array<NamedParticipantForCompetitionDto>
     fees: Array<FeeForCompetitionDto>
+    materialTypes: Array<MaterialDemandDto>
     lateRegistrationAllowed: boolean
     challengeConfig?: CompetitionChallengeConfigDto
     ratingCategoryRequired: boolean
@@ -1140,6 +1141,7 @@ export type CompetitionPropertiesRequest = {
     competitionCategory?: string
     namedParticipants: Array<NamedParticipantForCompetitionRequestDto>
     fees: Array<FeeForCompetitionRequestDto>
+    materialTypes: Array<MaterialDemandRequestDto>
     lateRegistrationAllowed: boolean
     setupTemplate?: string
     challengeConfig?: CompetitionChallengeConfigRequest
@@ -1732,6 +1734,7 @@ export type ErrorCode =
     | 'MATERIAL_PROVIDER_NAME_TAKEN'
     | 'MATERIAL_TYPE_NAME_TAKEN'
     | 'MATERIAL_ITEM_NUMBER_TAKEN'
+    | 'MATERIAL_OFFER_TYPE_TAKEN'
 
 export type EventDayDto = {
     id: string
@@ -1874,6 +1877,17 @@ export type EventInvoicesInfoDto = {
     totalAmount: string
     paidAmount: string
     producing: boolean
+}
+
+/**
+ * Ein zur Veranstaltung eingeladener Anbieter, aus Sicht des Veranstalters. openRequests/openDamages werden erst mit den Anfragen und Schäden befüllt.
+ */
+export type EventMaterialProviderDto = {
+    materialProvider: string
+    name: string
+    requestsClosed: boolean
+    openRequests: number
+    openDamages: number
 }
 
 /**
@@ -2950,6 +2964,24 @@ export type MatchTeamNoteRequest = {
 
 export type MaterialCategory = 'BOAT' | 'OTHER'
 
+/**
+ * Bedarf einer Materialart am Wettkampf, mit aufgelöstem Namen und Kategorie.
+ */
+export type MaterialDemandDto = {
+    materialType: string
+    name: string
+    category: MaterialCategory
+    count: number
+}
+
+/**
+ * Bedarf einer Materialart am Wettkampf (oder an der Vorlage) - Gegenstück zu FeeForCompetitionRequestDto.
+ */
+export type MaterialDemandRequestDto = {
+    materialType: string
+    count: number
+}
+
 export type MaterialItemDto = {
     id: string
     materialProvider: string
@@ -2974,6 +3006,25 @@ export type MaterialItemRequest = {
 
 export type MaterialItemStatus = 'ACTIVE' | 'RETIRED'
 
+export type MaterialOfferDto = {
+    id: string
+    event: string
+    materialProvider: string
+    materialType: string
+    materialTypeName: string
+    category: MaterialCategory
+    priceText?: string
+    plannedCount: number
+    changeoverMinutes: number
+}
+
+export type MaterialOfferRequest = {
+    materialType: string
+    priceText?: string
+    plannedCount: number
+    changeoverMinutes: number
+}
+
 export type MaterialProviderDto = {
     id: string
     name: string
@@ -2981,6 +3032,15 @@ export type MaterialProviderDto = {
     contactEmail?: string
     contactPhone?: string
     note?: string
+}
+
+/**
+ * Eine Veranstaltung, zu der der eigene Anbieter eingeladen ist - Veranstaltungswahl des Anbieters.
+ */
+export type MaterialProviderEventDto = {
+    event: string
+    eventName: string
+    requestsClosed: boolean
 }
 
 export type MaterialProviderRequest = {
@@ -4110,6 +4170,10 @@ export type ServerTimeResponse = {
 
 export type SetMaterialProviderRequest = {
     materialProviderId?: string | null
+}
+
+export type SetRequestsClosedRequest = {
+    requestsClosed: boolean
 }
 
 export type ShiftMode = 'PLUS_MINUTES' | 'SET_TIME' | 'COMPRESS_TO_TARGET' | 'PLUS_MINUTES_RANGE'
@@ -7844,6 +7908,98 @@ export type DeleteFeeResponse = void
 
 export type DeleteFeeError = BadRequestError | ApiError
 
+export type GetEventMaterialProvidersData = {
+    path: {
+        eventId: string
+    }
+}
+
+export type GetEventMaterialProvidersResponse = Array<EventMaterialProviderDto>
+
+export type GetEventMaterialProvidersError = BadRequestError | ApiError
+
+export type InviteMaterialProviderData = {
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type InviteMaterialProviderResponse = void
+
+export type InviteMaterialProviderError = BadRequestError | ApiError
+
+export type UninviteMaterialProviderData = {
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type UninviteMaterialProviderResponse = void
+
+export type UninviteMaterialProviderError = BadRequestError | ApiError
+
+export type SetMaterialRequestsClosedData = {
+    body: SetRequestsClosedRequest
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type SetMaterialRequestsClosedResponse = void
+
+export type SetMaterialRequestsClosedError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type GetMaterialOffersData = {
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type GetMaterialOffersResponse = Array<MaterialOfferDto>
+
+export type GetMaterialOffersError = BadRequestError | ApiError
+
+export type AddMaterialOfferData = {
+    body: MaterialOfferRequest
+    path: {
+        eventId: string
+        providerId: string
+    }
+}
+
+export type AddMaterialOfferResponse = string
+
+export type AddMaterialOfferError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type UpdateMaterialOfferData = {
+    body: MaterialOfferRequest
+    path: {
+        eventId: string
+        offerId: string
+        providerId: string
+    }
+}
+
+export type UpdateMaterialOfferResponse = void
+
+export type UpdateMaterialOfferError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type DeleteMaterialOfferData = {
+    path: {
+        eventId: string
+        offerId: string
+        providerId: string
+    }
+}
+
+export type DeleteMaterialOfferResponse = void
+
+export type DeleteMaterialOfferError = BadRequestError | ApiError
+
 export type GetMaterialProvidersData = {
     query?: {
         /**
@@ -7975,6 +8131,16 @@ export type DeleteMaterialItemData = {
 export type DeleteMaterialItemResponse = void
 
 export type DeleteMaterialItemError = BadRequestError | ApiError
+
+export type GetMaterialProviderEventsData = {
+    path: {
+        providerId: string
+    }
+}
+
+export type GetMaterialProviderEventsResponse = Array<MaterialProviderEventDto>
+
+export type GetMaterialProviderEventsError = BadRequestError | ApiError
 
 export type GetMaterialTypesData = {
     query?: {

@@ -491,6 +491,30 @@ import type {
     DeleteFeeData,
     DeleteFeeError,
     DeleteFeeResponse,
+    GetEventMaterialProvidersData,
+    GetEventMaterialProvidersError,
+    GetEventMaterialProvidersResponse,
+    InviteMaterialProviderData,
+    InviteMaterialProviderError,
+    InviteMaterialProviderResponse,
+    UninviteMaterialProviderData,
+    UninviteMaterialProviderError,
+    UninviteMaterialProviderResponse,
+    SetMaterialRequestsClosedData,
+    SetMaterialRequestsClosedError,
+    SetMaterialRequestsClosedResponse,
+    GetMaterialOffersData,
+    GetMaterialOffersError,
+    GetMaterialOffersResponse,
+    AddMaterialOfferData,
+    AddMaterialOfferError,
+    AddMaterialOfferResponse,
+    UpdateMaterialOfferData,
+    UpdateMaterialOfferError,
+    UpdateMaterialOfferResponse,
+    DeleteMaterialOfferData,
+    DeleteMaterialOfferError,
+    DeleteMaterialOfferResponse,
     GetMaterialProvidersData,
     GetMaterialProvidersError,
     GetMaterialProvidersResponse,
@@ -518,6 +542,9 @@ import type {
     DeleteMaterialItemData,
     DeleteMaterialItemError,
     DeleteMaterialItemResponse,
+    GetMaterialProviderEventsData,
+    GetMaterialProviderEventsError,
+    GetMaterialProviderEventsResponse,
     GetMaterialTypesData,
     GetMaterialTypesError,
     GetMaterialTypesResponse,
@@ -3341,6 +3368,134 @@ export const deleteFee = <ThrowOnError extends boolean = false>(
 }
 
 /**
+ * Zur Veranstaltung eingeladene Anbieter, aus Sicht des Veranstalters. Braucht READ EVENT GLOBAL.
+ */
+export const getEventMaterialProviders = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetEventMaterialProvidersData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetEventMaterialProvidersResponse,
+        GetEventMaterialProvidersError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider',
+    })
+}
+
+/**
+ * Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL.
+ */
+export const inviteMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<InviteMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        InviteMaterialProviderResponse,
+        InviteMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}',
+    })
+}
+
+/**
+ * Zieht die Einladung zurück, Angebote fallen per Kaskade. Braucht UPDATE EVENT GLOBAL. Anbieter mit bestehenden Anfragen können nicht ausgeladen werden.
+ */
+export const uninviteMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UninviteMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        UninviteMaterialProviderResponse,
+        UninviteMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}',
+    })
+}
+
+/**
+ * Öffnet oder schließt die Materialanfragen des Anbieters für diese Veranstaltung. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const setMaterialRequestsClosed = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetMaterialRequestsClosedData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetMaterialRequestsClosedResponse,
+        SetMaterialRequestsClosedError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/requestsClosed',
+    })
+}
+
+/**
+ * Angebote des Anbieters an dieser Veranstaltung. Braucht READ MATERIAL OWN (nur beim eigenen Anbieter) oder READ EVENT GLOBAL.
+ */
+export const getMaterialOffers = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialOffersData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialOffersResponse,
+        GetMaterialOffersError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/offer',
+    })
+}
+
+/**
+ * Legt ein Angebot des Anbieters für diese Veranstaltung an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Der Anbieter muss eingeladen sein, je Materialart nur ein Angebot.
+ */
+export const addMaterialOffer = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialOfferData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialOfferResponse,
+        AddMaterialOfferError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/offer',
+    })
+}
+
+/**
+ * Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const updateMaterialOffer = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMaterialOfferData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMaterialOfferResponse,
+        UpdateMaterialOfferError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/offer/{offerId}',
+    })
+}
+
+/**
+ * Löscht ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Angebote mit Anfragen können nicht gelöscht werden.
+ */
+export const deleteMaterialOffer = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteMaterialOfferData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteMaterialOfferResponse,
+        DeleteMaterialOfferError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/event/{eventId}/materialProvider/{providerId}/offer/{offerId}',
+    })
+}
+
+/**
  * Alle Materialanbieter, seitenweise. Braucht READ MATERIAL GLOBAL.
  */
 export const getMaterialProviders = <ThrowOnError extends boolean = false>(
@@ -3481,6 +3636,22 @@ export const deleteMaterialItem = <ThrowOnError extends boolean = false>(
     >({
         ...options,
         url: '/materialProvider/{providerId}/item/{itemId}',
+    })
+}
+
+/**
+ * Veranstaltungen, zu denen der Anbieter eingeladen ist - Veranstaltungswahl des Anbieters. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+ */
+export const getMaterialProviderEvents = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialProviderEventsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialProviderEventsResponse,
+        GetMaterialProviderEventsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/event',
     })
 }
 

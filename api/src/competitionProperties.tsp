@@ -1,5 +1,6 @@
 import "@typespec/http";
 import "@typespec/rest";
+import "./material.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -18,6 +19,7 @@ model CompetitionPropertiesDto {
   competitionCategory?: CompetitionCategoryDto; // Reference to competitionCategory module
   namedParticipants: NamedParticipantForCompetitionDto[];
   fees: FeeForCompetitionDto[];
+  materialTypes: MaterialDemandDto[];
   lateRegistrationAllowed: boolean;
   challengeConfig?: CompetitionChallengeConfigDto;
   ratingCategoryRequired: boolean;
@@ -31,6 +33,7 @@ model CompetitionPropertiesRequest {
   competitionCategory?: string; // UUID
   namedParticipants: NamedParticipantForCompetitionRequestDto[];
   fees: FeeForCompetitionRequestDto[];
+  materialTypes: MaterialDemandRequestDto[];
   lateRegistrationAllowed: boolean;
   setupTemplate?: string; // UUID
   challengeConfig?: CompetitionChallengeConfigRequest;
