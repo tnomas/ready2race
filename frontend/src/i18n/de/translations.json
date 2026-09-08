@@ -4398,7 +4398,9 @@
     "material": {
       "line": "{{type}}: {{status}} bei {{provider}}",
       "otherType": "{{type}} ({{category}})",
-      "countedType": "{{count}}× {{type}}"
+      "countedType": "{{count}}× {{type}}",
+      "ownBoat": "eigenes Boot",
+      "deviates": "abweichend"
     }
   },
   "speaker": {

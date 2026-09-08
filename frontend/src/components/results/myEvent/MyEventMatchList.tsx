@@ -18,6 +18,7 @@ import {
 } from '@components/event/info/athleteBoard/common.ts'
 import PlaceOrdinal from '@components/PlaceOrdinal'
 import {useServerClock} from '@components/event/info/athleteBoard/useServerClock.ts'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import {groupByDay} from './myEventDays.ts'
 import {MyEventMaterial} from './MyEventMaterial.tsx'
 import {MyEventResultField} from './MyEventResultField.tsx'
@@ -82,6 +83,40 @@ const TeamMemberLine = ({members}: {members: MyEventTeamMemberDto[]}) => {
                 </Box>
             ))}
         </Typography>
+    )
+}
+
+/**
+ * Materialhinweis hinter der Startposition — Regel `materialLabel` (Spec Abschnitt 11), hier
+ * immer im Modus "always": in Mein Event geht es genau um dieses eine Team, da steht auch das
+ * eigene Boot mit da, nicht nur die Abweichung. Kategorie OTHER kommt aus `materialLabel` nie
+ * hier an, die zeigt der Materialblock der Meldung (`MyEventMaterial`).
+ */
+const MatchMaterialNote = ({match}: {match: MyEventMatchDto}) => {
+    const {t} = useTranslation()
+    const note = materialLabel(match.material, 'always')
+
+    if (note === 'own') {
+        return (
+            <Typography variant="body2" color="text.secondary">
+                {t('myEvent.material.ownBoat')}
+            </Typography>
+        )
+    }
+    if (note == null) {
+        return null
+    }
+
+    const text = match.lane != null ? `#${match.lane} · ${note.text}` : note.text
+    return (
+        <Stack direction="row" gap={0.5} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+                {text}
+            </Typography>
+            {note.deviates && (
+                <Chip size="small" color="warning" label={t('myEvent.material.deviates')} />
+            )}
+        </Stack>
     )
 }
 
@@ -230,6 +265,7 @@ const MyEventNextCard = ({match, serverTime}: {match: MyEventMatchDto; serverTim
                             {[match.clubName, match.teamName].filter(Boolean).join(' | ')}
                         </Typography>
                     )}
+                    {!match.deregistered && <MatchMaterialNote match={match} />}
                 </Stack>
                 <TeamMemberLine members={match.teamMembers} />
             </CardContent>
@@ -295,13 +331,16 @@ const MyEventMatchRow = ({match, current}: {match: MyEventMatchDto; current?: bo
             {match.deregistered ? (
                 <Chip size="small" color="warning" label={t('myEvent.deregistered')} />
             ) : (
-                match.lane != null && (
-                    <Chip
-                        size="small"
-                        variant="outlined"
-                        label={`${t('myEvent.lane')} ${match.lane}`}
-                    />
-                )
+                <Stack alignItems="flex-end" gap={0.5} sx={{flexShrink: 0}}>
+                    {match.lane != null && (
+                        <Chip
+                            size="small"
+                            variant="outlined"
+                            label={`${t('myEvent.lane')} ${match.lane}`}
+                        />
+                    )}
+                    <MatchMaterialNote match={match} />
+                </Stack>
             )}
         </Stack>
     )

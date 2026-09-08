@@ -4146,7 +4146,9 @@
     "material": {
       "line": "{{type}}: {{status}} hos {{provider}}",
       "otherType": "{{type}} ({{category}})",
-      "countedType": "{{count}}× {{type}}"
+      "countedType": "{{count}}× {{type}}",
+      "ownBoat": "egen båd",
+      "deviates": "afvigende"
     }
   },
   "speaker": {
