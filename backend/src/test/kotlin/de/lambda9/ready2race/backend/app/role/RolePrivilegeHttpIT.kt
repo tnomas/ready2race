@@ -107,6 +107,37 @@ class RolePrivilegeHttpIT {
         return email
     }
 
+    /**
+     * Ein Konto mit der USER-Rolle und genau der übergebenen, bereits bestehenden Rolle - anders
+     * als [seedUser] ohne eigens angelegte Testrolle. Für Ziel-Konten in den Entzugs-Tests, die
+     * eine feste Job-Rolle (z.B. Judge, Timekeeper) tragen sollen.
+     */
+    private fun TestApplicationComprehensionScope<JEnv>.seedUserWithRole(
+        password: String,
+        roleId: UUID,
+    ): String {
+        val userId = UUID.randomUUID()
+        val email = "rolle-$userId@example.org"
+        !AppUserRepo.create(
+            AppUserRecord(
+                id = userId,
+                email = email,
+                firstname = "Rollen",
+                lastname = "Test",
+                password = !PasswordUtilities.hash(password),
+                language = EmailLanguage.DE.name,
+                createdAt = now,
+                createdBy = SYSTEM_USER,
+                updatedAt = now,
+                updatedBy = SYSTEM_USER,
+            )
+        )
+        !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = userId, role = USER_ROLE))
+        !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = userId, role = roleId))
+
+        return email
+    }
+
     private suspend fun TestApplicationComprehensionScope<JEnv>.login(
         email: String,
         password: String,
@@ -271,10 +302,17 @@ class RolePrivilegeHttpIT {
      * Die Rollen des Systemkontos sind per API nicht änderbar - auch nicht für den Superadmin
      * selbst. Sonst könnte ein Fehlgriff in der Maske dem Konto die Superadmin-Rolle nehmen und
      * die Anlage stünde ohne Notausgang da.
+     *
+     * Login als `admin`/`admin` wäre hier eine Anmeldung als das Zielkonto selbst - dann würde
+     * schon Regel 2 (SelfAssignment) mit demselben 403 greifen, ohne die SYSTEM_USER-Sperre
+     * überhaupt zu prüfen. Deshalb ein zweites Superadmin-Testkonto, das ein fremdes Konto
+     * anfasst, und die Prüfung, dass die Ablehnung wirklich an der Sperre hängt und nicht an
+     * SelfAssignment.
      */
     @Test
     fun theSystemUsersRolesCannotBeChanged() = testApplicationComprehension {
-        val boss = login("admin", "admin")
+        val password = "einPasswortFuerDenTest"
+        val boss = login(seedUser(password, Job.Superadmin.privileges), password)
 
         val response = client.put("/api/user/$SYSTEM_USER") {
             header("X-Api-Session", boss)
@@ -282,6 +320,95 @@ class RolePrivilegeHttpIT {
             setBody("""{"firstname":"System","lastname":"User","roles":["${Job.Admin.roleId}"]}""")
         }
         assertEquals(HttpStatusCode.Forbidden, response.status, response.bodyAsText())
+        assertFalse(response.bodyAsText().contains("SELF_ASSIGNMENT"), response.bodyAsText())
+    }
+
+    /**
+     * Kritischer Befund aus dem Review: `checkAssignable` kurzschließt bei leerer Rollenliste
+     * (das trägt die rollenlose Einladung) - das darf beim Entziehen aber nicht der einzige
+     * Wächter sein. Ohne STAFF-Recht darf ein Konto mit bloßem UPDATE USER GLOBAL keinem fremden
+     * Konto per `roles: []` alle verwalteten Rollen nehmen.
+     */
+    @Test
+    fun updateUserWithoutStaffCannotStripRoles() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val session =
+            login(seedUser(password, listOf(Privilege.UpdateUserGlobal, Privilege.ReadUserGlobal)), password)
+
+        val targetEmail = seedUser(password, Job.Timekeeper.privileges)
+        val targetId = assertNotNull(!AppUserRepo.getByEmail(targetEmail), "Zielkonto muss angelegt sein").id!!
+        val before = (!AppUserHasRoleRepo.getRoleIds(targetId)).toSet()
+
+        val response = client.put("/api/user/$targetId") {
+            header("X-Api-Session", session)
+            contentType(ContentType.Application.Json)
+            setBody("""{"firstname":"Rollen","lastname":"Test","roles":[]}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status, response.bodyAsText())
+
+        val after = (!AppUserHasRoleRepo.getRoleIds(targetId)).toSet()
+        assertEquals(before, after, "Ohne STAFF-Recht dürfen keinem fremden Konto die Rollen entzogen werden")
+    }
+
+    /**
+     * Regel 2 ("nicht an sich selbst") muss auch beim Entziehen greifen: das eigene Profil kann
+     * niemand über `roles: []` seiner Rollen berauben.
+     */
+    @Test
+    fun ownRolesCannotBeEmptied() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val email = seedUser(password, Job.Admin.privileges)
+        val session = login(email, password)
+        val userId = assertNotNull(!AppUserRepo.getByEmail(email), "Das gesäte Konto muss auffindbar sein").id!!
+
+        val response = client.put("/api/user/$userId") {
+            header("X-Api-Session", session)
+            contentType(ContentType.Application.Json)
+            setBody("""{"firstname":"Umbenannt","lastname":"Test","roles":[]}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status, response.bodyAsText())
+        assertTrue(response.bodyAsText().contains("SELF_ASSIGNMENT"), response.bodyAsText())
+    }
+
+    /**
+     * Important-Befund: Regel 1 gilt beim Entziehen wie beim Vergeben - geprüft wird die
+     * Vereinigung aus alter und neuer Rollenmenge. Wer STAFF trägt, aber nicht die Privilegien
+     * einer bestehenden fremden Rolle deckt, darf sie auch nicht entziehen; eine Rolle, deren
+     * Privilegien er deckt, darf er dagegen entziehen.
+     */
+    @Test
+    fun staffCannotStripRolesBeyondOwn() = testApplicationComprehension {
+        val password = "einPasswortFuerDenTest"
+        val session = login(
+            seedUser(
+                password,
+                listOf(Privilege.UpdateStaffGlobal, Privilege.ReadUserGlobal, Privilege.UpdateUserGlobal)
+                    + Job.Timekeeper.privileges
+            ),
+            password,
+        )
+
+        val judgeEmail = seedUserWithRole(password, Job.Judge.roleId)
+        val judgeId = assertNotNull(!AppUserRepo.getByEmail(judgeEmail), "Zielkonto muss angelegt sein").id!!
+
+        val beyond = client.put("/api/user/$judgeId") {
+            header("X-Api-Session", session)
+            contentType(ContentType.Application.Json)
+            setBody("""{"firstname":"Rollen","lastname":"Test","roles":[]}""")
+        }
+        assertEquals(HttpStatusCode.Conflict, beyond.status, beyond.bodyAsText())
+        assertTrue(beyond.bodyAsText().contains("CANNOT_ASSIGN_ROLES"), beyond.bodyAsText())
+
+        val timekeeperEmail = seedUserWithRole(password, Job.Timekeeper.roleId)
+        val timekeeperId =
+            assertNotNull(!AppUserRepo.getByEmail(timekeeperEmail), "Zielkonto muss angelegt sein").id!!
+
+        val ok = client.put("/api/user/$timekeeperId") {
+            header("X-Api-Session", session)
+            contentType(ContentType.Application.Json)
+            setBody("""{"firstname":"Rollen","lastname":"Test","roles":[]}""")
+        }
+        assertEquals(HttpStatusCode.NoContent, ok.status, ok.bodyAsText())
     }
 
     /**

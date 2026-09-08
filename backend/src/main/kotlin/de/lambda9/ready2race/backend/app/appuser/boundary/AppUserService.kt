@@ -28,6 +28,7 @@ import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrat
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.app.role.boundary.RoleService
+import de.lambda9.ready2race.backend.app.role.entity.RoleError
 import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
@@ -156,7 +157,18 @@ object AppUserService {
             // Fehlgriff der Anlage den letzten Superadmin nehmen.
             !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
 
-            !RoleService.checkAssignable(requester, wanted.toList(), targetUserId)
+            // `checkAssignable` kurzschließt bei leerer Rollenliste (das trägt die rollenlose
+            // Einladung), das darf beim Entziehen aber nicht der einzige Wächter sein - sonst
+            // schickt ein Konto mit bloßem UPDATE USER GLOBAL `roles: []` an ein fremdes Konto
+            // und entzieht ohne STAFF-Recht alle verwalteten Rollen. Deshalb hier unabhängig
+            // von der übergebenen Liste geprüft.
+            !KIO.failOn(!requester.hasPrivilege(Privilege.UpdateStaffGlobal)) { AuthError.PrivilegeMissing }
+            !KIO.failOn(targetUserId == requestingUserId) { RoleError.SelfAssignment }
+
+            // Regel 1 gilt für Vergeben und Entziehen: geprüft wird die Vereinigung aus alter
+            // und neuer Menge, damit auch das Entziehen einer Rolle nicht über die eigenen
+            // Privilegien hinausgeht.
+            !RoleService.checkAssignable(requester, (wanted + current).toList(), targetUserId)
             !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
             !AppUserHasRoleRepo.create(
                 wanted.map {
