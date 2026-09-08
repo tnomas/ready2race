@@ -1213,6 +1213,7 @@ export type CompetitionRegistrationSingleUpsertDto = {
     competitionId: string
     optionalFees?: Array<string>
     ratingCategory?: string
+    id?: string | null
 }
 
 export type CompetitionRegistrationsWithoutTeamNumberDto = {

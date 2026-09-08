@@ -54,6 +54,7 @@ const formDataToRequest = (formData: EventRegistrationFormData): EventRegistrati
             ?.filter(s => !s.locked)
             .map(s => {
                 const single: CompetitionRegistrationSingleUpsertDto = {
+                    id: s.id,
                     competitionId: s.competitionId,
                     optionalFees: s.optionalFees,
                     ratingCategory: s.ratingCategory !== 'none' ? s.ratingCategory : undefined,

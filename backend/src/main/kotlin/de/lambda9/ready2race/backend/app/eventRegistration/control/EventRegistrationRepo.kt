@@ -347,6 +347,7 @@ object EventRegistrationRepo {
                         it[COMPETITION_VIEW.ID]!!,
                         it[fees],
                         it[COMPETITION_REGISTRATION.RATING_CATEGORY],
+                        it[COMPETITION_REGISTRATION.ID],
                     )
                 }
 
@@ -674,6 +675,7 @@ object EventRegistrationRepo {
         convert: (Record) -> A,
     ) = DSL.select(
         COMPETITION_VIEW.ID,
+        COMPETITION_REGISTRATION.ID,
         COMPETITION_REGISTRATION.IS_LATE,
         COMPETITION_REGISTRATION.RATING_CATEGORY,
         fees,

@@ -43,6 +43,11 @@ sealed interface EventRegistrationError : ServiceError {
     data class InvalidTeamDistribution(val namedParticipantId: UUID, val competitionName: String) :
         EventRegistrationError
 
+    // Die Anmeldung übernimmt vom Formular zurückgegebene Meldungs-IDs, damit Materialanfragen
+    // der Materialvermietung ein erneutes Speichern überleben. Zeigt eine ID schon auf eine
+    // bestehende (gesperrte oder fremde) Meldung, wird sie nicht stillschweigend gekapert.
+    data class RegistrationIdTaken(val id: UUID) : EventRegistrationError
+
     override fun respond(): ApiError = when (this) {
         NotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Registration not Found")
         is InvalidRegistration -> ApiError(status = HttpStatusCode.BadRequest, message = "Invalid registration: $msg")
@@ -163,6 +168,11 @@ sealed interface EventRegistrationError : ServiceError {
         is MailAddressInvalid -> ApiError(
             status = HttpStatusCode.BadRequest,
             message = "Not a usable email address: $address"
+        )
+
+        is RegistrationIdTaken -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Die Meldung mit der ID $id gehört zu einer gesperrten oder fremden Anmeldung."
         )
     }
 }

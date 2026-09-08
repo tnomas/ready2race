@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material'
 import {EventRegistrationCompetitionDto, RatingCategoryToEventDto} from '../../api'
 import {Trans, useTranslation} from 'react-i18next'
+import {v4 as uuid} from 'uuid'
 import {
     EventRegistrationFormData,
     EventRegistrationParticipantFormData,
@@ -104,6 +105,7 @@ const EventSingleCompetitionField = (props: {
             formContext.setValue(`participants.${props.participantIndex}.competitionsSingle`, [
                 ...(singleCompetitions ?? []),
                 {
+                    id: uuid(),
                     competitionId: props.option.id,
                     locked: false,
                     isLate: props.isLate,
@@ -412,6 +414,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
                         }
 
                         return {
+                            id: uuid(),
                             competitionId: competition.id,
                             locked: false,
                             isLate: info?.state === 'LATE',

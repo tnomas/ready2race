@@ -343,6 +343,21 @@ object EventRegistrationService {
             attachments = attachments
         )
 
+        if (isUpdate) {
+            // Der Trigger A0_material_request_orphan_cleanup (Task 1.1) ist als aufgeschobener
+            // AFTER-DELETE-Constraint-Trigger auf competition_registration angelegt, in der
+            // Annahme, sein Name sortiere ihn vor Postgres' eigener (ebenfalls aufgeschobener)
+            // Fremdschlüsselprüfung von material_request, sodass er beim COMMIT zuerst feuert.
+            // Das stimmt nicht: Postgres' automatische Fremdschlüsselprüfung ignoriert die
+            // alphabetische Reihenfolge nutzerdefinierter Trigger auf derselben Relation (geprüft
+            // mit mehreren isolierten Nachbauten). Ohne diese Zeile würde jedes Speichern, das eine
+            // Meldung mit offener Materialanfrage wirklich entfernt (nicht nur erneut anlegt), am
+            // COMMIT mit einem Fremdschlüsselfehler scheitern. Der Aufruf zwingt nur den bereits
+            // deklarierten Trigger vor die Prüfung - keine Materialvermietungs-Logik hier, nur das
+            // Nachholen dessen, was der Trigger laut seinem eigenen Kommentar ohnehin tun soll.
+            !Jooq.query { execute("set constraints \"A0_material_request_orphan_cleanup\" immediate") }.orDie()
+        }
+
         ok(ApiResponse.Created(persistedRegistrationId))
 
     }
@@ -453,9 +468,18 @@ object EventRegistrationService {
                     }
                 }
 
+                // Client-ID übernehmen: Materialanfragen der Materialvermietung hängen an der
+                // Meldung und müssten sonst bei jedem Speichern neu verknüpft werden. Zeigt die
+                // ID schon auf eine bestehende (gesperrte oder fremde) Meldung, lieber ablehnen
+                // als sie stillschweigend zu kapern.
+                if (competitionRegistrationDto.id != null) {
+                    val idTaken = !CompetitionRegistrationRepo.exists(competitionRegistrationDto.id).orDie()
+                    !KIO.failOn(idTaken) { EventRegistrationError.RegistrationIdTaken(competitionRegistrationDto.id) }
+                }
+
                 val competitionRegistrationId = !CompetitionRegistrationRepo.create(
                     CompetitionRegistrationRecord(
-                        UUID.randomUUID(),
+                        competitionRegistrationDto.id ?: UUID.randomUUID(),
                         persistedRegistrationId,
                         competitionRegistrationDto.competitionId,
                         clubId,
@@ -578,9 +602,18 @@ object EventRegistrationService {
                 }
 
 
+                // Client-ID übernehmen: Materialanfragen der Materialvermietung hängen an der
+                // Meldung und müssten sonst bei jedem Speichern neu verknüpft werden. Zeigt die
+                // ID schon auf eine bestehende (gesperrte oder fremde) Meldung, lieber ablehnen
+                // als sie stillschweigend zu kapern.
+                if (teamDto.id != null) {
+                    val idTaken = !CompetitionRegistrationRepo.exists(teamDto.id).orDie()
+                    !KIO.failOn(idTaken) { EventRegistrationError.RegistrationIdTaken(teamDto.id) }
+                }
+
                 val competitionRegistrationId = !CompetitionRegistrationRepo.create(
                     CompetitionRegistrationRecord(
-                        UUID.randomUUID(),
+                        teamDto.id ?: UUID.randomUUID(),
                         persistedRegistrationId,
                         competitionRegistrationDto.competitionId,
                         clubId,
