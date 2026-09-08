@@ -4595,6 +4595,26 @@
       "title": "Settings",
       "requestsClosed": "Requests closed",
       "requestsClosedHint": "While requests are closed, no new requests can be made."
+    },
+    "registration": {
+      "ownMaterial": "Own equipment",
+      "ownBoat": "Own boat",
+      "rentFrom": "rent from {{provider}}",
+      "offerOption": "{{provider}} · {{price}}",
+      "demandLabel": "{{name}} ({{count}} pcs)",
+      "capacity": {
+        "GREEN": "available",
+        "YELLOW": "scarce"
+      },
+      "closed": "Requests for this offer are closed.",
+      "status": {
+        "REQUESTED": "Requested",
+        "CONFIRMED": "Confirmed",
+        "WAITLISTED": "Waitlisted",
+        "DECLINED": "Declined",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "error": "Equipment selection for {{competition}} could not be saved - the registration was saved anyway."
     }
   }
 }

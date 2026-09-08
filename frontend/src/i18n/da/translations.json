@@ -4343,6 +4343,26 @@
       "title": "Indstillinger",
       "requestsClosed": "Forespørgsler lukket",
       "requestsClosedHint": "Så længe forespørgsler er lukket, kan der ikke oprettes nye forespørgsler."
+    },
+    "registration": {
+      "ownMaterial": "Eget materiel",
+      "ownBoat": "Egen båd",
+      "rentFrom": "lej hos {{provider}}",
+      "offerOption": "{{provider}} · {{price}}",
+      "demandLabel": "{{name}} ({{count}} stk.)",
+      "capacity": {
+        "GREEN": "ledigt",
+        "YELLOW": "knapt"
+      },
+      "closed": "Tildelingen for dette tilbud er lukket.",
+      "status": {
+        "REQUESTED": "Forespurgt",
+        "CONFIRMED": "Bekræftet",
+        "WAITLISTED": "Venteliste",
+        "DECLINED": "Afvist",
+        "WITHDRAWN": "Trukket tilbage"
+      },
+      "error": "Materielvalget for {{competition}} kunne ikke gemmes - tilmeldingen blev alligevel gemt."
     }
   }
 }

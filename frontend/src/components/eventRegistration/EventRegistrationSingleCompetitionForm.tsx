@@ -30,6 +30,7 @@ import {
 } from '../../pages/eventRegistration/EventRegistrationCreatePage.tsx'
 import {useEventRegistration} from '@contexts/eventRegistration/EventRegistrationContext.ts'
 import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
+import {EventRegistrationMaterialSection} from '@components/eventRegistration/EventRegistrationMaterialSection.tsx'
 
 /**
  * Check if a rating category's age restriction is valid for a participant
@@ -73,6 +74,12 @@ const EventSingleCompetitionField = (props: {
         name: `participants.${props.participantIndex}.competitionsSingle`,
     })
 
+    // Bereits bestehende Materialanfragen dieser Einzelmeldung (aus dem Template).
+    const existingMaterialRequests =
+        competitionIndex !== undefined
+            ? singleCompetitions?.[competitionIndex]?.materialRequests
+            : undefined
+
     // Watch the current participant to get their birth year
     const participant = useWatch({
         control: formContext.control,
@@ -110,6 +117,7 @@ const EventSingleCompetitionField = (props: {
                     locked: false,
                     isLate: props.isLate,
                     optionalFees: [],
+                    materialOfferIds: [],
                     ratingCategory: selectedRatingCategory,
                 },
             ])
@@ -235,6 +243,18 @@ const EventSingleCompetitionField = (props: {
                     />
                 </Box>
             )}
+            {active &&
+                props.option.materialDemands.length > 0 &&
+                competitionIndex !== undefined && (
+                    <Box sx={{ml: {xs: 0, sm: 2}, my: 1, width: {xs: '100%', sm: 'auto'}}}>
+                        <EventRegistrationMaterialSection
+                            demands={props.option.materialDemands}
+                            name={`participants.${props.participantIndex}.competitionsSingle.${competitionIndex}.materialOfferIds`}
+                            existingRequests={existingMaterialRequests}
+                            locked={props.locked}
+                        />
+                    </Box>
+                )}
             {active && ratingCategories.length > 0 && (
                 <Box sx={{ml: {xs: 0, sm: 2}, my: 1, width: {xs: '100%', sm: 'auto'}}}>
                     <Typography variant={'subtitle2'}>
@@ -419,6 +439,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
                             locked: false,
                             isLate: info?.state === 'LATE',
                             optionalFees: [],
+                            materialOfferIds: [],
                             ratingCategory: selectedRatingCategory,
                         }
                     })

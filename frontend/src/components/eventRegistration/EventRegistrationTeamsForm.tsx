@@ -9,6 +9,7 @@ import {
     RatingCategoryToEventDto,
 } from '../../api'
 import {EventRegistrationCompetitionFeeCard} from './EventRegistrationCompetitionFeeCard.tsx'
+import {EventRegistrationMaterialSection} from './EventRegistrationMaterialSection.tsx'
 import {useTranslation} from 'react-i18next'
 import {useCallback, useMemo} from 'react'
 import {TeamParticipantAutocomplete} from '@components/eventRegistration/TeamParticipantAutocomplete.tsx'
@@ -54,6 +55,13 @@ const TeamInput = (props: {
     const teamNamedParticipants = useWatch({
         control: formContext.control,
         name: `competitionRegistrations.${props.competitionIndex}.teams.${props.teamIndex}.namedParticipants`,
+    })
+
+    // Bereits bestehende Materialanfragen dieses Teams (aus dem Template) - unverändert über die
+    // Bearbeitung hinweg, weil das Feld beim Upsert ignoriert wird.
+    const existingMaterialRequests = useWatch({
+        control: formContext.control,
+        name: `competitionRegistrations.${props.competitionIndex}.teams.${props.teamIndex}.materialRequests`,
     })
 
     // Collect all participant IDs in this team
@@ -136,6 +144,14 @@ const TeamInput = (props: {
                         name={`competitionRegistrations.${props.competitionIndex}.teams.${props.teamIndex}.optionalFees`}
                         options={props.competition.fees?.filter(f => !f.required) ?? []}
                         row
+                    />
+                )}
+                {props.competition.materialDemands.length > 0 && (
+                    <EventRegistrationMaterialSection
+                        demands={props.competition.materialDemands}
+                        name={`competitionRegistrations.${props.competitionIndex}.teams.${props.teamIndex}.materialOfferIds`}
+                        existingRequests={existingMaterialRequests}
+                        locked={props.locked}
                     />
                 )}
                 {ratingCategories.length > 0 && (
@@ -238,6 +254,7 @@ const EventRegistrationTeamsForm = (props: {
                             optionalFees: [],
                             locked: false,
                             isLate: props.isLate,
+                            materialOfferIds: [],
                             ratingCategory: props.competition.ratingCategoryRequired ? '' : 'none',
                         })
                     }}>

@@ -8,6 +8,8 @@ import {
     EventRegistrationParticipantUpsertDto,
     EventRegistrationUpsertDto,
     getEventRegistrationTemplate,
+    MaterialRequestDto,
+    setMaterialRequests,
 } from '../../api'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
@@ -20,6 +22,7 @@ import {useNavigate} from '@tanstack/react-router'
 export type CompetitionRegistrationSingleFormData = CompetitionRegistrationSingleUpsertDto & {
     locked: boolean
     isLate: boolean
+    materialOfferIds: string[]
 }
 
 export type EventRegistrationParticipantFormData = Omit<
@@ -32,6 +35,7 @@ export type EventRegistrationParticipantFormData = Omit<
 export type CompetitionRegistrationTeamFormData = CompetitionRegistrationTeamUpsertDto & {
     locked: boolean
     isLate: boolean
+    materialOfferIds: string[]
 }
 
 export type CompetitionRegistrationFormData = Omit<CompetitionRegistrationUpsertDto, 'teams'> & {
@@ -46,6 +50,26 @@ export type EventRegistrationFormData = {
 
 // TODO: validate/sanitize basepath (also in routes.tsx)
 const basepath = document.getElementById('ready2race-root')!.dataset.basepath
+
+/**
+ * Aus den Materialanfragen einer Meldung (Template) die Angebots-IDs der noch aktiven Anfragen -
+ * zurückgezogene oder abgelehnte zählen nicht mehr. Sowohl für den Formular-Reset als auch für
+ * den Vergleich beim Speichern verwendet (unverändert -> kein `setMaterialRequests`-Aufruf).
+ */
+const activeMaterialOfferIds = (materialRequests?: MaterialRequestDto[]): string[] =>
+    (materialRequests ?? [])
+        .filter(r => r.status !== 'WITHDRAWN' && r.status !== 'DECLINED')
+        .map(r => r.materialOffer)
+
+/**
+ * Vergleicht zwei Listen von Angebots-IDs ohne Rücksicht auf die Reihenfolge.
+ */
+const sameOfferIds = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((id, index) => id === sortedB[index])
+}
 
 const formDataToRequest = (formData: EventRegistrationFormData): EventRegistrationUpsertDto => ({
     participants: formData.participants.map(p => ({
@@ -103,10 +127,11 @@ const EventRegistrationCreatePage = () => {
     )
 
     const onSubmit = () => {
+        const formData = formContext.getValues()
         addEventRegistration({
             path: {eventId: eventId},
-            body: formDataToRequest(formContext.getValues()),
-        }).then(({error}) => {
+            body: formDataToRequest(formData),
+        }).then(async ({error}) => {
             if (error) {
                 if (error.status.value === 404)
                     feedback.error(t('common.error.notFound', {entity: t('event.event')}))
@@ -135,6 +160,7 @@ const EventRegistrationCreatePage = () => {
                     feedback.error(t('event.registration.error.participantDuplicateInCompetition'))
                 else feedback.error(t('common.error.unexpected'))
             } else {
+                await syncMaterialRequests(formData)
                 setRegistrationWasSuccessful(true)
             }
         })
@@ -149,6 +175,86 @@ const EventRegistrationCreatePage = () => {
         },
     })
 
+    /**
+     * Angebots-IDs je Meldung im Template (Ausgangszustand vor dieser Bearbeitung) - Grundlage
+     * dafür, ob `setMaterialRequests` beim Speichern überhaupt nötig ist.
+     */
+    const templateMaterialOfferIds = useMemo(() => {
+        const map = new Map<string, string[]>()
+        data?.upsertableRegistration.competitionRegistrations.forEach(r => {
+            r.teams?.forEach(t => {
+                map.set(t.id, activeMaterialOfferIds(t.materialRequests))
+            })
+        })
+        data?.upsertableRegistration.participants.forEach(p => {
+            p.competitionsSingle?.forEach(s => {
+                if (s.id) map.set(s.id, activeMaterialOfferIds(s.materialRequests))
+            })
+        })
+        return map
+    }, [data])
+
+    /**
+     * Schreibt je Meldung die gewählten Material-Angebote fest, wenn sie sich gegenüber dem
+     * Template geändert haben. Ein Fehlschlag bei einer Meldung meldet sich einzeln mit
+     * Wettkampfname und unterbricht die anderen nicht - die Anmeldung selbst ist zu diesem
+     * Zeitpunkt schon gespeichert.
+     */
+    const syncMaterialRequests = async (formData: EventRegistrationFormData) => {
+        const requests: {registrationId: string; competitionName: string; offerIds: string[]}[] = []
+
+        formData.competitionRegistrations.forEach(r => {
+            const competitionName =
+                registrationInfo?.competitionsTeam.find(c => c.id === r.competitionId)?.name ?? ''
+            r.teams
+                .filter(t => !t.locked)
+                .forEach(t => {
+                    requests.push({
+                        registrationId: t.id,
+                        competitionName,
+                        offerIds: t.materialOfferIds ?? [],
+                    })
+                })
+        })
+
+        formData.participants.forEach(p => {
+            p.competitionsSingle
+                ?.filter(s => !s.locked && s.id)
+                .forEach(s => {
+                    const competitionName =
+                        registrationInfo?.competitionsSingle.find(c => c.id === s.competitionId)
+                            ?.name ?? ''
+                    requests.push({
+                        registrationId: s.id!,
+                        competitionName,
+                        offerIds: s.materialOfferIds ?? [],
+                    })
+                })
+        })
+
+        await Promise.all(
+            requests
+                .filter(
+                    r =>
+                        !sameOfferIds(
+                            templateMaterialOfferIds.get(r.registrationId) ?? [],
+                            r.offerIds,
+                        ),
+                )
+                .map(async r => {
+                    const {error} = await setMaterialRequests({
+                        path: {eventId: eventId, competitionRegistrationId: r.registrationId},
+                        body: {offerIds: r.offerIds},
+                    })
+                    if (error) {
+                        feedback.error(
+                            t('material.registration.error', {competition: r.competitionName}),
+                        )
+                    }
+                }),
+        )
+    }
+
     useEffect(() => {
         if (data) {
             const formData: EventRegistrationFormData = {
@@ -159,6 +265,7 @@ const EventRegistrationCreatePage = () => {
                             ...s,
                             locked: false,
                             isLate: registrationInfo?.state === 'LATE',
+                            materialOfferIds: activeMaterialOfferIds(s.materialRequests),
                             ratingCategory:
                                 s.ratingCategory ??
                                 (registrationInfo?.competitionsSingle.find(
@@ -172,6 +279,9 @@ const EventRegistrationCreatePage = () => {
                             ?.competitionsSingle.map(s => ({
                                 ...s,
                                 locked: true,
+                                // Gesperrte Meldungen laufen nicht in den Upsert mit ein, die
+                                // Auswahl wird nur der Vollständigkeit halber gesetzt.
+                                materialOfferIds: [],
                                 ratingCategory:
                                     s.ratingCategory ??
                                     (registrationInfo?.competitionsSingle.find(
@@ -190,6 +300,7 @@ const EventRegistrationCreatePage = () => {
                                 ...t,
                                 locked: false,
                                 isLate: registrationInfo?.state === 'LATE',
+                                materialOfferIds: activeMaterialOfferIds(t.materialRequests),
                                 ratingCategory:
                                     t.ratingCategory ??
                                     (registrationInfo?.competitionsSingle.find(
@@ -203,6 +314,9 @@ const EventRegistrationCreatePage = () => {
                                 ?.teams.map(t => ({
                                     ...t,
                                     locked: true,
+                                    // Gesperrte Meldungen laufen nicht in den Upsert mit ein, die
+                                    // Auswahl wird nur der Vollständigkeit halber gesetzt.
+                                    materialOfferIds: [],
                                     ratingCategory:
                                         t.ratingCategory ??
                                         (registrationInfo?.competitionsSingle.find(

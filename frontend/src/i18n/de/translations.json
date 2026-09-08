@@ -4595,6 +4595,26 @@
       "title": "Einstellungen",
       "requestsClosed": "Vergabe geschlossen",
       "requestsClosedHint": "Solange die Vergabe geschlossen ist, können keine neuen Anfragen gestellt werden."
+    },
+    "registration": {
+      "ownMaterial": "Eigenes Material",
+      "ownBoat": "Eigenes Boot",
+      "rentFrom": "mieten bei {{provider}}",
+      "offerOption": "{{provider}} · {{price}}",
+      "demandLabel": "{{name}} ({{count}} Stück)",
+      "capacity": {
+        "GREEN": "verfügbar",
+        "YELLOW": "knapp"
+      },
+      "closed": "Die Vergabe für dieses Angebot ist geschlossen.",
+      "status": {
+        "REQUESTED": "Angefragt",
+        "CONFIRMED": "Bestätigt",
+        "WAITLISTED": "Warteliste",
+        "DECLINED": "Abgelehnt",
+        "WITHDRAWN": "Zurückgezogen"
+      },
+      "error": "Materialauswahl für {{competition}} konnte nicht gespeichert werden - die Anmeldung wurde trotzdem gespeichert."
     }
   }
 }
