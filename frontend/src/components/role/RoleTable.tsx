@@ -5,6 +5,8 @@ import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {useTranslation} from 'react-i18next'
 import {RoleDto} from '@api/types.gen.ts'
 import {deleteRole, getRoles} from '@api/sdk.gen.ts'
+import {Chip, Stack} from '@mui/material'
+import {roleLabel} from '@authorization/roleLabels.ts'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -30,6 +32,26 @@ const RoleTable = (props: BaseEntityTableProps<RoleDto>) => {
             headerName: t('role.name'),
             minWidth: 200,
             flex: 1,
+            renderCell: ({row}) => (
+                <Stack direction={'row'} spacing={1} alignItems={'center'}>
+                    <span>{roleLabel(row, t)}</span>
+                    {row.static && <Chip size={'small'} label={t('role.static')} />}
+                </Stack>
+            ),
+        },
+        {
+            field: 'job',
+            headerName: t('role.copyOf'),
+            minWidth: 160,
+            flex: 1,
+            valueGetter: (_, row) => (row.job ? t(`job.${row.job}.name` as never) : '–'),
+        },
+        {
+            field: 'level',
+            headerName: t('role.level.label'),
+            minWidth: 140,
+            flex: 1,
+            valueGetter: (_, row) => t(`role.level.${row.level}`),
         },
         {
             field: 'description',
@@ -49,7 +71,9 @@ const RoleTable = (props: BaseEntityTableProps<RoleDto>) => {
             columns={columns}
             dataRequest={dataRequest}
             deleteRequest={deleteRequest}
-            parentResource={'USER'}
+            editableIf={r => !r.static}
+            deletableIf={r => !r.static}
+            parentResource={'ROLE'}
         />
     )
 }
