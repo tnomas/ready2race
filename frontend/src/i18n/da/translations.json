@@ -4137,7 +4137,12 @@
     "lane": "Startposition",
     "team": "Hold",
     "deregistered": "Afmeldt",
-    "noMatches": "Der er endnu ikke planlagt noget løb for dig."
+    "noMatches": "Der er endnu ikke planlagt noget løb for dig.",
+    "material": {
+      "line": "{{type}}: {{status}} hos {{provider}}",
+      "otherType": "{{type}} ({{category}})",
+      "countedType": "{{count}}× {{type}}"
+    }
   },
   "speaker": {
     "title": "Speaker-board",
@@ -4278,6 +4283,13 @@
     "category": {
       "BOAT": "Båd",
       "OTHER": "Andet"
+    },
+    "requestStatus": {
+      "REQUESTED": "forespurgt",
+      "CONFIRMED": "bekræftet",
+      "WAITLISTED": "venteliste",
+      "DECLINED": "afvist",
+      "WITHDRAWN": "trukket tilbage"
     },
     "item": {
       "item": "Materielstykke",

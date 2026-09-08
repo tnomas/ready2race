@@ -3173,6 +3173,17 @@ export type MyEventMatchDto = {
     deregisteredReason?: string | null
 }
 
+/**
+ * Der Stand einer Materialanfrage aus Sicht des Sportlers - Kategorie OTHER erscheint nur an dieser Stelle, sonst sieht ein Sportler ausschließlich Boote.
+ */
+export type MyEventMaterialDto = {
+    typeName: string
+    category: MaterialCategory
+    providerName: string
+    status: MaterialRequestStatus
+    count: number
+}
+
 export type MyEventRegistrationDto = {
     competitionId: string
     competitionIdentifier: string
@@ -3180,6 +3191,10 @@ export type MyEventRegistrationDto = {
     categoryName?: string | null
     teamName?: string | null
     role?: string | null
+    /**
+     * Materialanfragen dieser Meldung, nur der Status - zurückgezogene (WITHDRAWN) tauchen hier nicht auf.
+     */
+    material: Array<MyEventMaterialDto>
 }
 
 export type MyEventRequirementDto = {

@@ -19338,6 +19338,7 @@ components:
         - competitionId
         - competitionIdentifier
         - competitionName
+        - material
       properties:
         competitionId:
           type: string
@@ -19355,6 +19356,31 @@ components:
         role:
           type: string
           nullable: true
+        material:
+          type: array
+          description: >-
+            Materialanfragen dieser Meldung, nur der Status - zurückgezogene (WITHDRAWN) tauchen
+            hier nicht auf.
+          items:
+            $ref: '#/components/schemas/MyEventMaterialDto'
+
+    MyEventMaterialDto:
+      type: object
+      description: >-
+        Der Stand einer Materialanfrage aus Sicht des Sportlers - Kategorie OTHER erscheint nur
+        an dieser Stelle, sonst sieht ein Sportler ausschließlich Boote.
+      required: [typeName, category, providerName, status, count]
+      properties:
+        typeName:
+          type: string
+        category:
+          $ref: '#/components/schemas/MaterialCategory'
+        providerName:
+          type: string
+        status:
+          $ref: '#/components/schemas/MaterialRequestStatus'
+        count:
+          type: integer
 
     MyEventRequirementScopeDto:
       type: object

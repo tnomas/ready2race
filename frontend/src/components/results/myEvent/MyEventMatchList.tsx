@@ -19,6 +19,7 @@ import {
 import PlaceOrdinal from '@components/PlaceOrdinal'
 import {useServerClock} from '@components/event/info/athleteBoard/useServerClock.ts'
 import {groupByDay} from './myEventDays.ts'
+import {MyEventMaterial} from './MyEventMaterial.tsx'
 import {MyEventResultField} from './MyEventResultField.tsx'
 
 type MyEventMatchListProps = {
@@ -479,13 +480,15 @@ export const MyEventUnscheduledList = ({registrations}: MyEventUnscheduledListPr
                     key={`${registration.competitionId}-${registration.teamName ?? ''}-${registration.role ?? ''}`}
                     direction="row"
                     gap={1.5}
-                    alignItems="center"
+                    // Nicht mehr "center": der Materialblock kann die Zeile mehrzeilig machen,
+                    // und die Kennung soll dann oben bleiben statt mittig zu schweben.
+                    alignItems="flex-start"
                     sx={{py: 1}}>
                     <Chip
                         size="small"
                         variant="outlined"
                         label={registration.competitionIdentifier}
-                        sx={{flexShrink: 0}}
+                        sx={{flexShrink: 0, mt: 0.25}}
                     />
                     <Box sx={{flex: 1, minWidth: 0}}>
                         <Typography sx={{fontWeight: 600}}>
@@ -506,6 +509,7 @@ export const MyEventUnscheduledList = ({registrations}: MyEventUnscheduledListPr
                                     .join(' · ')}
                             </Typography>
                         )}
+                        <MyEventMaterial material={registration.material} />
                     </Box>
                 </Stack>
             ))}

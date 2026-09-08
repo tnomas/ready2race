@@ -6,9 +6,12 @@ import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.eventInfo.control.MyEventRepo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.EventInfoProblem
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventDto
+import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventMaterialDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventRegistrationDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventRequirementDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventTeamMemberDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.app.participantRequirement.control.ParticipantRequirementForEventRepo
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
@@ -21,6 +24,8 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.Substitut
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.TIMECODE
 import de.lambda9.tailwind.core.KIO
@@ -118,6 +123,24 @@ object MyEventService {
             val substitutionRecords = !MyEventRepo
                 .findSubstitutionsForRegistrationRounds(registrationRounds(matchRecords)).orDie()
             val registrationRecords = !MyEventRepo.findRegistrationsWithoutMatch(eventId, participantId).orDie()
+            // Die Materialanfragen dieser Meldungen in einem Rutsch statt einer Abfrage je
+            // Meldung - siehe MyEventRepo.findMaterialRequestsForRegistrations.
+            val registrationIds = registrationRecords.mapNotNull { it.get("registration_id", UUID::class.java) }
+            val materialByRegistration = !MyEventRepo.findMaterialRequestsForRegistrations(registrationIds).orDie()
+                .map { rows ->
+                    rows.groupBy(
+                        { it[MATERIAL_REQUEST.COMPETITION_REGISTRATION]!! },
+                        { row ->
+                            MyEventMaterialDto(
+                                typeName = row.get("material_type_name", String::class.java) ?: "",
+                                category = MaterialCategory.valueOf(row[MATERIAL_TYPE.CATEGORY]!!),
+                                providerName = row.get("material_provider_name", String::class.java) ?: "",
+                                status = MaterialRequestStatus.valueOf(row[MATERIAL_REQUEST.STATUS]!!),
+                                count = row[MATERIAL_REQUEST.COUNT]!!,
+                            )
+                        },
+                    )
+                }
             val requirementRecords = !ParticipantRequirementForEventRepo.get(eventId, onlyActive = true).orDie()
             val fulfillments = !MyEventRepo.findFulfillments(eventId, participantId).orDie()
             // Die Wettkampftage: nur zum Zuordnen eines Laufs zu seinem Tag - dieselbe Ableitung
@@ -167,7 +190,7 @@ object MyEventService {
                 running = split.running,
                 upcoming = split.upcoming,
                 results = split.results,
-                unscheduled = toRegistrations(registrationRecords),
+                unscheduled = toRegistrations(registrationRecords, materialByRegistration),
                 requirements = requirementRecords
                     // Nur Bedingungen, die für diese Person überhaupt gelten, und davon nur die
                     // ausdrücklich freigegebenen. Die Freitext-Notiz dazu wird nicht einmal
@@ -376,9 +399,13 @@ object MyEventService {
             )
         }.distinctBy { it.id to it.namedParticipantId }
 
-    private fun toRegistrations(records: List<Record>): List<MyEventRegistrationDto> =
+    private fun toRegistrations(
+        records: List<Record>,
+        materialByRegistration: Map<UUID, List<MyEventMaterialDto>>,
+    ): List<MyEventRegistrationDto> =
         records.mapNotNull { record ->
             record.get("competition_id", UUID::class.java)?.let { competitionId ->
+                val registrationId = record.get("registration_id", UUID::class.java)
                 MyEventRegistrationDto(
                     competitionId = competitionId,
                     competitionIdentifier = record[COMPETITION_PROPERTIES.IDENTIFIER] ?: "",
@@ -386,6 +413,7 @@ object MyEventService {
                     categoryName = record.get("category_name", String::class.java),
                     teamName = record.get("team_name", String::class.java),
                     role = record.get("named_role", String::class.java),
+                    material = registrationId?.let { materialByRegistration[it] } ?: emptyList(),
                 )
             }
         }

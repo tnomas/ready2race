@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.control
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.database.generated.tables.references.CLUB
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_CATEGORY
@@ -11,6 +12,10 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.COMPET
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION_NAMED_PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_ROUND
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_OFFER
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_PROVIDER
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.generated.tables.references.NAMED_PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT_HAS_REQUIREMENT_FOR_EVENT
@@ -185,6 +190,7 @@ object MyEventRepo {
             COMPETITION_PROPERTIES.IDENTIFIER,
             COMPETITION_PROPERTIES.NAME.`as`("competition_name"),
             COMPETITION_CATEGORY.NAME.`as`("category_name"),
+            COMPETITION_REGISTRATION.ID.`as`("registration_id"),
             COMPETITION_REGISTRATION.NAME.`as`("team_name"),
             NAMED_PARTICIPANT.NAME.`as`("named_role"),
         )
@@ -216,6 +222,38 @@ object MyEventRepo {
             )
             .orderBy(COMPETITION_PROPERTIES.IDENTIFIER.asc().nullsLast())
             .fetch()
+    }
+
+    /**
+     * Materialanfragen mehrerer Meldungen auf einen Schlag - Grundlage von
+     * [de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventMaterialDto]. Dieselben vier
+     * Verbunde wie `EventRegistrationRepo.selectMaterialRequestsForRegistration`, hier aber als
+     * Batch über alle offenen Meldungen der Person statt einer Abfrage je Meldung - "Mein
+     * Event" hat typischerweise mehrere.
+     *
+     * Zurückgezogene Anfragen (WITHDRAWN) fallen schon hier heraus: der Sportler sieht nur den
+     * Wunschzettel, der noch Bestand hat, nicht dessen Geschichte.
+     */
+    fun findMaterialRequestsForRegistrations(registrationIds: Collection<UUID>): JIO<List<Record>> = Jooq.query {
+        if (registrationIds.isEmpty()) {
+            emptyList()
+        } else {
+            select(
+                MATERIAL_REQUEST.COMPETITION_REGISTRATION,
+                MATERIAL_TYPE.NAME.`as`("material_type_name"),
+                MATERIAL_TYPE.CATEGORY,
+                MATERIAL_PROVIDER.NAME.`as`("material_provider_name"),
+                MATERIAL_REQUEST.STATUS,
+                MATERIAL_REQUEST.COUNT,
+            )
+                .from(MATERIAL_REQUEST)
+                .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+                .join(MATERIAL_TYPE).on(MATERIAL_TYPE.ID.eq(MATERIAL_OFFER.MATERIAL_TYPE))
+                .join(MATERIAL_PROVIDER).on(MATERIAL_PROVIDER.ID.eq(MATERIAL_OFFER.MATERIAL_PROVIDER))
+                .where(MATERIAL_REQUEST.COMPETITION_REGISTRATION.`in`(registrationIds))
+                .and(MATERIAL_REQUEST.STATUS.ne(MaterialRequestStatus.WITHDRAWN.name))
+                .fetch()
+        }
     }
 
     /**

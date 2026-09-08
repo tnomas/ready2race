@@ -4389,7 +4389,12 @@
     "lane": "Startposition",
     "team": "Mannschaft",
     "deregistered": "Abgemeldet",
-    "noMatches": "Für dich ist noch kein Lauf eingetragen."
+    "noMatches": "Für dich ist noch kein Lauf eingetragen.",
+    "material": {
+      "line": "{{type}}: {{status}} bei {{provider}}",
+      "otherType": "{{type}} ({{category}})",
+      "countedType": "{{count}}× {{type}}"
+    }
   },
   "speaker": {
     "title": "Sprecher-Board",
@@ -4530,6 +4535,13 @@
     "category": {
       "BOAT": "Boot",
       "OTHER": "Sonstiges"
+    },
+    "requestStatus": {
+      "REQUESTED": "angefragt",
+      "CONFIRMED": "bestätigt",
+      "WAITLISTED": "Warteliste",
+      "DECLINED": "abgelehnt",
+      "WITHDRAWN": "zurückgezogen"
     },
     "item": {
       "item": "Materialstück",

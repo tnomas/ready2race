@@ -1,6 +1,8 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -89,6 +91,22 @@ data class MyEventRegistrationDto(
     val categoryName: String?,
     val teamName: String?,
     val role: String?,
+    /** Zurückgezogene Anfragen (WITHDRAWN) stehen hier nicht - siehe [MyEventMaterialDto]. */
+    val material: List<MyEventMaterialDto>,
+)
+
+/**
+ * Der Stand einer Materialanfrage dieser Meldung, aus Sicht des Sportlers auf den Status
+ * verknappt - Angebot, Bedarf und Ampel der Veranstaltung gehen ihn nichts an, das ist Sache
+ * des Vereins bei der Anmeldung. Kategorie OTHER (Riemen, Steuerausrüstung, ...) erscheint
+ * bewusst mit: dies ist die einzige Stelle, an der ein Sportler nicht-Boot-Material sieht.
+ */
+data class MyEventMaterialDto(
+    val typeName: String,
+    val category: MaterialCategory,
+    val providerName: String,
+    val status: MaterialRequestStatus,
+    val count: Int,
 )
 
 data class MyEventRequirementDto(
