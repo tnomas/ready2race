@@ -11,10 +11,12 @@ import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.calls.serialization.jsonMapper
 import de.lambda9.ready2race.backend.file.File
+import de.lambda9.ready2race.backend.parsing.Parser.Companion.boolean
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.xls.checkValidXls
 import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.onNullDefault
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
@@ -349,11 +351,13 @@ fun Route.competitionExecution() {
                     val eventId = !pathParam("eventId", uuid)
                     val competitionMatchId = !pathParam("competitionMatchId", uuid)
                     val fileType = !queryParam("fileType", enum<StartListFileType>())
+                    val showMaterial = !optionalQueryParam("showMaterial", boolean).onNullDefault { false }
 
                     CompetitionExecutionService.downloadStartlist(
                         eventId = eventId,
                         matchId = competitionMatchId,
-                        type = fileType
+                        type = fileType,
+                        showMaterial = showMaterial,
                     )
                 }
             }

@@ -1308,7 +1308,8 @@
             "missingStartTime": "The start time for this match is not set.",
             "notConfigured": "No start list preset is configured for this competition. Please set one up in the \"Timing\" tab."
           },
-          "downloadRound": "Download round start list (CSV)"
+          "downloadRound": "Download round start list (CSV)",
+          "showMaterial": "Always show material"
         },
         "substitution": {
           "substitutions": "Substitutions",
@@ -2516,10 +2517,15 @@
         "showBirthYears": "Show birth years",
         "showAdvancement": "Show advancement rule",
         "showRegisteringClub": "Show registering club",
+        "showMaterial": "Show boat material",
         "backgroundColor": "Tile color",
         "borderColor": "Border color",
         "colorRemove": "Remove color",
         "backgroundColorHint": "Light color tones keep the content readable"
+      },
+      "material": {
+        "own": "own boat",
+        "deviates": "deviating"
       },
       "columns": "Columns",
       "columnCount": "{{count}} columns",

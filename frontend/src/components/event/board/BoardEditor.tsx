@@ -231,7 +231,8 @@ const BoardEditor = ({eventId, board, onSubmit, onCancel}: BoardEditorProps) => 
             | 'showCrewDetails'
             | 'showBirthYears'
             | 'showAdvancement'
-            | 'showRegisteringClub',
+            | 'showRegisteringClub'
+            | 'showMaterial',
         // Die Sprecherinnen-Optionen sind bewusst standardmäßig aus (Zusatzdaten nur auf
         // Anforderung); die Anzeige-Optionen standardmäßig an.
         defaultOn: boolean = true,
@@ -379,27 +380,31 @@ const BoardEditor = ({eventId, board, onSubmit, onCancel}: BoardEditorProps) => 
             )}
 
             {element.type === 'MATCH_DETAIL' && (
-                // Nur die Slot-Wahl wie bei MATCH — die Sprecher-Kachel kennt keine
-                // Abschalt-Optionen, sie zeigt immer die volle Detailtiefe.
-                <TextField
-                    select
-                    size="small"
-                    label={t('event.boards.element.offset')}
-                    value={element.offset ?? 0}
-                    onChange={e =>
-                        updateElement(tileIndex, elementIndex, {
-                            ...element,
-                            offset: Number(e.target.value),
-                        })
-                    }>
-                    {Array.from({length: MAX_OFFSET * 2 + 1}, (_, i) => i - MAX_OFFSET).map(
-                        offset => (
-                            <MenuItem key={offset} value={offset}>
-                                {offsetLabel(offset)}
-                            </MenuItem>
-                        ),
-                    )}
-                </TextField>
+                // Die Sprecher-Kachel kennt sonst keine Abschalt-Optionen (immer volle
+                // Detailtiefe) — Bootsabweichungen stehen ohnehin immer da, der Schalter
+                // erzwingt zusätzlich die Regelfälle (Materialvermietung, Task 6.4).
+                <Stack gap={1}>
+                    <TextField
+                        select
+                        size="small"
+                        label={t('event.boards.element.offset')}
+                        value={element.offset ?? 0}
+                        onChange={e =>
+                            updateElement(tileIndex, elementIndex, {
+                                ...element,
+                                offset: Number(e.target.value),
+                            })
+                        }>
+                        {Array.from({length: MAX_OFFSET * 2 + 1}, (_, i) => i - MAX_OFFSET).map(
+                            offset => (
+                                <MenuItem key={offset} value={offset}>
+                                    {offsetLabel(offset)}
+                                </MenuItem>
+                            ),
+                        )}
+                    </TextField>
+                    {booleanOption(tileIndex, elementIndex, element, 'showMaterial', false)}
+                </Stack>
             )}
 
             {element.type === 'STREAM' && (

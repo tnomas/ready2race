@@ -1308,7 +1308,8 @@
             "missingStartTime": "Der er endnu ikke sat en starttid for denne kamp.",
             "notConfigured": "Der er ikke registreret et startlistepreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\"."
           },
-          "downloadRound": "Hent rundens startliste (CSV)"
+          "downloadRound": "Hent rundens startliste (CSV)",
+          "showMaterial": "Vis altid materiale"
         },
         "substitution": {
           "substitutions": "Ombytninger",
@@ -2496,10 +2497,15 @@
         "showBirthYears": "Vis årgange",
         "showAdvancement": "Vis oprykningsregel",
         "showRegisteringClub": "Vis tilmeldende klub",
+        "showMaterial": "Vis bådmateriale",
         "backgroundColor": "Flisefarve",
         "borderColor": "Kantfarve",
         "colorRemove": "Fjern farve",
         "backgroundColorHint": "Lyse farvetoner holder indholdet læseligt"
+      },
+      "material": {
+        "own": "egen båd",
+        "deviates": "afvigende"
       },
       "columns": "Kolonner",
       "columnCount": "{{count}} kolonner",

@@ -2316,6 +2316,12 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/StartListFileType'
+        - name: showMaterial
+          in: query
+          required: false
+          description: "Boot-Materialspalte auch ohne Abweichung zeigen (Standard: aus - eine Abweichung erscheint immer)"
+          schema:
+            type: boolean
       operationId: downloadStartList
       responses:
         200:
@@ -18292,6 +18298,10 @@ components:
         showRegisteringClub:
           type: boolean
           nullable: true
+        showMaterial:
+          type: boolean
+          nullable: true
+          description: "Boat deviations (material rental) shown even without a deviation; a deviation from the start number always shows regardless"
         listMode:
           $ref: '#/components/schemas/BoardListMode'
         scheduleMode:

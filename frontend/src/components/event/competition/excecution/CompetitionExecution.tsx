@@ -19,6 +19,7 @@ import {
     Checkbox,
     Chip,
     Divider,
+    FormControlLabel,
     InputAdornment,
     Link,
     Stack,
@@ -187,6 +188,11 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     const [resultImportMatch, setResultImportMatch] = useState<string | null>(null)
     const [resultsDialogOpen, setResultsDialogOpen] = useState(false)
     const [editMatchDialogOpen, setEditMatchDialogOpen] = useState(false)
+
+    // Materialvermietung (Task 6.4): ohne die Einstellung zeigt die Startliste nur echte
+    // Abweichungen von der Startnummer, mit ihr auch die Regelfälle ("eigenes Boot" bzw. das
+    // Label der bestätigten Anfrage) - gilt für PDF und CSV jedes einzelnen Laufs.
+    const [showStartListMaterial, setShowStartListMaterial] = useState(false)
 
     // Läufe, deren Startzeit über den Zeitplan (Tab Zeitplan) gepflegt wird — für sie bleibt das
     // Startzeit-Feld hier read-only, damit die Kette (Task 10) nicht durch eine hier eingegebene
@@ -563,6 +569,7 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             },
             query: {
                 fileType,
+                showMaterial: showStartListMaterial,
             },
         })
         const anchor = downloadRef.current
@@ -1168,6 +1175,19 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                     </SettingsPopover>
                 </Box>
             )}
+            {/* Materialvermietung (Task 6.4): gilt für jede Startlisten-PDF/CSV, die von hier
+                heruntergeladen wird - siehe handleDownloadStartList. */}
+            <FormControlLabel
+                sx={{mb: 1}}
+                control={
+                    <Checkbox
+                        size="small"
+                        checked={showStartListMaterial}
+                        onChange={e => setShowStartListMaterial(e.target.checked)}
+                    />
+                }
+                label={t('event.competition.execution.startList.showMaterial')}
+            />
             <Stack spacing={6}>
                 {sortedRounds.map((round, roundIndex) => (
                     <CompetitionExecutionRound

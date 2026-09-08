@@ -15,6 +15,7 @@ import {
     PaceReferenceDto,
 } from '@api/types.gen'
 import {AthleteBoardLapTimes} from '../info/athleteBoard/AthleteBoardBoatRow'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import {
     finishComplete,
     formatClockTime,
@@ -173,7 +174,15 @@ const BoardMatchDetailElement = ({
         laps: MatchTeamLapDto[] | undefined,
         lapRanks: (number | null)[] | undefined,
         paceReference: PaceReferenceDto | null | undefined,
-    ) => (
+    ) => {
+        // Bootsabweichung (Materialvermietung, Task 6.1) hinter der Startnummer — eine
+        // Abweichung steht unabhängig vom Schalter immer da, "eigenes Boot" nur mit
+        // eingeschaltetem showMaterial (siehe materialLabel.ts, Modus deviationsOnly/always).
+        const material = materialLabel(
+            team.material,
+            element.showMaterial === true ? 'always' : 'deviationsOnly',
+        )
+        return (
         <Stack
             key={key}
             direction="row"
@@ -185,15 +194,29 @@ const BoardMatchDetailElement = ({
                 py: scaled('0.3rem', '0.5vw', '0.8rem'),
                 minWidth: 0,
             }}>
-            <Typography
-                sx={{
-                    fontSize: scaled('1.2rem', '2.2vw', '3rem'),
-                    fontWeight: 800,
-                    minWidth: '1.6em',
-                    lineHeight: 1.1,
-                }}>
-                {startNumber}
-            </Typography>
+            <Box sx={{minWidth: '1.6em'}}>
+                <Typography
+                    sx={{
+                        fontSize: scaled('1.2rem', '2.2vw', '3rem'),
+                        fontWeight: 800,
+                        lineHeight: 1.1,
+                    }}>
+                    {startNumber}
+                </Typography>
+                {material && (
+                    <Typography
+                        sx={{
+                            fontSize: scaled('0.65rem', '0.9vw', '1.2rem'),
+                            fontWeight: material !== 'own' && material.deviates ? 700 : 400,
+                            whiteSpace: 'nowrap',
+                        }}
+                        color={material !== 'own' && material.deviates ? 'warning.main' : 'text.secondary'}>
+                        {material === 'own'
+                            ? t('event.boards.material.own')
+                            : `· ${material.text}`}
+                    </Typography>
+                )}
+            </Box>
             <Box sx={{minWidth: 0, flex: 1}}>
                 <Typography
                     sx={{
@@ -249,7 +272,8 @@ const BoardMatchDetailElement = ({
                 </Stack>
             )}
         </Stack>
-    )
+        )
+    }
 
     // Der Rang an einer Zwischenzeit ist eine Aussage über den ganzen Lauf — einmal je Kachel
     // gerechnet und dann an die Bootszeilen verteilt, bewusst über die unsortierte Aufstellung:

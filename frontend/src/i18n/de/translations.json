@@ -1308,7 +1308,8 @@
             "missingStartTime": "Für diese Partie wurde noch keine Startzeit gesetzt.",
             "notConfigured": "Für diesen Wettkampf ist kein Startlisten-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
           },
-          "downloadRound": "Startliste der Runde herunterladen (CSV)"
+          "downloadRound": "Startliste der Runde herunterladen (CSV)",
+          "showMaterial": "Material immer zeigen"
         },
         "substitution": {
           "substitutions": "Ummeldungen",
@@ -2516,10 +2517,15 @@
         "showBirthYears": "Jahrgänge zeigen",
         "showAdvancement": "Weiterkommens-Regel zeigen",
         "showRegisteringClub": "Meldenden Verein zeigen",
+        "showMaterial": "Boot-Material zeigen",
         "backgroundColor": "Kachelfarbe",
         "borderColor": "Randfarbe",
         "colorRemove": "Farbe entfernen",
         "backgroundColorHint": "Helle Farbtöne halten den Inhalt lesbar"
+      },
+      "material": {
+        "own": "eigenes Boot",
+        "deviates": "abweichend"
       },
       "columns": "Spalten",
       "columnCount": "{{count}} Spalten",

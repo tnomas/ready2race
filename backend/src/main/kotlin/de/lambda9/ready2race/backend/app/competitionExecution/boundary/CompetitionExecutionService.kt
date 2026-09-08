@@ -2483,7 +2483,10 @@ object CompetitionExecutionService {
     fun getStartList(
         matchId: UUID,
         startListType: StartListFileType,
-        startTimeRequired: Boolean
+        startTimeRequired: Boolean,
+        // Query `showMaterial` an /startList: Boot-Spalte auch ohne Abweichung. Eine echte
+        // Abweichung erscheint unabhängig davon immer - siehe StartListMaterial.kt.
+        showMaterial: Boolean = false,
     ): App<ServiceError, File> = KIO.comprehension {
         val match = !CompetitionMatchRepo.getForStartList(matchId).orDie()
             .onNullFail { CompetitionExecutionError.MatchNotFound }
@@ -2496,7 +2499,7 @@ object CompetitionExecutionService {
             StartListFileType.PDF -> {
                 val pdfTemplate = !DocumentTemplateRepo.getAssigned(DocumentType.START_LIST, match.event!!).orDie()
                     .andThenNotNull { it.toPdfTemplate() }
-                buildPdf(data, pdfTemplate) to "pdf"
+                buildPdf(data, pdfTemplate, forceMaterial = showMaterial) to "pdf"
             }
 
             StartListFileType.CSV -> {
@@ -2505,7 +2508,7 @@ object CompetitionExecutionService {
                 val configId = !KIO.failOnNull(target.configId) { StartListConfigError.NotConfigured }
                 val config = !StartListConfigRepo.get(configId).orDie()
                     .onNullFail { StartListConfigError.NotFound }
-                buildCsv(data, config) to "csv"
+                buildCsv(data, config, forceMaterial = showMaterial) to "csv"
             }
         }
 
@@ -2527,10 +2530,11 @@ object CompetitionExecutionService {
         eventId: UUID,
         matchId: UUID,
         type: StartListFileType,
+        showMaterial: Boolean = false,
     ): App<ServiceError, ApiResponse.File> = KIO.comprehension {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
-        val startListFile = !getStartList(matchId, type, startTimeRequired = true)
+        val startListFile = !getStartList(matchId, type, startTimeRequired = true, showMaterial = showMaterial)
 
         KIO.ok(
             ApiResponse.File(name = startListFile.name, bytes = startListFile.bytes)
@@ -3338,7 +3342,11 @@ object CompetitionExecutionService {
         // "Amtspapier mitdrucken": false lässt das Vorlagen-Design weg (Druck auf vorgedrucktes
         // Papier), Format und Rand der Vorlage bleiben - siehe document(pageTemplate, ...).
         withBackground: Boolean = true,
+        // Query `showMaterial` an /startList (siehe getStartList) - ohne den Wunsch erscheint
+        // die Boot-Spalte nur, wenn irgendein Team wirklich vom eigenen Boot abweicht.
+        forceMaterial: Boolean = false,
     ): ByteArray {
+        val showMaterial = startListShowsMaterial(data.teams, forceMaterial)
         val doc = document(template, withBackground) {
             page {
                 block(
@@ -3502,7 +3510,12 @@ object CompetitionExecutionService {
                             column(0.2f)
                             column(0.2f)
                             column(0.1f)
-                            column(0.3f)
+                            // Boot-Spalte nimmt sich ihre Breite vom Verein - der bleibt lesbar,
+                            // die Zeile bricht nicht auf zwei Zeilen um.
+                            column(if (showMaterial) 0.2f else 0.3f)
+                            if (showMaterial) {
+                                column(0.1f)
+                            }
 
                             team.participants
                                 .sortedBy { it.role }
@@ -3527,6 +3540,11 @@ object CompetitionExecutionService {
                                         }
                                         cell {
                                             text { member.externalClubName ?: team.registeringClubName }
+                                        }
+                                        if (showMaterial) {
+                                            cell {
+                                                text { materialCell(team, forceMaterial) }
+                                            }
                                         }
                                     }
                                 }
@@ -3559,6 +3577,10 @@ object CompetitionExecutionService {
          * Kopfzeile, die folgenden hängen nur Zeilen an - eine Datei, ein Header.
          */
         includeHeader: Boolean = config.noHeader != true,
+        // Query `showMaterial`: die Boot-Spalte selbst steht in der CSV immer (Importformat,
+        // keine Wand mit knappem Platz) - forceMaterial entscheidet nur, ob auch Regelfälle
+        // ohne Abweichung ihr Label bekommen statt einer leeren Zelle.
+        forceMaterial: Boolean = false,
     ): ByteArray {
 
         val bytes = ByteArrayOutputStream().use { out ->
@@ -3646,6 +3668,10 @@ object CompetitionExecutionService {
                         cellCondition = { deregistered },
                     ) { if (deregistered) config.valueTeamDeregistered ?: "X" else "" }
                 }
+
+                // Anders als bei buildPdf ist die Boot-Spalte hier nicht optional: die CSV ist
+                // ein Importformat ohne Platznot, kein Aushang - siehe materialCell.
+                column("Boot") { materialCell(this, forceMaterial) }
             }
 
             out.toByteArray()

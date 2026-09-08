@@ -106,6 +106,13 @@ data class BoardElement(
     val showAdvancement: Boolean? = null,
     /** Der meldende Verein des Bootes (Verwaltungsinfo, sonst bewusst weggelassen). */
     val showRegisteringClub: Boolean? = null,
+    /**
+     * Boot-Abweichungen (Materialvermietung, Task 6.1) auch ohne Abweichung zeigen — eine
+     * Abweichung von der Startnummer erscheint unabhängig davon immer, [MaterialForTeamDto]
+     * kommt vom Server ohnehin schon mit. Fehlt das Feld (Alt-Konfigurationen) oder ist es
+     * `false`, bleibt nur die Abweichung stehen (siehe `materialLabel` im Frontend).
+     */
+    val showMaterial: Boolean? = null,
     // MATCH_LIST
     val listMode: BoardListMode? = null,
     val limit: Int? = null,

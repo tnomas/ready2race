@@ -525,6 +525,10 @@ export type BoardElement = {
     showBirthYears?: boolean | null
     showAdvancement?: boolean | null
     showRegisteringClub?: boolean | null
+    /**
+     * Boat deviations (material rental) shown even without a deviation; a deviation from the start number always shows regardless
+     */
+    showMaterial?: boolean | null
     listMode?: BoardListMode
     scheduleMode?: BoardScheduleMode
     /**
@@ -7153,6 +7157,10 @@ export type DownloadStartListData = {
     }
     query: {
         fileType: StartListFileType
+        /**
+         * Boot-Materialspalte auch ohne Abweichung zeigen (Standard: aus - eine Abweichung erscheint immer)
+         */
+        showMaterial?: boolean
     }
 }
 
