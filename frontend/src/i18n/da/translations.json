@@ -2826,8 +2826,56 @@
     "name": "Navn",
     "description": "Beskrivelse",
     "rights": "Rettigheder",
+    "job": "Job",
+    "copyOf": "Kopi af",
+    "static": "Foruddefineret",
+    "level": {
+      "label": "Niveau",
+      "SELF": "Egen konto",
+      "CLUB": "Klub",
+      "EVENT": "Arrangement",
+      "ORGANIZER": "Organisator",
+      "GLOBAL": "Alle"
+    },
+    "deviation": {
+      "added": "Tilføjet i forhold til jobbet",
+      "missing": "Mangler i forhold til jobbet"
+    },
+    "notAssignable": "Denne rolle indeholder rettigheder, du ikke selv har.",
     "error": {
-      "cannotAssign": "Rolle(r) kunne ikke tildeles brugeren"
+      "cannotAssign": "Rolle(r) kunne ikke tildeles brugeren",
+      "privilegesBeyondOwn": "Du kan kun tildele rettigheder, du selv har.",
+      "selfAssignment": "Ingen kan ændre sine egne roller."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {"name": "Superadmin", "description": "Runs the installation. The only role that can see and assign superadmin accounts."},
+    "ADMIN": {"name": "Admin", "description": "Everything except superadmin accounts."},
+    "USER": {"name": "Bruger", "description": "Read and change own account. Held by every account."},
+    "CLUB_REPRESENTATIVE": {"name": "Klubrepræsentant", "description": "Own club, own registrations, invoices and results."},
+    "COMPETITION_MANAGEMENT": {"name": "Konkurrenceledelse", "description": "Event, competitions, execution and day-of team."},
+    "REGISTRATION_OFFICE": {"name": "Tilmeldingskontor", "description": "Review registrations and rebook."},
+    "FINANCE": {"name": "Kasse", "description": "Invoices and bank accounts."},
+    "JUDGE": {"name": "Dommer", "description": "Penalties, clarification, judge dashboard."},
+    "TIMEKEEPER": {"name": "Tidtagning", "description": "Stations, sequences and timing connection."},
+    "ANNOUNCER": {"name": "Speaker", "description": "Boards and announcer dashboard."},
+    "STREAM_DIRECTOR": {"name": "Regi", "description": "Livestream graphics and director board."},
+    "HELPER_REQUIREMENTS": {"name": "Hjælper: betingelser", "description": "Check participant requirements."},
+    "HELPER_ACCESS_PASS": {"name": "Hjælper: udlevering", "description": "Issue wristbands and QR codes."},
+    "HELPER_CHECK_IN": {"name": "Hjælper: check-in", "description": "Check-in, check-out and competition check."},
+    "HELPER_CATERING": {"name": "Hjælper: forplejning", "description": "Serve catering."}
+  },
+  "privilege": {
+    "action": {"CREATE": "Opret", "READ": "Læs", "UPDATE": "Opdater", "DELETE": "Slet"},
+    "scope": {"OWN": "Egen", "EVENT": "Arrangement", "GLOBAL": "Alle"},
+    "resource": {
+      "USER": "Konti", "EVENT": "Arrangementer", "CLUB": "Klubber", "REGISTRATION": "Tilmeldinger",
+      "INVOICE": "Fakturaer", "SUBSTITUTION": "Rebookings", "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands", "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering", "APP_TIMING": "App: timing", "WEB_DAV": "WebDAV",
+      "RESULT": "Resultater", "LIVE_DASHBOARD": "Judge dashboard", "BOARD": "Tavler",
+      "STREAM": "Livestream", "ADMINISTRATION": "Konfiguration", "ROLE": "Roller", "STAFF": "Rolletildeling",
+      "SYSTEM": "Installation"
     }
   },
   "configuration": {

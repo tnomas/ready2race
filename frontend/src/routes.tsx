@@ -16,10 +16,10 @@ import {
     readInvoiceGlobal,
     readAdministrationConfigGlobal,
     readEventGlobal,
+    readRoleGlobal,
     readUserGlobal,
     updateAppTimingGlobal,
     updateEventGlobal,
-    updateUserGlobal,
     readLiveDashboardGlobal,
     readStreamGlobal,
 } from './authorization/privileges.ts'
@@ -260,7 +260,7 @@ export const rolesIndexRoute = createRoute({
     path: '/',
     component: () => <RolesPage />,
     beforeLoad: ({context, location}) => {
-        checkAuth(context, location, updateUserGlobal)
+        checkAuth(context, location, readRoleGlobal)
     },
 })
 

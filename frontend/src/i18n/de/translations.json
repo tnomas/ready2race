@@ -3078,8 +3078,56 @@
     "name": "Name",
     "description": "Beschreibung",
     "rights": "Rechte",
+    "job": "Job",
+    "copyOf": "Kopie von",
+    "static": "Vordefiniert",
+    "level": {
+      "label": "Ebene",
+      "SELF": "Eigenes Konto",
+      "CLUB": "Verein",
+      "EVENT": "Veranstaltung",
+      "ORGANIZER": "Veranstalter",
+      "GLOBAL": "Gesamt"
+    },
+    "deviation": {
+      "added": "Zusätzlich zum Job",
+      "missing": "Fehlt gegenüber dem Job"
+    },
+    "notAssignable": "Diese Rolle enthält Rechte, die Sie selbst nicht haben.",
     "error": {
-      "cannotAssign": "Rolle(n) konnte(n) dem Benutzer nicht zugewiesen werden"
+      "cannotAssign": "Rolle(n) konnte(n) dem Benutzer nicht zugewiesen werden",
+      "privilegesBeyondOwn": "Sie können nur Rechte vergeben, die Sie selbst haben.",
+      "selfAssignment": "Die eigenen Rollen kann niemand selbst ändern."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {"name": "Superadmin", "description": "Betreibt die Installation. Einzige Rolle, die Superadmin-Konten sieht und vergibt."},
+    "ADMIN": {"name": "Admin", "description": "Alles außer Superadmin-Konten."},
+    "USER": {"name": "Nutzer", "description": "Eigenes Konto lesen und ändern. Trägt jedes Konto."},
+    "CLUB_REPRESENTATIVE": {"name": "Vereinsvertreter", "description": "Eigenen Verein, eigene Meldungen, Rechnungen und Ergebnisse."},
+    "COMPETITION_MANAGEMENT": {"name": "Wettkampfleitung", "description": "Veranstaltung, Wettkämpfe, Durchführung und Tagesteam."},
+    "REGISTRATION_OFFICE": {"name": "Meldestelle", "description": "Meldungen prüfen und ummelden."},
+    "FINANCE": {"name": "Kasse", "description": "Rechnungen und Bankkonten."},
+    "JUDGE": {"name": "Schiedsrichter", "description": "Strafen, Klärung, Schiedsrichter-Dashboard."},
+    "TIMEKEEPER": {"name": "Zeitnahme", "description": "Posten, Sequenzen und Zeitnahme-Anbindung."},
+    "ANNOUNCER": {"name": "Sprecher", "description": "Anzeigetafeln und Sprecher-Dashboard."},
+    "STREAM_DIRECTOR": {"name": "Regie", "description": "Livestream-Grafiken und Regie-Board."},
+    "HELPER_REQUIREMENTS": {"name": "Helfer: Bedingungen", "description": "Bedingungen der Teilnehmenden prüfen."},
+    "HELPER_ACCESS_PASS": {"name": "Helfer: Ausgabe", "description": "Bänder und QR-Codes ausgeben."},
+    "HELPER_CHECK_IN": {"name": "Helfer: Check-in", "description": "Check-in, Check-out und Wettkampf-Check."},
+    "HELPER_CATERING": {"name": "Helfer: Verpflegung", "description": "Verpflegung ausgeben."}
+  },
+  "privilege": {
+    "action": {"CREATE": "Anlegen", "READ": "Lesen", "UPDATE": "Ändern", "DELETE": "Löschen"},
+    "scope": {"OWN": "Eigene", "EVENT": "Veranstaltung", "GLOBAL": "Alle"},
+    "resource": {
+      "USER": "Konten", "EVENT": "Veranstaltungen", "CLUB": "Vereine", "REGISTRATION": "Meldungen",
+      "INVOICE": "Rechnungen", "SUBSTITUTION": "Ummeldungen", "APP_EVENT_REQUIREMENT": "App: Bedingungen",
+      "APP_QR_MANAGEMENT": "App: Bänder", "APP_COMPETITION_CHECK": "App: Wettkampf-Check",
+      "APP_CATERER": "App: Verpflegung", "APP_TIMING": "App: Zeitnahme", "WEB_DAV": "WebDAV",
+      "RESULT": "Ergebnisse", "LIVE_DASHBOARD": "Schiedsrichter-Dashboard", "BOARD": "Anzeigetafeln",
+      "STREAM": "Livestream", "ADMINISTRATION": "Konfiguration", "ROLE": "Rollen", "STAFF": "Rollenvergabe",
+      "SYSTEM": "Installation"
     }
   },
   "configuration": {

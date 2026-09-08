@@ -6,12 +6,10 @@ import {Stack} from '@mui/material'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {AppUserInvitationDto, InviteRequest, InviteUserError} from '@api/types.gen.ts'
 import {getRoles, inviteUser} from '@api/sdk.gen.ts'
-import {adminId, i18nLanguage, languageMapping} from '@utils/helpers.ts'
+import {i18nLanguage, languageMapping} from '@utils/helpers.ts'
 import FormInputEmail from '@components/form/input/FormInputEmail.tsx'
 import {useTranslation} from 'react-i18next'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {useUser} from '@contexts/user/UserContext.ts'
-import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
 import RolesSelect from './RolesSelect'
 
 type InvitationForm = {
@@ -19,7 +17,6 @@ type InvitationForm = {
     firstname: string
     lastname: string
     roles: string[]
-    admin: boolean
 }
 
 const defaultValues: InvitationForm = {
@@ -27,7 +24,6 @@ const defaultValues: InvitationForm = {
     firstname: '',
     lastname: '',
     roles: [],
-    admin: false,
 }
 
 // TODO: validate/sanitize basepath (also in routes.tsx)
@@ -37,8 +33,7 @@ const mapFormToRequest = (formData: InvitationForm): InviteRequest => ({
     email: formData.email,
     firstname: formData.firstname,
     lastname: formData.lastname,
-    roles: formData.admin ? [] : formData.roles,
-    admin: formData.admin,
+    roles: formData.roles,
     language: languageMapping[i18nLanguage()],
     callbackUrl: location.origin + (basepath ? `/${basepath}` : '') + '/invitation/',
 })
@@ -53,9 +48,7 @@ const UserInvitationDialog = (props: BaseEntityDialogProps<AppUserInvitationDto>
     const feedback = useFeedback()
     const formContext = useForm<InvitationForm>()
 
-    const user = useUser()
-
-    const {data} = useFetch(signal => getRoles({signal})) // The backend checks for the privilege READUserGlobal
+    const {data} = useFetch(signal => getRoles({signal})) // The backend checks for the privilege READRoleGlobal
 
     const onOpen = useCallback(() => {
         formContext.reset(defaultValues)
@@ -77,6 +70,9 @@ const UserInvitationDialog = (props: BaseEntityDialogProps<AppUserInvitationDto>
                 return false
             }
             return true
+        } else if (error.status.value === 403 && 'errorCode' in error && error.errorCode === 'PRIVILEGES_BEYOND_OWN') {
+            feedback.error(t('role.error.privilegesBeyondOwn'))
+            return true
         } else {
             return false
         }
@@ -93,10 +89,7 @@ const UserInvitationDialog = (props: BaseEntityDialogProps<AppUserInvitationDto>
                 <FormInputText name={'firstname'} label={t('user.firstname')} required />
                 <FormInputText name={'lastname'} label={t('user.lastname')} required />
                 <FormInputEmail name={'email'} label={t('user.email.email')} required />
-                {'id' in user && user.id === adminId && (
-                    <FormInputCheckbox name={'admin'} label={'Admin?'} />
-                )}
-                {!formContext.watch('admin') && <RolesSelect availableRoles={data?.data} />}
+                <RolesSelect availableRoles={data?.data} />
             </Stack>
         </EntityDialog>
     )

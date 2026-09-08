@@ -3078,8 +3078,56 @@
     "name": "Name",
     "description": "Description",
     "rights": "Rights",
+    "job": "Job",
+    "copyOf": "Copy of",
+    "static": "Predefined",
+    "level": {
+      "label": "Level",
+      "SELF": "Own account",
+      "CLUB": "Club",
+      "EVENT": "Event",
+      "ORGANIZER": "Organizer",
+      "GLOBAL": "Global"
+    },
+    "deviation": {
+      "added": "Added compared to the job",
+      "missing": "Missing compared to the job"
+    },
+    "notAssignable": "This role contains privileges you do not have yourself.",
     "error": {
-      "cannotAssign": "Role(s) could not be assigned to the user"
+      "cannotAssign": "Role(s) could not be assigned to the user",
+      "privilegesBeyondOwn": "You can only assign privileges you have yourself.",
+      "selfAssignment": "Nobody can change their own roles."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {"name": "Superadmin", "description": "Runs the installation. The only role that can see and assign superadmin accounts."},
+    "ADMIN": {"name": "Admin", "description": "Everything except superadmin accounts."},
+    "USER": {"name": "User", "description": "Read and change own account. Held by every account."},
+    "CLUB_REPRESENTATIVE": {"name": "Club representative", "description": "Own club, own registrations, invoices and results."},
+    "COMPETITION_MANAGEMENT": {"name": "Competition management", "description": "Event, competitions, execution and day-of team."},
+    "REGISTRATION_OFFICE": {"name": "Registration office", "description": "Review registrations and rebook."},
+    "FINANCE": {"name": "Finance", "description": "Invoices and bank accounts."},
+    "JUDGE": {"name": "Judge", "description": "Penalties, clarification, judge dashboard."},
+    "TIMEKEEPER": {"name": "Timekeeper", "description": "Stations, sequences and timing connection."},
+    "ANNOUNCER": {"name": "Announcer", "description": "Boards and announcer dashboard."},
+    "STREAM_DIRECTOR": {"name": "Stream director", "description": "Livestream graphics and director board."},
+    "HELPER_REQUIREMENTS": {"name": "Helper: requirements", "description": "Check participant requirements."},
+    "HELPER_ACCESS_PASS": {"name": "Helper: access passes", "description": "Issue wristbands and QR codes."},
+    "HELPER_CHECK_IN": {"name": "Helper: check-in", "description": "Check-in, check-out and competition check."},
+    "HELPER_CATERING": {"name": "Helper: catering", "description": "Serve catering."}
+  },
+  "privilege": {
+    "action": {"CREATE": "Create", "READ": "Read", "UPDATE": "Update", "DELETE": "Delete"},
+    "scope": {"OWN": "Own", "EVENT": "Event", "GLOBAL": "All"},
+    "resource": {
+      "USER": "Accounts", "EVENT": "Events", "CLUB": "Clubs", "REGISTRATION": "Registrations",
+      "INVOICE": "Invoices", "SUBSTITUTION": "Rebookings", "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands", "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering", "APP_TIMING": "App: timing", "WEB_DAV": "WebDAV",
+      "RESULT": "Results", "LIVE_DASHBOARD": "Judge dashboard", "BOARD": "Boards",
+      "STREAM": "Livestream", "ADMINISTRATION": "Configuration", "ROLE": "Roles", "STAFF": "Role assignment",
+      "SYSTEM": "Installation"
     }
   },
   "configuration": {

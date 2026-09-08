@@ -9,10 +9,11 @@ import Throbber from '@components/Throbber.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {updateUserGlobal} from '@authorization/privileges.ts'
+import {updateStaffGlobal} from '@authorization/privileges.ts'
 import RolesSelect from '@components/user/RolesSelect.tsx'
 import {UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
+import {roleLabel} from '@authorization/roleLabels.ts'
 
 type Form = {
     firstname: string
@@ -61,12 +62,16 @@ const UserPage = () => {
         setSubmitting(true)
         const {error} = await updateUser({
             path: {userId: userId},
-            body: mapFormToRequest(formData, user.checkPrivilege(updateUserGlobal)),
+            body: mapFormToRequest(formData, user.checkPrivilege(updateStaffGlobal)),
         })
         setSubmitting(false)
 
         if (error) {
-            feedback.error(t('user.update.error'))
+            if (error.status.value === 403 && 'errorCode' in error && error.errorCode === 'SELF_ASSIGNMENT') {
+                feedback.error(t('role.error.selfAssignment'))
+            } else {
+                feedback.error(t('user.update.error'))
+            }
         } else {
             feedback.success(t('user.update.success'))
             setReloadUserData(!reloadUserData)
@@ -74,7 +79,7 @@ const UserPage = () => {
     }
 
     const {data} = useFetch(signal => getRoles({signal}), {
-        preCondition: () => user.checkPrivilege(updateUserGlobal), // The backend checks for the privilege READUserGlobal
+        preCondition: () => user.checkPrivilege(updateStaffGlobal), // The backend checks for the privilege READRoleGlobal
     })
 
     return (
@@ -96,7 +101,7 @@ const UserPage = () => {
                                     required
                                 />
                                 <Typography>{userData.email}</Typography>
-                                {user.checkPrivilege(updateUserGlobal)
+                                {user.checkPrivilege(updateStaffGlobal)
                                     ? (data?.data.length ?? 0) > 0 && (
                                           <RolesSelect availableRoles={data?.data} />
                                       )
@@ -104,7 +109,9 @@ const UserPage = () => {
                                           <Box>
                                               <Typography>{t('role.roles')}</Typography>
                                               <Typography>
-                                                  {userData.roles.map(r => r.name).join(', ')}
+                                                  {userData.roles
+                                                      .map(r => roleLabel(r, t))
+                                                      .join(', ')}
                                               </Typography>
                                           </Box>
                                       )}
