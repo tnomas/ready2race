@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/** Die Migration V202609071000 hängt Job und Ebene an die drei bestehenden statischen Rollen. */
+/** Die Migration V202609081000 hängt Job und Ebene an die drei bestehenden statischen Rollen. */
 class RoleSchemaTest {
 
     @Test

@@ -23,7 +23,7 @@
   JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./mvnw -o -q test -Ddatabase.url=jdbc:postgresql://localhost:7770/ready2race-build -Dtest=<Klasse> -DfailIfNoSpecifiedTests=false
   ```
   Nach der Migration in Task 1 einmal mit `clean` bauen, damit die jOOQ-Typen die neuen Spalten kennen.
-- Migrationsstempel dieses Plans: `V202609071000`. Kein weiterer in Schritt 1.
+- Migrationsstempel dieses Plans: `V202609081000`. Kein weiterer in Schritt 1.
 - `KIO.fail` innerhalb `comprehension` braucht das `!` (sonst No-Op). `KIO.failOn(cond) { Error }` ebenfalls mit `!`.
 - Die OpenAPI-Yaml `backend/src/main/resources/openapi/documentation.yaml` ist handgepflegt. Nach jeder Yaml-Änderung `npm run generate` in `frontend/` und die erzeugten Dateien `src/api/*.gen.ts` mit committen.
 - Frontend-Prüfung: `npm run build` (tsc) und `npm run test` in `frontend/`.
@@ -35,7 +35,7 @@
 ### Task 1: Migration, Views, Konstanten
 
 **Files:**
-- Create: `backend/src/main/resources/db/migration/V202609071000__role_job_level.sql`
+- Create: `backend/src/main/resources/db/migration/V202609081000__role_job_level.sql`
 - Modify: `backend/src/main/resources/db/migration/afterMigrate.sql` (Views `every_role_with_privileges`, `role_with_privileges`, `every_app_user_with_roles`, `app_user_with_roles`, `app_user_with_privileges`)
 - Modify: `backend/src/main/kotlin/de/lambda9/ready2race/backend/database/static.kt`
 - Test: `backend/src/test/kotlin/de/lambda9/ready2race/backend/app/role/RoleSchemaTest.kt`
@@ -51,7 +51,7 @@ docker run -d --name r2r-rechte-builddb -e POSTGRES_USER=developer -e POSTGRES_P
 
 - [ ] **Step 2: Migration schreiben**
 
-`backend/src/main/resources/db/migration/V202609071000__role_job_level.sql`:
+`backend/src/main/resources/db/migration/V202609081000__role_job_level.sql`:
 
 ```sql
 -- Rollen tragen ab jetzt den Job, aus dem sie stammen, und die Ebene, auf der sie
@@ -161,7 +161,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/** Die Migration V202609071000 hängt Job und Ebene an die drei bestehenden statischen Rollen. */
+/** Die Migration V202609081000 hängt Job und Ebene an die drei bestehenden statischen Rollen. */
 class RoleSchemaTest {
 
     @Test
@@ -192,7 +192,7 @@ Expected: PASS. (Der Testrunner migriert seinen eigenen Testcontainer und ruft `
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/main/resources/db/migration/V202609071000__role_job_level.sql backend/src/main/resources/db/migration/afterMigrate.sql backend/src/main/kotlin/de/lambda9/ready2race/backend/database/static.kt backend/src/test/kotlin/de/lambda9/ready2race/backend/app/role/RoleSchemaTest.kt
+git add backend/src/main/resources/db/migration/V202609081000__role_job_level.sql backend/src/main/resources/db/migration/afterMigrate.sql backend/src/main/kotlin/de/lambda9/ready2race/backend/database/static.kt backend/src/test/kotlin/de/lambda9/ready2race/backend/app/role/RoleSchemaTest.kt
 git commit -m "Rechte: Rollen tragen Job und Ebene, Admin-Durchgriff im View entfällt"
 ```
 
