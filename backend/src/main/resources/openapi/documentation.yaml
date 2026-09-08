@@ -18632,6 +18632,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UpcomingMatchParticipantInfo'
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     UpcomingMatchParticipantInfo:
       type: object
@@ -18781,10 +18786,33 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ParticipantInfo'
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     MaterialCategory:
       type: string
       enum: [BOAT, OTHER]
+
+    MaterialForTeamDto:
+      type: object
+      description: "The effective material item of a team in a match (view effective_material_for_match_team, Task 6.1) - a per-match exception beats the base assignment for the whole competition. Only confirmed BOAT requests reach these displays"
+      required: [label, category, deviatesFromStartNumber]
+      properties:
+        number:
+          type: integer
+          nullable: true
+          description: "the number on the hull - null when the provider maintains none for it"
+        label:
+          type: string
+          maxLength: 20
+        category:
+          $ref: '#/components/schemas/MaterialCategory'
+        deviatesFromStartNumber:
+          type: boolean
+          description: "true when number is missing or differs from the team's start number"
 
     MaterialItemStatus:
       type: string
@@ -19262,6 +19290,11 @@ components:
           format: date-time
           nullable: true
           description: "measured start of THIS boat (competition_match_team.started_at, individual starts in time trials) - only filled when the board has a MATCH_DETAIL element"
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     AthleteBoardMatch:
       type: object
@@ -19417,6 +19450,11 @@ components:
           format: date-time
           nullable: true
           description: "measured start of THIS boat (competition_match_team.started_at, individual starts in time trials) - only filled when the board has a MATCH_DETAIL element"
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     AthleteBoardResult:
       type: object
@@ -19830,6 +19868,11 @@ components:
         deregisteredReason:
           type: string
           nullable: true
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of the own boat in this match; null without a confirmed boat request"
 
     MyEventResultDto:
       type: object
@@ -20489,6 +20532,11 @@ components:
           allOf:
             - $ref: '#/components/schemas/LiveDashboardSequenceEntryDto'
           description: "this boat's slot in the active start sequence of its match (LiveDashboardMatchDto.sequence); null when it is in none"
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     MatchTeamNoteDto:
       type: object
@@ -21250,6 +21298,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UpcomingMatchParticipantInfo'
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match; null without a confirmed boat request"
 
     ProduceInvoicesRequest:
       type: object

@@ -3,6 +3,8 @@ package de.lambda9.ready2race.backend.app.competitionExecution.entity
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.singletonOrFallback
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.substitution.control.toParticipantForExecutionDto
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
 import de.lambda9.ready2race.backend.database.generated.tables.records.StartlistTeamRecord
@@ -45,6 +47,13 @@ data class CompetitionMatchData(
         val ratingCategory: CompetitionMatchTeamRatingCategory?,
         val participants: List<CompetitionMatchParticipant>,
         val deregistered: Boolean,
+        /**
+         * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht
+         * `effective_material_for_match_team`, Task 6.1) - null ohne bestätigte Boots-Anfrage.
+         * Vorgabewert, damit die Vorschau-Beispieldaten in DocumentTemplateService keinen Wert
+         * beistellen müssen.
+         */
+        val material: MaterialForTeamDto? = null,
     )
 
     data class CompetitionMatchTeamRatingCategory(
@@ -133,7 +142,15 @@ data class CompetitionMatchData(
                             id = it.id,
                             name = it.name,
                         )
-                    }
+                    },
+                    material = materialLabel?.let {
+                        MaterialForTeamDto(
+                            number = materialNumber,
+                            label = it,
+                            category = MaterialCategory.valueOf(materialCategory!!),
+                            deviatesFromStartNumber = materialDeviates == true,
+                        )
+                    },
                 )
             )
         }

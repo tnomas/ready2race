@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventRegistrationDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventRequirementDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventTeamMemberDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.app.participantRequirement.control.ParticipantRequirementForEventRepo
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic
@@ -367,6 +368,14 @@ object MyEventService {
             failedReason = first[COMPETITION_MATCH_TEAM.FAILED_REASON],
             deregistered = first.get("deregistered", Boolean::class.java) == true,
             deregisteredReason = first.get("deregistration_reason", String::class.java),
+            material = first.get("material_label", String::class.java)?.let {
+                MaterialForTeamDto(
+                    number = first.get("material_number", Int::class.java),
+                    label = it,
+                    category = MaterialCategory.valueOf(first.get("material_category", String::class.java)!!),
+                    deviatesFromStartNumber = first.get("material_deviates", Boolean::class.java) == true,
+                )
+            },
         )
     }
 

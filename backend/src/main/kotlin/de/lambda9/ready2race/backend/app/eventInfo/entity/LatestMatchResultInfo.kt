@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
 import java.time.LocalDate
@@ -70,4 +71,9 @@ data class MatchResultTeamInfo(
     val participants: List<ParticipantInfo>,
     /** Zwischenzeiten dieses Boots, nachträglich gefüllt (EventInfoService.attachLaps). */
     val laps: List<MatchTeamLapDto> = emptyList(),
+    /**
+     * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht
+     * `effective_material_for_match_team`, Task 6.1) - null ohne bestätigte Boots-Anfrage.
+     */
+    val material: MaterialForTeamDto? = null,
 )

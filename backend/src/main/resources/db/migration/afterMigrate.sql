@@ -32,6 +32,8 @@ drop view if exists participant_tracking_change_view;
 drop view if exists participant_tracking_view;
 drop view if exists startlist_view;
 drop view if exists startlist_team;
+-- Muss nach startlist_team stehen: startlist_team joint sie (Task 6.1).
+drop view if exists effective_material_for_match_team;
 drop view if exists event_invoices_info;
 drop view if exists invoice_download_for_event;
 drop view if exists invoice_download;
@@ -1110,6 +1112,30 @@ select ifer.event,
 from invoice_for_event_registration ifer
 group by ifer.event;
 
+-- Wirksames Materialstück je Lauf-Team: Ausnahme je Lauf schlägt die Grundzuteilung. Nur bestätigte Anfragen,
+-- nur Kategorie BOAT erreicht die Anzeigen (Spec Abschnitt 11); OTHER bleibt Mein Event und Dashboard vorbehalten.
+create view effective_material_for_match_team as
+select cmt.id                                             as competition_match_team,
+       mi.id                                               as material_item,
+       mi.number,
+       mi.label,
+       mt.category,
+       (mi.number is null or mi.number <> cr.team_number) as deviates_from_start_number
+from competition_match_team cmt
+         join competition_registration cr on cr.id = cmt.competition_registration
+         join material_request mr on mr.competition_registration = cr.id and mr.status = 'CONFIRMED'
+         join material_offer mo on mo.id = mr.material_offer
+         join material_type mt on mt.id = mo.material_type and mt.category = 'BOAT'
+         join lateral (
+    select ma.material_item
+    from material_assignment ma
+    where ma.material_request = mr.id
+      and (ma.competition_match = cmt.competition_match or ma.competition_match is null)
+    order by (ma.competition_match is null)     -- Ausnahme (false) vor Grundzuteilung (true)
+    limit 1
+    ) chosen on true
+         join material_item mi on mi.id = chosen.material_item;
+
 create view startlist_team as
 select cmt.competition_match,
        -- Eindeutig pro Team UND Runde, anders als team_id. Traegt den RaceClocker-Round-Trip, siehe
@@ -1126,7 +1152,11 @@ select cmt.competition_match,
               where competition_registration = cr.id
                 and competition_setup_round = csm.competition_setup_round)              as deregistered,
        coalesce(array_agg(distinct rctp) filter (where rctp.team_id is not null), '{}') as participants,
-       coalesce(array_agg(distinct sv) filter (where sv.id is not null), '{}')          as substitutions
+       coalesce(array_agg(distinct sv) filter (where sv.id is not null), '{}')          as substitutions,
+       emf.number                                                                       as material_number,
+       emf.label                                                                        as material_label,
+       emf.category                                                                     as material_category,
+       emf.deviates_from_start_number                                                   as material_deviates
 from competition_match_team cmt
          join competition_registration cr on cmt.competition_registration = cr.id
          join club c on cr.club = c.id
@@ -1135,8 +1165,10 @@ from competition_match_team cmt
          left join registered_competition_team_participant rctp on cmt.competition_registration = rctp.team_id
          left join substitution_view sv on cr.id = sv.competition_registration_id and
                                            csm.competition_setup_round = sv.competition_setup_round_id
+         left join effective_material_for_match_team emf on emf.competition_match_team = cmt.id
 where cmt.out is not true
-group by cmt.id, cmt.competition_match, cmt.start_number, cr.id, cr.name, c.id, c.name, rc.id, csm.id;
+group by cmt.id, cmt.competition_match, cmt.start_number, cr.id, cr.name, c.id, c.name, rc.id, csm.id,
+         emf.number, emf.label, emf.category, emf.deviates_from_start_number;
 
 create view startlist_view as
 select csm.id,

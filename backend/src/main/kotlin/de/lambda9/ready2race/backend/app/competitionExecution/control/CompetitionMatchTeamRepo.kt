@@ -32,6 +32,12 @@ object CompetitionMatchTeamRepo {
     const val RATING_CATEGORY_NAME = "rating_category_name"
     const val RATING_CATEGORY_SORT_ORDER = "rating_category_sort_order"
 
+    /** Spaltennamen des wirksamen Materialstücks (Task 6.1), aus `effective_material_for_match_team`. */
+    const val MATERIAL_NUMBER = "material_number"
+    const val MATERIAL_LABEL = "material_label"
+    const val MATERIAL_CATEGORY = "material_category"
+    const val MATERIAL_DEVIATES = "material_deviates"
+
     fun get(matchIds: List<UUID>): JIO<List<CompetitionMatchTeamRecord>> = Jooq.query {
         with(COMPETITION_MATCH_TEAM) {
             selectFrom(this)
@@ -107,7 +113,13 @@ object CompetitionMatchTeamRepo {
                 EVENT_RATING_CATEGORY.SORT_ORDER.`as`(RATING_CATEGORY_SORT_ORDER),
                 TIMECODE.TIME,
                 TIMECODE.BASE_UNIT,
-                TIMECODE.MILLISECOND_PRECISION
+                TIMECODE.MILLISECOND_PRECISION,
+                // Wirksames Materialstück dieses Lauf-Teams (Task 6.1) - eine Zeile je
+                // competition_match_team, der Join fächert also nicht weiter auf.
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.NUMBER.`as`(MATERIAL_NUMBER),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.LABEL.`as`(MATERIAL_LABEL),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.CATEGORY.`as`(MATERIAL_CATEGORY),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.DEVIATES_FROM_START_NUMBER.`as`(MATERIAL_DEVIATES),
             )
                 .from(COMPETITION_MATCH_TEAM)
                 .join(COMPETITION_SETUP_MATCH)
@@ -137,6 +149,8 @@ object CompetitionMatchTeamRepo {
                         .and(EVENT_RATING_CATEGORY.RATING_CATEGORY.eq(RATING_CATEGORY.ID))
                 )
                 .leftJoin(TIMECODE).on(COMPETITION_MATCH_TEAM.TIMECODE.eq(TIMECODE.ID))
+                .leftJoin(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+                .on(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.eq(COMPETITION_MATCH_TEAM.ID))
                 .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
                 .and(COMPETITION_MATCH_TEAM.OUT.isTrue.not())
                 .orderBy(
@@ -174,7 +188,11 @@ object CompetitionMatchTeamRepo {
                 // stand ein abgemeldetes Boot dort bis zum 14.08.2026 wie jedes andere in der
                 // Aufstellung, und am Steg war nicht zu erkennen, dass es nicht kommt.
                 COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.isNotNull.`as`("deregistered"),
-                COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason")
+                COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason"),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.NUMBER.`as`(MATERIAL_NUMBER),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.LABEL.`as`(MATERIAL_LABEL),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.CATEGORY.`as`(MATERIAL_CATEGORY),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.DEVIATES_FROM_START_NUMBER.`as`(MATERIAL_DEVIATES),
             )
                 .from(COMPETITION_MATCH_TEAM)
                 .join(COMPETITION_SETUP_MATCH)
@@ -195,6 +213,8 @@ object CompetitionMatchTeamRepo {
                 )
                 .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
                 .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
+                .leftJoin(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+                .on(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.eq(COMPETITION_MATCH_TEAM.ID))
                 .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
                 .orderBy(
                     COMPETITION_MATCH_TEAM.START_NUMBER.asc().nullsLast(),
@@ -243,7 +263,11 @@ object CompetitionMatchTeamRepo {
                 COMPETITION_DEREGISTRATION.REASON.`as`("deregistration_reason"),
                 TIMECODE.TIME,
                 TIMECODE.BASE_UNIT,
-                TIMECODE.MILLISECOND_PRECISION
+                TIMECODE.MILLISECOND_PRECISION,
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.NUMBER.`as`(MATERIAL_NUMBER),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.LABEL.`as`(MATERIAL_LABEL),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.CATEGORY.`as`(MATERIAL_CATEGORY),
+                EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.DEVIATES_FROM_START_NUMBER.`as`(MATERIAL_DEVIATES),
             )
                 .from(COMPETITION_MATCH_TEAM)
                 .join(COMPETITION_SETUP_MATCH)
@@ -265,6 +289,8 @@ object CompetitionMatchTeamRepo {
                 .leftJoin(EVENT_REGISTRATION).on(EVENT_REGISTRATION.ID.eq(COMPETITION_REGISTRATION.EVENT_REGISTRATION))
                 .leftJoin(EVENT).on(EVENT_REGISTRATION.EVENT.eq(EVENT.ID))
                 .leftJoin(TIMECODE).on(COMPETITION_MATCH_TEAM.TIMECODE.eq(TIMECODE.ID))
+                .leftJoin(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+                .on(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.eq(COMPETITION_MATCH_TEAM.ID))
                 .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(matchId))
                 .orderBy(
                     COMPETITION_MATCH_TEAM.START_NUMBER.asc().nullsLast(),

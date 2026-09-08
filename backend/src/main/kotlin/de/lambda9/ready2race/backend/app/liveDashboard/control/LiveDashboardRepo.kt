@@ -104,6 +104,12 @@ object LiveDashboardRepo {
             RATING_CATEGORY.ID.`as`(CompetitionMatchTeamRepo.RATING_CATEGORY_ID),
             RATING_CATEGORY.NAME.`as`(CompetitionMatchTeamRepo.RATING_CATEGORY_NAME),
             EVENT_RATING_CATEGORY.SORT_ORDER.`as`(CompetitionMatchTeamRepo.RATING_CATEGORY_SORT_ORDER),
+            // Wirksames Materialstück dieses Lauf-Teams (Task 6.1) - eine Zeile je
+            // competition_match_team, der Join fächert also nicht weiter auf.
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.NUMBER.`as`("material_number"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.LABEL.`as`("material_label"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.CATEGORY.`as`("material_category"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.DEVIATES_FROM_START_NUMBER.`as`("material_deviates"),
         )
             .from(COMPETITION_MATCH_TEAM)
             .join(COMPETITION_SETUP_MATCH)
@@ -136,6 +142,8 @@ object LiveDashboardRepo {
                 EVENT_RATING_CATEGORY.EVENT.eq(COMPETITION.EVENT)
                     .and(EVENT_RATING_CATEGORY.RATING_CATEGORY.eq(RATING_CATEGORY.ID))
             )
+            .leftJoin(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+            .on(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.eq(COMPETITION_MATCH_TEAM.ID))
             .where(COMPETITION.EVENT.eq(eventId))
             .and(COMPETITION_MATCH_TEAM.OUT.isTrue.not())
             .and(matchId?.let { COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(it) } ?: DSL.noCondition())

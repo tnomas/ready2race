@@ -14,6 +14,8 @@ import de.lambda9.ready2race.backend.app.eventInfo.control.toLiveMatchInfo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
 import de.lambda9.ready2race.backend.app.eventSchedule.boundary.EventScheduleLogic
 import de.lambda9.ready2race.backend.app.eventSchedule.control.EventScheduleRepo
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.paceReference.control.PaceReferenceRepo
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.boundary.RatingCategoryRanking
@@ -599,7 +601,8 @@ object EventInfoService {
                                 externalClubName = record[PARTICIPANT.EXTERNAL_CLUB_NAME]
                             )
                         }
-                    }
+                    },
+                    material = materialForTeam(first),
                 )
             }
 
@@ -618,6 +621,21 @@ object EventInfoService {
                 name = record.get(CompetitionMatchTeamRepo.RATING_CATEGORY_NAME, String::class.java) ?: "",
                 sortOrder = record.get(CompetitionMatchTeamRepo.RATING_CATEGORY_SORT_ORDER, Int::class.java)
                     ?: RatingCategoryRef.UNCONFIGURED_SORT_ORDER,
+            )
+        }
+
+    /**
+     * Das wirksame Materialstück eines Teams (Task 6.1) aus den drei Anzeige-Abfragen in
+     * [CompetitionMatchTeamRepo] - null, solange der Left-Join der Sicht
+     * `effective_material_for_match_team` keine Zeile findet (keine bestätigte Boots-Anfrage).
+     */
+    private fun materialForTeam(record: Record): MaterialForTeamDto? =
+        record.get(CompetitionMatchTeamRepo.MATERIAL_LABEL, String::class.java)?.let { label ->
+            MaterialForTeamDto(
+                number = record.get(CompetitionMatchTeamRepo.MATERIAL_NUMBER, Int::class.java),
+                label = label,
+                category = MaterialCategory.valueOf(record.get(CompetitionMatchTeamRepo.MATERIAL_CATEGORY, String::class.java)!!),
+                deviatesFromStartNumber = record.get(CompetitionMatchTeamRepo.MATERIAL_DEVIATES, Boolean::class.java) == true,
             )
         }
 
@@ -677,7 +695,8 @@ object EventInfoService {
                                 ),
                             )
                         }
-                    }
+                    },
+                    material = materialForTeam(first),
                 )
             }
 
@@ -731,7 +750,8 @@ object EventInfoService {
                                 ),
                             )
                         }
-                    }
+                    },
+                    material = materialForTeam(first),
                 )
             }
 

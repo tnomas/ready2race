@@ -12,6 +12,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.COMPET
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION_NAMED_PARTICIPANT
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_ROUND
+import de.lambda9.ready2race.backend.database.generated.tables.references.EFFECTIVE_MATERIAL_FOR_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_OFFER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_PROVIDER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
@@ -138,6 +139,12 @@ object MyEventRepo {
             NAMED_PARTICIPANT.NAME.`as`("named_role"),
             TIMECODE.TIME,
             TIMECODE.BASE_UNIT,
+            // Wirksames Materialstück des eigenen Bootes in diesem Lauf (Task 6.1) - eine Zeile
+            // je competition_match_team, der Join fächert also nicht weiter auf.
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.NUMBER.`as`("material_number"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.LABEL.`as`("material_label"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.CATEGORY.`as`("material_category"),
+            EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.DEVIATES_FROM_START_NUMBER.`as`("material_deviates"),
         )
             .from(COMPETITION_MATCH)
             .join(COMPETITION_SETUP_MATCH)
@@ -164,6 +171,8 @@ object MyEventRepo {
             .leftJoin(PARTICIPANT).on(PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.PARTICIPANT))
             .leftJoin(NAMED_PARTICIPANT)
             .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
+            .leftJoin(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+            .on(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.eq(COMPETITION_MATCH_TEAM.ID))
             .where(COMPETITION.EVENT.eq(eventId))
             .and(DSL.or(ownRegistration(participantId), substitutedInForRound(participantId)))
             .orderBy(

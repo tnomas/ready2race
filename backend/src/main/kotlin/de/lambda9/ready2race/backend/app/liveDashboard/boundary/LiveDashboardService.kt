@@ -20,6 +20,8 @@ import de.lambda9.ready2race.backend.app.liveDashboard.control.CheckSeverityRepo
 import de.lambda9.ready2race.backend.app.liveDashboard.control.LiveDashboardRepo
 import de.lambda9.ready2race.backend.app.liveDashboard.control.MatchTeamNoteRepo
 import de.lambda9.ready2race.backend.app.liveDashboard.entity.*
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchByeService
 import de.lambda9.ready2race.backend.app.participantTracking.control.ParticipantTrackingRepo
 import de.lambda9.ready2race.backend.app.substitution.control.SubstitutionRepo
@@ -251,6 +253,14 @@ object LiveDashboardService {
                         substituted = participants.any { it.substitutedFor != null },
                         inArenaAt = inArenaAt,
                         sequenceEntry = matchSequence?.entriesByMatchTeam?.get(matchTeamId),
+                        material = first.get("material_label", String::class.java)?.let {
+                            MaterialForTeamDto(
+                                number = first.get("material_number", Int::class.java),
+                                label = it,
+                                category = MaterialCategory.valueOf(first.get("material_category", String::class.java)!!),
+                                deviatesFromStartNumber = first.get("material_deviates", Boolean::class.java) == true,
+                            )
+                        },
                     )
                 )
             }

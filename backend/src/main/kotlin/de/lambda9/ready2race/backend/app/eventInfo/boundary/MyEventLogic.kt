@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventMatchDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventRequirementScopeDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventResultDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.MyEventTeamMemberDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.RequirementScopeLogic
 import java.time.Duration
 import java.time.LocalDateTime
@@ -66,6 +67,7 @@ object MyEventLogic {
         val failedReason: String?,
         val deregistered: Boolean,
         val deregisteredReason: String?,
+        val material: MaterialForTeamDto? = null,
     )
 
     data class Split(
@@ -160,6 +162,7 @@ object MyEventLogic {
         teamMembers = teamMembers,
         deregistered = deregistered,
         deregisteredReason = deregisteredReason,
+        material = material,
     )
 
     private fun RawMatch.toResultDto() = MyEventResultDto(

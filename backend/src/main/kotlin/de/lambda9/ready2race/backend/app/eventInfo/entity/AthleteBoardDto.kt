@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
@@ -137,6 +138,11 @@ data class AthleteBoardTeam(
      * bleibt die Poll-Nutzlast aller anderen Boards unverändert.
      */
     val startedAt: LocalDateTime? = null,
+    /**
+     * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht
+     * `effective_material_for_match_team`, Task 6.1) - null ohne bestätigte Boots-Anfrage.
+     */
+    val material: MaterialForTeamDto? = null,
 )
 
 data class AthleteBoardParticipant(
@@ -237,4 +243,6 @@ data class AthleteBoardResultTeam(
     val registeringClub: String? = null,
     /** Wie bei [AthleteBoardTeam.startedAt]: der gemessene Boot-Start, nur für die Sprecher-Kachel. */
     val startedAt: LocalDateTime? = null,
+    /** Wie bei [AthleteBoardTeam.material]: das wirksame Materialstück dieses Teams in diesem Lauf. */
+    val material: MaterialForTeamDto? = null,
 )

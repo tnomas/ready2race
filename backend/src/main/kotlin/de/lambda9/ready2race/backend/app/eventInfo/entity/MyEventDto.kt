@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo.entity
 
 import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import java.time.LocalDateTime
 import java.util.UUID
@@ -51,6 +52,11 @@ data class MyEventMatchDto(
      */
     val deregistered: Boolean,
     val deregisteredReason: String?,
+    /**
+     * Das wirksame Materialstück des eigenen Bootes in diesem Lauf (Sicht
+     * `effective_material_for_match_team`, Task 6.1) - null ohne bestätigte Boots-Anfrage.
+     */
+    val material: MaterialForTeamDto? = null,
 )
 
 data class MyEventTeamMemberDto(

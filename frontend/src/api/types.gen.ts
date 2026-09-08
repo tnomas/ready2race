@@ -323,6 +323,10 @@ export type AthleteBoardResultTeam = {
      * measured start of THIS boat (competition_match_team.started_at, individual starts in time trials) - only filled when the board has a MATCH_DETAIL element
      */
     startedAt?: string | null
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type AthleteBoardStartState = 'UNSCHEDULED' | 'COUNTDOWN' | 'SCHEDULED' | 'OVERDUE'
@@ -378,6 +382,10 @@ export type AthleteBoardTeam = {
      * measured start of THIS boat (competition_match_team.started_at, individual starts in time trials) - only filled when the board has a MATCH_DETAIL element
      */
     startedAt?: string | null
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type AwardCeremonyAthlete = {
@@ -2725,6 +2733,10 @@ export type LiveDashboardTeamDto = {
      * this boat's slot in the active start sequence of its match (LiveDashboardMatchDto.sequence); null when it is in none
      */
     sequenceEntry?: LiveDashboardSequenceEntryDto | null
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 /**
@@ -2901,6 +2913,10 @@ export type MatchResultTeamInfo = {
     deregistered: boolean
     deregisteredReason?: string
     participants: Array<ParticipantInfo>
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type MatchResultType = 'DISTANCE'
@@ -3096,6 +3112,22 @@ export type MaterialDemandDto = {
 export type MaterialDemandRequestDto = {
     materialType: string
     count: number
+}
+
+/**
+ * The effective material item of a team in a match (view effective_material_for_match_team, Task 6.1) - a per-match exception beats the base assignment for the whole competition. Only confirmed BOAT requests reach these displays
+ */
+export type MaterialForTeamDto = {
+    /**
+     * the number on the hull - null when the provider maintains none for it
+     */
+    number?: number | null
+    label: string
+    category: MaterialCategory
+    /**
+     * true when number is missing or differs from the team's start number
+     */
+    deviatesFromStartNumber: boolean
 }
 
 export type MaterialItemDto = {
@@ -3324,6 +3356,10 @@ export type MyEventMatchDto = {
      */
     deregistered: boolean
     deregisteredReason?: string | null
+    /**
+     * the effective material item of the own boat in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 /**
@@ -4382,6 +4418,10 @@ export type RunningMatchTeamInfo = {
     failed: boolean
     failedReason?: string | null
     participants: Array<UpcomingMatchParticipantInfo>
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type ScheduleImportResultDto = {
@@ -5584,6 +5624,10 @@ export type UpcomingMatchTeamInfo = {
      */
     clubsFull?: string | null
     participants: Array<UpcomingMatchParticipantInfo>
+    /**
+     * the effective material item of this team in this match; null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type UpdateAppUserRequest = {

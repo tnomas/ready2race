@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.liveDashboard.entity
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.MatchTeamLapDto
 import de.lambda9.ready2race.backend.app.event.entity.ChainProgressionMode
 import de.lambda9.ready2race.backend.app.event.entity.EventNoticeDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchByeDto
 import de.lambda9.ready2race.backend.app.ratingcategory.entity.RatingCategoryRef
 import java.time.LocalDateTime
@@ -189,6 +190,11 @@ data class LiveDashboardTeamDto(
      * damit je Boot der geplante Start in der Zeile; beim Wellenstart teilen alle denselben.
      */
     val sequenceEntry: LiveDashboardSequenceEntryDto? = null,
+    /**
+     * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht
+     * `effective_material_for_match_team`, Task 6.1) - null ohne bestätigte Boots-Anfrage.
+     */
+    val material: MaterialForTeamDto? = null,
 )
 
 /** Was der Detail-Dialog zusätzlich braucht; wird einzeln je Mannschaft geladen. */

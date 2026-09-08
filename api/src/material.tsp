@@ -28,6 +28,17 @@ enum MaterialCapacityLevel {
   YELLOW,
 }
 
+// Wirksames Materialstück eines Lauf-Teams (Sicht effective_material_for_match_team, Task 6.1) -
+// eine Ausnahme je Lauf schlägt die Grundzuteilung. Nur bestätigte BOAT-Anfragen erreichen die
+// Team-DTOs der Anzeigen (LiveDashboardTeamDto, UpcomingMatchTeamInfo, RunningMatchTeamInfo,
+// MatchResultTeamInfo, AthleteBoardTeam, AthleteBoardResultTeam, MyEventMatchDto).
+model MaterialForTeamDto {
+  number?: int32;
+  label: string;
+  category: MaterialCategory;
+  deviatesFromStartNumber: boolean;
+}
+
 model MaterialProviderDto {
   id: uuid;
   name: string;

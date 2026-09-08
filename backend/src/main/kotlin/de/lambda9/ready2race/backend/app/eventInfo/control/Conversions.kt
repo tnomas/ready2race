@@ -141,6 +141,7 @@ fun RunningMatchTeamInfo.toAthleteBoardTeam(
     deregistered = deregistered,
     deregisteredReason = deregistrationReason,
     laps = laps,
+    material = material,
 )
 
 fun UpcomingMatchTeamInfo.toAthleteBoardTeam(
@@ -158,6 +159,7 @@ fun UpcomingMatchTeamInfo.toAthleteBoardTeam(
     participants = participants.map {
         it.toAthleteBoardParticipant(includeDetails, requirements[it.participantId] ?: emptyList())
     },
+    material = material,
 )
 
 fun RunningMatchInfo.toAthleteBoardMatch(
@@ -270,6 +272,7 @@ fun LatestMatchResultInfo.toAthleteBoardResult(
             participants = it.participants.map { p ->
                 p.toAthleteBoardParticipant(includeDetails, requirements[p.participantId] ?: emptyList())
             },
+            material = it.material,
         )
     },
     paceReference = paceReference,
@@ -309,6 +312,7 @@ fun UpcomingMatchTeamInfo.toRunningMatchTeamInfo() = RunningMatchTeamInfo(
     deregistered = deregistered,
     deregistrationReason = deregistrationReason,
     participants = participants,
+    material = material,
 )
 
 /**
