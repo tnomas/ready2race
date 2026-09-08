@@ -15,6 +15,8 @@ sealed interface CompetitionPropertiesError : ServiceError {
 
     data class FeesUnknown(val fees: List<UUID>) : CompetitionPropertiesError
 
+    data class MaterialTypesUnknown(val materialTypes: List<UUID>) : CompetitionPropertiesError
+
     override fun respond(): ApiError = when (this) {
         CompetitionCategoryUnknown -> ApiError(
             status = HttpStatusCode.BadRequest,
@@ -41,6 +43,12 @@ sealed interface CompetitionPropertiesError : ServiceError {
             status = HttpStatusCode.BadRequest,
             message = "${"referenced fee".count(fees.size)} unknown",
             details = mapOf("unknownIds" to fees)
+        )
+
+        is MaterialTypesUnknown -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "${"referenced materialType".count(materialTypes.size)} unknown",
+            details = mapOf("unknownIds" to materialTypes)
         )
     }
 }

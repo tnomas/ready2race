@@ -56,6 +56,7 @@ object CompetitionTemplateService {
         !CompetitionPropertiesService.addCompetitionPropertiesReferences(
             namedParticipants = request.namedParticipants.map { it.toRecord(competitionPropertiesId) },
             fees = request.fees.map { it.toRecord(competitionPropertiesId) },
+            materialTypes = request.materialTypes.map { it.toRecord(competitionPropertiesId) },
             challengeConfig = null
         )
 
@@ -118,6 +119,7 @@ object CompetitionTemplateService {
             competitionPropertiesId = competitionPropertiesId,
             namedParticipants = request.namedParticipants.map { it.toRecord(competitionPropertiesId) },
             fees = request.fees.map { it.toRecord(competitionPropertiesId) },
+            materialTypes = request.materialTypes.map { it.toRecord(competitionPropertiesId) },
             challengeConfig = null,
         )
 

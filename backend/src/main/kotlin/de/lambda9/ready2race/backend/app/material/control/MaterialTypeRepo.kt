@@ -15,6 +15,7 @@ import de.lambda9.ready2race.backend.database.update
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
+import org.jooq.impl.DSL
 import java.util.UUID
 
 object MaterialTypeRepo {
@@ -33,6 +34,15 @@ object MaterialTypeRepo {
     fun existsByName(name: String, excludingId: UUID? = null) = MATERIAL_TYPE.exists {
         NAME.eq(name).let { cond ->
             excludingId?.let { cond.and(ID.ne(it)) } ?: cond
+        }
+    }
+
+    // Für die Existenzprüfung des Bedarfs am Wettkampf - dasselbe Muster wie FeeRepo.getIfExist.
+    fun getIfExist(ids: List<UUID>): JIO<List<MaterialTypeRecord>> = Jooq.query {
+        with(MATERIAL_TYPE) {
+            selectFrom(this)
+                .where(DSL.or(ids.map { ID.eq(it) }))
+                .fetch()
         }
     }
 

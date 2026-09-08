@@ -1,16 +1,23 @@
 package de.lambda9.ready2race.backend.app.material.boundary
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
+import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialItemRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialOfferRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialTypeRepo
 import de.lambda9.ready2race.backend.app.material.control.toDto
 import de.lambda9.ready2race.backend.app.material.control.toRecord
+import de.lambda9.ready2race.backend.app.material.entity.EventMaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderEventDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeDto
@@ -20,6 +27,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
+import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.core.KIO
@@ -224,6 +232,151 @@ object MaterialService {
         val deleted = !MaterialItemRepo.delete(itemId).orDie()
         if (deleted < 1) {
             KIO.fail(MaterialError.ItemNotFound)
+        } else {
+            noData
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // Einladung je Veranstaltung
+    // -------------------------------------------------------------------
+
+    private fun checkEventExisting(eventId: UUID): App<MaterialError, Unit> =
+        EventRepo.exists(eventId).orDie().onFalseFail { MaterialError.EventNotFound }
+
+    /** Einladen ist idempotent - ein zweites Mal einladen ändert nichts. */
+    fun inviteProvider(
+        eventId: UUID,
+        providerId: UUID,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !checkEventExisting(eventId)
+
+        val alreadyInvited = !EventHasMaterialProviderRepo.exists(eventId, providerId).orDie()
+        if (!alreadyInvited) {
+            val now = LocalDateTime.now()
+            !EventHasMaterialProviderRepo.create(
+                EventHasMaterialProviderRecord(
+                    event = eventId,
+                    materialProvider = providerId,
+                    requestsClosed = false,
+                    createdAt = now,
+                    createdBy = userId,
+                    updatedAt = now,
+                    updatedBy = userId,
+                )
+            ).orDie()
+        }
+        noData
+    }
+
+    /**
+     * Löscht die Einladung, die Angebote fallen per Kaskade. Bestehende Anfragen sind fachliche
+     * Daten, keine reine Referenz - die werden geschützt statt stillschweigend mitgelöscht.
+     */
+    fun uninviteProvider(
+        eventId: UUID,
+        providerId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        val hasRequests = !EventHasMaterialProviderRepo.hasRequests(eventId, providerId).orDie()
+        !KIO.failOn(hasRequests) { MaterialError.ProviderInUse }
+
+        !EventHasMaterialProviderRepo.delete(eventId, providerId).orDie()
+        noData
+    }
+
+    fun getEventProviders(
+        eventId: UUID,
+    ): App<MaterialError, ApiResponse.ListDto<EventMaterialProviderDto>> = KIO.comprehension {
+        !checkEventExisting(eventId)
+        EventHasMaterialProviderRepo.listForEvent(eventId).orDie().map { ApiResponse.ListDto(it) }
+    }
+
+    fun getProviderEvents(
+        providerId: UUID,
+    ): App<Nothing, ApiResponse.ListDto<MaterialProviderEventDto>> = KIO.comprehension {
+        EventHasMaterialProviderRepo.listForProvider(providerId).orDie().map { ApiResponse.ListDto(it) }
+    }
+
+    fun setRequestsClosed(
+        eventId: UUID,
+        providerId: UUID,
+        closed: Boolean,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !EventHasMaterialProviderRepo.update(eventId, providerId) {
+            requestsClosed = closed
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { MaterialError.NotInvited }
+        noData
+    }
+
+    // -------------------------------------------------------------------
+    // Angebote
+    // -------------------------------------------------------------------
+
+    fun listOffers(
+        eventId: UUID,
+        providerId: UUID,
+    ): App<MaterialError, ApiResponse.ListDto<MaterialOfferDto>> = KIO.comprehension {
+        MaterialOfferRepo.listForEventAndProvider(eventId, providerId).orDie().map { ApiResponse.ListDto(it) }
+    }
+
+    fun addOffer(
+        eventId: UUID,
+        providerId: UUID,
+        request: MaterialOfferRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.Created> = KIO.comprehension {
+        val invited = !EventHasMaterialProviderRepo.exists(eventId, providerId).orDie()
+        !KIO.failOn(!invited) { MaterialError.NotInvited }
+
+        val typeTaken = !MaterialOfferRepo.existsByType(eventId, providerId, request.materialType).orDie()
+        !KIO.failOn(typeTaken) { MaterialError.OfferTypeTaken }
+
+        val record = !request.toRecord(eventId, providerId, userId)
+        MaterialOfferRepo.create(record).orDie().createdResponse()
+    }
+
+    fun updateOffer(
+        eventId: UUID,
+        providerId: UUID,
+        offerId: UUID,
+        request: MaterialOfferRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        val offer = !MaterialOfferRepo.get(offerId).orDie().onNullFail { MaterialError.OfferNotFound }
+        !KIO.ok(offer.event == eventId && offer.materialProvider == providerId).onFalseFail { MaterialError.OfferNotFound }
+
+        val typeTaken = !MaterialOfferRepo.existsByType(eventId, providerId, request.materialType, excludingId = offerId).orDie()
+        !KIO.failOn(typeTaken) { MaterialError.OfferTypeTaken }
+
+        !MaterialOfferRepo.update(offerId) {
+            materialType = request.materialType
+            priceText = request.priceText
+            plannedCount = request.plannedCount
+            changeoverMinutes = request.changeoverMinutes
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { MaterialError.OfferNotFound }
+        noData
+    }
+
+    fun deleteOffer(
+        eventId: UUID,
+        providerId: UUID,
+        offerId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        val offer = !MaterialOfferRepo.get(offerId).orDie().onNullFail { MaterialError.OfferNotFound }
+        !KIO.ok(offer.event == eventId && offer.materialProvider == providerId).onFalseFail { MaterialError.OfferNotFound }
+
+        val hasRequests = !MaterialOfferRepo.hasRequests(offerId).orDie()
+        !KIO.failOn(hasRequests) { MaterialError.OfferInUse }
+
+        val deleted = !MaterialOfferRepo.delete(offerId).orDie()
+        if (deleted < 1) {
+            KIO.fail(MaterialError.OfferNotFound)
         } else {
             noData
         }

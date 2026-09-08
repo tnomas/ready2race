@@ -27,6 +27,10 @@ fun CompetitionViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comprehens
         it!!.toDto()
     }.orDie()
 
+    val materialDemandDtos = !materialDemands!!.toList().traverse {
+        it!!.toDto()
+    }.orDie()
+
     KIO.ok(
         CompetitionDto(
             id = id!!,
@@ -46,6 +50,7 @@ fun CompetitionViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comprehens
                 } else null,
                 namedParticipants = namedParticipantDtos,
                 fees = feeDtos,
+                materialTypes = materialDemandDtos,
                 lateRegistrationAllowed = lateRegistrationAllowed!!,
                 challengeConfig = challengeResultConfirmationImageRequired?.let {
                     CompetitionChallengeConfigDto(
@@ -79,6 +84,10 @@ fun CompetitionForClubViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.com
         it!!.toDto()
     }.orDie()
 
+    val materialDemandDtos = !materialDemands!!.toList().traverse {
+        it!!.toDto()
+    }.orDie()
+
     KIO.ok(
         CompetitionDto(
             id = id!!,
@@ -98,6 +107,7 @@ fun CompetitionForClubViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.com
                 } else null,
                 namedParticipants = namedParticipantDtos,
                 fees = feeDtos,
+                materialTypes = materialDemandDtos,
                 lateRegistrationAllowed = lateRegistrationAllowed!!,
                 challengeConfig = challengeResultConfirmationImageRequired?.let {
                     CompetitionChallengeConfigDto(
@@ -131,6 +141,10 @@ fun CompetitionPublicViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comp
         it!!.toDto()
     }.orDie()
 
+    val materialDemandDtos = !materialDemands!!.toList().traverse {
+        it!!.toDto()
+    }.orDie()
+
     KIO.ok(
         CompetitionDto(
             id = id!!,
@@ -150,6 +164,7 @@ fun CompetitionPublicViewRecord.toDto(): App<Nothing, CompetitionDto> = KIO.comp
                 } else null,
                 namedParticipants = namedParticipantDtos,
                 fees = feeDtos,
+                materialTypes = materialDemandDtos,
                 lateRegistrationAllowed = lateRegistrationAllowed!!,
                 challengeConfig = challengeResultConfirmationImageRequired?.let {
                     CompetitionChallengeConfigDto(

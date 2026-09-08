@@ -5,12 +5,14 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemViewRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialOfferRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialProviderRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialTypeRecord
 import de.lambda9.tailwind.core.KIO
@@ -101,4 +103,22 @@ fun MaterialItemViewRecord.toDto(): App<Nothing, MaterialItemDto> = KIO.ok(
         status = MaterialItemStatus.valueOf(status!!),
         openDamages = openDamages!!,
     )
+)
+
+fun MaterialOfferRequest.toRecord(eventId: UUID, providerId: UUID, userId: UUID): App<Nothing, MaterialOfferRecord> = KIO.ok(
+    LocalDateTime.now().let { now ->
+        MaterialOfferRecord(
+            id = UUID.randomUUID(),
+            event = eventId,
+            materialProvider = providerId,
+            materialType = materialType,
+            priceText = priceText,
+            plannedCount = plannedCount,
+            changeoverMinutes = changeoverMinutes,
+            createdAt = now,
+            createdBy = userId,
+            updatedAt = now,
+            updatedBy = userId,
+        )
+    }
 )

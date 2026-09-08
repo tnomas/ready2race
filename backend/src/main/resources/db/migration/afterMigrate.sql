@@ -66,6 +66,7 @@ drop view if exists competition_template_view;
 drop view if exists competition_public_view;
 drop view if exists competition_for_club_view;
 drop view if exists competition_view;
+drop view if exists material_demand_for_competition_properties;
 drop view if exists fee_for_competition;
 drop view if exists fee_for_competition_properties;
 drop view if exists named_participant_for_competition_properties;
@@ -205,6 +206,18 @@ from competition_properties_has_fee cphf
          join fee f on cphf.fee = f.id
          join competition_properties cp on cphf.competition_properties = cp.id;
 
+-- Bedarf je Wettkampf (oder Vorlage), aufgelöst wie fee_for_competition_properties - dieselbe
+-- Rolle für competition_properties_has_material_type wie fee_for_competition_properties für
+-- competition_properties_has_fee.
+create view material_demand_for_competition_properties as
+select cphmt.competition_properties,
+       cphmt.material_type,
+       mt.name,
+       mt.category,
+       cphmt.count
+from competition_properties_has_material_type cphmt
+         join material_type mt on mt.id = cphmt.material_type;
+
 create view competition_view as
 select c.id,
        c.event,
@@ -229,6 +242,7 @@ select c.id,
        pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
+       coalesce(ms.material_demands, '{}')                                       as material_demands,
        count(distinct cr.id)                                                     as registrations_count,
        coalesce(array_agg(distinct ed) filter ( where ed.id is not null), '{}')  as event_days,
        cpcc.result_confirmation_image_required                                   as challenge_result_confirmation_image_required,
@@ -255,6 +269,11 @@ from competition c
                            filter (where ffcp.competition_properties is not null ) as fees
                     from fee_for_competition_properties ffcp
                     group by ffcp.competition_properties) fs on cp.id = fs.competition_properties
+         left join (select mdfcp.competition_properties,
+                           array_agg(mdfcp)
+                           filter (where mdfcp.competition_properties is not null ) as material_demands
+                    from material_demand_for_competition_properties mdfcp
+                    group by mdfcp.competition_properties) ms on cp.id = ms.competition_properties
          left join competition_registration cr on c.id = cr.competition
          left join event_day_has_competition edhc on c.id = edhc.competition
          left join event_day ed on edhc.event_day = ed.id
@@ -262,7 +281,8 @@ from competition c
 group by c.id, c.event, cp.id, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
          cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
          pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
-         fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required
+         fs.fees, ms.material_demands, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at,
+         cp.rating_category_required
 ;
 
 create view competition_for_club_view as
@@ -288,6 +308,7 @@ select c.id,
        pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
+       coalesce(ms.material_demands, '{}')                                       as material_demands,
        count(distinct cr.id)                                                     as registrations_count,
        cb.id                                                                     as club,
        cpcc.result_confirmation_image_required                                   as challenge_result_confirmation_image_required,
@@ -314,14 +335,19 @@ from competition c
                            filter (where ffcp.competition_properties is not null ) as fees
                     from fee_for_competition_properties ffcp
                     group by ffcp.competition_properties) fs on cp.id = fs.competition_properties
+         left join (select mdfcp.competition_properties,
+                           array_agg(mdfcp)
+                           filter (where mdfcp.competition_properties is not null ) as material_demands
+                    from material_demand_for_competition_properties mdfcp
+                    group by mdfcp.competition_properties) ms on cp.id = ms.competition_properties
          cross join club cb
          left join competition_registration cr on c.id = cr.competition and cb.id = cr.club
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
          cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
          pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
-         fs.fees, cb.id, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at,
-         cp.rating_category_required;
+         fs.fees, ms.material_demands, cb.id, cpcc.result_confirmation_image_required, cpcc.start_at,
+         cpcc.end_at, cp.rating_category_required;
 
 create view competition_public_view as
 select c.id,
@@ -346,6 +372,7 @@ select c.id,
        pr.reference_meters                                                       as pace_reference_meters,
        coalesce(nps.named_participants, '{}')                                    as named_participants,
        coalesce(fs.fees, '{}')                                                   as fees,
+       coalesce(ms.material_demands, '{}')                                       as material_demands,
        cpcc.result_confirmation_image_required                                   as challenge_result_confirmation_image_required,
        cpcc.start_at                                                             as challenge_start_at,
        cpcc.end_at                                                               as challenge_end_at,
@@ -371,12 +398,18 @@ from competition c
                            filter (where ffcp.competition_properties is not null ) as fees
                     from fee_for_competition_properties ffcp
                     group by ffcp.competition_properties) fs on cp.id = fs.competition_properties
+         left join (select mdfcp.competition_properties,
+                           array_agg(mdfcp)
+                           filter (where mdfcp.competition_properties is not null ) as material_demands
+                    from material_demand_for_competition_properties mdfcp
+                    group by mdfcp.competition_properties) ms on cp.id = ms.competition_properties
          left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
 where e.published is true
 group by c.id, c.event, cp.identifier, cp.name, cp.short_name, cp.check_in_out_required, cp.description,
          cp.late_registration_allowed, cp.distance_meters, cc.id, cc.name, cc.description,
          pr.id, pr.name, pr.mode, pr.reference_meters, nps.total_count, nps.named_participants,
-         fs.fees, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at, cp.rating_category_required;
+         fs.fees, ms.material_demands, cpcc.result_confirmation_image_required, cpcc.start_at, cpcc.end_at,
+         cp.rating_category_required;
 
 create view competition_template_view as
 select ct.id,
@@ -396,6 +429,7 @@ select ct.id,
        pr.reference_meters                    as pace_reference_meters,
        coalesce(nps.named_participants, '{}') as named_participants,
        coalesce(fs.fees, '{}')                as fees,
+       coalesce(ms.material_demands, '{}')    as material_demands,
        cst.id                                 as setup_template_id,
        cst.name                               as setup_template_name,
        cst.description                        as setup_template_description,
@@ -414,6 +448,11 @@ from competition_template ct
                            filter (where ffcp.competition_properties is not null ) as fees
                     from fee_for_competition_properties ffcp
                     group by ffcp.competition_properties) fs on cp.id = fs.competition_properties
+         left join (select mdfcp.competition_properties,
+                           array_agg(mdfcp)
+                           filter (where mdfcp.competition_properties is not null ) as material_demands
+                    from material_demand_for_competition_properties mdfcp
+                    group by mdfcp.competition_properties) ms on cp.id = ms.competition_properties
          left join competition_setup_template cst on ct.competition_setup_template = cst.id;
 
 create view app_user_invitation_with_roles as

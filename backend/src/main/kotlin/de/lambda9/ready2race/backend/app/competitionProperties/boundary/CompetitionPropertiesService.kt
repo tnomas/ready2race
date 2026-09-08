@@ -4,17 +4,20 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.competitionCategory.control.CompetitionCategoryRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesChallengeConfigRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesHasFeeRepo
+import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesHasMaterialTypeRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesHasNamedParticipantRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionChallengeConfigRequest
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionPropertiesError
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.CompetitionPropertiesRequest
 import de.lambda9.ready2race.backend.app.competitionSetupTemplate.control.CompetitionSetupTemplateRepo
 import de.lambda9.ready2race.backend.app.fee.control.FeeRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialTypeRepo
 import de.lambda9.ready2race.backend.app.namedParticipant.control.NamedParticipantRepo
 import de.lambda9.ready2race.backend.app.paceReference.control.PaceReferenceRepo
 import de.lambda9.ready2race.backend.database.generated.tables.CompetitionPropertiesChallengeConfig
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesChallengeConfigRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasFeeRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasMaterialTypeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasNamedParticipantRecord
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.tailwind.core.KIO
@@ -57,6 +60,22 @@ object CompetitionPropertiesService {
         }
     }
 
+    private fun checkMaterialTypesExisting(
+        materialTypes: List<UUID>
+    ): App<CompetitionPropertiesError, Unit> = KIO.comprehension {
+        if (materialTypes.isEmpty()) {
+            unit
+        } else {
+            val found = !MaterialTypeRepo.getIfExist(materialTypes).orDie()
+            val notFound = materialTypes.filter { id -> found.none { it.id == id } }
+            if (notFound.isNotEmpty()) {
+                KIO.fail(CompetitionPropertiesError.MaterialTypesUnknown(notFound))
+            } else {
+                unit
+            }
+        }
+    }
+
     private fun checkCompetitionCategoryExisting(
         competitionCategory: UUID?
     ): App<CompetitionPropertiesError, Unit> =
@@ -93,6 +112,7 @@ object CompetitionPropertiesService {
 
         !checkNamedParticipantsExisting(request.namedParticipants.map { it.namedParticipant })
         !checkFeesExisting(request.fees.map { it.fee })
+        !checkMaterialTypesExisting(request.materialTypes.map { it.materialType })
         !checkCompetitionCategoryExisting(request.competitionCategory)
         !checkPaceReferenceExisting(request.paceReference)
 
@@ -102,11 +122,13 @@ object CompetitionPropertiesService {
     fun addCompetitionPropertiesReferences(
         namedParticipants: Collection<CompetitionPropertiesHasNamedParticipantRecord>,
         fees: Collection<CompetitionPropertiesHasFeeRecord>,
+        materialTypes: Collection<CompetitionPropertiesHasMaterialTypeRecord>,
         challengeConfig: CompetitionPropertiesChallengeConfigRecord?,
     ): App<Nothing, Unit> = KIO.comprehension {
 
         !CompetitionPropertiesHasNamedParticipantRepo.create(namedParticipants).orDie()
         !CompetitionPropertiesHasFeeRepo.create(fees).orDie()
+        !CompetitionPropertiesHasMaterialTypeRepo.create(materialTypes).orDie()
 
         if (challengeConfig != null) {
             !CompetitionPropertiesChallengeConfigRepo.create(challengeConfig).orDie()
@@ -115,18 +137,20 @@ object CompetitionPropertiesService {
         unit
     }
 
-    // delete and re-add the named participant and fee entries
+    // delete and re-add the named participant, fee and material demand entries
     fun updateCompetitionPropertiesReferences(
         competitionPropertiesId: UUID,
         namedParticipants: Collection<CompetitionPropertiesHasNamedParticipantRecord>,
         fees: Collection<CompetitionPropertiesHasFeeRecord>,
+        materialTypes: Collection<CompetitionPropertiesHasMaterialTypeRecord>,
         challengeConfig: CompetitionChallengeConfigRequest?,
     ): App<Nothing, Unit> = KIO.comprehension {
 
         !CompetitionPropertiesHasNamedParticipantRepo.deleteByCompetitionPropertiesId(competitionPropertiesId).orDie()
         !CompetitionPropertiesHasFeeRepo.deleteManyByCompetitionProperties(competitionPropertiesId).orDie()
+        !CompetitionPropertiesHasMaterialTypeRepo.deleteManyByCompetitionProperties(competitionPropertiesId).orDie()
 
-        !addCompetitionPropertiesReferences(namedParticipants, fees, null)
+        !addCompetitionPropertiesReferences(namedParticipants, fees, materialTypes, null)
 
         challengeConfig?.let {
             !CompetitionPropertiesChallengeConfigRepo.update(competitionPropertiesId) {

@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.competitionProperties.entity
 
 import de.lambda9.ready2race.backend.app.competitionCategory.entity.CompetitionCategoryDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDemandDto
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 
 data class CompetitionPropertiesDto(
@@ -12,6 +13,7 @@ data class CompetitionPropertiesDto(
     val competitionCategory: CompetitionCategoryDto?,
     val namedParticipants: List<NamedParticipantForCompetitionDto>,
     val fees: List<FeeForCompetitionDto>,
+    val materialTypes: List<MaterialDemandDto>,
     val lateRegistrationAllowed: Boolean,
     val challengeConfig: CompetitionChallengeConfigDto?,
     val ratingCategoryRequired: Boolean,

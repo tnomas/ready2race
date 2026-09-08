@@ -24,6 +24,10 @@ fun CompetitionTemplateViewRecord.toDto(): App<Nothing, CompetitionTemplateDto> 
         it!!.toDto()
     }.orDie()
 
+    val materialDemandDtos = !materialDemands!!.toList().traverse {
+        it!!.toDto()
+    }.orDie()
+
     KIO.ok(
         CompetitionTemplateDto(
             id = id!!,
@@ -42,6 +46,7 @@ fun CompetitionTemplateViewRecord.toDto(): App<Nothing, CompetitionTemplateDto> 
                 } else null,
                 namedParticipants = namedParticipantDtos,
                 fees = feeDtos,
+                materialTypes = materialDemandDtos,
                 lateRegistrationAllowed = lateRegistrationAllowed!!,
                 challengeConfig = null,
                 ratingCategoryRequired = ratingCategoryRequired!!,

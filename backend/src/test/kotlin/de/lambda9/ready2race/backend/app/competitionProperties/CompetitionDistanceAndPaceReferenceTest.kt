@@ -54,6 +54,7 @@ class CompetitionDistanceAndPaceReferenceTest {
         competitionCategory = null,
         namedParticipants = emptyList(),
         fees = emptyList(),
+        materialTypes = emptyList(),
         lateRegistrationAllowed = false,
         setupTemplate = null,
         challengeConfig = null,

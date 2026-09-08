@@ -1,37 +1,20 @@
 package de.lambda9.ready2race.backend.app.material
 
-import de.lambda9.ready2race.backend.app.App
-import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
 import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
-import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
+import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
-import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserRecord
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.testing.testComprehension
-import de.lambda9.tailwind.core.KIO
-import de.lambda9.tailwind.core.extensions.kio.orDie
-import java.time.LocalDateTime
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class MaterialServiceTest {
-
-    private fun createTestUser(): App<Nothing, UUID> = KIO.comprehension {
-        val now = LocalDateTime.now()
-        val id = UUID.randomUUID()
-        !AppUserRepo.create(AppUserRecord(id = id, email = "m-$id@test.de", password = "x", firstname = "M", lastname = "T",
-            language = "de", createdAt = now, updatedAt = now)).orDie()
-        KIO.ok(id)
-    }
-
-    private fun provider(name: String = "Bootshaus Nord") =
-        MaterialProviderRequest(name = name, contactName = null, contactEmail = "info@nord.de", contactPhone = null, note = null)
 
     @Test
     fun providerTypeItemRoundTrip() = testComprehension {
@@ -73,5 +56,66 @@ class MaterialServiceTest {
         val userId = !createTestUser()
         !MaterialService.addProvider(provider(), userId)
         assertKIOFails(MaterialError.ProviderNameTaken) { MaterialService.addProvider(provider(), userId) }
+    }
+
+    @Test
+    fun offerRequiresInvitation() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+        val typeId = (!MaterialService.addType(MaterialTypeRequest("C4x+", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+
+        assertKIOFails(MaterialError.NotInvited) {
+            MaterialService.addOffer(eventId, providerId, MaterialOfferRequest(typeId, "45 €", 5, 30), userId)
+        }
+
+        !MaterialService.inviteProvider(eventId, providerId, userId)
+        !MaterialService.addOffer(eventId, providerId, MaterialOfferRequest(typeId, "45 €", 5, 30), userId)
+        assertKIOFails(MaterialError.OfferTypeTaken) {
+            MaterialService.addOffer(eventId, providerId, MaterialOfferRequest(typeId, "50 €", 1, 30), userId)
+        }
+
+        val offers = (!MaterialService.listOffers(eventId, providerId)).data
+        assertEquals(1, offers.size)
+        assertEquals("C4x+", offers.single().materialTypeName)
+
+        val events = (!MaterialService.getProviderEvents(providerId)).data
+        assertEquals(listOf(eventId), events.map { it.event })
+    }
+
+    @Test
+    fun uninvitingWithOpenOffersSucceedsButWithRequestsIsBlocked() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+        val typeId = (!MaterialService.addType(MaterialTypeRequest("C1x", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+
+        // Einladen ist idempotent - ein zweites Mal einladen ändert nichts.
+        !MaterialService.inviteProvider(eventId, providerId, userId)
+        !MaterialService.inviteProvider(eventId, providerId, userId)
+
+        !MaterialService.addOffer(eventId, providerId, MaterialOfferRequest(typeId, null, 2, 30), userId)
+
+        // Ausladen löscht Angebote per Kaskade, solange keine Anfragen bestehen.
+        !MaterialService.uninviteProvider(eventId, providerId)
+        assertEquals(emptyList(), (!MaterialService.getProviderEvents(providerId)).data)
+    }
+
+    @Test
+    fun offerTypeCannotBeUsedTwice() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+        val typeId = (!MaterialService.addType(MaterialTypeRequest("C2x", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+        !MaterialService.inviteProvider(eventId, providerId, userId)
+
+        val offerId = (!MaterialService.addOffer(
+            eventId, providerId, MaterialOfferRequest(typeId, "20 €", 3, 15), userId
+        ) as ApiResponse.Created).id
+
+        !MaterialService.updateOffer(eventId, providerId, offerId, MaterialOfferRequest(typeId, "25 €", 4, 20), userId)
+        val offer = (!MaterialService.listOffers(eventId, providerId)).data.single()
+        assertEquals("25 €", offer.priceText)
+        assertEquals(4, offer.plannedCount)
+
+        !MaterialService.deleteOffer(eventId, providerId, offerId)
+        assertEquals(emptyList(), (!MaterialService.listOffers(eventId, providerId)).data)
     }
 }

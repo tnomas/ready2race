@@ -5,11 +5,15 @@ import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
+import de.lambda9.ready2race.backend.app.material.entity.SetRequestsClosedRequest
 import de.lambda9.ready2race.backend.calls.requests.authenticate
+import de.lambda9.ready2race.backend.calls.requests.authenticateAny
+import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
 import de.lambda9.ready2race.backend.calls.requests.pagination
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
@@ -134,6 +138,19 @@ fun Route.material() {
                     }
                 }
             }
+
+            // Veranstaltungswahl des Anbieters - zu welchen Veranstaltungen ist er eingeladen.
+            route("/event") {
+
+                get {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        MaterialService.getProviderEvents(providerId)
+                    }
+                }
+            }
         }
     }
 
@@ -171,6 +188,110 @@ fun Route.material() {
                     !authenticate(Privilege.UpdateMaterialGlobal)
                     val id = !pathParam("typeId", uuid)
                     MaterialService.deleteType(id)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Einladung, Freigabe und Angebote je Veranstaltung - eingehängt in `event.kt` unter
+ * `route("/{eventId}")`, Muster `eventDocument()`.
+ */
+fun Route.eventMaterial() {
+    route("/materialProvider") {
+
+        get {
+            call.respondComprehension {
+                !authenticate(Privilege.ReadEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
+                MaterialService.getEventProviders(eventId)
+            }
+        }
+
+        route("/{providerId}") {
+
+            put {
+                call.respondComprehension {
+                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val providerId = !pathParam("providerId", uuid)
+                    MaterialService.inviteProvider(eventId, providerId, user.id!!)
+                }
+            }
+
+            delete {
+                call.respondComprehension {
+                    !authenticate(Privilege.UpdateEventGlobal)
+                    val eventId = !pathParam("eventId", uuid)
+                    val providerId = !pathParam("providerId", uuid)
+                    MaterialService.uninviteProvider(eventId, providerId)
+                }
+            }
+
+            put("/requestsClosed") {
+                call.respondComprehension {
+                    val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                    val eventId = !pathParam("eventId", uuid)
+                    val providerId = !pathParam("providerId", uuid)
+                    !ownProviderCheck(user, scope, providerId)
+                    val body = !receiveKIO(SetRequestsClosedRequest.example)
+                    MaterialService.setRequestsClosed(eventId, providerId, body.requestsClosed, user.id!!)
+                }
+            }
+
+            route("/offer") {
+
+                get {
+                    call.respondComprehension {
+                        // "ODER zweier Rechte": Veranstalter (READ EVENT GLOBAL) oder der eigene
+                        // Anbieter (READ MATERIAL OWN) dürfen die Angebote sehen - die OWN-Prüfung
+                        // greift nur, wenn das globale Recht fehlt.
+                        val user = !authenticateAny(Privilege.ReadMaterialOwn, Privilege.ReadEventGlobal)
+                        val eventId = !pathParam("eventId", uuid)
+                        val providerId = !pathParam("providerId", uuid)
+                        if (!user.hasPrivilege(Privilege.ReadEventGlobal)) {
+                            !ownProviderCheck(user, Privilege.Scope.OWN, providerId)
+                        }
+                        MaterialService.listOffers(eventId, providerId)
+                    }
+                }
+
+                post {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                        val eventId = !pathParam("eventId", uuid)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val body = !receiveKIO(MaterialOfferRequest.example)
+                        MaterialService.addOffer(eventId, providerId, body, user.id!!)
+                    }
+                }
+
+                route("/{offerId}") {
+
+                    put {
+                        call.respondComprehension {
+                            val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                            val eventId = !pathParam("eventId", uuid)
+                            val providerId = !pathParam("providerId", uuid)
+                            !ownProviderCheck(user, scope, providerId)
+                            val offerId = !pathParam("offerId", uuid)
+                            val body = !receiveKIO(MaterialOfferRequest.example)
+                            MaterialService.updateOffer(eventId, providerId, offerId, body, user.id!!)
+                        }
+                    }
+
+                    delete {
+                        call.respondComprehension {
+                            val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                            val eventId = !pathParam("eventId", uuid)
+                            val providerId = !pathParam("providerId", uuid)
+                            !ownProviderCheck(user, scope, providerId)
+                            val offerId = !pathParam("offerId", uuid)
+                            MaterialService.deleteOffer(eventId, providerId, offerId)
+                        }
+                    }
                 }
             }
         }

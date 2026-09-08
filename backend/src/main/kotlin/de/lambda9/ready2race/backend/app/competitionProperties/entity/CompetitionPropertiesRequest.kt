@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionProperties.entity
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDemandRequestDto
 import de.lambda9.ready2race.backend.validation.Validatable
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.validate
@@ -22,6 +23,7 @@ data class CompetitionPropertiesRequest(
     val competitionCategory: UUID?,
     val namedParticipants: List<NamedParticipantForCompetitionRequestDto>,
     val fees: List<FeeForCompetitionRequestDto>,
+    val materialTypes: List<MaterialDemandRequestDto>,
     val lateRegistrationAllowed: Boolean,
     val setupTemplate: UUID?, // Only relevant for add/edit template and add competition
     val challengeConfig: CompetitionChallengeConfigRequest?,
@@ -51,6 +53,12 @@ data class CompetitionPropertiesRequest(
                     FeeForCompetitionRequestDto::fee,
                 ),
             ),
+            this::materialTypes validate allOf(
+                collection,
+                noDuplicates(
+                    MaterialDemandRequestDto::materialType,
+                ),
+            ),
             this::challengeConfig.validate()
         )
 
@@ -65,6 +73,7 @@ data class CompetitionPropertiesRequest(
                 competitionCategory = UUID.randomUUID(),
                 namedParticipants = listOf(NamedParticipantForCompetitionRequestDto.example),
                 fees = listOf(FeeForCompetitionRequestDto.example),
+                materialTypes = emptyList(),
                 lateRegistrationAllowed = true,
                 setupTemplate = UUID.randomUUID(),
                 challengeConfig = CompetitionChallengeConfigRequest.example,

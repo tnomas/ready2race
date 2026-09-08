@@ -24,6 +24,7 @@ import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrat
 import de.lambda9.ready2race.backend.app.invoice.boundary.InvoiceService
 import de.lambda9.ready2race.backend.app.invoice.entity.InvoiceForEventRegistrationSort
 import de.lambda9.ready2race.backend.app.invoice.entity.ProduceInvoicesRequest
+import de.lambda9.ready2race.backend.app.material.boundary.eventMaterial
 import de.lambda9.ready2race.backend.app.participant.boundary.participantForEvent
 import de.lambda9.ready2race.backend.app.participantRequirement.boundary.participantRequirementForEvent
 import de.lambda9.ready2race.backend.app.task.boundary.task
@@ -95,6 +96,7 @@ fun Route.event() {
             competition()
             eventRegistration()
             eventDocument()
+            eventMaterial()
             eventExportBundle()
             participantRequirementForEvent()
             participantForEvent()

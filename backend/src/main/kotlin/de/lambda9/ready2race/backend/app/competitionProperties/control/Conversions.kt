@@ -2,6 +2,9 @@ package de.lambda9.ready2race.backend.app.competitionProperties.control
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.competitionProperties.entity.*
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDemandDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDemandRequestDto
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
 import de.lambda9.tailwind.core.KIO
 import java.util.*
@@ -42,6 +45,12 @@ fun FeeForCompetitionRequestDto.toRecord(propertiesId: UUID) = CompetitionProper
     lateAmount = lateAmount,
 )
 
+fun MaterialDemandRequestDto.toRecord(propertiesId: UUID) = CompetitionPropertiesHasMaterialTypeRecord(
+    competitionProperties = propertiesId,
+    materialType = materialType,
+    count = count,
+)
+
 fun NamedParticipantForCompetitionPropertiesRecord.toDto(): App<Nothing, NamedParticipantForCompetitionDto> = KIO.ok(
     NamedParticipantForCompetitionDto(
         id = id!!,
@@ -63,6 +72,15 @@ fun FeeForCompetitionPropertiesRecord.toDto(): App<Nothing, FeeForCompetitionDto
         required = required!!,
         amount = amount!!,
         lateAmount = lateAmount,
+    )
+)
+
+fun MaterialDemandForCompetitionPropertiesRecord.toDto(): App<Nothing, MaterialDemandDto> = KIO.ok(
+    MaterialDemandDto(
+        materialType = materialType!!,
+        name = name!!,
+        category = MaterialCategory.valueOf(category!!),
+        count = count!!,
     )
 )
 
