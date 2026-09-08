@@ -4632,6 +4632,82 @@
         "WITHDRAWN": "Zurückgezogen"
       },
       "error": "Materialauswahl für {{competition}} konnte nicht gespeichert werden - die Anmeldung wurde trotzdem gespeichert."
+    },
+    "requests": {
+      "reload": "Aktualisieren",
+      "filterAll": "Alle",
+      "filterStatus": "Status",
+      "filterType": "Materialart",
+      "showWithdrawn": "Zurückgezogene zeigen",
+      "none": "Keine Anfragen mit dieser Auswahl.",
+      "noOffers": "Für diese Veranstaltung gibt es noch keine Angebote.",
+      "summaryLine": "{{type}}: {{confirmed}} bestätigt / {{requested}} offen / {{waitlisted}} Warteliste von {{planned}}",
+      "confirmAllOpen": "Alle offenen bestätigen",
+      "confirmAllSuccess_one": "{{count}} Anfrage bestätigt",
+      "confirmAllSuccess_other": "{{count}} Anfragen bestätigt",
+      "confirmAllError_one": "{{count}} Anfrage konnte nicht bestätigt werden",
+      "confirmAllError_other": "{{count}} Anfragen konnten nicht bestätigt werden",
+      "columns": {
+        "competition": "Wettkampf",
+        "team": "Team",
+        "club": "Verein",
+        "type": "Materialart",
+        "count": "Anzahl",
+        "status": "Status",
+        "requestedAt": "Angefragt am",
+        "actions": "Aktionen"
+      },
+      "actions": {
+        "confirm": "Bestätigen",
+        "waitlist": "Auf Warteliste setzen",
+        "decline": "Ablehnen"
+      }
+    },
+    "decision": {
+      "title": {
+        "WAITLISTED": "Auf Warteliste setzen",
+        "DECLINED": "Anfrage ablehnen"
+      },
+      "note": "Notiz (optional)",
+      "success": "Entscheidung gespeichert",
+      "error": "Entscheidung konnte nicht gespeichert werden"
+    },
+    "assignment": {
+      "viewByTeam": "Nach Team",
+      "viewByItem": "Nach Materialstück",
+      "assignByStartNumber": "Nach Startnummer zuteilen",
+      "assignByStartNumberNone": "Keine passenden Vorschläge gefunden.",
+      "assignByStartNumberSuccess_one": "{{count}} Zuteilung nach Startnummer übernommen",
+      "assignByStartNumberSuccess_other": "{{count}} Zuteilungen nach Startnummer übernommen",
+      "assignByStartNumberError_one": "{{count}} Zuteilung konnte nicht übernommen werden",
+      "assignByStartNumberError_other": "{{count}} Zuteilungen konnten nicht übernommen werden",
+      "noRequests": "Noch keine bestätigten Anfragen.",
+      "teamNumber": "Startnummer",
+      "baseAssignment": "Grundzuteilung",
+      "addItem": "Stück hinzufügen",
+      "exception": "Ausnahme je Lauf",
+      "conflicts": "Konflikte",
+      "deviates": "weicht von Startnummer ab",
+      "success": "Zuteilung gespeichert",
+      "error": "Zuteilung konnte nicht gespeichert werden",
+      "exceptionDialog": {
+        "title": "Ausnahme je Lauf",
+        "match": "Lauf",
+        "item": "Materialstück",
+        "add": "Hinzufügen",
+        "none": "Noch keine Ausnahmen.",
+        "success": "Zuteilung gespeichert",
+        "error": "Zuteilung konnte nicht gespeichert werden"
+      },
+      "byItem": {
+        "noAssignments": "Keine wirksame Zuteilung."
+      }
+    },
+    "conflict": {
+      "OVERLAP": "Überschneidung",
+      "CHANGEOVER": "Wechselzeit zu knapp",
+      "OUTAGE": "Ausfall",
+      "RETIRED": "Ausgemustert"
     }
   }
 }

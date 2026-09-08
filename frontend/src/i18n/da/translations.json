@@ -4380,6 +4380,82 @@
         "WITHDRAWN": "Trukket tilbage"
       },
       "error": "Materielvalget for {{competition}} kunne ikke gemmes - tilmeldingen blev alligevel gemt."
+    },
+    "requests": {
+      "reload": "Opdater",
+      "filterAll": "Alle",
+      "filterStatus": "Status",
+      "filterType": "Materieltype",
+      "showWithdrawn": "Vis tilbagetrukne",
+      "none": "Ingen forespørgsler med dette valg.",
+      "noOffers": "Der findes endnu ingen tilbud til denne begivenhed.",
+      "summaryLine": "{{type}}: {{confirmed}} bekræftet / {{requested}} åben / {{waitlisted}} venteliste af {{planned}}",
+      "confirmAllOpen": "Bekræft alle åbne",
+      "confirmAllSuccess_one": "{{count}} forespørgsel bekræftet",
+      "confirmAllSuccess_other": "{{count}} forespørgsler bekræftet",
+      "confirmAllError_one": "{{count}} forespørgsel kunne ikke bekræftes",
+      "confirmAllError_other": "{{count}} forespørgsler kunne ikke bekræftes",
+      "columns": {
+        "competition": "Konkurrence",
+        "team": "Hold",
+        "club": "Klub",
+        "type": "Materieltype",
+        "count": "Antal",
+        "status": "Status",
+        "requestedAt": "Forespurgt den",
+        "actions": "Handlinger"
+      },
+      "actions": {
+        "confirm": "Bekræft",
+        "waitlist": "Sæt på venteliste",
+        "decline": "Afvis"
+      }
+    },
+    "decision": {
+      "title": {
+        "WAITLISTED": "Sæt på venteliste",
+        "DECLINED": "Afvis forespørgsel"
+      },
+      "note": "Note (valgfri)",
+      "success": "Beslutning gemt",
+      "error": "Beslutning kunne ikke gemmes"
+    },
+    "assignment": {
+      "viewByTeam": "Efter hold",
+      "viewByItem": "Efter materielstykke",
+      "assignByStartNumber": "Tildel efter startnummer",
+      "assignByStartNumberNone": "Ingen matchende forslag fundet.",
+      "assignByStartNumberSuccess_one": "{{count}} tildeling efter startnummer overført",
+      "assignByStartNumberSuccess_other": "{{count}} tildelinger efter startnummer overført",
+      "assignByStartNumberError_one": "{{count}} tildeling kunne ikke overføres",
+      "assignByStartNumberError_other": "{{count}} tildelinger kunne ikke overføres",
+      "noRequests": "Endnu ingen bekræftede forespørgsler.",
+      "teamNumber": "Startnummer",
+      "baseAssignment": "Grundtildeling",
+      "addItem": "Tilføj stykke",
+      "exception": "Undtagelse pr. løb",
+      "conflicts": "Konflikter",
+      "deviates": "afviger fra startnummer",
+      "success": "Tildeling gemt",
+      "error": "Tildeling kunne ikke gemmes",
+      "exceptionDialog": {
+        "title": "Undtagelse pr. løb",
+        "match": "Løb",
+        "item": "Materielstykke",
+        "add": "Tilføj",
+        "none": "Endnu ingen undtagelser.",
+        "success": "Tildeling gemt",
+        "error": "Tildeling kunne ikke gemmes"
+      },
+      "byItem": {
+        "noAssignments": "Ingen gældende tildeling."
+      }
+    },
+    "conflict": {
+      "OVERLAP": "Overlap",
+      "CHANGEOVER": "For kort skiftetid",
+      "OUTAGE": "Ude af drift",
+      "RETIRED": "Udgået"
     }
   }
 }

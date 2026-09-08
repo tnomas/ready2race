@@ -4632,6 +4632,82 @@
         "WITHDRAWN": "Withdrawn"
       },
       "error": "Equipment selection for {{competition}} could not be saved - the registration was saved anyway."
+    },
+    "requests": {
+      "reload": "Reload",
+      "filterAll": "All",
+      "filterStatus": "Status",
+      "filterType": "Material type",
+      "showWithdrawn": "Show withdrawn",
+      "none": "No requests match this selection.",
+      "noOffers": "No offers exist yet for this event.",
+      "summaryLine": "{{type}}: {{confirmed}} confirmed / {{requested}} open / {{waitlisted}} waitlisted of {{planned}}",
+      "confirmAllOpen": "Confirm all open",
+      "confirmAllSuccess_one": "{{count}} request confirmed",
+      "confirmAllSuccess_other": "{{count}} requests confirmed",
+      "confirmAllError_one": "{{count}} request could not be confirmed",
+      "confirmAllError_other": "{{count}} requests could not be confirmed",
+      "columns": {
+        "competition": "Competition",
+        "team": "Team",
+        "club": "Club",
+        "type": "Material type",
+        "count": "Count",
+        "status": "Status",
+        "requestedAt": "Requested at",
+        "actions": "Actions"
+      },
+      "actions": {
+        "confirm": "Confirm",
+        "waitlist": "Waitlist",
+        "decline": "Decline"
+      }
+    },
+    "decision": {
+      "title": {
+        "WAITLISTED": "Put on waitlist",
+        "DECLINED": "Decline request"
+      },
+      "note": "Note (optional)",
+      "success": "Decision saved",
+      "error": "Decision could not be saved"
+    },
+    "assignment": {
+      "viewByTeam": "By team",
+      "viewByItem": "By item",
+      "assignByStartNumber": "Assign by start number",
+      "assignByStartNumberNone": "No matching proposals found.",
+      "assignByStartNumberSuccess_one": "{{count}} assignment applied by start number",
+      "assignByStartNumberSuccess_other": "{{count}} assignments applied by start number",
+      "assignByStartNumberError_one": "{{count}} assignment could not be applied",
+      "assignByStartNumberError_other": "{{count}} assignments could not be applied",
+      "noRequests": "No confirmed requests yet.",
+      "teamNumber": "Start number",
+      "baseAssignment": "Base assignment",
+      "addItem": "Add item",
+      "exception": "Exception per race",
+      "conflicts": "Conflicts",
+      "deviates": "differs from start number",
+      "success": "Assignment saved",
+      "error": "Assignment could not be saved",
+      "exceptionDialog": {
+        "title": "Exception per race",
+        "match": "Race",
+        "item": "Item",
+        "add": "Add",
+        "none": "No exceptions yet.",
+        "success": "Assignment saved",
+        "error": "Assignment could not be saved"
+      },
+      "byItem": {
+        "noAssignments": "No effective assignment."
+      }
+    },
+    "conflict": {
+      "OVERLAP": "Overlap",
+      "CHANGEOVER": "Changeover too short",
+      "OUTAGE": "Out of service",
+      "RETIRED": "Retired"
     }
   }
 }

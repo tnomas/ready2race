@@ -12,6 +12,8 @@ import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {readMaterialGlobal} from '@authorization/privileges.ts'
 import MaterialSettingsPanel from '@components/material/MaterialSettingsPanel.tsx'
+import MaterialRequestsPanel from '@components/material/MaterialRequestsPanel.tsx'
+import MaterialAssignmentPanel from '@components/material/MaterialAssignmentPanel.tsx'
 
 export const MATERIAL_TABS = ['requests', 'assignment', 'damages', 'settings'] as const
 export type MaterialTab = (typeof MATERIAL_TABS)[number]
@@ -19,9 +21,8 @@ export type MaterialTab = (typeof MATERIAL_TABS)[number]
 /**
  * Material-Planung einer Veranstaltung. providerId ist der eigene Anbieter (materialProviderId
  * am Konto), sonst - für Konten mit READ MATERIAL GLOBAL ohne eigene Zuordnung - der über die
- * Adresse gewählte Anbieter (`?provider=`, siehe SelectMaterialEventPage). Die Reiter Anfragen
- * (2.3 selbst bleibt hier Platzhalter), Zuteilung und Schäden kommen erst mit den Aufgaben 4.3
- * und 5.3 - bis dahin stehen dort nur Hinweise.
+ * Adresse gewählte Anbieter (`?provider=`, siehe SelectMaterialEventPage). Der Reiter Schäden
+ * kommt erst mit Aufgabe 5.3 - bis dahin steht dort nur ein Hinweis.
  */
 const MaterialDashboardPage = () => {
     const {t} = useTranslation()
@@ -65,10 +66,18 @@ const MaterialDashboardPage = () => {
                 <Tab label={t('material.dashboard.tabs.settings')} {...tabProps('settings')} />
             </TabSelectionContainer>
             <TabPanel index={'requests'} activeTab={activeTab}>
-                <Typography>{t('material.dashboard.comingSoon')}</Typography>
+                {providerId ? (
+                    <MaterialRequestsPanel eventId={eventId} providerId={providerId} />
+                ) : (
+                    <NoProviderHint mayReadGlobal={mayReadGlobal} t={t} />
+                )}
             </TabPanel>
             <TabPanel index={'assignment'} activeTab={activeTab}>
-                <Typography>{t('material.dashboard.comingSoon')}</Typography>
+                {providerId ? (
+                    <MaterialAssignmentPanel eventId={eventId} providerId={providerId} />
+                ) : (
+                    <NoProviderHint mayReadGlobal={mayReadGlobal} t={t} />
+                )}
             </TabPanel>
             <TabPanel index={'damages'} activeTab={activeTab}>
                 <Typography>{t('material.dashboard.comingSoon')}</Typography>
@@ -76,19 +85,33 @@ const MaterialDashboardPage = () => {
             <TabPanel index={'settings'} activeTab={activeTab}>
                 {providerId ? (
                     <MaterialSettingsPanel eventId={eventId} providerId={providerId} />
-                ) : mayReadGlobal ? (
-                    <Box>
-                        <Typography>{t('material.dashboard.chooseProvider')}</Typography>
-                        <Button component={Link} to={'/material'} sx={{mt: 1}}>
-                            {t('material.material')}
-                        </Button>
-                    </Box>
                 ) : (
-                    <Typography>{t('material.fleet.noProvider')}</Typography>
+                    <NoProviderHint mayReadGlobal={mayReadGlobal} t={t} />
                 )}
             </TabPanel>
         </Box>
     )
 }
+
+type NoProviderHintProps = {
+    mayReadGlobal: boolean
+    t: (key: string) => string
+}
+
+/**
+ * Ohne providerId (keine eigene Zuordnung, kein `?provider=` gewählt): mit READ MATERIAL
+ * GLOBAL ein Link zur Anbieterwahl, sonst der schlichte Hinweis ohne Zuordnung.
+ */
+const NoProviderHint = ({mayReadGlobal, t}: NoProviderHintProps) =>
+    mayReadGlobal ? (
+        <Box>
+            <Typography>{t('material.dashboard.chooseProvider')}</Typography>
+            <Button component={Link} to={'/material'} sx={{mt: 1}}>
+                {t('material.material')}
+            </Button>
+        </Box>
+    ) : (
+        <Typography>{t('material.fleet.noProvider')}</Typography>
+    )
 
 export default MaterialDashboardPage
