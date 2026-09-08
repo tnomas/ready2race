@@ -46,6 +46,8 @@ export type AppUserDto = {
     lastname: string
     roles: Array<RoleDto>
     qrCodeId?: string
+    materialProviderId?: string
+    materialProviderName?: string
 }
 
 export type AppUserForEventDto = {
@@ -4106,6 +4108,10 @@ export type ServerTimeResponse = {
     serverTimeMillis: number
 }
 
+export type SetMaterialProviderRequest = {
+    materialProviderId?: string | null
+}
+
 export type ShiftMode = 'PLUS_MINUTES' | 'SET_TIME' | 'COMPRESS_TO_TARGET' | 'PLUS_MINUTES_RANGE'
 
 export type ShiftPreviewDto = {
@@ -5623,6 +5629,17 @@ export type UpdateUserData = {
 export type UpdateUserResponse = void
 
 export type UpdateUserError = BadRequestError | ApiError | UnprocessableEntityError
+
+export type SetUserMaterialProviderData = {
+    body: SetMaterialProviderRequest
+    path: {
+        userId: string
+    }
+}
+
+export type SetUserMaterialProviderResponse = void
+
+export type SetUserMaterialProviderError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type RegisterUserData = {
     body: AppUserRegisterRequest

@@ -26,6 +26,8 @@ fun AppUserWithRolesRecord.appUserDto(): App<Nothing, AppUserDto> =
             email = email!!,
             roles = it,
             qrCodeId = qrCodeId,
+            materialProviderId = materialProvider,
+            materialProviderName = materialProviderName,
         )
     }
 
@@ -37,7 +39,9 @@ fun EveryAppUserWithRolesRecord.appUserDto(): App<Nothing, AppUserDto> =
             lastname = lastname!!,
             email = email!!,
             roles = it,
-            qrCodeId = qrCodeId
+            qrCodeId = qrCodeId,
+            materialProviderId = materialProvider,
+            materialProviderName = materialProviderName,
         )
     }
 

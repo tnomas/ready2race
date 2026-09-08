@@ -2928,6 +2928,8 @@
     },
     "firstname": "Firstname",
     "lastname": "Lastname",
+    "materialProvider": "Equipment provider",
+    "materialProviderNone": "No provider",
     "birthYear": "Birth Year",
     "password": {
       "password": "Password",

@@ -29,6 +29,13 @@ object AppUserHasRoleRepo {
         )
     }
 
+    fun deleteRole(userId: UUID, roleId: UUID) = APP_USER_HAS_ROLE.delete {
+        DSL.and(
+            APP_USER.eq(userId),
+            ROLE.eq(roleId)
+        )
+    }
+
     fun getByUsersAsJson(userIds: List<UUID>) = APP_USER_HAS_ROLE.selectAsJson { APP_USER.`in`(userIds) }
 
     fun insertJsonData(data: String) = APP_USER_HAS_ROLE.insertJsonData(data)

@@ -61,6 +61,16 @@ fun Route.user() {
                 }
             }
 
+            put("/materialProvider") {
+                call.respondComprehension {
+                    val id = !pathParam("userId", uuid)
+                    val user = !authenticate(Privilege.UpdateUserGlobal)
+                    val body = !receiveKIO(SetMaterialProviderRequest.example)
+
+                    AppUserService.setMaterialProvider(id, body.materialProviderId, user.id!!)
+                }
+            }
+
             route("/task") {
                 get {
                     call.respondComprehension {

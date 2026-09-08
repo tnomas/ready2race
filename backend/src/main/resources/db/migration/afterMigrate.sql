@@ -115,11 +115,14 @@ select au.id,
        (select qc.qr_code_id
         from qr_codes qc
         where qc.app_user = au.id
-        limit 1)                                                          as qr_code_id
+        limit 1)                                                          as qr_code_id,
+       au.material_provider,
+       mp.name                                                            as material_provider_name
 from app_user au
          left join app_user_has_role auhr on au.id = auhr.app_user
          left join role_with_privileges rwp on auhr.role = rwp.id
-group by au.id;
+         left join material_provider mp on mp.id = au.material_provider
+group by au.id, mp.name;
 
 -- refactor this and similar views to use where-clause in API instead
 create view app_user_with_roles as
@@ -129,7 +132,9 @@ select au.id,
        au.email,
        au.club,
        au.roles,
-       au.qr_code_id
+       au.qr_code_id,
+       au.material_provider,
+       au.material_provider_name
 from every_app_user_with_roles au
 where not exists(select *
                  from app_user_has_role auhr2

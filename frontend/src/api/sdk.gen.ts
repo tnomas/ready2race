@@ -25,6 +25,9 @@ import type {
     UpdateUserData,
     UpdateUserError,
     UpdateUserResponse,
+    SetUserMaterialProviderData,
+    SetUserMaterialProviderError,
+    SetUserMaterialProviderResponse,
     RegisterUserData,
     RegisterUserError,
     RegisterUserResponse,
@@ -1322,6 +1325,19 @@ export const updateUser = <ThrowOnError extends boolean = false>(
     return (options?.client ?? client).put<UpdateUserResponse, UpdateUserError, ThrowOnError>({
         ...options,
         url: '/user/{userId}',
+    })
+}
+
+export const setUserMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<SetUserMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        SetUserMaterialProviderResponse,
+        SetUserMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/user/{userId}/materialProvider',
     })
 }
 

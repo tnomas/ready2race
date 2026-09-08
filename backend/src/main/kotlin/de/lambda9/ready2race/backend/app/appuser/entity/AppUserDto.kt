@@ -10,4 +10,6 @@ data class AppUserDto(
     val lastname: String,
     val roles: List<RoleDto>,
     val qrCodeId: String?,
+    val materialProviderId: UUID?,
+    val materialProviderName: String?,
 )

@@ -2683,6 +2683,8 @@
     },
     "firstname": "Fornavn",
     "lastname": "Efternavn",
+    "materialProvider": "Materieludlejer",
+    "materialProviderNone": "Ingen udlejer",
     "birthYear": "Fødselsår",
     "password": {
       "password": "Adgangskode",

@@ -1,8 +1,8 @@
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {getRoles, getUser, updateUser} from '@api/sdk.gen.ts'
+import {getMaterialProviders, getRoles, getUser, setUserMaterialProvider, updateUser} from '@api/sdk.gen.ts'
 import {userRoute} from '@routes'
 import {useTranslation} from 'react-i18next'
-import {Box, Paper, Stack, Typography} from '@mui/material'
+import {Box, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography} from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import {useState} from 'react'
 import Throbber from '@components/Throbber.tsx'
@@ -19,6 +19,8 @@ type Form = {
     lastname: string
     roles: string[]
 }
+
+const NO_PROVIDER = ''
 
 const UserPage = () => {
     const {t} = useTranslation()
@@ -39,6 +41,11 @@ const UserPage = () => {
 
     const [reloadUserData, setReloadUserData] = useState(false)
 
+    // Der Anbieter lebt außerhalb des react-hook-form-Zustands, weil er nicht Teil des
+    // UpdateAppUserRequest ist, sondern über einen eigenen Aufruf gespeichert wird.
+    const [materialProviderId, setMaterialProviderId] = useState<string>(NO_PROVIDER)
+    const [savedMaterialProviderId, setSavedMaterialProviderId] = useState<string>(NO_PROVIDER)
+
     const {data: userData, pending} = useFetch(
         signal => getUser({signal, path: {userId: userId}}),
         {
@@ -51,9 +58,18 @@ const UserPage = () => {
                         lastname: data.lastname,
                         roles: data.roles.map(r => r.id),
                     })
+                    setMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
+                    setSavedMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
                 }
             },
             deps: [userId, reloadUserData],
+        },
+    )
+
+    const {data: materialProviders} = useFetch(
+        signal => getMaterialProviders({signal, query: {limit: 200}}),
+        {
+            preCondition: () => user.checkPrivilege(updateUserGlobal),
         },
     )
 
@@ -63,9 +79,22 @@ const UserPage = () => {
             path: {userId: userId},
             body: mapFormToRequest(formData, user.checkPrivilege(updateUserGlobal)),
         })
+
+        let providerError = false
+        if (
+            !error &&
+            user.checkPrivilege(updateUserGlobal) &&
+            materialProviderId !== savedMaterialProviderId
+        ) {
+            const {error: providerErrorResult} = await setUserMaterialProvider({
+                path: {userId: userId},
+                body: {materialProviderId: materialProviderId || undefined},
+            })
+            providerError = !!providerErrorResult
+        }
         setSubmitting(false)
 
-        if (error) {
+        if (error || providerError) {
             feedback.error(t('user.update.error'))
         } else {
             feedback.success(t('user.update.success'))
@@ -108,9 +137,35 @@ const UserPage = () => {
                                               </Typography>
                                           </Box>
                                       )}
+                                {user.checkPrivilege(updateUserGlobal) && (
+                                    <FormControl fullWidth>
+                                        <InputLabel id={'material-provider-label'}>
+                                            {t('user.materialProvider')}
+                                        </InputLabel>
+                                        <Select
+                                            labelId={'material-provider-label'}
+                                            label={t('user.materialProvider')}
+                                            value={materialProviderId}
+                                            onChange={event =>
+                                                setMaterialProviderId(event.target.value as string)
+                                            }>
+                                            <MenuItem value={NO_PROVIDER}>
+                                                {t('user.materialProviderNone')}
+                                            </MenuItem>
+                                            {materialProviders?.data.map(provider => (
+                                                <MenuItem key={provider.id} value={provider.id}>
+                                                    {provider.name}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
                                 <SubmitButton
                                     submitting={submitting}
-                                    disabled={!formContext.formState.isDirty}>
+                                    disabled={
+                                        !formContext.formState.isDirty &&
+                                        materialProviderId === savedMaterialProviderId
+                                    }>
                                     {t('common.save')}
                                 </SubmitButton>
                             </Stack>

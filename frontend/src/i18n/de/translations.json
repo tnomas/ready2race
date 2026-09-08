@@ -2928,6 +2928,8 @@
     },
     "firstname": "Vorname",
     "lastname": "Nachname",
+    "materialProvider": "Materialanbieter",
+    "materialProviderNone": "Kein Anbieter",
     "birthYear": "Geburtsjahr",
     "password": {
       "password": "Passwort",

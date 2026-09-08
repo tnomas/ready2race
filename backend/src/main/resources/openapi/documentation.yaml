@@ -165,6 +165,37 @@ paths:
           $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
+  /user/{userId}/materialProvider:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setUserMaterialProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetMaterialProviderRequest'
+      responses:
+        204:
+          description: Material provider successfully assigned or cleared
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        422:
+          $ref: '#/components/responses/422'
+        500:
+          $ref: '#/components/responses/500'
   /user/registration:
     post:
       operationId: registerUser
@@ -12829,6 +12860,11 @@ components:
             $ref: '#/components/schemas/RoleDto'
         qrCodeId:
           type: string
+        materialProviderId:
+          type: string
+          format: uuid
+        materialProviderName:
+          type: string
 
     UpdateAppUserRequest:
       type: object
@@ -12846,6 +12882,14 @@ components:
           items:
             type: string
             format: uuid
+
+    SetMaterialProviderRequest:
+      type: object
+      properties:
+        materialProviderId:
+          type: string
+          format: uuid
+          nullable: true
 
     AppUserWithQrCodeDto:
       type: object

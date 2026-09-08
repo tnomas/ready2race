@@ -16,6 +16,12 @@ model AppUserDto {
   lastname: string;
   roles: RoleDto[]; // Reference to role module
   qrCodeId?: string;
+  materialProviderId?: string; // UUID
+  materialProviderName?: string;
+}
+
+model SetMaterialProviderRequest {
+  materialProviderId?: string; // UUID, null loest die Zuordnung
 }
 
 model AppUserNameDto {
@@ -165,6 +171,14 @@ interface UserRoutes {
   updateClubRepresentativeApproval(
     @path userId: string, // UUID
     @query approve: boolean,
+  ): void;
+
+  // Assign or clear the material provider of a user (admin only)
+  @put
+  @route("/{userId}/materialProvider")
+  setUserMaterialProvider(
+    @path userId: string, // UUID
+    @body request: SetMaterialProviderRequest,
   ): void;
 }
 

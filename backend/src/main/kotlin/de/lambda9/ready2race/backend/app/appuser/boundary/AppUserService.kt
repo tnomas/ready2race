@@ -26,12 +26,15 @@ import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.eventRegistration.control.EventRegistrationRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
+import de.lambda9.ready2race.backend.app.material.control.MaterialProviderRepo
+import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.app.role.boundary.RoleService
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
 import de.lambda9.ready2race.backend.database.ADMIN_ROLE
 import de.lambda9.ready2race.backend.database.CLUB_REPRESENTATIVE_ROLE
+import de.lambda9.ready2race.backend.database.MATERIAL_PROVIDER_ROLE
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.database.USER_ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
@@ -155,6 +158,43 @@ object AppUserService {
                     )
                 }
             ).orDie()
+        }
+
+        noData
+    }
+
+    /**
+     * Ordnet den Nutzer einem Materialanbieter zu (oder löst die Zuordnung mit `providerId = null`).
+     * Nur die Nutzerseite - die Einladung bekommt bewusst keinen Anbieter, siehe Task 1.6.
+     */
+    fun setMaterialProvider(
+        targetUserId: UUID,
+        providerId: UUID?,
+        requestingUserId: UUID,
+    ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+
+        if (providerId != null) {
+            !MaterialProviderRepo.get(providerId).orDie().onNullFail { MaterialError.ProviderNotFound }
+        }
+
+        !AppUserRepo.update(targetUserId) {
+            materialProvider = providerId
+            updatedAt = LocalDateTime.now()
+            updatedBy = requestingUserId
+        }.orDie().onNullFail { AppUserError.NotFound }
+
+        if (providerId != null) {
+            val hasRole = !AppUserHasRoleRepo.exists(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
+            if (!hasRole) {
+                !AppUserHasRoleRepo.create(
+                    AppUserHasRoleRecord(
+                        appUser = targetUserId,
+                        role = MATERIAL_PROVIDER_ROLE,
+                    )
+                ).orDie()
+            }
+        } else {
+            !AppUserHasRoleRepo.deleteRole(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
         }
 
         noData
