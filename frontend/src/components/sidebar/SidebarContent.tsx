@@ -11,6 +11,7 @@ import {
     People,
     PhoneAndroid,
     Receipt,
+    Sailing,
     Settings,
     Work,
     Workspaces,
@@ -21,6 +22,8 @@ import {
     readClubGlobal,
     readClubOwn,
     readInvoiceGlobal,
+    readMaterialGlobal,
+    readMaterialOwn,
     readUserGlobal,
     updateEventGlobal,
     updateUserGlobal,
@@ -116,6 +119,17 @@ const SidebarContent = ({...props}: Props) => {
                 privilege={readClubGlobal}
                 to={'/club'}
             />
+            {/* Kein einzelnes Privileg, das `SidebarItem` prüfen könnte: READ MATERIAL reicht in
+                jedem Scope (OWN oder GLOBAL), von Hand wie die entsprechende Route. */}
+            {user.loggedIn &&
+                (user.checkPrivilege(readMaterialOwn) || user.checkPrivilege(readMaterialGlobal)) && (
+                    <SidebarItem
+                        text={t('navigation.titles.material')}
+                        icon={<Sailing />}
+                        authenticatedOnly
+                        to={'/material'}
+                    />
+                )}
             <SidebarItem text={t('navigation.titles.events')} icon={<Event />} to={'/event'} />
             <SidebarItem
                 text={t('navigation.titles.users')}

@@ -384,7 +384,8 @@
       "clubs": "Clubs",
       "myClub": "My Club",
       "invoices": "Invoices",
-      "administration": "Administration"
+      "administration": "Administration",
+      "material": "Equipment"
     },
     "sidebar": {
       "expand": "Expand sidebar",
@@ -4489,6 +4490,65 @@
       "progress": "Live",
       "started": "started",
       "finished": "finished"
+    }
+  },
+  "material": {
+    "material": "Equipment",
+    "provider": {
+      "provider": "Provider",
+      "providers": "Providers",
+      "name": "Name",
+      "contactName": "Contact person",
+      "contactEmail": "Email",
+      "contactPhone": "Phone",
+      "note": "Note"
+    },
+    "type": {
+      "type": "Equipment type",
+      "types": "Equipment types",
+      "name": "Name",
+      "category": "Category",
+      "description": "Description"
+    },
+    "category": {
+      "BOAT": "Boat",
+      "OTHER": "Other"
+    },
+    "item": {
+      "item": "Item",
+      "items": "Items",
+      "number": "Number",
+      "label": "Label",
+      "type": "Equipment type",
+      "status": "Status",
+      "note": "Note",
+      "openDamages": "Open damages",
+      "retired": "Retired",
+      "labelTooLong": "At most 20 characters"
+    },
+    "itemStatus": {
+      "ACTIVE": "Active",
+      "RETIRED": "Retired"
+    },
+    "fleet": {
+      "title": "Fleet",
+      "noProvider": "Your account is not assigned to a provider."
+    },
+    "admin": {
+      "title": "Providers and equipment types"
+    },
+    "events": {
+      "title": "Events",
+      "none": "The provider is not invited to any event."
+    },
+    "dashboard": {
+      "tabs": {
+        "requests": "Requests",
+        "assignment": "Assignment",
+        "damages": "Damages",
+        "settings": "Settings"
+      },
+      "comingSoon": "Will be filled in a later task."
     }
   }
 }

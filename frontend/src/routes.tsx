@@ -16,6 +16,8 @@ import {
     readInvoiceGlobal,
     readAdministrationConfigGlobal,
     readEventGlobal,
+    readMaterialGlobal,
+    readMaterialOwn,
     readUserGlobal,
     updateAppTimingGlobal,
     updateEventGlobal,
@@ -84,6 +86,10 @@ import TimingStartDisplayPage from './pages/app/TimingStartDisplayPage.tsx'
 import {Outlet} from '@tanstack/react-router'
 import SpeakerBoardPage from './pages/speaker/SpeakerBoardPage.tsx'
 import SelectSpeakerEventPage from './pages/speaker/SelectSpeakerEventPage.tsx'
+import SelectMaterialEventPage from './pages/material/SelectMaterialEventPage.tsx'
+import MaterialDashboardPage, {MaterialTab} from './pages/material/MaterialDashboardPage.tsx'
+import MaterialFleetPage from './pages/material/MaterialFleetPage.tsx'
+import MaterialAdminPage from './pages/material/MaterialAdminPage.tsx'
 
 const checkAuth = (context: User, location: ParsedLocation, privilege?: Privilege) => {
     if (!context.loggedIn) {
@@ -802,6 +808,57 @@ export const invoicesRoute = createRoute({
     },
 })
 
+// Materialvermietung: eine READ MATERIAL in irgendeinem Scope (OWN oder GLOBAL) reicht zum
+// Betreten, wie bei `eventStreamScenesRoute` von Hand geprüft, da `checkAuth` nur ein einzelnes
+// Privileg kennt. Unter `mainLayoutRoute` (nicht `rootRoute`), damit Kopfleiste und Seitenleiste
+// erhalten bleiben.
+export const materialRoute = createRoute({
+    getParentRoute: () => mainLayoutRoute,
+    path: 'material',
+    component: () => <Outlet />,
+    beforeLoad: ({context, location}) => {
+        checkAuth(context, location)
+        if (!context.checkPrivilege(readMaterialOwn) && !context.checkPrivilege(readMaterialGlobal)) {
+            throw redirect({to: '/dashboard'})
+        }
+    },
+})
+
+export const materialIndexRoute = createRoute({
+    getParentRoute: () => materialRoute,
+    path: '/',
+    component: () => <SelectMaterialEventPage />,
+})
+
+export const materialEventRoute = createRoute({
+    getParentRoute: () => materialRoute,
+    path: 'event/$eventId',
+    component: () => <MaterialDashboardPage />,
+    validateSearch: validateTabSearch<MaterialTab>,
+})
+
+type MaterialFleetSearch = {
+    provider?: string
+}
+
+export const materialFleetRoute = createRoute({
+    getParentRoute: () => materialRoute,
+    path: 'fleet',
+    component: () => <MaterialFleetPage />,
+    validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialFleetSearch => ({
+        provider,
+    }),
+})
+
+export const materialAdminRoute = createRoute({
+    getParentRoute: () => materialRoute,
+    path: 'admin',
+    component: () => <MaterialAdminPage />,
+    beforeLoad: ({context, location}) => {
+        checkAuth(context, location, readMaterialGlobal)
+    },
+})
+
 export const resultsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'results',
@@ -967,6 +1024,12 @@ const routeTree = rootRoute.addChildren([
         resetPasswordRoute.addChildren([resetPasswordIndexRoute, resetPasswordTokenRoute]),
         clubsRoute.addChildren([clubsIndexRoute, clubRoute.addChildren([clubIndexRoute])]),
         invoicesRoute,
+        materialRoute.addChildren([
+            materialIndexRoute,
+            materialEventRoute,
+            materialFleetRoute,
+            materialAdminRoute,
+        ]),
     ]),
     appRoute.addChildren([
         appIndexRoute,

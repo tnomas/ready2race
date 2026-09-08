@@ -384,7 +384,8 @@
       "clubs": "Vereine",
       "myClub": "Mein Verein",
       "invoices": "Rechnungen",
-      "administration": "Administration"
+      "administration": "Administration",
+      "material": "Material"
     },
     "sidebar": {
       "expand": "Seitenleiste ausklappen",
@@ -4489,6 +4490,65 @@
       "progress": "Live",
       "started": "gestartet",
       "finished": "im Ziel"
+    }
+  },
+  "material": {
+    "material": "Material",
+    "provider": {
+      "provider": "Anbieter",
+      "providers": "Anbieter",
+      "name": "Name",
+      "contactName": "Ansprechperson",
+      "contactEmail": "E-Mail",
+      "contactPhone": "Telefon",
+      "note": "Notiz"
+    },
+    "type": {
+      "type": "Materialart",
+      "types": "Materialarten",
+      "name": "Name",
+      "category": "Kategorie",
+      "description": "Beschreibung"
+    },
+    "category": {
+      "BOAT": "Boot",
+      "OTHER": "Sonstiges"
+    },
+    "item": {
+      "item": "Materialstück",
+      "items": "Materialstücke",
+      "number": "Nummer",
+      "label": "Bezeichnung",
+      "type": "Materialart",
+      "status": "Status",
+      "note": "Notiz",
+      "openDamages": "Offene Schäden",
+      "retired": "Ausgemustert",
+      "labelTooLong": "Höchstens 20 Zeichen"
+    },
+    "itemStatus": {
+      "ACTIVE": "Aktiv",
+      "RETIRED": "Ausgemustert"
+    },
+    "fleet": {
+      "title": "Flotte",
+      "noProvider": "Ihr Konto ist keinem Anbieter zugeordnet."
+    },
+    "admin": {
+      "title": "Anbieter und Materialarten"
+    },
+    "events": {
+      "title": "Veranstaltungen",
+      "none": "Der Anbieter ist zu keiner Veranstaltung eingeladen."
+    },
+    "dashboard": {
+      "tabs": {
+        "requests": "Anfragen",
+        "assignment": "Zuteilung",
+        "damages": "Schäden",
+        "settings": "Einstellungen"
+      },
+      "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt."
     }
   }
 }

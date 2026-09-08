@@ -384,7 +384,8 @@
       "clubs": "Klubber",
       "myClub": "Min klub",
       "invoices": "Fakturaer",
-      "administration": "Administration"
+      "administration": "Administration",
+      "material": "Materiel"
     },
     "sidebar": {
       "expand": "Udvid sidebjælke",
@@ -4237,6 +4238,65 @@
       "progress": "Live",
       "started": "startet",
       "finished": "i mål"
+    }
+  },
+  "material": {
+    "material": "Materiel",
+    "provider": {
+      "provider": "Udbyder",
+      "providers": "Udbydere",
+      "name": "Navn",
+      "contactName": "Kontaktperson",
+      "contactEmail": "E-mail",
+      "contactPhone": "Telefon",
+      "note": "Note"
+    },
+    "type": {
+      "type": "Materieltype",
+      "types": "Materieltyper",
+      "name": "Navn",
+      "category": "Kategori",
+      "description": "Beskrivelse"
+    },
+    "category": {
+      "BOAT": "Båd",
+      "OTHER": "Andet"
+    },
+    "item": {
+      "item": "Materielstykke",
+      "items": "Materielstykker",
+      "number": "Nummer",
+      "label": "Betegnelse",
+      "type": "Materieltype",
+      "status": "Status",
+      "note": "Note",
+      "openDamages": "Åbne skader",
+      "retired": "Udgået",
+      "labelTooLong": "Højst 20 tegn"
+    },
+    "itemStatus": {
+      "ACTIVE": "Aktiv",
+      "RETIRED": "Udgået"
+    },
+    "fleet": {
+      "title": "Flåde",
+      "noProvider": "Din konto er ikke tilknyttet en udbyder."
+    },
+    "admin": {
+      "title": "Udbydere og materieltyper"
+    },
+    "events": {
+      "title": "Arrangementer",
+      "none": "Udbyderen er ikke inviteret til noget arrangement."
+    },
+    "dashboard": {
+      "tabs": {
+        "requests": "Forespørgsler",
+        "assignment": "Tildeling",
+        "damages": "Skader",
+        "settings": "Indstillinger"
+      },
+      "comingSoon": "Udfyldes i en senere opgave."
     }
   }
 }
