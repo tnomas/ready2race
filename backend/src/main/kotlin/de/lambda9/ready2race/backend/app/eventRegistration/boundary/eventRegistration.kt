@@ -158,7 +158,8 @@ fun Route.eventRegistration() {
             val user = !authenticate(Privilege.UpdateRegistrationGlobal)
             val eventId = !pathParam("eventId", uuid)
             val keepNumbers = !optionalQueryParam("keepNumbers", boolean).onNullDefault { true }
-            EventRegistrationService.finalizeRegistrations(user.id!!, eventId, keepNumbers)
+            val alignMaterialNumbers = !optionalQueryParam("alignMaterialNumbers", boolean).onNullDefault { false }
+            EventRegistrationService.finalizeRegistrations(user.id!!, eventId, keepNumbers, alignMaterialNumbers)
         }
     }
 

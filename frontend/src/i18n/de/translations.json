@@ -1474,6 +1474,11 @@
           "keep": "Gesetzte Startnummern beibehalten",
           "hint": "Bei Beibehaltung der Startnummern erhalten nur die neuen Teams/Teilnehmer zufällige Startnummern. Diese werden höher sein als die derzeit höchste des Wettbewerbs. Wenn sie nicht beibehalten werden, werden alle Startnummern neu gemischt."
         },
+        "alignMaterialNumbers": "Startnummern nach Bootsnummern vergeben",
+        "material": {
+          "openRequestsHint_one": "{{count}} Materialanfrage ist noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
+          "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig."
+        },
         "reshuffle": "Dies würfelt alle Startnummern neu aus",
         "success": "Meldungen finalisiert"
       }

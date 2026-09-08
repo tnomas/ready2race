@@ -28,6 +28,7 @@ import de.lambda9.ready2race.backend.app.eventParticipant.control.EventParticipa
 import de.lambda9.ready2race.backend.app.eventRegistration.control.*
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.*
 import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
+import de.lambda9.ready2race.backend.app.material.boundary.TeamNumberAlignment
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
 import de.lambda9.ready2race.backend.app.namedParticipant.entity.NamedParticipantRequirements
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantForEventRepo
@@ -57,6 +58,7 @@ import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
+import kotlin.random.Random
 
 object EventRegistrationService {
 
@@ -1062,14 +1064,41 @@ object EventRegistrationService {
         userId: UUID,
         eventId: UUID,
         keepNumbers: Boolean,
+        alignMaterialNumbers: Boolean,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
         !EventService.checkEventExisting(eventId)
 
         val registrations = !CompetitionRegistrationRepo.allForEvent(eventId).orDie()
 
+        // Nur geladen, wenn wirklich gebraucht - sonst unnötiger Join über Materialanfragen.
+        val boatNumbers = if (alignMaterialNumbers) {
+            !MaterialService.boatNumbersForRegistrations(eventId)
+        } else {
+            emptyMap()
+        }
+
         registrations.groupBy { it.competition }.values.forEach { registrationsForSameComp ->
-            if (keepNumbers) {
+            if (alignMaterialNumbers) {
+                // Spec Abschnitt 8: Startnummer soll der Bootsnummer des Mietboots entsprechen.
+                // taken/toNumber wie im keepNumbers-Zweig unten, nur mit der tatsächlichen Menge
+                // vergebener Nummern statt nur dem höchsten Wert - TeamNumberAlignment muss jede
+                // einzelne belegte Nummer meiden können, nicht nur nach oben anschließen.
+                val taken = if (keepNumbers) registrationsForSameComp.mapNotNull { it.teamNumber }.toSet() else emptySet()
+                val toNumber = if (keepNumbers) registrationsForSameComp.filter { it.teamNumber == null } else registrationsForSameComp
+
+                val rented = toNumber.mapNotNull { r -> boatNumbers[r.id]?.let { r.id to it } }.toMap()
+                val own = toNumber.map { it.id }.filterNot { it in rented }
+
+                val byRegistration = toNumber.associateBy { it.id }
+                TeamNumberAlignment.align(rented, own, taken, Random).forEach { (registrationId, number) ->
+                    val record = byRegistration.getValue(registrationId)
+                    record.teamNumber = number
+                    record.updatedBy = userId
+                    record.updatedAt = LocalDateTime.now()
+                    record.update()
+                }
+            } else if (keepNumbers) {
 
                 val highestNumber = registrationsForSameComp.mapNotNull { it.teamNumber }.maxOfOrNull { it } ?: 0
 

@@ -691,4 +691,11 @@ object MaterialService {
 
         noData
     }
+
+    /**
+     * Bootsnummern je Meldung mit bestätigtem Mietboot - Grundlage für [TeamNumberAlignment] bei
+     * der Fixierung (Task 4.2, Spec Abschnitt 8).
+     */
+    fun boatNumbersForRegistrations(eventId: UUID): App<Nothing, Map<UUID, List<Int>>> =
+        MaterialRequestRepo.boatNumbersForRegistrations(eventId).orDie()
 }

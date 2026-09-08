@@ -1474,6 +1474,11 @@
           "keep": "Keep set team numbers",
           "hint": "When keeping the start numbers, new teams/participants will receive new random start numbers. These will be higher than the currently highest of the competition. When not kept, all the start numbers will be reshuffled."
         },
+        "alignMaterialNumbers": "Assign start numbers based on boat numbers",
+        "material": {
+          "openRequestsHint_one": "{{count}} material request is not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
+          "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance."
+        },
         "reshuffle": "This will reshuffle all start numbers",
         "success": "Registrations finalized"
       }

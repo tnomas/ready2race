@@ -7992,6 +7992,10 @@ export type FinalizeRegistrationsData = {
     }
     query?: {
         /**
+         * Whether team numbers should match the rented boat's number where possible
+         */
+        alignMaterialNumbers?: boolean
+        /**
          * Whether already set team numbers should be kept
          */
         keepNumbers?: boolean

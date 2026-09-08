@@ -1,13 +1,17 @@
 package de.lambda9.ready2race.backend.app.material.control
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialRequestRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES_HAS_MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ITEM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_OFFER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.insertReturning
 import de.lambda9.ready2race.backend.database.select
 import de.lambda9.ready2race.backend.database.selectOne
@@ -103,5 +107,32 @@ object MaterialRequestRepo {
             .where(COMPETITION_REGISTRATION.ID.eq(competitionRegistrationId))
             .fetch { r -> r[COMPETITION_PROPERTIES_HAS_MATERIAL_TYPE.MATERIAL_TYPE]!! to r[COMPETITION_PROPERTIES_HAS_MATERIAL_TYPE.COUNT]!! }
             .toMap()
+    }
+
+    /**
+     * Bootsnummern je Meldung mit bestätigter Mietanfrage auf eine Materialart der Kategorie
+     * BOAT - die sortierten Nummern der aktiven Stücke des zugeteilten Anbieters/Typs, Kandidaten
+     * für [de.lambda9.ready2race.backend.app.material.boundary.TeamNumberAlignment] bei der
+     * Fixierung (Task 4.2). Über `MATERIAL_OFFER.EVENT` auf die Veranstaltung eingegrenzt statt
+     * über einen Join auf `competition_registration`/`competition`, weil `material_request`
+     * bewusst keinen Fremdschlüssel auf die Meldung hat (siehe Migration).
+     */
+    fun boatNumbersForRegistrations(eventId: UUID): JIO<Map<UUID, List<Int>>> = Jooq.query {
+        select(MATERIAL_REQUEST.COMPETITION_REGISTRATION, MATERIAL_ITEM.NUMBER)
+            .from(MATERIAL_REQUEST)
+            .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+            .join(MATERIAL_TYPE).on(MATERIAL_TYPE.ID.eq(MATERIAL_OFFER.MATERIAL_TYPE))
+            .join(MATERIAL_ITEM).on(
+                MATERIAL_ITEM.MATERIAL_PROVIDER.eq(MATERIAL_OFFER.MATERIAL_PROVIDER)
+                    .and(MATERIAL_ITEM.MATERIAL_TYPE.eq(MATERIAL_OFFER.MATERIAL_TYPE))
+            )
+            .where(MATERIAL_OFFER.EVENT.eq(eventId))
+            .and(MATERIAL_REQUEST.STATUS.eq(MaterialRequestStatus.CONFIRMED.name))
+            .and(MATERIAL_TYPE.CATEGORY.eq(MaterialCategory.BOAT.name))
+            .and(MATERIAL_ITEM.STATUS.eq(MaterialItemStatus.ACTIVE.name))
+            .and(MATERIAL_ITEM.NUMBER.isNotNull)
+            .fetch { r -> r[MATERIAL_REQUEST.COMPETITION_REGISTRATION]!! to r[MATERIAL_ITEM.NUMBER]!! }
+            .groupBy({ it.first }) { it.second }
+            .mapValues { (_, numbers) -> numbers.sorted() }
     }
 }

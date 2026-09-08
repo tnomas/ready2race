@@ -1474,6 +1474,11 @@
           "keep": "Behold tildelte startnumre",
           "hint": "Hvis startnumrene beholdes, får kun de nye hold/deltagere tilfældige startnumre. Disse vil være højere end den nuværende højeste i konkurrencen. Hvis de ikke beholdes, blandes alle startnumre på ny."
         },
+        "alignMaterialNumbers": "Tildel startnumre efter bådnumre",
+        "material": {
+          "openRequestsHint_one": "{{count}} materialeanmodning er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
+          "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt."
+        },
         "reshuffle": "Dette blander alle startnumre på ny",
         "success": "Tilmeldinger afsluttet"
       }

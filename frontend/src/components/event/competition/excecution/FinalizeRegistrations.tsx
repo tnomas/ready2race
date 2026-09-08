@@ -18,6 +18,7 @@ import {
 import {useTranslation} from 'react-i18next'
 import {
     finalizeRegistrations,
+    getEventMaterialProviders,
     getRegistrationResult,
     getRegistrationsWithoutTeamNumber,
 } from '@api/sdk.gen.ts'
@@ -50,11 +51,12 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
         registrationsFinalized ? Date.now() : false,
     )
 
-    const handleFinalizeRegistrations = async (keepNumbers: boolean) => {
+    const handleFinalizeRegistrations = async (keepNumbers: boolean, alignMaterialNumbers: boolean) => {
         const {error} = await finalizeRegistrations({
             path: {eventId},
             query: {
                 keepNumbers: keepNumbers,
+                alignMaterialNumbers: alignMaterialNumbers,
             },
         })
         if (error) {
@@ -96,6 +98,23 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
             deps: [eventId, finalized],
         })
 
+    // Die Startnummern-Angleichung an Bootsnummern ergibt nur Sinn, wenn die Veranstaltung
+    // überhaupt Materialanbieter hat - sonst bleibt die Checkbox verborgen.
+    const {data: materialProviders} = useFetch(
+        signal => getEventMaterialProviders({signal, path: {eventId}}),
+        {
+            onResponse: ({error}) => {
+                if (error) {
+                    feedback.error(t('common.error.unexpected'))
+                }
+            },
+            deps: [eventId],
+        },
+    )
+    const showAlignMaterialNumbers = (materialProviders?.length ?? 0) > 0
+    const openMaterialRequests =
+        materialProviders?.reduce((sum, provider) => sum + provider.openRequests, 0) ?? 0
+
     const [dialogIsOpen, setDialogIsOpen] = useState(false)
     const openDialog = () => {
         setDialogIsOpen(true)
@@ -109,19 +128,54 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
         setKeepTeamNumbersSelected(event.target.checked)
     }
 
+    // Zustand außerhalb des Dialogs, weil die erste Fixierung (ohne Dialog) den Schalter ebenfalls
+    // braucht - siehe Button unten.
+    const [alignMaterialNumbersSelected, setAlignMaterialNumbersSelected] = useState(false)
+    const handleAlignMaterialNumbersChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setAlignMaterialNumbersSelected(event.target.checked)
+    }
+
+    const alignMaterialNumbersFields = showAlignMaterialNumbers && (
+        <>
+            <FormInputLabel
+                label={t('event.action.finalizeRegistrations.alignMaterialNumbers')}
+                required={true}
+                horizontal
+                reverse>
+                <Checkbox
+                    checked={alignMaterialNumbersSelected}
+                    onChange={handleAlignMaterialNumbersChange}
+                />
+            </FormInputLabel>
+            {openMaterialRequests > 0 && (
+                <Alert severity={'warning'}>
+                    {t('event.action.finalizeRegistrations.material.openRequestsHint', {
+                        count: openMaterialRequests,
+                    })}
+                </Alert>
+            )}
+        </>
+    )
+
     return (
         <Box>
             <MuiLink ref={downloadRef} display={'none'}></MuiLink>
             <Stack spacing={4}>
                 {registrationsWithoutTeamNumber !== null ? (
                     finalized === false ? (
-                        <Box>
+                        <Stack spacing={2} sx={{alignItems: 'start'}}>
+                            {alignMaterialNumbersFields}
                             <Button
                                 variant={'contained'}
-                                onClick={() => handleFinalizeRegistrations(false)}>
+                                onClick={() =>
+                                    handleFinalizeRegistrations(
+                                        false,
+                                        showAlignMaterialNumbers && alignMaterialNumbersSelected,
+                                    )
+                                }>
                                 {t('event.action.finalizeRegistrations.finalize')}
                             </Button>
-                        </Box>
+                        </Stack>
                     ) : (
                         <>
                             {registrationsWithoutTeamNumber.length > 0 && (
@@ -234,6 +288,7 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                                         'event.action.finalizeRegistrations.keepTeamNumbers.hint',
                                                     )}
                                                 </Alert>
+                                                {alignMaterialNumbersFields}
                                             </Stack>
                                         </DialogContent>
                                         <DialogActions>
@@ -245,6 +300,8 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                                 onClick={() => {
                                                     void handleFinalizeRegistrations(
                                                         keepTeamNumbersSelected,
+                                                        showAlignMaterialNumbers &&
+                                                            alignMaterialNumbersSelected,
                                                     )
                                                     setDialogIsOpen(false)
                                                 }}>
@@ -255,9 +312,14 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                 ) : (
                                     <>
                                         <DialogContent>
-                                            <Alert severity={'info'}>
-                                                {t('event.action.finalizeRegistrations.reshuffle')}
-                                            </Alert>
+                                            <Stack spacing={2} sx={{m: 2}}>
+                                                <Alert severity={'info'}>
+                                                    {t(
+                                                        'event.action.finalizeRegistrations.reshuffle',
+                                                    )}
+                                                </Alert>
+                                                {alignMaterialNumbersFields}
+                                            </Stack>
                                         </DialogContent>
                                         <DialogActions>
                                             <Button variant={'outlined'} onClick={closeDialog}>
@@ -266,7 +328,11 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                             <Button
                                                 variant={'contained'}
                                                 onClick={() =>
-                                                    void handleFinalizeRegistrations(false)
+                                                    void handleFinalizeRegistrations(
+                                                        false,
+                                                        showAlignMaterialNumbers &&
+                                                            alignMaterialNumbersSelected,
+                                                    )
                                                 }>
                                                 {t('event.action.finalizeRegistrations.refinalize')}
                                             </Button>

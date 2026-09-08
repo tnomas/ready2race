@@ -4264,6 +4264,12 @@ paths:
         required: false
         schema:
           type: boolean
+      - in: query
+        name: alignMaterialNumbers
+        description: Whether team numbers should match the rented boat's number where possible
+        required: false
+        schema:
+          type: boolean
     post:
       operationId: finalizeRegistrations
       responses:
