@@ -18,6 +18,7 @@ import {
     DASHBOARD_NOTE_PREVIEW_KEY,
     DASHBOARD_ONLY_TODAY_KEY,
     DASHBOARD_SHOW_CREW_KEY,
+    DASHBOARD_SHOW_MATERIAL_KEY,
     useDeviceChoice,
     useDeviceFlag,
     useDeviceList,
@@ -93,6 +94,9 @@ const DashboardSettingsPopover = ({
     const [notePreview, setNotePreview] = useDeviceFlag(DASHBOARD_NOTE_PREVIEW_KEY, true)
     const [showCrew, setShowCrew] = useDeviceFlag(DASHBOARD_SHOW_CREW_KEY, true)
     const [showChecks, setShowChecks] = useDeviceFlag(DASHBOARD_SHOW_CHECKS_KEY, true)
+    // Voreinstellung aus: die Materialzeile soll nur an Regatten mit Vermietung auffallen, dort
+    // per Klick dazuschaltbar. Ohne Vermietung liefert materialLabel ohnehin überall null.
+    const [showMaterial, setShowMaterial] = useDeviceFlag(DASHBOARD_SHOW_MATERIAL_KEY, false)
 
     // --- Lesbarkeit: die Schriftstufe -----------------------------------------------------------
     const [fontScale, setFontScale] = useDeviceChoice(
@@ -221,6 +225,17 @@ const DashboardSettingsPopover = ({
                         />
                     }
                     label={t('event.liveDashboard.settings.showChecks')}
+                />
+                {/* Aus zeigt nur echte Abweichungen von der Startnummer — der Regelfall
+                    ("eigenes Boot") bleibt dann unsichtbar, weil er nichts Neues sagt. */}
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={showMaterial}
+                            onChange={(_, checked) => setShowMaterial(checked)}
+                        />
+                    }
+                    label={t('event.liveDashboard.settings.showMaterial')}
                 />
             </SettingsSection>
             <SettingsSection title={t('event.liveDashboard.settings.readability')}>

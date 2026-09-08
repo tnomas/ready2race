@@ -1,5 +1,6 @@
 import {
     LatestMatchResultInfo,
+    MaterialForTeamDto,
     MatchResultTeamInfo,
     RunningMatchInfo,
     UpcomingCompetitionMatchInfo,
@@ -31,6 +32,8 @@ export type SpeakerTeam = {
     deregistered?: boolean
     deregisteredReason?: string | null
     participants: SpeakerParticipant[]
+    /** the effective material item of this team in this match; null without a confirmed boat request */
+    material?: MaterialForTeamDto | null
 }
 
 export type SpeakerMatch = {
@@ -86,6 +89,7 @@ const fromUpcoming = (match: UpcomingCompetitionMatchInfo): SpeakerMatch => ({
         clubName: team.clubName,
         clubsFull: team.clubsFull,
         participants: team.participants,
+        material: team.material,
     })),
 })
 
@@ -111,6 +115,7 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
         failed: team.failed,
         failedReason: team.failedReason,
         participants: team.participants,
+        material: team.material,
     })),
 })
 
@@ -127,6 +132,7 @@ const fromResultTeam = (team: MatchResultTeamInfo): SpeakerTeam => ({
     deregistered: team.deregistered,
     deregisteredReason: team.deregisteredReason,
     participants: team.participants,
+    material: team.material,
 })
 
 const fromResult = (match: LatestMatchResultInfo): SpeakerMatch => ({

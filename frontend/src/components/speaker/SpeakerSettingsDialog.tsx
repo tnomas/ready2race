@@ -8,6 +8,7 @@ import {
     Select,
     Slider,
     Stack,
+    Switch,
     ToggleButton,
     ToggleButtonGroup,
     Typography,
@@ -193,6 +194,18 @@ const SpeakerSettingsDialog = ({open, onClose}: Props) => {
                                 ))}
                             </Select>
                         </Box>
+                    </Stack>
+                    {/* Voreinstellung aus (siehe DEFAULT_SPEAKER_SETTINGS): die Materialzeile
+                        soll nur an Regatten mit Vermietung auffallen, dort per Klick
+                        dazuschaltbar - ohne Abweichung bleibt „eigenes Boot" sonst unsichtbar. */}
+                    <Stack direction={'row'} alignItems={'center'} justifyContent={'space-between'}>
+                        <Typography variant={'body2'} sx={labelSx}>
+                            {t('speaker.settings.showMaterial')}
+                        </Typography>
+                        <Switch
+                            checked={settings.showMaterial}
+                            onChange={(_, checked) => updateSettings({showMaterial: checked})}
+                        />
                     </Stack>
                     <Button
                         variant={'outlined'}

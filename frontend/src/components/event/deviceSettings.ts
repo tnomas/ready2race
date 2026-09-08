@@ -52,6 +52,12 @@ export const DASHBOARD_FONT_SCALE_KEY = 'live_dashboard_font_scale'
  * veröffentlichte Stufe „nur kritische zeigen", deren alter Schlüssel ersatzlos entfällt.)
  */
 export const DASHBOARD_SHOW_CHECKS_KEY = 'live_dashboard_show_checks'
+/**
+ * Materialabweichungen (Boot weicht von der Startnummer ab) an den Bootszeilen zeigen, statt nur
+ * bei Bedarf. Voreinstellung aus: die meisten Regatten vermieten kein Material, die Spalte soll
+ * dort nicht ungefragt Platz ziehen.
+ */
+export const DASHBOARD_SHOW_MATERIAL_KEY = 'live_dashboard_show_material'
 
 const CHANGE_EVENT = 'r2r:device-setting'
 

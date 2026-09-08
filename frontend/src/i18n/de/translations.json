@@ -2023,6 +2023,7 @@
         "notePreview": "Notiz-Vorschau an der Bootszeile",
         "showCrew": "Aufstellung anzeigen",
         "showChecks": "Prüfungen anzeigen",
+        "showMaterial": "Material immer zeigen",
         "readability": "Lesbarkeit",
         "fontSize": {
           "label": "Schriftgröße",
@@ -2084,6 +2085,10 @@
         "startedAt": "gestartet {{time}}",
         "startNumberLabel": "Startnummer {{number}}",
         "boatLabel": "Boot {{number}}"
+      },
+      "material": {
+        "own": "eigenes Boot",
+        "deviates": "abweichend"
       },
       "requirement": {
         "checkedAt": "Erfüllt am {{time}}",
@@ -4452,6 +4457,10 @@
       "failed": "DNF",
       "deregistered": "Abgemeldet"
     },
+    "material": {
+      "own": "eigenes Boot",
+      "deviates": "abweichend"
+    },
     "results": {
       "empty": "Noch keine Ergebnisse vorhanden.",
       "updated": "Stand"
@@ -4483,6 +4492,7 @@
       },
       "resetColors": "Farben zurücksetzen",
       "turnaround": "Wechselzeit-Warnung",
+      "showMaterial": "Material immer zeigen",
       "resetAll": "Alles zurücksetzen"
     },
     "dashboard": {

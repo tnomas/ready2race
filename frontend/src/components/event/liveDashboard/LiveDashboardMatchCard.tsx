@@ -1,5 +1,15 @@
 import {Fragment} from 'react'
-import {Box, Button, Card, CardContent, Divider, Stack, Tooltip, Typography} from '@mui/material'
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    Divider,
+    Stack,
+    Tooltip,
+    Typography,
+} from '@mui/material'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined'
 import {useTranslation} from 'react-i18next'
@@ -10,6 +20,7 @@ import {raceClockerPollStatus} from '@components/event/competition/excecution/ra
 import {deregisteredChip, matchStatusChip} from '@components/event/match/matchStatusChip.ts'
 import StatusChip from '@components/event/match/StatusChip.tsx'
 import {byeExplanation} from '@components/event/match/matchBye.ts'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import {groupByRatingCategory, hasRatingCategories} from '@utils/ratingCategorySections.ts'
 import {warningTextColor} from '@utils/warningText.ts'
 import {
@@ -398,6 +409,13 @@ const LiveDashboardMatchCard = ({
                     // der Kompaktmodus, der nur verdichtet.
                     const showCrew = teamShowsCrew(team) && detail.showCrew
                     const notePreview = detail.notePreview ? latestTeamNote(team) : null
+                    // „always" nur mit eingeschalteter Einstellung — sonst wie am Wettkampf-
+                    // Dashboard üblich nur, wenn wirklich eine Abweichung von der Startnummer
+                    // vorliegt (siehe materialLabel.ts, Spec Abschnitt 11).
+                    const materialInfo = materialLabel(
+                        team.material,
+                        detail.showMaterial ? 'always' : 'deviationsOnly',
+                    )
                     const heading = headingBeforeTeam.get(team.teamId)
 
                     return (
@@ -554,6 +572,43 @@ const LiveDashboardMatchCard = ({
                                             </Stack>
                                         )}
                                     </Stack>
+                                    {/*
+                                        Das wirksame Materialstück dieses Boots — nur eine
+                                        Abweichung von der Startnummer ist ohne die Einstellung
+                                        der Rede wert, „eigenes Boot" erscheint dann gar nicht
+                                        (siehe materialLabel.ts). warningTextColor statt
+                                        warning.main: lesbarer Text auf hellem Grund.
+                                    */}
+                                    {materialInfo && (
+                                        <Stack
+                                            direction="row"
+                                            spacing={0.5}
+                                            alignItems="center"
+                                            flexWrap="wrap"
+                                            useFlexGap>
+                                            <Typography
+                                                variant="caption"
+                                                sx={{
+                                                    color:
+                                                        materialInfo !== 'own' &&
+                                                        materialInfo.deviates
+                                                            ? warningTextColor
+                                                            : 'grey.700',
+                                                }}>
+                                                {materialInfo === 'own'
+                                                    ? t('event.liveDashboard.material.own')
+                                                    : `· ${materialInfo.text}`}
+                                            </Typography>
+                                            {materialInfo !== 'own' && materialInfo.deviates && (
+                                                <Chip
+                                                    size="small"
+                                                    color="warning"
+                                                    label={t('event.liveDashboard.material.deviates')}
+                                                    sx={{height: 18, fontSize: '0.65rem'}}
+                                                />
+                                            )}
+                                        </Stack>
+                                    )}
                                     {/*
                                         Die jüngste Notiz als einzeilige Vorschau direkt an der
                                         Zeile — zusätzlich zum Icon+Zähler oben, der weiterhin

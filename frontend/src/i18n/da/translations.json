@@ -2020,6 +2020,7 @@
         "notePreview": "Notat-forhåndsvisning ved bådlinjen",
         "showCrew": "Vis opstilling",
         "showChecks": "Vis kontroller",
+        "showMaterial": "Vis altid materiel",
         "readability": "Læsbarhed",
         "fontSize": {
           "label": "Skriftstørrelse",
@@ -2071,6 +2072,10 @@
         "startedAt": "startet {{time}}",
         "startNumberLabel": "Startnummer {{number}}",
         "boatLabel": "Båd {{number}}"
+      },
+      "material": {
+        "own": "egen båd",
+        "deviates": "afvigende"
       },
       "requirement": {
         "checkedAt": "Opfyldt {{time}}",
@@ -4200,6 +4205,10 @@
       "failed": "DNF",
       "deregistered": "Afmeldt"
     },
+    "material": {
+      "own": "egen båd",
+      "deviates": "afvigende"
+    },
     "results": {
       "empty": "Ingen resultater endnu.",
       "updated": "Opdateret"
@@ -4231,6 +4240,7 @@
       },
       "resetColors": "Nulstil farver",
       "turnaround": "Skiftetids-advarsel",
+      "showMaterial": "Vis altid materiel",
       "resetAll": "Nulstil alt"
     },
     "dashboard": {

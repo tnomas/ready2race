@@ -690,6 +690,11 @@ export type LiveDashboardDetailSettings = {
     showCrew: boolean
     /** Prüfungs-Icons an den Bootszeilen zeigen — aus entfällt die ganze Icon-Spalte. */
     showChecks: boolean
+    /**
+     * Materialzeile auch ohne Abweichung zeigen (inklusive „eigenes Boot"). Aus zeigt nur
+     * Abweichungen von der Startnummer — genau der Fall, der am Steg eine Nachfrage wert ist.
+     */
+    showMaterial: boolean
 }
 
 /**

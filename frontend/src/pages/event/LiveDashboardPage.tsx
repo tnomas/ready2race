@@ -52,6 +52,7 @@ import {
     DASHBOARD_NOTE_PREVIEW_KEY,
     DASHBOARD_ONLY_TODAY_KEY,
     DASHBOARD_SHOW_CREW_KEY,
+    DASHBOARD_SHOW_MATERIAL_KEY,
     dashboardCompetitionFilterKey,
     useDeviceChoice,
     useDeviceFlag,
@@ -204,7 +205,8 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     const [notePreview] = useDeviceFlag(DASHBOARD_NOTE_PREVIEW_KEY, true)
     const [showCrewDetails] = useDeviceFlag(DASHBOARD_SHOW_CREW_KEY, true)
     const [showChecks] = useDeviceFlag(DASHBOARD_SHOW_CHECKS_KEY, true)
-    const detail = {notePreview, showCrew: showCrewDetails, showChecks}
+    const [showMaterial] = useDeviceFlag(DASHBOARD_SHOW_MATERIAL_KEY, false)
+    const detail = {notePreview, showCrew: showCrewDetails, showChecks, showMaterial}
     // Lesbarkeit: dreistufige Schriftgröße NEBEN dem Kompaktmodus — beide landen im selben
     // Karten-Wrapper und verrechnen sich dort (siehe dashboardTypographySizes).
     const [fontScale] = useDeviceChoice(DASHBOARD_FONT_SCALE_KEY, 'normal', DASHBOARD_FONT_SCALES)

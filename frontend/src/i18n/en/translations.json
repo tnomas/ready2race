@@ -2023,6 +2023,7 @@
         "notePreview": "Note preview on the boat row",
         "showCrew": "Show line-up",
         "showChecks": "Show checks",
+        "showMaterial": "Always show material",
         "readability": "Readability",
         "fontSize": {
           "label": "Font size",
@@ -2084,6 +2085,10 @@
         "startedAt": "started {{time}}",
         "startNumberLabel": "Bib {{number}}",
         "boatLabel": "Boat {{number}}"
+      },
+      "material": {
+        "own": "own boat",
+        "deviates": "deviating"
       },
       "requirement": {
         "checkedAt": "Fulfilled at {{time}}",
@@ -4452,6 +4457,10 @@
       "failed": "DNF",
       "deregistered": "Withdrawn"
     },
+    "material": {
+      "own": "own boat",
+      "deviates": "deviating"
+    },
     "results": {
       "empty": "No results yet.",
       "updated": "Updated"
@@ -4483,6 +4492,7 @@
       },
       "resetColors": "Reset colors",
       "turnaround": "Turnaround warning",
+      "showMaterial": "Always show material",
       "resetAll": "Reset everything"
     },
     "dashboard": {

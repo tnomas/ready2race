@@ -25,6 +25,8 @@ export type SpeakerSettings = {
     matchShowYears: boolean
     // timing panel: how many finish-line entries the ticker keeps visible
     timingTickerLimit: number
+    // match panel: show the material line even without a deviation from the start number
+    showMaterial: boolean
 }
 
 export const DEFAULT_SPEAKER_SETTINGS: SpeakerSettings = {
@@ -38,6 +40,7 @@ export const DEFAULT_SPEAKER_SETTINGS: SpeakerSettings = {
     programCompact: false,
     matchShowYears: true,
     timingTickerLimit: 8,
+    showMaterial: false,
 }
 
 const PRESET_PALETTES: Record<SpeakerThemePreset, SpeakerColors> = {

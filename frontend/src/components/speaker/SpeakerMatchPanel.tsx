@@ -16,6 +16,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import {format} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import {TimingSequenceDto} from '@api/types.gen.ts'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import {
@@ -312,6 +313,13 @@ const SpeakerMatchPanel = ({
                             team.startNumber != undefined
                                 ? progressByStartNumber.get(team.startNumber)
                                 : undefined
+                        // „always" nur mit eingeschalteter Einstellung — sonst nur bei einer
+                        // echten Abweichung von der Startnummer (Spec Abschnitt 11, siehe
+                        // materialLabel.ts).
+                        const materialInfo = materialLabel(
+                            team.material,
+                            settings.showMaterial ? 'always' : 'deviationsOnly',
+                        )
                         return (
                             <TableRow key={team.teamId} sx={{'&:last-child td': {border: 0}}}>
                                 <TableCell sx={{...bodyCellSx, whiteSpace: 'nowrap'}}>
@@ -348,6 +356,43 @@ const SpeakerMatchPanel = ({
                                             sx={{color: colors.textSecondary}}>
                                             {team.teamName}
                                         </Typography>
+                                    )}
+                                    {/* Das wirksame Materialstück - nur eine Abweichung von der
+                                        Startnummer ist ohne die Einstellung der Rede wert,
+                                        „eigenes Boot" erscheint dann gar nicht. */}
+                                    {materialInfo && (
+                                        <Stack
+                                            direction={'row'}
+                                            spacing={0.5}
+                                            alignItems={'center'}
+                                            flexWrap={'wrap'}
+                                            useFlexGap>
+                                            <Typography
+                                                variant={'caption'}
+                                                sx={{
+                                                    color:
+                                                        materialInfo !== 'own' &&
+                                                        materialInfo.deviates
+                                                            ? colors.now
+                                                            : colors.textSecondary,
+                                                }}>
+                                                {materialInfo === 'own'
+                                                    ? t('speaker.material.own')
+                                                    : `· ${materialInfo.text}`}
+                                            </Typography>
+                                            {materialInfo !== 'own' && materialInfo.deviates && (
+                                                <Chip
+                                                    size={'small'}
+                                                    label={t('speaker.material.deviates')}
+                                                    sx={{
+                                                        height: 16,
+                                                        fontSize: '0.65rem',
+                                                        bgcolor: `${colors.now}22`,
+                                                        color: colors.now,
+                                                    }}
+                                                />
+                                            )}
+                                        </Stack>
                                     )}
                                 </TableCell>
                                 <TableCell sx={bodyCellSx}>

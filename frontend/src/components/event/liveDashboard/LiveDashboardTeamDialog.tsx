@@ -30,6 +30,7 @@ import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {updateEventGlobal, updateLiveDashboardGlobal} from '@authorization/privileges.ts'
 import ParticipantTrackingDialog from '@components/event/participantTracking/ParticipantTrackingDialog.tsx'
+import {materialLabel} from '@components/material/materialLabel.ts'
 import {canSubmitNote, formatMinutes, severityChipColor} from './common.ts'
 import SeverityIcon from './SeverityIcon.tsx'
 
@@ -266,6 +267,32 @@ const TeamDialog = ({
                                 }
                             />
                         )}
+                        {/*
+                            Der Dialog zeigt genau ein Boot im Detail — hier gilt „always", nicht
+                            nur bei Abweichung: „eigenes Boot" ist am Steg genauso eine Auskunft
+                            wie eine Ausnahme (Spec Abschnitt 11, siehe materialLabel.ts).
+                        */}
+                        {(() => {
+                            const materialInfo = materialLabel(team.material, 'always')
+                            if (materialInfo === null) return null
+                            return (
+                                <Chip
+                                    size="small"
+                                    color={
+                                        materialInfo !== 'own' && materialInfo.deviates
+                                            ? 'warning'
+                                            : 'default'
+                                    }
+                                    label={
+                                        materialInfo === 'own'
+                                            ? t('event.liveDashboard.material.own')
+                                            : materialInfo.deviates
+                                              ? `${materialInfo.text} · ${t('event.liveDashboard.material.deviates')}`
+                                              : materialInfo.text
+                                    }
+                                />
+                            )
+                        })()}
                         {team.penaltySeconds != null && (
                             <Chip
                                 size="small"
