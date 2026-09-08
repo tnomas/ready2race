@@ -50,7 +50,6 @@ import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.ok
 import de.lambda9.tailwind.core.KIO.Companion.unit
 import de.lambda9.tailwind.core.extensions.kio.*
-import de.lambda9.tailwind.jooq.Jooq
 import java.awt.Color
 import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
@@ -342,21 +341,6 @@ object EventRegistrationService {
             content = content,
             attachments = attachments
         )
-
-        if (isUpdate) {
-            // Der Trigger A0_material_request_orphan_cleanup (Task 1.1) ist als aufgeschobener
-            // AFTER-DELETE-Constraint-Trigger auf competition_registration angelegt, in der
-            // Annahme, sein Name sortiere ihn vor Postgres' eigener (ebenfalls aufgeschobener)
-            // Fremdschlüsselprüfung von material_request, sodass er beim COMMIT zuerst feuert.
-            // Das stimmt nicht: Postgres' automatische Fremdschlüsselprüfung ignoriert die
-            // alphabetische Reihenfolge nutzerdefinierter Trigger auf derselben Relation (geprüft
-            // mit mehreren isolierten Nachbauten). Ohne diese Zeile würde jedes Speichern, das eine
-            // Meldung mit offener Materialanfrage wirklich entfernt (nicht nur erneut anlegt), am
-            // COMMIT mit einem Fremdschlüsselfehler scheitern. Der Aufruf zwingt nur den bereits
-            // deklarierten Trigger vor die Prüfung - keine Materialvermietungs-Logik hier, nur das
-            // Nachholen dessen, was der Trigger laut seinem eigenen Kommentar ohnehin tun soll.
-            !Jooq.query { execute("set constraints \"A0_material_request_orphan_cleanup\" immediate") }.orDie()
-        }
 
         ok(ApiResponse.Created(persistedRegistrationId))
 

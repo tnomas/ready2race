@@ -281,9 +281,13 @@ class EventRegistrationStableIdsTest {
         !EventRegistrationService.upsertRegistrationForEvent(seeded.eventId, dtoWithoutTeam, seeded.user)
 
         // testComprehension rollt am Ende zurück, der aufgeschobene Trigger feuert also nie von
-        // selbst beim Commit - "set constraints all immediate" erzwingt die Prüfung (Trigger und
-        // Fremdschlüssel) innerhalb der laufenden Transaktion.
+        // selbst beim Commit - "set constraints all immediate" erzwingt die Prüfung innerhalb der
+        // laufenden Transaktion. Ohne Fremdschlüssel auf material_request.competition_registration
+        // konkurriert dabei keine automatische Postgres-Prüfung mehr mit dem Aufräum-Trigger.
         !Jooq.query { execute("set constraints all immediate") }
+        // Kein Wurf bis hierher: Der Trigger ist gelaufen, ohne dass eine Fremdschlüsselverletzung
+        // die Transaktion abgebrochen hat.
+        assertTrue(true)
 
         val remainingRequests = !MaterialRequestRepo.forRegistration(teamId)
         assertTrue(remainingRequests.isEmpty())

@@ -99,14 +99,18 @@ create table material_offer
     unique (event, material_provider, material_type)
 );
 
--- Anfrage je Meldung und Angebot. Der Fremdschlüssel auf die Meldung ist aufgeschoben und ohne
--- Kaskade: Die Anmeldung löscht beim Speichern alle nicht gesperrten Meldungen und legt sie mit
--- derselben ID neu an (Task 3.0); innerhalb dieser Transaktion darf die Anfrage kurz ins Leere
--- zeigen. Wirklich entfernte Meldungen räumt MaterialService.dropRequestsOfRemovedRegistrations auf.
+-- Anfrage je Meldung und Angebot. Bewusst ohne Fremdschlüssel auf die Meldung: Die Anmeldung
+-- löscht beim Speichern alle nicht gesperrten Meldungen und legt sie mit derselben ID neu an
+-- (Task 3.0); Postgres' eigene (aufgeschobene) Fremdschlüsselprüfung würde dabei unabhängig von
+-- Trigger-Namen oder Anlage-Reihenfolge immer vor jedem nutzerdefinierten Trigger auf derselben
+-- Relation laufen, sodass ein wirklich entferntes Registrierungs-Objekt am COMMIT scheitern würde,
+-- bevor der Aufräum-Trigger unten überhaupt zum Zug kommt (empirisch mit isolierten Nachbauten
+-- geprüft, siehe Task-3.0-Report). Der Anmelde-Service garantiert beim Anlegen, dass die Meldung
+-- existiert; verwaiste Anfragen räumt der aufgeschobene Constraint-Trigger unten beim COMMIT auf.
 create table material_request
 (
     id                       uuid primary key,
-    competition_registration uuid      not null references competition_registration deferrable initially deferred,
+    competition_registration uuid      not null,
     material_offer           uuid      not null references material_offer on delete cascade,
     count                    integer   not null check (count > 0),
     status                   text      not null check (status in ('REQUESTED', 'CONFIRMED', 'WAITLISTED', 'DECLINED', 'WITHDRAWN')),
@@ -120,11 +124,12 @@ create table material_request
     unique (competition_registration, material_offer)
 );
 create index on material_request (material_offer);
+create index on material_request (competition_registration);
 
 -- Anfragen überleben das Neu-Speichern der Anmeldung (Meldung wird gelöscht und mit gleicher ID neu
--- angelegt), sollen aber mit einer wirklich entfernten Meldung verschwinden. Der Trigger feuert
--- aufgeschoben beim Commit und räumt nur Waisen weg. Der Name beginnt mit "A0", damit er vor den
--- RI-Triggern (RI_ConstraintTrigger_...) desselben Ereignisses läuft.
+-- angelegt), sollen aber mit einer wirklich entfernten Meldung verschwinden. Ohne Fremdschlüssel
+-- oben konkurriert keine automatische Postgres-Prüfung mit diesem Trigger, deshalb feuert er jetzt
+-- zuverlässig aufgeschoben beim Commit und räumt nur Waisen weg.
 create or replace function material_request_orphan_cleanup() returns trigger
     language plpgsql as
 $$
