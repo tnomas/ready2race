@@ -4708,6 +4708,61 @@
       "CHANGEOVER": "Changeover too short",
       "OUTAGE": "Out of service",
       "RETIRED": "Retired"
+    },
+    "damage": {
+      "damage": "Damage",
+      "damages": "Damages",
+      "report": "Report damage",
+      "edit": "Edit damage",
+      "item": "Item",
+      "reportedAt": "Reported at",
+      "description": "Description",
+      "severity": "Severity",
+      "status": "Status",
+      "causedBy": "Caused by",
+      "outOfServiceFrom": "Out of service from",
+      "outOfServiceUntil": "Out of service until",
+      "repairedAt": "Repaired at",
+      "photos": "Photos",
+      "addPhotos": "Add photos",
+      "csv": "CSV export",
+      "none": "No damages match this selection.",
+      "success": "Damage saved",
+      "error": "Damage could not be saved",
+      "photoTooLarge": "Photo is too large (max. 10 MB)",
+      "photoUploadError": "Photo could not be uploaded",
+      "photoDeleteError": "Photo could not be deleted",
+      "columns": {
+        "item": "Item",
+        "type": "Equipment type",
+        "reportedAt": "Reported at",
+        "severity": "Severity",
+        "status": "Status",
+        "causedBy": "Caused by",
+        "photos": "Photos"
+      },
+      "impact": {
+        "title": "Affected races",
+        "none": "No affected races.",
+        "replacement": "Replacement item",
+        "sameNumber": "Number matches",
+        "later": "Later",
+        "save": "Apply",
+        "success": "Replacement saved",
+        "error": "Replacement could not be saved"
+      },
+      "baseAgain": "Base assignment possible again",
+      "baseAgainRemove": "Remove exception"
+    },
+    "severity": {
+      "MINOR": "minor",
+      "MAJOR": "major",
+      "TOTAL": "total loss",
+      "OUTAGE_ONLY": "out of service only"
+    },
+    "damageStatus": {
+      "REPORTED": "reported",
+      "REPAIRED": "repaired"
     }
   }
 }

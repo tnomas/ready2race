@@ -12,6 +12,7 @@ import {
     TableHead,
     TableRow,
     TextField,
+    Tooltip,
     Typography,
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
@@ -24,7 +25,7 @@ import {
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {deviatesFromStartNumber} from '@components/material/assignByStartNumber.ts'
-import {MaterialConflict, severityOf} from '@components/material/conflicts.ts'
+import {MaterialConflict, severityOf, windowOf, windowsIntersect} from '@components/material/conflicts.ts'
 import MaterialExceptionDialog from '@components/material/MaterialExceptionDialog.tsx'
 
 type Props = {
@@ -92,6 +93,62 @@ const MaterialAssignmentByTeam = ({
             feedback.success(t('material.assignment.success'))
             onChanged()
         }
+    }
+
+    const removeException = async (request: MaterialOverviewRequestDto, assignmentId: string) => {
+        const entries: MaterialAssignmentEntry[] = request.assignments
+            .filter(a => a.id !== assignmentId)
+            .map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}))
+
+        setSubmittingId(request.id)
+        const {error} = await setMaterialAssignments({
+            path: {eventId, providerId, requestId: request.id},
+            body: {assignments: entries},
+        })
+        setSubmittingId(null)
+        if (error) {
+            feedback.error(t('material.assignment.error'))
+        } else {
+            feedback.success(t('material.assignment.success'))
+            onChanged()
+        }
+    }
+
+    /**
+     * Ausnahmen, deren Lauf ohne die Ausnahme keinen OUTAGE-Konflikt für die Grundzuteilung
+     * mehr hätte - der Ausfall, der die Ausnahme nötig machte, ist vorbei oder repariert.
+     * Ohne Grundzuteilung (baseItemIds leer) gibt es nichts, worauf man zurückfallen könnte.
+     */
+    const restorableExceptions = (request: MaterialOverviewRequestDto) => {
+        const baseItemIds = request.assignments
+            .filter(a => a.competitionMatch == null)
+            .map(a => a.materialItem)
+        if (baseItemIds.length === 0) {
+            return []
+        }
+        return request.assignments.filter(exception => {
+            if (exception.competitionMatch == null) {
+                return false
+            }
+            const match = matches.find(m => m.id === exception.competitionMatch)
+            const window = match ? windowOf(match) : null
+            if (window == null) {
+                return false
+            }
+            return baseItemIds.every(id => {
+                const baseItem = itemsById.get(id)
+                if (!baseItem) {
+                    return true
+                }
+                return !baseItem.outages.some(outage => {
+                    const outageWindow = {
+                        start: new Date(outage.from).getTime(),
+                        end: outage.until != null ? new Date(outage.until).getTime() : Infinity,
+                    }
+                    return windowsIntersect(outageWindow, window)
+                })
+            })
+        })
     }
 
     if (confirmed.length === 0) {
@@ -218,12 +275,29 @@ const MaterialAssignmentByTeam = ({
                                         </Stack>
                                     </TableCell>
                                     <TableCell>
-                                        <Button
-                                            size={'small'}
-                                            onClick={() => setExceptionRequestId(request.id)}>
-                                            {t('material.assignment.exception')}
-                                            {exceptionCount > 0 ? ` (${exceptionCount})` : ''}
-                                        </Button>
+                                        <Stack spacing={0.5}>
+                                            <Button
+                                                size={'small'}
+                                                onClick={() => setExceptionRequestId(request.id)}>
+                                                {t('material.assignment.exception')}
+                                                {exceptionCount > 0 ? ` (${exceptionCount})` : ''}
+                                            </Button>
+                                            {restorableExceptions(request).map(exception => (
+                                                <Tooltip
+                                                    key={exception.id}
+                                                    title={t('material.damage.baseAgain')}>
+                                                    <Chip
+                                                        size={'small'}
+                                                        color={'success'}
+                                                        variant={'outlined'}
+                                                        label={t('material.damage.baseAgainRemove')}
+                                                        onDelete={() =>
+                                                            void removeException(request, exception.id)
+                                                        }
+                                                    />
+                                                </Tooltip>
+                                            ))}
+                                        </Stack>
                                     </TableCell>
                                     <TableCell>
                                         <Stack

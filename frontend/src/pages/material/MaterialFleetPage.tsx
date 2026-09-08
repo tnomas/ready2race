@@ -1,3 +1,4 @@
+import {useState} from 'react'
 import {Box, FormControl, InputLabel, MenuItem, Select, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
@@ -9,6 +10,7 @@ import {getMaterialProviders} from '@api/sdk.gen.ts'
 import {MaterialItemDto} from '@api/types.gen.ts'
 import MaterialItemTable from '@components/material/MaterialItemTable.tsx'
 import MaterialItemDialog from '@components/material/MaterialItemDialog.tsx'
+import MaterialDamageDialog from '@components/material/MaterialDamageDialog.tsx'
 import Throbber from '@components/Throbber.tsx'
 
 /**
@@ -29,6 +31,9 @@ const MaterialFleetPage = () => {
     const providerId = ownProviderId ?? (mayReadGlobal ? search.provider : undefined)
 
     const administrationProps = useEntityAdministration<MaterialItemDto>(t('material.item.item'))
+    // Schaden melden aus der Flotte hat keinen Veranstaltungsbezug - kein Verursacher-Vorschlag,
+    // kein Ausfall-Dialog danach (siehe MaterialDamageDialog).
+    const [damageItem, setDamageItem] = useState<MaterialItemDto | null>(null)
 
     const {data: providers, pending: providersPending} = useFetch(
         signal => getMaterialProviders({signal, query: {limit: 200}}),
@@ -86,8 +91,21 @@ const MaterialFleetPage = () => {
     return (
         <Box>
             <Typography variant={'h1'}>{t('material.fleet.title')}</Typography>
-            <MaterialItemTable providerId={providerId} {...administrationProps.table} />
+            <MaterialItemTable
+                providerId={providerId}
+                onReportDamage={setDamageItem}
+                {...administrationProps.table}
+            />
             <MaterialItemDialog providerId={providerId} {...administrationProps.dialog} />
+            <MaterialDamageDialog
+                open={damageItem != null}
+                providerId={providerId}
+                damage={null}
+                presetItem={damageItem ?? undefined}
+                onClose={() => setDamageItem(null)}
+                onSaved={() => setDamageItem(null)}
+                reload={administrationProps.table.reloadData}
+            />
         </Box>
     )
 }

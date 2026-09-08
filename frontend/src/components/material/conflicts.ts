@@ -17,9 +17,14 @@ export type MaterialConflict = {
 
 export const severityOf = (kind: ConflictKind): 'error' | 'warning' => (kind === 'CHANGEOVER' ? 'warning' : 'error')
 
-type Window = {start: number; end: number}
+export type Window = {start: number; end: number}
 
-const windowOf = (match: MaterialOverviewMatchDto): Window | null => {
+/**
+ * Zeitfenster eines Laufs in Millisekunden - exportiert, weil affectedByOutage.ts und
+ * MaterialDamageDialog.tsx dieselbe Fensterlogik brauchen (Ausfallfenster gegen Lauffenster,
+ * Verursacher-Vorschlag zum Meldezeitpunkt). Kein Lauf-Startzeitpunkt heißt kein Fenster.
+ */
+export const windowOf = (match: MaterialOverviewMatchDto): Window | null => {
     if (match.startTime == null) {
         return null
     }
@@ -28,7 +33,7 @@ const windowOf = (match: MaterialOverviewMatchDto): Window | null => {
     return {start, end}
 }
 
-const windowsIntersect = (a: Window, b: Window): boolean => a.start < b.end && b.start < a.end
+export const windowsIntersect = (a: Window, b: Window): boolean => a.start < b.end && b.start < a.end
 
 type ItemOccurrence = {matchId: string; requestId: string; window: Window}
 

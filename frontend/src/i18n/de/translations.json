@@ -4708,6 +4708,61 @@
       "CHANGEOVER": "Wechselzeit zu knapp",
       "OUTAGE": "Ausfall",
       "RETIRED": "Ausgemustert"
+    },
+    "damage": {
+      "damage": "Schaden",
+      "damages": "Schäden",
+      "report": "Schaden melden",
+      "edit": "Schaden bearbeiten",
+      "item": "Materialstück",
+      "reportedAt": "Gemeldet am",
+      "description": "Beschreibung",
+      "severity": "Schwere",
+      "status": "Status",
+      "causedBy": "Verursacher",
+      "outOfServiceFrom": "Ausfall ab",
+      "outOfServiceUntil": "Ausfall bis",
+      "repairedAt": "Repariert am",
+      "photos": "Fotos",
+      "addPhotos": "Fotos hinzufügen",
+      "csv": "CSV-Export",
+      "none": "Keine Schäden mit dieser Auswahl.",
+      "success": "Schaden gespeichert",
+      "error": "Schaden konnte nicht gespeichert werden",
+      "photoTooLarge": "Foto ist zu groß (max. 10 MB)",
+      "photoUploadError": "Foto konnte nicht hochgeladen werden",
+      "photoDeleteError": "Foto konnte nicht gelöscht werden",
+      "columns": {
+        "item": "Stück",
+        "type": "Materialart",
+        "reportedAt": "Gemeldet am",
+        "severity": "Schwere",
+        "status": "Status",
+        "causedBy": "Verursacher",
+        "photos": "Fotos"
+      },
+      "impact": {
+        "title": "Betroffene Läufe",
+        "none": "Keine betroffenen Läufe.",
+        "replacement": "Ersatzstück",
+        "sameNumber": "Nummer passt",
+        "later": "Später",
+        "save": "Übernehmen",
+        "success": "Ersatz gespeichert",
+        "error": "Ersatz konnte nicht gespeichert werden"
+      },
+      "baseAgain": "Grundzuteilung wieder möglich",
+      "baseAgainRemove": "Ausnahme entfernen"
+    },
+    "severity": {
+      "MINOR": "leicht",
+      "MAJOR": "schwer",
+      "TOTAL": "Totalschaden",
+      "OUTAGE_ONLY": "nur Ausfall"
+    },
+    "damageStatus": {
+      "REPORTED": "gemeldet",
+      "REPAIRED": "repariert"
     }
   }
 }

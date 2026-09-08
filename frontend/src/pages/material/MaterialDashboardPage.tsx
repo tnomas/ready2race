@@ -14,6 +14,7 @@ import {readMaterialGlobal} from '@authorization/privileges.ts'
 import MaterialSettingsPanel from '@components/material/MaterialSettingsPanel.tsx'
 import MaterialRequestsPanel from '@components/material/MaterialRequestsPanel.tsx'
 import MaterialAssignmentPanel from '@components/material/MaterialAssignmentPanel.tsx'
+import MaterialDamagesPanel from '@components/material/MaterialDamagesPanel.tsx'
 
 export const MATERIAL_TABS = ['requests', 'assignment', 'damages', 'settings'] as const
 export type MaterialTab = (typeof MATERIAL_TABS)[number]
@@ -21,8 +22,7 @@ export type MaterialTab = (typeof MATERIAL_TABS)[number]
 /**
  * Material-Planung einer Veranstaltung. providerId ist der eigene Anbieter (materialProviderId
  * am Konto), sonst - für Konten mit READ MATERIAL GLOBAL ohne eigene Zuordnung - der über die
- * Adresse gewählte Anbieter (`?provider=`, siehe SelectMaterialEventPage). Der Reiter Schäden
- * kommt erst mit Aufgabe 5.3 - bis dahin steht dort nur ein Hinweis.
+ * Adresse gewählte Anbieter (`?provider=`, siehe SelectMaterialEventPage).
  */
 const MaterialDashboardPage = () => {
     const {t} = useTranslation()
@@ -80,7 +80,11 @@ const MaterialDashboardPage = () => {
                 )}
             </TabPanel>
             <TabPanel index={'damages'} activeTab={activeTab}>
-                <Typography>{t('material.dashboard.comingSoon')}</Typography>
+                {providerId ? (
+                    <MaterialDamagesPanel eventId={eventId} providerId={providerId} />
+                ) : (
+                    <NoProviderHint mayReadGlobal={mayReadGlobal} t={t} />
+                )}
             </TabPanel>
             <TabPanel index={'settings'} activeTab={activeTab}>
                 {providerId ? (

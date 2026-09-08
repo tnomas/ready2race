@@ -1,8 +1,9 @@
-import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
+import {GridActionsCellItem, GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
+import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialItem, getMaterialItems} from '@api/sdk.gen.ts'
 import {MaterialItemDto} from '@api/types.gen.ts'
-import {BaseEntityTableProps} from '@utils/types.ts'
+import {BaseEntityTableProps, EntityAction} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
 import EntityTable from '@components/EntityTable.tsx'
 
@@ -15,10 +16,21 @@ const initialSort: GridSortModel = [{field: 'label', sort: 'asc'}]
 
 type Props = BaseEntityTableProps<MaterialItemDto> & {
     providerId: string
+    /** Öffnet den Schadens-Dialog ohne Veranstaltungsbezug (siehe MaterialFleetPage). */
+    onReportDamage: (item: MaterialItemDto) => void
 }
 
-const MaterialItemTable = ({providerId, ...props}: Props) => {
+const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
     const {t} = useTranslation()
+
+    const customEntityActions = (item: MaterialItemDto): EntityAction[] => [
+        <GridActionsCellItem
+            icon={<ReportProblemIcon />}
+            label={t('material.damage.report')}
+            onClick={() => onReportDamage(item)}
+            showInMenu
+        />,
+    ]
 
     const dataRequest = (signal: AbortSignal, paginationParameters: PaginationParameters) =>
         getMaterialItems({
@@ -74,6 +86,7 @@ const MaterialItemTable = ({providerId, ...props}: Props) => {
             dataRequest={dataRequest}
             entityName={t('material.item.item')}
             deleteRequest={deleteRequest}
+            customEntityActions={customEntityActions}
         />
     )
 }

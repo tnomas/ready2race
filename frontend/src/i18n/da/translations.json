@@ -4456,6 +4456,61 @@
       "CHANGEOVER": "For kort skiftetid",
       "OUTAGE": "Ude af drift",
       "RETIRED": "Udgået"
+    },
+    "damage": {
+      "damage": "Skade",
+      "damages": "Skader",
+      "report": "Meld skade",
+      "edit": "Rediger skade",
+      "item": "Materielstykke",
+      "reportedAt": "Meldt den",
+      "description": "Beskrivelse",
+      "severity": "Alvorlighed",
+      "status": "Status",
+      "causedBy": "Forårsaget af",
+      "outOfServiceFrom": "Ude af drift fra",
+      "outOfServiceUntil": "Ude af drift til",
+      "repairedAt": "Repareret den",
+      "photos": "Fotos",
+      "addPhotos": "Tilføj fotos",
+      "csv": "CSV-eksport",
+      "none": "Ingen skader med dette valg.",
+      "success": "Skade gemt",
+      "error": "Skaden kunne ikke gemmes",
+      "photoTooLarge": "Foto er for stort (maks. 10 MB)",
+      "photoUploadError": "Foto kunne ikke uploades",
+      "photoDeleteError": "Foto kunne ikke slettes",
+      "columns": {
+        "item": "Stykke",
+        "type": "Materieltype",
+        "reportedAt": "Meldt den",
+        "severity": "Alvorlighed",
+        "status": "Status",
+        "causedBy": "Forårsaget af",
+        "photos": "Fotos"
+      },
+      "impact": {
+        "title": "Berørte løb",
+        "none": "Ingen berørte løb.",
+        "replacement": "Erstatningsstykke",
+        "sameNumber": "Nummer passer",
+        "later": "Senere",
+        "save": "Overfør",
+        "success": "Erstatning gemt",
+        "error": "Erstatning kunne ikke gemmes"
+      },
+      "baseAgain": "Grundtildeling mulig igen",
+      "baseAgainRemove": "Fjern undtagelse"
+    },
+    "severity": {
+      "MINOR": "let",
+      "MAJOR": "alvorlig",
+      "TOTAL": "totalskade",
+      "OUTAGE_ONLY": "kun driftsstop"
+    },
+    "damageStatus": {
+      "REPORTED": "meldt",
+      "REPAIRED": "repareret"
     }
   }
 }
