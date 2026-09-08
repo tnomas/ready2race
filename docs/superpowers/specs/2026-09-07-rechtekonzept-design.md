@@ -344,7 +344,8 @@ UPDATE EVENT hatte, darf danach alles Operative, und der Betreiber engt über Jo
 Jeder für sich mergebar, jeder mit eigener Migration und eigenem Handtest:
 
 1. **Jobs, ROLE, STAFF, Vergaberegeln, Superadmin.** Noch alles GLOBAL. Schließt Rechteausweitung und
-   Nachtragen. Rollendialog mit Namen, Gruppierung, Kopie-von-Job.
+   Nachtragen. Rollendialog mit Namen, Gruppierung, Kopie-von-Job. (umgesetzt am 2026-09-08, Plan
+   `docs/superpowers/plans/2026-09-07-rechtekonzept-schritt-1.md`)
 2. **Ressourcen-Schnitt.** EVENT wird in 38 Modulen ersetzt, Umschreibung in der Migration,
    Frontend-Konstanten und Matrix erzeugt.
 3. **EVENT-Scope.** Zuweisung mit Veranstaltung, Prüfung mit ID, Team-Reiter, Einladung in
