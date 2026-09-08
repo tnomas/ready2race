@@ -4429,10 +4429,14 @@ paths:
                       $ref: '#/components/schemas/MaterialProviderDto'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
         401:
           $ref: '#/components/responses/401'
         403:
           $ref: '#/components/responses/403'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     post:
@@ -4455,6 +4459,8 @@ paths:
           $ref: '#/components/responses/403'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
   /materialProvider/{providerId}:
@@ -4507,6 +4513,8 @@ paths:
           $ref: '#/components/responses/404'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     delete:
@@ -4564,6 +4572,8 @@ paths:
           $ref: '#/components/responses/401'
         403:
           $ref: '#/components/responses/403'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     post:
@@ -4586,6 +4596,8 @@ paths:
           $ref: '#/components/responses/403'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
   /materialProvider/{providerId}/item/{itemId}:
@@ -4624,6 +4636,8 @@ paths:
           $ref: '#/components/responses/404'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     delete:
@@ -4668,10 +4682,14 @@ paths:
                       $ref: '#/components/schemas/MaterialTypeDto'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
         401:
           $ref: '#/components/responses/401'
         403:
           $ref: '#/components/responses/403'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     post:
@@ -4694,6 +4712,8 @@ paths:
           $ref: '#/components/responses/403'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
   /materialType/{typeId}:
@@ -4726,6 +4746,8 @@ paths:
           $ref: '#/components/responses/404'
         409:
           $ref: '#/components/responses/409'
+        422:
+          $ref: '#/components/responses/422'
         500:
           $ref: '#/components/responses/500'
     delete:

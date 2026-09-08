@@ -7853,7 +7853,7 @@ export type GetMaterialProvidersResponse = {
     pagination: Pagination
 }
 
-export type GetMaterialProvidersError = ApiError
+export type GetMaterialProvidersError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type AddMaterialProviderData = {
     body: MaterialProviderRequest
@@ -7861,7 +7861,7 @@ export type AddMaterialProviderData = {
 
 export type AddMaterialProviderResponse = string
 
-export type AddMaterialProviderError = BadRequestError | ApiError
+export type AddMaterialProviderError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type GetMaterialProviderData = {
     path: {
@@ -7882,7 +7882,7 @@ export type UpdateMaterialProviderData = {
 
 export type UpdateMaterialProviderResponse = void
 
-export type UpdateMaterialProviderError = BadRequestError | ApiError
+export type UpdateMaterialProviderError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type DeleteMaterialProviderData = {
     path: {
@@ -7923,7 +7923,7 @@ export type GetMaterialItemsResponse = {
     pagination: Pagination
 }
 
-export type GetMaterialItemsError = BadRequestError | ApiError
+export type GetMaterialItemsError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type AddMaterialItemData = {
     body: MaterialItemRequest
@@ -7934,7 +7934,7 @@ export type AddMaterialItemData = {
 
 export type AddMaterialItemResponse = string
 
-export type AddMaterialItemError = BadRequestError | ApiError
+export type AddMaterialItemError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type UpdateMaterialItemData = {
     body: MaterialItemRequest
@@ -7946,7 +7946,7 @@ export type UpdateMaterialItemData = {
 
 export type UpdateMaterialItemResponse = void
 
-export type UpdateMaterialItemError = BadRequestError | ApiError
+export type UpdateMaterialItemError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type DeleteMaterialItemData = {
     path: {
@@ -7985,7 +7985,7 @@ export type GetMaterialTypesResponse = {
     pagination: Pagination
 }
 
-export type GetMaterialTypesError = ApiError
+export type GetMaterialTypesError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type AddMaterialTypeData = {
     body: MaterialTypeRequest
@@ -7993,7 +7993,7 @@ export type AddMaterialTypeData = {
 
 export type AddMaterialTypeResponse = string
 
-export type AddMaterialTypeError = BadRequestError | ApiError
+export type AddMaterialTypeError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type UpdateMaterialTypeData = {
     body: MaterialTypeRequest
@@ -8004,7 +8004,7 @@ export type UpdateMaterialTypeData = {
 
 export type UpdateMaterialTypeResponse = void
 
-export type UpdateMaterialTypeError = BadRequestError | ApiError
+export type UpdateMaterialTypeError = BadRequestError | ApiError | UnprocessableEntityError
 
 export type DeleteMaterialTypeData = {
     path: {
