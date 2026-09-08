@@ -67,6 +67,16 @@ sealed interface MaterialError : ServiceError {
     /** Zugeteiltes Stück gehört nicht dem Anbieter der Anfrage. */
     data object ItemNotOfProvider : MaterialError
 
+    data object DamageNotFound : MaterialError
+
+    data object PhotoNotFound : MaterialError
+
+    /** Ein einzelnes Foto überschreitet MATERIAL_PHOTO_MAX_BYTES. */
+    data object PhotoTooLarge : MaterialError
+
+    /** Ausfallende liegt vor Ausfallbeginn. */
+    data object InvalidOutageWindow : MaterialError
+
     override fun respond(): ApiError = when (this) {
         ProviderNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material provider not found")
         ProviderNameTaken -> ApiError(
@@ -112,5 +122,14 @@ sealed interface MaterialError : ServiceError {
         WrongItemType -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not match the offer's type")
         MatchNotOfRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "Competition match does not contain this registration")
         ItemNotOfProvider -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not belong to this provider")
+
+        DamageNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material damage not found")
+        PhotoNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material damage photo not found")
+        PhotoTooLarge -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "Material damage photo is too large",
+            errorCode = ErrorCode.MATERIAL_PHOTO_TOO_LARGE,
+        )
+        InvalidOutageWindow -> ApiError(status = HttpStatusCode.BadRequest, message = "Outage window end lies before its start")
     }
 }

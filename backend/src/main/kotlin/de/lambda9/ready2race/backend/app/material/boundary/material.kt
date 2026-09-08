@@ -4,6 +4,8 @@ import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.material.entity.MaterialAssignmentsRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
@@ -17,14 +19,19 @@ import de.lambda9.ready2race.backend.app.material.entity.SetRequestsClosedReques
 import de.lambda9.ready2race.backend.calls.requests.authenticate
 import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
+import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
 import de.lambda9.ready2race.backend.calls.requests.pagination
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
+import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.tailwind.core.KIO
+import io.ktor.http.content.PartData
+import io.ktor.server.request.receiveMultipart
 import io.ktor.server.routing.Route
+import io.ktor.utils.io.*
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -151,6 +158,108 @@ fun Route.material() {
                         val providerId = !pathParam("providerId", uuid)
                         !ownProviderCheck(user, scope, providerId)
                         MaterialService.getProviderEvents(providerId)
+                    }
+                }
+            }
+
+            // Schadensakte des Anbieters, veranstaltungsübergreifend (Task 5.1).
+            route("/damage") {
+
+                get {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val params = !pagination<MaterialDamageSort>()
+                        val eventId = !optionalQueryParam("eventId", uuid)
+                        val itemId = !optionalQueryParam("itemId", uuid)
+                        MaterialService.pageDamages(providerId, params, eventId, itemId)
+                    }
+                }
+
+                post {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val body = !receiveKIO(MaterialDamageRequest.example)
+                        MaterialService.addDamage(providerId, body, user.id!!)
+                    }
+                }
+
+                route("/{damageId}") {
+
+                    get {
+                        call.respondComprehension {
+                            val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                            val providerId = !pathParam("providerId", uuid)
+                            !ownProviderCheck(user, scope, providerId)
+                            val damageId = !pathParam("damageId", uuid)
+                            MaterialService.getDamage(providerId, damageId)
+                        }
+                    }
+
+                    put {
+                        call.respondComprehension {
+                            val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                            val providerId = !pathParam("providerId", uuid)
+                            !ownProviderCheck(user, scope, providerId)
+                            val damageId = !pathParam("damageId", uuid)
+                            val body = !receiveKIO(MaterialDamageRequest.example)
+                            MaterialService.updateDamage(providerId, damageId, body, user.id!!)
+                        }
+                    }
+
+                    // Multipart-Route nach dem Muster aus `eventDocument.kt`: `receiveMultipart`
+                    // muss außerhalb von `respondComprehension` laufen, sonst verletzt das
+                    // Auslesen der Teile die Flow-Invariante von Ktor (siehe dort).
+                    post("/photo") {
+                        val multiPartData = call.receiveMultipart()
+                        val uploads = mutableListOf<File>()
+
+                        var done = false
+                        while (!done) {
+                            val part = multiPartData.readPart()
+                            if (part == null) {
+                                done = true
+                            } else {
+                                if (part is PartData.FileItem) {
+                                    uploads.add(File(part.originalFileName ?: "foto", part.provider().toByteArray()))
+                                }
+                                part.dispose()
+                            }
+                        }
+
+                        call.respondComprehension {
+                            val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                            val providerId = !pathParam("providerId", uuid)
+                            !ownProviderCheck(user, scope, providerId)
+                            val damageId = !pathParam("damageId", uuid)
+                            MaterialService.addPhotos(providerId, damageId, uploads)
+                        }
+                    }
+                }
+            }
+
+            route("/photo/{photoId}") {
+
+                get {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val photoId = !pathParam("photoId", uuid)
+                        MaterialService.getPhoto(providerId, photoId)
+                    }
+                }
+
+                delete {
+                    call.respondComprehension {
+                        val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
+                        val providerId = !pathParam("providerId", uuid)
+                        !ownProviderCheck(user, scope, providerId)
+                        val photoId = !pathParam("photoId", uuid)
+                        MaterialService.deletePhoto(providerId, photoId)
                     }
                 }
             }
@@ -333,6 +442,17 @@ fun Route.eventMaterial() {
                         val body = !receiveKIO(MaterialAssignmentsRequest.example)
                         MaterialService.setAssignments(eventId, providerId, requestId, body, user.id!!)
                     }
+                }
+            }
+
+            // Schadensakte dieser Veranstaltung als CSV (Task 5.1).
+            get("/damage/csv") {
+                call.respondComprehension {
+                    val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.MATERIAL)
+                    val eventId = !pathParam("eventId", uuid)
+                    val providerId = !pathParam("providerId", uuid)
+                    !ownProviderCheck(user, scope, providerId)
+                    MaterialService.damagesCsv(eventId, providerId)
                 }
             }
         }

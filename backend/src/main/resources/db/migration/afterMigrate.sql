@@ -1,5 +1,6 @@
 set search_path to ready2race, pg_catalog, public;
 
+drop view if exists material_damage_view;
 drop view if exists material_item_schedule;
 drop view if exists material_request_view;
 drop view if exists material_item_view;
@@ -1689,3 +1690,35 @@ from material_assignment ma
               on cmt.competition_registration = cr.id
                   and (ma.competition_match is null or ma.competition_match = cmt.competition_match)
          join competition_match cm on cm.competition_setup_match = cmt.competition_match;
+
+-- Schadensakte mit Stück, Materialart und Melder aufgelöst (Task 5.1). Bewusst ohne Join auf die
+-- Meldung: der Verursacher ist im Schaden selbst als Momentaufnahme hinterlegt (siehe Migration
+-- V202609071000), damit die Akte weder beim Neu-Speichern noch beim endgültigen Löschen einer
+-- Meldung ihren Verursacher verliert - `caused_by_team`/`_club`/`_competition` kommen direkt aus
+-- `material_damage`, nicht aus einem Join.
+create view material_damage_view as
+select md.id,
+       md.material_item,
+       mi.material_provider,
+       mi.label                                                                                    as item_label,
+       mi.number                                                                                    as item_number,
+       mi.material_type,
+       mt.name                                                                                      as material_type_name,
+       md.reported_at,
+       md.reported_by,
+       case when au.id is null then null else trim(concat_ws(' ', au.firstname, au.lastname)) end   as reported_by_name,
+       md.description,
+       md.severity,
+       md.status,
+       md.caused_by_registration,
+       md.caused_by_team,
+       md.caused_by_club,
+       md.caused_by_competition,
+       md.out_of_service_from,
+       md.out_of_service_until,
+       md.repaired_at,
+       md.created_at, md.created_by, md.updated_at, md.updated_by
+from material_damage md
+         join material_item mi on mi.id = md.material_item
+         join material_type mt on mt.id = mi.material_type
+         left join app_user au on au.id = md.reported_by;

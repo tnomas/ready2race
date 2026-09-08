@@ -11,6 +11,9 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialAssignmentRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialDamagePhotoDataRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialDamagePhotoRepo
+import de.lambda9.ready2race.backend.app.material.control.MaterialDamageRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialItemRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialOfferRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialOverviewRepo
@@ -22,6 +25,10 @@ import de.lambda9.ready2race.backend.app.material.control.toRecord
 import de.lambda9.ready2race.backend.app.material.entity.EventMaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialAssignmentsRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
@@ -40,19 +47,31 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
+import de.lambda9.ready2race.backend.calls.responses.contentTypeForFileName
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
+import de.lambda9.ready2race.backend.csv.CSV
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialAssignmentRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamagePhotoDataRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamagePhotoRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialRequestRecord
+import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
+import java.io.ByteArrayOutputStream
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
+
+/** Maximale Größe je hochgeladenem Schadensfoto (Spec Abschnitt 10). */
+const val MATERIAL_PHOTO_MAX_BYTES = 10L * 1024 * 1024
 
 /**
  * Anbieter, Materialarten und die Stücke im Bestand eines Anbieters - der Stamm der
@@ -698,4 +717,259 @@ object MaterialService {
      */
     fun boatNumbersForRegistrations(eventId: UUID): App<Nothing, Map<UUID, List<Int>>> =
         MaterialRequestRepo.boatNumbersForRegistrations(eventId).orDie()
+
+    // -------------------------------------------------------------------
+    // Schadensakte
+    // -------------------------------------------------------------------
+
+    /** Lädt die Schadensakte, sofern das betroffene Stück diesem Anbieter gehört. */
+    private fun damageOfProvider(
+        providerId: UUID,
+        damageId: UUID,
+    ): App<MaterialError, MaterialDamageViewRecord> =
+        KIO.comprehension {
+            val view = !MaterialDamageRepo.getView(damageId).orDie().onNullFail { MaterialError.DamageNotFound }
+            !KIO.ok(view.materialProvider == providerId).onFalseFail { MaterialError.DamageNotFound }
+            KIO.ok(view)
+        }
+
+    /** Lädt ein Foto, sofern dessen Schadensakte diesem Anbieter gehört. */
+    private fun photoOfProvider(
+        providerId: UUID,
+        photoId: UUID,
+    ): App<MaterialError, MaterialDamagePhotoRecord> = KIO.comprehension {
+        val photo = !MaterialDamagePhotoRepo.get(photoId).orDie().onNullFail { MaterialError.PhotoNotFound }
+        val damage = !MaterialDamageRepo.getView(photo.materialDamage).orDie().onNullFail { MaterialError.PhotoNotFound }
+        !KIO.ok(damage.materialProvider == providerId).onFalseFail { MaterialError.PhotoNotFound }
+        KIO.ok(photo)
+    }
+
+    /** Ausfallende darf nicht vor Ausfallbeginn liegen (Spec Abschnitt 10). */
+    private fun checkOutageWindow(from: LocalDateTime?, until: LocalDateTime?): App<MaterialError, Unit> =
+        KIO.failOn(from != null && until != null && until.isBefore(from)) { MaterialError.InvalidOutageWindow }
+
+    /**
+     * `REPAIRED` mit offenem oder noch später liegendem Ausfallende schließt das Fenster mit dem
+     * Reparaturdatum (Spec Abschnitt 10) - ein bereits früher gesetztes Ende bleibt unangetastet.
+     */
+    private fun effectiveOutOfServiceUntil(
+        status: MaterialDamageStatus,
+        until: LocalDateTime?,
+        repairedAt: LocalDateTime?,
+    ): LocalDateTime? =
+        if (status == MaterialDamageStatus.REPAIRED && repairedAt != null && (until == null || until.isAfter(repairedAt))) {
+            repairedAt
+        } else {
+            until
+        }
+
+    /**
+     * Löst `causedByRegistration` zum Verursacher-Schnappschuss auf (Ruling Task 5.1): Team,
+     * Verein und Wettkampf kommen direkt aus der Meldung, nicht aus einem Fremdschlüssel - die
+     * Akte ist historisch und soll den Verursacher behalten, auch wenn die Meldung später
+     * verschwindet oder neu angelegt wird. Die Meldung muss zu einer Veranstaltung gehören, zu der
+     * dieser Anbieter eingeladen ist - sonst wie eine unbekannte Meldung behandelt.
+     */
+    private fun resolveCausedBy(
+        providerId: UUID,
+        registrationId: UUID?,
+    ): App<MaterialError, Triple<String?, String, String>?> = KIO.comprehension {
+        if (registrationId == null) {
+            KIO.ok(null)
+        } else {
+            val ref = !MaterialDamageRepo.causedByRef(registrationId).orDie().onNullFail { MaterialError.RegistrationNotFound }
+            val invited = !EventHasMaterialProviderRepo.exists(ref.event, providerId).orDie()
+            !KIO.failOn(!invited) { MaterialError.RegistrationNotFound }
+            KIO.ok(Triple(ref.team, ref.club, ref.competition))
+        }
+    }
+
+    fun addDamage(
+        providerId: UUID,
+        request: MaterialDamageRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.Created> = KIO.comprehension {
+        val item = !MaterialItemRepo.get(request.materialItem).orDie().onNullFail { MaterialError.ItemNotFound }
+        !KIO.ok(item.materialProvider == providerId).onFalseFail { MaterialError.ItemNotFound }
+
+        val effectiveUntil = effectiveOutOfServiceUntil(request.status, request.outOfServiceUntil, request.repairedAt)
+        !checkOutageWindow(request.outOfServiceFrom, effectiveUntil)
+
+        val causedBy = !resolveCausedBy(providerId, request.causedByRegistration)
+
+        val now = LocalDateTime.now()
+        MaterialDamageRepo.create(
+            MaterialDamageRecord(
+                id = UUID.randomUUID(),
+                materialItem = request.materialItem,
+                reportedAt = request.reportedAt,
+                reportedBy = userId,
+                description = request.description,
+                severity = request.severity.name,
+                status = request.status.name,
+                causedByRegistration = request.causedByRegistration,
+                causedByTeam = causedBy?.first,
+                causedByClub = causedBy?.second,
+                causedByCompetition = causedBy?.third,
+                outOfServiceFrom = request.outOfServiceFrom,
+                outOfServiceUntil = effectiveUntil,
+                repairedAt = request.repairedAt,
+                createdAt = now,
+                createdBy = userId,
+                updatedAt = now,
+                updatedBy = userId,
+            )
+        ).orDie().createdResponse()
+    }
+
+    fun pageDamages(
+        providerId: UUID,
+        params: PaginationParameters<MaterialDamageSort>,
+        eventId: UUID? = null,
+        itemId: UUID? = null,
+    ): App<Nothing, ApiResponse.Page<MaterialDamageDto, MaterialDamageSort>> = KIO.comprehension {
+        val page = !MaterialDamageRepo.page(providerId, params, eventId, itemId).orDie()
+        val photos = !MaterialDamagePhotoRepo.listForDamages(page.data.mapNotNull { it.id }).orDie()
+
+        KIO.ok(
+            ApiResponse.Page(
+                data = page.data.map { it.toDto(photos[it.id] ?: emptyList()) },
+                pagination = page.pagination,
+            )
+        )
+    }
+
+    fun getDamage(
+        providerId: UUID,
+        damageId: UUID,
+    ): App<MaterialError, ApiResponse.Dto<MaterialDamageDto>> = KIO.comprehension {
+        val view = !damageOfProvider(providerId, damageId)
+        val photos = !MaterialDamagePhotoRepo.listForDamage(damageId).orDie()
+        KIO.ok(ApiResponse.Dto(view.toDto(photos)))
+    }
+
+    fun updateDamage(
+        providerId: UUID,
+        damageId: UUID,
+        request: MaterialDamageRequest,
+        userId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !damageOfProvider(providerId, damageId)
+
+        val item = !MaterialItemRepo.get(request.materialItem).orDie().onNullFail { MaterialError.ItemNotFound }
+        !KIO.ok(item.materialProvider == providerId).onFalseFail { MaterialError.ItemNotFound }
+
+        val effectiveUntil = effectiveOutOfServiceUntil(request.status, request.outOfServiceUntil, request.repairedAt)
+        !checkOutageWindow(request.outOfServiceFrom, effectiveUntil)
+
+        val causedBy = !resolveCausedBy(providerId, request.causedByRegistration)
+
+        !MaterialDamageRepo.update(damageId) {
+            materialItem = request.materialItem
+            reportedAt = request.reportedAt
+            description = request.description
+            severity = request.severity.name
+            status = request.status.name
+            causedByRegistration = request.causedByRegistration
+            causedByTeam = causedBy?.first
+            causedByClub = causedBy?.second
+            causedByCompetition = causedBy?.third
+            outOfServiceFrom = request.outOfServiceFrom
+            outOfServiceUntil = effectiveUntil
+            repairedAt = request.repairedAt
+            updatedAt = LocalDateTime.now()
+            updatedBy = userId
+        }.orDie().onNullFail { MaterialError.DamageNotFound }
+        noData
+    }
+
+    /** Jede Datei einzeln gegen [MATERIAL_PHOTO_MAX_BYTES] geprüft, bevor überhaupt geschrieben wird. */
+    fun addPhotos(
+        providerId: UUID,
+        damageId: UUID,
+        uploads: List<File>,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !damageOfProvider(providerId, damageId)
+
+        !uploads.traverse { upload -> KIO.failOn(upload.bytes.size.toLong() > MATERIAL_PHOTO_MAX_BYTES) { MaterialError.PhotoTooLarge } }
+
+        val now = LocalDateTime.now()
+        !uploads.traverse { upload ->
+            KIO.comprehension {
+                val id = UUID.randomUUID()
+                !MaterialDamagePhotoRepo.create(
+                    MaterialDamagePhotoRecord(
+                        id = id,
+                        materialDamage = damageId,
+                        name = upload.name,
+                        contentType = contentTypeForFileName(upload.name).toString(),
+                        createdAt = now,
+                    )
+                ).orDie()
+                MaterialDamagePhotoDataRepo.create(
+                    MaterialDamagePhotoDataRecord(materialDamagePhoto = id, data = upload.bytes)
+                ).orDie()
+            }
+        }
+        noData
+    }
+
+    fun getPhoto(
+        providerId: UUID,
+        photoId: UUID,
+    ): App<MaterialError, ApiResponse.File> = KIO.comprehension {
+        val photo = !photoOfProvider(providerId, photoId)
+        val data = !MaterialDamagePhotoDataRepo.get(photoId).orDie().onNullFail { MaterialError.PhotoNotFound }
+        KIO.ok(ApiResponse.File(name = photo.name, bytes = data.data))
+    }
+
+    fun deletePhoto(
+        providerId: UUID,
+        photoId: UUID,
+    ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
+        !photoOfProvider(providerId, photoId)
+        !MaterialDamagePhotoRepo.delete(photoId).orDie()
+        noData
+    }
+
+    /** Schäden dieser Veranstaltung als CSV - dasselbe Kriterium wie [pageDamages] (Ruling Task 5.1). */
+    fun damagesCsv(
+        eventId: UUID,
+        providerId: UUID,
+    ): App<MaterialError, ApiResponse.File> = KIO.comprehension {
+        !checkEventExisting(eventId)
+        val invited = !EventHasMaterialProviderRepo.exists(eventId, providerId).orDie()
+        !KIO.failOn(!invited) { MaterialError.NotInvited }
+
+        val event = !EventRepo.get(eventId).orDie()
+        val damages = !MaterialDamageRepo.listForCsv(providerId, eventId).orDie()
+
+        val bytes = buildDamagesCsv(damages)
+        val fileNameDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+
+        KIO.ok(ApiResponse.File(name = "${fileNameDate}-Schaeden-${event?.name ?: eventId}.csv", bytes = bytes))
+    }
+
+    private fun buildDamagesCsv(
+        damages: List<MaterialDamageViewRecord>,
+    ): ByteArray {
+        val dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+        val out = ByteArrayOutputStream()
+        CSV.write(out, damages) {
+            column("Stück") { itemLabel ?: "" }
+            column("Nummer") { itemNumber?.toString() ?: "" }
+            column("Materialart") { materialTypeName ?: "" }
+            column("Gemeldet am") { reportedAt?.format(dateTimeFormatter) ?: "" }
+            column("Schwere") { severity ?: "" }
+            column("Status") { status ?: "" }
+            column("Beschreibung") { description ?: "" }
+            column("Verursacher Team") { causedByTeam ?: "" }
+            column("Verein") { causedByClub ?: "" }
+            column("Wettkampf") { causedByCompetition ?: "" }
+            column("Ausfall von") { outOfServiceFrom?.format(dateTimeFormatter) ?: "" }
+            column("Ausfall bis") { outOfServiceUntil?.format(dateTimeFormatter) ?: "" }
+            column("Repariert am") { repairedAt?.format(dateTimeFormatter) ?: "" }
+        }
+        return out.toByteArray()
+    }
 }

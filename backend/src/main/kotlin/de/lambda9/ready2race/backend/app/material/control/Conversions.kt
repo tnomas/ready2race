@@ -2,6 +2,10 @@ package de.lambda9.ready2race.backend.app.material.control
 
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamagePhotoDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSeverity
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
@@ -10,6 +14,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
+import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialOfferRecord
@@ -103,6 +108,28 @@ fun MaterialItemViewRecord.toDto(): App<Nothing, MaterialItemDto> = KIO.ok(
         status = MaterialItemStatus.valueOf(status!!),
         openDamages = openDamages!!,
     )
+)
+
+/** [photos] kommt separat aus [MaterialDamagePhotoRepo] - die Sicht führt keinen Multiset-Join. */
+fun MaterialDamageViewRecord.toDto(photos: List<MaterialDamagePhotoDto>): MaterialDamageDto = MaterialDamageDto(
+    id = id!!,
+    materialItem = materialItem!!,
+    itemLabel = itemLabel!!,
+    itemNumber = itemNumber,
+    materialTypeName = materialTypeName!!,
+    reportedAt = reportedAt!!,
+    reportedByName = reportedByName,
+    description = description!!,
+    severity = MaterialDamageSeverity.valueOf(severity!!),
+    status = MaterialDamageStatus.valueOf(status!!),
+    causedByRegistration = causedByRegistration,
+    causedByTeam = causedByTeam,
+    causedByClub = causedByClub,
+    causedByCompetition = causedByCompetition,
+    outOfServiceFrom = outOfServiceFrom,
+    outOfServiceUntil = outOfServiceUntil,
+    repairedAt = repairedAt,
+    photos = photos,
 )
 
 fun MaterialOfferRequest.toRecord(eventId: UUID, providerId: UUID, userId: UUID): App<Nothing, MaterialOfferRecord> = KIO.ok(
