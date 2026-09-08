@@ -1605,6 +1605,8 @@ export type ErrorCode =
     | 'CAPTCHA_WRONG'
     | 'EMAIL_IN_USE'
     | 'CANNOT_ASSIGN_ROLES'
+    | 'PRIVILEGES_BEYOND_OWN'
+    | 'SELF_ASSIGNMENT'
     | 'EVENT_REGISTRATION_ONGOING'
     | 'EVENT_REGISTRATION_CLOSED'
     | 'EVENT_REGISTRATION_UPSERT_PARTICIPANT_NOT_FOUND'
@@ -2379,7 +2381,6 @@ export type InviteRequest = {
     lastname: string
     language: EmailLanguage
     roles: Array<string>
-    admin?: boolean
     callbackUrl: string
 }
 
@@ -2401,6 +2402,12 @@ export type InvoiceDto = {
 
 export type InvoiceUpdateRequestDto = {
     paid: boolean
+}
+
+export type JobDto = {
+    key: string
+    level: RoleLevel
+    privileges: Array<PrivilegeDto>
 }
 
 export type LatestMatchResultInfo = {
@@ -3940,12 +3947,25 @@ export type RoleDto = {
     id: string
     name: string
     description?: string
+    static: boolean
+    job?: string
+    level: RoleLevel
+    /**
+     * Ob der angemeldete Nutzer diese Rolle vergeben darf (Teilmengenregel)
+     */
+    assignable: boolean
     privileges: Array<PrivilegeDto>
 }
+
+export type RoleLevel = 'SELF' | 'CLUB' | 'EVENT' | 'ORGANIZER' | 'GLOBAL'
 
 export type RoleRequest = {
     name: string
     description?: string
+    /**
+     * Schlüssel des Jobs, dessen Kopie die Rolle ist. Beim Anlegen Pflicht, beim Ändern ignoriert.
+     */
+    job?: string
     privileges: Array<string>
 }
 
@@ -5809,6 +5829,10 @@ export type DeleteRoleData = {
 export type DeleteRoleResponse = void
 
 export type DeleteRoleError = BadRequestError | ApiError
+
+export type GetJobsResponse = Array<JobDto>
+
+export type GetJobsError = ApiError
 
 export type AddEventData = {
     body: CreateEventRequest

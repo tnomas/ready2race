@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.appuser.control.AppUserHasRoleRepo
 import de.lambda9.ready2race.backend.app.auth.control.PrivilegeRepo
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.auth.entity.PrivilegeDto
 import de.lambda9.ready2race.backend.app.role.control.RoleHasPrivilegeRepo
 import de.lambda9.ready2race.backend.app.role.control.RoleRepo
 import de.lambda9.ready2race.backend.app.role.control.toDto
@@ -56,6 +57,27 @@ object RoleService {
         }
 
         KIO.ok(records)
+    }
+
+    /**
+     * Die im Code definierten Jobs mit ihren Privilegien - die Vorlage, aus der eine eigene
+     * Rolle als Kopie entsteht.
+     */
+    fun jobs(): App<Nothing, ApiResponse.ListDto<JobDto>> = KIO.comprehension {
+        val all = !PrivilegeRepo.all().orDie()
+        val dtos = Job.entries.map { job ->
+            JobDto(
+                key = job.key,
+                level = job.level.name,
+                privileges = job.privileges.map { p ->
+                    val record = all.first {
+                        it.action == p.action.name && it.resource == p.resource.name && it.scope == p.scope.name
+                    }
+                    PrivilegeDto(id = record.id, action = record.action, resource = record.resource, scope = record.scope)
+                },
+            )
+        }
+        KIO.ok(ApiResponse.ListDto(dtos))
     }
 
     fun addRole(

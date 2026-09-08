@@ -81,11 +81,14 @@ fun initializeDatabase(env: JEnv) {
         // Jobs als statische Rollen säen und synchronisieren
         !JobSeeder.sync(now)
 
-        // Der Systemnutzer trägt die Superadmin-Rolle
+        // Der Systemnutzer trägt die Superadmin-Rolle - und nur sie: eine aus der Zeit vor dem
+        // Rechtekonzept mitgeschleppte Admin-Zuweisung fällt weg, damit eine hochgezogene
+        // Installation genauso aussieht wie eine frisch angelegte.
         val systemIsSuperadmin = !AppUserHasRoleRepo.exists(SYSTEM_USER, SUPERADMIN_ROLE)
         if (!systemIsSuperadmin) {
             !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = SYSTEM_USER, role = SUPERADMIN_ROLE))
         }
+        !AppUserHasRoleRepo.delete(SYSTEM_USER, ADMIN_ROLE)
 
         // Add missing sequences
 

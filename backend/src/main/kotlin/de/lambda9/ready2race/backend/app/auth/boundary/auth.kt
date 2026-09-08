@@ -42,7 +42,7 @@ fun Route.auth() {
 
     get("/privileges") {
         call.respondComprehension {
-            !authenticate(Privilege.ReadUserGlobal)
+            !authenticate(Privilege.ReadRoleGlobal)
             AuthService.getAllPrivileges()
         }
     }

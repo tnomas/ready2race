@@ -28,10 +28,11 @@ import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrat
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.app.role.boundary.RoleService
+import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
-import de.lambda9.ready2race.backend.database.ADMIN_ROLE
 import de.lambda9.ready2race.backend.database.CLUB_REPRESENTATIVE_ROLE
+import de.lambda9.ready2race.backend.database.SUPERADMIN_ROLE
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.database.USER_ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
@@ -126,15 +127,13 @@ object AppUserService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
         val requestingUserId = requester.id!!
+        val targetIsSuperadmin = !AppUserHasRoleRepo.exists(targetUserId, SUPERADMIN_ROLE).orDie()
 
-        val targetIsAdmin = !AppUserHasRoleRepo.exists(targetUserId, ADMIN_ROLE).orDie()
-
+        // Regel 3: ein Superadmin-Konto fasst nur an, wer selbst UPDATE SYSTEM trägt.
         !KIO.failOn(
-            scope == Privilege.Scope.OWN
-                && (requestingUserId != targetUserId || request.roles.isNotEmpty())
-                || targetIsAdmin && requestingUserId != targetUserId && requestingUserId != SYSTEM_USER
+            scope == Privilege.Scope.OWN && requestingUserId != targetUserId
+                || targetIsSuperadmin && requestingUserId != targetUserId && !requester.hasPrivilege(Privilege.UpdateSystemGlobal)
         ) { AuthError.PrivilegeMissing }
-
 
         !AppUserRepo.update(targetUserId) {
             firstname = request.firstname
@@ -145,12 +144,22 @@ object AppUserService {
             .onNullFail { AppUserError.NotFound }
             .map { ApiResponse.NoData }
 
-        if (scope == Privilege.Scope.GLOBAL) {
-            !RoleService.checkAssignable(requester, request.roles, targetUserId)
+        // Rollen nur anfassen, wenn sich die verwalteten Rollen ändern; sonst griffe Regel 2
+        // schon beim Ändern des eigenen Namens.
+        val current = (!AppUserHasRoleRepo.getRoleIds(targetUserId).orDie())
+            .filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }
+            .toSet()
+        val wanted = request.roles.filter { it != USER_ROLE && it != CLUB_REPRESENTATIVE_ROLE }.toSet()
 
+        if (wanted != current) {
+            // Die Rollen des Systemkontos sind per API nicht änderbar - sonst könnte ein
+            // Fehlgriff der Anlage den letzten Superadmin nehmen.
+            !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
+
+            !RoleService.checkAssignable(requester, wanted.toList(), targetUserId)
             !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
             !AppUserHasRoleRepo.create(
-                request.roles.map {
+                wanted.map {
                     AppUserHasRoleRecord(
                         appUser = targetUserId,
                         role = it
@@ -201,28 +210,17 @@ object AppUserService {
         val record = !request.toRecord(inviter.id!!, invitationLifeTime)
         val id = !AppUserInvitationRepo.create(record).orDie()
 
-        if (request.admin == true) {
-            if (inviter.id == SYSTEM_USER) {
-                !AppUserInvitationHasRoleRepo.create(
-                    AppUserInvitationHasRoleRecord(
-                        appUserInvitation = id,
-                        role = ADMIN_ROLE,
-                    )
-                ).orDie()
-            } else {
-                return@comprehension KIO.fail(AuthError.SystemUserOnly)
+        // Die Vergaberegeln greifen hier; die Einladung trägt danach nur noch, was der
+        // Einladende auch selbst vergeben darf.
+        !RoleService.checkAssignable(inviter, request.roles, null)
+        !AppUserInvitationHasRoleRepo.create(
+            request.roles.map {
+                AppUserInvitationHasRoleRecord(
+                    appUserInvitation = id,
+                    role = it
+                )
             }
-        } else {
-            !RoleService.checkAssignable(inviter, request.roles, null)
-            !AppUserInvitationHasRoleRepo.create(
-                request.roles.map {
-                    AppUserInvitationHasRoleRecord(
-                        appUserInvitation = id,
-                        role = it
-                    )
-                }
-            ).orDie()
-        }
+        ).orDie()
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.USER_INVITATION,
@@ -320,15 +318,11 @@ object AppUserService {
 
         val roles = invitation.roles!!.map { it!!.id!! }
 
-        // Die Vergabe wird noch einmal gegen die heutigen Rechte des Einladenden geprüft; ist das
-        // Konto inzwischen weg, bleibt die Einladung gültig.
-        val invitedBy = invitation.createdBy?.id
-        if (invitedBy != SYSTEM_USER && invitedBy != null) {
-            val inviter = !AppUserRepo.getWithPrivileges(invitedBy).orDie()
-            if (inviter != null) {
-                !RoleService.checkAssignable(inviter, roles, id)
-            }
-        }
+        // Die Rollen wurden beim Einladen geprüft und werden hier unverändert zugewiesen.
+        // Ist das einladende Konto inzwischen weg, gilt die Einladung nicht mehr - lieber eine
+        // neue verschicken, als eine Vergabe ohne Absender auszuführen.
+        !KIO.failOn(invitation.createdBy?.id == null) { AppUserError.InvitationNotFound }
+
         !AppUserHasRoleRepo.create(
             roles.map {
                 AppUserHasRoleRecord(

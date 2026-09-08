@@ -10,7 +10,6 @@ import de.lambda9.ready2race.backend.app.workShift.boundary.WorkShiftService
 import de.lambda9.ready2race.backend.app.workShift.entity.WorkShiftWithAssignedUsersSort
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
-import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.boolean
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.datetime
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
@@ -25,7 +24,9 @@ fun Route.user() {
                 val user = !authenticateAny(Privilege.ReadUserGlobal, Privilege.UpdateAppQrManagementGlobal)
                 val noClub = !optionalQueryParam("noClub", boolean)
 
-                if (user.id == SYSTEM_USER) {
+                // Regel 3 "nach oben ist dicht": nur wer UPDATE SYSTEM trägt, sieht auch die
+                // Superadmin-Konten; für alle anderen blendet der View sie aus.
+                if (user.hasPrivilege(Privilege.UpdateSystemGlobal)) {
                     val params = !pagination<EveryAppUserWithRolesSort>()
                     AppUserService.pageIncludingAdmins(params, noClub)
                 } else {
@@ -42,10 +43,9 @@ fun Route.user() {
                     val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.USER)
                     if (scope == Privilege.Scope.OWN && user.id != id) {
                         KIO.fail(AuthError.PrivilegeMissing)
-                    } else if (user.id == SYSTEM_USER || user.id == id) {
+                    } else if (user.hasPrivilege(Privilege.UpdateSystemGlobal) || user.id == id) {
                         AppUserService.getIncludingAllAdmins(id)
                     } else {
-                        // TODO: This gives 404 instead of 403, when trying to get another admin as non system user admin
                         AppUserService.get(id)
                     }
                 }

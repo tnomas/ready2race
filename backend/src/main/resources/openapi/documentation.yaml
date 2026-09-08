@@ -585,6 +585,25 @@ paths:
         500:
           $ref: '#/components/responses/500'
 
+  /job:
+    get:
+      operationId: getJobs
+      responses:
+        200:
+          description: Alle im Code definierten Jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JobDto'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+
   /event:
     post:
       operationId: addEvent
@@ -11925,6 +11944,31 @@ components:
         - OWN
         - GLOBAL
 
+    RoleLevel:
+      type: string
+      enum:
+        - SELF
+        - CLUB
+        - EVENT
+        - ORGANIZER
+        - GLOBAL
+
+    JobDto:
+      type: object
+      required:
+        - key
+        - level
+        - privileges
+      properties:
+        key:
+          type: string
+        level:
+          $ref: '#/components/schemas/RoleLevel'
+        privileges:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrivilegeDto'
+
     EmailLanguage:
       type: string
       enum:
@@ -11939,6 +11983,8 @@ components:
         - CAPTCHA_WRONG
         - EMAIL_IN_USE
         - CANNOT_ASSIGN_ROLES
+        - PRIVILEGES_BEYOND_OWN
+        - SELF_ASSIGNMENT
         - EVENT_REGISTRATION_ONGOING
         - EVENT_REGISTRATION_CLOSED
         - EVENT_REGISTRATION_UPSERT_PARTICIPANT_NOT_FOUND
@@ -12699,8 +12745,6 @@ components:
           items:
             type: string
             format: uuid
-        admin:
-          type: boolean
         callbackUrl:
           type: string
           format: url
@@ -12757,6 +12801,9 @@ components:
       required:
         - id
         - name
+        - static
+        - level
+        - assignable
         - privileges
       properties:
         id:
@@ -12766,6 +12813,15 @@ components:
           type: string
         description:
           type: string
+        static:
+          type: boolean
+        job:
+          type: string
+        level:
+          $ref: '#/components/schemas/RoleLevel'
+        assignable:
+          type: boolean
+          description: Ob der angemeldete Nutzer diese Rolle vergeben darf (Teilmengenregel)
         privileges:
           type: array
           items:
@@ -12781,6 +12837,11 @@ components:
           type: string
         description:
           type: string
+        job:
+          type: string
+          description: >-
+            Schlüssel des Jobs, dessen Kopie die Rolle ist. Beim Anlegen Pflicht, beim Ändern
+            ignoriert.
         privileges:
           type: array
           items:

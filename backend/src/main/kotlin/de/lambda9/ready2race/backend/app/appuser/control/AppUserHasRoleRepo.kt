@@ -22,6 +22,13 @@ object AppUserHasRoleRepo {
         )
     }
 
+    fun delete(userId: UUID, roleId: UUID) = APP_USER_HAS_ROLE.delete {
+        DSL.and(
+            APP_USER.eq(userId),
+            ROLE.eq(roleId)
+        )
+    }
+
     /**
      * Entfernt alle Rollen, die die Rollenverwaltung vergibt. USER trägt jedes Konto,
      * CLUB_REPRESENTATIVE vergibt die Vereinsfreigabe; beide bleiben.

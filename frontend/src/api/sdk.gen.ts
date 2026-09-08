@@ -72,6 +72,8 @@ import type {
     DeleteRoleData,
     DeleteRoleError,
     DeleteRoleResponse,
+    GetJobsError,
+    GetJobsResponse,
     AddEventData,
     AddEventError,
     AddEventResponse,
@@ -1467,6 +1469,15 @@ export const deleteRole = <ThrowOnError extends boolean = false>(
     return (options?.client ?? client).delete<DeleteRoleResponse, DeleteRoleError, ThrowOnError>({
         ...options,
         url: '/role/{roleId}',
+    })
+}
+
+export const getJobs = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<unknown, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<GetJobsResponse, GetJobsError, ThrowOnError>({
+        ...options,
+        url: '/job',
     })
 }
 
