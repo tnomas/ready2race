@@ -28,6 +28,7 @@ import "./src/fee.tsp";
 import "./src/globalConfigurations.tsp";
 import "./src/invoice.tsp";
 import "./src/matchResultImportConfig.tsp";
+import "./src/material.tsp";
 import "./src/namedParticipant.tsp";
 import "./src/participant.tsp";
 import "./src/participantRequirement.tsp";

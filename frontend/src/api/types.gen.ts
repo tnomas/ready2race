@@ -1727,6 +1727,9 @@ export type ErrorCode =
     | 'EXPORT_BUNDLE_PLACEHOLDER_NOT_REMOVABLE'
     | 'EXPORT_BUNDLE_ORDER_MISMATCH'
     | 'STREAM_PLACEMENT_NOT_ALLOWED'
+    | 'MATERIAL_PROVIDER_NAME_TAKEN'
+    | 'MATERIAL_TYPE_NAME_TAKEN'
+    | 'MATERIAL_ITEM_NUMBER_TAKEN'
 
 export type EventDayDto = {
     id: string
@@ -2941,6 +2944,62 @@ export type MatchTeamNoteRequest = {
      * must not be blank
      */
     note: string
+}
+
+export type MaterialCategory = 'BOAT' | 'OTHER'
+
+export type MaterialItemDto = {
+    id: string
+    materialProvider: string
+    materialProviderName: string
+    materialType: string
+    materialTypeName: string
+    category: MaterialCategory
+    number?: number
+    label: string
+    note?: string
+    status: MaterialItemStatus
+    openDamages: number
+}
+
+export type MaterialItemRequest = {
+    materialType: string
+    number?: number
+    label: string
+    note?: string
+    status: MaterialItemStatus
+}
+
+export type MaterialItemStatus = 'ACTIVE' | 'RETIRED'
+
+export type MaterialProviderDto = {
+    id: string
+    name: string
+    contactName?: string
+    contactEmail?: string
+    contactPhone?: string
+    note?: string
+}
+
+export type MaterialProviderRequest = {
+    name: string
+    contactName?: string
+    contactEmail?: string
+    contactPhone?: string
+    note?: string
+}
+
+export type MaterialTypeDto = {
+    id: string
+    name: string
+    category: MaterialCategory
+    description?: string
+}
+
+export type MaterialTypeRequest = {
+    name: string
+    category: MaterialCategory
+    description?: string
 }
 
 export type MyEventDto = {
@@ -7767,6 +7826,195 @@ export type DeleteFeeData = {
 export type DeleteFeeResponse = void
 
 export type DeleteFeeError = BadRequestError | ApiError
+
+export type GetMaterialProvidersData = {
+    query?: {
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetMaterialProvidersResponse = {
+    data: Array<MaterialProviderDto>
+    pagination: Pagination
+}
+
+export type GetMaterialProvidersError = ApiError
+
+export type AddMaterialProviderData = {
+    body: MaterialProviderRequest
+}
+
+export type AddMaterialProviderResponse = string
+
+export type AddMaterialProviderError = BadRequestError | ApiError
+
+export type GetMaterialProviderData = {
+    path: {
+        providerId: string
+    }
+}
+
+export type GetMaterialProviderResponse = MaterialProviderDto
+
+export type GetMaterialProviderError = BadRequestError | ApiError
+
+export type UpdateMaterialProviderData = {
+    body: MaterialProviderRequest
+    path: {
+        providerId: string
+    }
+}
+
+export type UpdateMaterialProviderResponse = void
+
+export type UpdateMaterialProviderError = BadRequestError | ApiError
+
+export type DeleteMaterialProviderData = {
+    path: {
+        providerId: string
+    }
+}
+
+export type DeleteMaterialProviderResponse = void
+
+export type DeleteMaterialProviderError = BadRequestError | ApiError
+
+export type GetMaterialItemsData = {
+    path: {
+        providerId: string
+    }
+    query?: {
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetMaterialItemsResponse = {
+    data: Array<MaterialItemDto>
+    pagination: Pagination
+}
+
+export type GetMaterialItemsError = BadRequestError | ApiError
+
+export type AddMaterialItemData = {
+    body: MaterialItemRequest
+    path: {
+        providerId: string
+    }
+}
+
+export type AddMaterialItemResponse = string
+
+export type AddMaterialItemError = BadRequestError | ApiError
+
+export type UpdateMaterialItemData = {
+    body: MaterialItemRequest
+    path: {
+        itemId: string
+        providerId: string
+    }
+}
+
+export type UpdateMaterialItemResponse = void
+
+export type UpdateMaterialItemError = BadRequestError | ApiError
+
+export type DeleteMaterialItemData = {
+    path: {
+        itemId: string
+        providerId: string
+    }
+}
+
+export type DeleteMaterialItemResponse = void
+
+export type DeleteMaterialItemError = BadRequestError | ApiError
+
+export type GetMaterialTypesData = {
+    query?: {
+        /**
+         * Page size for pagination
+         */
+        limit?: number
+        /**
+         * Result offset for pagination
+         */
+        offset?: number
+        /**
+         * Filter result with space-separated search terms for pagination
+         */
+        search?: string
+        /**
+         * Fields with direction (as JSON [{field: <field>, direction: ASC | DESC}, ...]) sorting result for pagination
+         */
+        sort?: string
+    }
+}
+
+export type GetMaterialTypesResponse = {
+    data: Array<MaterialTypeDto>
+    pagination: Pagination
+}
+
+export type GetMaterialTypesError = ApiError
+
+export type AddMaterialTypeData = {
+    body: MaterialTypeRequest
+}
+
+export type AddMaterialTypeResponse = string
+
+export type AddMaterialTypeError = BadRequestError | ApiError
+
+export type UpdateMaterialTypeData = {
+    body: MaterialTypeRequest
+    path: {
+        typeId: string
+    }
+}
+
+export type UpdateMaterialTypeResponse = void
+
+export type UpdateMaterialTypeError = BadRequestError | ApiError
+
+export type DeleteMaterialTypeData = {
+    path: {
+        typeId: string
+    }
+}
+
+export type DeleteMaterialTypeResponse = void
+
+export type DeleteMaterialTypeError = BadRequestError | ApiError
 
 export type AddDocumentTypeData = {
     body: EventDocumentTypeRequest

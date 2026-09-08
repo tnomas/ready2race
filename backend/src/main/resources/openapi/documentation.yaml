@@ -4405,6 +4405,347 @@ paths:
           $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
+  /materialProvider:
+    get:
+      operationId: getMaterialProviders
+      description: Alle Materialanbieter, seitenweise. Braucht READ MATERIAL GLOBAL.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      responses:
+        200:
+          description: Seite mit Anbietern
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaterialProviderDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: addMaterialProvider
+      description: Legt einen Anbieter an. Braucht UPDATE MATERIAL GLOBAL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialProviderRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialProvider
+      description: Einzelnen Anbieter lesen. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+      responses:
+        200:
+          description: Anbieter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialProviderDto'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        500:
+          $ref: '#/components/responses/500'
+    put:
+      operationId: updateMaterialProvider
+      description: Aktualisiert einen Anbieter. Braucht UPDATE MATERIAL GLOBAL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialProviderRequest'
+      responses:
+        204:
+          description: Anbieter erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteMaterialProvider
+      description: Löscht einen Anbieter. Braucht UPDATE MATERIAL GLOBAL. Anbieter mit Stücken oder Einladungen können nicht gelöscht werden.
+      responses:
+        204:
+          description: Anbieter erfolgreich gelöscht
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/item:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMaterialItems
+      description: Stücke eines Anbieters, seitenweise. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      responses:
+        200:
+          description: Seite mit Materialstücken
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaterialItemDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: addMaterialItem
+      description: Legt ein Materialstück beim Anbieter an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialItemRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialProvider/{providerId}/item/{itemId}:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateMaterialItem
+      description: Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialItemRequest'
+      responses:
+        204:
+          description: Materialstück erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteMaterialItem
+      description: Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen können nicht gelöscht werden.
+      responses:
+        204:
+          description: Materialstück erfolgreich gelöscht
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialType:
+    get:
+      operationId: getMaterialTypes
+      description: Alle Materialarten, seitenweise. Braucht READ MATERIAL (OWN oder GLOBAL).
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/search'
+      responses:
+        200:
+          description: Seite mit Materialarten
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaterialTypeDto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        500:
+          $ref: '#/components/responses/500'
+    post:
+      operationId: addMaterialType
+      description: Legt eine Materialart an. Braucht UPDATE MATERIAL GLOBAL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialTypeRequest'
+      responses:
+        201:
+          $ref: '#/components/responses/201'
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+  /materialType/{typeId}:
+    parameters:
+      - name: typeId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateMaterialType
+      description: Aktualisiert eine Materialart. Braucht UPDATE MATERIAL GLOBAL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialTypeRequest'
+      responses:
+        204:
+          description: Materialart erfolgreich aktualisiert
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
+    delete:
+      operationId: deleteMaterialType
+      description: Löscht eine Materialart. Braucht UPDATE MATERIAL GLOBAL. Materialarten mit Stücken, Wettkampf-Bedarf oder Angeboten können nicht gelöscht werden.
+      responses:
+        204:
+          description: Materialart erfolgreich gelöscht
+        400:
+          $ref: '#/components/responses/400'
+        401:
+          $ref: '#/components/responses/401'
+        403:
+          $ref: '#/components/responses/403'
+        404:
+          $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
+        500:
+          $ref: '#/components/responses/500'
   /eventDocumentType:
     post:
       operationId: addDocumentType
@@ -12059,6 +12400,9 @@ components:
         - EXPORT_BUNDLE_PLACEHOLDER_NOT_REMOVABLE
         - EXPORT_BUNDLE_ORDER_MISMATCH
         - STREAM_PLACEMENT_NOT_ALLOWED
+        - MATERIAL_PROVIDER_NAME_TAKEN
+        - MATERIAL_TYPE_NAME_TAKEN
+        - MATERIAL_ITEM_NUMBER_TAKEN
 
     Gender:
       type: string
@@ -17675,6 +18019,78 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ParticipantInfo'
+
+    MaterialCategory:
+      type: string
+      enum: [BOAT, OTHER]
+
+    MaterialItemStatus:
+      type: string
+      enum: [ACTIVE, RETIRED]
+
+    MaterialProviderDto:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        contactName: {type: string}
+        contactEmail: {type: string}
+        contactPhone: {type: string}
+        note: {type: string}
+
+    MaterialProviderRequest:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        contactName: {type: string}
+        contactEmail: {type: string}
+        contactPhone: {type: string}
+        note: {type: string}
+
+    MaterialTypeDto:
+      type: object
+      required: [id, name, category]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        description: {type: string}
+
+    MaterialTypeRequest:
+      type: object
+      required: [name, category]
+      properties:
+        name: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        description: {type: string}
+
+    MaterialItemDto:
+      type: object
+      required: [id, materialProvider, materialProviderName, materialType, materialTypeName, category, label, status, openDamages]
+      properties:
+        id: {type: string, format: uuid}
+        materialProvider: {type: string, format: uuid}
+        materialProviderName: {type: string}
+        materialType: {type: string, format: uuid}
+        materialTypeName: {type: string}
+        category: {$ref: '#/components/schemas/MaterialCategory'}
+        number: {type: integer}
+        label: {type: string, maxLength: 20}
+        note: {type: string}
+        status: {$ref: '#/components/schemas/MaterialItemStatus'}
+        openDamages: {type: integer}
+
+    MaterialItemRequest:
+      type: object
+      required: [materialType, label, status]
+      properties:
+        materialType: {type: string, format: uuid}
+        number: {type: integer}
+        label: {type: string, maxLength: 20}
+        note: {type: string}
+        status: {$ref: '#/components/schemas/MaterialItemStatus'}
 
     AthleteBoardStartState:
       type: string

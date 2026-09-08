@@ -488,6 +488,45 @@ import type {
     DeleteFeeData,
     DeleteFeeError,
     DeleteFeeResponse,
+    GetMaterialProvidersData,
+    GetMaterialProvidersError,
+    GetMaterialProvidersResponse,
+    AddMaterialProviderData,
+    AddMaterialProviderError,
+    AddMaterialProviderResponse,
+    GetMaterialProviderData,
+    GetMaterialProviderError,
+    GetMaterialProviderResponse,
+    UpdateMaterialProviderData,
+    UpdateMaterialProviderError,
+    UpdateMaterialProviderResponse,
+    DeleteMaterialProviderData,
+    DeleteMaterialProviderError,
+    DeleteMaterialProviderResponse,
+    GetMaterialItemsData,
+    GetMaterialItemsError,
+    GetMaterialItemsResponse,
+    AddMaterialItemData,
+    AddMaterialItemError,
+    AddMaterialItemResponse,
+    UpdateMaterialItemData,
+    UpdateMaterialItemError,
+    UpdateMaterialItemResponse,
+    DeleteMaterialItemData,
+    DeleteMaterialItemError,
+    DeleteMaterialItemResponse,
+    GetMaterialTypesData,
+    GetMaterialTypesError,
+    GetMaterialTypesResponse,
+    AddMaterialTypeData,
+    AddMaterialTypeError,
+    AddMaterialTypeResponse,
+    UpdateMaterialTypeData,
+    UpdateMaterialTypeError,
+    UpdateMaterialTypeResponse,
+    DeleteMaterialTypeData,
+    DeleteMaterialTypeError,
+    DeleteMaterialTypeResponse,
     AddDocumentTypeData,
     AddDocumentTypeError,
     AddDocumentTypeResponse,
@@ -3282,6 +3321,214 @@ export const deleteFee = <ThrowOnError extends boolean = false>(
     return (options?.client ?? client).delete<DeleteFeeResponse, DeleteFeeError, ThrowOnError>({
         ...options,
         url: '/fee/{feeId}',
+    })
+}
+
+/**
+ * Alle Materialanbieter, seitenweise. Braucht READ MATERIAL GLOBAL.
+ */
+export const getMaterialProviders = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<GetMaterialProvidersData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialProvidersResponse,
+        GetMaterialProvidersError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider',
+    })
+}
+
+/**
+ * Legt einen Anbieter an. Braucht UPDATE MATERIAL GLOBAL.
+ */
+export const addMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialProviderResponse,
+        AddMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider',
+    })
+}
+
+/**
+ * Einzelnen Anbieter lesen. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+ */
+export const getMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialProviderResponse,
+        GetMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}',
+    })
+}
+
+/**
+ * Aktualisiert einen Anbieter. Braucht UPDATE MATERIAL GLOBAL.
+ */
+export const updateMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMaterialProviderResponse,
+        UpdateMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}',
+    })
+}
+
+/**
+ * Löscht einen Anbieter. Braucht UPDATE MATERIAL GLOBAL. Anbieter mit Stücken oder Einladungen können nicht gelöscht werden.
+ */
+export const deleteMaterialProvider = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteMaterialProviderData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteMaterialProviderResponse,
+        DeleteMaterialProviderError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}',
+    })
+}
+
+/**
+ * Stücke eines Anbieters, seitenweise. Braucht READ MATERIAL (OWN oder GLOBAL); mit OWN nur der eigene Anbieter.
+ */
+export const getMaterialItems = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<GetMaterialItemsData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialItemsResponse,
+        GetMaterialItemsError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/item',
+    })
+}
+
+/**
+ * Legt ein Materialstück beim Anbieter an. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const addMaterialItem = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialItemData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialItemResponse,
+        AddMaterialItemError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/item',
+    })
+}
+
+/**
+ * Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ */
+export const updateMaterialItem = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMaterialItemData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMaterialItemResponse,
+        UpdateMaterialItemError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/item/{itemId}',
+    })
+}
+
+/**
+ * Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen können nicht gelöscht werden.
+ */
+export const deleteMaterialItem = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteMaterialItemData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteMaterialItemResponse,
+        DeleteMaterialItemError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialProvider/{providerId}/item/{itemId}',
+    })
+}
+
+/**
+ * Alle Materialarten, seitenweise. Braucht READ MATERIAL (OWN oder GLOBAL).
+ */
+export const getMaterialTypes = <ThrowOnError extends boolean = false>(
+    options?: OptionsLegacyParser<GetMaterialTypesData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).get<
+        GetMaterialTypesResponse,
+        GetMaterialTypesError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialType',
+    })
+}
+
+/**
+ * Legt eine Materialart an. Braucht UPDATE MATERIAL GLOBAL.
+ */
+export const addMaterialType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<AddMaterialTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).post<
+        AddMaterialTypeResponse,
+        AddMaterialTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialType',
+    })
+}
+
+/**
+ * Aktualisiert eine Materialart. Braucht UPDATE MATERIAL GLOBAL.
+ */
+export const updateMaterialType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<UpdateMaterialTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).put<
+        UpdateMaterialTypeResponse,
+        UpdateMaterialTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialType/{typeId}',
+    })
+}
+
+/**
+ * Löscht eine Materialart. Braucht UPDATE MATERIAL GLOBAL. Materialarten mit Stücken, Wettkampf-Bedarf oder Angeboten können nicht gelöscht werden.
+ */
+export const deleteMaterialType = <ThrowOnError extends boolean = false>(
+    options: OptionsLegacyParser<DeleteMaterialTypeData, ThrowOnError>,
+) => {
+    return (options?.client ?? client).delete<
+        DeleteMaterialTypeResponse,
+        DeleteMaterialTypeError,
+        ThrowOnError
+    >({
+        ...options,
+        url: '/materialType/{typeId}',
     })
 }
 
