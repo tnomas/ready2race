@@ -510,6 +510,19 @@ object MaterialService {
             it.materialOffer !in wantedOfferIds && it.status != MaterialRequestStatus.WITHDRAWN.name
         }
 
+        // requests_closed sperrt nach Spec Abschnitt 4/7 nicht nur neue Anfragen, sondern auch
+        // den Rückzug bestehender - sonst storniert ein Verein nach dem Stichtag eine bereits
+        // bestätigte Buchung, gegen die der Anbieter nach eigener Planung keine Handhabe mehr hat.
+        !toWithdraw.traverse { request ->
+            KIO.comprehension {
+                val offer = !MaterialOfferRepo.get(request.materialOffer).orDie()
+                    .onNullFail { MaterialError.OfferNotFound }
+                val invitation = !EventHasMaterialProviderRepo.get(eventId, offer.materialProvider).orDie()
+                !KIO.failOn(invitation?.requestsClosed == true) { MaterialError.RequestsClosed }
+                KIO.unit
+            }
+        }
+
         !toWithdraw.traverse { request ->
             if (request.status == MaterialRequestStatus.CONFIRMED.name) {
                 notifyProviderOfWithdrawal(ref.competition, ref.club, eventId, request)

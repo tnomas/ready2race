@@ -102,9 +102,11 @@ export const EventRegistrationMaterialSection = (props: {
                         {choice.offers.length === 1 &&
                             (() => {
                                 const offer = choice.offers[0]
-                                const disabled =
-                                    props.locked ||
-                                    (offer.requestsClosed && !alreadyRequested(offer.offerId))
+                                // Vergabeschluss sperrt Schalter komplett, auch für eine
+                                // bestehende Anfrage - sonst könnte der Verein sie über den
+                                // Schalter zurückziehen, obwohl der Anbieter danach nicht mehr
+                                // eingreifen kann (Spec Abschnitt 4/7).
+                                const disabled = props.locked || offer.requestsClosed
                                 const status = requestStatus(offer.offerId)
                                 const control = (
                                     <FormControlLabel
@@ -155,61 +157,77 @@ export const EventRegistrationMaterialSection = (props: {
                                 const selectedStatus = choice.selectedOfferId
                                     ? requestStatus(choice.selectedOfferId)
                                     : undefined
+                                // Steht die gewählte Anfrage bei einem Anbieter, der die Vergabe
+                                // geschlossen hat, muss die ganze Auswahl gesperrt sein - sonst
+                                // könnte der Verein über "eigenes Boot" oder ein anderes Angebot
+                                // die bestätigte Anfrage faktisch zurückziehen (Spec Abschnitt
+                                // 4/7).
+                                const closedExistingOffer = choice.offers.find(
+                                    o => o.requestsClosed && alreadyRequested(o.offerId),
+                                )
+                                const selectDisabled = props.locked || !!closedExistingOffer
+                                const select = (
+                                    <FormControl size="small" sx={{minWidth: 220}}>
+                                        <InputLabel
+                                            id={`material-offer-${choice.materialType}`}>
+                                            {choice.typeName}
+                                        </InputLabel>
+                                        <Select
+                                            labelId={`material-offer-${choice.materialType}`}
+                                            label={choice.typeName}
+                                            disabled={selectDisabled}
+                                            value={choice.selectedOfferId ?? ''}
+                                            onChange={e =>
+                                                setSelectedOffer(choice, e.target.value || null)
+                                            }>
+                                            <MenuItem value={''}>{ownLabel}</MenuItem>
+                                            {choice.offers.map(offer => {
+                                                const optionDisabled = offer.requestsClosed
+                                                // Kein Tooltip auf dem MenuItem: Select sucht
+                                                // seine Kinder direkt nach `value` ab, ein
+                                                // umschließendes Tooltip-Element würde diese
+                                                // Zuordnung zerstören.
+                                                return (
+                                                    <MenuItem
+                                                        key={offer.offerId}
+                                                        value={offer.offerId}
+                                                        disabled={optionDisabled}
+                                                        title={
+                                                            optionDisabled
+                                                                ? t(
+                                                                      'material.registration.closed',
+                                                                  )
+                                                                : undefined
+                                                        }>
+                                                        {offer.priceText
+                                                            ? t(
+                                                                  'material.registration.offerOption',
+                                                                  {
+                                                                      provider:
+                                                                          offer.providerName,
+                                                                      price: offer.priceText,
+                                                                  },
+                                                              )
+                                                            : offer.providerName}
+                                                    </MenuItem>
+                                                )
+                                            })}
+                                        </Select>
+                                    </FormControl>
+                                )
                                 return (
                                     <Stack
                                         direction={'row'}
                                         spacing={1}
                                         alignItems={'center'}
                                         flexWrap={'wrap'}>
-                                        <FormControl size="small" sx={{minWidth: 220}}>
-                                            <InputLabel
-                                                id={`material-offer-${choice.materialType}`}>
-                                                {choice.typeName}
-                                            </InputLabel>
-                                            <Select
-                                                labelId={`material-offer-${choice.materialType}`}
-                                                label={choice.typeName}
-                                                disabled={props.locked}
-                                                value={choice.selectedOfferId ?? ''}
-                                                onChange={e =>
-                                                    setSelectedOffer(choice, e.target.value || null)
-                                                }>
-                                                <MenuItem value={''}>{ownLabel}</MenuItem>
-                                                {choice.offers.map(offer => {
-                                                    const optionDisabled =
-                                                        offer.requestsClosed &&
-                                                        !alreadyRequested(offer.offerId)
-                                                    // Kein Tooltip auf dem MenuItem: Select sucht
-                                                    // seine Kinder direkt nach `value` ab, ein
-                                                    // umschließendes Tooltip-Element würde diese
-                                                    // Zuordnung zerstören.
-                                                    return (
-                                                        <MenuItem
-                                                            key={offer.offerId}
-                                                            value={offer.offerId}
-                                                            disabled={optionDisabled}
-                                                            title={
-                                                                optionDisabled
-                                                                    ? t(
-                                                                          'material.registration.closed',
-                                                                      )
-                                                                    : undefined
-                                                            }>
-                                                            {offer.priceText
-                                                                ? t(
-                                                                      'material.registration.offerOption',
-                                                                      {
-                                                                          provider:
-                                                                              offer.providerName,
-                                                                          price: offer.priceText,
-                                                                      },
-                                                                  )
-                                                                : offer.providerName}
-                                                        </MenuItem>
-                                                    )
-                                                })}
-                                            </Select>
-                                        </FormControl>
+                                        {closedExistingOffer ? (
+                                            <Tooltip title={t('material.registration.closed')}>
+                                                <span>{select}</span>
+                                            </Tooltip>
+                                        ) : (
+                                            select
+                                        )}
                                         {selectedOffer && (
                                             <MaterialCapacityChip
                                                 capacity={selectedOffer.capacity}

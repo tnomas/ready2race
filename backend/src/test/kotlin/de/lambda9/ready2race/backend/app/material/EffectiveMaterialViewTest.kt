@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.material
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesHasMaterialTypeRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.boundary.EventRegistrationService
@@ -220,5 +221,105 @@ class EffectiveMaterialViewTest {
         assertEquals(3, liveFirst.get("material_number", Int::class.java))
         assertEquals(true, liveFirst.get("material_deviates", Boolean::class.java))
         assertEquals(MaterialCategory.BOAT.name, liveFirst.get("material_category", String::class.java))
+    }
+
+    /**
+     * Finding I-1 (Review 2026-09-07): zwei BOAT-Bedarfe am selben Wettkampf, zwei bestätigte
+     * Anfragen mit je einer Grundzuteilung - vorher lieferte die Sicht zwei Zeilen je Lauf-Team
+     * und `startlist_team` (gruppiert nach den `emf.*`-Spalten) listete das Team doppelt.
+     */
+    @Test
+    fun twoBoatDemandsStillYieldOneRowPerMatchTeam() = testComprehension {
+        val seeded = seedOpenTeamEvent()
+        val teamId = UUID.randomUUID()
+        val dto = upsertDto(
+            seeded,
+            listOf(teamDto(teamId, seeded.namedParticipantId, listOf(seeded.participant1, seeded.participant2))),
+        )
+        !EventRegistrationService.upsertRegistrationForEvent(seeded.eventId, dto, seeded.user)
+
+        val userId = !createTestUser()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+
+        // Zwei Materialarten, beide Kategorie BOAT - der Primärschlüssel von
+        // competition_properties_has_material_type ist (properties, type), zwei BOAT-Bedarfe am
+        // selben Wettkampf sind also erlaubt (Finding I-1).
+        val typeBoatA =
+            (!MaterialService.addType(MaterialTypeRequest("C4x+", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+        val typeBoatB =
+            (!MaterialService.addType(MaterialTypeRequest("Skiff", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+
+        !CompetitionPropertiesHasMaterialTypeRepo.create(
+            listOf(
+                CompetitionPropertiesHasMaterialTypeRecord(
+                    competitionProperties = seeded.propertiesId,
+                    materialType = typeBoatA,
+                    count = 1,
+                ),
+                CompetitionPropertiesHasMaterialTypeRecord(
+                    competitionProperties = seeded.propertiesId,
+                    materialType = typeBoatB,
+                    count = 1,
+                ),
+            )
+        )
+
+        !MaterialService.inviteProvider(seeded.eventId, providerId, userId)
+        val offerA = (
+            !MaterialService.addOffer(seeded.eventId, providerId, MaterialOfferRequest(typeBoatA, "45 €", 5, 30), userId)
+                as ApiResponse.Created
+            ).id
+        val offerB = (
+            !MaterialService.addOffer(seeded.eventId, providerId, MaterialOfferRequest(typeBoatB, "30 €", 5, 30), userId)
+                as ApiResponse.Created
+            ).id
+
+        val itemA = (
+            !MaterialService.addItem(providerId, MaterialItemRequest(typeBoatA, 7, "Boot 7", null, MaterialItemStatus.ACTIVE), userId)
+                as ApiResponse.Created
+            ).id
+        val itemB = (
+            !MaterialService.addItem(providerId, MaterialItemRequest(typeBoatB, 9, "Skiff 9", null, MaterialItemStatus.ACTIVE), userId)
+                as ApiResponse.Created
+            ).id
+
+        !MaterialService.setRequestsForRegistration(
+            seeded.eventId, teamId, Privilege.Scope.GLOBAL to null, listOf(offerA, offerB), userId,
+        )
+        val requests = !MaterialRequestRepo.forRegistration(teamId)
+        val requestA = requests.single { it.materialOffer == offerA }
+        val requestB = requests.single { it.materialOffer == offerB }
+
+        !MaterialService.decideRequest(
+            seeded.eventId, providerId, requestA.id, MaterialDecisionRequest(MaterialRequestStatus.CONFIRMED, null), userId,
+        )
+        !MaterialService.decideRequest(
+            seeded.eventId, providerId, requestB.id, MaterialDecisionRequest(MaterialRequestStatus.CONFIRMED, null), userId,
+        )
+
+        // Beide Anfragen bekommen je eine Grundzuteilung (kein Lauf-Bezug) - genau die Lage, in
+        // der die alte Sicht zwei Zeilen je Lauf-Team lieferte.
+        !MaterialService.setAssignments(
+            seeded.eventId, providerId, requestA.id,
+            MaterialAssignmentsRequest(listOf(MaterialAssignmentEntry(itemA, null))),
+            userId,
+        )
+        !MaterialService.setAssignments(
+            seeded.eventId, providerId, requestB.id,
+            MaterialAssignmentsRequest(listOf(MaterialAssignmentEntry(itemB, null))),
+            userId,
+        )
+
+        val match = seedMatch(seeded.propertiesId, teamId, startNumber = 1)
+        val matchTeam = (!CompetitionMatchTeamRepo.getByMatchAndRegistrationId(match.matchId, teamId))!!
+
+        val rows = !EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.select { COMPETITION_MATCH_TEAM.eq(matchTeam.id) }
+        assertEquals(1, rows.size, "genau eine Zeile je Lauf-Team, auch bei zwei bestätigten BOAT-Anfragen")
+
+        // startlist_team gruppiert nach den emf.*-Spalten - fächerte die Sicht vorher auf, listete
+        // die PDF/CSV-Startliste das Team zweimal.
+        val startlist = (!CompetitionMatchRepo.getForStartList(match.matchId))!!
+        val teamEntries = startlist.teams?.filterNotNull().orEmpty().filter { it.teamId == matchTeam.competitionRegistration }
+        assertEquals(1, teamEntries.size, "die Startliste darf das Team nur einmal listen")
     }
 }

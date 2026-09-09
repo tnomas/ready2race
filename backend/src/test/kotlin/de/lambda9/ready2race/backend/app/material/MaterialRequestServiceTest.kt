@@ -169,6 +169,30 @@ class MaterialRequestServiceTest {
         }
     }
 
+    /**
+     * Finding I-2 (Review 2026-09-07): `requests_closed` sperrte bisher nur neue bzw.
+     * reaktivierte Anfragen, nicht den Rückzug - ein Verein konnte eine bereits bestätigte
+     * Buchung nach dem Stichtag noch stornieren (Spec Abschnitt 4/7).
+     */
+    @Test
+    fun closedProviderRejectsWithdrawalOfConfirmedRequest() = testComprehension {
+        val s = setupScenario()
+
+        !MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, listOf(s.offerBoat), s.userId)
+        val confirmed = (!MaterialRequestRepo.forRegistration(s.regId)).single { it.materialOffer == s.offerBoat }
+        !MaterialRequestRepo.update(confirmed.id) { status = "CONFIRMED" }
+
+        !MaterialService.setRequestsClosed(s.eventId, s.providerId, true, s.userId)
+
+        assertKIOFails(MaterialError.RequestsClosed) {
+            MaterialService.setRequestsForRegistration(s.eventId, s.regId, Privilege.Scope.GLOBAL to null, emptyList(), s.userId)
+        }
+
+        // Nichts geändert - die Anfrage bleibt bestätigt, kein WITHDRAWN.
+        val stillConfirmed = (!MaterialRequestRepo.forRegistration(s.regId)).single { it.materialOffer == s.offerBoat }
+        assertEquals("CONFIRMED", stillConfirmed.status)
+    }
+
     @Test
     fun capacityTurnsYellowAtPlannedCount() = testComprehension {
         val s = setupScenario()

@@ -1114,8 +1114,15 @@ group by ifer.event;
 
 -- Wirksames Materialstück je Lauf-Team: Ausnahme je Lauf schlägt die Grundzuteilung. Nur bestätigte Anfragen,
 -- nur Kategorie BOAT erreicht die Anzeigen (Spec Abschnitt 11); OTHER bleibt Mein Event und Dashboard vorbehalten.
+-- Ein Wettkampf darf zwei BOAT-Bedarfe tragen (competition_properties_has_material_type hat den
+-- Primärschlüssel (properties, type), setRequestsForRegistration verbietet nur zwei Anfragen
+-- derselben Art, nicht derselben Kategorie) - dann liefert der Join unten zwei bestätigte
+-- BOAT-Anfragen je Lauf-Team. `distinct on (cmt.id)` zwingt die Sicht auf eine Zeile je Lauf-Team
+-- (Spec Abschnitt 11): zuerst eine Ausnahme fürs Team in diesem Lauf, sonst eine Grundzuteilung,
+-- bei mehreren Kandidaten deterministisch die kleinste Stücknummer.
 create view effective_material_for_match_team as
-select cmt.id                                             as competition_match_team,
+select distinct on (cmt.id)
+       cmt.id                                             as competition_match_team,
        mi.id                                               as material_item,
        mi.number,
        mi.label,
@@ -1127,14 +1134,15 @@ from competition_match_team cmt
          join material_offer mo on mo.id = mr.material_offer
          join material_type mt on mt.id = mo.material_type and mt.category = 'BOAT'
          join lateral (
-    select ma.material_item
+    select ma.material_item, ma.competition_match
     from material_assignment ma
     where ma.material_request = mr.id
       and (ma.competition_match = cmt.competition_match or ma.competition_match is null)
     order by (ma.competition_match is null)     -- Ausnahme (false) vor Grundzuteilung (true)
     limit 1
     ) chosen on true
-         join material_item mi on mi.id = chosen.material_item;
+         join material_item mi on mi.id = chosen.material_item
+order by cmt.id, (chosen.competition_match is null), mi.number;
 
 create view startlist_team as
 select cmt.competition_match,

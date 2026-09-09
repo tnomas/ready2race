@@ -42,12 +42,13 @@ export const usesListLength = (type: StreamGraphicType): boolean => type === 'SC
 export const usesImageDocument = (type: StreamGraphicType): boolean => type === 'COURSE_IMAGE'
 
 /**
- * STARTLIST/LAPS/RESULT/FINISH_TICKER: die einzigen vier Typen, die überhaupt Bootszeilen
- * zeigen (Materialvermietung, Task 6.5) - CLOCK/NEXT_UP/SCHEDULE/COURSE_IMAGE haben keine
- * Zeile, an der ein Materialhinweis stehen könnte.
+ * STARTLIST/RESULT/FINISH_TICKER: die einzigen drei Typen, die den Material-Schalter zeigen
+ * (Materialvermietung, Task 6.5) - CLOCK/NEXT_UP/SCHEDULE/COURSE_IMAGE haben keine Bootszeile,
+ * an der ein Materialhinweis stehen könnte, und LAPS reicht `showMaterial` nicht weiter
+ * (StreamLapsBand zeigt kein Material) - der Schalter wäre dort ohne Wirkung.
  */
 export const usesMaterialToggle = (type: StreamGraphicType): boolean =>
-    type === 'STARTLIST' || type === 'LAPS' || type === 'RESULT' || type === 'FINISH_TICKER'
+    type === 'STARTLIST' || type === 'RESULT' || type === 'FINISH_TICKER'
 
 /** Vorbelegte Einblenddauer, wenn ein Typ noch nie konfiguriert wurde (Kommentare in StreamSceneGraphicDtos.kt). */
 const DEFAULT_DISPLAY_SECONDS: Partial<Record<StreamGraphicType, number>> = {
