@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
 import de.lambda9.ready2race.backend.app.timing.control.plannedStartMillis
 import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
+import de.lambda9.ready2race.backend.app.timing.createTestMatchFixture
 import de.lambda9.ready2race.backend.app.timing.createTestMatchTeam
 import de.lambda9.ready2race.backend.app.timing.createTestMatchTeams
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
@@ -32,6 +33,7 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.STREAM_SCENE
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.core.extensions.kio.traverse
 import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import java.util.UUID
@@ -197,6 +199,124 @@ class StreamSceneViewTest {
             !resumedClock.sequenceFiresAt!!.isBefore(pausedClock.sequenceFiresAt!!),
             "Das Fortsetzen darf den Feuerzeitpunkt nie nach vorne ziehen",
         )
+    }
+
+    /**
+     * Läuft noch ein vorheriges Rennen, während die Startsequenz des nächsten beginnt, gehören
+     * Countdown und Beschriftung der Stream-Uhr zum NÄCHSTEN Lauf. Eine globale Auswahl
+     * `running ?: preparing` koppelt sonst den neuen Countdown an den alten Lauf auf der Strecke.
+     */
+    @Test
+    fun aStartedSequenceMakesItsOwnMatchTheClockContentWhileAnotherMatchIsRunning() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val previous = !createTestMatchFixture(eventId)
+        val next = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val now = LocalDateTime.now()
+
+        !Jooq.query {
+            update(COMPETITION_MATCH)
+                .set(COMPETITION_MATCH.ACTIVATED_AT, now.minusMinutes(2))
+                .set(COMPETITION_MATCH.STARTED_AT, now.minusMinutes(1))
+                .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(previous.setupMatchId))
+                .execute()
+        }
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, next.teamIds, 60000L),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+
+        assertTrue(clock.visible, "Die Uhr muss mit dem Sequenzstart sichtbar sein")
+        assertEquals(
+            next.setupMatchId,
+            clock.match?.matchId,
+            "Der Countdown muss den Lauf der gestarteten Sequenz zeigen, nicht den vorherigen laufenden Lauf",
+        )
+    }
+
+    @Test
+    fun aStartedSequenceFindsItsMatchOutsideTheLimitedRunningWindow() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val previous = !(1..5).toList().traverse { createTestMatchFixture(eventId) }
+        val next = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val now = LocalDateTime.now()
+
+        !Jooq.query {
+            previous.forEachIndexed { index, fixture ->
+                update(COMPETITION_MATCH)
+                    .set(COMPETITION_MATCH.START_TIME, now.minusMinutes((10L - index)))
+                    .set(COMPETITION_MATCH.ACTIVATED_AT, now.minusMinutes(2))
+                    .set(COMPETITION_MATCH.STARTED_AT, now.minusMinutes(1))
+                    .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(fixture.setupMatchId))
+                    .execute()
+            }
+        }
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, next.teamIds, 60000L),
+            userId,
+            eventId,
+        )
+        !TimingSequenceService.startSequence((created as ApiResponse.Created).id, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+        assertEquals(next.setupMatchId, clock.match?.matchId)
+    }
+
+    @Test
+    fun anIntervalSequenceLabelsTheClockWithTheMatchOfItsNextPendingEntry() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val first = !createTestMatchFixture(eventId)
+        val second = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(
+                stationId,
+                SequenceMode.INTERVAL,
+                60000L,
+                listOf(first.teamIds.single(), second.teamIds.single()),
+                60000L,
+            ),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val firstEntry = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .single { it.position == 0 }
+        !TimingSequenceService.skipEntry(firstEntry.id, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+        assertEquals(second.setupMatchId, clock.match?.matchId)
     }
 
     /**

@@ -238,20 +238,26 @@ object TimingSequenceService {
         val record = chosen.first().sequence
         val startedAtMillis = record.startedAtMillis
         val anchorMillis = startedAtMillis?.let { it + (record.pauseShiftMillis ?: 0L) }
-        val nextPendingPosition = chosen
+        val nextPending = chosen
             .filter { it.entry.status == SequenceEntryStatus.PENDING.name }
-            .minOfOrNull { it.entry.position }
+            .minByOrNull { it.entry.position!! }
+        val displayEntry = nextPending
+            ?: chosen
+                .filter { it.entry.status == SequenceEntryStatus.STARTED.name }
+                .maxByOrNull { it.entry.position!! }
+            ?: chosen.minByOrNull { it.entry.position!! }
         KIO.ok(
             ActiveSequenceTiming(
                 sequenceId = record.id,
                 state = SequenceState.valueOf(record.state!!),
                 startedAt = anchorMillis?.let { TimingMatchStampLogic.stampFor(it) },
-                firesAt = nextPendingPosition
-                    ?.let { plannedStartMillis(record, it) }
+                firesAt = nextPending
+                    ?.let { plannedStartMillis(record, it.entry.position!!) }
                     ?.let { TimingMatchStampLogic.stampFor(it) },
                 // `paused_at_millis` beschreibt per Vertrag nur die LAUFENDE Pause
                 // (resumeSequence leert es) - gesetzt heißt also PAUSED.
                 pausedAt = record.pausedAtMillis?.let { TimingMatchStampLogic.stampFor(it) },
+                currentMatchId = displayEntry?.setupMatchId,
                 matchIds = chosen.map { it.setupMatchId }.distinct(),
             )
         )

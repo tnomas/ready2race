@@ -140,12 +140,28 @@ object StreamSceneLogic {
             // Einmal je Aufbau, nicht je Mannschaft - dieselbe Begründung wie in
             // BoardService.getBoardView.
             val clubShortNames = !EventInfoService.clubShortNames()
+            val timing = !sequenceTiming(eventId)
+            val sequenceMatchId = timing.matchId.takeIf { timing.startedAt != null }
 
             // Die aktivierten Läufe in Arena-Reihenfolge; die Info-Zeile (nicht das
             // Anzeige-DTO) trägt `activatedAt`, und genau der ist der Zeitpunkt des Wechsels
             // nach „In Vorbereitung".
-            val runningInfos =
+            val limitedRunningInfos =
                 (!EventInfoService.getRunningMatches(eventId, RUNNING_LIMIT, clubShortNames)).data
+            // Das normale Fenster ist absichtlich klein. Der Lauf der aktiven Sequenz muss aber
+            // auch bei vielen parallelen Läufen verfügbar sein, weil Countdown und Beschriftung
+            // atomar zu genau diesem Sequenzeintrag gehören.
+            val sequenceInfo = sequenceMatchId
+                ?.takeIf { id -> limitedRunningInfos.none { it.matchId == id } }
+                ?.let { id ->
+                    (!EventInfoService.getRunningMatches(
+                        eventId,
+                        1,
+                        clubShortNames,
+                        matchIds = setOf(id),
+                    )).data.firstOrNull()
+                }
+            val runningInfos = (limitedRunningInfos + listOfNotNull(sequenceInfo)).distinctBy { it.matchId }
             val runningMatches = runningInfos.map {
                 it.toAthleteBoardMatch(now, showCountdown = true, includeDetails = CREW_DETAILS)
             }
@@ -220,7 +236,12 @@ object StreamSceneLogic {
                 ).map { response -> response.data.firstOrNull() }
             }).filterNotNull().associate { it.matchId to it.toAthleteBoardResult(includeDetails = true) }
 
-            val timing = !sequenceTiming(eventId)
+            // Countdown und Laufbeschriftung müssen aus derselben Sequenz stammen. Sonst würde
+            // ein noch fahrender Vorgängerlauf (`running`) den Lauf der bereits gestarteten
+            // nächsten Sequenz überdecken. ARMED allein reicht bewusst nicht: Vor dem Start der
+            // Sequenz bleibt die normale laufend/vorbereitend-Auswahl maßgeblich.
+            val sequenceMatch = sequenceMatchId
+                ?.let { id -> runningMatches.firstOrNull { it.matchId == id } }
 
             KIO.ok(
                 StreamResolverInput(
@@ -230,6 +251,7 @@ object StreamSceneLogic {
                     preparing = preparing,
                     preparingSince = preparingSince,
                     running = running,
+                    sequenceMatch = sequenceMatch,
                     sequenceStartedAt = timing.startedAt,
                     sequenceFiresAt = timing.firesAt,
                     sequencePausedAt = timing.pausedAt,
@@ -334,6 +356,7 @@ object StreamSceneLogic {
         val startedAt: LocalDateTime?,
         val firesAt: LocalDateTime?,
         val pausedAt: LocalDateTime?,
+        val matchId: UUID?,
     )
 
     /**
@@ -353,6 +376,7 @@ object StreamSceneLogic {
                 startedAt = timing?.startedAt,
                 firesAt = timing?.firesAt,
                 pausedAt = timing?.pausedAt,
+                matchId = timing?.currentMatchId,
             )
         )
     }

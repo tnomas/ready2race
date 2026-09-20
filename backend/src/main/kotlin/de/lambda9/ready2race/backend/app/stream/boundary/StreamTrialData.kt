@@ -238,6 +238,7 @@ private fun emptyInput(
     preparing = null,
     preparingSince = null,
     running = null,
+    sequenceMatch = null,
     sequenceStartedAt = null,
     sequenceFiresAt = null,
     sequencePausedAt = null,
@@ -292,6 +293,7 @@ fun trialInput(
 
         StreamTrialPhase.COUNTDOWN -> base.copy(
             preparing = preparingMatch,
+            sequenceMatch = preparingMatch,
             // Die Startliste hatte ihr Fenster in der Vorbereitung — hier zählt die Uhr.
             preparingSince = phaseSince.minusMinutes(5),
             sequenceStartedAt = phaseSince,

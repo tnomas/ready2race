@@ -359,9 +359,12 @@ object EventInfoService {
         limit: Int,
         clubShortNames: ClubShortNameSettings,
         includeClarification: Boolean = false,
+        matchIds: Collection<UUID>? = null,
     ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
 
-        val matches = !CompetitionMatchRepo.getRunningMatches(eventId, limit, includeClarification).orDie()
+        val matches = !CompetitionMatchRepo
+            .getRunningMatches(eventId, limit, includeClarification, matchIds)
+            .orDie()
 
         val result = matches.map { match ->
             val matchId = match[COMPETITION_MATCH.COMPETITION_SETUP_MATCH]!!

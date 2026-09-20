@@ -92,6 +92,7 @@ class StreamSceneResolverTest {
         preparing: AthleteBoardMatch? = null,
         preparingSince: LocalDateTime? = null,
         running: AthleteBoardMatch? = null,
+        sequenceMatch: AthleteBoardMatch? = null,
         sequenceStartedAt: LocalDateTime? = null,
         sequenceFiresAt: LocalDateTime? = null,
         sequencePausedAt: LocalDateTime? = null,
@@ -110,6 +111,7 @@ class StreamSceneResolverTest {
         preparing = preparing,
         preparingSince = preparingSince,
         running = running,
+        sequenceMatch = sequenceMatch,
         sequenceStartedAt = sequenceStartedAt,
         sequenceFiresAt = sequenceFiresAt,
         sequencePausedAt = sequencePausedAt,
@@ -177,6 +179,22 @@ class StreamSceneResolverTest {
         assertEquals(t0, clock.sequenceStartedAt, "Sequenzstart muss durchgereicht werden")
         assertEquals(firesAt, clock.sequenceFiresAt, "Feuerzeitpunkt muss durchgereicht werden")
         assertEquals(null, clock.sequencePausedAt, "ohne Pause darf kein Pausenbeginn mitreisen")
+    }
+
+    @Test
+    fun `clock faellt bei gestarteter Sequenz ohne aufloesbaren Lauf nicht auf fremden lauf zurueck`() {
+        val running = testMatch(state = MatchState.RUNNING)
+        val clock = resolveScene(
+            baseInput(
+                graphics = listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+                running = running,
+                sequenceStartedAt = t0,
+                sequenceFiresAt = t0.plusSeconds(30),
+            )
+        ).graphic(StreamGraphicType.CLOCK)
+
+        assertTrue(clock.visible)
+        assertNull(clock.match, "Ein Sequenz-Countdown darf nie mit einem fremden Lauf beschriftet werden")
     }
 
     @Test
