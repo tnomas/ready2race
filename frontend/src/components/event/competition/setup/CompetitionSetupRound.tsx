@@ -379,7 +379,16 @@ const CompetitionSetupRound = ({round, formContext, removeRound, teamCounts, ...
                                     minInlineSize: 'auto',
                                     ...(props.locked && {pointerEvents: 'none', opacity: 0.6}),
                                 }}>
-                            <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
+                            {/* Schmale Bildschirme: untereinander statt nebeneinander, sonst liegt
+                                die Wertungsauswahl rechts außerhalb des sichtbaren Bereichs. */}
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    [theme.breakpoints.down('lg')]: {
+                                        flexDirection: 'column',
+                                    },
+                                }}>
                                 <Stack spacing={2}>
                                     <Box>
                                         <Button
