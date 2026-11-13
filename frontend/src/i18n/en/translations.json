@@ -1,4 +1,19 @@
 {
+  "notFound": {
+    "title": "Page not found",
+    "description": "This address does not exist (anymore). The link may be outdated or contain a typo.",
+    "home": "Go to start page",
+    "appHome": "Go to helper app"
+  },
+  "routeError": {
+    "title": "Something went wrong",
+    "description": "This page could not be displayed. Please try again.",
+    "chunkTitle": "New version available",
+    "chunkDescription": "The application has been updated. Please reload the page to use the current version.",
+    "reload": "Reload",
+    "home": "Go to start page",
+    "displayRetrying": "Reloading display …"
+  },
   "common": {
     "no": "No",
     "cancel": "Cancel",
@@ -136,6 +151,15 @@
     "add": "Add",
     "submit": "Submit",
     "for": "for"
+  },
+  "ui": {
+    "retry": "Try again",
+    "loading": "Loading…",
+    "loadError": "The data could not be loaded."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Breadcrumb",
+    "showPath": "Show full path"
   },
   "csv": {
     "wizard": {
@@ -372,19 +396,41 @@
     "remark": "Remark",
     "color": "Color"
   },
+  "nav": {
+    "event": {
+      "sectionSelect": "Section",
+      "groups": {
+        "preparation": "Preparation",
+        "registration": "Registration",
+        "raceDay": "Race day",
+        "followUp": "Follow-up"
+      },
+      "sections": {
+        "general": "Overview",
+        "competitions": "Competitions & days",
+        "settings": "Settings",
+        "registrations": "Registrations",
+        "participants": "Participants",
+        "invoices": "Invoices",
+        "schedule": "Schedule",
+        "betrieb": "Operations",
+        "organization": "Team & Helpers",
+        "results": "Results & certificates"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Home",
-      "dashboard": "Dashboard",
+      "dashboard": "Overview",
       "events": "Events",
-      "competitionConfig": "Competition Settings",
       "roles": "Roles",
       "users": "Users",
-      "config": "Configurations",
+      "config": "Templates & Master Data",
       "clubs": "Clubs",
       "myClub": "My Club",
       "invoices": "Invoices",
-      "administration": "Administration"
+      "administration": "System"
     },
     "sidebar": {
       "expand": "Expand sidebar",
@@ -755,7 +801,7 @@
     },
     "eventDay": {
       "eventDay": "Day",
-      "eventDays": "Days",
+      "eventDays": "Event Days",
       "date": "Date",
       "name": "Name",
       "description": "Description",
@@ -928,7 +974,7 @@
         }
       },
       "setup": {
-        "setup": "Competition Setup",
+        "setup": "Round Structure",
         "save": {
           "save": "Save",
           "error": "An error has occurred when saving the competition setup",
@@ -1122,7 +1168,7 @@
           "place": "Place",
           "time": "Time",
           "placeAndTime": "Place/Time/Penalty",
-          "manageRunning": "Manage Running Matches",
+          "manageRunning": "Manage Running Races",
           "running": "Running",
           "roundAndMatch": "Round {{round}}, Match {{match}}",
           "activated": "At the start",
@@ -1605,8 +1651,7 @@
       "general": "General",
       "registrations": "Registrations",
       "settings": "Settings",
-      "actions": "Actions",
-      "organisation": "Organisation",
+      "organisation": "Team & Helpers",
       "invoices": "Invoices",
       "betrieb": "Operations"
     },
@@ -2760,7 +2805,7 @@
       },
       "panel": {
         "title": "Control panel",
-        "open": "Open control panel",
+        "open": "Open director",
         "sceneSelect": "Scene",
         "noGraphics": "This scene has no enabled graphic yet.",
         "health": {
@@ -2797,15 +2842,20 @@
     },
     "betrieb": {
       "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
+      "raceOffice": {
+        "title": "Race office",
+        "description": "The race-day workplace: call matches to the start or take them back, and run the competitions from the schedule (with event mode).",
+        "openSchedule": "Go to schedule"
+      },
       "referee": {
         "title": "Referee",
-        "description": "The live dashboard shows running and upcoming matches, checks and decisions for the referees.",
-        "open": "Open live dashboard"
+        "description": "The referee dashboard shows running and upcoming matches, checks and decisions for the referees.",
+        "open": "Open referee dashboard"
       },
       "speaker": {
         "title": "Speaker",
-        "description": "The speaker view bundles start lists, results and running matches for the commentary.",
-        "open": "Open speaker view"
+        "description": "The speaker board bundles start lists, results and running matches for the commentary.",
+        "open": "Open speaker board"
       },
       "timing": {
         "title": "Timing",
@@ -2821,7 +2871,7 @@
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream overlays for the video direction: transparent scenes for Wirecast/OBS, directed via the control panel.",
+        "description": "Stream overlays for the video direction: transparent scenes for Wirecast/OBS, controlled via the director.",
         "open": "Manage livestream",
         "openDirector": "Open director"
       },
@@ -2829,7 +2879,7 @@
         "title": "Helpers",
         "description": "The helper app for phones (QR scanning, check-in/out, tasks) and the event’s shift plan.",
         "openApp": "Open helper app",
-        "shifts": "Go to shift plan (organisation)"
+        "shifts": "Go to shift plan (team & helpers)"
       }
     }
   },
@@ -3138,7 +3188,7 @@
     }
   },
   "configuration": {
-    "configuration": "Configuration",
+    "configuration": "Templates & Master Data",
     "tabs": {
       "competitionTemplates": "Competition templates",
       "eventElements": "Event elements",
@@ -3364,7 +3414,7 @@
   "qrCode": {
     "qrCode": "QR Code",
     "value": "QR Code Value",
-    "appUsersWithQrCode": "Users with QR Codes",
+    "appUsersWithQrCode": "Helpers with QR Code",
     "edit": "Edit QR Code",
     "delete": "Delete QR Code",
     "show": "Show QR Code",
@@ -4037,13 +4087,15 @@
       "to": {
         "where": "What would you like to visit?",
         "app": "Helper App",
-        "results": "Live Events",
+        "results": "Results & Live",
         "desktop": "Desktop View"
       }
     },
-    "liveEventsLink": "Live Results"
+    "liveEventsLink": "Results & Live"
   },
   "panic": {
+    "retry": "Try again",
+    "retrying": "Reconnecting …",
     "title": "Error",
     "text": "The API server is currently unavailable. Please try again later. If this situation persists, please contact a site administrator. Thank you."
   },
@@ -4191,7 +4243,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP Configuration",
       "theme": "Theme Customization",

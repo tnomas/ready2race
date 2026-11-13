@@ -1,4 +1,19 @@
 {
+  "notFound": {
+    "title": "Siden blev ikke fundet",
+    "description": "Denne adresse findes ikke (længere). Linket er måske forældet eller indeholder en tastefejl.",
+    "home": "Til startsiden",
+    "appHome": "Til hjælper-appen"
+  },
+  "routeError": {
+    "title": "Noget gik galt",
+    "description": "Denne side kunne ikke vises. Prøv venligst igen.",
+    "chunkTitle": "Ny version tilgængelig",
+    "chunkDescription": "Programmet er blevet opdateret. Genindlæs venligst siden for at bruge den aktuelle version.",
+    "reload": "Genindlæs",
+    "home": "Til startsiden",
+    "displayRetrying": "Visningen genindlæses …"
+  },
   "common": {
     "no": "Nej",
     "cancel": "Annuller",
@@ -136,6 +151,15 @@
     "add": "Tilføj",
     "submit": "Indsend",
     "for": "for"
+  },
+  "ui": {
+    "retry": "Prøv igen",
+    "loading": "Indlæser …",
+    "loadError": "Dataene kunne ikke indlæses."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Brødkrummesti",
+    "showPath": "Vis hele stien"
   },
   "csv": {
     "wizard": {
@@ -372,19 +396,41 @@
     "remark": "Bemærkning",
     "color": "Farve"
   },
+  "nav": {
+    "event": {
+      "sectionSelect": "Område",
+      "groups": {
+        "preparation": "Forberedelse",
+        "registration": "Tilmelding",
+        "raceDay": "Løbsdag",
+        "followUp": "Opfølgning"
+      },
+      "sections": {
+        "general": "Oversigt",
+        "competitions": "Konkurrencer og dage",
+        "settings": "Indstillinger",
+        "registrations": "Tilmeldinger",
+        "participants": "Deltagere",
+        "invoices": "Fakturaer",
+        "schedule": "Tidsplan",
+        "betrieb": "Drift",
+        "organization": "Team og hjælpere",
+        "results": "Resultater og diplomer"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Start",
-      "dashboard": "Dashboard",
+      "dashboard": "Overblik",
       "events": "Arrangementer",
-      "competitionConfig": "Konkurrenceindstillinger",
       "roles": "Roller",
       "users": "Brugere",
-      "config": "Konfigurationer",
+      "config": "Skabeloner og stamdata",
       "clubs": "Klubber",
       "myClub": "Min klub",
       "invoices": "Fakturaer",
-      "administration": "Administration"
+      "administration": "System"
     },
     "sidebar": {
       "expand": "Udvid sidebjælke",
@@ -755,7 +801,7 @@
     },
     "eventDay": {
       "eventDay": "Dag",
-      "eventDays": "Dage",
+      "eventDays": "Arrangementsdage",
       "date": "Dato",
       "name": "Navn",
       "description": "Beskrivelse",
@@ -928,7 +974,7 @@
         }
       },
       "setup": {
-        "setup": "Konkurrenceforløb",
+        "setup": "Rundestruktur",
         "save": {
           "save": "Gem",
           "error": "Der opstod en fejl - konkurrenceforløbet kunne ikke gemmes",
@@ -1122,7 +1168,7 @@
           "place": "Placering",
           "time": "Tid",
           "placeAndTime": "Placering/Tid/Straf",
-          "manageRunning": "Administrer igangværende kampe",
+          "manageRunning": "Administrer igangværende løb",
           "running": "Kører",
           "roundAndMatch": "Runde {{round}}, kamp {{match}}",
           "activated": "Ved start",
@@ -1605,8 +1651,7 @@
       "general": "Generelt",
       "registrations": "Tilmeldinger",
       "settings": "Indstillinger",
-      "actions": "Handlinger",
-      "organisation": "Organisation",
+      "organisation": "Team og hjælpere",
       "invoices": "Fakturaer",
       "betrieb": "Drift"
     },
@@ -2758,7 +2803,7 @@
       },
       "panel": {
         "title": "Kontrolpanel",
-        "open": "Åbn kontrolpanel",
+        "open": "Åbn regi",
         "sceneSelect": "Scene",
         "noGraphics": "Denne scene har endnu ingen aktiveret grafik.",
         "health": {
@@ -2795,15 +2840,20 @@
     },
     "betrieb": {
       "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
+      "raceOffice": {
+        "title": "Regattakontor",
+        "description": "Arbejdspladsen på løbsdagen: kald løb til start eller tag dem tilbage, og styr afviklingen af konkurrencerne fra tidsplanen (med arrangementstilstand).",
+        "openSchedule": "Til tidsplanen"
+      },
       "referee": {
         "title": "Dommer",
-        "description": "Live-dashboardet viser igangværende og kommende løb, kontroller og afgørelser for dommerne.",
-        "open": "Åbn live-dashboard"
+        "description": "Dommer-dashboardet viser igangværende og kommende løb, kontroller og afgørelser for dommerne.",
+        "open": "Åbn dommer-dashboard"
       },
       "speaker": {
         "title": "Speaker",
-        "description": "Speaker-visningen samler startlister, resultater og igangværende løb til speakeren.",
-        "open": "Åbn speaker-visning"
+        "description": "Speaker-boardet samler startlister, resultater og igangværende løb til speakeren.",
+        "open": "Åbn speaker-board"
       },
       "timing": {
         "title": "Tidtagning",
@@ -2819,7 +2869,7 @@
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream-overlays til billedproduktionen: transparente scener til Wirecast/OBS, styret via kontrolpanelet.",
+        "description": "Stream-overlays til billedproduktionen: transparente scener til Wirecast/OBS, styret via regien.",
         "open": "Administrér livestream",
         "openDirector": "Åbn regi"
       },
@@ -2827,7 +2877,7 @@
         "title": "Hjælpere",
         "description": "Hjælper-appen til telefonen (QR-scanning, check-in/-ud, opgaver) og stævnets vagtplan.",
         "openApp": "Åbn hjælper-app",
-        "shifts": "Til vagtplanen (organisation)"
+        "shifts": "Til vagtplanen (team og hjælpere)"
       }
     }
   },
@@ -3136,7 +3186,7 @@
     }
   },
   "configuration": {
-    "configuration": "Konfigurationer",
+    "configuration": "Skabeloner og stamdata",
     "tabs": {
       "competitionTemplates": "Skabeloner konkurrence",
       "eventElements": "Komponenter arrangement",
@@ -3362,7 +3412,7 @@
   "qrCode": {
     "qrCode": "QR-kode",
     "value": "QR-kodeværdi",
-    "appUsersWithQrCode": "Brugere med QR-koder",
+    "appUsersWithQrCode": "Hjælpere med QR-kode",
     "edit": "Rediger QR-kode",
     "delete": "Slet QR-kode",
     "show": "Vis QR-kode",
@@ -4032,13 +4082,15 @@
       "to": {
         "where": "Hvad vil du se?",
         "app": "Hjælper-app",
-        "results": "Live-arrangementer",
+        "results": "Resultater og live",
         "desktop": "Desktopvisning"
       }
     },
-    "liveEventsLink": "Igangværende resultater"
+    "liveEventsLink": "Resultater og live"
   },
   "panic": {
+    "retry": "Prøv igen",
+    "retrying": "Genopretter forbindelsen …",
     "title": "Fejl",
     "text": "API-serveren kan ikke nås i øjeblikket. Prøv venligst igen senere. Hvis dette ikke ændrer sig, kontakt venligst en ansvarlig. Mange tak."
   },
@@ -4186,7 +4238,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP-konfiguration",
       "theme": "Tema-tilpasning",

@@ -1,4 +1,19 @@
 {
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Diese Adresse gibt es nicht (mehr). Vielleicht ist der Link veraltet oder enthält einen Tippfehler.",
+    "home": "Zur Startseite",
+    "appHome": "Zur Helfer-App"
+  },
+  "routeError": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Diese Seite konnte nicht angezeigt werden. Bitte versuchen Sie es erneut.",
+    "chunkTitle": "Neue Version verfügbar",
+    "chunkDescription": "Die Anwendung wurde aktualisiert. Bitte laden Sie die Seite neu, um die aktuelle Version zu verwenden.",
+    "reload": "Neu laden",
+    "home": "Zur Startseite",
+    "displayRetrying": "Anzeige wird neu geladen …"
+  },
   "common": {
     "no": "Nein",
     "cancel": "Abbrechen",
@@ -136,6 +151,15 @@
     "add": "Hinzufügen",
     "submit": "Absenden",
     "for": "für"
+  },
+  "ui": {
+    "retry": "Erneut versuchen",
+    "loading": "Wird geladen …",
+    "loadError": "Die Daten konnten nicht geladen werden."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Seitenpfad",
+    "showPath": "Ganzen Pfad anzeigen"
   },
   "csv": {
     "wizard": {
@@ -372,19 +396,41 @@
     "remark": "Anmerkung",
     "color": "Farbe"
   },
+  "nav": {
+    "event": {
+      "sectionSelect": "Bereich",
+      "groups": {
+        "preparation": "Vorbereitung",
+        "registration": "Meldung",
+        "raceDay": "Renntag",
+        "followUp": "Nachbereitung"
+      },
+      "sections": {
+        "general": "Übersicht",
+        "competitions": "Wettkämpfe & Tage",
+        "settings": "Einstellungen",
+        "registrations": "Meldungen",
+        "participants": "Teilnehmende",
+        "invoices": "Rechnungen",
+        "schedule": "Zeitplan",
+        "betrieb": "Betrieb",
+        "organization": "Team & Helfer",
+        "results": "Ergebnisse & Urkunden"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Start",
-      "dashboard": "Dashboard",
+      "dashboard": "Übersicht",
       "events": "Veranstaltungen",
-      "competitionConfig": "Wettkampf Einstellungen",
       "roles": "Rollen",
       "users": "Benutzer:innen",
-      "config": "Konfigurationen",
+      "config": "Vorlagen & Stammdaten",
       "clubs": "Vereine",
       "myClub": "Mein Verein",
       "invoices": "Rechnungen",
-      "administration": "Administration"
+      "administration": "System"
     },
     "sidebar": {
       "expand": "Seitenleiste ausklappen",
@@ -755,7 +801,7 @@
     },
     "eventDay": {
       "eventDay": "Tag",
-      "eventDays": "Tage",
+      "eventDays": "Veranstaltungstage",
       "date": "Datum",
       "name": "Name",
       "description": "Beschreibung",
@@ -928,7 +974,7 @@
         }
       },
       "setup": {
-        "setup": "Wettbewerbsablauf",
+        "setup": "Rundenstruktur",
         "save": {
           "save": "Speichern",
           "error": "Ein Fehler ist aufgetreten - Der Wettbewerbsablauf konnte nicht gespeichert werden",
@@ -1122,7 +1168,7 @@
           "place": "Platz",
           "time": "Zeit",
           "placeAndTime": "Platz/Zeit/Strafe",
-          "manageRunning": "Laufende Partien verwalten",
+          "manageRunning": "Laufende Läufe verwalten",
           "running": "Läuft",
           "roundAndMatch": "Runde {{round}}, Partie {{match}}",
           "activated": "Am Start",
@@ -1535,7 +1581,7 @@
         }
       },
       "registration": "Anmeldung",
-      "registrations": "Anmeldungen",
+      "registrations": "Meldungen",
       "addParticipant": "Mitglied hinzufügen",
       "singleCompetition": "Einzelwettkampf",
       "teamCompetition": "Teamwettkampf",
@@ -1605,8 +1651,7 @@
       "general": "Allgemein",
       "registrations": "Meldungen",
       "settings": "Einstellungen",
-      "actions": "Aktionen",
-      "organisation": "Organisation",
+      "organisation": "Team & Helfer",
       "invoices": "Rechnungen",
       "betrieb": "Betrieb"
     },
@@ -2760,7 +2805,7 @@
       },
       "panel": {
         "title": "Kontroll-Panel",
-        "open": "Kontroll-Panel öffnen",
+        "open": "Regie öffnen",
         "sceneSelect": "Szene",
         "noGraphics": "Diese Szene hat noch keine aktivierte Grafik.",
         "health": {
@@ -2797,15 +2842,20 @@
     },
     "betrieb": {
       "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "raceOffice": {
+        "title": "Regattabüro",
+        "description": "Der Arbeitsplatz am Renntag: Läufe an den Start rufen oder zurücknehmen und im Zeitplan (mit Veranstaltungs-Modus) die Durchführung der Wettkämpfe führen.",
+        "openSchedule": "Zum Zeitplan"
+      },
       "referee": {
         "title": "Schiedsrichter:in",
-        "description": "Das Live-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
-        "open": "Live-Dashboard öffnen"
+        "description": "Das Schiedsrichter-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
+        "open": "Schiedsrichter-Dashboard öffnen"
       },
       "speaker": {
         "title": "Sprecher:in",
-        "description": "Die Sprecher-Ansicht bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
-        "open": "Sprecher-Ansicht öffnen"
+        "description": "Das Sprecher-Board bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
+        "open": "Sprecher-Board öffnen"
       },
       "timing": {
         "title": "Zeitnahme",
@@ -2821,7 +2871,7 @@
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Regie über das Kontroll-Panel.",
+        "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Steuerung über die Regie.",
         "open": "Livestream verwalten",
         "openDirector": "Regie öffnen"
       },
@@ -2829,7 +2879,7 @@
         "title": "Helfer:innen",
         "description": "Die Helfer-App fürs Handy (QR-Scannen, Check-in/-out, Aufgaben) und der Schichtplan der Veranstaltung.",
         "openApp": "Helfer-App öffnen",
-        "shifts": "Zum Schichtplan (Organisation)"
+        "shifts": "Zum Schichtplan (Team & Helfer)"
       }
     }
   },
@@ -3138,7 +3188,7 @@
     }
   },
   "configuration": {
-    "configuration": "Konfigurationen",
+    "configuration": "Vorlagen & Stammdaten",
     "tabs": {
       "competitionTemplates": "Vorlagen Wettkampf",
       "eventElements": "Komponenten Veranstaltung",
@@ -3364,7 +3414,7 @@
   "qrCode": {
     "qrCode": "QR-Code",
     "value": "QR-Code-Wert",
-    "appUsersWithQrCode": "Benutzer mit QR-Codes",
+    "appUsersWithQrCode": "Helfer:innen mit QR-Code",
     "edit": "QR-Code bearbeiten",
     "delete": "QR-Code löschen",
     "show": "QR-Code anzeigen",
@@ -4036,14 +4086,16 @@
     "smallScreen": {
       "to": {
         "where": "Was möchten Sie sehen?",
-        "app": "Helfer App",
-        "results": "Live Events",
+        "app": "Helfer-App",
+        "results": "Ergebnisse & Live",
         "desktop": "Desktopansicht"
       }
     },
-    "liveEventsLink": "Laufende Ergebnisse"
+    "liveEventsLink": "Ergebnisse & Live"
   },
   "panic": {
+    "retry": "Erneut versuchen",
+    "retrying": "Verbindung wird wiederhergestellt …",
     "title": "Fehler",
     "text": "Der API-Server ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut. Sollte dieser Zustand sich nicht ändern, wenden Sie sich bitte an einen Verantwortlichen. Vielen Dank."
   },
@@ -4191,7 +4243,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP-Konfiguration",
       "theme": "Theme-Anpassung",
