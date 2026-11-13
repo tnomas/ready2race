@@ -55,7 +55,7 @@ fun Route.eventInfo() {
             get("/upcoming-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
 
                     EventInfoService.getUpcomingCompetitionMatches(eventId, limit)
                 }
@@ -66,7 +66,7 @@ fun Route.eventInfo() {
             get("/latest-match-results") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
                     val competitionId = !optionalQueryParam("competitionId", uuid)
                     val matchId = !optionalQueryParam("matchId", uuid)
 
@@ -84,7 +84,7 @@ fun Route.eventInfo() {
             get("/running-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
                     val requested = !optionalQueryParam("includeClarification", boolean) ?: false
                     val includeClarification = requested && !mayIncludeClarification(eventId)
 
@@ -97,7 +97,7 @@ fun Route.eventInfo() {
             get("/live-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
 
                     EventInfoService.getLiveMatches(eventId, limit)
                 }
@@ -247,3 +247,20 @@ fun Route.eventInfo() {
         }
     }
 }
+
+/** Standardmenge der öffentlichen Laufliste, wenn `limit` fehlt oder unbrauchbar ist. */
+internal const val PUBLIC_LIST_DEFAULT_LIMIT = 10
+
+/**
+ * Obergrenze für `limit` auf den öffentlichen Laufliste-Endpunkten. Das Sprecher-Board holt mit
+ * 500 alles, was eine Regatta hat; mehr braucht keine Anzeige.
+ */
+internal const val PUBLIC_LIST_MAX_LIMIT = 500
+
+/**
+ * `limit` der öffentlichen Laufliste: negative Werte liefen als `LIMIT -1` in Postgres (500),
+ * riesige als N+1-Lawine über alle Läufe und je Wert als eigener Cache-Eintrag. Unbrauchbares
+ * und Nicht-Positives wird zur Standardmenge, Großes zur Obergrenze.
+ */
+internal fun publicListLimit(raw: String): Int =
+    raw.toIntOrNull()?.takeIf { it > 0 }?.coerceAtMost(PUBLIC_LIST_MAX_LIMIT) ?: PUBLIC_LIST_DEFAULT_LIMIT

@@ -511,6 +511,9 @@ object EventInfoService {
 
             // Laufen mehrere Abrufe gleichzeitig in dieses Fenster, rechnen sie doppelt und der
             // letzte gewinnt - bei Millisekunden Rechenzeit je Eintrag kein Grund für ein Lock.
+            // Abgelaufene Einträge fliegen beim Schreiben raus - der Schlüssel enthält das
+            // limit, ohne Aufräumen wüchse die Map mit jedem neuen Wert für immer.
+            liveMatchesCache.entries.removeIf { !AthleteBoardLogic.isCacheFresh(it.value.builtAt, now) }
             liveMatchesCache[key] = CachedLiveMatches(now, marker, dto)
 
             KIO.ok(dto)
