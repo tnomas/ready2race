@@ -25,6 +25,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.simplejavamail.api.mailer.Mailer
 import org.simplejavamail.api.mailer.config.TransportStrategy
 import org.simplejavamail.mailer.MailerBuilder
+import java.time.ZoneId
 
 private val logger = KotlinLogging.logger {}
 
@@ -44,6 +45,12 @@ data class Config(
      * [de.lambda9.ready2race.backend.calls.requests.CallbackUrls].
      */
     val frontendOrigins: List<String>? = null,
+    /**
+     * Zeitzone der App (`APP_TIMEZONE`, z. B. `Europe/Berlin`). `null` heißt: nicht gesetzt,
+     * dann gilt [de.lambda9.ready2race.backend.AppZone.DEFAULT_ID] - ausdrücklich NICHT die Zone
+     * des Hosts.
+     */
+    val timezone: ZoneId? = null,
 ) {
 
     enum class Mode {
@@ -276,6 +283,9 @@ data class Config(
             }
 
             val frontendOrigins = !optional("FRONTEND_ORIGINS") { CallbackUrls.parseOrigins(it) }
+            // Bewusst nicht `TZ`: Basis-Images setzen das gern auf UTC, und dann folgte die App wieder
+            // still der Zone des Containers.
+            val timezone = !optional("APP_TIMEZONE") { ZoneId.of(it.trim()) }
 
             val config = Config(
                 mode = mode,
@@ -288,6 +298,7 @@ data class Config(
                 staticFilesPath = staticFilesPath,
                 webDAV = webDAV,
                 frontendOrigins = frontendOrigins,
+                timezone = timezone,
             )
 
             if (frontendOrigins == null && (mode == Mode.PROD || mode == Mode.STAGING)) {

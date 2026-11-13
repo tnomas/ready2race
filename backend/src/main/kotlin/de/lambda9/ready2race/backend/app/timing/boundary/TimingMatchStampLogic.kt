@@ -1,8 +1,8 @@
 package de.lambda9.ready2race.backend.app.timing.boundary
 
+import de.lambda9.ready2race.backend.AppZone
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneId
 
 /**
  * Die Entscheidungen, mit denen die interne Zeitnahme die Laufzustände stempelt - bewusst ohne
@@ -29,7 +29,7 @@ object TimingMatchStampLogic {
      * Rücknahme ([startRetracted]) erkennt den eigenen Stempel am exakten Wert.
      */
     fun stampFor(timestampMillis: Long): LocalDateTime =
-        Instant.ofEpochMilli(timestampMillis).atZone(ZoneId.systemDefault()).toLocalDateTime()
+        Instant.ofEpochMilli(timestampMillis).atZone(AppZone.zone).toLocalDateTime()
 
     /**
      * Der Ist-Start, den die vorhandenen Startmarken einer Partie hergeben - null, wenn sie schon

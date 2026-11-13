@@ -39,9 +39,10 @@ class ServerTimeTest {
         val millis = Regex("\"serverTimeMillis\":(\\d+)").find(body)!!.groupValues[1].toLong()
         val wallClock = Regex("\"serverLocalTime\":\"([^\"]+)\"").find(body)!!.groupValues[1]
         val parsed = java.time.LocalDateTime.parse(wallClock)
+        // Die Wanduhr der App-Zone, nicht der des Hosts (AppZone).
         val expected = java.time.LocalDateTime.ofInstant(
             java.time.Instant.ofEpochMilli(millis),
-            java.time.ZoneId.systemDefault(),
+            de.lambda9.ready2race.backend.AppZone.zone,
         )
         assertEquals(expected, parsed)
     }

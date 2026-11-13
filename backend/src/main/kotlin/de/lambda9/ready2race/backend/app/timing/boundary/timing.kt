@@ -654,7 +654,7 @@ fun Route.timingGlobal() {
             val nowMillis = System.currentTimeMillis()
             val wallClock = java.time.LocalDateTime.ofInstant(
                 java.time.Instant.ofEpochMilli(nowMillis),
-                java.time.ZoneId.systemDefault(),
+                de.lambda9.ready2race.backend.AppZone.zone,
             ).format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             call.respondText(
                 """{"serverTimeMillis":$nowMillis,"serverLocalTime":"$wallClock"}""",

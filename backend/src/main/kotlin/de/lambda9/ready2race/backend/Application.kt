@@ -43,6 +43,8 @@ fun main(args: Array<String>): Unit = runBlocking {
     val config = dotenv {
         filename = args.getOrNull(0) ?: ".env"
     }.parseConfig()
+    // Vor dem Verbindungspool: der Postgres-Treiber übernimmt die JVM-Zone als Sitzungszeitzone.
+    AppZone.install(config.timezone)
     val (env, ds) = Env.create(config)
 
     // Der issue/94-Merge bringt Migrationen mit älteren Versionsnummern als bereits angewendete —

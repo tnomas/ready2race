@@ -86,6 +86,9 @@ private object TestRunner {
     private var dirty: Boolean
 
     init {
+        // Wie beim echten Start: feste App-Zone vor dem ersten Verbindungsaufbau, damit Tests auf
+        // einem Rechner in UTC dasselbe rechnen wie in Berlin.
+        de.lambda9.ready2race.backend.AppZone.install(null)
         postgres.start()
 
         config = Config(
