@@ -172,78 +172,80 @@ suspend fun ApplicationCall.respondKIO(
     app: KIO<JEnv, ToApiError, ApiResponse>,
 ) {
     // Side effects that must not be visible before the transaction committed (e.g. websocket
-    // broadcasts) are buffered while the KIO runs and flushed at the end of this function.
+    // broadcasts) are buffered while the KIO runs and flushed right after the commit.
     //
     // Die Transaktion blockiert ihren Thread (JDBC, Argon2, PDF). Unter Netty läuft der Handler auf
     // dem Event-Loop, der zugleich alle anderen Verbindungen bedient - deshalb auf Dispatchers.IO.
     // collect und transact laufen darin synchron auf EINEM Thread, der ThreadLocal-Puffer von
     // AfterCommit bleibt also gültig.
-    val (exit, afterCommit) = withContext(Dispatchers.IO) {
-        AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
+    //
+    // Die Nachwirkungen laufen im selben Block direkt nach dem Commit, nicht erst nach dem
+    // Antworten: withContext verwirft bei einem Abbruch der Anfrage (Client weg, Netty bricht den
+    // Handler ab) das Ergebnis des Blocks und wirft CancellationException - der blockierende Block
+    // selbst läuft aber zu Ende und committet. Ein flush hinter withContext ginge dann verloren,
+    // der Änderungsmarker bliebe stehen und kein Push erreichte Boards und Stream. Blockieren
+    // können die Nachwirkungen nicht unbegrenzt: Es sind kurze, synchrone Aufrufe (Marker,
+    // Broadcast-Anstoß), Fehler fängt flush einzeln ab. Zurückgerollt (Fehler, Defekt) wird nichts
+    // ausgelöst.
+    val exit = withContext(Dispatchers.IO) {
+        val (exit, afterCommit) = AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
+        if (exit is Exit.Success) {
+            AfterCommit.flush(afterCommit)
+        }
+        exit
     }
-    respondExit(exit, afterCommit)
+    respondExit(exit)
 }
 
 private suspend fun ApplicationCall.respondExit(
     exit: Exit<ToApiError, ApiResponse>,
-    afterCommit: List<() -> Unit>,
 ) {
-    try {
-        exit.fold(
-            onError = { respondError(it) },
-            onDefect = { respondDefect(it) },
-            onSuccess = { apiResponse ->
-                when (apiResponse) {
-                    ApiResponse.NoData -> {
-                        response.status(HttpStatusCode.NoContent)
-                    }
+    exit.fold(
+        onError = { respondError(it) },
+        onDefect = { respondDefect(it) },
+        onSuccess = { apiResponse ->
+            when (apiResponse) {
+                ApiResponse.NoData -> {
+                    response.status(HttpStatusCode.NoContent)
+                }
 
-                    is ApiResponse.Dto<*> -> {
-                        respond(apiResponse.dto)
-                    }
+                is ApiResponse.Dto<*> -> {
+                    respond(apiResponse.dto)
+                }
 
-                    is ApiResponse.ETagged<*> -> {
-                        respondETagged(apiResponse)
-                    }
+                is ApiResponse.ETagged<*> -> {
+                    respondETagged(apiResponse)
+                }
 
-                    is ApiResponse.ListDto<*> -> {
-                        respond(apiResponse.data)
-                    }
+                is ApiResponse.ListDto<*> -> {
+                    respond(apiResponse.data)
+                }
 
-                    is ApiResponse.Page<*, *> -> {
-                        respond(apiResponse)
-                    }
+                is ApiResponse.Page<*, *> -> {
+                    respond(apiResponse)
+                }
 
-                    is ApiResponse.File -> {
+                is ApiResponse.File -> {
 
-                        val contentType = contentTypeForFileName(apiResponse.name)
+                    val contentType = contentTypeForFileName(apiResponse.name)
 
-                        response.header(
-                            HttpHeaders.ContentDisposition,
-                            ContentDisposition.Attachment.withParameter(
-                                ContentDisposition.Parameters.FileName,
-                                apiResponse.name
-                            ).toString()
-                        )
+                    response.header(
+                        HttpHeaders.ContentDisposition,
+                        ContentDisposition.Attachment.withParameter(
+                            ContentDisposition.Parameters.FileName,
+                            apiResponse.name
+                        ).toString()
+                    )
 
-                        respondBytes(apiResponse.bytes, contentType)
-                    }
+                    respondBytes(apiResponse.bytes, contentType)
+                }
 
-                    is ApiResponse.Created -> {
-                        respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
-                    }
+                is ApiResponse.Created -> {
+                    respondText(apiResponse.id.toString(), status = HttpStatusCode.Created)
                 }
             }
-        )
-    } finally {
-        // `transact` rolls back on both expected errors and defects, so buffered effects are
-        // dropped unless the transaction actually committed. This must run even if `respond`
-        // above throws or the request coroutine gets cancelled, otherwise a committed
-        // transaction's buffered effects (e.g. websocket broadcasts) would silently never fire.
-        if (exit is Exit.Success) {
-            AfterCommit.flush(afterCommit)
         }
-    }
+    )
 }
 
 suspend fun ApplicationCall.respondComprehension(
