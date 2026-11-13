@@ -39,6 +39,18 @@ object CompetitionRegistrationRepo {
 
     fun getByClub(clubId: UUID) = COMPETITION_REGISTRATION.select { CLUB.eq(clubId) }
 
+    /** Die Meldungen eines Vereins in EINER Veranstaltung (über die Veranstaltungsmeldung). */
+    fun getByEventAndClub(eventId: UUID, clubId: UUID): JIO<List<CompetitionRegistrationRecord>> = Jooq.query {
+        selectFrom(COMPETITION_REGISTRATION)
+            .where(COMPETITION_REGISTRATION.CLUB.eq(clubId))
+            .and(
+                COMPETITION_REGISTRATION.EVENT_REGISTRATION.`in`(
+                    select(EVENT_REGISTRATION.ID).from(EVENT_REGISTRATION).where(EVENT_REGISTRATION.EVENT.eq(eventId))
+                )
+            )
+            .fetch()
+    }
+
     fun update(id: UUID, f: CompetitionRegistrationRecord.() -> Unit) = COMPETITION_REGISTRATION.update(f) { ID.eq(id) }
 
     fun update(record: CompetitionRegistrationRecord, f: CompetitionRegistrationRecord.() -> Unit) =

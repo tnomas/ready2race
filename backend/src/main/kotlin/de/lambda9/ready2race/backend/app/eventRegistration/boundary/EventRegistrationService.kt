@@ -167,7 +167,10 @@ object EventRegistrationService {
 
             !CompetitionRegistrationRepo.deleteForEventRegistrationUpdate(persistedRegistrationId, type).orDie()
 
-            val clubRegistrations = !CompetitionRegistrationRepo.getByClub(clubId).orDie()
+            // Nur die Meldungen DIESER Veranstaltung neu durchnummerieren - früher liefen hier die
+            // Meldungen des Vereins aus allen Jahren mit, und historische Mannschaftsnamen auf
+            // Ergebnissen und Urkunden änderten sich bei jeder neuen Meldung.
+            val clubRegistrations = !CompetitionRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
             val grouped = clubRegistrations.groupBy { it.competition }
 
             val compIdsWithNewRegistrations = registrationDto.participants.flatMap {
@@ -178,13 +181,19 @@ object EventRegistrationService {
                 .forEach { regs ->
                     if (regs.size == 1) {
                         regs.first().let {
-                            it.name = if (compIdsWithNewRegistrations.contains(regs.first().competition)) "#1" else null
-                            it.update()
+                            val name = if (compIdsWithNewRegistrations.contains(regs.first().competition)) "#1" else null
+                            if (it.name != name) {
+                                it.name = name
+                                it.update()
+                            }
                         }
                     } else {
                         regs.sortedWith(lexiNumberComp { it.name }).forEachIndexed { idx, rec ->
-                            rec.name = "#${idx + 1}"
-                            rec.update()
+                            val name = "#${idx + 1}"
+                            if (rec.name != name) {
+                                rec.name = name
+                                rec.update()
+                            }
                         }
                     }
                 }
@@ -691,8 +700,9 @@ object EventRegistrationService {
         val overflowNonBinary = (counts[Gender.D] ?: 0) - requirements.countNonBinary
 
 
-        val maleFemaleSlotsAvailableForNonBinary =
-            if (overflowMales < 0) overflowMales * -1 else 0 + if (overflowFemales < 0) overflowFemales * -1 else 0
+        // Klammern sind nötig: `if (a) x else 0 + if (b) y else 0` liest Kotlin als
+        // `if (a) x else (0 + …)` - mit einem freien Männerplatz fielen die freien Frauenplätze weg.
+        val maleFemaleSlotsAvailableForNonBinary = maxOf(0, -overflowMales) + maxOf(0, -overflowFemales)
 
         val enoughMixedSlots = ((if (overflowMales > 0) overflowMales else 0) +
             (if (overflowFemales > 0) overflowFemales else 0) +
