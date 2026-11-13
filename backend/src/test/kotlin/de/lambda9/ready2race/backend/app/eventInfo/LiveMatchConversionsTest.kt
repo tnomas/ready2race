@@ -165,6 +165,7 @@ class LiveMatchConversionsTest {
         activatedAt = activatedAt,
         startedAt = startedAt,
         elapsedMinutes = null,
+        state = if (startedAt == null) MatchState.PREPARING else MatchState.RUNNING,
         placeName = null,
         roundNumber = null,
         roundName = "Vorlauf",

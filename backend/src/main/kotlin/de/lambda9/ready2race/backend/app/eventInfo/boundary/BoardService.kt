@@ -406,9 +406,6 @@ notice = notice,
                         skipped -> null
                         isFree && !showBreaks -> null
                         else -> {
-                            val finished = r.get("match_finished_at", LocalDateTime::class.java) != null
-                            val active = r.get("match_started_at", LocalDateTime::class.java) != null ||
-                                r[COMPETITION_MATCH.ACTIVATED_AT] != null
                             BoardProgramEntry(
                                 startTime = r[EVENT_SCHEDULE_SLOT.START_TIME],
                                 name = if (isFree) r[EVENT_SCHEDULE_SLOT.NAME] else null,
@@ -416,11 +413,17 @@ notice = notice,
                                 competitionShortName = r.get("competition_short_name", String::class.java),
                                 roundName = r.get("round_name", String::class.java),
                                 matchName = r.get("match_name", String::class.java),
-                                state = when {
-                                    finished -> BoardProgramState.FINISHED
-                                    active -> BoardProgramState.RUNNING
-                                    else -> BoardProgramState.UPCOMING
-                                },
+                                // Die eine Ableitung, nicht „gestartet oder aktiviert = läuft"
+                                // (zeigte „In Vorbereitung" und „Klärung" als „Läuft").
+                                state = BoardLogic.programState(
+                                    activatedAt = r[COMPETITION_MATCH.ACTIVATED_AT],
+                                    startedAt = r.get("match_started_at", LocalDateTime::class.java),
+                                    startTime = r[EVENT_SCHEDULE_SLOT.START_TIME],
+                                    finishedAt = r.get("match_finished_at", LocalDateTime::class.java),
+                                    teamsTotal = r.get("match_teams_total", Int::class.java) ?: 0,
+                                    teamsScored = r.get("match_teams_scored", Int::class.java) ?: 0,
+                                    clarificationSince = r[COMPETITION_MATCH.CLARIFICATION_SINCE],
+                                ),
                             )
                         }
                     }

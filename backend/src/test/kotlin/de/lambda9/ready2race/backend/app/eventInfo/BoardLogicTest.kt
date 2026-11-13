@@ -250,6 +250,56 @@ class BoardLogicTest {
         assertEquals(BoardProgramState.UPCOMING, marked[4].state)
     }
 
+    // --- Tagesprogramm: Zustand aus der einen Ableitung (LiveDashboardLogic.deriveMatchState) ---
+
+    private fun programState(
+        activatedAt: java.time.LocalDateTime? = null,
+        startedAt: java.time.LocalDateTime? = null,
+        finishedAt: java.time.LocalDateTime? = null,
+        teamsTotal: Int = 3,
+        teamsScored: Int = 0,
+        clarificationSince: java.time.LocalDateTime? = null,
+    ) = BoardLogic.programState(
+        activatedAt = activatedAt,
+        startedAt = startedAt,
+        startTime = at(10),
+        finishedAt = finishedAt,
+        teamsTotal = teamsTotal,
+        teamsScored = teamsScored,
+        clarificationSince = clarificationSince,
+    )
+
+    @Test
+    fun aCalledButNotStartedMatchIsPreparingInTheProgram() {
+        // Der Befund aus der Review-Runde: das Programm zeigte „Läuft", der Live-Reiter für
+        // denselben Lauf „In Vorbereitung".
+        assertEquals(BoardProgramState.PREPARING, programState(activatedAt = at(9, 55)))
+        assertEquals(
+            BoardProgramState.RUNNING,
+            programState(activatedAt = at(9, 55), startedAt = at(10, 1)),
+        )
+    }
+
+    @Test
+    fun theProgramFollowsTheDerivationForClarificationFinishAndReopen() {
+        assertEquals(
+            BoardProgramState.CLARIFICATION,
+            programState(activatedAt = at(9, 55), startedAt = at(10, 1), clarificationSince = at(10, 9)),
+        )
+        assertEquals(
+            BoardProgramState.FINISHED,
+            programState(startedAt = at(10, 1), finishedAt = at(10, 9), clarificationSince = at(10, 9)),
+        )
+        // „Beenden zurücknehmen" lässt den Ist-Start stehen, nimmt aber die Aktivierung nicht
+        // wieder auf: das ist nach der Ableitung ein anstehender Lauf, kein laufender.
+        assertEquals(BoardProgramState.UPCOMING, programState(startedAt = at(10, 1)))
+        assertEquals(
+            BoardProgramState.AWAITING_FINISH,
+            programState(startedAt = at(10, 1), teamsScored = 3),
+        )
+        assertEquals(BoardProgramState.UPCOMING, programState())
+    }
+
     // --- Verspätung: started_at − start_time des zuletzt gestarteten Laufs ---
 
     @Test

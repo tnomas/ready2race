@@ -120,6 +120,9 @@ object EventScheduleRepo {
             COMPETITION_MATCH.STARTED_AT.`as`("match_started_at"),
             COMPETITION_MATCH.FINISHED_AT.`as`("match_finished_at"),
             COMPETITION_MATCH.ACTIVATED_AT,
+            // Für die eine Zustandsableitung (Klärung schlägt Aktivierung), siehe
+            // `BoardLogic.programState` und `EventScheduleSlotDto.matchClarificationSince`.
+            COMPETITION_MATCH.CLARIFICATION_SINCE,
             roundMaterialized,
             matchTeamsTotal,
             matchTeamsScored,

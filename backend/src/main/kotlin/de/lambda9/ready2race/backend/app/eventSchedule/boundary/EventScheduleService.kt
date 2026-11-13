@@ -77,6 +77,7 @@ object EventScheduleService {
                     matchStartedAt = r.get("match_started_at", java.time.LocalDateTime::class.java),
                     matchFinishedAt = r.get("match_finished_at", java.time.LocalDateTime::class.java),
                     matchActivatedAt = r[COMPETITION_MATCH.ACTIVATED_AT],
+                    matchClarificationSince = r[COMPETITION_MATCH.CLARIFICATION_SINCE],
                     matchTeamsTotal = r.get("match_teams_total", Int::class.java) ?: 0,
                     matchTeamsScored = r.get("match_teams_scored", Int::class.java) ?: 0,
                     matchTeamsRaced = r.get("match_teams_raced", Int::class.java) ?: 0,

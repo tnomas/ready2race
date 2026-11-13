@@ -18200,9 +18200,17 @@ components:
 
     BoardProgramState:
       type: string
+      description: >-
+        State of a schedule row, mapped from the one match-state derivation (LiveDashboardMatchState):
+        PREPARING = called to the start without a real start, CLARIFICATION = an objection is being
+        settled, AWAITING_FINISH = every boat scored, nobody finished the match yet. Cancelled slots
+        are not part of the program, so there is no SKIPPED/UNSCHEDULED here.
       enum:
         - FINISHED
         - RUNNING
+        - PREPARING
+        - CLARIFICATION
+        - AWAITING_FINISH
         - UPCOMING
 
     BoardProgramEntry:
@@ -18793,6 +18801,7 @@ components:
     RunningMatchInfo:
       type: object
       required:
+        - state
         - matchId
         - competitionId
         - competitionName
@@ -18836,6 +18845,12 @@ components:
             An objection is running against this match (competition_match.clarification_since set).
             Only populated when the request asked for disputed matches (includeClarification);
             the referees' reason stays internal and is never part of this payload.
+        state:
+          allOf:
+            - $ref: '#/components/schemas/LiveDashboardMatchState'
+          description: >-
+            Match state from the one derivation: PREPARING (activated, no real start yet), RUNNING,
+            or - only with includeClarification - CLARIFICATION.
         placeName:
           type: string
           nullable: true
@@ -19614,6 +19629,11 @@ components:
           format: date-time
           nullable: true
           description: "When the linked match was called to the start - drives whether the schedule tab offers 'activate' or 'finish' for a LINKED slot, and together with matchStartedAt whether the slot reads 'preparing' or 'running'. Null without a linked match."
+        matchClarificationSince:
+          type: string
+          format: date-time
+          nullable: true
+          description: "competition_match.clarification_since of the linked match - set means 'under clarification', which beats 'preparing'/'running' in the state derivation. The reason stays internal. Null without a linked match."
         matchTeamsTotal:
           type: integer
           description: "Teams of the linked match that are still in the race (without the OUT rows carried over from the previous round) - 0 without a linked match"

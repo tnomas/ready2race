@@ -1,6 +1,8 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchStatusLogic
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchStatusTeam
 import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.club.boundary.ClubShortNameSettings
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
@@ -374,6 +376,10 @@ object EventInfoService {
                 java.time.Duration.between(it, LocalDateTime.now()).toMinutes()
             }
             val teams = !getRunningMatchTeams(matchId, clubShortNames)
+            // Die Klärung geht nur ein, wo sie bestellt ist - der öffentliche Weg liefert
+            // strittige Läufe gar nicht erst und soll auch über den Zustand nichts verraten.
+            val clarificationSince =
+                if (includeClarification) match[COMPETITION_MATCH.CLARIFICATION_SINCE] else null
 
             RunningMatchInfo(
                 matchId = matchId,
@@ -389,6 +395,17 @@ object EventInfoService {
                 clarification = if (includeClarification)
                     match[COMPETITION_MATCH.CLARIFICATION_SINCE] != null
                 else null,
+                state = MatchStatusLogic.matchStatus(
+                    activatedAt = match[COMPETITION_MATCH.ACTIVATED_AT],
+                    startTime = startTime,
+                    startedAt = startedAt,
+                    finishedAt = null,
+                    skipped = false,
+                    teams = teams.map {
+                        MatchStatusTeam(place = it.currentPosition, failed = it.failed, deregistered = it.deregistered)
+                    },
+                    clarificationSince = clarificationSince,
+                ).state,
                 placeName = null,
                 roundNumber = null,
                 roundName = match.get("round_name", String::class.java),

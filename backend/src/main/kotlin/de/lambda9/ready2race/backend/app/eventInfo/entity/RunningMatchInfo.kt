@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.entity
 
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
 import de.lambda9.ready2race.backend.app.paceReference.entity.PaceReferenceDto
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -34,6 +35,13 @@ data class RunningMatchInfo(
      * (`clarification_reason`) ist eine interne Notiz und verlässt das Dashboard nicht.
      */
     val clarification: Boolean? = null,
+    /**
+     * Der Laufzustand aus der einen Ableitung (`LiveDashboardLogic.deriveMatchState`): in diesem
+     * Block PREPARING (aktiviert, ohne Ist-Start), RUNNING oder - nur mit `includeClarification` -
+     * CLARIFICATION. Bis zum 13.11.2026 las das Sprecher-Board jeden Lauf dieses Blocks als
+     * „● Live", auch den nur an den Start gerufenen.
+     */
+    val state: MatchState,
     val placeName: String?,
     val roundNumber: Int?,
     val roundName: String?,
