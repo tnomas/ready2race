@@ -30,7 +30,10 @@ import {
 } from './utils/timing/deviceSession.ts'
 import {writeBoardDeviceToken} from './utils/board/deviceToken.ts'
 import {writeStreamSceneDeviceToken} from './utils/stream/sceneToken.ts'
-import type {EventTab} from './pages/event/EventPage.tsx'
+import {
+    validateAdministrationSearch,
+    validateEventIndexSearch,
+} from './utils/navigation/searchParams.ts'
 import {CompetitionTab} from './components/event/competition/common.ts'
 import type {ClubTab} from './pages/club/ClubsPage.tsx'
 import type {ConfigurationTab} from './pages/ConfigurationPage.tsx'
@@ -366,7 +369,9 @@ export const eventIndexRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: '/',
     component: EventPage,
-    validateSearch: validateTabSearch<EventTab>,
+    // Bereich (`tab`) und Zeitplan-Tag (`day`); unbekannte Werte fallen weg, ob ein Bereich
+    // sichtbar ist, entscheidet die Seite (`resolveEventTab`).
+    validateSearch: validateEventIndexSearch,
 })
 
 export const eventRegisterRoute = createRoute({
@@ -425,7 +430,17 @@ export const eventLiveDashboardRoute = createRoute({
     path: 'liveDashboard',
     component: withPreload(LiveDashboardPage, function EventLiveDashboard() {
         const {eventId} = eventLiveDashboardRoute.useParams()
-        return <LiveDashboardPage eventId={eventId} />
+        const navigate = useNavigate()
+        // Zurück führt zum fachlichen Elternteil, dem Betrieb der Veranstaltung — wer das
+        // Dashboard sehen darf, sieht dort auch dessen Kachel.
+        return (
+            <LiveDashboardPage
+                eventId={eventId}
+                onBack={() =>
+                    navigate({to: '/event/$eventId', params: {eventId}, search: {tab: 'betrieb'}})
+                }
+            />
+        )
     }),
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readLiveDashboardGlobal)
@@ -670,6 +685,7 @@ export const administrationIndexRoute = createRoute({
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readAdministrationConfigGlobal)
     },
+    validateSearch: validateAdministrationSearch,
 })
 
 // --- Helfer-App -------------------------------------------------------------------------------

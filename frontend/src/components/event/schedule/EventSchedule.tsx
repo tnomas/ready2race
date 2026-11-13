@@ -37,7 +37,8 @@ import {
 } from '@mui/icons-material'
 import {format} from 'date-fns'
 import {Link} from '@tanstack/react-router'
-import {eventRoute} from '@routes'
+import {eventIndexRoute, eventRoute} from '@routes'
+import {resolveScheduleDay, ScheduleDay} from '@utils/navigation/scheduleDay.ts'
 import {
     activateScheduleSlot,
     deleteScheduleSlot,
@@ -198,9 +199,14 @@ const EventSchedule = ({event}: Props) => {
         return () => window.clearInterval(id)
     }, [safetyPollMs])
 
-    // Tages-Auswahl: null heißt "noch keine Wahl getroffen" - dann gewinnt der heutige Tag, wenn
-    // die Veranstaltung heute läuft, sonst alle Tage. Erst ein Klick legt die Wahl fest.
-    const [selectedDay, setSelectedDay] = useState<string | null>(null)
+    // Tages-Auswahl in der Adresse (`?day=all|YYYY-MM-DD`), damit Neuladen und Zurück den Tag
+    // behalten. Fehlt sie, gewinnt der heutige Tag, wenn die Veranstaltung heute läuft, sonst
+    // alle Tage (resolveScheduleDay). Erst ein Klick legt die Wahl fest; er ersetzt den
+    // Verlaufseintrag, statt für jeden Tageswechsel einen neuen anzulegen.
+    const {day: selectedDay} = eventIndexRoute.useSearch()
+    const navigate = eventIndexRoute.useNavigate()
+    const setSelectedDay = (day: ScheduleDay) =>
+        navigate({search: prev => ({...prev, day}), replace: true})
 
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingSlot, setEditingSlot] = useState<EventScheduleSlotDto | undefined>(undefined)
@@ -559,8 +565,11 @@ const EventSchedule = ({event}: Props) => {
     // 'all' oder ein Datum (YYYY-MM-DD). Die Vorauswahl spart den täglichen Klick: Wer den
     // Zeitplan am Renntag öffnet, will fast immer den heutigen Tag sehen.
     const today = format(new Date(), 'yyyy-MM-dd')
-    const effectiveDay =
-        selectedDay ?? (daySections.some(section => section.date === today) ? today : 'all')
+    const effectiveDay = resolveScheduleDay(
+        selectedDay,
+        daySections.map(section => section.date),
+        today,
+    )
     const visibleSections =
         effectiveDay === 'all'
             ? daySections

@@ -31,7 +31,10 @@ import Throbber from '@components/Throbber.tsx'
 import {useFetch} from '@utils/hooks.ts'
 import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
 import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
-import {Link, useParams} from '@tanstack/react-router'
+import {useParams} from '@tanstack/react-router'
+import {IconButtonLink} from '@components/ui/links.tsx'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {readEventGlobal} from '@authorization/privileges.ts'
 import {format} from 'date-fns'
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -56,6 +59,7 @@ const POLL_BASE_MS = 30_000
 const SpeakerBoardPage = () => {
     const {t} = useTranslation()
     const {eventId} = useParams({from: '/speaker/event/$eventId'})
+    const canReadEvent = useUser().checkPrivilege(readEventGlobal)
 
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
     const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null)
@@ -319,11 +323,25 @@ const SpeakerBoardPage = () => {
                         zIndex: 10,
                         flexShrink: 0,
                     }}>
-                    <Link to={'/speaker'}>
-                        <IconButton sx={{color: colors.textSecondary}}>
+                    {/* Zurück zum fachlichen Elternteil: wer die Veranstaltung lesen darf, in
+                        deren Betrieb; sonst wie bisher zur Auswahl der Sprecher-Boards. */}
+                    {canReadEvent ? (
+                        <IconButtonLink
+                            to={'/event/$eventId'}
+                            params={{eventId}}
+                            search={{tab: 'betrieb'}}
+                            aria-label={t('common.back')}
+                            sx={{color: colors.textSecondary}}>
                             <ArrowBackIcon />
-                        </IconButton>
-                    </Link>
+                        </IconButtonLink>
+                    ) : (
+                        <IconButtonLink
+                            to={'/speaker'}
+                            aria-label={t('common.back')}
+                            sx={{color: colors.textSecondary}}>
+                            <ArrowBackIcon />
+                        </IconButtonLink>
+                    )}
                     <Box sx={{minWidth: 0, flex: 1}}>
                         <Typography variant={'h6'} noWrap fontWeight={'bold'}>
                             🎙️ {eventData?.name ?? t('speaker.title')}

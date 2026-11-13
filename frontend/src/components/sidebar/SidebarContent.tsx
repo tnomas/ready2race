@@ -7,6 +7,7 @@ import {
     ChevronRight,
     Dashboard,
     Event,
+    Groups,
     Home,
     People,
     PhoneAndroid,
@@ -15,7 +16,8 @@ import {
     Work,
     Workspaces,
 } from '@mui/icons-material'
-import {Box, Divider, IconButton, Tooltip, Typography} from '@mui/material'
+import {Box, Divider, IconButton, ListSubheader, Tooltip, Typography} from '@mui/material'
+import EventSidebarSection from '@components/sidebar/EventSidebarSection.tsx'
 import {
     readAdministrationConfigGlobal,
     readClubGlobal,
@@ -41,6 +43,13 @@ const SidebarContent = ({...props}: Props) => {
     const user = useUser()
     const {themeConfig} = useThemeConfig()
 
+    // Überschrift „Verwaltung" nur, wenn mindestens ein Eintrag darunter sichtbar ist.
+    const showManagement =
+        user.loggedIn &&
+        [readUserGlobal, readRoleGlobal, updateEventGlobal, readAdministrationConfigGlobal].some(
+            privilege => user.checkPrivilege(privilege),
+        )
+
     const showCustomLogo =
         themeConfig?.customLogo?.enabled === true &&
         themeConfig.customLogo?.filename !== null &&
@@ -63,6 +72,12 @@ const SidebarContent = ({...props}: Props) => {
                         placement="right"
                         arrow>
                         <IconButton
+                            aria-label={t(
+                                props.drawerExpanded
+                                    ? 'navigation.sidebar.collapse'
+                                    : 'navigation.sidebar.expand',
+                            )}
+                            aria-expanded={props.drawerExpanded}
                             onClick={() => props.setDrawerExpanded(!props.drawerExpanded)}
                             sx={{
                                 width: '100%',
@@ -93,13 +108,20 @@ const SidebarContent = ({...props}: Props) => {
                 </>
             )}
             {!user.loggedIn && (
-                <SidebarItem text={t('navigation.titles.landing')} icon={<Home />} to={'/'} />
+                <SidebarItem text={t('navigation.titles.landing')} icon={<Home />} to={'/'} exact />
             )}
             <SidebarItem
                 text={t('navigation.titles.dashboard')}
                 icon={<Dashboard />}
                 authenticatedOnly
                 to={'/dashboard'}
+            />
+            {/* `exact`: innerhalb einer Veranstaltung ist ihr Bereich hervorgehoben, nicht die Liste. */}
+            <SidebarItem
+                text={t('navigation.titles.events')}
+                icon={<Event />}
+                to={'/event'}
+                exact
             />
             {user.loggedIn && user.clubId && (
                 <SidebarItem
@@ -112,29 +134,10 @@ const SidebarContent = ({...props}: Props) => {
             )}
             <SidebarItem
                 text={t('navigation.titles.clubs')}
-                icon={<Workspaces />}
+                icon={<Groups />}
                 privilege={readClubGlobal}
                 to={'/club'}
-            />
-            <SidebarItem text={t('navigation.titles.events')} icon={<Event />} to={'/event'} />
-            <SidebarItem
-                text={t('navigation.titles.users')}
-                icon={<People />}
-                privilege={readUserGlobal}
-                to={'/user'}
-            />
-            {/* Dasselbe Recht wie die Route (rolesIndexRoute). */}
-            <SidebarItem
-                text={t('navigation.titles.roles')}
-                icon={<Work />}
-                privilege={readRoleGlobal}
-                to={'/role'}
-            />
-            <SidebarItem
-                text={t('navigation.titles.config')}
-                icon={<Settings />}
-                privilege={updateEventGlobal}
-                to={'/config'}
+                exact
             />
             <SidebarItem
                 text={t('navigation.titles.invoices')}
@@ -142,12 +145,53 @@ const SidebarContent = ({...props}: Props) => {
                 privilege={readInvoiceGlobal}
                 to={'/invoices'}
             />
-            <SidebarItem
-                text={t('navigation.titles.administration')}
-                icon={<AdminPanelSettings />}
-                privilege={readAdministrationConfigGlobal}
-                to={'/administration'}
-            />
+            {showManagement && (
+                <>
+                    {props.drawerExpanded ? (
+                        <ListSubheader
+                            disableSticky
+                            sx={{
+                                lineHeight: '32px',
+                                mt: 1,
+                                bgcolor: 'transparent',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                            }}>
+                            {t('nav.management')}
+                        </ListSubheader>
+                    ) : (
+                        <Divider component={'li'} sx={{my: 0.5, mx: 1}} />
+                    )}
+                    <SidebarItem
+                        text={t('navigation.titles.users')}
+                        icon={<People />}
+                        privilege={readUserGlobal}
+                        to={'/user'}
+                    />
+                    {/* Dasselbe Recht wie die Route (rolesIndexRoute). */}
+                    <SidebarItem
+                        text={t('navigation.titles.roles')}
+                        icon={<Work />}
+                        privilege={readRoleGlobal}
+                        to={'/role'}
+                    />
+                    <SidebarItem
+                        text={t('navigation.titles.config')}
+                        icon={<Settings />}
+                        privilege={updateEventGlobal}
+                        to={'/config'}
+                    />
+                    <SidebarItem
+                        text={t('navigation.titles.administration')}
+                        icon={<AdminPanelSettings />}
+                        privilege={readAdministrationConfigGlobal}
+                        to={'/administration'}
+                    />
+                </>
+            )}
+            <EventSidebarSection />
             {props.isSmallScreen && (
                 <Box
                     sx={{

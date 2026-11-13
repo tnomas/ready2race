@@ -1,5 +1,5 @@
 import {useTranslation} from 'react-i18next'
-import {Stack, Typography, Tabs, Tab, Box} from '@mui/material'
+import {Stack, Tabs, Tab, Box} from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
@@ -18,6 +18,14 @@ import {updateAdministrationConfigGlobal} from '@authorization/privileges.ts'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import {ThemeConfigForm} from '@components/administration/ThemeConfigForm.tsx'
 import {EmailTemplates} from '@components/administration/emailTemplates/EmailTemplates.tsx'
+import {PageHeader} from '@components/ui/PageHeader.tsx'
+import {useNavigate} from '@tanstack/react-router'
+import {administrationIndexRoute} from '@routes'
+import {
+    ADMINISTRATION_TABS,
+    AdministrationTab,
+    DEFAULT_ADMINISTRATION_TAB,
+} from '@utils/navigation/searchParams.ts'
 
 type Form = SmtpConfigOverrideDto
 
@@ -36,7 +44,18 @@ const AdministrationPage = () => {
     const [submitting, setSubmitting] = useState(true)
     const [resetting, setResetting] = useState(true)
     const {confirmAction} = useConfirmation()
-    const [tabValue, setTabValue] = useState(0)
+    // Der Reiter steht in der Adresse (`?tab=smtp|theme|email-templates`): Neuladen, Zurück und
+    // geteilte Links behalten ihn. Unbekannte Werte verwirft schon die Route.
+    const {tab} = administrationIndexRoute.useSearch()
+    const tabValue: AdministrationTab = tab ?? DEFAULT_ADMINISTRATION_TAB
+    const navigate = useNavigate()
+    const switchTab = (next: AdministrationTab) =>
+        navigate({to: '/administration', search: {tab: next}})
+    const tabLabels: Record<AdministrationTab, string> = {
+        smtp: t('administration.tabs.smtp'),
+        theme: t('administration.tabs.theme'),
+        'email-templates': t('administration.tabs.emailTemplates'),
+    }
 
     const currentConfig = useFetch(signal => getSmtpConfig({signal}), {
         onResponse: response => {
@@ -129,14 +148,18 @@ const AdministrationPage = () => {
     return (
         currentConfig.data && (
             <Stack spacing={4}>
-                <Typography variant={'h1'}>{t('administration.title')}</Typography>
-                <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-                    <Tab label={t('administration.tabs.smtp')} />
-                    <Tab label={t('administration.tabs.theme')} />
-                    <Tab label={t('administration.tabs.emailTemplates')} />
+                <PageHeader title={t('administration.title')} />
+                <Tabs
+                    value={tabValue}
+                    onChange={(_, next: AdministrationTab) => switchTab(next)}
+                    variant={'scrollable'}
+                    allowScrollButtonsMobile>
+                    {ADMINISTRATION_TABS.map(key => (
+                        <Tab key={key} value={key} label={tabLabels[key]} />
+                    ))}
                 </Tabs>
 
-                {tabValue === 0 && (
+                {tabValue === 'smtp' && (
                     <Box>
                         <FormContainer formContext={formContext} onSuccess={handleSubmit}>
                             <Stack spacing={4} maxWidth="70%">
@@ -212,13 +235,13 @@ const AdministrationPage = () => {
                     </Box>
                 )}
 
-                {tabValue === 1 && (
+                {tabValue === 'theme' && (
                     <Box>
                         <ThemeConfigForm />
                     </Box>
                 )}
 
-                {tabValue === 2 && (
+                {tabValue === 'email-templates' && (
                     <Box>
                         <EmailTemplates />
                     </Box>

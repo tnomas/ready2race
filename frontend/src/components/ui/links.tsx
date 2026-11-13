@@ -29,9 +29,7 @@ const CreatedButtonLink = createLink(ButtonAnchor)
  *     {t('common.open')}
  * </ButtonLink>
  */
-export const ButtonLink: LinkComponent<typeof ButtonAnchor> = props => (
-    <CreatedButtonLink {...props} />
-)
+export const ButtonLink: LinkComponent<typeof ButtonAnchor> = CreatedButtonLink
 
 type IconButtonAnchorProps = IconButtonProps<'a'> & {
     /** Pflicht: Icon-Knöpfe haben sonst keinen zugänglichen Namen. */
@@ -49,9 +47,7 @@ const CreatedIconButtonLink = createLink(IconButtonAnchor)
  * @example
  * <IconButtonLink to={'/event'} aria-label={t('common.back')}><ArrowBack /></IconButtonLink>
  */
-export const IconButtonLink: LinkComponent<typeof IconButtonAnchor> = props => (
-    <CreatedIconButtonLink {...props} />
-)
+export const IconButtonLink: LinkComponent<typeof IconButtonAnchor> = CreatedIconButtonLink
 
 const ListItemButtonAnchor = forwardRef<HTMLAnchorElement, ListItemButtonProps<'a'>>(
     (props, ref) => <ListItemButton ref={ref} component={'a'} {...props} />,
@@ -68,9 +64,8 @@ const CreatedListItemButtonLink = createLink(ListItemButtonAnchor)
  *     <ListItemText primary={t('club.clubs')} />
  * </ListItemButtonLink>
  */
-export const ListItemButtonLink: LinkComponent<typeof ListItemButtonAnchor> = props => (
-    <CreatedListItemButtonLink {...props} />
-)
+export const ListItemButtonLink: LinkComponent<typeof ListItemButtonAnchor> =
+    CreatedListItemButtonLink
 
 const TextAnchor = forwardRef<HTMLAnchorElement, MuiLinkProps>((props, ref) => (
     <MuiLink ref={ref} {...props} />
@@ -84,4 +79,4 @@ const CreatedTextLink = createLink(TextAnchor)
  * @example
  * <TextLink to={'/club/$clubId'} params={{clubId}}>{club.name}</TextLink>
  */
-export const TextLink: LinkComponent<typeof TextAnchor> = props => <CreatedTextLink {...props} />
+export const TextLink: LinkComponent<typeof TextAnchor> = CreatedTextLink

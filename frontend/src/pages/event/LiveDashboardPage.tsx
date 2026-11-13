@@ -166,10 +166,11 @@ export type LiveDashboardPageProps = {
      */
     cacheReads?: boolean
     /**
-     * Zeigt links in der Kopfzeile einen Zurück-Pfeil. Nur die Helfer-App setzt das: in der
-     * installierten PWA (standalone, ohne Browser-Leiste) fehlt der Browser-Zurück-Knopf,
-     * ohne den Pfeil säße man im Dashboard fest (beobachtet am 10.08.2026). Ohne `onBack`
-     * (Verwaltungsoberfläche) bleibt die Kopfzeile unverändert.
+     * Zeigt links in der Kopfzeile einen Zurück-Pfeil zum fachlichen Elternteil. Die Helfer-App
+     * braucht ihn, weil in der installierten PWA (standalone, ohne Browser-Leiste) der
+     * Browser-Zurück-Knopf fehlt und man sonst im Dashboard festsäße (beobachtet am 10.08.2026);
+     * die Verwaltung führt damit zurück in den Betrieb der Veranstaltung (`?tab=betrieb`).
+     * Ohne `onBack` bleibt die Kopfzeile ohne Pfeil.
      */
     onBack?: () => void
 }

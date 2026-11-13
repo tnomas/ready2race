@@ -133,6 +133,13 @@ export const i18nReady: Promise<unknown> = i18next
         ns: [defaultNS],
         defaultNS,
         fallbackLng,
+        // Die Browsersprache kommt mit Region (`de-DE`, `da-DK`). Ohne Liste übernahm i18next sie
+        // wörtlich als `i18next.language`; die Texte stimmten (Kette `de-DE` → `de`), aber alles,
+        // was die Sprache selbst liest (`i18nLanguage()`: MUI-/Datums-Locale, Sprachwahl,
+        // E-Mail-Sprache), fiel auf Englisch zurück. Mit der Liste wählt i18next den
+        // unterstützten Sprachteil (`de`). Bewusst ohne `load: 'languageOnly'`: damit hielte
+        // i18next `de-DE` selbst für unterstützt und behielte es.
+        supportedLngs: [...LANGUAGES],
         interpolation: {
             skipOnVariables: false,
             // React escaped beim Rendern selbst — ohne diese Option escaped i18next interpolierte
