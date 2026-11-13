@@ -17,6 +17,8 @@ import de.lambda9.tailwind.jooq.transact
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
 import io.ktor.server.application.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.ContentTransformationException
 import io.ktor.server.plugins.NotFoundException
@@ -171,7 +173,21 @@ suspend fun ApplicationCall.respondKIO(
 ) {
     // Side effects that must not be visible before the transaction committed (e.g. websocket
     // broadcasts) are buffered while the KIO runs and flushed at the end of this function.
-    val (exit, afterCommit) = AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
+    //
+    // Die Transaktion blockiert ihren Thread (JDBC, Argon2, PDF). Unter Netty läuft der Handler auf
+    // dem Event-Loop, der zugleich alle anderen Verbindungen bedient - deshalb auf Dispatchers.IO.
+    // collect und transact laufen darin synchron auf EINEM Thread, der ThreadLocal-Puffer von
+    // AfterCommit bleibt also gültig.
+    val (exit, afterCommit) = withContext(Dispatchers.IO) {
+        AfterCommit.collect { app.transact().unsafeRunSync(kioEnv) }
+    }
+    respondExit(exit, afterCommit)
+}
+
+private suspend fun ApplicationCall.respondExit(
+    exit: Exit<ToApiError, ApiResponse>,
+    afterCommit: List<() -> Unit>,
+) {
     try {
         exit.fold(
             onError = { respondError(it) },
@@ -233,6 +249,8 @@ suspend fun ApplicationCall.respondKIO(
 suspend fun ApplicationCall.respondComprehension(
     block: suspend CallComprehensionScope.() -> KIO<JEnv, ToApiError, ApiResponse>
 ) {
-    val app = comprehension(block)
+    // Auch die Comprehension selbst führt jedes `!` sofort aus (authenticate, Repos): mit auf
+    // Dispatchers.IO, nicht auf den Netty-Event-Loop.
+    val app = withContext(Dispatchers.IO) { comprehension(block) }
     respondKIO(app)
 }
