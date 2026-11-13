@@ -23,9 +23,9 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DataSourceConnectionProvider
 import org.jooq.impl.DefaultConfiguration
 import org.testcontainers.containers.PostgreSQLContainer
-import java.io.PrintWriter
 import java.net.ServerSocket
 import java.sql.Connection
+import java.sql.DriverManager
 import java.util.*
 import kotlin.test.fail
 
@@ -49,7 +49,8 @@ fun testApplicationComprehension(block: suspend TestApplicationComprehensionScop
  * Für Nebenläufigkeitstests: jede `.transact()` holt sich eine EIGENE Verbindung aus dem Pool und
  * committet wirklich. So lassen sich zwei echte, gleichzeitig offene Transaktionen gegeneinander
  * laufen lassen (z. B. in zwei Threads), um Sperren und Constraints zu belegen. Weil Daten
- * committet werden, markiert der Lauf die Datenbank als schmutzig (nächster Test migriert neu).
+ * committet werden, markiert der Lauf die Datenbank als schmutzig (der nächste Test bekommt eine
+ * frische Kopie der Template-Datenbank).
  *
  * Alles, was der Test über `!` ausführt, läuft ohne umgebende Transaktion (Autocommit); wer
  * Atomarität braucht, hängt selbst `.transact()` an.
@@ -80,13 +81,20 @@ const val TEST_ARGON2_MEMORY_KIB = 64
 
 private object TestRunner {
 
+    /**
+     * Wegwerf-Postgres: Daten im RAM, ohne fsync. Für Tests ist Haltbarkeit egal; das beschleunigt
+     * DDL (Migration, Template-Kopie) und jeden Commit der App-Tests.
+     */
     private val postgres = PostgreSQLContainer("postgres:17")
+        .withTmpFs(mapOf("/var/lib/postgresql/data" to "rw"))
+        .withCommand("postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off")
+
+    private const val TEMPLATE_DB = "r2r_template"
+    private const val WORK_DB = "r2r_work"
     private val config: Config
     private val connectionProvider: ConnectionProvider
     private val datasource: HikariDataSource
-    private val flyway: Flyway
 
-    private var initial: Boolean
     private var dirty: Boolean
 
     init {
@@ -102,10 +110,11 @@ private object TestRunner {
                 port = -1,
             ),
             database = Config.Database(
-                url = postgres.jdbcUrl,
+                url = urlFor(WORK_DB),
                 user = postgres.username,
                 password = postgres.password,
-                logQueries = true,
+                // Jede SQL-Anweisung jedes Tests auf stdout kostet spürbar Zeit; bei Bedarf einschalten.
+                logQueries = System.getenv("R2R_TEST_LOG_SQL") == "true",
             ),
             smtp = null,
             security = Config.Security(
@@ -130,11 +139,14 @@ private object TestRunner {
             staticFilesPath = "teststatic"
         )
 
-        val hikariProps = Properties().apply {
-            put("dataSource.logWriter", PrintWriter(System.out))
-        }
-        datasource = HikariDataSource(HikariConfig(hikariProps).apply {
-            jdbcUrl = postgres.jdbcUrl
+        // Einmal migrieren und initialisieren - in eine Template-Datenbank. Jedes Zurücksetzen kopiert
+        // sie danach per `create database ... template` (Bruchteile einer Sekunde) statt
+        // flyway.clean() + migrate() + initializeDatabase (mehrere Sekunden je App-Test).
+        createTemplate()
+        recreateWorkDatabase()
+
+        datasource = HikariDataSource(HikariConfig().apply {
+            jdbcUrl = urlFor(WORK_DB)
             driverClassName = "org.postgresql.Driver"
             username = postgres.username
             password = postgres.password
@@ -143,15 +155,7 @@ private object TestRunner {
 
         connectionProvider = DataSourceConnectionProvider(datasource)
 
-        val flywayConfig = Flyway.configure()
-            .dataSource(datasource)
-            .defaultSchema("ready2race")
-            .cleanDisabled(false)
-
-        flyway = Flyway(flywayConfig)
-
-        initial = true
-        dirty = true
+        dirty = false
     }
 
     fun runComprehension(block: TestComprehensionScope<JEnv>.() -> Unit) {
@@ -211,24 +215,57 @@ private object TestRunner {
 
     }
 
+    private fun urlFor(database: String) =
+        "jdbc:postgresql://${postgres.host}:${postgres.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT)}/$database"
+
+    /** Verbindung auf die Verwaltungsdatenbank des Containers (nie auf Template oder Arbeits-DB). */
+    private fun <A> admin(block: java.sql.Statement.() -> A): A =
+        DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { connection ->
+            connection.createStatement().use { it.block() }
+        }
+
+    private fun createTemplate() {
+        admin { execute("create database $TEMPLATE_DB") }
+
+        Flyway.configure()
+            .dataSource(urlFor(TEMPLATE_DB), postgres.username, postgres.password)
+            .defaultSchema("ready2race")
+            .load()
+            .migrate()
+
+        HikariDataSource(HikariConfig().apply {
+            jdbcUrl = urlFor(TEMPLATE_DB)
+            driverClassName = "org.postgresql.Driver"
+            username = postgres.username
+            password = postgres.password
+            schema = "ready2race"
+        }).use { templateSource ->
+            initializeDatabase(
+                Jooq(
+                    dsl = DSL.using(DataSourceConnectionProvider(templateSource), SQLDialect.POSTGRES),
+                    env = Env(config),
+                )
+            )
+        }
+
+        // Eine Template-Datenbank lässt sich nur kopieren, solange niemand mit ihr verbunden ist.
+        admin {
+            execute("select pg_terminate_backend(pid) from pg_stat_activity where datname = '$TEMPLATE_DB' and pid <> pg_backend_pid()")
+        }
+    }
+
+    private fun recreateWorkDatabase() = admin {
+        execute("drop database if exists $WORK_DB with (force)")
+        execute("create database $WORK_DB template $TEMPLATE_DB")
+    }
+
     private fun cleanDatabase() {
         if (dirty) {
-            val env = Jooq(
-                dsl = DSL.using(connectionProvider, SQLDialect.POSTGRES),
-                env = Env(config)
-            )
-            if (initial) {
-                initial = false
-            } else {
-                flyway.clean()
-            }
-            flyway.migrate()
-            // Nach clean + migrate sind alle Tabellen und Views neu angelegt. Verbindungen im Pool,
-            // die vorher Statements vorbereitet hatten, scheitern sonst mit "cached plan must not
-            // change result type" - seit es Tests mit echten Commits gibt (testCommittingComprehension),
-            // die den Pool zwischen zwei Zurücksetzungen benutzen, tritt das tatsächlich auf.
+            // Offene Poolverbindungen zeigen auf die alte Arbeits-DB: vorher abräumen, und danach noch
+            // einmal, falls der Pool dazwischen eine neue aufgebaut hat (die `with (force)` beendet).
             datasource.hikariPoolMXBean?.softEvictConnections()
-            initializeDatabase(env)
+            recreateWorkDatabase()
+            datasource.hikariPoolMXBean?.softEvictConnections()
             dirty = false
         }
     }
