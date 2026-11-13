@@ -28,6 +28,8 @@ import de.lambda9.tailwind.core.extensions.kio.mapNotNull
 import de.lambda9.tailwind.core.extensions.kio.onNull
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
+import de.lambda9.tailwind.core.extensions.kio.recoverDefault
+import de.lambda9.tailwind.jooq.transact
 import io.github.oshai.kotlinlogging.KotlinLogging
 import jakarta.activation.MimetypesFileTypeMap
 import jakarta.mail.util.ByteArrayDataSource
@@ -130,6 +132,12 @@ object EmailService {
         KIO.ok(id)
     }
 
+    /** Ausgang eines Versandversuchs; beide Fälle werden committet. */
+    sealed interface SendOutcome {
+        data class Sent(val emailId: UUID) : SendOutcome
+        data class Failed(val emailId: UUID, val cause: Throwable) : SendOutcome
+    }
+
     fun sendNext(): App<EmailError, Unit> = KIO.comprehension {
 
         val smtpOverride = !EmailRepo.getSMTPConfigOverride().andThenNotNull {
@@ -140,6 +148,24 @@ object EmailService {
             EmailError.SmtpConfigMissing
         }
         val smtp = smtpOverride ?: config.smtp!!
+
+        // Sperren, Versenden und Vermerken in EINER Transaktion: Ohne sie endete die Sperre aus
+        // FOR UPDATE SKIP LOCKED mit dem Autocommit des SELECT, und eine zweite Instanz (Rolling
+        // Deploy, zwei Container) zog dieselbe Mail und verschickte sie doppelt. Der SMTP-Aufruf
+        // hält dabei eine Verbindung und eine Zeilensperre - eine Zeile, andere Instanzen
+        // überspringen sie.
+        when (val outcome = !processNext(smtp, config).transact()) {
+            is SendOutcome.Sent -> KIO.unit
+            is SendOutcome.Failed -> KIO.fail(EmailError.SendingFailed(outcome.emailId, outcome.cause))
+        }
+    }
+
+    /**
+     * Die nächste fällige Mail sperren, versenden und als versandt bzw. gescheitert vermerken. Ein
+     * SMTP-Fehler ist ein Ergebnis, kein Fehlschlag - sonst rollte die Transaktion den Vermerk
+     * `last_error` zurück, und die Mail würde ohne Wartezeit sofort wieder gezogen.
+     */
+    internal fun processNext(smtp: Config.Smtp, config: Config): App<EmailError, SendOutcome> = KIO.comprehension {
 
         val email = !EmailRepo.getAndLockNext(retryAfterError).orDie().onNullFail { EmailError.NoEmailsToSend }
         val attachments = !EmailAttachmentRepo.getByEmail(email.id).orDie().map { records ->
@@ -154,8 +180,8 @@ object EmailService {
             }
         }
 
-        if (config.mailReceiverWhitelist == null || config.mailReceiverWhitelist.any { email.recipient.matches(it) }) {
-            !KIO.effect {
+        val failure: Throwable? = if (config.mailReceiverWhitelist == null || config.mailReceiverWhitelist.any { email.recipient.matches(it) }) {
+            !KIO.effect<Throwable?> {
                 smtp.createMailer().sendMail(
                     EmailBuilder.startingBlank()
                         .from(smtp.from.name, smtp.from.address)
@@ -172,28 +198,30 @@ object EmailService {
                         .withAttachments(attachments)
                         .buildEmail()
                 )
-            }.mapError {
-                val now = LocalDateTime.now()
-                !EmailRepo.update(email) {
-                    lastError = it.stackTraceToString()
-                    lastErrorAt = now
-                    updatedAt = now
-                    updatedBy = SYSTEM_USER
-                }.orDie()
-                EmailError.SendingFailed(email.id, it)
-            }
+                null
+            }.recoverDefault { it }
         } else {
             logger.info { "EMAIL: Receiver not in whitelist; skipping email sending..." }
+            null
         }
 
         val now = LocalDateTime.now()
-        !EmailRepo.update(email) {
-            sentAt = now
-            updatedAt = now
-            updatedBy = SYSTEM_USER
-        }.orDie()
-
-        KIO.unit
+        if (failure != null) {
+            !EmailRepo.update(email) {
+                lastError = failure.stackTraceToString()
+                lastErrorAt = now
+                updatedAt = now
+                updatedBy = SYSTEM_USER
+            }.orDie()
+            KIO.ok(SendOutcome.Failed(email.id, failure))
+        } else {
+            !EmailRepo.update(email) {
+                sentAt = now
+                updatedAt = now
+                updatedBy = SYSTEM_USER
+            }.orDie()
+            KIO.ok(SendOutcome.Sent(email.id))
+        }
     }
 
     fun deleteSent(): App<Nothing, Int> =
