@@ -551,19 +551,9 @@ const EntityTableInternal = <
             dense
             {...emptyState}
             title={emptyState?.title ?? t('entity.empty.title')}
-            action={
-                emptyState?.action ??
-                (canCreate ? (
-                    <Button
-                        variant={'outlined'}
-                        size={'small'}
-                        startIcon={<Add />}
-                        onClick={() => openDialog()}
-                        sx={{cursor: 'pointer'}}>
-                        {t('entity.add.action', {entity: entityName})}
-                    </Button>
-                ) : undefined)
-            }
+            // Der „… anlegen"-Knopf steht schon im Tabellenkopf und bleibt dort, wenn die erste
+            // Zeile entsteht; im Leerzustand ihn zu wiederholen zeigte zwei gleiche Knöpfe.
+            action={emptyState?.action}
         />
     )
 

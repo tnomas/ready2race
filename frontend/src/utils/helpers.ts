@@ -172,7 +172,7 @@ export const shuffle = <T>(list: T[]) => {
     let currentIndex = list.length
 
     while (currentIndex != 0) {
-        let randomIndex = Math.floor(Math.random() * currentIndex)
+        const randomIndex = Math.floor(Math.random() * currentIndex)
         currentIndex--
         const currentValue = newList[currentIndex]
         newList[currentIndex] = newList[randomIndex]
