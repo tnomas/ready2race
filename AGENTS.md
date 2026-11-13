@@ -32,6 +32,8 @@ und steuert Helfer über eine QR-basierte App.
 | `api/src/*.tsp` | TypeSpec-Beschreibung derselben API mit ausführlichen Verhaltenskommentaren; wird parallel gepflegt, aber nichts wird daraus generiert |
 | `frontend/` | React 18, Vite 6, TypeScript strikt, MUI 6, TanStack Router (code-basiert), hey-api-Client, i18next (de/en/da), Vitest |
 | `frontend/src/api/*.gen.ts` | generierter Client, eingecheckt, nie von Hand ändern |
+| `frontend/src/theme/` | MUI-Theme und Geltungsbereiche (`AdminThemeScope`, `LegacyThemeScope`), Kontrasthilfen (`readableColor`) |
+| `frontend/src/components/ui/` | gemeinsame Seitenbausteine (`PageHeader`, `EmptyState`, `ErrorState`, `LoadingState`, Link-Varianten), Import über `@components/ui` |
 | `frontend/src/pwa/` | Helfer-App als PWA unter `/app/` (eigener Service Worker) |
 | `frontend/src/demo/` | Sprecher-Board-Demo und Livestream-Grafik-Galerie ohne Backend |
 | `docs/adr/` | Architecture Decision Records (Index in `README.md`, Vorlage `template.md`) |
@@ -65,8 +67,10 @@ java -jar target/ready2race-api-0.0.1-jar-with-dependencies.jar .env
   `-DskipCodegen=true` Zeit.
 - Eigene Build-DB per `-Ddatabase.url=jdbc:postgresql://localhost:7652/<eigene-db>` unterschieben,
   wenn mehrere Worktrees bauen (siehe Abschnitt 9).
-- Tests: `./mvnw test` (Testcontainers startet ein eigenes Postgres, ~6 s). Nach Schemaänderungen
-  **immer** `./mvnw clean test`.
+- Tests: `./mvnw test` (Testcontainers startet ein eigenes Postgres, RAM-Daten ohne fsync). Migriert wird
+  einmal in die Template-DB `r2r_template`, jeder Reset kopiert sie nach `r2r_work`; die volle Suite
+  (rund 1900 Tests) braucht etwa viereinhalb Minuten. SQL-Log nur mit `R2R_TEST_LOG_SQL=true`. Nach
+  Schemaänderungen **immer** `./mvnw clean test`. `flyway:clean` braucht `-Dflyway.cleanDisabled=false`.
 - Nur kompilieren: `./mvnw compile` (mit Build-DB) oder `./mvnw compile -DskipCodegen=true`.
 - `*HttpIT`-Klassen laufen nicht in `./mvnw test` (Surefire nimmt nur `*Test`); einzeln mit
   `./mvnw test -Dtest=<Klasse> -DfailIfNoSpecifiedTests=false`.
@@ -76,7 +80,11 @@ java -jar target/ready2race-api-0.0.1-jar-with-dependencies.jar .env
   Start neu, deshalb nie mit fremder Env-Datei gegen die geteilte Entwicklungs-DB starten.
 - Das Jar nie neu bauen, während der Prozess läuft (lazy geladene Klassen fehlen dann); lieber ein
   zweites Backend auf anderem Port starten.
-- Swagger-UI: `http://localhost:8080/api/documentation`. Dev-Mailansicht: `/api/dev/emails` (nicht in PROD).
+- Swagger-UI: `http://localhost:8080/api/documentation`. Dev-Mailansicht: `/api/dev/emails` (nur in `MODE=DEV`).
+- Optionale Betriebsschlüssel (Vorgaben und Wirkung in `backend/template.env`, geprüft in `Config.kt`):
+  `FRONTEND_ORIGINS`, `APP_TIMEZONE`, `SECURITY_ARGON2_MEMORY_KIB`, `DATABASE_POOL_SIZE`,
+  `DATABASE_STATEMENT_TIMEOUT_MS`, `TRUSTED_PROXY_HOPS` (hinter nginx `1`). `GET /api/health` (204, ohne
+  Anmeldung) ist der Healthcheck; er steht bewusst nicht in `documentation.yaml`.
 
 ### Frontend
 
@@ -111,6 +119,12 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   `App<XyzError, ApiResponse>` und laufen in `KIO.comprehension { … }`. Innerhalb der Comprehension
   wird jedes KIO mit `!` ausgeführt. **`KIO.fail(...)` ohne `!` ist ein No-Op** – der Fehler geht verloren.
   Repos werfen nicht, Services entscheiden (`.orDie()`, `onNullFail`, `onTrueFail`).
+- **Blockierende Arbeit** (JDBC, Dateien) läuft auf `Dispatchers.IO`, nie auf dem Netty-Event-Loop:
+  `respondComprehension` tut das schon; neue eigene Coroutinen ebenso.
+- **Rückruf-Adressen:** Jede Route, die eine `callbackUrl` annimmt, ruft `checkCallbackUrl`
+  (`calls/requests/CallbackUrls.kt`, Allowlist `FRONTEND_ORIGINS` bzw. Host der Anfrage; ADR-0106).
+- **Zeit:** Die App rechnet in `AppZone` (Vorgabe `Europe/Berlin`, per `APP_TIMEZONE`), nicht in der Zone
+  des Hosts; neue Zeitrechnung nutzt `AppZone.zone`, nicht `ZoneId.systemDefault()`.
 - **Transaktionen und Nachwirkungen:** `.transact()` aus `tailwind-kio-jooq`; Broadcasts und andere
   Effekte nach dem Commit über `calls/responses/AfterCommit.kt`.
 - **Routen:** `call.respondComprehension { val user = !authenticate(Privilege.X); val body = !receiveKIO(Req.example); Service.f(body, user.id!!) }`.
@@ -164,6 +178,20 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 - **Anzeigen aktualisieren sich** über den öffentlichen Kanal `/api/ws/event/{id}/info` plus
   gestrecktes Polling als Sicherheitsnetz (`utils/eventChange`, `utils/polling.ts`); kein `setInterval`,
   Timer starten erst nach der Antwort. Die App kennt nur den Light-Mode; Alarmfarben stehen fest im Code.
+- **Bausteine:** Seitenköpfe, Leer-, Lade- und Fehlerzustände kommen aus `@components/ui`. `PageHeader` ist
+  das **einzige `h1`** einer Seite (Breadcrumbs über `utils/navigation/breadcrumbs.ts`). Die Bereiche der
+  Veranstaltung (Gruppen, Sichtbarkeit, aktiver Eintrag) stehen nur in `pages/event/eventSections.ts`;
+  Seitenleiste und `EventPage` rufen dessen Funktionen. Reiter sind `?tab=` mit `validateSearch` und
+  reiner Logik in `*Logic.ts` (`competitionPageLogic.ts`, `configurationPageLogic.ts`); ungültige Werte
+  fallen auf den ersten sichtbaren Reiter zurück (ADR-0103).
+- **Anfragen:** Absende-Handler laufen über `runRequest` (`utils/request.ts`), Netzfehler erkennt
+  `isNetworkError` bzw. `isRequestNetworkError`, Downloads gehen über `utils/download.ts`
+  (`runDownload`); die Sitzungsentscheidungen stehen in `contexts/user/sessionPolicy.ts` (ADR-0105).
+- **Theme-Geltungsbereiche:** `AdminThemeScope` für die Verwaltung, `LegacyThemeScope` für Renntag-
+  Arbeitsplätze (Schiedsrichter-Dashboard, Regie, `timing/*`), Mandanten-Theme für öffentliche Seiten und
+  Helfer-App (ADR-0104). Je Lauf eine Primäraktion, Seltenes im flachen ⋮-Menü.
+- **Seiten** werden lazy geladen (`lazyPage` in `routes.tsx`); neue Seiten ebenso. `npm run lint` steht
+  bei 0 Fehlern und bleibt dort.
 - **Typen:** kein `any`, keine `as any`-Casts; API-Typen aus `@api` (`types.gen.ts`), keine eigenen
   Nachbauten. Pfad-Aliase `@api/*`, `@components/*`, `@contexts/*`, `@utils/*`, `@routes` usw.
 - **Stil:** Prettier (`tabWidth 4`, keine Semikolons, `singleQuote`, `printWidth 100`). Klickbare
@@ -214,8 +242,9 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 - Bei Änderungen an DTOs oder Formularen **alle Konsumenten** testen: Create und Update, Import und
   Export, Seeds; für Pflichtfelder einen Test mit dem echten Frontend-Payload, nicht nur mit dem
   Kotlin-Konstruktor.
-- Ein `testComprehension`-Fall kostet rund 18 s (jeder migriert neu); ein Dutzend DB-Fälle sind fünf
-  Minuten, kein Fehler.
+- Sperren, Trigger und Jobs, die einen echten Commit brauchen, testet `testCommittingComprehension`
+  (jede `.transact()` committet, die DB gilt danach als schmutzig); zwei gleichzeitig offene
+  Transaktionen laufen deterministisch über `ConcurrentTx.runHoldingFirst` (`testing/ConcurrentTx.kt`).
 - Vor „fertig": Testzahlen wörtlich berichten, und Vorbestehendes Rot mit und ohne eigene Änderung messen.
   Eine gesunkene Testzahl nach Aufräumarbeiten ist das Erste, was man einzeln nachverfolgt.
 - Handtests werden in Testkatalogen unter `docs/superpowers/specs/*testkatalog*.md` geführt; was dort
@@ -256,6 +285,8 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   Fast-Forward zurück. Generierte Dateien (`*.gen.ts`) nie dem Auto-Merge überlassen, sondern neu erzeugen.
 - Kein bare `git stash`; nach `git merge --squash` vor dem Commit `git add -A` und `git show --stat`
   gegenlesen (null Löschungen bei einem Merge, der Dateien ändert, ist ein Alarmzeichen).
+- **Commits bei paralleler Arbeit** nur mit exakten Dateipfaden (`git add <dateien>`, `git commit -- <dateien>`),
+  nie `git commit -- backend` oder `-a`: ein Verzeichnispfad nimmt fremde Änderungen mit.
 - **Commits:** deutsche Betreffzeile ohne Präfix im Stil „Bereich: was sich ändert", ausführlicher Body
   mit Begründung und verworfenen Ansätzen. Keine Nennung von KI-Werkzeugen, keine Co-Authored-By-Zeilen.
   Vor einem Merge-Request an das Upstream-Team lambda9 werden die Nachrichten des Zweigs ins Englische
