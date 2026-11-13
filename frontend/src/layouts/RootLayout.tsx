@@ -24,6 +24,7 @@ import Config from '../Config.ts'
 import {FullWidthLayoutContext} from './fullWidthLayout.ts'
 import {AdminThemeScope, LegacyThemeScope} from '../theme/AdminThemeScope.tsx'
 import {ButtonLink, TextLink} from '@components/ui/links.tsx'
+import QuickJump from '@components/appbar/QuickJump.tsx'
 
 /** Innere Inhaltsbreite des Verwaltungsrahmens (der Rahmen selbst ist vollflächig). */
 const CONTENT_MAX_WIDTH = 1600
@@ -76,6 +77,12 @@ const RootLayoutFrame = () => {
     // Inhaltsbreite vorübergehend auf — siehe fullWidthLayout.ts.
     const [fullWidth, setFullWidth] = useState(false)
     const legacyTheme = useIsLegacyThemeRoute()
+    // Regie und Zeitnahme liegen als Vollbild über dem Rahmen und haben eigene Tastenbelegungen:
+    // dort kein Schnellsprung (auch nicht dessen Tastenkürzel „/").
+    const isFullscreenWorkplace = Boolean(
+        matchRoute({to: '/event/$eventId/streamPanel'}) ||
+            matchRoute({to: '/event/$eventId/timing', fuzzy: true}),
+    )
 
     // Auto-close drawer on navigation when on mobile
     useEffect(() => {
@@ -150,7 +157,12 @@ const RootLayoutFrame = () => {
                                 />
                             )}
                         </Stack>
-                        <Stack direction={'row'} spacing={1} sx={{flexShrink: 0}}>
+                        <Stack
+                            direction={'row'}
+                            spacing={1}
+                            alignItems={'center'}
+                            sx={{flexShrink: 0}}>
+                            {user.loggedIn && !isFullscreenWorkplace && <QuickJump />}
                             {!languageSet && <LanguageWidget />}
                             <UserWidget />
                         </Stack>

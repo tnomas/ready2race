@@ -465,6 +465,18 @@
     }
   },
   "dashboard": {
+    "currentEvents": {
+      "title": "Aktuelle Veranstaltungen",
+      "all": "Alle Veranstaltungen",
+      "empty": "Noch keine Veranstaltungen angelegt",
+      "linksLabel": "Direktlinks zu {{name}}",
+      "status": {
+        "running": "Läuft",
+        "upcoming": "Kommend",
+        "past": "Vergangen",
+        "undated": "Ohne Termin"
+      }
+    },
     "registration": {
       "showMessage": "Nachricht anzeigen"
     },
@@ -480,6 +492,21 @@
     "tasks": {
       "empty": "Keine offenen Aufgaben"
     }
+  },
+  "quickJump": {
+    "label": "Schnellsprung",
+    "placeholder": "Springen zu …",
+    "open": "Schnellsprung öffnen (Taste /)",
+    "close": "Schnellsprung schließen",
+    "groups": {
+      "sections": "Bereiche",
+      "competitions": "Wettkämpfe",
+      "events": "Veranstaltungen"
+    },
+    "loading": "Suche läuft …",
+    "noResults": "Keine Treffer",
+    "typeMore": "Mindestens zwei Zeichen eingeben",
+    "error": "Die Suche ist fehlgeschlagen."
   },
   "club": {
     "editClub": "Verein bearbeiten",
@@ -1484,7 +1511,6 @@
       "info": "Wird keine explizite Spalte für die Prüfung der Teilnahmebedingung angegeben, werden alle übereinstimmenden Teilnehmer der Datei genehmigt.",
       "approved": "Überprüfte Bedingungen",
       "checkUpload": "Bedingungen abgleichen",
-      "checkManually": "\"{{name}}\" überprüfen",
       "file": "CSV-Datei",
       "charset": "Charset",
       "separator": "Trennzeichen",
@@ -1509,6 +1535,13 @@
         "ok": "Ja",
         "cancel": "Nein"
       },
+      "checkManuallyAction": "Manuell prüfen …",
+      "checkManuallyDialog": {
+        "title": "Bedingung manuell prüfen",
+        "requirement": "Bedingung",
+        "chooseFirst": "Zuerst die Bedingung wählen, die geprüft werden soll.",
+        "noRequirements": "Für diese Veranstaltung sind keine Bedingungen aktiv."
+      },
       "openExportAction": "Offene Bedingungen exportieren",
       "openExport": {
         "title": "Offene Bedingungen exportieren",
@@ -1525,8 +1558,9 @@
       },
       "log": {
         "title": "Protokoll der Bedingungen",
-        "action": "Protokoll aller Bedingungen",
-        "actionFor": "Protokoll: {{name}}",
+        "openAction": "Protokoll …",
+        "filter": "Bedingung",
+        "allRequirements": "Alle Bedingungen",
         "empty": "Noch keine Änderungen protokolliert.",
         "when": "Wann",
         "action_col": "Was",
@@ -1632,7 +1666,7 @@
       },
       "registration": "Anmeldung",
       "registrations": "Meldungen",
-      "addParticipant": "Mitglied hinzufügen",
+      "addParticipant": "Person neu anlegen",
       "singleCompetition": "Einzelwettkampf",
       "teamCompetition": "Teamwettkampf",
       "males": "Männer",
@@ -1647,18 +1681,22 @@
         "split": "{{regular}} regulär + {{late}} nachgemeldet"
       },
       "optionalFee": "Optional",
-      "totalFees": "Meldegebühr",
-      "lateTotalFees": "Nachmeldegebühr",
+      "totalFees": "Meldegeld",
+      "lateTotalFees": "Nachmeldegeld",
       "acceptDocuments": "Ich akzeptiere Folgendes:",
       "infoDocuments": "Weitere Informationen",
-      "finish": "Anmeldung abschicken",
+      "finish": "Meldung abschicken",
       "success": {
-        "title": "Erfolgreich angemeldet!",
+        "title": "Meldung gespeichert",
         "subtitle": "Sie bekommen eine Bestätigung per Mail.",
-        "toEvent": "Zur Veranstaltung"
+        "toEvent": "Zur Veranstaltung",
+        "editRegistration": "Meldung ansehen und bearbeiten",
+        "entries_one": "{{count}} Meldung ist eingegangen.",
+        "entries_other": "{{count}} Meldungen sind eingegangen.",
+        "amount": "Meldegeld dieser Übertragung: {{amount}}."
       },
       "error": {
-        "closed": "Die Anmeldung für diese Veranstaltung ist geschlossen",
+        "closed": "Meldeschluss: Für diese Veranstaltung kann nicht mehr gemeldet werden.",
         "participantUpsertNotFound": "Teilnehmer aus der Teilnehmerliste nicht gefunden",
         "teamParticipantNotFound": "Team-Teilnehmer konnte nicht gefunden werden",
         "competitionNotFound": "Wettkampf nicht gefunden",
@@ -1695,6 +1733,80 @@
           "invalidAddress": "Keine gültige Adresse: {{address}}",
           "recipientGone": "Ein Melder hat inzwischen keinen Benutzer mehr. Bitte den Dialog neu öffnen."
         }
+      },
+      "page": {
+        "title": "Meldung"
+      },
+      "messageHint": "Hinweis an die Veranstaltung, z. B. zu Bootsplätzen oder Ersatzleuten.",
+      "lockedHint": "Bereits verbindlich gemeldet – nach Meldeschluss nicht mehr änderbar.",
+      "noLateRegistration": "Für diesen Wettkampf ist keine Nachmeldung möglich.",
+      "selectedCount_one": "{{count}} Wettkampf",
+      "selectedCount_other": "{{count}} Wettkämpfe",
+      "selectAllSingles": "Alle Personen zu allen Wettkämpfen",
+      "deselectAllSingles": "Alle Einzelmeldungen entfernen",
+      "teamNumber": "Team {{number}}",
+      "noTeamYet": "Noch kein Team gemeldet.",
+      "addTeam": "Team melden",
+      "steps": {
+        "participants": {
+          "label": "Teilnehmende",
+          "hint": "Alle Personen Ihres Vereins. Prüfen Sie die Angaben und legen Sie fehlende Personen neu an. Wer wo startet, wählen Sie in den nächsten Schritten.",
+          "empty": "Ihr Verein hat noch keine Teilnehmenden. Legen Sie die Personen an, die Sie melden möchten."
+        },
+        "single": {
+          "label": "Einzelwettkämpfe",
+          "hint": "Haken Sie je Person die Wettkämpfe an, in denen sie starten soll. Zusatzleistungen und Wertungskategorie erscheinen nach dem Anhaken.",
+          "empty": "Es gibt noch keine Teilnehmenden. Legen Sie im ersten Schritt Personen an."
+        },
+        "team": {
+          "label": "Teamwettkämpfe",
+          "hint": "Melden Sie je Wettkampf ein oder mehrere Teams und wählen Sie die Besetzung. Jede Person kann pro Wettkampf nur einmal gemeldet werden."
+        },
+        "summary": {
+          "label": "Prüfen & absenden",
+          "hint": "Prüfen Sie, wer wo gemeldet ist und was es kostet. Erst mit „Meldung abschicken“ wird gespeichert."
+        },
+        "progress": "Schritt {{current}} von {{total}}: {{label}}",
+        "next": "Weiter: {{step}}"
+      },
+      "search": {
+        "placeholder": "Person suchen (Name, Jahrgang)",
+        "onlyRegistered": "Nur Gemeldete",
+        "count": "{{shown}} von {{total}} Personen",
+        "noMatch": "Keine Person passt zur Suche."
+      },
+      "phase": {
+        "late": "Nachmeldephase: Neue Meldungen kosten das Nachmeldegeld; bereits gemeldete Einträge sind gesperrt, und nicht jeder Wettkampf nimmt Nachmeldungen an.",
+        "closed": "Meldeschluss: Für diese Veranstaltung kann nicht mehr gemeldet oder geändert werden."
+      },
+      "errorSummary": {
+        "title_one": "Bitte {{count}} Angabe prüfen",
+        "title_other": "Bitte {{count}} Angaben prüfen",
+        "teamMembers": "Besetzung",
+        "confirmation": "Bestätigung der Dokumente",
+        "unknown": "Angabe",
+        "goTo": "Zu „{{step}}“",
+        "more_one": "… und {{count}} weitere",
+        "more_other": "… und {{count}} weitere"
+      },
+      "review": {
+        "nothingSelected": "Sie haben noch niemanden zu einem Wettkampf gemeldet. Sie können trotzdem absenden, um neu angelegte Personen zu speichern.",
+        "entriesSingle_one": "{{count}} Person",
+        "entriesSingle_other": "{{count}} Personen",
+        "entriesTeam_one": "{{count}} Team",
+        "entriesTeam_other": "{{count}} Teams",
+        "noMembers": "(Besetzung noch leer)",
+        "locked": "verbindlich",
+        "late": "Nachmeldung",
+        "lockedNotCounted": "Verbindlich gemeldete Einträge sind bereits abgerechnet und hier nicht enthalten.",
+        "newParticipants_one": "{{count}} Person wird neu angelegt",
+        "newParticipants_other": "{{count}} Personen werden neu angelegt",
+        "changedParticipants_one": "{{count}} Person wird geändert",
+        "changedParticipants_other": "{{count}} Personen werden geändert"
+      },
+      "leave": {
+        "content": "Ihre Meldung ist noch nicht abgeschickt. Wenn Sie die Seite jetzt verlassen, gehen die Eingaben verloren.",
+        "ok": "Verlassen"
       }
     },
     "participants": "Teilnehmende",
@@ -2137,7 +2249,8 @@
         "error": "Der Lauf konnte nicht geändert werden.",
         "errorReason": {
           "finishReservedForOffice": "Für diese Veranstaltung beendet das Regattabüro die Läufe über den Zeitplan. Der Lauf bleibt aktiv — bitte dem Regattabüro melden, dass er im Ziel ist."
-        }
+        },
+        "moreActions": "Weitere Aktionen"
       },
       "clarification": {
         "sectionTitle": "Klärung ({{n}})",
@@ -2220,6 +2333,11 @@
         },
         "saved": "Einstellungen gespeichert",
         "saveError": "Einstellungen konnten nicht gespeichert werden."
+      },
+      "connection": {
+        "live": "Live verbunden",
+        "polling": "Abruf alle {{seconds}} s",
+        "offline": "Keine Verbindung"
       }
     },
     "schedule": {
@@ -2876,7 +2994,9 @@
               "label": "Leerlauf",
               "hint": "Nur Tagesprogramm und Streckenbild"
             }
-          }
+          },
+          "confirmOn": "Testmodus einschalten? Die Bühne dieser Szene zeigt dann einen Demo-Lauf statt echter Daten – auch im laufenden Stream.",
+          "confirmOk": "Testmodus einschalten"
         }
       },
       "panel": {
@@ -2917,43 +3037,43 @@
       }
     },
     "betrieb": {
-      "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "intro": "Die Arbeitsplätze des Renntags, die häufigsten zuerst. Vollbild-Ansichten öffnen in einem neuen Fenster.",
       "raceOffice": {
         "title": "Regattabüro",
-        "description": "Der Arbeitsplatz am Renntag: Läufe an den Start rufen oder zurücknehmen und im Zeitplan (mit Veranstaltungs-Modus) die Durchführung der Wettkämpfe führen.",
+        "description": "Läufe an den Start rufen oder zurücknehmen und den Tagesablauf im Zeitplan führen.",
         "openSchedule": "Zum Zeitplan"
       },
       "referee": {
         "title": "Schiedsrichter:in",
-        "description": "Das Schiedsrichter-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
+        "description": "Am Steg: laufenden und nächsten Lauf sehen, Aufstellung prüfen, Läufe starten, beenden oder in Klärung setzen.",
         "open": "Schiedsrichter-Dashboard öffnen"
       },
       "speaker": {
         "title": "Sprecher:in",
-        "description": "Das Sprecher-Board bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
+        "description": "Für die Moderation: aktueller und nächster Lauf, Startliste, Ergebnisse und Zeitnahme live auf einem Bildschirm.",
         "open": "Sprecher-Board öffnen"
       },
       "timing": {
         "title": "Zeitnahme",
-        "description": "Leitstand für die Zeitnahme-Leitung am Laptop, darunter die Posten (Start, Zwischenzeit, Ziel) mit direkten Links: Erfassung öffnen, Startbildschirm für START-Posten, „Auf Gerät teilen\" für Handys und Bildschirme ohne Anmeldung.",
+        "description": "Der Leitstand für die Zeitnahme-Leitung am Laptop; die Posten am Kurs erfassen am Handy.",
         "openLeitstand": "Leitstand öffnen",
-        "mobileHint": "Für Handys am Posten gibt es zusätzlich die mobile Einstiegsseite:",
-        "mobileLink": "Mobile Erfassung öffnen"
+        "mobileLink": "Mobile Erfassung öffnen",
+        "stationsHint": "Posten anlegen, ihre Erfassung öffnen oder per Link auf ein Gerät teilen."
       },
       "boards": {
         "title": "Öffentliche Anzeigen",
-        "description": "Boards für die Bildschirme am Gelände: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
+        "description": "Bildschirme am Gelände: Läufe, Ergebnisse, Uhr und Hinweise als Boards anordnen.",
         "open": "Boards verwalten"
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Steuerung über die Regie.",
+        "description": "Die Regie des Livestreams: Szenen wählen, Grafiken einblenden und im Testmodus proben.",
         "open": "Livestream verwalten",
         "openDirector": "Regie öffnen"
       },
       "helpers": {
         "title": "Helfer:innen",
-        "description": "Die Helfer-App fürs Handy (QR-Scannen, Check-in/-out, Aufgaben) und der Schichtplan der Veranstaltung.",
+        "description": "Die Helfer-App fürs Handy (Scannen, Check-in/-out, Posten) und der Schichtplan.",
         "openApp": "Helfer-App öffnen",
         "shifts": "Zum Schichtplan (Team & Helfer)"
       }
@@ -3624,7 +3744,8 @@
   "qrScanner": {
     "cameraError": "Kamera konnte nicht geöffnet werden",
     "cameraErrorHint": "Möglicherweise wird die Kamera gerade von einer anderen App verwendet oder der Zugriff wurde verweigert.",
-    "cameraRetry": "Kamera erneut starten"
+    "cameraRetry": "Kamera erneut starten",
+    "camera": "Kamera"
   },
   "qrEvents": {
     "operating": "Im Betrieb",
@@ -3680,6 +3801,12 @@
         "title": "Unbekanntes Band",
         "message": "Dieses Band ist niemandem zugeordnet. Bänder zuweisen darf nur die Bandausgabe."
       }
+    },
+    "stations": {
+      "lastUsed": "Zuletzt hier",
+      "loadError": "Die Posten konnten nicht geladen werden.",
+      "empty": "Noch keine Posten angelegt",
+      "emptyHint": "Die Zeitnahme-Leitung legt die Posten in der Verwaltung der Veranstaltung an."
     },
     "header": {
       "settings": "Einstellungen"
@@ -3974,6 +4101,12 @@
       "markList": {
         "toggle": "Zeitenliste ({{count}})"
       },
+      "leave": {
+        "title": "Posten verlassen?",
+        "sequenceRunning": "Die Startsequenz läuft weiter, aber dieses Gerät spielt dann keine Countdown-Töne mehr ab.",
+        "ok": "Posten verlassen",
+        "stay": "Am Posten bleiben"
+      },
       "audioHint": "Einmal auf den Bildschirm tippen, damit die Countdown-Töne abgespielt werden können.",
       "mark": {
         "pending": "wird übertragen",
@@ -4238,6 +4371,30 @@
     "createdAt": "Zeitpunkt"
   },
   "landing": {
+    "hero": {
+      "overline": "Willkommen",
+      "title": "Veranstaltungen, Ergebnisse und Live-Stand",
+      "subtitle": "Verfolgen Sie laufende Rennen, finden Sie Ihre Ergebnisse oder melden Sie Ihren Verein zu kommenden Veranstaltungen."
+    },
+    "sections": {
+      "running": "Läuft gerade",
+      "upcoming": "Demnächst"
+    },
+    "actions": {
+      "results": "Ergebnisse & Live",
+      "details": "Details",
+      "register": "Melden",
+      "login": "Anmelden"
+    },
+    "status": {
+      "live": "Live",
+      "registrationOpen": "Meldung offen",
+      "lateRegistrationOpen": "Nachmeldung offen"
+    },
+    "empty": {
+      "title": "Zurzeit keine Veranstaltungen",
+      "description": "Sobald eine Veranstaltung veröffentlicht ist, erscheint sie hier."
+    },
     "smallScreen": {
       "to": {
         "where": "Was möchten Sie sehen?",
@@ -4255,6 +4412,27 @@
     "text": "Der API-Server ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut. Sollte dieser Zustand sich nicht ändern, wenden Sie sich bitte an einen Verantwortlichen. Vielen Dank."
   },
   "results": {
+    "select": {
+      "subtitle": "Wählen Sie eine Veranstaltung, um Ergebnisse, Live-Stand und Zeitplan zu sehen.",
+      "running": "Läuft gerade",
+      "upcoming": "Demnächst",
+      "past": "Vergangen",
+      "undated": "Ohne Termin",
+      "home": "Zur Startseite"
+    },
+    "page": {
+      "overline": "Ergebnisse & Live",
+      "views": "Ansichten",
+      "allCompetitions": "Alle Wettkämpfe",
+      "allEvents": "Alle Veranstaltungen"
+    },
+    "ranking": {
+      "place": "Platz",
+      "team": "Mannschaft",
+      "time": "Zeit",
+      "startNumber": "Startnr.",
+      "crew": "Besatzung"
+    },
     "tabs": {
       "results": "Ergebnisse",
       "live": "Live",
@@ -4263,6 +4441,7 @@
     "matchResults": {
       "matchResults": "Ergebnisse",
       "noResults": "Es existieren noch keine Ergebnisse für diesen Wettkampf.",
+      "noResultsEvent": "Für diese Veranstaltung gibt es noch keine Ergebnisse.",
       "latestSection": "Zuletzt beendet",
       "byCompetitionSection": "Nach Wettkampf"
     },
@@ -4758,6 +4937,11 @@
       "progress": "Live",
       "started": "gestartet",
       "finished": "im Ziel"
+    },
+    "nextUp": "Als Nächstes",
+    "connection": {
+      "live": "Live verbunden",
+      "polling": "Abruf alle 30 s"
     }
   }
 }
