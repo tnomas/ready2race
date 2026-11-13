@@ -1,21 +1,7 @@
-import {
-    BaseSyntheticEvent,
-    PropsWithChildren,
-    useContext,
-    useEffect,
-    useRef,
-    useState,
-} from 'react'
+import {BaseSyntheticEvent, PropsWithChildren, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {FieldValues, FormContainer, UseFormReturn} from 'react-hook-form-mui'
-import {
-    Alert,
-    Button,
-    DialogActions,
-    DialogContent,
-    DialogProps,
-    DialogTitle,
-} from '@mui/material'
+import {Alert, Button, DialogActions, DialogContent, DialogProps, DialogTitle} from '@mui/material'
 import {RequestResult} from '@hey-api/client-fetch'
 import {BaseEntityDialogProps} from '@utils/types.ts'
 import {useFeedback} from '@utils/hooks.ts'
@@ -23,7 +9,7 @@ import {SubmitButton} from './form/SubmitButton.tsx'
 import {GridValidRowModel} from '@mui/x-data-grid'
 import {ApiError} from '@api/types.gen.ts'
 import BaseDialog from '@components/BaseDialog.tsx'
-import {ConfirmationContext} from '@contexts/confirmation/ConfirmationContext.ts'
+import {useOptionalConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {DialogRefreshMode, shouldConfirmDiscard, shouldRunOnOpen} from '@utils/entityDialog.ts'
 
@@ -94,7 +80,7 @@ const EntityDialog = <
     const {t} = useTranslation()
     const feedback = useFeedback()
     // Ohne Provider (Tests, eingebettete Ansichten) schließt der Dialog wie bisher ohne Rückfrage.
-    const confirmation = useContext(ConfirmationContext)
+    const confirmation = useOptionalConfirmation()
 
     const [submitting, setSubmitting] = useState(false)
     // Sperre gegen doppeltes Absenden, bevor der nächste Render den Knopf deaktiviert hat.

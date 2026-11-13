@@ -1,7 +1,14 @@
 import {useTranslation} from 'react-i18next'
 import {PropsWithChildren, useMemo, useState} from 'react'
 import {Confirmation, ConfirmationContext, ConfirmationOptions} from './ConfirmationContext'
-import {Button, DialogActions, DialogContent, DialogTitle} from '@mui/material'
+import {
+    Button,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    ThemeProvider,
+    useTheme,
+} from '@mui/material'
 import BaseDialog from '@components/BaseDialog.tsx'
 
 type ConfirmationState =
@@ -24,6 +31,7 @@ const closedConfirmation = (options?: ConfirmationOptions): ConfirmationState =>
 
 export const ConfirmationProvider = (props: PropsWithChildren) => {
     const {t} = useTranslation()
+    const outerTheme = useTheme()
     const [confirmation, setConfirmation] = useState<ConfirmationState>(closedConfirmation)
 
     const handleCancel = () => {
@@ -61,34 +69,36 @@ export const ConfirmationProvider = (props: PropsWithChildren) => {
     return (
         <ConfirmationContext.Provider value={confirmationValue}>
             {props.children}
-            <BaseDialog
-                open={confirmation.open}
-                onClose={handleCancel}
-                maxWidth={'sm'}
-                mobileFullScreen={false}
-                aria-labelledby={'confirmation-dialog-title'}>
-                <DialogTitle id={'confirmation-dialog-title'}>
-                    {confirmation.options?.title ?? t('common.confirmation.title')}
-                </DialogTitle>
-                <DialogContent dividers>
-                    {confirmation.options?.content ?? t('common.confirmation.content')}
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        variant={'text'}
-                        onClick={handleCancel}
-                        sx={confirmation.options?.buttonsSX}>
-                        {confirmation.options?.cancelText ?? t('common.cancel')}
-                    </Button>
-                    <Button
-                        variant={'contained'}
-                        color={destructive ? 'error' : 'primary'}
-                        onClick={handleConfirm}
-                        sx={confirmation.options?.buttonsSX}>
-                        {confirmation.options?.okText ?? t('common.ok')}
-                    </Button>
-                </DialogActions>
-            </BaseDialog>
+            <ThemeProvider theme={confirmation.options?.theme ?? outerTheme}>
+                <BaseDialog
+                    open={confirmation.open}
+                    onClose={handleCancel}
+                    maxWidth={'sm'}
+                    mobileFullScreen={false}
+                    aria-labelledby={'confirmation-dialog-title'}>
+                    <DialogTitle id={'confirmation-dialog-title'}>
+                        {confirmation.options?.title ?? t('common.confirmation.title')}
+                    </DialogTitle>
+                    <DialogContent dividers>
+                        {confirmation.options?.content ?? t('common.confirmation.content')}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button
+                            variant={'text'}
+                            onClick={handleCancel}
+                            sx={confirmation.options?.buttonsSX}>
+                            {confirmation.options?.cancelText ?? t('common.cancel')}
+                        </Button>
+                        <Button
+                            variant={'contained'}
+                            color={destructive ? 'error' : 'primary'}
+                            onClick={handleConfirm}
+                            sx={confirmation.options?.buttonsSX}>
+                            {confirmation.options?.okText ?? t('common.ok')}
+                        </Button>
+                    </DialogActions>
+                </BaseDialog>
+            </ThemeProvider>
         </ConfirmationContext.Provider>
     )
 }
