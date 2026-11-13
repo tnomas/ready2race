@@ -149,6 +149,11 @@ object CompetitionExecutionService {
         // Zeitstrahl: Setup-Match-Ids aller in diesem Aufruf erzeugten Läufe, über alle
         // Runden/Iterationen hinweg — Grundlage für den Slot-Write-Through nach der Schleife.
         val createdSetupMatchIds = mutableListOf<UUID>()
+        // Ab dem zweiten Durchlauf ist schon eine Runde geschrieben. Scheitert die Prüfung der
+        // nächsten dann, endet die Schleife - statt mit einem Fehler, der die geschriebene Runde
+        // ohne Slot-Stempel, Bump und Zeitnahme-Push zurückließe, sobald ein Aufrufer ihn
+        // abfängt (die Folgerunden-Automatik tut das; ohne Savepoint bleibt die Runde stehen).
+        var firstPass = true
         while (createFollowingRound) {
             val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(competitionId)
 
@@ -250,7 +255,11 @@ object CompetitionExecutionService {
             } else {
                 // Following Round
 
-                !checkRoundCreation(true, setupRounds, currentRound, nextRound, null)
+                if (firstPass) {
+                    !checkRoundCreation(true, setupRounds, currentRound, nextRound, null)
+                } else if ((!checkRoundCreation(false, setupRounds, currentRound, nextRound, null)).isNotEmpty()) {
+                    break
+                }
 
                 // --- Collect current round data
 
@@ -404,6 +413,8 @@ object CompetitionExecutionService {
                     !CompetitionSetupRoundRepo.markMaterialized(nextRound.setupRoundId, markedAt).orDie()
                 }
             }
+
+            firstPass = false
         }
 
         // Zeitstrahl: geplante Slot-Zeiten auf die soeben erzeugten Läufe stempeln …
