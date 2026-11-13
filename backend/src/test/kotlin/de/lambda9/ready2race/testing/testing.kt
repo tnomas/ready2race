@@ -45,6 +45,22 @@ fun testComprehension(block: TestComprehensionScope<JEnv>.() -> Unit) =
 fun testApplicationComprehension(block: suspend TestApplicationComprehensionScope<JEnv>.() -> Unit) =
     TestRunner.runApplication(block)
 
+/**
+ * Für Nebenläufigkeitstests: jede `.transact()` holt sich eine EIGENE Verbindung aus dem Pool und
+ * committet wirklich. So lassen sich zwei echte, gleichzeitig offene Transaktionen gegeneinander
+ * laufen lassen (z. B. in zwei Threads), um Sperren und Constraints zu belegen. Weil Daten
+ * committet werden, markiert der Lauf die Datenbank als schmutzig (nächster Test migriert neu).
+ *
+ * Alles, was der Test über `!` ausführt, läuft ohne umgebende Transaktion (Autocommit); wer
+ * Atomarität braucht, hängt selbst `.transact()` an.
+ */
+fun testCommittingComprehension(block: CommittingTestScope.() -> Unit) =
+    TestRunner.runCommitting(block)
+
+interface CommittingTestScope : TestComprehensionScope<JEnv> {
+    val env: JEnv
+}
+
 interface TestApplicationExtension {
 
     fun extendApplication(block: Application.() -> Unit)
@@ -153,6 +169,17 @@ private object TestRunner {
                 connectionProvider.release(connection)
             }
         }
+    }
+
+    fun runCommitting(block: CommittingTestScope.() -> Unit) {
+        cleanDatabase()
+        dirty = true
+        val env = getEnv()
+        val scope = object : CommittingTestScope,
+            TestComprehensionScope<JEnv> by DefaultTestComprehensionScope(env) {
+            override val env: JEnv = env
+        }
+        block(scope)
     }
 
     fun runApplication(block: suspend TestApplicationComprehensionScope<JEnv>.() -> Unit) = testApplication {

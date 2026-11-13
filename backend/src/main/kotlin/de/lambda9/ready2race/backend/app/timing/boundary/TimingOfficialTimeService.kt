@@ -15,6 +15,7 @@ import de.lambda9.ready2race.backend.app.timingConfig.entity.TimingPrecision
 import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
+import de.lambda9.ready2race.backend.database.AdvisoryLock
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchTeamRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingOfficialTimeRecord
 import de.lambda9.tailwind.core.KIO
@@ -52,6 +53,10 @@ import java.util.UUID
  * Schalter. Auch er schreibt die Plätze des betroffenen Laufs mit.
  */
 object TimingOfficialTimeService {
+
+    /** Namensraum der Transaktionssperre je Lauf für Übernahme und Platzableitung. */
+    private const val MATCH_APPLY_LOCK = "timing-match-apply"
+
 
     /** Start and finish instant a computation would use for one team. */
     private data class TeamMarkTimes(
@@ -108,6 +113,17 @@ object TimingOfficialTimeService {
         val distinct = teamIds.distinct()
         if (distinct.isEmpty()) return@comprehension KIO.ok(OfficialTimeApplyOutcome.empty)
 
+        // Die Platzableitung liest das ganze Feld eines Laufs und schreibt die Plätze aller
+        // Boote. Ohne Sperre sähen zwei gleichzeitige Zuordnungen an verschiedenen Booten
+        // desselben Laufs die Zeile der jeweils anderen nicht (READ COMMITTED) und schrieben
+        // beide "ihr" Boot auf Platz 1. Deshalb je Lauf eine Transaktionssperre, sortiert gegen
+        // Verklemmungen, VOR dem ersten Lesen: die zweite Transaktion wartet und liest danach den
+        // committeten Stand der ersten. Advisory statt FOR UPDATE auf competition_match, damit
+        // Statusupdates und Fremdschlüssel-Prüfungen am Lauf nicht mitblockiert werden.
+        val matchIds = !distinct.traverse { teamId -> CompetitionMatchTeamRepo.getById(teamId).orDie() }
+            .map { records -> records.mapNotNull { it?.competitionMatch }.distinct() }
+        !AdvisoryLock.lock(MATCH_APPLY_LOCK, matchIds).orDie()
+
         val markTimes = !resolveMarkTimes(eventId)
         val settings = !eventSettings(eventId)
         val now = LocalDateTime.now()
@@ -120,8 +136,6 @@ object TimingOfficialTimeService {
 
         // 2) Übernahme + Platzableitung je betroffenem Lauf - der Lauf ist der Zuschnitt, weil
         //    ein einzelnes Ergebnis die Plätze aller anderen Boote des Laufs verschieben kann.
-        val matchIds = !distinct.traverse { teamId -> CompetitionMatchTeamRepo.getById(teamId).orDie() }
-            .map { records -> records.mapNotNull { it?.competitionMatch }.distinct() }
         val applyOutcomes = !matchIds.traverse { matchId ->
             applyMatch(matchId, settings, userId, now)
         }
