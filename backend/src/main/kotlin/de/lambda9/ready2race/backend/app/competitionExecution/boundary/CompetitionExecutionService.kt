@@ -1,5 +1,7 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.boundary
 
+import de.lambda9.ready2race.backend.app.competition.boundary.CompetitionService
+
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
@@ -139,6 +141,7 @@ object CompetitionExecutionService {
         competitionId: UUID,
         userId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId)
             .onTrueFail { CompetitionExecutionChallengeError.NotAChallengeEvent }
 
@@ -829,6 +832,7 @@ object CompetitionExecutionService {
         userId: UUID,
         request: UpdateCompetitionMatchResultRequest,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         !checkUpdateMatchResult(competitionId, matchId)
@@ -2040,6 +2044,7 @@ object CompetitionExecutionService {
         competitionId: UUID,
         eventId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(competitionId)
@@ -2387,6 +2392,10 @@ object CompetitionExecutionService {
     ): App<ServiceError, ApiResponse.ListDto<CompetitionTeamPlaceDto>> = KIO.comprehension {
 
         !EventRepo.getScoped(eventId, scope).orDie().onNullFail { EventError.NotFound }
+        // Sichtbarkeit hängt an der Veranstaltung im Pfad - ohne Bindung des Wettkampfs an sie
+        // ließen sich Platzierungen einer unveröffentlichten Veranstaltung über eine
+        // veröffentlichte abrufen.
+        !CompetitionService.requireInEvent(eventId, competitionId)
 
         computeCompetitionPlaces(competitionId)
             .andThen { places ->
