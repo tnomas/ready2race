@@ -17,6 +17,13 @@ import de.lambda9.tailwind.jooq.transact
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.plugins.BadRequestException
+import io.ktor.server.plugins.ContentTransformationException
+import io.ktor.server.plugins.NotFoundException
+import io.ktor.server.plugins.PayloadTooLargeException
+import io.ktor.server.plugins.UnsupportedMediaTypeException
+import io.ktor.util.cio.ChannelIOException
+import io.ktor.utils.io.ClosedByteChannelException
 import io.ktor.server.response.*
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -89,9 +96,43 @@ suspend fun ApplicationCall.respondError(
     respond(error.status, error)
 }
 
+/**
+ * Ausnahmen, die ein Client verursacht hat (kaputter Body, zu großer Upload, falscher Content-Type)
+ * und die deshalb kein 500 sind. Gesucht wird die Ausnahme selbst und ihre ersten Ursachen, weil
+ * KIO.effect oder Multipart-Lesen sie gern einpacken.
+ */
+internal fun clientFaultStatus(defect: Throwable): HttpStatusCode? =
+    generateSequence(defect) { it.cause }.take(5).firstNotNullOfOrNull { t ->
+        when (t) {
+            is PayloadTooLargeException -> HttpStatusCode.PayloadTooLarge
+            is UnsupportedMediaTypeException -> HttpStatusCode.UnsupportedMediaType
+            is ContentTransformationException, is BadRequestException -> HttpStatusCode.BadRequest
+            is NotFoundException -> HttpStatusCode.NotFound
+            else -> null
+        }
+    }
+
+/** Der Client hat die Verbindung abgebrochen; eine Antwort erreicht ihn nicht mehr. */
+internal fun isClientAbort(defect: Throwable): Boolean =
+    generateSequence(defect) { it.cause }.take(5).any { t ->
+        // Bewusst ohne CancellationException: auch ein withTimeout in einem Service wirft eine,
+        // und die muss weiter als Defekt sichtbar bleiben.
+        t is ChannelIOException || t is ClosedByteChannelException
+    }
+
 suspend fun ApplicationCall.respondDefect(
     defect: Throwable,
 ) {
+    if (isClientAbort(defect)) {
+        logger.debug { "Client closed the connection: ${defect::class.simpleName}: ${defect.message}" }
+        return
+    }
+    clientFaultStatus(defect)?.let { status ->
+        logger.info { "Rejected request with ${status.value}: ${defect::class.simpleName}: ${defect.message}" }
+        respondError(ApiError(status = status, message = status.description))
+        return
+    }
+
     logger.error(defect) { "An internal error occurred" }
     val details = when {
         kioEnv.env.config.mode.exposesDefectDetails -> {
