@@ -73,12 +73,24 @@ object EventRegistrationService {
         }
     }
 
+    /**
+     * Die Meldungen einer Veranstaltung. Mit Leserecht im Umfang OWN sieht ein Verein nur seine
+     * eigene Meldung (auch in der Zählung); ein Nutzer ohne Verein hat dann nichts zu sehen und
+     * bekommt den Rechtefehler - dieselbe Regel wie bei der Einzelansicht [getRegistration].
+     */
     fun pageForEvent(
         eventId: UUID,
         params: PaginationParameters<EventRegistrationViewSort>,
-    ): App<Nothing, ApiResponse.Page<EventRegistrationViewDto, EventRegistrationViewSort>> = KIO.comprehension {
-        val total = !EventRegistrationRepo.countForEvent(eventId, params.search).orDie()
-        val page = !EventRegistrationRepo.pageForEvent(eventId, params).orDie()
+        user: AppUserWithPrivilegesRecord,
+        scope: Privilege.Scope,
+    ): App<ServiceError, ApiResponse.Page<EventRegistrationViewDto, EventRegistrationViewSort>> = KIO.comprehension {
+        val clubId = if (scope == Privilege.Scope.OWN) {
+            !KIO.ok(user.club).onNullFail { AuthError.PrivilegeMissing }
+        } else {
+            null
+        }
+        val total = !EventRegistrationRepo.countForEvent(eventId, params.search, clubId).orDie()
+        val page = !EventRegistrationRepo.pageForEvent(eventId, params, clubId).orDie()
 
         page.traverse { it.toDto() }.map {
             ApiResponse.Page(

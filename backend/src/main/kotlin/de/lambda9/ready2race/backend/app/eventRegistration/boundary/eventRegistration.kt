@@ -28,10 +28,10 @@ fun Route.eventRegistration() {
     route("/eventRegistration") {
         get {
             call.respondComprehension {
-                !authenticate(Privilege.ReadRegistrationGlobal)
+                val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.REGISTRATION)
                 val eventId = !pathParam("eventId", uuid)
                 val params = !pagination<EventRegistrationViewSort>()
-                EventRegistrationService.pageForEvent(eventId, params)
+                EventRegistrationService.pageForEvent(eventId, params, user, scope)
             }
         }
 

@@ -3076,6 +3076,9 @@ export const deleteClubNameRule = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Registrations of the event. Requires READ on REGISTRATION: with scope GLOBAL every registration, with scope OWN only the registration of the user's own club (also in the total count); OWN without a club is answered with 403.
+ */
 export const getRegistrationsForEvent = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<GetRegistrationsForEventData, ThrowOnError>,
 ) => {

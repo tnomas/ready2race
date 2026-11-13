@@ -77,29 +77,36 @@ object EventRegistrationRepo {
         }
     }
 
+    /**
+     * [clubId] gesetzt: nur die Meldung(en) dieses Vereins (Leserecht im Umfang OWN); null: alle.
+     */
     fun countForEvent(
         eventId: UUID,
         search: String?,
+        clubId: UUID? = null,
     ): JIO<Int> = Jooq.query {
         with(EVENT_REGISTRATIONS_VIEW) {
             fetchCount(
                 this,
                 DSL.and(
                     search.metaSearch(searchFields()),
-                    EVENT_ID.eq(eventId)
+                    EVENT_ID.eq(eventId),
+                    clubId?.let { CLUB_ID.eq(it) } ?: DSL.trueCondition(),
                 )
             )
         }
     }
 
+    /** Filter wie [countForEvent]. */
     fun pageForEvent(
         eventId: UUID,
-        params: PaginationParameters<EventRegistrationViewSort>
+        params: PaginationParameters<EventRegistrationViewSort>,
+        clubId: UUID? = null,
     ): JIO<List<EventRegistrationsViewRecord>> = Jooq.query {
         with(EVENT_REGISTRATIONS_VIEW) {
             selectFrom(this)
                 .page(params, searchFields()) {
-                    EVENT_ID.eq(eventId)
+                    EVENT_ID.eq(eventId).and(clubId?.let { CLUB_ID.eq(it) } ?: DSL.trueCondition())
                 }
                 .fetch()
         }
