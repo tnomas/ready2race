@@ -45,7 +45,9 @@ suspend inline fun <reified V : Validatable> ApplicationCall.receiveNullableKIO(
             KIO.ok(payload)
         }
     } catch (ex: Exception) {
-        logger.error(ex) { "Error during receiving body" }
+        // Ein kaputter oder abgebrochener Body ist ein Client-Fehler (400), kein Serverfehler: ohne
+        // Stacktrace und ohne Body-Inhalt loggen.
+        logger.info { "Error during receiving body: ${ex::class.simpleName}: ${ex.message}" }
         KIO.fail(RequestError.Other(ex))
     }
 

@@ -70,6 +70,18 @@ fun Application.module(env: JEnv) {
     configureStaticFiles(env.env.config.staticFilesPath)
 }
 
+/**
+ * Aufräumjobs laufen alle paar Minuten; eine INFO-Zeile „0 … deleted" je Lauf begräbt echte
+ * Meldungen. Gelöschtes kommt auf INFO, ein leerer Lauf nur auf DEBUG.
+ */
+private fun logDeleted(what: String, count: Int) {
+    if (count > 0) {
+        logger.info { "${what.count(count)} deleted" }
+    } else {
+        logger.debug { "${what.count(count)} deleted" }
+    }
+}
+
 private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
     launch(Dispatchers.IO) {
         supervisorScope {
@@ -119,7 +131,7 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
             // Haltefrist (keep_after_sending) lang liegen.
             scheduleFixed("Delete sent emails", 1.hours) {
                 EmailService.deleteSent().map {
-                    logger.info { "${"sent email".count(it)} deleted" }
+                    logDeleted("sent email", it)
                 }
             }
 
@@ -200,31 +212,31 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
 
             scheduleFixed("Delete expired session tokens", 5.minutes) {
                 AuthService.deleteExpiredTokens().map {
-                    logger.info { "${"expired session".count(it)} deleted" }
+                    logDeleted("expired session", it)
                 }
             }
 
             scheduleFixed("Delete expired user registrations", 1.hours) {
                 AppUserService.deleteExpiredRegistrations().map {
-                    logger.info { "${"expired registration".count(it)} deleted" }
+                    logDeleted("expired registration", it)
                 }
             }
 
             scheduleFixed("Delete expired user invitations", 1.hours) {
                 AppUserService.deleteExpiredInvitations().map {
-                    logger.info { "${"expired invitations".count(it)} deleted" }
+                    logDeleted("expired invitations", it)
                 }
             }
 
             scheduleFixed("Delete expired password resets", 1.hours) {
                 AppUserService.deleteExpiredPasswordResets().map {
-                    logger.info { "${"expired password resets".count(it)} deleted" }
+                    logDeleted("expired password resets", it)
                 }
             }
 
             scheduleFixed("Delete expired captchas", 5.minutes) {
                 CaptchaService.deleteExpired().map {
-                    logger.info { "${"expired captchas".count(it)} deleted" }
+                    logDeleted("expired captchas", it)
                 }
             }
 
