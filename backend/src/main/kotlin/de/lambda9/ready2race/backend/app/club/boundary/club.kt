@@ -115,10 +115,16 @@ fun Route.club() {
                 get {
 
                     call.respondComprehension {
-                        !authenticate(Privilege.ReadClubOwn)
+                        // Die Anträge tragen Namen und E-Mail-Adressen: mit OWN nur die des
+                        // eigenen Vereins, wie GET /club/{clubId} und die Freigabe-Route.
+                        val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.CLUB)
                         val id = !pathParam("clubId", uuid)
 
-                        AppUserService.getPendingClubRepresentativeApprovals(id)
+                        if (scope == Privilege.Scope.OWN && id != user.club) {
+                            KIO.fail(AuthError.PrivilegeMissing)
+                        } else {
+                            AppUserService.getPendingClubRepresentativeApprovals(id)
+                        }
                     }
                 }
             }
