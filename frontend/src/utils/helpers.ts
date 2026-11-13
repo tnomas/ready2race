@@ -168,7 +168,7 @@ export const ifDefined = <T, R>(value: T | null | undefined, f: (value: T) => R)
     value !== null && value !== undefined ? f(value) : null
 
 export const shuffle = <T>(list: T[]) => {
-    const newList: T[] = {...list}
+    const newList: T[] = [...list]
     let currentIndex = list.length
 
     while (currentIndex != 0) {

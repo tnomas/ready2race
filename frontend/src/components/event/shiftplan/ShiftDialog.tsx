@@ -41,21 +41,21 @@ const ShiftDialog = (props: BaseEntityDialogProps<WorkShiftWithAssignedUsersDto>
             body: formData,
         })
 
-    const editAction = (formData: WorkShiftUpsertDto, entity: WorkShiftWithAssignedUsersDto) =>
-        entity.id == null || entity.id === ''
-            ? addWorkShift({
-                  path: {
-                      eventId,
-                  },
-                  body: formData,
-              })
-            : updateWorkShift({
-                  path: {
-                      eventId,
-                      workShiftId: entity.id,
-                  },
-                  body: formData,
-              })
+    const editAction = async (
+        formData: WorkShiftUpsertDto,
+        entity: WorkShiftWithAssignedUsersDto,
+    ) => {
+        if (entity.id == null || entity.id === '') {
+            // Kopie ohne Id (z. B. aus dem Zeitplan): wird wie ein neuer Dienst angelegt. Die Id
+            // der Antwort braucht der Dialog nicht; er erwartet für „Bearbeiten" ein `void`.
+            const result = await addWorkShift({path: {eventId}, body: formData})
+            return result.error ? result : {...result, data: undefined}
+        }
+        return updateWorkShift({
+            path: {eventId, workShiftId: entity.id},
+            body: formData,
+        })
+    }
 
     const defaultValues: WorkShiftUpsertDto = {
         workType: '',
@@ -88,7 +88,6 @@ const ShiftDialog = (props: BaseEntityDialogProps<WorkShiftWithAssignedUsersDto>
             showSaveAndNew={true}
             disableSave={!userCanEdit}
             addAction={addAction}
-            // @ts-expect-error Typ von editAction passt nicht zur Dialog-Signatur (vorbestehend)
             editAction={editAction}>
             <Stack spacing={4}>
                 <FormInputAutocomplete

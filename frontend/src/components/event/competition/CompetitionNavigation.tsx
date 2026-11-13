@@ -422,6 +422,29 @@ const CompetitionNavigation = ({
             </IconButton>
         )
 
+    // Solange die Liste lädt, steht die Gruppe schon da (deaktiviert, gleiche Größe) - sonst
+    // springt der Seitenkopf, sobald sie eintrifft.
+    const navigationPlaceholder =
+        user.loggedIn && pending && competitions.length === 0 ? (
+            <Stack
+                direction={'row'}
+                spacing={0.5}
+                sx={{alignItems: 'center', justifyContent: {xs: 'space-between', sm: 'flex-start'}}}
+                role={'group'}
+                aria-busy={true}
+                aria-label={t('event.competition.page.navigationLabel')}>
+                <IconButton disabled aria-label={t('event.competition.page.previous')}>
+                    <NavigateBefore />
+                </IconButton>
+                <Button variant={'outlined'} startIcon={<ChevronLeft />} disabled>
+                    {t('event.competition.competitions')}
+                </Button>
+                <IconButton disabled aria-label={t('event.competition.page.next')}>
+                    <NavigateNext />
+                </IconButton>
+            </Stack>
+        ) : null
+
     const navigation = showList ? (
         <Stack
             direction={'row'}
@@ -440,7 +463,9 @@ const CompetitionNavigation = ({
             </Button>
             {stepButton(next, t('event.competition.page.next'), <NavigateNext />)}
         </Stack>
-    ) : null
+    ) : (
+        navigationPlaceholder
+    )
 
     return (
         <Stack spacing={0}>
