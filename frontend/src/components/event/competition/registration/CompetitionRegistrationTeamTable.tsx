@@ -3,7 +3,9 @@ import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {competitionRoute, eventRoute} from '@routes'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
-import {useMemo, useRef, useState} from 'react'
+import {useMemo, useState} from 'react'
+import {downloadBlob} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import EntityTable from '@components/EntityTable.tsx'
 import {
     Box,
@@ -16,7 +18,6 @@ import {
     DialogTitle,
     Divider,
     IconButton,
-    Link,
     Stack,
     Switch,
     Table,
@@ -87,8 +88,6 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
 
     const {eventId} = eventRoute.useParams()
     const {competitionId} = competitionRoute.useParams()
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const showChallengeError = (error: ExecutionApiError) => {
         feedback.error(
@@ -814,6 +813,9 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                                                       </Typography>
                                                   }>
                                                   <IconButton
+                                                      aria-label={t(
+                                                          'event.competition.execution.results.challenge.submitResults',
+                                                      )}
                                                       onClick={() => openResultsDialog(row)}>
                                                       <Add />
                                                   </IconButton>
@@ -833,23 +835,23 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
     )
 
     const handleDownloadResultDocument = async (docId: string, docName: string) => {
-        const {data, error} = await downloadMatchTeamResultDocument({
-            path: {
-                eventId,
-                competitionId,
-                resultDocumentId: docId,
-            },
-        })
-        const anchor = downloadRef.current
+        // Dateiname ist hier der Name des Dokuments, nicht die Kopfzeile der Antwort.
+        const {data, error} = await runRequest(undefined, () =>
+            downloadMatchTeamResultDocument({
+                path: {
+                    eventId,
+                    competitionId,
+                    resultDocumentId: docId,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.competition.execution.results.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = docName
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (data !== undefined) {
+            downloadBlob(data, docName)
         }
     }
 
@@ -906,7 +908,6 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
 
     return (
         <>
-            <Link ref={downloadRef} display={'none'}></Link>
             <EntityTable
                 {...props}
                 parentResource={'REGISTRATION'}

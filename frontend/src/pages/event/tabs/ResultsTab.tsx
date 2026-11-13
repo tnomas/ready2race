@@ -1,5 +1,5 @@
-import {useRef, useState} from 'react'
-import {Box, Button, Card, Link as MuiLink, Stack} from '@mui/material'
+import {useState} from 'react'
+import {Box, Button, Card, Stack} from '@mui/material'
 import EmojiEvents from '@mui/icons-material/EmojiEvents'
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined'
 import FormatListNumbered from '@mui/icons-material/FormatListNumbered'
@@ -16,7 +16,8 @@ import {
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {ButtonLink, SectionHeader} from '@components/ui'
 import SplitButton from '@components/SplitButton.tsx'
 import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
@@ -40,7 +41,6 @@ const ResultsTab = ({event}: Props) => {
     const user = useUser()
     const feedback = useFeedback()
     const {confirmAction} = useConfirmation()
-    const downloadRef = useRef<HTMLAnchorElement>(null)
     const eventId = event.id
 
     const [awardCertificateOpen, setAwardCertificateOpen] = useState(false)
@@ -57,28 +57,26 @@ const ResultsTab = ({event}: Props) => {
     )
     const can = (action: (typeof actions)[number]) => actions.includes(action)
 
-    const saveBlob = (blob: Blob, filename: string) => {
-        const anchor = downloadRef.current
-        if (!anchor) return
-        anchor.href = URL.createObjectURL(blob)
-        anchor.download = filename
-        anchor.click()
-        anchor.href = ''
-        anchor.download = ''
-    }
-
     const handleResultsDownload = async () => {
-        const {data, error, response} = await downloadEventResults({path: {eventId}})
-        if (error) {
+        const {error} = await runDownload(
+            undefined,
+            () => downloadEventResults({path: {eventId}}),
+            'event-results.pdf',
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.results.downloadError'))
-        } else if (data !== undefined) {
-            saveBlob(data, getFilename(response) ?? 'event-results.pdf')
         }
     }
 
     const handleCertificateSending = async () => {
-        const {error} = await sendCertificatesToParticipants({path: {eventId}})
-        if (error) {
+        const {error} = await runRequest(undefined, () =>
+            sendCertificatesToParticipants({path: {eventId}}),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('event.action.sendCertificatesSucceeded'))
@@ -86,14 +84,15 @@ const ResultsTab = ({event}: Props) => {
     }
 
     const handleClubCertificatesDownload = async (format: 'pdf' | 'docx') => {
-        const {data, error, response} = await downloadCertificatesOfParticipation({
-            path: {eventId},
-            query: {format},
-        })
-        if (error) {
+        const {error} = await runDownload(
+            undefined,
+            () => downloadCertificatesOfParticipation({path: {eventId}, query: {format}}),
+            'certificates_of_participation.zip',
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
-        } else if (data !== undefined) {
-            saveBlob(data, getFilename(response) ?? 'certificates_of_participation.zip')
         }
     }
 
@@ -110,7 +109,6 @@ const ResultsTab = ({event}: Props) => {
 
     return (
         <Stack spacing={2}>
-            <MuiLink ref={downloadRef} display={'none'} />
             <Card sx={cardSx}>
                 <SectionHeader
                     level={3}

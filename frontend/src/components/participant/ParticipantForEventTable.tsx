@@ -27,7 +27,7 @@ import {
 } from '@mui/icons-material'
 import ParticipantRequirementLogDialog from '@components/event/participantRequirement/ParticipantRequirementLogDialog.tsx'
 import SplitButton, {SplitButtonOption} from '@components/SplitButton.tsx'
-import {Fragment, useMemo, useRef, useState} from 'react'
+import {Fragment, useMemo, useState} from 'react'
 import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
 import ParticipantRequirementApproveManuallyForEventDialog, {
     ParticipantRequirementApproveManuallyForEventForm,
@@ -37,7 +37,7 @@ import ParticipantRequirementCheckForEventUploadFileDialog
 import OpenRequirementExportDialog
     from '@components/event/participantRequirement/OpenRequirementExportDialog.tsx'
 import {HtmlTooltip} from '@components/HtmlTooltip.tsx'
-import {Box, Link, Stack, Typography, useMediaQuery, useTheme} from '@mui/material'
+import {Box, Stack, Typography, useMediaQuery, useTheme} from '@mui/material'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {
     readRegistrationGlobal,
@@ -49,7 +49,8 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {deleteQrCode} from '@api/sdk.gen.ts'
 import {QrCodeEditDialog} from '@components/participant/QrCodeEditDialog.tsx'
 import QrCodeIcon from '@mui/icons-material/QrCode'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 import {participationCertificateErrorKey} from '@components/certificate/certificateError.ts'
 import ParticipantTrackingDialog from '@components/event/participantTracking/ParticipantTrackingDialog.tsx'
 
@@ -77,7 +78,6 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('lg'))
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const [editDialogOpen, setEditDialogOpen] = useState(false)
     const [editQrParticipant, setEditQrParticipant] = useState<ParticipantForEventDto | null>(null)
@@ -548,28 +548,25 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
         entity: ParticipantForEventDto,
         format: 'pdf' | 'docx' = 'pdf',
     ) => {
-        const {data, error, response} = await downloadCertificateOfParticipation({
-            path: {
-                eventId,
-                participantId: entity.id,
-            },
-            query: {format},
-        })
+        const {error} = await runDownload(
+            undefined,
+            () =>
+                downloadCertificateOfParticipation({
+                    path: {
+                        eventId,
+                        participantId: entity.id,
+                    },
+                    query: {format},
+                }),
+            `certificate_of_participation_${eventData.name}_${entity.firstname}_${entity.lastname}.${format}`,
+        )
 
-        const anchor = downloadRef.current
-
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             // Bis hierher stand der englische Backend-Satz ("No results in this event for this
             // participant") mitten in der deutschen Oberfläche.
             feedback.error(t(participationCertificateErrorKey(error)))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(new Blob([data])) // TODO: @Memory: revokeObjectURL() when done
-            anchor.download =
-                getFilename(response) ??
-                `certificate_of_participation_${eventData.name}_${entity.firstname}_${entity.lastname}.${format}`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
@@ -673,7 +670,6 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
                 open={openRequirementExportOpen}
                 onClose={() => setOpenRequirementExportOpen(false)}
                 requirements={requirementsData?.data ?? []}
-                downloadRef={downloadRef}
             />
             <EntityTable
                 {...props}
@@ -703,7 +699,6 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
                 entityName={t('club.participant.title')}
                 mobileBreakpoint={'lg'}
             />
-            <Link ref={downloadRef} display={'none'}></Link>
         </Fragment>
     )
 }

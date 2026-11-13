@@ -6,7 +6,6 @@ import {
     Divider,
     Grid2,
     IconButton,
-    Link,
     ListItemText,
     Stack,
     Tooltip,
@@ -17,8 +16,9 @@ import {downloadCompetitionPlacesCsv, getCompetitionPlaces} from '@api/sdk.gen.t
 import {competitionRoute, eventRoute} from '@routes'
 import {useTranslation} from 'react-i18next'
 import Throbber from '@components/Throbber.tsx'
-import {getFilename} from '@utils/helpers.ts'
-import {useRef, useState} from 'react'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
+import {useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {readEventGlobal} from '@authorization/privileges.ts'
 import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
@@ -69,30 +69,27 @@ const CompetitionPlaces = () => {
     const [awardCeremonyDialogOpen, setAwardCeremonyDialogOpen] = useState(false)
     const [resultListDialogOpen, setResultListDialogOpen] = useState(false)
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
     const handleDownloadCompetitionPlacesCSV = async () => {
-        const {data, error, response} = await downloadCompetitionPlacesCsv({
-            path: {
-                eventId,
-                competitionId,
-            },
-        })
-        const anchor = downloadRef.current
+        const {error} = await runDownload(
+            undefined,
+            () =>
+                downloadCompetitionPlacesCsv({
+                    path: {
+                        eventId,
+                        competitionId,
+                    },
+                }),
+            `Places-${competitionId}.csv`,
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 409) {
                 feedback.error(t('event.competition.execution.startList.error.missingStartTime'))
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
-        } else if (data !== undefined && anchor) {
-            // need Blob constructor for text/csv
-            anchor.href = URL.createObjectURL(new Blob([data])) // TODO: @Memory: revokeObjectURL() when done
-            anchor.download =
-                getFilename(response) ?? `Places-${competitionId}.${'CSV'.toLowerCase()}`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
@@ -105,7 +102,6 @@ const CompetitionPlaces = () => {
     return placesData ? (
         placesData.length > 0 ? (
             <>
-                <Link ref={downloadRef} display={'none'}></Link>
                 <Stack spacing={2}>
                     <Stack
                         direction={'row'}

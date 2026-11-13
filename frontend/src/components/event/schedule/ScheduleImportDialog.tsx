@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
     alpha,
@@ -11,7 +11,6 @@ import {
     DialogContent,
     DialogTitle,
     FormControlLabel,
-    Link,
     Stack,
     Table,
     TableBody,
@@ -36,6 +35,8 @@ import {
     visibleImportRows,
 } from './importSummary.ts'
 import {ScheduleErrorText, importErrorText} from './scheduleError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {runDownload} from '@utils/download.ts'
 
 type Props = {
     eventId: string
@@ -78,8 +79,6 @@ const ScheduleImportDialog = ({eventId, open, onClose, reloadData, slots}: Props
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
-
     const [file, setFile] = useState<File | null>(null)
     const [rows, setRows] = useState<ImportRowResultDto[] | null>(null)
     const [previewError, setPreviewError] = useState<ScheduleErrorText | null>(null)
@@ -104,17 +103,19 @@ const ScheduleImportDialog = ({eventId, open, onClose, reloadData, slots}: Props
     // Vorschau läuft automatisch nach jeder Dateiauswahl - eine neu gewählte Datei entwertet die
     // vorherige Vorschau sofort (rows wird zurückgesetzt), bis die neue Antwort da ist.
     const runPreview = async (selected: File) => {
-        setPreviewing(true)
         setPreviewError(null)
         setRows(null)
         setUnmatchedConfirmed(false)
         setOnlyNoteworthy(false)
-        const {data, error} = await importEventSchedule({
-            path: {eventId},
-            body: {file: selected, dryRun: true},
-        })
-        setPreviewing(false)
-        if (error) {
+        const {data, error} = await runRequest(setPreviewing, () =>
+            importEventSchedule({
+                path: {eventId},
+                body: {file: selected, dryRun: true},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 422) {
                 setPreviewError(importErrorText(error))
             } else {
@@ -133,19 +134,17 @@ const ScheduleImportDialog = ({eventId, open, onClose, reloadData, slots}: Props
     // Die Beispieldatei kommt aus dem Backend, damit ihre Kopfzeile nicht von der abweichen kann,
     // die der Import liest - siehe ScheduleImportTemplate.
     const handleDownloadTemplate = async () => {
-        const {data, error} = await downloadEventScheduleImportTemplate({path: {eventId}})
-        const anchor = downloadRef.current
+        const {downloaded, error} = await runDownload(
+            undefined,
+            () => downloadEventScheduleImportTemplate({path: {eventId}}),
+            'zeitstrahl-import-beispiel.xlsx',
+        )
 
-        if (error || data === undefined || !anchor) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error || !downloaded) {
             feedback.error(t('event.schedule.importDialog.templateError'))
-            return
         }
-
-        anchor.href = URL.createObjectURL(data)
-        anchor.download = 'zeitstrahl-import-beispiel.xlsx'
-        anchor.click()
-        anchor.href = ''
-        anchor.download = ''
     }
 
     // Der scharfe Import ist derselbe Request mit dryRun: false - siehe EventScheduleService.
@@ -160,13 +159,15 @@ const ScheduleImportDialog = ({eventId, open, onClose, reloadData, slots}: Props
         if (needsUnmatchedConfirmation(rows) && !unmatchedConfirmed) {
             return
         }
-        setApplying(true)
-        const {error} = await importEventSchedule({
-            path: {eventId},
-            body: {file, dryRun: false},
-        })
-        setApplying(false)
-        if (error) {
+        const {error} = await runRequest(setApplying, () =>
+            importEventSchedule({
+                path: {eventId},
+                body: {file, dryRun: false},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 422) {
                 setPreviewError(importErrorText(error))
             } else {
@@ -217,7 +218,6 @@ const ScheduleImportDialog = ({eventId, open, onClose, reloadData, slots}: Props
                         <Button size={'small'} onClick={handleDownloadTemplate}>
                             {t('event.schedule.importDialog.template')}
                         </Button>
-                        <Link ref={downloadRef} display={'none'}></Link>
                     </Stack>
                     {previewError && (
                         <Alert severity={'error'}>{t(previewError.key, previewError.values)}</Alert>

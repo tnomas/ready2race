@@ -14,9 +14,10 @@ import {useTranslation} from 'react-i18next'
 import {exportOpenParticipantRequirements} from '@api/sdk.gen.ts'
 import {ParticipantRequirementForEventDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
 import {eventIndexRoute} from '@routes'
 import LoadingButton from '@components/form/LoadingButton.tsx'
+import {isRequestNetworkError} from '@utils/request.ts'
 
 /**
  * Auswahlwert für "alle aktiven Bedingungen". Bewusst ein eigenes Kürzel und kein leerer
@@ -30,15 +31,13 @@ type Props = {
     onClose: () => void
     /** Die an der Veranstaltung aktiven Bedingungen. */
     requirements: ParticipantRequirementForEventDto[]
-    /** Anker für den Download, wird von der Tabelle gestellt. */
-    downloadRef: React.RefObject<HTMLAnchorElement>
 }
 
 /**
  * Zieht die Liste der Gemeldeten, denen noch Bedingungen fehlen - Grundlage dafür, die
  * betroffenen Vereine anzuschreiben.
  */
-const OpenRequirementExportDialog = ({open, onClose, requirements, downloadRef}: Props) => {
+const OpenRequirementExportDialog = ({open, onClose, requirements}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
     const {eventId} = eventIndexRoute.useParams()
@@ -47,28 +46,26 @@ const OpenRequirementExportDialog = ({open, onClose, requirements, downloadRef}:
     const [pending, setPending] = useState(false)
 
     const handleExport = async () => {
-        setPending(true)
-        const {data, error, response} = await exportOpenParticipantRequirements({
-            path: {eventId},
-            query: requirementId === ALL ? {} : {requirementId},
-        })
-        setPending(false)
+        const {downloaded, error} = await runDownload(
+            setPending,
+            () =>
+                exportOpenParticipantRequirements({
+                    path: {eventId},
+                    query: requirementId === ALL ? {} : {requirementId},
+                }),
+            'offene-Bedingungen.xlsx',
+        )
 
-        const anchor = downloadRef.current
-
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
         if (error) {
             feedback.error(t('event.participantRequirement.openExport.error'))
             return
         }
 
-        if (data !== undefined && anchor) {
-            const url = URL.createObjectURL(new Blob([data]))
-            anchor.href = url
-            anchor.download = getFilename(response) ?? 'offene-Bedingungen.xlsx'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
-            URL.revokeObjectURL(url)
+        if (downloaded) {
             onClose()
         }
     }
