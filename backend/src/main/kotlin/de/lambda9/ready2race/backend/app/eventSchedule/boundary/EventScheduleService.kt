@@ -98,6 +98,7 @@ object EventScheduleService {
                     matchActivatedAt = r.get("match_activated_at", java.time.LocalDateTime::class.java),
                     matchStartedAt = r.get("match_started_at", java.time.LocalDateTime::class.java),
                     matchFinishedAt = r.get("match_finished_at", java.time.LocalDateTime::class.java),
+                    matchClarificationSince = r.get("match_clarification_since", java.time.LocalDateTime::class.java),
                     bye = byeByMatch[r[COMPETITION_SETUP_MATCH.ID]],
                 )
             }

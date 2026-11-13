@@ -94,6 +94,8 @@ data class UnplannedSetupMatchDto(
     val matchActivatedAt: java.time.LocalDateTime? = null,
     val matchStartedAt: java.time.LocalDateTime? = null,
     val matchFinishedAt: java.time.LocalDateTime? = null,
+    /** Wie [EventScheduleSlotDto.matchClarificationSince]: gesetzt heißt „in Klärung". */
+    val matchClarificationSince: java.time.LocalDateTime? = null,
     val bye: de.lambda9.ready2race.backend.app.matchStatus.entity.MatchByeDto? = null,
 )
 

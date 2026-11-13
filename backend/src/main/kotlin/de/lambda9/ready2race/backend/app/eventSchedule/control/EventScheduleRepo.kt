@@ -313,6 +313,7 @@ object EventScheduleRepo {
             COMPETITION_MATCH.ACTIVATED_AT.`as`("match_activated_at"),
             COMPETITION_MATCH.STARTED_AT.`as`("match_started_at"),
             COMPETITION_MATCH.FINISHED_AT.`as`("match_finished_at"),
+            COMPETITION_MATCH.CLARIFICATION_SINCE.`as`("match_clarification_since"),
         )
             .from(COMPETITION_SETUP_MATCH)
             .join(COMPETITION_SETUP_ROUND)

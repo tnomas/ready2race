@@ -5210,6 +5210,10 @@ export type UnplannedSetupMatchDto = {
     matchActivatedAt?: string | null
     matchStartedAt?: string | null
     matchFinishedAt?: string | null
+    /**
+     * competition_match.clarification_since - set means 'under clarification', which beats 'preparing'/'running' in the state derivation, as for EventScheduleSlotDto. The reason stays internal. Null while the match does not exist.
+     */
+    matchClarificationSince?: string | null
     bye?: MatchByeDto | null
 }
 

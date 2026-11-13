@@ -355,16 +355,21 @@ export const unplannedMatchStatus = (match: UnplannedSetupMatchDto): MatchStatus
     const hasMatchState =
         match.matchActivatedAt != null ||
         match.matchStartedAt != null ||
-        match.matchFinishedAt != null
+        match.matchFinishedAt != null ||
+        match.matchClarificationSince != null
     if (!hasMatchState && !match.bye) return null
 
-    const state = match.matchActivatedAt
-        ? match.matchStartedAt
-            ? 'RUNNING'
-            : 'PREPARING'
-        : match.matchFinishedAt
-          ? 'FINISHED'
-          : 'UNSCHEDULED'
+    // Klärung ganz vorn, aber nicht vor „beendet" - wie slotMatchStatus und deriveMatchState.
+    const state =
+        match.matchClarificationSince && !match.matchFinishedAt
+            ? 'CLARIFICATION'
+            : match.matchActivatedAt
+              ? match.matchStartedAt
+                  ? 'RUNNING'
+                  : 'PREPARING'
+              : match.matchFinishedAt
+                ? 'FINISHED'
+                : 'UNSCHEDULED'
 
     return {
         state,

@@ -70,6 +70,30 @@ const pendingSlot = (over: Partial<PendingSlotDto> = {}): PendingSlotDto => ({
 })
 
 describe('scheduleSlotState', () => {
+    it('zeigt einen strittigen Lauf als Klärung - dieselbe Ableitung wie der Chip (slotMatchStatus)', () => {
+        // Befund 13.11.2026: Balken „läuft", Chip „Klärung".
+        expect(
+            scheduleSlotState(
+                slot('2026-08-17T08:00:00', {
+                    state: 'LINKED',
+                    matchId: 'm1',
+                    matchActivatedAt: '2026-08-17T07:58:00',
+                    matchStartedAt: '2026-08-17T08:01:00',
+                    matchClarificationSince: '2026-08-17T08:20:00',
+                }),
+            ),
+        ).toBe('clarification')
+        expect(
+            scheduleSlotState(
+                slot('2026-08-17T08:00:00', {
+                    state: 'LINKED',
+                    matchId: 'm1',
+                    matchFinishedAt: '2026-08-17T08:25:00',
+                    matchClarificationSince: '2026-08-17T08:20:00',
+                }),
+            ),
+        ).toBe('finished')
+    })
     it('maps a finished slot regardless of its raw state', () => {
         expect(
             scheduleSlotState(
