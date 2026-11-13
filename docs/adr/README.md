@@ -2,7 +2,7 @@
 
 Dieser Ordner ist das Entscheidungsgedächtnis von ready2race. Jede Entscheidung mit Dauerwirkung bekommt ein ADR nach [`template.md`](template.md) mit fortlaufender Nummer. ADRs werden nicht umgeschrieben, sondern durch neue ersetzt; der Status verweist dann auf den Nachfolger. Verworfene Alternativen und wieder ausgebaute Features gehören ausdrücklich hinein.
 
-ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12-19), den Specs und Plänen unter `docs/superpowers/` und Arbeitsnotizen rekonstruiert und sind entsprechend gekennzeichnet. Die Nummern folgen dem Datum der Entscheidung, nicht dem Thema. Wie der Ordner gepflegt wird, steht in [ADR-0102](0102-ki-faehiges-repository.md) und in `AGENTS.md`, Abschnitt 11.
+ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12-19), den Specs und Plänen unter `docs/superpowers/` und Arbeitsnotizen rekonstruiert und sind entsprechend gekennzeichnet. Die Nummern folgen dem Datum der Entscheidung, nicht dem Thema. Wie der Ordner gepflegt wird, steht in [ADR-0102](0102-ki-faehiges-repository.md) und in `AGENTS.md`, Abschnitt 11. ADR-0103 bis ADR-0108 (2026-11-13) wurden mit der Umsetzung des Review-Zweigs geschrieben und nicht rekonstruiert.
 
 ## Nach Thema
 
@@ -35,6 +35,7 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0034](0034-eigenes-bild-captcha.md) Eigenes Bild-Captcha im Backend statt externem Dienst
 - [ADR-0035](0035-nutzer-onboarding-einladung-ohne-delete-privileg.md) Nutzer-Onboarding: Selbstregistrierung mit Verifikation, Einladung mit Rollen, Passwort-Reset; Einladungen zurückziehen ohne DELETE-Privileg
 - [ADR-0088](0088-timing-websocket-und-geraete-token.md) Timing-WebSocket mit Auth per Subprotokoll und Broadcast nach Commit; Geräte-Token als eine Infrastruktur für Posten, Boards und Szenen; Zeitnahme-Routen unter der Veranstaltung
+- [ADR-0106](0106-rueckruf-adressen-in-mails-gegen-frontend-origins-pruefen.md) Rückruf-Adressen in Mails werden gegen `FRONTEND_ORIGINS` bzw. den Host der Anfrage geprüft
 
 ### API und Fehlerbehandlung
 
@@ -50,6 +51,9 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0033](0033-entitytable-entitydialog-grundmuster.md) Generische EntityTable und EntityDialog als Grundmuster; mobile Karten statt Tabellen
 - [ADR-0081](0081-kurzbezeichner-kennung-kuerzel-sportneutral.md) Kurzbezeichner überall: Kennung plus Kürzel; Startnummer ist die Bahn; sportneutrale Begriffe und deutsche Umlaute
 - [ADR-0086](0086-veranstaltungsmodus-zeitplan-split-und-hinweisbanner.md) Veranstaltungs-Modus im Zeitplan (Split-Layout) statt zweitem Zeitplan-Zugang; Wettkampfseite mit Rücklink; veranstaltungsweiter Hinweisbanner
+- [ADR-0103](0103-veranstaltungsbereiche-seitenleiste-breadcrumbs-tiefe-links.md) Veranstaltungsbereiche in der Seitenleiste nach Lebenszyklus, Seitenkopf mit Breadcrumbs, Reiter per Suchparameter
+- [ADR-0104](0104-zwei-oberflaechen-drei-theme-geltungsbereiche.md) Zwei Oberflächen, drei Theme-Geltungsbereiche; je Lauf eine Primäraktion, Seltenes in ein flaches Menü
+- [ADR-0105](0105-frontend-anfragen-netzfehler-runrequest-download-sitzung-lazy.md) Frontend-Anfragen: Netzfehler als eigener Fall, `runRequest`, ein Download-Helfer, Sitzungsrichtlinie, alle Seiten lazy
 
 ### Domäne: Veranstaltung, Meldung, Wettkampf
 
@@ -145,6 +149,7 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0031](0031-auslieferung-fat-jar-getrenntes-frontend.md) Auslieferung als Fat-Jar, Frontend getrennt gebaut; Docker-Build aus dem Repo entfernt; skipCodegen für Dev-Builds
 - [ADR-0048](0048-smtp-override-administration-dev-whitelist.md) SMTP-Konfiguration aus der Datenbank; Privileg-Ressource ADMINISTRATION; E-Mail-Whitelist im Entwicklungsmodus
 - [ADR-0083](0083-datenschutz-prod-abzuege-und-datenschutzseite.md) Datenschutz: Produktionsabzüge bleiben aus der Historie; Datenschutzseite statt Consent-Banner — *angenommen (Seite im Fork-main derzeit nicht vorhanden, siehe D4)*
+- [ADR-0107](0107-backend-laufzeit-io-dispatcher-pool-argon2-zeitzone-health.md) Backend-Laufzeit: IO-Dispatcher, Pool mit Statement-Timeout, Sitzungsverlängerung, Argon2-Parameter, `AppZone`, Healthcheck, Proxy-Annahme
 
 ### Prozess und Arbeitsweise
 
@@ -155,6 +160,7 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0100](0100-fork-arbeitsweise-worktrees-merge-richtung-build-db.md) Fork-Arbeitsweise: Sammelzweig, Upstream-Merge-Requests, dann fork/main; Merge-Richtung, ein Worktree je Session, eigene Build-Datenbank, Archiv-Tags statt Zweige
 - [ADR-0101](0101-sprach-und-commit-regeln-keine-herkunftsangaben.md) Sprach- und Commit-Regeln: Deutsch mit Umlauten im Fork, Englisch für Upstream-Merge-Requests, keine KI-Attribution, keine Herkunftsangaben
 - [ADR-0102](0102-ki-faehiges-repository.md) KI-fähiges Repository: AGENTS.md und CLAUDE.md versioniert, ADR-Ordner als Entscheidungsgedächtnis — *angenommen (ersetzt ADR-0053)*
+- [ADR-0108](0108-backend-tests-template-datenbank-committing-concurrent.md) Backend-Tests: Template-Datenbank statt Neumigration, `testCommittingComprehension` und `ConcurrentTx`
 
 ## Chronologisch
 
@@ -262,3 +268,9 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 | [0100](0100-fork-arbeitsweise-worktrees-merge-richtung-build-db.md) | 2026-08-03 | Fork-Arbeitsweise: Sammelzweig, Upstream-Merge-Requests, dann fork/main; Merge-Richtung, ein Worktree je Session, eigene Build-Datenbank, Archiv-Tags statt Zweige | angenommen |
 | [0101](0101-sprach-und-commit-regeln-keine-herkunftsangaben.md) | 2026-08-06 | Sprach- und Commit-Regeln: Deutsch mit Umlauten im Fork, Englisch für Upstream-Merge-Requests, keine KI-Attribution, keine Herkunftsangaben | angenommen |
 | [0102](0102-ki-faehiges-repository.md) | 2026-09-07 | KI-fähiges Repository: AGENTS.md und CLAUDE.md versioniert, ADR-Ordner als Entscheidungsgedächtnis | angenommen (ersetzt ADR-0053) |
+| [0103](0103-veranstaltungsbereiche-seitenleiste-breadcrumbs-tiefe-links.md) | 2026-11-13 | Veranstaltungsbereiche in der Seitenleiste nach Lebenszyklus, Seitenkopf mit Breadcrumbs, Reiter per Suchparameter | angenommen |
+| [0104](0104-zwei-oberflaechen-drei-theme-geltungsbereiche.md) | 2026-11-13 | Zwei Oberflächen, drei Theme-Geltungsbereiche; je Lauf eine Primäraktion, Seltenes in ein flaches Menü | angenommen |
+| [0105](0105-frontend-anfragen-netzfehler-runrequest-download-sitzung-lazy.md) | 2026-11-13 | Frontend-Anfragen: Netzfehler als eigener Fall, `runRequest`, ein Download-Helfer, Sitzungsrichtlinie, alle Seiten lazy | angenommen |
+| [0106](0106-rueckruf-adressen-in-mails-gegen-frontend-origins-pruefen.md) | 2026-11-13 | Rückruf-Adressen in Mails werden gegen `FRONTEND_ORIGINS` bzw. den Host der Anfrage geprüft | angenommen |
+| [0107](0107-backend-laufzeit-io-dispatcher-pool-argon2-zeitzone-health.md) | 2026-11-13 | Backend-Laufzeit: IO-Dispatcher, Pool mit Statement-Timeout, Sitzungsverlängerung, Argon2-Parameter, `AppZone`, Healthcheck, Proxy-Annahme | angenommen |
+| [0108](0108-backend-tests-template-datenbank-committing-concurrent.md) | 2026-11-13 | Backend-Tests: Template-Datenbank statt Neumigration, `testCommittingComprehension` und `ConcurrentTx` | angenommen |
