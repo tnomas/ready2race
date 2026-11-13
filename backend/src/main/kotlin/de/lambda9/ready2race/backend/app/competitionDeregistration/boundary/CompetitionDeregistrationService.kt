@@ -16,10 +16,11 @@ import de.lambda9.ready2race.backend.app.competitionRegistration.control.Competi
 import de.lambda9.ready2race.backend.app.competitionRegistration.entity.CompetitionRegistrationError
 import de.lambda9.ready2race.backend.app.competitionSetup.boundary.CompetitionSetupService
 import de.lambda9.ready2race.backend.app.event.boundary.EventService
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
+import de.lambda9.ready2race.backend.app.timing.boundary.TimingMatchService
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
-import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onTrueFail
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
@@ -35,8 +36,12 @@ object CompetitionDeregistrationService {
         competitionRegistrationId: UUID,
         request: CompetitionDeregistrationRequest,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
-        !CompetitionRegistrationRepo.exists(competitionRegistrationId).orDie()
-            .onFalseFail { CompetitionRegistrationError.NotFound }
+        // Die Meldung muss zu DIESEM Wettkampf gehören. Sonst rechnete der Rest mit den Runden
+        // eines fremden (womöglich rundenlosen) Wettkampfs: "nicht in der aktuellen Runde" und
+        // "Wertung begonnen" griffen nicht, und die Abmeldung wäre ohne Runde gespeichert für
+        // immer entsperrt.
+        !CompetitionRegistrationRepo.findByIdAndCompetitionId(competitionRegistrationId, competitionId).orDie()
+            .onNullFail { CompetitionRegistrationError.NotFound }
 
         !CompetitionDeregistrationRepo.exists(competitionRegistrationId).orDie().onTrueFail {
             CompetitionDeregistrationError.AlreadyExists
@@ -73,6 +78,8 @@ object CompetitionDeregistrationService {
 
         val record = !request.toRecord(userId, competitionRegistrationId, currentRound?.setupRoundId)
         !CompetitionDeregistrationRepo.create(record).orDie()
+
+        announce(competition.event!!)
         noData
     }
 
@@ -80,6 +87,9 @@ object CompetitionDeregistrationService {
         competitionId: UUID,
         competitionRegistrationId: UUID
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+
+        !CompetitionRegistrationRepo.findByIdAndCompetitionId(competitionRegistrationId, competitionId).orDie()
+            .onNullFail { CompetitionRegistrationError.NotFound }
 
         val deregistration = !CompetitionDeregistrationRepo.get(competitionRegistrationId).orDie()
             .onNullFail { CompetitionDeregistrationError.NotFound }
@@ -100,7 +110,21 @@ object CompetitionDeregistrationService {
 
         !CompetitionDeregistrationRepo.delete(competitionRegistrationId).orDie()
 
+        val competition = !CompetitionRepo.getById(competitionId).orDie()
+            .onNullFail { CompetitionError.CompetitionNotFound }
+        announce(competition.event!!)
+
         noData
+    }
+
+    /**
+     * Die Abmeldung speist Laufzustand, die „abgemeldet"-Anzeige auf Boards und „Mein Event"
+     * und die Startlisten der Posten - also Marker bumpen (Boards, Stream, Info-Kanal) und den
+     * Zeitnahme-Kanal anstoßen. Beides wirkt erst nach dem Commit.
+     */
+    private fun announce(eventId: UUID) {
+        EventChangeMarker.bump(eventId)
+        TimingMatchService.broadcastMatchesChanged(eventId)
     }
 
 }
