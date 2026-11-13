@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.eventRegistration.boundary
 import com.fasterxml.jackson.module.kotlin.readValue
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.email.entity.EmailAttachment
+import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationUpsertDto
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationViewSort
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.ParticipantRegisterRequest
@@ -139,7 +140,9 @@ fun Route.eventRegistration() {
         call.respondComprehension {
             val user = !authenticate()
             val eventId = !pathParam("eventId", uuid)
-            EventRegistrationService.getEventRegistrationTemplate(eventId, user.club!!)
+            // Konten ohne Verein (z.B. Admin) bekommen einen sprechenden Fehler statt 500.
+            val clubId = !KIO.failOnNull(user.club) { EventRegistrationError.OnlyAvailableForClubUsers }
+            EventRegistrationService.getEventRegistrationTemplate(eventId, clubId)
         }
     }
 
