@@ -16,7 +16,12 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.TimingAss
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceEntryRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingStartSequenceRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.TimingTimeMarkRecord
+import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
+import de.lambda9.tailwind.core.extensions.exit.fold
+import de.lambda9.tailwind.jooq.transact
+import io.github.oshai.kotlinlogging.KotlinLogging
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
@@ -33,6 +38,9 @@ import java.util.UUID
  * [fireDueEntries] is called from the scheduler and documents its own transaction/broadcast contract.
  */
 object TimingSequenceService {
+
+    private val logger = KotlinLogging.logger {}
+
 
     /** How long a finished sequence still counts as "active" for [getActiveSequence]'s fallback. */
     private val RECENT_TERMINAL_WINDOW: Duration = Duration.ofMinutes(10)
@@ -631,13 +639,46 @@ object TimingSequenceService {
         if (running.isEmpty()) return@comprehension KIO.ok(FireResult.empty)
 
         val outcomes = !running.traverse { sequence -> fireSequence(sequence, now) }
-        KIO.ok(
-            FireResult(
-                fired = outcomes.flatMap { it.fired },
-                changedSequences = outcomes.mapNotNull { it.changed },
-            )
-        )
+        KIO.ok(outcomes.toFireResult())
     }
+
+    /**
+     * Der Weg des Sekunden-Jobs: wie [fireDueEntries], aber jede Sequenz in ihrer EIGENEN
+     * Transaktion. Bisher lief der ganze Tick über alle Veranstaltungen in einer Transaktion -
+     * ein Defekt in einer einzigen Sequenz (ein `!!` in der Übernahmekette, ein verschwundenes
+     * Team) rollte alles zurück, und weil der nächste Tick wieder scheiterte, feuerte keine
+     * Startsequenz irgendeiner Veranstaltung mehr. Jetzt wird der Defekt geloggt, die Sequenz
+     * übersprungen, die übrigen feuern. Das Ergebnis enthält nur committete Teile, damit
+     * [broadcastFireResult] nichts meldet, was zurückgerollt wurde (Muster wie
+     * `RaceClockerPollService.runIsolated`).
+     *
+     * Idempotent bleibt es über [TimingSequenceEntryRepo.getPendingForUpdate] je Sequenz.
+     */
+    fun fireDueEntriesIsolated(env: JEnv): FireResult {
+        val now = System.currentTimeMillis()
+        val running = TimingSequenceRepo.getRunning().orDie().unsafeRunSync(env).fold(
+            onSuccess = { it },
+            onError = { emptyList() },
+            onDefect = { throw it },
+        )
+        return running.mapNotNull { sequence ->
+            fireSequence(sequence, now).transact().unsafeRunSync(env).fold(
+                onSuccess = { it },
+                onError = { null },
+                onDefect = {
+                    logger.error(it) {
+                        "Startsequenz ${sequence.id} (Veranstaltung ${sequence.event}) ist beim Feuern unerwartet gescheitert; die übrigen laufen weiter."
+                    }
+                    null
+                },
+            )
+        }.toFireResult()
+    }
+
+    private fun List<SequenceOutcome>.toFireResult() = FireResult(
+        fired = flatMap { it.fired },
+        changedSequences = mapNotNull { it.changed },
+    )
 
     /**
      * Sends the websocket messages for a finished [fireDueEntries] run.
@@ -697,10 +738,19 @@ object TimingSequenceService {
     )
 
     private fun fireSequence(
-        sequence: TimingStartSequenceRecord,
+        snapshot: TimingStartSequenceRecord,
         now: Long,
     ): App<Nothing, SequenceOutcome> = KIO.comprehension {
-        val pending = !TimingSequenceEntryRepo.getPendingForUpdate(sequence.id).orDie()
+        val pending = !TimingSequenceEntryRepo.getPendingForUpdate(snapshot.id).orDie()
+        // Die Liste der laufenden Sequenzen wurde vor dieser Transaktion gelesen (der Job fährt
+        // jede Sequenz einzeln, siehe [fireDueEntriesIsolated]). Pause und Abbruch nehmen dieselbe
+        // Eintragssperre; was nach ihr in der Zeile steht, ist der gültige Stand. Nicht mehr
+        // RUNNING heißt: nichts feuern. Der frische Stand trägt auch eine inzwischen gebuchte
+        // Pausenverschiebung.
+        val sequence = !TimingSequenceRepo.get(snapshot.id).orDie()
+        if (sequence == null || sequence.state != SequenceState.RUNNING.name) {
+            return@comprehension KIO.ok(SequenceOutcome(emptyList(), null))
+        }
         val due = pending.filter { entry ->
             val planned = plannedStartMillis(sequence, entry.position)
             planned != null && planned <= now

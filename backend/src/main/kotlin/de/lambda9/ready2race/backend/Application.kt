@@ -22,6 +22,8 @@ import de.lambda9.ready2race.backend.database.initializeDatabase
 import de.lambda9.ready2race.backend.plugins.*
 import de.lambda9.ready2race.backend.schedule.DynamicIntervalJobState
 import de.lambda9.ready2race.backend.schedule.Scheduler
+import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.recoverDefault
 import de.lambda9.tailwind.jooq.transact
 import io.github.cdimascio.dotenv.dotenv
@@ -174,8 +176,9 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
             // Countdowns am Start still, während die Boards weiterzählen. Zwei Sekunden geben dem
             // Verbindungspool Luft und halten den nächsten Start trotzdem im Fenster.
             scheduleDynamic("Fire due start sequence entries", 1.seconds, defectDelay = 2.seconds) {
-                TimingSequenceService.fireDueEntries()
-                    .transact()
+                // Je Sequenz eine eigene Transaktion: ein Defekt in einer Sequenz hält die
+                // Startsequenzen der übrigen Veranstaltungen nicht mehr an.
+                KIO.effect { TimingSequenceService.fireDueEntriesIsolated(env) }.orDie()
                     .map { result ->
                         TimingSequenceService.broadcastFireResult(result)
                         if (result.fired.isEmpty() && result.changedSequences.isEmpty()) {
