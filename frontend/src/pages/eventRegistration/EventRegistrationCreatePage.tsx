@@ -21,7 +21,8 @@ import {useBlocker, useNavigate} from '@tanstack/react-router'
 import {Alert, Box, Button, Stack} from '@mui/material'
 import {runRequest} from '@utils/request.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
-import {shouldConfirmDiscard} from '@utils/entityDialog.ts'
+import {shouldConfirmDiscard, shouldConfirmLeaving} from '@utils/entityDialog.ts'
+import {readSessionToken} from '@contexts/user/sessionToken.ts'
 import {
     buildRegistrationSummary,
     formatAmount,
@@ -161,8 +162,13 @@ const EventRegistrationCreatePage = () => {
         submitting,
     })
     useBlocker({
+        // Die Sitzung wird beim Navigieren gelesen, nicht beim Rendern: Das Abmelden löscht sie
+        // unmittelbar vor seiner Navigation, ein Render dazwischen ist nicht garantiert.
         shouldBlockFn: () =>
-            blockLeaving
+            shouldConfirmLeaving({
+                unsavedChanges: blockLeaving,
+                signedIn: readSessionToken(false, Date.now(), undefined, {migrate: false}) !== null,
+            })
                 ? new Promise<boolean>(resolve =>
                       confirmation.confirmAction(() => resolve(false), {
                           title: t('entity.discard.title'),

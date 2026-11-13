@@ -49,3 +49,17 @@ export const shouldConfirmDiscard = ({
     dirty: boolean
     submitting: boolean
 }): boolean => enabled && dirty && !submitting
+
+/**
+ * Ob das Verlassen einer Seite mit ungespeicherten Eingaben nachfragen soll. Ohne Sitzung nie:
+ * Das Abmelden räumt die Sitzung VOR der Navigation ab. Eine Rückfrage käme dann zu spät -
+ * „Bleiben" ließe die Person abgemeldet auf einer Seite sitzen, deren Eingaben sie nicht mehr
+ * absenden kann.
+ */
+export const shouldConfirmLeaving = ({
+    unsavedChanges,
+    signedIn,
+}: {
+    unsavedChanges: boolean
+    signedIn: boolean
+}): boolean => unsavedChanges && signedIn

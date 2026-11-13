@@ -1,5 +1,10 @@
 import {describe, expect, it} from 'vitest'
-import {DialogOpenState, shouldConfirmDiscard, shouldRunOnOpen} from './entityDialog.ts'
+import {
+    DialogOpenState,
+    shouldConfirmDiscard,
+    shouldConfirmLeaving,
+    shouldRunOnOpen,
+} from './entityDialog.ts'
 
 const state = (s: Partial<DialogOpenState>): DialogOpenState => ({
     open: true,
@@ -54,5 +59,19 @@ describe('shouldConfirmDiscard', () => {
     })
     it('fragt während des Speicherns nicht', () => {
         expect(shouldConfirmDiscard({enabled: true, dirty: true, submitting: true})).toBe(false)
+    })
+})
+
+describe('shouldConfirmLeaving', () => {
+    it('fragt bei ungespeicherten Eingaben und bestehender Sitzung nach', () => {
+        expect(shouldConfirmLeaving({unsavedChanges: true, signedIn: true})).toBe(true)
+    })
+
+    it('lässt die Navigation des Abmeldens durch, auch mit ungespeicherten Eingaben', () => {
+        expect(shouldConfirmLeaving({unsavedChanges: true, signedIn: false})).toBe(false)
+    })
+
+    it('ohne ungespeicherte Eingaben nie', () => {
+        expect(shouldConfirmLeaving({unsavedChanges: false, signedIn: true})).toBe(false)
     })
 })
