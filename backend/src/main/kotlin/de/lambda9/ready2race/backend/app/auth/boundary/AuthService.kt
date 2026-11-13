@@ -14,11 +14,15 @@ import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.recoverDefault
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import de.lambda9.tailwind.core.extensions.kio.traverse
 
 object AuthService {
 
     private val tokenLifetime = 6.hours
+
+    /** Mindestabstand zwischen zwei Verlängerungen derselben Sitzung. */
+    val sessionExtendInterval = 1.minutes
 
     fun getAllPrivileges(): App<Nothing, ApiResponse.Dto<List<PrivilegeDto>>> = KIO.comprehension {
         val records = !PrivilegeRepo.all().orDie()
@@ -88,9 +92,16 @@ object AuthService {
             return@comprehension KIO.fail(AuthError.TokenInvalid)
         }
 
-        val valid = !AppUserSessionRepo.update(token) {
-            expiresAt = tokenLifetime.afterNow()
-        }.orDie().onNullFail { AuthError.TokenInvalid }
+        val valid = !AppUserSessionRepo.getValid(token).orDie().onNullFail { AuthError.TokenInvalid }
+
+        // Gleitendes Fenster, aber nicht bei jeder Anfrage geschrieben: Boards, Dashboards und
+        // Zeitnahme pollen im Sekundentakt. Verlängert wird erst, wenn der letzte Stempel älter als
+        // [sessionExtendInterval] ist; eine Sitzung endet so höchstens so viel früher als 6 h nach
+        // der letzten Anfrage.
+        val newExpiry = tokenLifetime.afterNow()
+        if (valid.expiresAt!!.isBefore(newExpiry.minusSeconds(sessionExtendInterval.inWholeSeconds))) {
+            !AppUserSessionRepo.extend(token, newExpiry).orDie()
+        }
 
         AppUserRepo.getWithPrivileges(valid.appUser).orDie().onNullFail { AuthError.TokenInvalid }
     }
