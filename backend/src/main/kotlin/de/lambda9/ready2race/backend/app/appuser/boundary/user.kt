@@ -16,6 +16,7 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.tailwind.core.KIO
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
+import de.lambda9.ready2race.backend.plugins.rateLimitWithBodyKey
 
 fun Route.user() {
     route("/user") {
@@ -208,7 +209,7 @@ fun Route.user() {
             }
         }
         route("/resetPassword") {
-            rateLimit(RateLimitName("resetPassword")) {
+            rateLimitWithBodyKey(RateLimitName("resetPassword")) {
                 post {
                     call.respondComprehension {
                         !checkCaptcha()

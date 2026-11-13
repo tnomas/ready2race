@@ -8,11 +8,12 @@ import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.sessions.UserSession
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
+import de.lambda9.ready2race.backend.plugins.rateLimitWithBodyKey
 import io.ktor.server.sessions.*
 
 fun Route.auth() {
     route("/login") {
-        rateLimit(RateLimitName("login")) {
+        rateLimitWithBodyKey(RateLimitName("login")) {
             post {
                 call.respondComprehension {
                     val body = !receiveKIO(LoginRequest.example)

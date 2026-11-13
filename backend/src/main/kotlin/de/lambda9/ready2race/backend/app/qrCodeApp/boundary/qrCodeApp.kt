@@ -15,13 +15,14 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.sessions.UserSession
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
+import de.lambda9.ready2race.backend.plugins.rateLimitWithBodyKey
 import io.ktor.server.sessions.*
 
 fun Route.qrCodeApp() {
 
     route("/app") {
         route("/login") {
-            rateLimit(RateLimitName("login")) {
+            rateLimitWithBodyKey(RateLimitName("login")) {
                 post {
                     call.respondComprehension {
                         val body = !receiveKIO(LoginRequest.example)

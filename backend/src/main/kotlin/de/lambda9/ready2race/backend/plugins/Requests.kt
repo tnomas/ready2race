@@ -11,25 +11,23 @@ import io.ktor.server.plugins.*
 import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
+import io.ktor.server.routing.*
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Rate-Limit, dessen Schlüssel aus dem Request-Body kommt (Login, Passwort-Reset): Der Limiter liest
+ * den Body schon im `requestKey`, der Handler danach noch einmal. Dafür puffert DoubleReceive den
+ * Body - aber nur auf diesen Routen. Global installiert lag jeder Multipart-Upload (bis 50 MB)
+ * zusätzlich vollständig im Heap.
+ */
+fun Route.rateLimitWithBodyKey(name: RateLimitName, build: Route.() -> Unit): Route {
+    install(DoubleReceive)
+    return rateLimit(name, build)
+}
+
 // todo: @refactor: remove as middleware and implement own version
 fun Application.configureRequests(trustedProxyHops: Int = 0) {
-    install(DoubleReceive) {
-        // A websocket handshake hands the raw request channel to the upgraded session. Caching it
-        // (and discarding the remainder once the call completes) races with the session's reads and
-        // kills the connection right after the handshake. Upgrade requests never receive a body
-        // twice, so they are excluded from the cache.
-        //
-        // The `Upgrade` header alone is client-controlled, so any request (e.g. POST /api/login)
-        // could set it to dodge caching and trigger a 500 on double body receive. Requiring the
-        // websocket path prefix too means only our actual websocket routes are excluded.
-        excludeFromCache { call, _ ->
-            call.request.path().startsWith("/api/ws/") &&
-                call.request.headers[HttpHeaders.Upgrade]?.equals("websocket", ignoreCase = true) == true
-        }
-    }
     install(RateLimit) {
         register(RateLimitName("login")) {
             rateLimiter(limit = 10, refillPeriod = 5.minutes)
