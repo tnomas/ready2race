@@ -13,8 +13,8 @@ import io.ktor.server.routing.*
 import java.time.format.DateTimeFormatter
 
 fun Routing.devRoutes(config: Config) {
-    // Only enable dev routes when not in PROD mode
-    if (config.mode == Config.Mode.PROD) {
+    // Nur im lokalen Entwicklungsmodus: die Mailansicht zeigt Reset- und Einladungslinks ohne Anmeldung.
+    if (!config.mode.devRoutesEnabled) {
         return
     }
 

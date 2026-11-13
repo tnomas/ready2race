@@ -73,7 +73,17 @@ data class Config(
         /**
          * A mode, when tests run.
          */
-        TEST,
+        TEST;
+
+        /**
+         * Entwicklerwerkzeuge wie die Mailansicht `/api/dev/emails` geben Reset- und Einladungslinks
+         * ohne Anmeldung heraus. Sie gibt es deshalb nur lokal, nie auf einem erreichbaren Server
+         * (auch nicht STAGING).
+         */
+        val devRoutesEnabled: Boolean get() = this == DEV
+
+        /** Stacktraces in 500er-Antworten nur dort, wo kein Fremder mitliest. */
+        val exposesDefectDetails: Boolean get() = this == DEV || this == TEST
     }
 
     data class Http(
