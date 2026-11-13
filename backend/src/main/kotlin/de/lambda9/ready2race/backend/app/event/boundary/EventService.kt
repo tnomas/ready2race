@@ -107,6 +107,11 @@ object EventService {
             updatedAt = LocalDateTime.now()
         }.orDie()
 
+        // Name, Veröffentlichung, Ergebnis-Sichtbarkeit und Pausenanzeige speisen Boards und
+        // öffentliche Anzeigen; ohne Bump sähen verbundene Boards die Änderung erst nach dem
+        // Sicherheits-Polling.
+        EventChangeMarker.bump(eventId)
+
         KIO.ok(ApiResponse.NoData)
     }
 

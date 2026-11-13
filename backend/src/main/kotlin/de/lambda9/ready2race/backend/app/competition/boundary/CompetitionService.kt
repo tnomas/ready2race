@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayHasCompetitionRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
@@ -177,6 +178,8 @@ object CompetitionService {
         eventId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
+        !requireInEvent(eventId, competitionId)
+
         val isChallengeEvent = !EventService.checkIsChallengeEvent(eventId)
         !KIO.failOn(isChallengeEvent && request.challengeConfig == null) {
             CompetitionError.ChallengeConfigNotProvided
@@ -206,6 +209,10 @@ object CompetitionService {
             fees = request.fees.map { it.toRecord(competitionPropertiesId) },
             request.challengeConfig
         )
+
+        // Kennung, Name und Kurzname stehen auf Boards und im Stream.
+        EventChangeMarker.bump(eventId)
+
         noData
     }
 
