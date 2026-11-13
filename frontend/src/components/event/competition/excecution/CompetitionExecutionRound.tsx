@@ -332,6 +332,14 @@ const CompetitionExecutionRound = ({
                         {/* Nur bei RaceClocker-Zeitnahme: Der Reset pausiert den automatischen
                             Abruf, sonst spielte der nächste Takt die gelöschten Ergebnisse sofort
                             wieder ein - fortgesetzt wird bewusst über den bestehenden Knopf. */}
+                        {/* Nur bei interner Zeitnahme: Der Reset räumt das Ergebnis ab, nicht die
+                            Messung - die Marken der Posten bleiben aktiv und zugeordnet. Wer neu
+                            starten will, verwirft am Posten den Versuch. */}
+                        {timingSystem === 'INTERN' && (
+                            <Typography>
+                                {t('event.competition.execution.resetMatch.confirmation.marks')}
+                            </Typography>
+                        )}
                         {timingSystem === 'RACECLOCKER' && (
                             <Typography>
                                 {t('event.competition.execution.resetMatch.confirmation.autoPull')}

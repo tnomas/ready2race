@@ -1217,6 +1217,7 @@
             "title": "Nulstil løb?",
             "warning": "Advarsel: Dette løb nulstilles til ”aldrig kørt”. Uigenkaldeligt mistes: den faktiske start, alle mål- og mellemtider, alle placeringer, diskvalifikationer og tidsstraffe for dette løb.",
             "keeps": "Bevares: opstilling, baner og bådenes id'er — RaceClocker-tilknytningen forbliver gyldig, og løbet kan køres igen med det samme.",
+            "marks": "Intern tidtagning: De tidsmarkeringer, der er registreret ved posterne, bevares og forbliver knyttet til dette løb; mellemtider beregnes igen ud fra dem. Skal løbet startes igen ved posterne, vælg „Fortryd start og start igen“ i løbets menu dér – det kasserer hele forsøget inklusive markeringerne.",
             "autoPull": "Den automatiske RaceClocker-hentning sættes på pause for dette løb — ellers ville næste hentning straks genindlæse de slettede resultater. Efter oprydning i RaceClocker genoptages bevidst via ”Genoptag automatisk hentning”.",
             "question": "Vil du virkelig nulstille løbet?"
           },
