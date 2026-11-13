@@ -131,6 +131,7 @@ fun Route.user() {
                 call.respondComprehension {
                     !checkCaptcha()
                     val body = !receiveKIO(AppUserRegisterRequest.example)
+                    !checkCallbackUrl(body.callbackUrl)
                     AppUserService.register(body)
                 }
             }
@@ -146,6 +147,7 @@ fun Route.user() {
             post("/verify") {
                 call.respondComprehension {
                     val body = !receiveKIO(VerifyRegistrationRequest.example)
+                    !checkCallbackUrl(body.callbackUrl)
                     AppUserService.verifyRegistration(body)
                 }
             }
@@ -162,6 +164,7 @@ fun Route.user() {
                 call.respondComprehension {
                     val user = !authenticate(Privilege.CreateUserGlobal)
                     val body = !receiveKIO(InviteRequest.example)
+                    !checkCallbackUrl(body.callbackUrl)
                     AppUserService.invite(body, user)
                 }
             }
@@ -197,6 +200,7 @@ fun Route.user() {
                         val user = !authenticate(Privilege.CreateUserGlobal)
                         val invitationId = !pathParam("invitationId", uuid)
                         val body = !receiveKIO(ResendInvitationRequest.example)
+                        !checkCallbackUrl(body.callbackUrl)
 
                         AppUserService.resendInvitation(body, invitationId, user)
                     }
@@ -209,6 +213,7 @@ fun Route.user() {
                     call.respondComprehension {
                         !checkCaptcha()
                         val body = !receiveKIO(PasswordResetInitRequest.example)
+                        !checkCallbackUrl(body.callbackUrl)
                         AppUserService.initPasswordReset(body)
                     }
                 }

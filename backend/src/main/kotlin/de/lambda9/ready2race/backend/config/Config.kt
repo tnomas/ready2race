@@ -19,10 +19,14 @@ import de.lambda9.tailwind.core.extensions.kio.andThenNotNull
 import de.lambda9.tailwind.core.extensions.kio.mapNotNull
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.recover
+import de.lambda9.ready2race.backend.calls.requests.CallbackUrls
 import io.github.cdimascio.dotenv.Dotenv
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.simplejavamail.api.mailer.Mailer
 import org.simplejavamail.api.mailer.config.TransportStrategy
 import org.simplejavamail.mailer.MailerBuilder
+
+private val logger = KotlinLogging.logger {}
 
 data class Config(
     val mode: Mode,
@@ -33,7 +37,13 @@ data class Config(
     val security: Security,
     val admin: Admin,
     val staticFilesPath: String,
-    val webDAV: WebDAV?
+    val webDAV: WebDAV?,
+    /**
+     * Normalisierte Origins (`schema://host:port`), auf die Links in Mails zeigen dürfen
+     * (`FRONTEND_ORIGINS`). `null` heißt: nicht gesetzt, Rückfallregel in
+     * [de.lambda9.ready2race.backend.calls.requests.CallbackUrls].
+     */
+    val frontendOrigins: List<String>? = null,
 ) {
 
     enum class Mode {
@@ -265,6 +275,8 @@ data class Config(
                 }
             }
 
+            val frontendOrigins = !optional("FRONTEND_ORIGINS") { CallbackUrls.parseOrigins(it) }
+
             val config = Config(
                 mode = mode,
                 http = http,
@@ -274,8 +286,16 @@ data class Config(
                 security = security,
                 admin = admin,
                 staticFilesPath = staticFilesPath,
-                webDAV = webDAV
+                webDAV = webDAV,
+                frontendOrigins = frontendOrigins,
             )
+
+            if (frontendOrigins == null && (mode == Mode.PROD || mode == Mode.STAGING)) {
+                logger.warn {
+                    "FRONTEND_ORIGINS is not set: links in e-mails are only checked against the request's Host header. " +
+                        "Set FRONTEND_ORIGINS to the origin(s) the frontend is served from, e.g. https://regatta.example.org"
+                }
+            }
 
             KIO.ok(config)
         }

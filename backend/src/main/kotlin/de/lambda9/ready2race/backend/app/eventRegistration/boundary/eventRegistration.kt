@@ -148,6 +148,7 @@ fun Route.eventRegistration() {
             val user = !authenticate(Privilege.CreateRegistrationOwn)
             val eventId = !pathParam("eventId", uuid)
             val payload = !receiveKIO(EventRegistrationUpsertDto.example)
+            !checkCallbackUrl(payload.callbackUrl)
 
             EventRegistrationService.upsertRegistrationForEvent(eventId, payload, user)
         }
@@ -183,6 +184,7 @@ fun Route.eventRegistration() {
             !checkCaptcha()
             val eventId = !pathParam("eventId", uuid)
             val payload = !receiveKIO(ParticipantRegisterRequest.example)
+            !checkCallbackUrl(payload.callbackUrl)
 
             EventRegistrationService.participantSelfRegister(eventId, payload)
         }
