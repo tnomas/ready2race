@@ -2,7 +2,7 @@ import {BaseEntityDialogProps} from '@utils/types.ts'
 import EntityDialog from '@components/EntityDialog.tsx'
 import {Box, Stack} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {eventIndexRoute} from '@routes'
+import {eventRoute} from '@routes'
 import {useForm} from 'react-hook-form-mui'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useCallback} from 'react'
@@ -30,7 +30,7 @@ const CompetitionDialog = ({
     const user = useUser()
     const feedback = useFeedback()
 
-    const {eventId} = eventIndexRoute.useParams()
+    const {eventId} = eventRoute.useParams()
 
     const addAction = (formData: CompetitionForm) => {
         return addCompetition({

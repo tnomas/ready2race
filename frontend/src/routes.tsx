@@ -34,9 +34,9 @@ import {
     validateAdministrationSearch,
     validateEventIndexSearch,
 } from './utils/navigation/searchParams.ts'
-import {CompetitionTab} from './components/event/competition/common.ts'
+import {validateCompetitionSearch} from './pages/event/competitionPageLogic.ts'
 import type {ClubTab} from './pages/club/ClubsPage.tsx'
-import type {ConfigurationTab} from './pages/ConfigurationPage.tsx'
+import {validateConfigurationSearch} from './pages/configurationPageLogic.ts'
 import {readRememberedEvent} from './components/qrApp/appMemory.ts'
 import {scanRightsOf} from './components/qrApp/appAccess.ts'
 import {parseResultsTabSearch} from './pages/results/resultsTab.ts'
@@ -346,7 +346,7 @@ export const configurationIndexRoute = createRoute({
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, updateEventGlobal)
     },
-    validateSearch: validateTabSearch<ConfigurationTab>,
+    validateSearch: validateConfigurationSearch,
 })
 
 export const eventsRoute = createRoute({
@@ -635,7 +635,7 @@ export const competitionIndexRoute = createRoute({
     getParentRoute: () => competitionRoute,
     path: '/',
     component: CompetitionPage,
-    validateSearch: validateTabSearch<CompetitionTab>,
+    validateSearch: validateCompetitionSearch,
 })
 
 export const clubRoute = createRoute({

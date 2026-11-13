@@ -18,6 +18,7 @@
     "no": "No",
     "cancel": "Cancel",
     "close": "Close",
+    "reload": "Reload",
     "confirmation": {
       "title": "Confirmation required",
       "content": "Please confirm the execution of the selected action"
@@ -847,6 +848,22 @@
         "showShortNames": "Show short names",
         "showLongNames": "Show long names"
       },
+      "page": {
+        "tabs": {
+          "general": "General",
+          "registrations": "Registrations",
+          "teams": "Teams",
+          "setup": "Round structure",
+          "timing": "Timing",
+          "execution": "Execution",
+          "places": "Results"
+        },
+        "notFound": "This competition does not exist or is not visible to you.",
+        "loadError": "The competition could not be loaded.",
+        "previous": "Previous competition",
+        "next": "Next competition",
+        "navigationLabel": "Switch between competitions"
+      },
       "noCompetitionsAvailable": "No competitions available",
       "identifier": "Identifier",
       "name": "Name",
@@ -1115,6 +1132,20 @@
       "execution": {
         "tabTitle": "Live",
         "pairingsRecalculated": "Pairing recalculated",
+        "moreActions": {
+          "label": "More actions",
+          "roundLabel": "More round actions",
+          "resultsXls": "Import results from XLS file",
+          "resultsRaceClocker": "Fetch results from RaceClocker",
+          "resultsRaceClockerFile": "Import results from RaceClocker file",
+          "startListPdf": "Download start list (PDF)",
+          "startListCsv": "Download start list (CSV)",
+          "setClarification": "Put match under review"
+        },
+        "noRounds": {
+          "title": "No round created yet",
+          "description": "The first round is drawn from the competition setup via “Create next round”."
+        },
         "progress": {
           "error": "The matches of the competition could not be loaded."
         },
@@ -1197,6 +1228,7 @@
           "place": "Place",
           "time": "Time",
           "placeAndTime": "Place/Time/Penalty",
+          "match": "Match",
           "manageRunning": "Manage Running Races",
           "running": "Running",
           "roundAndMatch": "Round {{round}}, Match {{match}}",
@@ -1263,12 +1295,6 @@
             }
           },
           "upload": "Upload match results",
-          "type": {
-            "form": "into Form",
-            "XLS": "as XLS-File",
-            "RACECLOCKER": "from RaceClocker",
-            "RACECLOCKER_FILE": "from RaceClocker (file)"
-          },
           "error": {
             "notConfigured": "No result import preset is configured for this competition. Please set one up in the \"Timing\" tab.",
             "WRONG_TEAM_COUNT": "The team count is different from expected - actual: {{actual}}, expected: {{expected}}",
@@ -1373,11 +1399,6 @@
           }
         },
         "startList": {
-          "download": "Download start-list",
-          "type": {
-            "PDF": "as PDF",
-            "CSV": "as CSV"
-          },
           "error": {
             "missingStartTime": "The start time for this match is not set.",
             "notConfigured": "No start list preset is configured for this competition. Please set one up in the \"Timing\" tab."
@@ -2517,6 +2538,8 @@
       "open": "View",
       "copyUrl": "Copy URL",
       "urlCopied": "URL copied",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
       "name": "Name",
       "saveAndClose": "Save and close",
       "matchDetailFullscreen": "The announcer tile always fills the whole board — columns and spans have no effect here",
@@ -2981,6 +3004,7 @@
     "namedParticipantAssignments": "Assignments",
     "qrCodeRequirement": "QR Code",
     "global": "Global",
+    "qrCodeRequired": "QR code required",
     "toggleQrCode": "Toggle QR code requirement",
     "assignTo": "Assign to {{name}}",
     "assignToWithQr": "Assign to {{name}} (with QR code)",
@@ -3311,10 +3335,21 @@
     "configuration": "Templates & Master Data",
     "tabs": {
       "competitionTemplates": "Competition templates",
-      "eventElements": "Event elements",
       "competitionElements": "Competition elements",
+      "listsTiming": "Start lists & timing",
+      "eventElements": "Documents & requirements",
+      "organisation": "Organisation",
       "globalSettings": "Global settings",
-      "exportData": "Export / Import"
+      "exportData": "Export / Import",
+      "description": {
+        "competitionTemplates": "Templates for competitions and round structures that can be reused in every event.",
+        "competitionElements": "Building blocks of competitions: categories, rating categories, participant types and fees.",
+        "listsTiming": "Formats for start list export and result import, and the references for pace figures.",
+        "eventElements": "Document types, document and certificate templates, and participant requirements.",
+        "organisation": "Work types for the shift plan, contact information and bank accounts for invoices.",
+        "globalSettings": "Defaults used by all events.",
+        "exportData": "Export and import data via WebDAV."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Rating category",

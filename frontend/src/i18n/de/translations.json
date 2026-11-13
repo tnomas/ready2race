@@ -18,6 +18,7 @@
     "no": "Nein",
     "cancel": "Abbrechen",
     "close": "Schließen",
+    "reload": "Neu laden",
     "confirmation": {
       "title": "Bestätigung erforderlich",
       "content": "Bitte bestätigen Sie das Ausführen der gewählten Aktion"
@@ -847,6 +848,22 @@
         "showShortNames": "Kurznamen zeigen",
         "showLongNames": "Lange Namen zeigen"
       },
+      "page": {
+        "tabs": {
+          "general": "Allgemein",
+          "registrations": "Meldungen",
+          "teams": "Teams",
+          "setup": "Rundenstruktur",
+          "timing": "Zeitnahme",
+          "execution": "Durchführung",
+          "places": "Platzierungen"
+        },
+        "notFound": "Diesen Wettkampf gibt es nicht, oder er ist für dich nicht sichtbar.",
+        "loadError": "Der Wettkampf konnte nicht geladen werden.",
+        "previous": "Vorheriger Wettkampf",
+        "next": "Nächster Wettkampf",
+        "navigationLabel": "Zwischen Wettkämpfen wechseln"
+      },
       "noCompetitionsAvailable": "Keine Wettkämpfe verfügbar",
       "identifier": "Kennung",
       "name": "Name",
@@ -1115,6 +1132,20 @@
       "execution": {
         "tabTitle": "Durchführung",
         "pairingsRecalculated": "Paarung neu berechnet",
+        "moreActions": {
+          "label": "Weitere Aktionen",
+          "roundLabel": "Weitere Aktionen zur Runde",
+          "resultsXls": "Ergebnis aus XLS-Datei importieren",
+          "resultsRaceClocker": "Ergebnis von RaceClocker holen",
+          "resultsRaceClockerFile": "Ergebnis aus RaceClocker-Datei importieren",
+          "startListPdf": "Startliste herunterladen (PDF)",
+          "startListCsv": "Startliste herunterladen (CSV)",
+          "setClarification": "Lauf in Klärung setzen"
+        },
+        "noRounds": {
+          "title": "Noch keine Runde erstellt",
+          "description": "Die erste Runde entsteht aus dem Wettbewerbsablauf über „Erstelle nächste Runde“."
+        },
         "progress": {
           "error": "Die Partien des Wettbewerbs konnten nicht geladen werden."
         },
@@ -1197,6 +1228,7 @@
           "place": "Platz",
           "time": "Zeit",
           "placeAndTime": "Platz/Zeit/Strafe",
+          "match": "Partie",
           "manageRunning": "Laufende Läufe verwalten",
           "running": "Läuft",
           "roundAndMatch": "Runde {{round}}, Partie {{match}}",
@@ -1263,12 +1295,6 @@
             }
           },
           "upload": "Ergebnisse hochladen",
-          "type": {
-            "form": "mit Eingabeformular",
-            "XLS": "als XLS-Datei",
-            "RACECLOCKER": "von RaceClocker holen",
-            "RACECLOCKER_FILE": "von RaceClocker (Datei)"
-          },
           "error": {
             "notConfigured": "Für diesen Wettkampf ist kein Ergebnis-Import-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen.",
             "WRONG_TEAM_COUNT": "Die Anzahl der Teams stimmt nicht überein - gelesen: {{actual}}, erwartet: {{expected}}",
@@ -1373,11 +1399,6 @@
           }
         },
         "startList": {
-          "download": "Startliste herunterladen",
-          "type": {
-            "PDF": "als PDF",
-            "CSV": "als CSV"
-          },
           "error": {
             "missingStartTime": "Für diese Partie wurde noch keine Startzeit gesetzt.",
             "notConfigured": "Für diesen Wettkampf ist kein Startlisten-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
@@ -2517,6 +2538,8 @@
       "open": "Anzeigen",
       "copyUrl": "URL kopieren",
       "urlCopied": "URL kopiert",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
       "name": "Name",
       "saveAndClose": "Speichern und Beenden",
       "matchDetailFullscreen": "Die Sprecher-Kachel füllt immer das ganze Board — Spalten und Spannweiten wirken hier nicht",
@@ -2981,6 +3004,7 @@
     "namedParticipantAssignments": "Zuordnungen",
     "qrCodeRequirement": "QR-Code",
     "global": "Global",
+    "qrCodeRequired": "QR-Code erforderlich",
     "toggleQrCode": "QR-Code-Pflicht umschalten",
     "assignTo": "Zu {{name}} zuweisen",
     "assignToWithQr": "Zu {{name}} zuweisen (mit QR-Code)",
@@ -3310,11 +3334,22 @@
   "configuration": {
     "configuration": "Vorlagen & Stammdaten",
     "tabs": {
-      "competitionTemplates": "Vorlagen Wettkampf",
-      "eventElements": "Komponenten Veranstaltung",
-      "competitionElements": "Komponenten Wettkampf",
+      "competitionTemplates": "Wettkampf-Vorlagen",
+      "competitionElements": "Wettkampf-Bausteine",
+      "listsTiming": "Startlisten & Zeitnahme",
+      "eventElements": "Dokumente & Bedingungen",
+      "organisation": "Organisation",
       "globalSettings": "Globale Einstellungen",
-      "exportData": "Export / Import"
+      "exportData": "Export / Import",
+      "description": {
+        "competitionTemplates": "Vorlagen für Wettkämpfe und Rundenstrukturen, die in jeder Veranstaltung wiederverwendet werden.",
+        "competitionElements": "Bausteine, aus denen Wettkämpfe bestehen: Kategorien, Wertungskategorien, Teilnehmertypen und Gebühren.",
+        "listsTiming": "Formate für den Startlisten-Export und den Ergebnisimport sowie die Bezugsgrößen für Tempo-Angaben.",
+        "eventElements": "Dokumenttypen, Dokument- und Urkundenvorlagen sowie Teilnahmebedingungen.",
+        "organisation": "Arbeitsarten für den Schichtplan, Kontaktinformationen und Bankverbindungen für Rechnungen.",
+        "globalSettings": "Standardwerte, die alle Veranstaltungen verwenden.",
+        "exportData": "Daten per WebDAV exportieren und importieren."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Wertungskategorie",

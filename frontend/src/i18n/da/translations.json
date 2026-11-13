@@ -18,6 +18,7 @@
     "no": "Nej",
     "cancel": "Annuller",
     "close": "Luk",
+    "reload": "Genindlæs",
     "confirmation": {
       "title": "Bekræftelse påkrævet",
       "content": "Bekræft venligst udførelsen af den valgte handling"
@@ -847,6 +848,22 @@
         "showShortNames": "Vis korte navne",
         "showLongNames": "Vis lange navne"
       },
+      "page": {
+        "tabs": {
+          "general": "Generelt",
+          "registrations": "Tilmeldinger",
+          "teams": "Hold",
+          "setup": "Rundestruktur",
+          "timing": "Tidtagning",
+          "execution": "Afvikling",
+          "places": "Placeringer"
+        },
+        "notFound": "Denne konkurrence findes ikke eller er ikke synlig for dig.",
+        "loadError": "Konkurrencen kunne ikke indlæses.",
+        "previous": "Forrige konkurrence",
+        "next": "Næste konkurrence",
+        "navigationLabel": "Skift mellem konkurrencer"
+      },
       "noCompetitionsAvailable": "Ingen konkurrencer tilgængelige",
       "identifier": "Identifikator",
       "name": "Navn",
@@ -1115,6 +1132,20 @@
       "execution": {
         "tabTitle": "Afvikling",
         "pairingsRecalculated": "Parring genberegnet",
+        "moreActions": {
+          "label": "Flere handlinger",
+          "roundLabel": "Flere handlinger for runden",
+          "resultsXls": "Importér resultat fra XLS-fil",
+          "resultsRaceClocker": "Hent resultat fra RaceClocker",
+          "resultsRaceClockerFile": "Importér resultat fra RaceClocker-fil",
+          "startListPdf": "Download startliste (PDF)",
+          "startListCsv": "Download startliste (CSV)",
+          "setClarification": "Sæt løb under afklaring"
+        },
+        "noRounds": {
+          "title": "Der er endnu ikke oprettet nogen runde",
+          "description": "Den første runde trækkes fra konkurrenceforløbet via „Opret næste runde“."
+        },
         "progress": {
           "error": "Kampene i konkurrencen kunne ikke indlæses."
         },
@@ -1197,6 +1228,7 @@
           "place": "Placering",
           "time": "Tid",
           "placeAndTime": "Placering/Tid/Straf",
+          "match": "Kamp",
           "manageRunning": "Administrer igangværende løb",
           "running": "Kører",
           "roundAndMatch": "Runde {{round}}, kamp {{match}}",
@@ -1263,12 +1295,6 @@
             }
           },
           "upload": "Upload resultater",
-          "type": {
-            "form": "med indtastningsformular",
-            "XLS": "som XLS-fil",
-            "RACECLOCKER": "hent fra RaceClocker",
-            "RACECLOCKER_FILE": "fra RaceClocker (fil)"
-          },
           "error": {
             "notConfigured": "Der er ikke registreret et resultatimportpreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\".",
             "WRONG_TEAM_COUNT": "Antallet af hold stemmer ikke - læst: {{actual}}, forventet: {{expected}}",
@@ -1373,11 +1399,6 @@
           }
         },
         "startList": {
-          "download": "Download startliste",
-          "type": {
-            "PDF": "som PDF",
-            "CSV": "som CSV"
-          },
           "error": {
             "missingStartTime": "Der er endnu ikke sat en starttid for denne kamp.",
             "notConfigured": "Der er ikke registreret et startlistepreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\"."
@@ -2517,6 +2538,8 @@
       "open": "Vis",
       "copyUrl": "Kopiér URL",
       "urlCopied": "URL kopieret",
+      "moveUp": "Flyt op",
+      "moveDown": "Flyt ned",
       "name": "Navn",
       "saveAndClose": "Gem og luk",
       "matchDetailFullscreen": "Speaker-feltet fylder altid hele boardet — kolonner og spænd har ingen virkning her",
@@ -2748,6 +2771,7 @@
           },
           "displaySeconds": "Visningstid (sekunder)",
           "listLength": "Antal rækker",
+          "numberRange": "Helt tal mellem {{min}} og {{max}}",
           "image": "Billede",
           "imageNone": "Intet billede valgt",
           "imageHint": "Billeder uploades via stævnets dokumenter.",
@@ -2790,6 +2814,7 @@
         "inactive": "Ikke aktive grafikker",
         "inactiveHint": "Slå til under „Konfigurer grafikker“",
         "forceHint": "Uden indhold viser tvunget visning intet.",
+        "sceneGone": "Denne scene findes ikke længere — den er slettet eller hører til et andet stævne.",
         "health": {
           "live": "Live",
           "connecting": "Forbinder …",
@@ -2979,6 +3004,7 @@
     "namedParticipantAssignments": "Tildelinger",
     "qrCodeRequirement": "QR-kode",
     "global": "Global",
+    "qrCodeRequired": "QR-kode påkrævet",
     "toggleQrCode": "Slå QR-kode-krav til/fra",
     "assignTo": "Tildel til {{name}}",
     "assignToWithQr": "Tildel til {{name}} (med QR-kode)",
@@ -3308,11 +3334,22 @@
   "configuration": {
     "configuration": "Skabeloner og stamdata",
     "tabs": {
-      "competitionTemplates": "Skabeloner konkurrence",
-      "eventElements": "Komponenter arrangement",
-      "competitionElements": "Komponenter konkurrence",
+      "competitionTemplates": "Konkurrenceskabeloner",
+      "competitionElements": "Konkurrenceelementer",
+      "listsTiming": "Startlister og tidtagning",
+      "eventElements": "Dokumenter og krav",
+      "organisation": "Organisation",
       "globalSettings": "Globale indstillinger",
-      "exportData": "Eksport / Import"
+      "exportData": "Eksport / Import",
+      "description": {
+        "competitionTemplates": "Skabeloner for konkurrencer og rundestrukturer, som kan genbruges i alle arrangementer.",
+        "competitionElements": "Byggesten til konkurrencer: kategorier, rangeringskategorier, deltagertyper og gebyrer.",
+        "listsTiming": "Formater til eksport af startlister og import af resultater samt referencer for tempoangivelser.",
+        "eventElements": "Dokumenttyper, dokument- og diplomskabeloner samt deltagerkrav.",
+        "organisation": "Arbejdstyper til vagtplanen, kontaktinformationer og bankforbindelser til fakturaer.",
+        "globalSettings": "Standardværdier, som alle arrangementer bruger.",
+        "exportData": "Eksportér og importér data via WebDAV."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Rangeringskategori",
@@ -3908,6 +3945,9 @@
         "title": "Ikke overførte tider",
         "description": "Disse tider blev afvist af serveren. Du kan overføre dem igen eller forkaste dem endeligt.",
         "item": "Post {{station}} · status {{status}}",
+        "reason": {
+          "noCredential": "Ingen adgang til dette stævne på denne enhed – log ind og prøv igen."
+        },
         "requeue": "Prøv igen",
         "discard": "Forkast endeligt",
         "discardConfirm": {
