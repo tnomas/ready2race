@@ -3,6 +3,7 @@ import {
     Chip,
     Dialog,
     DialogContent,
+    MenuItem,
     DialogTitle,
     Stack,
     Table,
@@ -11,6 +12,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Typography,
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
@@ -19,6 +21,7 @@ import {ParticipantRequirementLogEntryDto} from '@api/types.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import {format} from 'date-fns'
+import {useEffect, useState} from 'react'
 
 /**
  * Die Revisionsspur einer Bedingung: wer hat wann welche Bestätigung gesetzt oder zurückgenommen,
@@ -33,18 +36,25 @@ type Props = {
     open: boolean
     onClose: () => void
     eventId: string
-    requirementId?: string
-    requirementName?: string
+    /**
+     * Die aktiven Bedingungen der Veranstaltung. Im Dialog lässt sich die Spur auf eine davon
+     * eingrenzen; Vorgabe beim Öffnen ist „alle Bedingungen".
+     */
+    requirements: readonly {id: string; name: string}[]
 }
 
-const ParticipantRequirementLogDialog = ({
-    open,
-    onClose,
-    eventId,
-    requirementId,
-    requirementName,
-}: Props) => {
+/** Auswahlwert für „alle Bedingungen" (MUI wertet '' als „nichts gewählt"). */
+const ALL = 'ALL'
+
+const ParticipantRequirementLogDialog = ({open, onClose, eventId, requirements}: Props) => {
     const {t} = useTranslation()
+    const [filter, setFilter] = useState<string>(ALL)
+
+    useEffect(() => {
+        if (open) setFilter(ALL)
+    }, [open])
+
+    const requirementId = filter === ALL ? undefined : filter
 
     const {data, pending} = useFetch(
         signal =>
@@ -71,11 +81,25 @@ const ParticipantRequirementLogDialog = ({
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth={'lg'} fullWidth>
-            <DialogTitle>
-                {t('event.participantRequirement.log.title')}
-                {requirementName ? ` — ${requirementName}` : ''}
-            </DialogTitle>
+            <DialogTitle>{t('event.participantRequirement.log.title')}</DialogTitle>
             <DialogContent>
+                <TextField
+                    select
+                    fullWidth
+                    size={'small'}
+                    sx={{mt: 1, mb: 2}}
+                    label={t('event.participantRequirement.log.filter')}
+                    value={filter}
+                    onChange={e => setFilter(e.target.value)}>
+                    <MenuItem value={ALL}>
+                        {t('event.participantRequirement.log.allRequirements')}
+                    </MenuItem>
+                    {requirements.map(r => (
+                        <MenuItem key={r.id} value={r.id}>
+                            {r.name}
+                        </MenuItem>
+                    ))}
+                </TextField>
                 {pending ? (
                     <Throbber />
                 ) : entries.length === 0 ? (
@@ -85,12 +109,22 @@ const ParticipantRequirementLogDialog = ({
                         <Table size="small">
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>{t('event.participantRequirement.log.when')}</TableCell>
+                                    <TableCell>
+                                        {t('event.participantRequirement.log.when')}
+                                    </TableCell>
                                     <TableCell>{t('club.participant.title')}</TableCell>
-                                    <TableCell>{t('event.participantRequirement.log.action')}</TableCell>
-                                    <TableCell>{t('event.participantRequirement.log.scope')}</TableCell>
-                                    <TableCell>{t('event.participantRequirement.log.source')}</TableCell>
-                                    <TableCell>{t('event.participantRequirement.log.by')}</TableCell>
+                                    <TableCell>
+                                        {t('event.participantRequirement.log.action_col')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {t('event.participantRequirement.log.scope')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {t('event.participantRequirement.log.source')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {t('event.participantRequirement.log.by')}
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -129,10 +163,14 @@ const ParticipantRequirementLogDialog = ({
                                         <TableCell>
                                             <Typography variant="body2" color="text.secondary">
                                                 {scopeOf(entry) ||
-                                                    t('event.participantRequirement.log.wholeEvent')}
+                                                    t(
+                                                        'event.participantRequirement.log.wholeEvent',
+                                                    )}
                                             </Typography>
                                             {entry.note && (
-                                                <Typography variant="caption" color="text.secondary">
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary">
                                                     {entry.note}
                                                 </Typography>
                                             )}

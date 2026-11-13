@@ -21,6 +21,7 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {Trans} from 'react-i18next'
 import CsvImportWizard from '@components/csv/CsvImportWizard'
+import {resolveSelectedTarget} from './requirementCheckTargets.ts'
 import {CsvImportWizardConfig, CsvImportWizardResult} from '@components/csv/types'
 
 type Props = {
@@ -34,7 +35,7 @@ const ParticipantRequirementCheckForEventUploadFileDialog = (props: Props) => {
     const feedback = useFeedback()
     const {eventId} = eventRoute.useParams()
 
-    const [selectedRequirementId, setSelectedRequirementId] = useState<string>('')
+    const [chosenRequirementId, setChosenRequirementId] = useState<string>('')
     const [showWizard, setShowWizard] = useState(false)
 
     const {data: requirementsData, pending: requirementsPending} = useFetch(
@@ -65,6 +66,13 @@ const ParticipantRequirementCheckForEventUploadFileDialog = (props: Props) => {
             })) ?? [],
         [requirementsData?.data],
     )
+
+    // Gibt es nur eine Bedingung, ist sie gewählt - es gäbe nichts anderes zu wählen.
+    const selectedRequirementId =
+        resolveSelectedTarget(
+            (requirementsData?.data ?? []).map(r => ({key: r.id})),
+            chosenRequirementId || null,
+        )?.key ?? ''
 
     const handleOpenWizard = () => {
         if (!selectedRequirementId) {
@@ -134,9 +142,7 @@ const ParticipantRequirementCheckForEventUploadFileDialog = (props: Props) => {
             yearsColName: result.columnMappings.yearsColName as string | undefined,
             clubColName: result.columnMappings.clubColName as string | undefined,
             requirementColName: result.columnMappings.requirementColName as string | undefined,
-            requirementIsValidValues: Array.isArray(
-                result.valueMappings.requirementIsValidValues,
-            )
+            requirementIsValidValues: Array.isArray(result.valueMappings.requirementIsValidValues)
                 ? result.valueMappings.requirementIsValidValues
                 : undefined,
         }
@@ -172,7 +178,7 @@ const ParticipantRequirementCheckForEventUploadFileDialog = (props: Props) => {
                             options={requirements}
                             value={requirements.find(r => r?.id === selectedRequirementId) || null}
                             onChange={(_, value: AutocompleteOption | null) => {
-                                setSelectedRequirementId(value?.id ?? '')
+                                setChosenRequirementId(value?.id ?? '')
                             }}
                             getOptionLabel={option => option?.label ?? ''}
                             isOptionEqualToValue={(option, value) => option?.id === value?.id}
