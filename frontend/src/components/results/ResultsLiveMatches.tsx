@@ -1,6 +1,7 @@
 import {useTranslation} from 'react-i18next'
-import {Alert, Stack, Typography} from '@mui/material'
-import Throbber from '@components/Throbber.tsx'
+import {Alert, Card, Stack, Typography} from '@mui/material'
+import {CellTowerOutlined} from '@mui/icons-material'
+import {EmptyState, LoadingState} from '@components/ui'
 import ResultsMatchCard from '@components/results/ResultsMatchCard.tsx'
 import {useState} from 'react'
 import {LiveMatchesDto, LiveMatchInfo} from '@api/types.gen.ts'
@@ -72,22 +73,20 @@ const ResultsLiveMatches = ({eventId}: Props) => {
 
     return (
         <>
-            <Stack spacing={2} sx={{alignItems: 'center', p: 2}}>
+            <Stack spacing={1.5}>
                 {initialLoad ? (
-                    <Throbber />
+                    <LoadingState variant={'section'} />
                 ) : data === null ? (
                     // Vor dem ersten Erfolg gescheitert: „konnte nicht geladen werden" ist etwas
                     // anderes als „kein Lauf angesetzt", und der Unterschied ist der ganze Grund
                     // für `initialLoad`.
-                    <Alert severity={'warning'} sx={{width: 1}}>
-                        {t('results.liveMatches.loadFailed')}
-                    </Alert>
+                    <Alert severity={'warning'}>{t('results.liveMatches.loadFailed')}</Alert>
                 ) : (
                     <>
                         {/* Der veranstaltungsweite Hinweis (z.B. Wetterwarnung), eingebettet in
                             der ohnehin gepollten Antwort — er erscheint und verschwindet also
                             ohne Neuladen. */}
-                        <EventNoticeBanner notice={data.notice} sx={{width: 1}} />
+                        <EventNoticeBanner notice={data.notice} />
                         {/* Der letzte gute Stand bleibt stehen, wenn ein Abruf scheitert - eine
                             leere Seite nach einem Funkloch wäre der schlechteste Ausgang. Die
                             Zeile sagt, wie alt das Gezeigte ist. */}
@@ -99,9 +98,12 @@ const ResultsLiveMatches = ({eventId}: Props) => {
                             </Typography>
                         )}
                         {data.matches.length === 0 ? (
-                            <Alert severity={'info'} sx={{width: 1}}>
-                                {t('results.liveMatches.noMatches')}
-                            </Alert>
+                            <Card>
+                                <EmptyState
+                                    icon={<CellTowerOutlined />}
+                                    title={t('results.liveMatches.noMatches')}
+                                />
+                            </Card>
                         ) : (
                             data.matches.map(match => (
                                 <ResultsMatchCard

@@ -1,8 +1,10 @@
 import MatchResults from '@components/results/MatchResults.tsx'
-import {Box, Divider, Stack, Tab, useMediaQuery, useTheme} from '@mui/material'
-import TabSelectionContainer from '@components/tab/TabSelectionContainer.tsx'
+import {Box, Card, IconButton, Tab, Tabs, useMediaQuery, useTheme} from '@mui/material'
 import {a11yProps} from '@utils/helpers.ts'
-import {useState} from 'react'
+import {ReactElement, useState} from 'react'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import {EventAvailable, LocationOn} from '@mui/icons-material'
+import {format} from 'date-fns'
 import TabPanel from '@components/tab/TabPanel.tsx'
 import CellTowerOutlinedIcon from '@mui/icons-material/CellTowerOutlined'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
@@ -18,21 +20,19 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getEvent, getPublicProgram} from '@api/sdk.gen.ts'
 import ResultsProgram from '@components/results/ResultsProgram.tsx'
 import {useNavigate} from '@tanstack/react-router'
-import Throbber from '@components/Throbber.tsx'
-import ResultsConfigurationTopBar from '@components/results/ResultsConfigurationTopBar.tsx'
+import {ErrorState, IconButtonLink, LoadingState} from '@components/ui'
+import PublicPageHeader, {PublicMetaItem} from '@components/results/PublicPageHeader.tsx'
 import ResultsClubRanking from '@components/results/ResultsClubRanking.tsx'
 import ResultsIndividualRanking from '@components/results/ResultsIndividualRanking.tsx'
 import {MyEventPanel} from '@components/results/myEvent/MyEventPanel.tsx'
 import {initialResultsTab, ResultsTab} from './resultsTab.ts'
+import {formatEventDateRange} from './publicEventsLogic.ts'
 
 export type ChallengeResultsTab = 'club' | 'individual' | 'relative'
 
 const ResultsPage = () => {
-    const theme = useTheme()
     const {t} = useTranslation()
     const feedback = useFeedback()
-
-    const smallScreenLayout = useMediaQuery(`(max-width:${theme.breakpoints.values.sm}px)`)
 
     const {eventId} = resultsEventRoute.useParams()
     const navigate = useNavigate()
@@ -64,14 +64,12 @@ const ResultsPage = () => {
         selectCompetition(null)
         setActiveResultsTab(tab)
     }
-    const resultsTabProps = (tab: ResultsTab) => a11yProps('results', tab)
 
     const [activeChallengeTab, setActiveChallengeTab] = useState<ChallengeResultsTab>('club')
     const switchChallengeTab = (tab: ChallengeResultsTab) => {
         selectCompetition(null)
         setActiveChallengeTab(tab)
     }
-    const challengeTabProps = (tab: ChallengeResultsTab) => a11yProps('challengeResults', tab)
 
     const {data: programData} = useFetch(signal => getPublicProgram({signal, path: {eventId}}), {
         deps: [eventId],
@@ -83,7 +81,11 @@ const ResultsPage = () => {
     const effectiveResultsTab: ResultsTab =
         activeResultsTab === 'schedule' && !hasProgram ? 'latest-results' : activeResultsTab
 
-    const {data: eventData, pending: eventPending} = useFetch(
+    const {
+        data: eventData,
+        pending: eventPending,
+        reload: reloadEvent,
+    } = useFetch(
         signal =>
             getEvent({
                 signal,
@@ -102,84 +104,104 @@ const ResultsPage = () => {
         },
     )
 
-    return eventPending ? (
-        <Stack sx={{display: 'flex', flex: 1, justifyContent: 'center'}}>
-            <Throbber />
-        </Stack>
-    ) : eventData ? (
+    const dateRange = eventData
+        ? formatEventDateRange({from: eventData.firstEventDay, to: eventData.lastEventDay}, date =>
+              format(date, t('format.date')),
+          )
+        : null
+
+    if (eventPending && !eventData) {
+        return <LoadingState variant={'page'} />
+    }
+    if (!eventData) {
+        return (
+            <>
+                <PublicPageHeader
+                    back={
+                        <IconButtonLink to={'/results'} aria-label={t('results.page.allEvents')}>
+                            <ArrowBackIcon />
+                        </IconButtonLink>
+                    }
+                    title={t('landing.liveEventsLink')}
+                />
+                <Card>
+                    <ErrorState onRetry={reloadEvent} />
+                </Card>
+            </>
+        )
+    }
+
+    const resultsTabs: ResultsTabItem<ResultsTab>[] = [
+        {
+            value: 'latest-results',
+            label: t('results.tabs.results'),
+            icon: <EmojiEventsOutlinedIcon />,
+        },
+        {value: 'live', label: t('results.tabs.live'), icon: <CellTowerOutlinedIcon />},
+        ...(hasProgram
+            ? [
+                  {
+                      value: 'schedule' as const,
+                      label: t('results.tabs.schedule'),
+                      icon: <CalendarMonthOutlinedIcon />,
+                  },
+              ]
+            : []),
+        {value: 'my-event', label: t('myEvent.tab'), icon: <PersonPinIcon />},
+    ]
+    const challengeTabs: ResultsTabItem<ChallengeResultsTab>[] = [
+        {value: 'club', label: t('results.challengeTabs.club'), icon: <EmojiEventsOutlinedIcon />},
+        {value: 'relative', label: t('results.challengeTabs.relative'), icon: <PercentIcon />},
+        {value: 'individual', label: t('results.challengeTabs.individual'), icon: <PersonIcon />},
+    ]
+
+    return (
         <>
-            <ResultsConfigurationTopBar
-                competitionSelected={competitionSelected !== null}
-                resetSelectedCompetition={() => selectCompetition(null)}
+            <PublicPageHeader
+                back={
+                    competitionSelected !== null ? (
+                        <IconButton
+                            onClick={() => selectCompetition(null)}
+                            aria-label={t('results.page.allCompetitions')}>
+                            <ArrowBackIcon />
+                        </IconButton>
+                    ) : (
+                        <IconButtonLink to={'/results'} aria-label={t('results.page.allEvents')}>
+                            <ArrowBackIcon />
+                        </IconButtonLink>
+                    )
+                }
+                overline={t('results.page.overline')}
                 title={eventData.name}
+                meta={
+                    (dateRange || eventData.location) && (
+                        <>
+                            {dateRange && (
+                                <PublicMetaItem icon={<EventAvailable />}>
+                                    {dateRange}
+                                </PublicMetaItem>
+                            )}
+                            {eventData.location && (
+                                <PublicMetaItem icon={<LocationOn />}>
+                                    {eventData.location}
+                                </PublicMetaItem>
+                            )}
+                        </>
+                    )
+                }
             />
-            <Divider />
-            <Box sx={{mb: 2}}>
-                {!eventData?.challengeEvent ? (
-                    <TabSelectionContainer
-                        activeTab={effectiveResultsTab}
-                        setActiveTab={switchResultsTab}>
-                        <Tab
-                            label={t('results.tabs.results')}
-                            icon={<EmojiEventsOutlinedIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...resultsTabProps('latest-results')}
-                        />
-                        <Tab
-                            label={t('results.tabs.live')}
-                            icon={<CellTowerOutlinedIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...resultsTabProps('live')}
-                        />
-                        {hasProgram && (
-                            <Tab
-                                label={t('results.tabs.schedule')}
-                                icon={<CalendarMonthOutlinedIcon />}
-                                iconPosition={smallScreenLayout ? 'top' : 'start'}
-                                sx={{flex: 1, maxWidth: 'unset'}}
-                                {...resultsTabProps('schedule')}
-                            />
-                        )}
-                        <Tab
-                            label={t('myEvent.tab')}
-                            icon={<PersonPinIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...resultsTabProps('my-event')}
-                        />
-                    </TabSelectionContainer>
-                ) : (
-                    <TabSelectionContainer
-                        activeTab={activeChallengeTab}
-                        setActiveTab={switchChallengeTab}>
-                        <Tab
-                            label={t('results.challengeTabs.club')}
-                            icon={<EmojiEventsOutlinedIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...challengeTabProps('club')}
-                        />
-                        <Tab
-                            label={t('results.challengeTabs.relative')}
-                            icon={<PercentIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...challengeTabProps('relative')}
-                        />
-                        <Tab
-                            label={t('results.challengeTabs.individual')}
-                            icon={<PersonIcon />}
-                            iconPosition={smallScreenLayout ? 'top' : 'start'}
-                            sx={{flex: 1, maxWidth: 'unset'}}
-                            {...challengeTabProps('individual')}
-                        />
-                    </TabSelectionContainer>
-                )}
-            </Box>
             {!eventData.challengeEvent ? (
                 <>
+                    {/* Neu aufbauen, sobald der Zeitplan-Reiter erscheint: sonst bleibt der
+                        Unterstrich unter dem Reiter stehen, der vor dem Nachladen aktiv war. */}
+                    <ResultsTabBar
+                        key={hasProgram ? 'with-schedule' : 'without-schedule'}
+                        name={'results'}
+                        tabs={resultsTabs}
+                        active={effectiveResultsTab}
+                        onChange={switchResultsTab}
+                        label={t('results.page.views')}
+                    />
                     <TabPanel index={'latest-results'} activeTab={effectiveResultsTab}>
                         <MatchResults
                             eventId={eventId}
@@ -203,6 +225,13 @@ const ResultsPage = () => {
                 </>
             ) : (
                 <>
+                    <ResultsTabBar
+                        name={'challengeResults'}
+                        tabs={challengeTabs}
+                        active={activeChallengeTab}
+                        onChange={switchChallengeTab}
+                        label={t('results.page.views')}
+                    />
                     <TabPanel index={'club'} activeTab={activeChallengeTab}>
                         <ResultsClubRanking eventData={eventData} totalRanking={true} />
                     </TabPanel>
@@ -215,8 +244,69 @@ const ResultsPage = () => {
                 </>
             )}
         </>
-    ) : (
-        <></>
     )
 }
+
+type ResultsTabItem<T extends string> = {value: T; label: string; icon: ReactElement}
+
+/**
+ * Reiterleiste der Ergebnisseite: gleich breite Reiter, die auch bei 390 px alle vier ohne
+ * Scrollen zeigen (vorher lief „Mein Event" aus dem Bild). Klebt beim Scrollen oben, damit der
+ * Wechsel zwischen Ergebnissen und Live auf langen Listen nicht erst nach oben führt.
+ */
+const ResultsTabBar = <T extends string>({
+    name,
+    tabs,
+    active,
+    onChange,
+    label,
+}: {
+    name: string
+    tabs: ResultsTabItem<T>[]
+    active: T
+    onChange: (tab: T) => void
+    label: string
+}) => {
+    const theme = useTheme()
+    const small = useMediaQuery(theme.breakpoints.down('sm'))
+    return (
+        <Box
+            sx={{
+                position: 'sticky',
+                top: 0,
+                zIndex: theme.zIndex.appBar,
+                bgcolor: 'canvas',
+                mx: {xs: -2, sm: 0},
+                px: {xs: 1, sm: 0},
+                mb: 2,
+                borderBottom: 1,
+                borderColor: 'divider',
+            }}>
+            <Tabs
+                value={active}
+                onChange={(_, value: T) => onChange(value)}
+                variant={'fullWidth'}
+                aria-label={label}>
+                {tabs.map(tab => (
+                    <Tab
+                        key={tab.value}
+                        label={tab.label}
+                        icon={tab.icon}
+                        iconPosition={small ? 'top' : 'start'}
+                        sx={{
+                            minWidth: 0,
+                            minHeight: small ? 60 : 52,
+                            px: {xs: 0.5, sm: 2},
+                            fontSize: {xs: '0.8125rem', sm: '0.9375rem'},
+                            lineHeight: 1.2,
+                            cursor: 'pointer',
+                        }}
+                        {...a11yProps(name, tab.value)}
+                    />
+                ))}
+            </Tabs>
+        </Box>
+    )
+}
+
 export default ResultsPage

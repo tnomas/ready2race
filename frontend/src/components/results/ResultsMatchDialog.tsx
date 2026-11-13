@@ -1,20 +1,18 @@
 import {
     Box,
     Button,
-    Card,
-    CardContent,
     Chip,
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
-    Grid2,
-    ListItemText,
     Stack,
     Typography,
     useMediaQuery,
     useTheme,
 } from '@mui/material'
+import {alpha} from '@mui/material/styles'
+import StatusChip from '@components/event/match/StatusChip.tsx'
+import {primaryTextColor, statusTextColor} from '../../theme/themeColors.ts'
 import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined'
 import {format} from 'date-fns'
 import BaseDialog from '@components/BaseDialog.tsx'
@@ -48,7 +46,7 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
     // nicht am Stück gruppieren lässt.
     const sortedTeams: ResultsMatchInfo['teams'][number][] = match
         ? 'executionOrder' in match
-            ? match.teams.sort((a, b) => compareNullsHigh(a.startNumber, b.startNumber))
+            ? match.teams.slice().sort((a, b) => compareNullsHigh(a.startNumber, b.startNumber))
             : sortByPlaces(match.teams)
         : []
 
@@ -59,6 +57,8 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
         'ratingCategory' in team ? team.ratingCategory : null,
     )
     const showSectionHeadings = hasRatingCategories(sections)
+    // Der Vorbehalt am veröffentlichten Ergebnis, wie auf der Karte (siehe ResultsMatchCard).
+    const provisional = match !== null && 'clarification' in match && match.clarification === true
 
     return (
         <BaseDialog
@@ -68,34 +68,53 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
             maxWidth={!smallScreenLayout ? 'md' : undefined}>
             {match && (
                 <>
-                    <DialogTitle>
-                        <Stack>
+                    <DialogTitle sx={{pr: 7}}>
+                        <Stack spacing={0.5}>
                             <Typography
-                                variant={
-                                    match.matchName && match.matchName !== match.roundName
-                                        ? 'body2'
-                                        : 'h6'
-                                }
+                                variant={'h2'}
+                                component={'span'}
                                 sx={{overflowWrap: 'anywhere'}}>
-                                {match.competitionName} - {match.roundName}
+                                {match.competitionName}
                             </Typography>
                             {/* Ein Laufname, der nur die Runde wiederholt („Zeitfahren"),
                                 erscheint nicht doppelt. */}
-                            {match.matchName !== match.roundName ? (match.matchName ?? '') : ''}
-                            {match.categoryName && (
-                                <Box>
-                                    <Chip
-                                        label={match.categoryName}
-                                        variant={'outlined'}
-                                        color={'primary'}
-                                        size={'small'}
+                            <Typography
+                                component={'span'}
+                                color={'text.secondary'}
+                                sx={{overflowWrap: 'anywhere'}}>
+                                {[
+                                    match.roundName,
+                                    match.matchName !== match.roundName ? match.matchName : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                            </Typography>
+                            {(match.categoryName || provisional) && (
+                                <Stack direction={'row'} spacing={1} sx={{flexWrap: 'wrap'}}>
+                                    {match.categoryName && (
+                                        <Chip
+                                            label={match.categoryName}
+                                            variant={'outlined'}
+                                            color={'primary'}
+                                            size={'small'}
+                                        />
+                                    )}
+                                    <StatusChip
+                                        chip={
+                                            provisional
+                                                ? {
+                                                      labelKey: 'event.match.status.provisional',
+                                                      color: 'warning',
+                                                  }
+                                                : null
+                                        }
                                     />
-                                </Box>
+                                </Stack>
                             )}
                         </Stack>
                     </DialogTitle>
                     <DialogContent>
-                        <Stack spacing={2}>
+                        <Stack spacing={3}>
                             {/* Uhrzeit und Nennung der Zeitnahme in einer Zeile, gleich zu Anfang:
                                 Wer die Zeiten gemessen hat, gehört zur Zeitangabe und nicht in eine
                                 Fußzeile, die erst nach dem Durchblättern aller Boote auftaucht.
@@ -124,177 +143,18 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
                                 </Stack>
                             )}
                             {sections.map(section => (
-                                <Stack spacing={2} key={section.category?.id ?? 'none'}>
+                                <Box component={'section'} key={section.category?.id ?? 'none'}>
                                     {showSectionHeadings && (
-                                        <Typography variant={'subtitle1'} fontWeight={'bold'}>
+                                        <Typography variant={'h3'} sx={{mb: 1}}>
                                             {section.category?.name ??
                                                 t('event.ratingCategory.withoutCategory')}
                                         </Typography>
                                     )}
+                                    <RankingHeader />
                                     {section.entries.map(team => (
-                                        <Card key={team.teamId}>
-                                            <CardContent>
-                                                {/* Auf dem Telefon untereinander: Platz/Zeit oben,
-                                                    Verein darunter linksbündig. Die alte
-                                                    Zwei-Spalten-Zeile quetschte lange
-                                                    Vereinsketten gegen die Platzzahl. */}
-                                                <Stack
-                                                    spacing={{xs: 1, sm: 4}}
-                                                    direction={{xs: 'column', sm: 'row'}}
-                                                    sx={{
-                                                        justifyContent: 'space-between',
-                                                    }}>
-                                                    {/* Unterscheidet die Ergebnis-Mannschaft von der
-                                                eines laufenden Laufs. Bewusst an `deregistered`:
-                                                Zeit, Zeitstrafe und `failed` trägt inzwischen
-                                                auch die laufende Mannschaft (Teilergebnisse). */}
-                                                    {'deregistered' in team ? (
-                                                        <Box>
-                                                            {/* Gezeigt wird der Platz innerhalb der
-                                                        Wertungskategorie; team.place bleibt der
-                                                        Platz im Lauf und ist nur seine Grundlage. */}
-                                                            <Typography
-                                                                variant={
-                                                                    team.categoryPlace
-                                                                        ? 'h5'
-                                                                        : 'body1'
-                                                                }>
-                                                                {team.categoryPlace
-                                                                    ? `${team.categoryPlace}.`
-                                                                    : team.failed
-                                                                      ? failedLabel(
-                                                                            team.failedReason,
-                                                                            t(
-                                                                                'event.competition.execution.results.failed',
-                                                                            ),
-                                                                        )
-                                                                      : team.deregistered
-                                                                        ? t(
-                                                                              'event.competition.registration.deregister.deregistered',
-                                                                          ) +
-                                                                          (team.deregisteredReason
-                                                                              ? ` (${team.deregisteredReason})`
-                                                                              : '')
-                                                                        : ''}
-                                                            </Typography>
-                                                            {!team.failed && team.timeString && (
-                                                                <Box
-                                                                    display="flex"
-                                                                    gap={1}
-                                                                    alignItems={'center'}>
-                                                                    <TimerOutlinedIcon
-                                                                        color={'action'}
-                                                                        fontSize={'inherit'}
-                                                                    />
-                                                                    <Typography
-                                                                        color={'textSecondary'}
-                                                                        variant={'body2'}>
-                                                                        {team.timeString}
-                                                                    </Typography>
-                                                                </Box>
-                                                            )}
-                                                            {team.penaltySeconds != null && (
-                                                                <Typography
-                                                                    color={'warning.main'}
-                                                                    variant={'body2'}>
-                                                                    {t(
-                                                                        'event.competition.execution.results.penalty',
-                                                                        {
-                                                                            seconds:
-                                                                                team.penaltySeconds,
-                                                                        },
-                                                                    )}
-                                                                    {team.penaltyNote
-                                                                        ? ` · ${team.penaltyNote}`
-                                                                        : ''}
-                                                                </Typography>
-                                                            )}
-                                                        </Box>
-                                                    ) : (
-                                                        <Box></Box>
-                                                    )}
-                                                    <Box sx={{minWidth: 0}}>
-                                                        <Typography
-                                                            textAlign={{xs: 'left', sm: 'right'}}
-                                                            sx={{overflowWrap: 'anywhere'}}>
-                                                            {team.clubsFull ?? team.clubName}
-                                                        </Typography>
-                                                        <Typography
-                                                            color={'textSecondary'}
-                                                            variant={'body2'}
-                                                            textAlign={{xs: 'left', sm: 'right'}}
-                                                            sx={{overflowWrap: 'anywhere'}}>
-                                                            {[
-                                                                t('club.registeredBy') +
-                                                                    ' ' +
-                                                                    team.clubName,
-                                                                team.teamName,
-                                                            ]
-                                                                .filter(Boolean)
-                                                                .join(' | ')}
-                                                        </Typography>
-                                                    </Box>
-                                                </Stack>
-                                                <Divider sx={{my: 1}} />
-                                                <Grid2 container>
-                                                    {team.participants
-                                                        .sort((a, b) =>
-                                                            a.namedRole === b.namedRole
-                                                                ? a.firstName === b.firstName
-                                                                    ? a.lastName > b.lastName
-                                                                        ? 1
-                                                                        : -1
-                                                                    : a.firstName > b.firstName
-                                                                      ? 1
-                                                                      : -1
-                                                                : (a.namedRole ?? '') >
-                                                                    (b.namedRole ?? '')
-                                                                  ? 1
-                                                                  : -1,
-                                                        )
-                                                        .map(participant => (
-                                                            <Grid2
-                                                                // Eine Spalte auf dem Telefon:
-                                                                // zwei nebeneinander schnitten
-                                                                // lange Namen und Vereine ab.
-                                                                size={{xs: 12, sm: 6}}
-                                                                key={participant.participantId}>
-                                                                <ListItemText
-                                                                    primary={
-                                                                        participant.firstName +
-                                                                        ' ' +
-                                                                        participant.lastName +
-                                                                        // Jahrgang hinter dem Namen
-                                                                        // (Wunsch von Lea, 10.08.2026)
-                                                                        (participant.year != null
-                                                                            ? ` (${participant.year})`
-                                                                            : '')
-                                                                    }
-                                                                    secondary={
-                                                                        <>
-                                                                            <Typography
-                                                                                variant="body2"
-                                                                                color="text.secondary">
-                                                                                {
-                                                                                    participant.namedRole
-                                                                                }
-                                                                            </Typography>
-                                                                            <Typography
-                                                                                variant="body2"
-                                                                                color="text.secondary">
-                                                                                {participant.externalClubName ??
-                                                                                    team.clubName}
-                                                                            </Typography>
-                                                                        </>
-                                                                    }
-                                                                />
-                                                            </Grid2>
-                                                        ))}
-                                                </Grid2>
-                                            </CardContent>
-                                        </Card>
+                                        <TeamRow key={team.teamId} team={team} />
                                     ))}
-                                </Stack>
+                                </Box>
                             ))}
                         </Stack>
                     </DialogContent>
@@ -306,5 +166,221 @@ const ResultsMatchDialog = <M extends ResultsMatchInfo>({
         </BaseDialog>
     )
 }
+
+type Team = ResultsMatchInfo['teams'][number]
+type Participant = Team['participants'][number]
+
+/**
+ * Raster der Ergebniszeilen. Telefon: Platz | Mannschaft | Zeit, Besatzung darunter über die
+ * volle Breite. Ab md eine echte Tabelle: Platz | Mannschaft | Besatzung | Zeit mit Kopfzeile.
+ */
+const rowGrid = {
+    display: 'grid',
+    gridTemplateColumns: {
+        xs: '3rem minmax(0, 1fr) auto',
+        md: '3.5rem minmax(0, 1.1fr) minmax(0, 1.4fr) 7rem',
+    },
+    columnGap: {xs: 1.5, md: 2.5},
+    rowGap: 0.75,
+} as const
+
+const RankingHeader = () => {
+    const {t} = useTranslation()
+    return (
+        <Box
+            aria-hidden
+            sx={{
+                ...rowGrid,
+                display: {xs: 'none', md: 'grid'},
+                pb: 1,
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& > *': {
+                    typography: 'overline',
+                    color: 'text.secondary',
+                    lineHeight: 1.4,
+                },
+            }}>
+            <Box>{t('results.ranking.place')}</Box>
+            <Box>{t('results.ranking.team')}</Box>
+            <Box>{t('results.ranking.crew')}</Box>
+            <Box sx={{textAlign: 'right'}}>{t('results.ranking.time')}</Box>
+        </Box>
+    )
+}
+
+const compareParticipants = (a: Participant, b: Participant) =>
+    a.namedRole === b.namedRole
+        ? a.firstName === b.firstName
+            ? a.lastName > b.lastName
+                ? 1
+                : -1
+            : a.firstName > b.firstName
+              ? 1
+              : -1
+        : (a.namedRole ?? '') > (b.namedRole ?? '')
+          ? 1
+          : -1
+
+const TeamRow = ({team}: {team: Team}) => {
+    const {t} = useTranslation()
+    // Unterscheidet die Ergebnis-Mannschaft von der eines laufenden Laufs. Bewusst an
+    // `deregistered`: Zeit, Zeitstrafe und `failed` trägt inzwischen auch die laufende
+    // Mannschaft (Teilergebnisse).
+    const result = 'deregistered' in team ? team : null
+    // Gezeigt wird der Platz innerhalb der Wertungskategorie; team.place bleibt der Platz im
+    // Lauf und ist nur seine Grundlage. Als Ordnungszahl, damit er nicht wie eine Startnummer liest.
+    const place = result?.categoryPlace ?? null
+    const statusText = result
+        ? result.failed
+            ? failedLabel(result.failedReason, t('event.competition.execution.results.failed'))
+            : result.deregistered
+              ? t('event.competition.registration.deregister.deregistered') +
+                (result.deregisteredReason ? ` (${result.deregisteredReason})` : '')
+              : null
+        : null
+    const time = result && !result.failed ? result.timeString : null
+
+    return (
+        <Box
+            sx={{
+                ...rowGrid,
+                py: 1.5,
+                borderBottom: 1,
+                borderColor: 'divider',
+                '&:last-of-type': {borderBottom: 0},
+                alignItems: 'start',
+            }}>
+            {/* Platz; ohne Platz (laufender Lauf) die Startnummer, klar beschriftet */}
+            <Box sx={{gridRow: {xs: 'span 2', md: 'auto'}}}>
+                {place ? (
+                    <PlaceBadge place={place} />
+                ) : !statusText && 'startNumber' in team && team.startNumber != null ? (
+                    <Box>
+                        <Typography variant={'caption'} color={'text.secondary'} component={'p'}>
+                            {t('results.ranking.startNumber')}
+                        </Typography>
+                        <Typography sx={{fontWeight: 700, fontVariantNumeric: 'tabular-nums'}}>
+                            {team.startNumber}
+                        </Typography>
+                    </Box>
+                ) : (
+                    <Typography color={'text.secondary'} aria-hidden>
+                        –
+                    </Typography>
+                )}
+            </Box>
+            <Box sx={{minWidth: 0}}>
+                <Typography sx={{fontWeight: 600, overflowWrap: 'anywhere'}}>
+                    {team.clubsFull ?? team.clubName}
+                </Typography>
+                <Typography
+                    variant={'body2'}
+                    color={'text.secondary'}
+                    sx={{overflowWrap: 'anywhere'}}>
+                    {[t('club.registeredBy') + ' ' + team.clubName, team.teamName]
+                        .filter(Boolean)
+                        .join(' | ')}
+                </Typography>
+                {statusText && (
+                    <Typography variant={'body2'} sx={{fontWeight: 600, mt: 0.25}}>
+                        {statusText}
+                    </Typography>
+                )}
+                {result && result.penaltySeconds != null && (
+                    <Typography
+                        variant={'body2'}
+                        sx={{color: theme => statusTextColor(theme, 'warning'), mt: 0.25}}>
+                        {t('event.competition.execution.results.penalty', {
+                            seconds: result.penaltySeconds,
+                        })}
+                        {result.penaltyNote ? ` · ${result.penaltyNote}` : ''}
+                    </Typography>
+                )}
+            </Box>
+            <Box
+                sx={{
+                    gridColumn: {xs: '2 / -1', md: '3'},
+                    gridRow: {xs: '2', md: 'auto'},
+                    minWidth: 0,
+                }}>
+                <Stack spacing={0.25}>
+                    {team.participants
+                        .slice()
+                        .sort(compareParticipants)
+                        .map(participant => (
+                            <Typography
+                                key={participant.participantId}
+                                variant={'body2'}
+                                sx={{overflowWrap: 'anywhere'}}>
+                                {participant.firstName} {participant.lastName}
+                                {/* Jahrgang hinter dem Namen (Wunsch von Lea, 10.08.2026) */}
+                                {participant.year != null ? ` (${participant.year})` : ''}
+                                {(participant.namedRole || participant.externalClubName) && (
+                                    <Box component={'span'} sx={{color: 'text.secondary'}}>
+                                        {' · '}
+                                        {[participant.namedRole, participant.externalClubName]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </Box>
+                                )}
+                            </Typography>
+                        ))}
+                </Stack>
+            </Box>
+            <Box
+                sx={{
+                    gridColumn: {xs: '3', md: '4'},
+                    gridRow: {xs: '1', md: 'auto'},
+                    textAlign: 'right',
+                }}>
+                {time && (
+                    <Stack
+                        direction={'row'}
+                        spacing={0.5}
+                        sx={{alignItems: 'center', justifyContent: 'flex-end'}}>
+                        <TimerOutlinedIcon
+                            aria-hidden
+                            sx={{fontSize: 16, color: 'text.secondary'}}
+                        />
+                        <Typography
+                            sx={{
+                                fontWeight: 600,
+                                fontVariantNumeric: 'tabular-nums',
+                                whiteSpace: 'nowrap',
+                            }}>
+                            {time}
+                        </Typography>
+                    </Stack>
+                )}
+            </Box>
+        </Box>
+    )
+}
+
+/** Platz als Ordnungszahl („1."); die ersten drei in einer getönten Marke. */
+const PlaceBadge = ({place}: {place: number}) => (
+    <Box
+        sx={theme => ({
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '2.25rem',
+            height: '2.25rem',
+            px: 0.75,
+            borderRadius: '50%',
+            fontWeight: 700,
+            fontSize: '1.125rem',
+            fontVariantNumeric: 'tabular-nums',
+            ...(place <= 3
+                ? {
+                      bgcolor: alpha(theme.palette.primary.main, 0.14),
+                      color: primaryTextColor(theme),
+                  }
+                : {color: 'text.primary'}),
+        })}>
+        {place}.
+    </Box>
+)
 
 export default ResultsMatchDialog

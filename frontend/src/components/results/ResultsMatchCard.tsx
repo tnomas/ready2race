@@ -3,6 +3,8 @@ import {Box, Card, CardActionArea, CardContent, Chip, Stack, Typography} from '@
 import {format} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import {MatchChip} from '@components/event/match/matchStatusChip.ts'
+import {ChevronRight} from '@mui/icons-material'
+import {primaryTextColor} from '../../theme/themeColors.ts'
 import StatusChip from '@components/event/match/StatusChip.tsx'
 
 export type ResultsMatchInfo = LatestMatchResultInfo | RunningMatchInfo | LiveMatchInfo
@@ -82,81 +84,93 @@ const ResultsMatchCard = <M extends ResultsMatchInfo>({
     */
     const provisional = 'clarification' in match && match.clarification === true
 
+    const roundLine = [match.roundName, matchName].filter(Boolean).join(' · ')
+
     const content = (
-        <CardContent>
-            <Stack spacing={0.5}>
-                {competition && (
-                    <Stack
-                        direction={'row'}
-                        spacing={1}
-                        sx={{alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5}}>
+        <CardContent sx={{px: {xs: 2, sm: 2.5}, py: 1.75, '&:last-child': {pb: 1.75}}}>
+            <Box sx={{display: 'flex', alignItems: 'flex-start', columnGap: 1.5}}>
+                <Box sx={{flex: 1, minWidth: 0}}>
+                    {competition && (
+                        <Stack
+                            direction={'row'}
+                            spacing={1}
+                            sx={{alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5, mb: 0.25}}>
+                            <Typography
+                                sx={{
+                                    fontWeight: 600,
+                                    minWidth: 0,
+                                    overflowWrap: 'anywhere',
+                                    color: theme => primaryTextColor(theme),
+                                }}>
+                                {competition.competitionName}
+                            </Typography>
+                            {competition.competitionCategory && (
+                                <Chip
+                                    variant={'outlined'}
+                                    color={'primary'}
+                                    size={'small'}
+                                    label={competition.competitionCategory}
+                                />
+                            )}
+                        </Stack>
+                    )}
+                    {roundLine && (
                         <Typography
-                            fontWeight={'bold'}
-                            color={'primary'}
-                            sx={{minWidth: 0, overflowWrap: 'anywhere'}}>
-                            {competition.competitionName}
+                            sx={{
+                                ...strikethrough,
+                                fontWeight: competition ? 400 : 600,
+                                overflowWrap: 'anywhere',
+                            }}>
+                            {roundLine}
                         </Typography>
-                        {competition.competitionCategory && (
-                            <Chip
-                                variant={'outlined'}
-                                color={'primary'}
-                                size={'small'}
-                                label={competition.competitionCategory}
-                            />
-                        )}
-                    </Stack>
-                )}
+                    )}
+                    {match.startTime && (
+                        <Typography
+                            variant={'body2'}
+                            color={'text.secondary'}
+                            sx={{fontVariantNumeric: 'tabular-nums', mt: 0.25}}>
+                            {format(new Date(match.startTime), t('format.datetime'))}
+                        </Typography>
+                    )}
+                    {note && (
+                        <Typography
+                            variant={'body2'}
+                            color={'text.secondary'}
+                            fontStyle={'italic'}
+                            sx={{mt: 0.25}}>
+                            {note}
+                        </Typography>
+                    )}
+                </Box>
                 <Box
                     sx={{
                         display: 'flex',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        columnGap: 1,
-                        rowGap: 0.5,
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        gap: 0.5,
+                        flexShrink: 0,
+                        maxWidth: '50%',
                     }}>
-                    <Box sx={{minWidth: 0}}>
-                        {match.roundName && (
-                            <Typography sx={strikethrough}>{match.roundName}</Typography>
-                        )}
-                        {matchName && (
-                            <Typography variant={'h6'} sx={strikethrough}>
-                                {matchName}
-                            </Typography>
-                        )}
-                    </Box>
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-end',
-                            gap: 0.5,
-                            ml: 'auto',
-                        }}>
-                        <StatusChip chip={statusChip ?? null} />
-                        <StatusChip chip={secondaryChip ?? null} />
-                        <StatusChip
-                            chip={
-                                provisional
-                                    ? {
-                                          labelKey: 'event.match.status.provisional',
-                                          color: 'warning',
-                                      }
-                                    : null
-                            }
-                        />
-                        {match.startTime && (
-                            <Typography>
-                                {format(new Date(match.startTime), t('format.datetime'))}
-                            </Typography>
-                        )}
-                    </Box>
+                    <StatusChip chip={statusChip ?? null} />
+                    <StatusChip chip={secondaryChip ?? null} />
+                    <StatusChip
+                        chip={
+                            provisional
+                                ? {
+                                      labelKey: 'event.match.status.provisional',
+                                      color: 'warning',
+                                  }
+                                : null
+                        }
+                    />
                 </Box>
-            </Stack>
-            {note && (
-                <Typography variant={'body2'} color={'text.secondary'} fontStyle={'italic'}>
-                    {note}
-                </Typography>
-            )}
+                {!disabled && (
+                    <ChevronRight
+                        aria-hidden
+                        sx={{color: 'text.secondary', alignSelf: 'center', flexShrink: 0}}
+                    />
+                )}
+            </Box>
         </CardContent>
     )
 
@@ -165,7 +179,9 @@ const ResultsMatchCard = <M extends ResultsMatchInfo>({
             {disabled ? (
                 content
             ) : (
-                <CardActionArea onClick={() => selectMatch(match)}>{content}</CardActionArea>
+                <CardActionArea onClick={() => selectMatch(match)} sx={{cursor: 'pointer'}}>
+                    {content}
+                </CardActionArea>
             )}
         </Card>
     )
