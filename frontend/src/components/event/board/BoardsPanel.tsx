@@ -218,6 +218,7 @@ const BoardsPanel = ({eventId}: BoardsPanelProps) => {
                             {canEdit && (
                                 <>
                                     <IconButton
+                                        aria-label={t('common.edit')}
                                         size="small"
                                         onClick={() => {
                                             setEditingBoard(board)
@@ -225,7 +226,9 @@ const BoardsPanel = ({eventId}: BoardsPanelProps) => {
                                         }}>
                                         <EditIcon fontSize="small" />
                                     </IconButton>
-                                    <IconButton size="small" onClick={() => handleDelete(board)}>
+                                    <IconButton
+                                        aria-label={t('common.delete')}
+                                        size="small" onClick={() => handleDelete(board)}>
                                         <DeleteIcon fontSize="small" />
                                     </IconButton>
                                 </>

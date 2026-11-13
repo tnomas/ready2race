@@ -114,7 +114,7 @@ const AssignParticipantModal: React.FC<AssignParticipantModalProps> = ({
                                                 <Chip 
                                                     size="small" 
                                                     icon={<QrCode />} 
-                                                    label={t('participantRequirement.qrCodeRequired' as any)} 
+                                                    label={t('participantRequirement.qrCodeRequired')} 
                                                 />
                                             ) : null}
                                         />
@@ -162,6 +162,7 @@ const AssignParticipantModal: React.FC<AssignParticipantModalProps> = ({
                             endAdornment: searchTerm && (
                                 <InputAdornment position="end">
                                     <IconButton
+                                        aria-label={t('entity.search.clear')}
                                         size="small"
                                         onClick={() => setSearchTerm('')}
                                     >

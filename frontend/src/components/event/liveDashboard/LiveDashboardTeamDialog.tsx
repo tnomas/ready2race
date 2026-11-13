@@ -202,7 +202,9 @@ const TeamDialog = ({
                 ]
                     .filter(Boolean)
                     .join(' · ')}
-                <IconButton onClick={onClose} sx={{position: 'absolute', right: 8, top: 8}}>
+                <IconButton
+                    aria-label={t('common.close')}
+                    onClick={onClose} sx={{position: 'absolute', right: 8, top: 8}}>
                     <CloseIcon />
                 </IconButton>
             </DialogTitle>

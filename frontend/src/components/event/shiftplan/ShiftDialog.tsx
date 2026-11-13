@@ -88,7 +88,7 @@ const ShiftDialog = (props: BaseEntityDialogProps<WorkShiftWithAssignedUsersDto>
             showSaveAndNew={true}
             disableSave={!userCanEdit}
             addAction={addAction}
-            // @ts-ignore
+            // @ts-expect-error Typ von editAction passt nicht zur Dialog-Signatur (vorbestehend)
             editAction={editAction}>
             <Stack spacing={4}>
                 <FormInputAutocomplete

@@ -21,6 +21,7 @@ import {
     AUTO_REFRESH_MIN_SECONDS,
     clampRefreshSeconds,
 } from '@components/event/competition/excecution/autoRefresh.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     /** Die geladene Veranstaltung — hier werden die Durchführungs-Einstellungen festgeschrieben. */
@@ -83,21 +84,23 @@ const EventExecutionSettings = ({event, reloadEvent}: Props) => {
     ]
 
     const handleSave = async () => {
-        setSubmitting(true)
-        const {error} = await updateEvent({
-            path: {eventId: event.id},
-            body: {
-                ...eventDtoToUpdateRequest(event),
-                chainProgressionMode,
-                autoCreateFollowingRounds,
-                executionAutoRefresh: autoRefresh,
-                // Begrenzt statt roh übernommen, damit ein leeres oder krummes Feld nicht als 0
-                // beim Server ankommt, wo es nur abgelehnt würde.
-                executionAutoRefreshSeconds: clampRefreshSeconds(Number(refreshSeconds)),
-            },
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            updateEvent({
+                path: {eventId: event.id},
+                body: {
+                    ...eventDtoToUpdateRequest(event),
+                    chainProgressionMode,
+                    autoCreateFollowingRounds,
+                    executionAutoRefresh: autoRefresh,
+                    // Begrenzt statt roh übernommen, damit ein leeres oder krummes Feld nicht als 0
+                    // beim Server ankommt, wo es nur abgelehnt würde.
+                    executionAutoRefreshSeconds: clampRefreshSeconds(Number(refreshSeconds)),
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('entity.edit.error', {entity: t('event.event')}))
         } else {
             feedback.success(t('entity.edit.success', {entity: t('event.event')}))

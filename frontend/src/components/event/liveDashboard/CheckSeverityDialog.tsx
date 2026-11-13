@@ -31,6 +31,7 @@ import {
     rowSummary,
     severityAt,
 } from './checkSeverity.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 const SEVERITIES: CheckSeverity[] = ['OK', 'WARNING', 'CRITICAL']
 
@@ -142,13 +143,15 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
     }
 
     const handleSave = async () => {
-        setSaving(true)
-        const {error} = await updateCheckSeverityConfig({
-            path: {eventId},
-            body: {entries: buildSavePayload(entries, preserved)},
-        })
-        setSaving(false)
-        if (error) {
+        const {error} = await runRequest(setSaving, () =>
+            updateCheckSeverityConfig({
+                path: {eventId},
+                body: {entries: buildSavePayload(entries, preserved)},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.liveDashboard.checkSeverity.saveError'))
         } else {
             feedback.success(t('event.liveDashboard.checkSeverity.saved'))
@@ -160,7 +163,10 @@ const CheckSeverityDialog = ({open, onClose, eventId}: Props) => {
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
             <DialogTitle sx={{pr: 6}}>
                 {t('event.liveDashboard.checkSeverity.title')}
-                <IconButton onClick={onClose} sx={{position: 'absolute', right: 8, top: 8}}>
+                <IconButton
+                    onClick={onClose}
+                    aria-label={t('common.close')}
+                    sx={{position: 'absolute', right: 8, top: 8}}>
                     <Close />
                 </IconButton>
             </DialogTitle>

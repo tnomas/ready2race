@@ -352,7 +352,7 @@ const CompetitionSetupRound = ({round, formContext, removeRound, teamCounts, ...
                     name={`rounds.${round.index}.useStartTimeOffsets`}
                     render={({
                         field: {
-                            onChange: useStartTimeOffsetsOnChange,
+                            onChange: onStartTimeOffsetsChange,
                             value: useStartTimeOffsetsValue = true,
                         },
                     }) => (
@@ -427,7 +427,7 @@ const CompetitionSetupRound = ({round, formContext, removeRound, teamCounts, ...
                                                 <Checkbox
                                                     checked={useStartTimeOffsetsValue}
                                                     onChange={e => {
-                                                        useStartTimeOffsetsOnChange(e)
+                                                        onStartTimeOffsetsChange(e)
                                                     }}
                                                 />
                                             }

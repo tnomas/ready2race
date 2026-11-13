@@ -86,8 +86,11 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
 
     const submit = async () => {
         setSubmitting(true)
-        await onFinish(openResultsRef.current)
-        setSubmitting(false)
+        try {
+            await onFinish(openResultsRef.current)
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const cancel = () => {

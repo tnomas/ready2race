@@ -23,6 +23,7 @@ import LoadingButton from '@components/form/LoadingButton.tsx'
 import {submitChallengeTeamResults, submitChallengeTeamResultsByToken} from '@api/sdk.gen.ts'
 import ChallengeResultForm from '@components/event/competition/registration/ChallengeResultForm.tsx'
 import {challengeErrorKey} from '@components/event/competition/excecution/executionError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 export type ResultInputTeamInfo = {
     id: string
@@ -74,40 +75,40 @@ const ChallengeResultDialog = ({teamDto, dialogOpen, ...props}: Props) => {
     const onSubmit = async (formData: Form) => {
         if (!teamDto) return
 
-        setSubmitting(true)
-
-        const {error} = props.accessToken
-            ? await submitChallengeTeamResultsByToken({
-                  path: {
-                      eventId: props.eventId,
-                      competitionId: props.competitionId,
-                      competitionRegistrationId: teamDto.id,
-                      accessToken: props.accessToken,
-                  },
-                  body: {
-                      request: {
-                          result: Number(formData.result),
+        const {error} = await runRequest(setSubmitting, () =>
+            props.accessToken
+                ? submitChallengeTeamResultsByToken({
+                      path: {
+                          eventId: props.eventId,
+                          competitionId: props.competitionId,
+                          competitionRegistrationId: teamDto.id,
+                          accessToken: props.accessToken,
                       },
-                      files: formData.files.map(({file}) => file),
-                  },
-              })
-            : await submitChallengeTeamResults({
-                  path: {
-                      eventId: props.eventId,
-                      competitionId: props.competitionId,
-                      competitionRegistrationId: teamDto.id,
-                  },
-                  body: {
-                      request: {
-                          result: Number(formData.result),
+                      body: {
+                          request: {
+                              result: Number(formData.result),
+                          },
+                          files: formData.files.map(({file}) => file),
                       },
-                      files: formData.files.map(({file}) => file),
-                  },
-              })
-
-        setSubmitting(false)
+                  })
+                : submitChallengeTeamResults({
+                      path: {
+                          eventId: props.eventId,
+                          competitionId: props.competitionId,
+                          competitionRegistrationId: teamDto.id,
+                      },
+                      body: {
+                          request: {
+                              result: Number(formData.result),
+                          },
+                          files: formData.files.map(({file}) => file),
+                      },
+                  }),
+        )
         setConfirming(false)
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             // Die sieben Challenge-Gründe teilten sich diese eine Meldung, obwohl sie
             // Verschiedenes verlangen: warten, aufhören, jemand anderen bitten oder einen
             // Administrator holen.
@@ -224,30 +225,32 @@ const ChallengeResultDialog = ({teamDto, dialogOpen, ...props}: Props) => {
                                 )}
                             </Stack>
                         </Container>
-                        {confirming && confirmationFormState.files.length === 1 && previewImageUrl && (
-                            <Box
-                                sx={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    flexDirection: 'column',
-                                    gap: 1,
-                                    my: 4,
-                                }}>
-                                <img
-                                    src={previewImageUrl}
-                                    alt={t(
-                                        'event.competition.execution.results.confirmationImage.preview',
-                                    )}
-                                    style={{
-                                        maxWidth: '100%',
-                                        maxHeight: '600px',
-                                        objectFit: 'contain',
-                                    }}
-                                />
-                            </Box>
-                        )}
+                        {confirming &&
+                            confirmationFormState.files.length === 1 &&
+                            previewImageUrl && (
+                                <Box
+                                    sx={{
+                                        flex: 1,
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        flexDirection: 'column',
+                                        gap: 1,
+                                        my: 4,
+                                    }}>
+                                    <img
+                                        src={previewImageUrl}
+                                        alt={t(
+                                            'event.competition.execution.results.confirmationImage.preview',
+                                        )}
+                                        style={{
+                                            maxWidth: '100%',
+                                            maxHeight: '600px',
+                                            objectFit: 'contain',
+                                        }}
+                                    />
+                                </Box>
+                            )}
                     </Box>
                     {confirming && (
                         <>

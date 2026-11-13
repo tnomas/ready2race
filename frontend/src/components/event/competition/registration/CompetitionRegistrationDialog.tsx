@@ -123,7 +123,7 @@ const CompetitionRegistrationDialog = ({
         signal =>
             getClubParticipantsForEvent({
                 signal,
-                path: {clubId: clubId!!},
+                path: {clubId: clubId!},
                 query: {
                     eventId: eventData.id,
                     ratingCategoryId:

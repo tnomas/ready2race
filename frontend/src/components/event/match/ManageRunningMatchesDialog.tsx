@@ -102,7 +102,7 @@ const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatch
                     <Typography variant="h6">
                         {t('event.competition.execution.match.manageRunning')}
                     </Typography>
-                    <IconButton onClick={onClose} edge="end">
+                    <IconButton onClick={onClose} edge="end" aria-label={t('common.close')}>
                         <Close />
                     </IconButton>
                 </Box>

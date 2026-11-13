@@ -174,7 +174,9 @@ const CompetitionSetupGroup = ({formContext, roundIndex, fieldInfo, ...props}: P
                             spacing={2}
                             sx={{justifyContent: 'space-between', alignItems: 'center'}}>
                             <Typography>{getMatchupString(matchField.weighting, false)}</Typography>
-                            <IconButton onClick={() => removeGroupMatch(matchIndex)}>
+                            <IconButton
+                                aria-label={t('common.remove')}
+                                onClick={() => removeGroupMatch(matchIndex)}>
                                 <Delete />
                             </IconButton>
                         </Stack>

@@ -46,17 +46,11 @@ const initialSort: GridSortModel = [{field: 'clubName', sort: 'asc'}]
 type Props = BaseEntityTableProps<CompetitionRegistrationDto> & {
     registrationState: OpenForRegistrationType
     reloadEvent: () => void
-    challengeEvent: boolean
     registrationInitialized: boolean
     documentsAccepted: boolean | null
 }
 
-const CompetitionRegistrationTable = ({
-    registrationState,
-    reloadEvent,
-    challengeEvent,
-    ...props
-}: Props) => {
+const CompetitionRegistrationTable = ({registrationState, reloadEvent, ...props}: Props) => {
     const {t} = useTranslation()
     const user = useUser()
     const feedback = useFeedback()

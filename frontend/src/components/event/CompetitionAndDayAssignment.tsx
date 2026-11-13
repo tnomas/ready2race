@@ -22,7 +22,8 @@ import {updateEventGlobal} from '@authorization/privileges.ts'
 import {Link} from '@tanstack/react-router'
 import InputIcon from '@mui/icons-material/Input'
 import BaseDialog from '@components/BaseDialog.tsx'
-import FormInputMultiselect from "@components/form/input/FormInputMultiselect.tsx";
+import FormInputMultiselect from '@components/form/input/FormInputMultiselect.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type AssignmentForm = {
     selected: string[]
@@ -69,23 +70,25 @@ const CompetitionAndDayAssignment = ({competitionsToDay, ...props}: Props) => {
     }
 
     const onSubmit = async (formData: AssignmentForm) => {
-        setSubmitting(true)
-        const {error} = competitionsToDay
-            ? await assignCompetitionsToEventDay({
-                  path: {eventId: eventId, eventDayId: props.entityPathId},
-                  body: {
-                      competitions: formData.selected,
-                  },
-              })
-            : await assignDaysToCompetition({
-                  path: {eventId: eventId, competitionId: props.entityPathId},
-                  body: {
-                      days: formData.selected,
-                  },
-              })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            competitionsToDay
+                ? assignCompetitionsToEventDay({
+                      path: {eventId: eventId, eventDayId: props.entityPathId},
+                      body: {
+                          competitions: formData.selected,
+                      },
+                  })
+                : assignDaysToCompetition({
+                      path: {eventId: eventId, competitionId: props.entityPathId},
+                      body: {
+                          days: formData.selected,
+                      },
+                  }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.assign.save.error', entityNames))
         } else {
             closeDialog()
@@ -132,6 +135,7 @@ const CompetitionAndDayAssignment = ({competitionsToDay, ...props}: Props) => {
                                                     ? {eventId: eventId, competitionId: field.id}
                                                     : {eventId: eventId, eventDayId: field.id}
                                             }
+                                            aria-label={field.label}
                                             style={{alignItems: 'center', display: 'flex'}}>
                                             <InputIcon />
                                         </Link>

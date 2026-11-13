@@ -115,7 +115,6 @@ const CompetitionRegistrations = ({eventData, competitionData, reloadEvent}: Pro
                 registrationInitialized={registrationInitialized}
                 documentsAccepted={documentsAccepted}
                 reloadEvent={reloadEvent}
-                challengeEvent={eventData.challengeEvent}
             />
         </Stack>
     )
