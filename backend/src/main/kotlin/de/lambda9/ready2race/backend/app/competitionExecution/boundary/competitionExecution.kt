@@ -15,6 +15,7 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.xls.checkValidXls
 import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
@@ -394,45 +395,14 @@ fun Route.competitionExecution() {
                         val competitionId = !pathParam("competitionId", uuid)
                         val competitionRegistrationId = !pathParam("competitionRegistrationId", uuid)
 
-                        val multiPartData = receiveMultipart()
+                        // Der Token ist hier die Anmeldung - erst prüfen, dann den Körper lesen.
+                        !CompetitionExecutionChallengeService.requireAccessToken(accessToken)
 
-                        // Todo: Limit file size
-                        var upload: File? = null
-                        var request: CompetitionChallengeResultRequest? = null
-
-                        var done = false
-                        while (!done) {
-                            val part = multiPartData.readPart()
-                            if (part == null) {
-                                done = true
-                            } else {
-                                when (part) {
-                                    is PartData.FileItem -> {
-                                        if (upload == null) {
-                                            upload = File(
-                                                part.originalFileName!!,
-                                                part.provider().toByteArray(),
-                                            )
-                                        } else {
-                                            !KIO.fail(RequestError.File.Multiple)
-                                        }
-                                    }
-
-                                    is PartData.FormItem -> {
-                                        if (part.name == "request") {
-                                            request =
-                                                jsonMapper.readValue<CompetitionChallengeResultRequest>(part.value)
-                                        }
-                                    }
-
-                                    else -> {}
-                                }
-                                part.dispose()
-                            }
-                        }
-
-                        val req =
-                            !KIO.failOnNull(request) { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
+                        // Kaputtes JSON ist 400, ein negatives Ergebnis 422 - nicht 500.
+                        val uploads = !receiveUploads(maxFiles = 1)
+                        val upload = uploads.files.firstOrNull()
+                        val req = !uploads.jsonField("request", CompetitionChallengeResultRequest.example)
+                            .onNullFail { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
 
                         // TODO: check valid image
                         // !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }
@@ -487,45 +457,11 @@ fun Route.competitionExecution() {
                         val competitionId = !pathParam("competitionId", uuid)
                         val competitionRegistrationId = !pathParam("competitionRegistrationId", uuid)
 
-                        val multiPartData = receiveMultipart()
-
-                        // Todo: Limit file size
-                        var upload: File? = null
-                        var request: CompetitionChallengeResultRequest? = null
-
-                        var done = false
-                        while (!done) {
-                            val part = multiPartData.readPart()
-                            if (part == null) {
-                                done = true
-                            } else {
-                                when (part) {
-                                    is PartData.FileItem -> {
-                                        if (upload == null) {
-                                            upload = File(
-                                                part.originalFileName!!,
-                                                part.provider().toByteArray(),
-                                            )
-                                        } else {
-                                            !KIO.fail(RequestError.File.Multiple)
-                                        }
-                                    }
-
-                                    is PartData.FormItem -> {
-                                        if (part.name == "request") {
-                                            request =
-                                                jsonMapper.readValue<CompetitionChallengeResultRequest>(part.value)
-                                        }
-                                    }
-
-                                    else -> {}
-                                }
-                                part.dispose()
-                            }
-                        }
-
-                        val req =
-                            !KIO.failOnNull(request) { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
+                        // Kaputtes JSON ist 400, ein negatives Ergebnis 422 - nicht 500.
+                        val uploads = !receiveUploads(maxFiles = 1)
+                        val upload = uploads.files.firstOrNull()
+                        val req = !uploads.jsonField("request", CompetitionChallengeResultRequest.example)
+                            .onNullFail { RequestError.BodyMissing(CompetitionChallengeResultRequest.example) }
 
                         // TODO: check valid image
                         // !KIO.failOn(!checkValidXls(file.bytes)) { RequestError.File.UnsupportedType }

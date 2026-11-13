@@ -13,6 +13,7 @@ import de.lambda9.ready2race.backend.app.competition.entity.EventDataForCompetit
 import de.lambda9.ready2race.backend.app.competitionDeregistration.control.CompetitionDeregistrationRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.*
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
+import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationNamedParticipantRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo
 import de.lambda9.ready2race.backend.app.competitionSetup.boundary.CompetitionSetupService
 import de.lambda9.ready2race.backend.app.competitionSetup.control.*
@@ -72,6 +73,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.PARTIC
 import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.hr
 import de.lambda9.ready2race.backend.hrTime
+import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.kio.onTrueFail
 import de.lambda9.ready2race.backend.parsing.Parser
@@ -3734,11 +3736,16 @@ object CompetitionExecutionService {
 
         val participant = !ParticipantRepo.get(eventParticipant.participant).orDie().onNullDie("Referenced entity")
 
-        !KIO.failOn(participant.club != document.club) {
-            AuthError.PrivilegeMissing
-        }
-
-        // TODO: @Improve validation, only okay, if document is from team including this participant
+        // Nur Belege der eigenen Mannschaft in der Veranstaltung des Tokens - früher genügte der
+        // Verein, auch über Veranstaltungen hinweg.
+        val registrationId = !CompetitionRegistrationNamedParticipantRepo
+            .registrationOfMatchTeam(document.competitionMatchTeamId!!).orDie()
+            .onNullFail { CompetitionExecutionError.ResultDocumentNotFound }
+        !CompetitionRegistrationNamedParticipantRepo.isParticipantOfRegistrationInEvent(
+            participantId = participant.id,
+            registrationId = registrationId,
+            eventId = eventParticipant.event,
+        ).orDie().onFalseFail { AuthError.PrivilegeMissing }
 
         KIO.ok(
             ApiResponse.File(
