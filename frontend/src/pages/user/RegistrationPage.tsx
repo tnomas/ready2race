@@ -526,7 +526,7 @@ const RegistrationPage = () => {
         <SimpleFormLayout maxWidth={600}>
             {!requested ? (
                 <>
-                    <Box sx={{mb: 4}}>
+                    <Box sx={{mb: 3}}>
                         <Typography variant="h1" textAlign="center">
                             {t('user.registration.register')}
                         </Typography>
@@ -593,9 +593,9 @@ const RegistrationPage = () => {
             ) : (
                 <Stack spacing={2}>
                     <Box sx={{display: 'flex'}}>
-                        <CheckCircleOutline sx={{height: 100, width: 100, margin: 'auto'}} />
+                        <CheckCircleOutline sx={{height: 64, width: 64, margin: 'auto'}} />
                     </Box>
-                    <Typography variant="h2" textAlign="center">
+                    <Typography variant="h2" component="h1" textAlign="center">
                         {t('user.registration.requested.participating.header')}
                     </Typography>
                     <Divider />

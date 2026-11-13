@@ -5,7 +5,6 @@ import {GridValidRowModel} from '@mui/x-data-grid'
 import {useTranslation} from 'react-i18next'
 import {ApiError, CaptchaDto} from '@api/types.gen.ts'
 import {newCaptcha} from '@api/sdk.gen.ts'
-import {useTheme} from '@mui/material'
 
 type UseFetchOptions<T, E, R> = {
     mapData?: (data: T) => R
@@ -297,35 +296,29 @@ export type Feedback = {
 }
 
 /**
- * Snackbar-Meldungen in den Farben des Themes.
+ * Snackbar-Meldungen. Das Aussehen je Variante (success/warning/error/info) steckt im Theme-Stil
+ * `feedbackSnackbarComponents` (`utils/feedbackSnackbars.tsx`), den `App.tsx` dem
+ * `SnackbarProvider` übergibt – hier steht kein Inline-Stil mehr.
  *
- * Das Objekt ist über Renderdurchläufe stabil (solange Snackbar-Kontext und Theme gleich bleiben):
+ * Das Objekt ist über Renderdurchläufe stabil (solange der Snackbar-Kontext gleich bleibt):
  * Viele Aufrufer führen `feedback` in den Abhängigkeiten von `useCallback`/`useEffect`, und ein
  * neues Objekt je Render machte die alle wirkungslos.
  */
 export const useFeedback = (): Feedback => {
     const {enqueueSnackbar} = useSnackbar()
-    const theme = useTheme()
 
     return useMemo(() => {
         const show =
             (variant: 'success' | 'warning' | 'error' | 'info') =>
             (msg: string): SnackbarKey =>
-                enqueueSnackbar(msg, {
-                    variant,
-                    style: {
-                        backgroundColor: theme.palette[variant].main,
-                        color: theme.palette[variant].contrastText,
-                        flexWrap: 'nowrap',
-                    },
-                })
+                enqueueSnackbar(msg, {variant})
         return {
             success: show('success'),
             warning: show('warning'),
             error: show('error'),
             info: show('info'),
         }
-    }, [enqueueSnackbar, theme])
+    }, [enqueueSnackbar])
 }
 
 export const useDebounce = <T>(value: T, delay?: number) => {

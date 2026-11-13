@@ -81,6 +81,7 @@ export const PageHeader = ({
                             <TextLink
                                 key={index}
                                 {...crumb.link}
+                                activeOptions={{exact: true}}
                                 variant={'body2'}
                                 sx={{overflowWrap: 'anywhere'}}>
                                 {crumb.label}

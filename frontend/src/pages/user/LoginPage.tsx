@@ -8,7 +8,7 @@ import SimpleFormLayout from '@components/SimpleFormLayout.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import FormInputPassword from '@components/form/input/FormInputPassword.tsx'
-import {Link} from '@tanstack/react-router'
+import {TextLink} from '@components/ui'
 import {userLogin} from '@api/sdk.gen.ts'
 import {LoginRequest} from '@api/types.gen.ts'
 
@@ -45,13 +45,13 @@ const LoginPage = () => {
 
     return (
         <SimpleFormLayout maxWidth={400}>
-            <Box sx={{mb: 4}}>
+            <Box sx={{mb: 3}}>
                 <Typography variant="h1" textAlign="center">
                     {t('user.login.login')}
                 </Typography>
             </Box>
             <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                <Stack spacing={4}>
+                <Stack spacing={3}>
                     <FormInputText name="email" label={t('user.email.email')} required />
                     <Box sx={{display: 'flex', flexDirection: 'column'}}>
                         <FormInputPassword
@@ -59,10 +59,10 @@ const LoginPage = () => {
                             label={t('user.password.password')}
                             required
                         />
-                        <Box sx={{display: 'flex', justifyContent: 'end', mt: 2}}>
-                            <Link to="/resetPassword">
-                                <Typography>{t('user.login.forgotPassword')}</Typography>
-                            </Link>
+                        <Box sx={{display: 'flex', justifyContent: 'end', mt: 1.5}}>
+                            <TextLink to="/resetPassword" variant={'body2'}>
+                                {t('user.login.forgotPassword')}
+                            </TextLink>
                         </Box>
                     </Box>
                     <SubmitButton submitting={submitting}>{t('user.login.submit')}</SubmitButton>

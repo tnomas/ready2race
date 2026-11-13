@@ -1,5 +1,6 @@
 import {ClubDto, getCreateClubOnRegistrationAllowed, updateGlobalConfigurations} from '../../api'
-import {Box, Card, CardContent, CardHeader, Stack, Tab, Typography} from '@mui/material'
+import {Box, Card, CardContent, CardHeader, Stack, Tab} from '@mui/material'
+import {PageHeader} from '@components/ui'
 import {useNavigate} from '@tanstack/react-router'
 import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
@@ -93,7 +94,7 @@ const ClubsPage = () => {
 
     return (
         <Box>
-            <Typography variant="h1">{t('club.clubs')}</Typography>
+            <PageHeader title={t('club.clubs')} />
             <TabSelectionContainer activeTab={activeTab} setActiveTab={switchTab}>
                 <Tab label={t('club.tabs.clubs')} {...tabProps('clubs')} />
                 {mayReadShortNames && (

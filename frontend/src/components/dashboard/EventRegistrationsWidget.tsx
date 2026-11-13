@@ -4,6 +4,7 @@ import {ClockIcon} from '@mui/x-date-pickers'
 import {Assignment, Groups, Message, HowToReg} from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
 import {EventRegistrationMessageDialog} from '@components/dashboard/EventRegistrationMessageDialog.tsx'
+import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getEventRegistrations} from '@api/sdk.gen.ts'
@@ -51,16 +52,11 @@ export function EventRegistrationsWidget() {
                 content={
                     <React.Fragment>
                         {registrations?.data && registrations.data.length === 0 ? (
-                            <Stack
-                                alignItems={'center'}
-                                justifyContent={'center'}
-                                spacing={2}
-                                py={4}>
-                                <HowToReg sx={{fontSize: 48, color: 'text.secondary'}} />
-                                <Typography color={'text.secondary'} textAlign={'center'}>
-                                    {t('dashboard.registrations.empty')}
-                                </Typography>
-                            </Stack>
+                            <EmptyState
+                                dense
+                                icon={<HowToReg />}
+                                title={t('dashboard.registrations.empty')}
+                            />
                         ) : (
                             <List>
                                 {registrations?.data?.map((registration, index) => (

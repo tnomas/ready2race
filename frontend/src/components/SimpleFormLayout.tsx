@@ -15,7 +15,7 @@ const SimpleFormLayout = ({children, maxWidth}: Props) => {
                     alignSelf: 'center',
                     margin: 'auto',
                     maxWidth: maxWidth,
-                    padding: {xs: 2, sm: 4},
+                    padding: {xs: 2.5, sm: 3},
                     flex: 1,
                 }}>
                 {children}

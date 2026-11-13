@@ -1,8 +1,12 @@
 import {Box} from '@mui/material'
+import {useTranslation} from 'react-i18next'
+import {PageHeader} from '@components/ui'
+import {buildEventTrail} from '@utils/navigation/breadcrumbs.ts'
 import BoardsPanel from '@components/event/board/BoardsPanel'
 import {eventInfoRoute} from '@routes'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {readBoardGlobal, readEventGlobal} from '@authorization/privileges.ts'
+import {useEventName} from './useEventName.ts'
 
 /**
  * Die Verwaltungsseite der Boards (öffentliche Anzeigen). Bis zum Board-Umbau (10.08.2026)
@@ -23,13 +27,25 @@ import {readBoardGlobal, readEventGlobal} from '@authorization/privileges.ts'
  * zurückverschieben.
  */
 const EventInfoPage = () => {
+    const {t} = useTranslation()
     const {eventId} = eventInfoRoute.useParams()
     const user = useUser()
+    const eventName = useEventName(eventId)
 
     // Das Panel gilt für sein eigenes Recht (READ BOARD), nicht nur für den Seitenzugriff
     // insgesamt — ein ungeprüfter Aufruf von getBoards liefe sonst in den 403 des Servers.
     return (
-        <Box sx={{p: 3}}>
+        <Box>
+            <PageHeader
+                title={t('event.betrieb.boards.title')}
+                breadcrumbs={buildEventTrail({
+                    eventsLabel: t('navigation.titles.events'),
+                    eventId,
+                    eventName,
+                    section: {tab: 'betrieb', label: t('nav.event.sections.betrieb')},
+                    trail: [{label: t('event.betrieb.boards.title')}],
+                })}
+            />
             {(user.checkPrivilege(readBoardGlobal) || user.checkPrivilege(readEventGlobal)) && (
                 <BoardsPanel eventId={eventId} />
             )}

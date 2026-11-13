@@ -27,21 +27,27 @@ const FormInputLabel = (props: PropsWithChildren<Props>) => {
             <Box
                 sx={{
                     display: 'flex',
-                    gap: 1,
+                    columnGap: 0.75,
                     flexWrap: 'wrap',
+                    alignItems: 'baseline',
                     mr: props.horizontal ? 1 : undefined,
-                    mb: !props.horizontal ? 1 : undefined,
+                    mb: !props.horizontal ? 0.75 : undefined,
                 }}>
-                <Typography sx={{fontSize: '1.1rem'}}>{props.label}</Typography>
+                <Typography variant={'subtitle2'} component={'span'} color={'text.primary'}>
+                    {props.label}
+                </Typography>
+                {/* Pflicht ist der Normalfall; nur das Abweichende, „optional", wird benannt. */}
                 {!props.required && (
-                    <Typography alignSelf="center" color="textSecondary">
-                        {` – ${t('common.form.optional')}`}
+                    <Typography variant={'caption'} component={'span'} color={'text.secondary'}>
+                        {`(${t('common.form.optional')})`}
                     </Typography>
                 )}
             </Box>
             {props.children}
         </label>
-    ) : <>{props.children}</>
+    ) : (
+        <>{props.children}</>
+    )
 }
 
 export default FormInputLabel

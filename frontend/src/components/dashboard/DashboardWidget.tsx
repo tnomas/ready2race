@@ -1,4 +1,4 @@
-import {Card, CardActions, CardContent, CardHeader, Grid2} from '@mui/material'
+import {Card, CardActions, CardContent, CardHeader, Grid2, Typography} from '@mui/material'
 import {ReactNode} from 'react'
 
 export const DashboardWidget = (props: {
@@ -23,12 +23,16 @@ export const DashboardWidget = (props: {
     return (
         <Grid2 size={sizeProps}>
             <Card
-                elevation={props.elevation !== undefined ? props.elevation : 2}
+                elevation={props.elevation}
                 sx={{height: '100%', display: 'flex', flexDirection: 'column'}}>
                 {props.header && (
                     <CardHeader
                         action={props.headerAction}
-                        subheader={props.header}
+                        title={
+                            <Typography variant={'h3'} component={'h2'}>
+                                {props.header}
+                            </Typography>
+                        }
                         sx={{pb: 1, px: {xs: 1.5, md: 2}}}
                     />
                 )}

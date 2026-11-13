@@ -4,6 +4,7 @@ import {InvoiceDto} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {getInvoices} from '@api/sdk.gen'
+import {PageHeader} from '@components/ui'
 
 const InvoicePage = () => {
     const {t} = useTranslation()
@@ -14,13 +15,15 @@ const InvoicePage = () => {
     })
 
     return (
-        <InvoiceTable
-            {...invoiceAdministrationProps.table}
-            title={t('invoice.invoices')}
-            dataRequest={(signal: AbortSignal, params: PaginationParameters) =>
-                getInvoices({signal, query: {...params}})
-            }
-        />
+        <>
+            <PageHeader title={t('invoice.invoices')} />
+            <InvoiceTable
+                {...invoiceAdministrationProps.table}
+                dataRequest={(signal: AbortSignal, params: PaginationParameters) =>
+                    getInvoices({signal, query: {...params}})
+                }
+            />
+        </>
     )
 }
 

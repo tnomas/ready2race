@@ -12,6 +12,7 @@ import {
 } from '@mui/material'
 import {CalendarIcon, ClockIcon} from '@mui/x-date-pickers'
 import {useTranslation} from 'react-i18next'
+import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getWorkShiftsForUser} from '@api/sdk.gen.ts'
@@ -122,16 +123,11 @@ export function ShiftWidget({userId}: {userId: string}) {
                 content={
                     <React.Fragment>
                         {groupedShifts.length === 0 ? (
-                            <Stack
-                                alignItems={'center'}
-                                justifyContent={'center'}
-                                spacing={2}
-                                py={2}>
-                                <WorkOutline sx={{fontSize: 48, color: 'text.secondary'}} />
-                                <Typography color={'text.secondary'} textAlign={'center'}>
-                                    {t('dashboard.shifts.empty')}
-                                </Typography>
-                            </Stack>
+                            <EmptyState
+                                dense
+                                icon={<WorkOutline />}
+                                title={t('dashboard.shifts.empty')}
+                            />
                         ) : (
                             <List
                                 subheader={<li />}

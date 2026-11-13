@@ -5,7 +5,8 @@ import {useTranslation} from 'react-i18next'
 import {Box, Paper, Stack, Typography} from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import {useState} from 'react'
-import Throbber from '@components/Throbber.tsx'
+import {ErrorState, LoadingState, PageHeader} from '@components/ui'
+import {buildUserTrail} from '@utils/navigation/breadcrumbs.ts'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useUser} from '@contexts/user/UserContext.ts'
@@ -40,28 +41,30 @@ const UserPage = () => {
 
     const [reloadUserData, setReloadUserData] = useState(false)
 
-    const {data: userData, pending} = useFetch(
-        signal => getUser({signal, path: {userId: userId}}),
-        {
-            onResponse: ({data, error}) => {
-                if (error) {
-                    feedback.error(t('user.page.error.load'))
-                } else {
-                    formContext.reset({
-                        firstname: data.firstname,
-                        lastname: data.lastname,
-                        roles: data.roles.map(r => r.id),
-                    })
-                }
-            },
-            deps: [userId, reloadUserData],
+    const {
+        data: userData,
+        error: userError,
+        reload: reloadUser,
+    } = useFetch(signal => getUser({signal, path: {userId: userId}}), {
+        onResponse: ({data, error}) => {
+            if (error) {
+                feedback.error(t('user.page.error.load'))
+            } else {
+                formContext.reset({
+                    firstname: data.firstname,
+                    lastname: data.lastname,
+                    roles: data.roles.map(r => r.id),
+                })
+            }
         },
-    )
+        deps: [userId, reloadUserData],
+    })
 
     // Die Rollenauswahl hilft nur, wenn das Speichern auch durchgeht: PUT /user/{id} hängt an
     // UPDATE USER, die Rollenvergabe zusätzlich an UPDATE STAFF. Wer nur eines von beiden trägt
     // (z.B. der Job Wettkampfleitung), bekommt die Auswahl gar nicht erst zu sehen.
-    const mayEditRoles = user.checkPrivilege(updateStaffGlobal) && user.checkPrivilege(updateUserGlobal)
+    const mayEditRoles =
+        user.checkPrivilege(updateStaffGlobal) && user.checkPrivilege(updateUserGlobal)
 
     const handleSubmit = async (formData: Form) => {
         setSubmitting(true)
@@ -99,14 +102,25 @@ const UserPage = () => {
         preCondition: () => mayEditRoles, // The backend checks for the privilege READRoleGlobal
     })
 
+    const fullName = userData ? `${userData.firstname} ${userData.lastname}`.trim() : undefined
+
     return (
-        <Box sx={{maxWidth: 600}}>
-            <Stack spacing={2}>
+        <Box>
+            <PageHeader
+                title={fullName || t('user.user')}
+                subtitle={userData?.email}
+                breadcrumbs={buildUserTrail({
+                    usersLabel: t('navigation.titles.users'),
+                    userId,
+                    userName: fullName,
+                })}
+            />
+            <Stack spacing={2} sx={{maxWidth: 600}}>
                 {user.loggedIn && user.id === userId && <PendingClubRepresentativeAlert />}
-                <Paper sx={{padding: 4}}>
-                    {(userData && (
+                {userData ? (
+                    <Paper sx={{p: {xs: 2, sm: 3}}}>
                         <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                            <Stack spacing={4}>
+                            <Stack spacing={3}>
                                 <FormInputText
                                     name={'firstname'}
                                     label={t('user.firstname')}
@@ -117,14 +131,15 @@ const UserPage = () => {
                                     label={t('user.lastname')}
                                     required
                                 />
-                                <Typography>{userData.email}</Typography>
                                 {mayEditRoles
                                     ? (data?.data.length ?? 0) > 0 && (
                                           <RolesSelect availableRoles={data?.data} />
                                       )
                                     : userData.roles.length > 0 && (
                                           <Box>
-                                              <Typography>{t('role.roles')}</Typography>
+                                              <Typography variant={'subtitle2'}>
+                                                  {t('role.roles')}
+                                              </Typography>
                                               <Typography>
                                                   {userData.roles
                                                       .map(r => roleLabel(r, t))
@@ -132,16 +147,21 @@ const UserPage = () => {
                                               </Typography>
                                           </Box>
                                       )}
-                                <SubmitButton
-                                    submitting={submitting}
-                                    disabled={!formContext.formState.isDirty}>
-                                    {t('common.save')}
-                                </SubmitButton>
+                                <Box>
+                                    <SubmitButton
+                                        submitting={submitting}
+                                        disabled={!formContext.formState.isDirty}>
+                                        {t('common.save')}
+                                    </SubmitButton>
+                                </Box>
                             </Stack>
                         </FormContainer>
-                    )) ||
-                        (pending && <Throbber />)}
-                </Paper>
+                    </Paper>
+                ) : userError ? (
+                    <ErrorState message={t('user.page.error.load')} onRetry={reloadUser} />
+                ) : (
+                    <LoadingState />
+                )}
             </Stack>
         </Box>
     )

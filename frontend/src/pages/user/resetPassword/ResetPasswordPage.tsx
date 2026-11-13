@@ -49,13 +49,13 @@ const ResetPasswordPage = () => {
         <SimpleFormLayout maxWidth={450}>
             {(requestSuccessful === undefined && (
                 <>
-                    <Box sx={{mb: 4}}>
+                    <Box sx={{mb: 3}}>
                         <Typography variant="h1" textAlign="center">
                             {t('user.resetPassword.resetPassword')}
                         </Typography>
                     </Box>
                     <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                        <Stack spacing={4}>
+                        <Stack spacing={3}>
                             <NewPassword
                                 formContext={formContext}
                                 passwordFieldLabel={t('user.resetPassword.newPassword')}

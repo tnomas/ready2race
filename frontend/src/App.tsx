@@ -15,6 +15,7 @@ import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFnsV3'
 import i18next from 'i18next'
 import './i18n/config'
 import {isLanguage, locales} from './i18n/config.ts'
+import {feedbackSnackbarComponents} from '@utils/feedbackSnackbars.tsx'
 import CloseIcon from '@mui/icons-material/Close'
 import {installTimingDeviceTokenInterceptor} from '@utils/timing/deviceTokenInterceptor.ts'
 import {installBoardDeviceTokenInterceptor} from '@utils/board/deviceTokenInterceptor.ts'
@@ -63,6 +64,7 @@ const App = () => {
             <ThemeProvider theme={theme}>
                 <CssBaseline />
                 <SnackbarProvider
+                    Components={feedbackSnackbarComponents}
                     maxSnack={3}
                     anchorOrigin={{vertical: 'bottom', horizontal: narrow ? 'center' : 'right'}}
                     action={snackbarId => (

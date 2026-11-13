@@ -13,6 +13,8 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
 import {eventRegisterRoute} from '@routes'
 import {Result} from '@components/Result.tsx'
+import {ButtonLink, PageHeader} from '@components/ui'
+import {buildEventTrail} from '@utils/navigation/breadcrumbs.ts'
 import EventRegistrationForm from '../../components/eventRegistration/EventRegistrationForm.tsx'
 import EventRegistrationProvider from '@contexts/eventRegistration/EventRegistrationProvider.tsx'
 import {useNavigate} from '@tanstack/react-router'
@@ -221,11 +223,30 @@ const EventRegistrationCreatePage = () => {
 
     return (
         <EventRegistrationProvider info={registrationInfo}>
+            <PageHeader
+                title={t('event.registration.registration')}
+                subtitle={registrationInfo?.name}
+                breadcrumbs={buildEventTrail({
+                    eventsLabel: t('navigation.titles.events'),
+                    eventId,
+                    eventName: registrationInfo?.name,
+                    trail: [{label: t('event.registration.registration')}],
+                })}
+            />
             {registrationWasSuccessful ? (
                 <Result
                     status={'SUCCESS'}
                     title={t('event.registration.success.title')}
                     subtitle={t('event.registration.success.subtitle')}
+                    extra={
+                        <ButtonLink
+                            to={'/event/$eventId'}
+                            params={{eventId}}
+                            variant={'contained'}
+                            sx={{mt: 1}}>
+                            {t('event.registration.success.toEvent')}
+                        </ButtonLink>
+                    }
                 />
             ) : (
                 <EventRegistrationForm onSubmit={onSubmit} formContext={formContext} />

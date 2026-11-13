@@ -1,4 +1,6 @@
-import {Grid2} from '@mui/material'
+import {Box, Grid2} from '@mui/material'
+import {useTranslation} from 'react-i18next'
+import {PageHeader} from '@components/ui'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useMemo} from 'react'
 import {UpcomingEventsWidget} from '@components/dashboard/UpcomingEventsWidget.tsx'
@@ -10,6 +12,7 @@ import {ShiftWidget} from '@components/dashboard/ShiftWidget.tsx'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
 
 const Dashboard = () => {
+    const {t} = useTranslation()
     const user = useUser()
 
     const {userId, clubId, registrationReadPrivilege, eventReadPrivilege} = useMemo(() => {
@@ -24,23 +27,24 @@ const Dashboard = () => {
     }, [user])
 
     return (
-        <Grid2
-            container
-            spacing={{xs: 1.5, lg: 4}}
-            p={{xs: 1, lg: 2}}
-            height={'100%'}
-            alignContent={'flex-start'}
-            alignItems={'stretch'}>
-            <PendingClubRepresentativeAlert gridItem />
-            {userId && eventReadPrivilege && (
-                <>
-                    <TasksWidget userId={userId} />
-                    <ShiftWidget userId={userId} />
-                </>
-            )}
-            {registrationReadPrivilege && <EventRegistrationsWidget />}
-            {clubId && <UpcomingEventsWidget />}
-        </Grid2>
+        <Box>
+            <PageHeader title={t('navigation.titles.dashboard')} />
+            <Grid2
+                container
+                spacing={{xs: 1.5, lg: 3}}
+                alignContent={'flex-start'}
+                alignItems={'stretch'}>
+                <PendingClubRepresentativeAlert gridItem />
+                {userId && eventReadPrivilege && (
+                    <>
+                        <TasksWidget userId={userId} />
+                        <ShiftWidget userId={userId} />
+                    </>
+                )}
+                {registrationReadPrivilege && <EventRegistrationsWidget />}
+                {clubId && <UpcomingEventsWidget />}
+            </Grid2>
+        </Box>
     )
 }
 

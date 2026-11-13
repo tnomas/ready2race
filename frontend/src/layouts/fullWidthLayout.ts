@@ -1,7 +1,8 @@
 import {createContext, useContext, useEffect} from 'react'
 
 /**
- * RootLayout beschneidet die Seitenbreite mit einem MUI-Container (maxWidth 'xl'). Für Ansichten,
+ * RootLayout beschneidet die Seitenbreite auf eine feste Inhaltsbreite (`CONTENT_MAX_WIDTH`, 1600 px,
+ * zentriert; früher ein MUI-Container mit maxWidth 'xl'). Für Ansichten,
  * die am Renntag die volle Browserbreite brauchen — derzeit nur der Veranstaltungs-Modus des
  * Zeitplan-Tabs mit seinem Split aus Zeitplan und Durchführung — stellt RootLayout hierüber einen
  * Schalter bereit, der die Beschränkung vorübergehend aufhebt. Als Kontext statt als Prop-Kette,

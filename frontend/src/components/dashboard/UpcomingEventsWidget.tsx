@@ -1,6 +1,7 @@
 import React, {Fragment} from 'react'
-import {Divider, List, Stack, Typography} from '@mui/material'
+import {Divider, List} from '@mui/material'
 import {useTranslation} from 'react-i18next'
+import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import UpcomingEventEntry from '@components/dashboard/UpcomingEventEntry.tsx'
@@ -41,16 +42,11 @@ export function UpcomingEventsWidget(props: {hideRegistration?: boolean; hideTit
                 content={
                     <React.Fragment>
                         {events?.data && events.data.length === 0 ? (
-                            <Stack
-                                alignItems={'center'}
-                                justifyContent={'center'}
-                                spacing={2}
-                                py={4}>
-                                <EventAvailable sx={{fontSize: 48, color: 'text.secondary'}} />
-                                <Typography color={'text.secondary'} textAlign={'center'}>
-                                    {t('dashboard.upcomingEvents.empty')}
-                                </Typography>
-                            </Stack>
+                            <EmptyState
+                                dense
+                                icon={<EventAvailable />}
+                                title={t('dashboard.upcomingEvents.empty')}
+                            />
                         ) : (
                             <List>
                                 {events?.data?.map((event, index) => (

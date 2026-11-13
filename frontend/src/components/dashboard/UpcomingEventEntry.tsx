@@ -70,7 +70,7 @@ const UpcomingEventEntry = ({event, hideRegistration}: Props) => {
                                             {new Date(event.eventFrom).toLocaleDateString()}
                                             {event.eventTo !== event.eventFrom &&
                                                 ` - ${new Date(
-                                                    event.eventTo!!,
+                                                    event.eventTo!,
                                                 ).toLocaleDateString()}`}
                                         </Typography>
                                     </Stack>

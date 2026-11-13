@@ -10,9 +10,9 @@ const ConfirmationMailSent = ({header, children}: PropsWithChildren<Props>) => {
     return (
         <Stack spacing={2}>
             <Box sx={{display: 'flex'}}>
-                <EmailOutlined sx={{height: 100, width: 100, margin: 'auto'}} />
+                <EmailOutlined sx={{height: 64, width: 64, margin: 'auto'}} />
             </Box>
-            <Typography variant="h2" textAlign="center">
+            <Typography variant="h2" component="h1" textAlign="center">
                 {header}
             </Typography>
             {children && <Divider />}

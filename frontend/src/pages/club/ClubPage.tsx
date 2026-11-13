@@ -5,6 +5,7 @@ import {
     CardContent,
     IconButton,
     Stack,
+    Tooltip,
     Typography,
     useMediaQuery,
     useTheme,
@@ -12,7 +13,8 @@ import {
 import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
 import {clubRoute} from '@routes'
 import {useTranslation} from 'react-i18next'
-import Throbber from '../../components/Throbber.tsx'
+import {EmptyState, ErrorState, LoadingState, PageHeader, SectionHeader} from '@components/ui'
+import {buildClubTrail} from '@utils/navigation/breadcrumbs.ts'
 import {
     ClubDto,
     getClub,
@@ -46,17 +48,18 @@ const ClubPage = () => {
 
     const clubProps = useEntityAdministration<ClubDto>(t('club.club'), {entityCreate: false})
 
-    const {data: clubData, pending: clubDataPending} = useFetch(
-        signal => getClub({signal, path: {clubId: clubId}}),
-        {
-            onResponse: ({error}) => {
-                if (error) {
-                    feedback.error(t('common.load.error.single', {entity: t('club.club')}))
-                }
-            },
-            deps: [clubId, clubProps.table.lastRequested],
+    const {
+        data: clubData,
+        error: clubError,
+        reload: reloadClub,
+    } = useFetch(signal => getClub({signal, path: {clubId: clubId}}), {
+        onResponse: ({error}) => {
+            if (error) {
+                feedback.error(t('common.load.error.single', {entity: t('club.club')}))
+            }
         },
-    )
+        deps: [clubId, clubProps.table.lastRequested],
+    })
 
     const {data: userData} = useFetch(signal => getClubUsers({signal, path: {clubId: clubId}}), {
         onResponse: ({error}) => {
@@ -129,20 +132,34 @@ const ClubPage = () => {
     }
 
     return (
-        <Stack spacing={4}>
+        <Box>
+            <PageHeader
+                title={clubData?.name ?? t('club.club')}
+                breadcrumbs={buildClubTrail({
+                    clubsLabel: t('navigation.titles.clubs'),
+                    clubId,
+                    clubName: clubData?.name,
+                })}
+                meta={
+                    clubData &&
+                    user.checkPrivilege(updateClubOwn) && (
+                        <Tooltip title={t('club.editClub')}>
+                            <IconButton
+                                size={'small'}
+                                aria-label={t('club.editClub')}
+                                onClick={() => clubProps.table.openDialog(clubData)}
+                                className="cursor-pointer">
+                                <Edit />
+                            </IconButton>
+                        </Tooltip>
+                    )
+                }
+            />
             {clubData ? (
-                <>
-                    <Stack direction={'row'} spacing={1}>
-                        <Typography variant="h2">{clubData.name}</Typography>
-                        <IconButton onClick={() => clubProps.table.openDialog(clubData)}>
-                            <Edit />
-                        </IconButton>
-                    </Stack>
+                <Stack spacing={4}>
                     {pendingApprovalsData && pendingApprovalsData.length > 0 && (
-                        <Stack spacing={1}>
-                            <Typography variant="h6">
-                                {t('club.representative.pendingApprovals')}
-                            </Typography>
+                        <Box>
+                            <SectionHeader title={t('club.representative.pendingApprovals')} />
                             <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap'}}>
                                 {pendingApprovalsData.map(approval => (
                                     <Card
@@ -208,12 +225,13 @@ const ClubPage = () => {
                                     </Card>
                                 ))}
                             </Box>
-                        </Stack>
+                        </Box>
                     )}
-                    <Stack spacing={1}>
-                        <Typography variant="h6">
-                            {t('club.representative.representatives')}
-                        </Typography>{' '}
+                    <Box>
+                        <SectionHeader title={t('club.representative.representatives')} />
+                        {userData?.length === 0 && (
+                            <EmptyState dense title={t('club.representative.noRepresentatives')} />
+                        )}
                         <Box sx={{display: 'flex', gap: 2, flexWrap: 'wrap'}}>
                             {userData?.map(u => (
                                 <Card
@@ -255,7 +273,7 @@ const ClubPage = () => {
                                 </Card>
                             ))}
                         </Box>
-                    </Stack>
+                    </Box>
                     <Box>
                         <ParticipantTable
                             {...participantProps.table}
@@ -264,11 +282,16 @@ const ClubPage = () => {
                         <ParticipantDialog {...participantProps.dialog} />
                         <ClubDialog {...clubProps.dialog} />
                     </Box>
-                </>
+                </Stack>
+            ) : clubError ? (
+                <ErrorState
+                    message={t('common.load.error.single', {entity: t('club.club')})}
+                    onRetry={reloadClub}
+                />
             ) : (
-                clubDataPending && <Throbber />
+                <LoadingState />
             )}
-        </Stack>
+        </Box>
     )
 }
 

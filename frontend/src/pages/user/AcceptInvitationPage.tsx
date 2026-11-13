@@ -3,8 +3,8 @@ import {useTranslation} from 'react-i18next'
 import {useState} from 'react'
 import {NewPassword, PasswordFormPart} from '@components/form/NewPassword.tsx'
 import {FormContainer, useForm} from 'react-hook-form-mui'
-import {Box, Button, Stack, Typography} from '@mui/material'
-import {Link} from '@tanstack/react-router'
+import {Box, Stack, Typography} from '@mui/material'
+import {ButtonLink} from '@components/ui'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {acceptUserInvitation} from '@api/sdk.gen.ts'
 import {invitationTokenRoute} from '@routes'
@@ -52,14 +52,14 @@ const AcceptInvitationPage = () => {
         <SimpleFormLayout maxWidth={500}>
             {requestResult === null ? (
                 <>
-                    <Box sx={{mb: 4}}>
-                        <Typography variant="h1" textAlign="center" sx={{mb: 4}}>
+                    <Box sx={{mb: 3}}>
+                        <Typography variant="h1" textAlign="center" sx={{mb: 2}}>
                             {t('user.invitation.accept')}
                         </Typography>
                         <Typography>{t('user.invitation.hint')}</Typography>
                     </Box>
                     <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                        <Stack spacing={4}>
+                        <Stack spacing={3}>
                             <NewPassword formContext={formContext} />
                             <SubmitButton submitting={submitting}>
                                 {t('user.invitation.submitPassword')}
@@ -69,14 +69,12 @@ const AcceptInvitationPage = () => {
                 </>
             ) : requestResult === 'Success' ? (
                 <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                    <Typography textAlign="center" sx={{mb: 4}}>
+                    <Typography textAlign="center" sx={{mb: 3}}>
                         {t('user.invitation.userCreated.text')}
                     </Typography>
-                    <Link to="/login">
-                        <Button variant="contained">
-                            {t('user.invitation.userCreated.toLogin')}
-                        </Button>
-                    </Link>
+                    <ButtonLink to="/login" variant="contained">
+                        {t('user.invitation.userCreated.toLogin')}
+                    </ButtonLink>
                 </Box>
             ) : (
                 <RequestStatusResponse
