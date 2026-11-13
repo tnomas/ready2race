@@ -96,7 +96,19 @@ data class Config(
         val user: String,
         val password: String,
         val logQueries: Boolean,
-    )
+        /** Größe des Verbindungspools (`DATABASE_POOL_SIZE`). */
+        val poolSize: Int = DEFAULT_POOL_SIZE,
+        /**
+         * Obergrenze je SQL-Anweisung in Millisekunden (`DATABASE_STATEMENT_TIMEOUT_MS`), `0` = ohne
+         * Grenze. Gilt nicht für Flyway-Migrationen beim Start.
+         */
+        val statementTimeoutMs: Long = DEFAULT_STATEMENT_TIMEOUT_MS,
+    ) {
+        companion object {
+            const val DEFAULT_POOL_SIZE = 10
+            const val DEFAULT_STATEMENT_TIMEOUT_MS = 120_000L
+        }
+    }
 
     data class Smtp(
         val host: String,
@@ -203,8 +215,25 @@ data class Config(
                 val user = !required("DATABASE_USER")
                 val password = !required("DATABASE_PASSWORD")
                 val logQueries = !optional("DATABASE_LOG_QUERIES", boolean) ?: false
+                val poolSize = !optional("DATABASE_POOL_SIZE", int) ?: Database.DEFAULT_POOL_SIZE
+                val statementTimeoutMs = (!optional("DATABASE_STATEMENT_TIMEOUT_MS", int))?.toLong()
+                    ?: Database.DEFAULT_STATEMENT_TIMEOUT_MS
 
-                Database(url = url, user = user, password = password, logQueries = logQueries)
+                if (poolSize < 1) {
+                    !KIO.fail(ParseEnvError.UnparsableValue("DATABASE_POOL_SIZE", poolSize.toString(), Int::class))
+                }
+                if (statementTimeoutMs < 0) {
+                    !KIO.fail(ParseEnvError.UnparsableValue("DATABASE_STATEMENT_TIMEOUT_MS", statementTimeoutMs.toString(), Int::class))
+                }
+
+                Database(
+                    url = url,
+                    user = user,
+                    password = password,
+                    logQueries = logQueries,
+                    poolSize = poolSize,
+                    statementTimeoutMs = statementTimeoutMs,
+                )
             }
 
             val smtp = run {

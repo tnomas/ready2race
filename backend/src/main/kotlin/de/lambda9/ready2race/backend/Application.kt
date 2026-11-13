@@ -19,6 +19,7 @@ import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVImportService
 import de.lambda9.ready2race.backend.app.webDAV.entity.WebDAVError
 import de.lambda9.ready2race.backend.config.Config.Companion.parseConfig
 import de.lambda9.ready2race.backend.database.initializeDatabase
+import de.lambda9.ready2race.backend.database.migrateDatabase
 import de.lambda9.ready2race.backend.plugins.*
 import de.lambda9.ready2race.backend.schedule.DynamicIntervalJobState
 import de.lambda9.ready2race.backend.schedule.Scheduler
@@ -32,7 +33,6 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.*
-import org.flywaydb.core.Flyway
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -45,16 +45,11 @@ fun main(args: Array<String>): Unit = runBlocking {
     }.parseConfig()
     // Vor dem Verbindungspool: der Postgres-Treiber übernimmt die JVM-Zone als Sitzungszeitzone.
     AppZone.install(config.timezone)
-    val (env, ds) = Env.create(config)
+    val (env, _) = Env.create(config)
 
     // Der issue/94-Merge bringt Migrationen mit älteren Versionsnummern als bereits angewendete —
     // ohne outOfOrder schlägt der Start auf bestehenden Datenbanken fehl.
-    Flyway(
-        Flyway.configure()
-            .dataSource(ds)
-            .schemas("ready2race")
-            .outOfOrder(true)
-    ).migrate()
+    migrateDatabase(config)
 
     initializeDatabase(env)
     scheduleJobs(env)
