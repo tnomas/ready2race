@@ -55,11 +55,22 @@ private const val BOARD_VIEW_WS_PATH = "/api/ws/event/{eventId}/board/{boardId}"
 
 private const val STREAM_SCENE_WS_PATH = "/api/ws/event/{eventId}/stream/{sceneId}"
 
+/** Größter eingehender Rahmen in Bytes. Clients senden nur Pongs und Close (wenige Bytes). */
+internal const val WEBSOCKET_MAX_FRAME_SIZE: Long = 4 * 1024
+
+/**
+ * Ohne `maxFrameSize` setzt Ktor eingehende Rahmen bis `Long.MAX_VALUE` zusammen, auch auf dem
+ * unangemeldeten Kanal `/info` - jeder könnte dort den Heap füllen. Alle Handler ignorieren
+ * eingehende Rahmen; ein zu großer schließt die Verbindung mit TOO_BIG.
+ */
+internal val webSocketOptions: WebSockets.WebSocketOptions.() -> Unit = {
+    pingPeriod = 15.seconds
+    timeout = 30.seconds
+    maxFrameSize = WEBSOCKET_MAX_FRAME_SIZE
+}
+
 fun Application.configureSockets(env: JEnv) {
-    install(WebSockets) {
-        pingPeriod = 15.seconds
-        timeout = 30.seconds
-    }
+    install(WebSockets, webSocketOptions)
 
     // Ein Widerruf schließt die offenen Kanäle seines Tokens sofort (siehe DeviceTokenBoundSockets).
     DeviceTokenBoundSockets.listenForRevocations()
