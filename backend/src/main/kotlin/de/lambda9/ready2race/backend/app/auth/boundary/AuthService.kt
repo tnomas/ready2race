@@ -74,13 +74,19 @@ object AuthService {
         }
 
         val credentialsOk = !PasswordUtilities.check(request.password, user.password!!)
+        val outdated = !PasswordUtilities.needsRehash(user.password!!)
         if (!credentialsOk) {
+            // Ein Hash aus einem älteren, billigeren Parameterstand ist in rund einer Millisekunde
+            // geprüft - schneller als der Platzhalter einer unbekannten E-Mail. Ohne den Ausgleich
+            // verriete die Antwortzeit nun umgekehrt, dass es das Konto gibt.
+            if (outdated) {
+                !PasswordUtilities.checkAgainstDummy(request.password)
+            }
             return@comprehension KIO.fail(AuthError.CredentialsIncorrect)
         }
 
         // Hashes aus einem älteren Parameterstand (bis 11/2026: 15 KiB Speicher) beim Login mit
         // dem gerade geprüften Klartext neu berechnen. Anders kommt man an den Klartext nicht heran.
-        val outdated = !PasswordUtilities.needsRehash(user.password!!)
         val rehashed = if (outdated) !PasswordUtilities.hash(request.password) else null
 
         KIO.ok(VerifiedLogin(user, rehashed))

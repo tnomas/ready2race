@@ -74,6 +74,19 @@ class PasswordUtilitiesTest {
     }
 
     @Test
+    fun `falsches Passwort gegen alten billigen Hash rechnet zusaetzlich den Platzhalter`() = testComprehension {
+        val (_, email) = seedUser(PasswordUtilities.hashWith(password, pepper, legacyFunction))
+
+        val before = PasswordUtilities.computations.get()
+        assertKIOFails(AuthError.CredentialsIncorrect) {
+            AuthService.login(LoginRequest(email = email, password = "falsch-falsch")) {}
+        }
+
+        // Prüfung gegen den alten Hash plus Platzhalter mit aktuellen Parametern.
+        assertEquals(2, PasswordUtilities.computations.get() - before)
+    }
+
+    @Test
     fun `hoechstens so viele Argon2-Laeufe gleichzeitig wie erlaubt`() {
         val permits = 2
         val running = AtomicInteger(0)
