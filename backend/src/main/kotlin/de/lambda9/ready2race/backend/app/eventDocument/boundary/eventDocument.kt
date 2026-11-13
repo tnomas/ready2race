@@ -15,6 +15,9 @@ import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import java.util.*
 
+/** Obergrenze je Upload-Anfrage; der Dialog lädt mehrere Dokumente auf einmal hoch. */
+private const val MAX_EVENT_DOCUMENTS_PER_UPLOAD = 50
+
 fun Route.eventDocument() {
 
     get("/registrationDocuments") {
@@ -27,59 +30,17 @@ fun Route.eventDocument() {
     route("/eventDocument") {
 
         post {
-            val multiPartData = call.receiveMultipart() // todo: default limit 50MB, need custom value?
-            // todo: extract for reuse, pack into kio
-
-            // todo: why?
-            /*
-            * multiPartData.forEachPart { }
-            * ->
-            * Flow invariant is violated:
-		        Flow was collected in [NettyDispatcher@1912dfa1, io.ktor.server.engine.DefaultUncaughtExceptionHandler@be039ae, CoroutineName(call-handler), io.ktor.server.netty.NettyDispatcher$CurrentContext@44e05ec2, ScopeCoroutine{Active}@7a709893, io.ktor.server.application.ClassLoaderAwareContinuationInterceptor@7510bfab],
-		        but emission happened in [NettyDispatcher@1912dfa1, io.ktor.server.engine.DefaultUncaughtExceptionHandler@be039ae, CoroutineName(call-handler), io.ktor.server.netty.NettyDispatcher$CurrentContext@44e05ec2, ScopeCoroutine{Active}@7a709893, io.ktor.server.application.ClassLoaderAwareContinuationInterceptor@7510bfab].
-		        Please refer to 'flow' documentation or use 'flowOn' instead
-            * */
-
-            val uploads = mutableListOf<File>()
-            var documentType: String? = null
-
-            var done = false
-            while (!done) {
-                val part = multiPartData.readPart()
-                if (part == null) {
-                    done = true
-                } else {
-                    when (part) {
-                        is PartData.FileItem -> {
-                            uploads.add(
-                                File(
-                                    part.originalFileName!!,
-                                    part.provider().toByteArray(),
-
-                                    )
-                            )
-                        }
-
-                        is PartData.FormItem -> {
-                            if (part.name == "documentType") {
-                                documentType = part.value
-                            }
-                        }
-
-                        else -> {}
-                    }
-                    part.dispose()
-                }
-            }
-
             call.respondComprehension {
+                // Erst anmelden, dann lesen: sonst landet der Körper eines anonymen Aufrufers
+                // komplett im Speicher, bevor er mit 401 abgewiesen wird.
                 val user = !authenticate(Privilege.UpdateEventGlobal)
                 val eventId = !pathParam("eventId", uuid)
+                val upload = !receiveUploads(maxFiles = MAX_EVENT_DOCUMENTS_PER_UPLOAD)
                 val type = !KIO.effect {
-                    documentType?.let { UUID.fromString(it) }
+                    upload.fields["documentType"]?.let { UUID.fromString(it) }
                 }
                     .mapError { RequestError.Other(Exception("Expected UUID or null as 'documentType'")) } // todo: @improve: specific Error type
-                EventDocumentService.saveDocuments(eventId, uploads, type, user.id!!)
+                EventDocumentService.saveDocuments(eventId, upload.files, type, user.id!!)
             }
 
         }
