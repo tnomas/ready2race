@@ -8,6 +8,7 @@ import {EventRegistrationsWidget} from '@components/dashboard/EventRegistrations
 import {readRegistrationGlobal} from '@authorization/privileges.ts'
 import {TasksWidget} from '@components/dashboard/TasksWidget.tsx'
 import {ShiftWidget} from '@components/dashboard/ShiftWidget.tsx'
+import {CurrentEventsWidget} from '@components/dashboard/CurrentEventsWidget.tsx'
 
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
 
@@ -15,16 +16,21 @@ const Dashboard = () => {
     const {t} = useTranslation()
     const user = useUser()
 
-    const {userId, clubId, registrationReadPrivilege, eventReadPrivilege} = useMemo(() => {
-        return {
-            userId: user.loggedIn && user.id,
-            clubId: user.loggedIn && user.clubId,
-            registrationReadPrivilege: user.checkPrivilege(readRegistrationGlobal),
-            eventReadPrivilege: user.loggedIn
-                ? user.clubId === undefined && user.getPrivilegeScope('READ', 'EVENT') !== undefined
-                : false,
-        }
-    }, [user])
+    const {userId, clubId, registrationReadPrivilege, eventReadPrivilege, eventReadAny} =
+        useMemo(() => {
+            return {
+                userId: user.loggedIn && user.id,
+                // Irgendein Leserecht auf Veranstaltungen (auch OWN, etwa Vereinsvertretungen)
+                eventReadAny:
+                    user.loggedIn && user.getPrivilegeScope('READ', 'EVENT') !== undefined,
+                clubId: user.loggedIn && user.clubId,
+                registrationReadPrivilege: user.checkPrivilege(readRegistrationGlobal),
+                eventReadPrivilege: user.loggedIn
+                    ? user.clubId === undefined &&
+                      user.getPrivilegeScope('READ', 'EVENT') !== undefined
+                    : false,
+            }
+        }, [user])
 
     return (
         <Box>
@@ -35,6 +41,11 @@ const Dashboard = () => {
                 alignContent={'flex-start'}
                 alignItems={'stretch'}>
                 <PendingClubRepresentativeAlert gridItem />
+                {/* Reihenfolge: erst der Einstieg in die Veranstaltungen, dann was die Person
+                    selbst zu tun hat (Aufgaben, Schichten), dann Neues (Anmeldungen); Vereine
+                    sehen gleich danach die offenen Meldestrecken. */}
+                {eventReadAny && <CurrentEventsWidget />}
+                {clubId && <UpcomingEventsWidget />}
                 {userId && eventReadPrivilege && (
                     <>
                         <TasksWidget userId={userId} />
@@ -42,7 +53,6 @@ const Dashboard = () => {
                     </>
                 )}
                 {registrationReadPrivilege && <EventRegistrationsWidget />}
-                {clubId && <UpcomingEventsWidget />}
             </Grid2>
         </Box>
     )

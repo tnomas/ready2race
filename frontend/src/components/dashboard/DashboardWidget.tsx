@@ -8,7 +8,8 @@ export const DashboardWidget = (props: {
     header?: string
     content: ReactNode
     footerAction?: ReactNode
-    maxHeight?: number | {xs: number; sm?: number; md?: number}
+    /** `'none'`: ohne eigene Bildlaufleiste (der Inhalt ist selbst begrenzt). */
+    maxHeight?: number | 'none' | {xs: number; sm?: number; md?: number}
     elevation?: number
 }) => {
     const sizeProps = typeof props.size === 'number' ? {xs: props.size} : props.size
