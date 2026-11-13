@@ -202,14 +202,19 @@ object CompetitionExecutionService {
                 createdThisRound = matchRecords.map { it.competitionSetupMatch!! }
 
 
-                val seedingList = getSeedingList(nextRoundSetupMatches.map { it.teams }, registrations.size)
+                // Gesetzt werden nur die finalisierten Meldungen - Setzliste und Freilos-Erkennung
+                // müssen mit genau dieser Zahl rechnen. Mit allen Meldungen gerechnet bekam ein
+                // allein fahrendes Boot keinen automatischen Platz, galt aber als Freilos: keine
+                // Ergebniseingabe, keine Folgerunde.
+                val placedCount = sortedRegistrations.size
+                val seedingList = getSeedingList(nextRoundSetupMatches.map { it.teams }, placedCount)
 
 
                 val newTeamRecords = sortedRegistrations.mapIndexed { index, reg ->
                     val matchIndex = seedingList.indexOfFirst { it.contains(index + 1) }
 
                     val automaticFirstPlace =
-                        !nextRound.required && seedingList[matchIndex].filter { it <= registrations.size }.size == 1
+                        !nextRound.required && seedingList[matchIndex].filter { it <= placedCount }.size == 1
 
                     CompetitionMatchTeamRecord(
                         id = UUID.randomUUID(),
@@ -598,10 +603,13 @@ object CompetitionExecutionService {
             if (registrations.isNullOrEmpty())
                 reasons.add(CompetitionExecutionCanNotCreateRoundReason.NO_REGISTRATIONS to CompetitionExecutionError.NoRegistrations)
             else {
+                // Platz brauchen nur die Meldungen, die gesetzt werden (mit Startnummer); vor der
+                // Finalisierung zählen alle, damit die Warnung nicht erst danach auftaucht.
+                val toPlace = registrations.count { it.teamNumber != null }.takeIf { it > 0 } ?: registrations.size
                 if (nextRoundSetupMatches != null) {
                     if (nextRoundSetupMatches.find { it.teams == null } == null && nextRoundSetupMatches.sumOf {
                             it.teams ?: 0
-                        } < registrations.size) {
+                        } < toPlace) {
                         reasons.add(CompetitionExecutionCanNotCreateRoundReason.NOT_ENOUGH_TEAM_SPACE to CompetitionExecutionError.NotEnoughTeamSpace)
 
                     }
