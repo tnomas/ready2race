@@ -141,7 +141,7 @@ fun AppUserInvitationWithRolesRecord.toDto(): App<Nothing, AppUserInvitationDto>
             email = email!!,
             firstname = firstname!!,
             lastname = lastname!!,
-            language = EmailLanguage.valueOf(language!!),
+            language = EmailLanguage.fromStored(language),
             expiresAt = expiresAt!!,
             createdAt = createdAt!!,
             assignedEmail = assignedEmailDto,
@@ -159,7 +159,7 @@ fun AppUserRegistrationViewRecord.toDto(): App<Nothing, AppUserRegistrationDto> 
             email = email!!,
             firstname = firstname!!,
             lastname = lastname!!,
-            language = EmailLanguage.valueOf(language!!),
+            language = EmailLanguage.fromStored(language),
             expiresAt = expiresAt!!,
             createdAt = createdAt!!,
             assignedEmail = assignedEmailDto

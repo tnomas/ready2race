@@ -301,7 +301,7 @@ object AppUserService {
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.USER_INVITATION,
-            EmailLanguage.valueOf(invitation.language),
+            EmailLanguage.fromStored(invitation.language),
         ).map { template ->
             template.toContent(
                 EmailTemplatePlaceholder.RECIPIENT to invitation.firstname + " " + invitation.lastname,
@@ -883,7 +883,7 @@ object AppUserService {
             KIO.comprehension {
                 val content = !EmailService.getTemplate(
                     EmailTemplateKey.CLUB_REPRESENTATIVE_APPROVAL_REQUESTED,
-                    EmailLanguage.valueOf(representative.language),
+                    EmailLanguage.fromStored(representative.language),
                 ).map { template ->
                     template.toContent(
                         EmailTemplatePlaceholder.RECIPIENT to representative.fullName(),

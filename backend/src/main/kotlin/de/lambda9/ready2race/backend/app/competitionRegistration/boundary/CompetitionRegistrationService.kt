@@ -423,7 +423,7 @@ object CompetitionRegistrationService {
             KIO.comprehension {
                 val content = !EmailService.getTemplate(
                     EmailTemplateKey.COMPETITION_REGISTRATION_EDITED,
-                    EmailLanguage.valueOf(recipient.language),
+                    EmailLanguage.fromStored(recipient.language),
                 ).map { template ->
                     template.toContent(
                         EmailTemplatePlaceholder.RECIPIENT to recipient.fullName(),

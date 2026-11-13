@@ -284,7 +284,7 @@ object EventRegistrationService {
         val registeredParticipants = participants.filter { registeredParticipantIds.contains(it.id) }
 
         val summaryParticipants = if (registeredParticipants.isEmpty()) {
-            when (EmailLanguage.valueOf(user.language!!)) {
+            when (EmailLanguage.fromStored(user.language)) {
                 EmailLanguage.DE -> "    Es sind noch keine Teilnehmer gemeldet."
                 EmailLanguage.EN -> "    No participants have been registered yet."
                 EmailLanguage.DA -> "    Der er endnu ikke tilmeldt nogen deltagere."
@@ -296,7 +296,7 @@ object EventRegistrationService {
         }.trimMargin()
 
         val summaryCompetitions = if (competitions.isEmpty()) {
-            when (EmailLanguage.valueOf(user.language!!)) {
+            when (EmailLanguage.fromStored(user.language)) {
                 EmailLanguage.DE -> "    Es sind noch keine Anmeldungen für Wettkämpfe erfolgt."
                 EmailLanguage.EN -> "    No competition registrations have been made yet."
                 EmailLanguage.DA -> "    Der er endnu ikke foretaget nogen tilmeldinger til konkurrencer."
@@ -326,7 +326,7 @@ object EventRegistrationService {
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.EVENT_REGISTRATION_CONFIRMATION,
-            EmailLanguage.valueOf(user.language!!)
+            EmailLanguage.fromStored(user.language)
         ).map { mailTemplate ->
             mailTemplate.toContent(
                 EmailTemplatePlaceholder.RECIPIENT to user.firstname + " " + user.lastname,

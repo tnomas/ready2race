@@ -397,7 +397,7 @@ object InvoiceService {
                         KIO.comprehension {
                             val content = !EmailService.getTemplate(
                                 EmailTemplateKey.EVENT_REGISTRATION_INVOICE,
-                                EmailLanguage.valueOf(recipient.language)
+                                EmailLanguage.fromStored(recipient.language)
                             ).map { mailTemplate ->
                                 mailTemplate.toContent(
                                     EmailTemplatePlaceholder.EVENT to event.name,
