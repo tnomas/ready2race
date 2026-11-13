@@ -35,6 +35,9 @@ object CompetitionRepo {
 
     fun exists(id: UUID) = COMPETITION.exists { ID.eq(id) }
 
+    /** Gehört der Wettkampf zu dieser Veranstaltung? Routen tragen beide IDs im Pfad. */
+    fun existsInEvent(id: UUID, eventId: UUID) = COMPETITION.exists { ID.eq(id).and(EVENT.eq(eventId)) }
+
     fun getExisting(ids: List<UUID>) = COMPETITION_VIEW.select { ID.`in`(ids) }
 
     fun update(id: UUID, f: CompetitionRecord.() -> Unit) = COMPETITION.update(f) { ID.eq(id) }
@@ -79,6 +82,10 @@ object CompetitionRepo {
                 .where(
                     DSL.and(
                         COMPETITION_VIEW.ID.eq(id),
+                        // Im regulären Zeitraum ist jeder Wettkampf offen, "Nachmeldung
+                        // erlaubt" öffnet ihn ZUSÄTZLICH im Nachmeldezeitraum. Früher schloss
+                        // der Schalter den regulären Zeitraum aus - die Sammelmeldung und das
+                        // Frontend erlauben den Wettkampf dort aber.
                         DSL.or(
                             DSL.and(
                                 COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED.isTrue,
@@ -86,7 +93,6 @@ object CompetitionRepo {
                                 EVENT.LATE_REGISTRATION_AVAILABLE_TO.ge(at),
                             ),
                             DSL.and(
-                                COMPETITION_VIEW.LATE_REGISTRATION_ALLOWED.isFalse,
                                 EVENT.REGISTRATION_AVAILABLE_FROM.le(at),
                                 DSL.or(
                                     EVENT.REGISTRATION_AVAILABLE_TO.isNull,

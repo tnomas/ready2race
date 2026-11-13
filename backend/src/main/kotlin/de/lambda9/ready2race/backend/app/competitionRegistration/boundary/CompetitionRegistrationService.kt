@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
 import de.lambda9.ready2race.backend.app.appuser.entity.AppUserNameDto
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.club.control.ClubRepo
+import de.lambda9.ready2race.backend.app.competition.boundary.CompetitionService
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
 import de.lambda9.ready2race.backend.app.competition.entity.CompetitionError
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
@@ -216,6 +217,8 @@ object CompetitionRegistrationService {
         requestProperties: CompetitionRegistrationRequestProperties,
     ): App<ServiceError, ApiResponse.Dto<CompetitionRegistrationDto>> = KIO.comprehension {
 
+        !CompetitionService.requireInEvent(eventId, competitionId)
+        !KIO.failOn(request.clubId == null) { CompetitionRegistrationError.RegistrationInvalid }
         !validateScope(scope, competitionId, user, request.clubId!!)
 
         val registrationType = when (requestProperties) {
@@ -316,11 +319,19 @@ object CompetitionRegistrationService {
         requestProperties: CompetitionRegistrationRequestProperties,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
-        !validateScope(scope, competitionId, user, request.clubId!!)
+        !CompetitionService.requireInEvent(eventId, competitionId)
 
+        // Erst laden, dann den Verein der GESPEICHERTEN Meldung prüfen - wie in delete. Die
+        // Vereins-ID im Körper ist nur eine Behauptung des Aufrufenden; prüfte man sie allein,
+        // könnte eine Vereinsvertretung die Meldung eines fremden Vereins umbesetzen (und eine
+        // GLOBAL-Bearbeitung mit falscher Vereins-ID fremde Personen in die Meldung schreiben).
         val registration =
             !CompetitionRegistrationRepo.findByIdAndCompetitionId(competitionRegistrationId, competitionId).orDie()
                 .onNullFail { CompetitionRegistrationError.NotFound }
+
+        !KIO.failOn(registration.club != request.clubId) { CompetitionRegistrationError.NotFound }
+
+        !validateScope(scope, competitionId, user, registration.club)
 
         registration.ratingCategory = request.ratingCategory
         registration.updatedAt = LocalDateTime.now()
@@ -359,7 +370,7 @@ object CompetitionRegistrationService {
                 namedParticipantDto,
                 request.callbackUrl!!,
                 competitionRegistrationId,
-                request.clubId,
+                registration.club,
             )
         }
 
@@ -588,6 +599,8 @@ object CompetitionRegistrationService {
         scope: Privilege.Scope,
         user: AppUserWithPrivilegesRecord,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+
+        !CompetitionService.requireInEvent(eventId, competitionId)
 
         val registration =
             !CompetitionRegistrationRepo.findByIdAndCompetitionId(competitionRegistrationId, competitionId).orDie()

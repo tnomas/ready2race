@@ -39,6 +39,16 @@ import java.util.*
 
 object CompetitionService {
 
+    /**
+     * Routen unter `/event/{eventId}/competition/{competitionId}` tragen beide IDs. Wer nur mit
+     * der Wettkampf-ID weiterrechnet, aber Rechte oder Sichtbarkeit an der Veranstaltung prüft,
+     * lässt Zugriffe über eine fremde Veranstaltung zu - deshalb vor dem Arbeiten die Bindung.
+     */
+    fun requireInEvent(eventId: UUID, competitionId: UUID): App<CompetitionError, Unit> =
+        CompetitionRepo.existsInEvent(competitionId, eventId).orDie()
+            .failIf({ !it }) { CompetitionError.CompetitionNotFound }
+            .map { }
+
     fun addCompetition(
         request: CompetitionPropertiesRequest,
         userId: UUID,
