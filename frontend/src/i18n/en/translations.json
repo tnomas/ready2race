@@ -1215,7 +1215,7 @@
           "action": "Reset race",
           "confirmation": {
             "title": "Reset race?",
-            "warning": "Warning: This race will be reset to “never raced”. Irrevocably lost: the actual start, all finish and split times, all places, disqualifications and time penalties of this race.",
+            "warning": "Warning: This race will be reset to “never raced”. Deleted: the actual start, all finish and split times, all places, disqualifications and time penalties of this race. With external timing or manual entry they cannot be restored; for internal timing see below.",
             "keeps": "Kept: line-up, lanes and the boats' identifiers — the RaceClocker mapping stays valid and the race can be raced again right away.",
             "marks": "Internal timing: the time marks captured at the stations are kept and stay assigned to this race; split times are recalculated from them. To restart the race at the stations, choose “Retract start and restart” in the race menu there – that discards the whole attempt including its marks.",
             "autoPull": "The automatic RaceClocker pull is paused for this race — otherwise the next pull would immediately re-import the deleted results. After cleaning up in RaceClocker, resume deliberately via “Resume automatic pull”.",
