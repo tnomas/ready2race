@@ -1,6 +1,6 @@
 # Review-Zweig: Betriebshinweise zum Ausrollen
 
-Stand 13.11.2026, Zweig `claude/app-review-optimization-2d57f8`. Entscheidungen dazu stehen in
+Stand 14.11.2026, Zweig `claude/app-review-optimization-2d57f8`. Entscheidungen dazu stehen in
 ADR-0106 (Rückruf-Adressen) und ADR-0107 (Laufzeit); Handtests in
 `2026-11-13-app-review-testkatalog.md`, Block L. Alles Unverifizierte ist als solches gekennzeichnet.
 
@@ -29,6 +29,7 @@ Schlüssel, gilt die Vorgabe; ein bestehender Betrieb startet ohne Änderung.
 | `SECURITY_ARGON2_MEMORY_KIB` | `19456` (19 MiB), Minimum 8 | Speicherbedarf neuer Argon2id-Hashes. Alte Hashes gelten weiter und werden beim nächsten erfolgreichen Login neu geschrieben. `PROD`/`STAGING` warnen unterhalb der Vorgabe. | Senken nur auf sehr kleinen Hosts; hochsetzen nur nach Lastmessung. |
 | `DATABASE_POOL_SIZE` | `10` (wie bisher) | Obergrenze des Verbindungspools. | Bei vielen gleichzeitigen Boards und langsamem Mailserver erhöhen (der Mailversand hält während SMTP eine Verbindung). |
 | `DATABASE_STATEMENT_TIMEOUT_MS` | `120000` (2 min), `0` = aus | `statement_timeout` je Verbindung. Flyway läuft über eine eigene Verbindung und ist nicht betroffen. | Erhöhen oder `0`, falls lange Exporte (Bündel-ZIP, WebDAV) abgebrochen werden. |
+| `SECURITY_ARGON2_MAX_CONCURRENT` | Kernzahl, Minimum 1 | Höchstzahl gleichzeitiger Argon2-Rechnungen (Login, Passwort setzen). Jede belegt `SECURITY_ARGON2_MEMORY_KIB` Heap; weitere warten in Ankunftsreihenfolge. | Senken, wenn der Heap knapp ist (Kernzahl × 19 MiB muss frei sein); mehr als die Kernzahl bringt keinen Durchsatz. |
 | `TRUSTED_PROXY_HOPS` | `0` | Anzahl vertrauenswürdiger Reverse-Proxys; `0` ignoriert `X-Forwarded-For`. | `1` im Docker-Verbund hinter nginx; sonst ist die Client-Adresse die des Proxys. |
 
 ## 3. Migrationen (in Reihenfolge)
@@ -65,6 +66,20 @@ alte Fassung läuft in der Suite). Nicht gemessen: Plan und Laufzeit gegen einen
 - **Durchführung, „Nächste Runde":** Eine erzeugbare Runde bleibt stehen, statt dass alles
   zurückgerollt wird.
 - **Rechenregel (Plätze nach Geschlecht)** gilt auch für die Ummeldung, dort großzügiger.
+- **An den Start rufen und „Läuft" (Durchführung, Zeitplan):** Ein Lauf einer anderen Veranstaltung
+  als im Pfad antwortet 404, ein beendeter Lauf 409 (Fehlercode
+  `LIVE_DASHBOARD_MATCH_ALREADY_FINISHED`, wie am Schiedsrichter-Dashboard). Zurücknehmen bleibt
+  erlaubt; wieder geöffnet wird über „Beenden zurücknehmen" oder „Lauf zurücksetzen".
+- **Meldungsliste mit Umfang OWN:** `GET /event/{eventId}/eventRegistration` liefert Vereinen mit
+  READ REGISTRATION OWN die eigene Meldung; der Bereich „Meldungen" erscheint für sie.
+- **Login:** Unbekannte E-Mail und falsches Passwort dauern gleich lang und antworten gleich (401).
+  Die Passwortprüfung läuft vor der Anfrage-Transaktion und hält keine Poolverbindung mehr.
+- **Registrierung bestätigen nach Meldeschluss:** Konto, Verein und Teilnehmer entstehen; die
+  Wettkampfmeldung aus der Registrierung entfällt (Protokollzeile auf INFO), statt dass die ganze
+  Bestätigung scheitert.
+- **Uploads:** Zu große Dateien antworten 413, ein abgebrochener Upload ohne Antwortversuch; nur ein
+  kaputter Multipart-Körper ist 400 („Malformed multipart body"). `400`-Texte enthalten keine
+  Klassennamen von Ausnahmen mehr.
 
 ### Für Betrieb und Rollen
 
@@ -73,8 +88,13 @@ alte Fassung läuft in der Suite). Nicht gemessen: Plan und Laufzeit gegen einen
   ist zu entscheiden.
 - **Sitzungsdauer:** Die Verlängerung wird höchstens einmal je Minute geschrieben; eine Sitzung endet
   frühestens 6 h − 1 min nach der letzten Anfrage (bisher 6 h).
-- **Passwort-Hashing:** neue Hashes mit 19 MiB (gemessen etwa 55 ms je Hash). Unter hoher
-  Login-Last Heap beobachten.
+- **Passwort-Hashing:** neue Hashes mit 19 MiB (gemessen etwa 55 ms je Hash), gleichzeitig höchstens
+  `SECURITY_ARGON2_MAX_CONCURRENT`. Unter hoher Login-Last Heap und Wartezeit beobachten.
+- **Sprache gespeicherter Nutzer:** Eine unbekannte oder anders geschriebene gespeicherte Sprache
+  wird beim Mailversand tolerant aufgelöst (Groß- und Kleinschreibung egal, sonst Deutsch) statt
+  mit 500 abzubrechen.
+- **Nachwirkungen nach dem Commit** (Änderungsmarker, Pushes an Boards und Stream) laufen auch,
+  wenn der Client die Anfrage nach dem Commit abbricht. Websockets abonnieren vor dem ersten Stand.
 - **Mailversand:** Sperre, Versand und Vermerk laufen in einer Transaktion (keine Doppelmails bei zwei
   Instanzen) und halten während SMTP eine Pool-Verbindung.
 - **Statement-Timeout** (zwei Minuten) kann lange Exporte abbrechen (nicht gemessen).
@@ -85,7 +105,9 @@ alte Fassung läuft in der Suite). Nicht gemessen: Plan und Laufzeit gegen einen
 - **Healthcheck:** `GET /api/health` antwortet 204 (ohne Anmeldung, ohne Rate-Limit), sonst 500. Der
   Docker-`HEALTHCHECK` ist darauf umzustellen (bisher `GET /api/event`). Der Endpunkt steht bewusst
   nicht in `documentation.yaml`; kein neuer Client nötig.
-- **OpenAPI/TypeSpec** sind unverändert; `npm run generate` hinterlässt keinen Diff.
+- **OpenAPI:** Zusätzlich dokumentiert sind 409 an `updateMatchActivation` und
+  `markMatchStartedFromExecution`; der generierte Client ändert sich dadurch nicht
+  (`npm run generate` ohne Diff).
 - Mit `DATABASE_LOG_QUERIES=true` fiel früher der Schutz vor `delete`/`update` ohne `where` weg;
   behoben.
 - Das Frontend lädt alle Seiten lazy. Nach einem Deployment lädt ein offener Browser bei einem
@@ -111,11 +133,12 @@ alte Fassung läuft in der Suite). Nicht gemessen: Plan und Laufzeit gegen einen
   nachzuziehen, ebenso `FRONTEND_ORIGINS` in deren Umgebungsvorlage.
 - **Fachfragen:** Dürfen D-Personen Männer- und Frauenplätze füllen? Wie lange sollen versandte Mails
   aufbewahrt werden?
-- **Meldungsliste für Vereine (OWN):** `GET /event/{eventId}/eventRegistration` verlangt
-  `ReadRegistrationGlobal`; Vereine bekämen 403. Braucht eine Backend-Änderung (Liste mit Scope,
-  `clubId`-Filter bei OWN), danach Frontend `eventSections.ts` und Breadcrumb der Meldungsseite.
-- **Sprachfehler:** `EmailLanguage.valueOf(user.language)` unterscheidet Groß- und Kleinschreibung →
-  500 bei kleingeschriebener Sprache (`EventRegistrationService`).
+- **Offene Rechtefrage Startposten:** Ein Startposten, der nur per Geräte-Token angemeldet ist, darf
+  keine Startsequenz steuern (`/timing/sequences/**` verlangt eine Sitzung, sonst 401). Die
+  Oberfläche zeigt dort einen Hinweis statt des Knopfes. Ob Geräte-Token das dürfen sollen, ist zu
+  entscheiden.
+- **Schiedsrichter-Dashboard:** Der Menüeintrag „Lauf aktivieren" erscheint auch an einer beendeten
+  Karte, das Backend lehnt ihn aber ab (409). Ob der Eintrag dort entfallen soll, ist offen.
 - **Nicht verifiziert:** nichts davon in der laufenden App; Mail-Links hinter Docker-nginx und
   Hoster-Proxy; Board-Push nach Abmeldung; `EXPLAIN ANALYZE` von `event_view` und Indizes; Dauer der
   Index-Migrationen; Login-Last mit 19 MiB je Hash; Statement-Timeout gegen lange Exporte.

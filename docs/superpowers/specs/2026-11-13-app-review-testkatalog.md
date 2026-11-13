@@ -298,15 +298,20 @@ Vorbedingung: Frisch gebautes Jar mit Stand des Zweigs, Wegwerf-Datenbank (Dump 
 
 ---
 
-## Zeitnahme-Durchlauf (laufend)
+## Zeitnahme-Durchlauf
 
-Ergebnis des Durchlaufs wird nachgetragen. Die Listen unten sind die Durchlauf-Punkte; sie
-überschneiden sich mit F und D und werden dort abgehakt, sobald das Ergebnis vorliegt.
+Stand 14.11.2026. Abgehakt ist, was in der laufenden App gesehen wurde (Seed `71ed`), mit einem
+Satz Beleg. Offen bleibt alles andere. Die Punkte überschneiden sich mit F und D.
+
+Übergreifend belegt: Derselbe Laufzustand erscheint in Schiedsrichter-Dashboard, Durchführung,
+Zeitplan, Live-Reiter, öffentlichem Programm und Sprecher-Board. Die Zeiten stimmen rechnerisch
+(kein Stundenversatz, Zeitstrafe nur ausgewiesen). Der Lebenszyklus wurde einmal ganz durchlaufen,
+einschließlich Klärung, „Beenden zurücknehmen" und „Lauf zurücksetzen".
 
 ### Posten (Seed `71ed`, 7 Punkte)
 
-- [ ] **Z-P1** Ziel (ARMED), 390: „Scharf schalten" 1 s halten; Boot antippen → Häkchen + Zeitenliste; „Zeit ohne Zuordnung banken" entschärft; „Später zuordnen"; Entschärfen per Halten; Leertaste entschärft tut nichts. (= F1)
-- [ ] **Z-P2** Start: „Sequenz starten", Zurück währenddessen → Rückfrage; Pausieren, Fortsetzen, Zurückspulen, Abbrechen; Lauf-Menü ⋮ (Neustart, Fehlstart); manueller Stempel „Start". (= F2)
+- [x] **Z-P1** Belegt: Scharfschalten, Stempeln mit und ohne Zuordnung, Rückgängig und Umhängen am Zielposten. Die Leertaste beim Entschärfen ist nicht eigens geprüft. Ziel (ARMED), 390: „Scharf schalten" 1 s halten; Boot antippen → Häkchen + Zeitenliste; „Zeit ohne Zuordnung banken" entschärft; „Später zuordnen"; Entschärfen per Halten; Leertaste entschärft tut nichts. (= F1)
+- [ ] **Z-P2** Teilweise belegt: Die Startsequenz läuft bis „Läuft". Pausieren, Fortsetzen, Zurückspulen, Abbrechen und Fehlstart sind offen. Start: „Sequenz starten", Zurück währenddessen → Rückfrage; Pausieren, Fortsetzen, Zurückspulen, Abbrechen; Lauf-Menü ⋮ (Neustart, Fehlstart); manueller Stempel „Start". (= F2)
 - [ ] **Z-P3** Zwischenzeit (Boje Nord): Boot per Tipp und Taste 1–6. (= F3)
 - [ ] **Z-P4** Telefon: Tagesablauf-Symbol oben rechts → Lauf wählen → Schublade schließt. (= F4)
 - [ ] **Z-P5** Zeitenliste: zurücknehmen, Zuordnung ändern. (= F5)
@@ -315,12 +320,12 @@ Ergebnis des Durchlaufs wird nachgetragen. Die Listen unten sind die Durchlauf-P
 
 ### Schiedsrichter (390 und 1280, 7 Punkte)
 
-- [ ] **Z-S1** „Läuft" an Karte „In Vorbereitung" (Sperre + Spinner). (= D1)
-- [ ] **Z-S2** „Lauf beenden" → 5-s-Rückgängig, einmal zurücknehmen, einmal durchlaufen; bei offenen Booten Dialog DNS/DNF/DSQ/Offen lassen. (= D2)
-- [ ] **Z-S3** ⋮ „In Klärung" mit Grund → Klärungs-Abschnitt; „Klärung aufheben" dort und in der Läufe-Spalte; „Lauf beenden" aus der Klärung. (= D3)
-- [ ] **Z-S4** ⋮ „Lauf deaktivieren", dann „Lauf aktivieren". (= D4)
-- [ ] **Z-S5** Beendete Karte ⋮ „Lauf aktivieren". (= D5)
-- [ ] **Z-S6** Bootszeile → Team-Dialog, Notiz anlegen/löschen. (= D6)
+- [x] **Z-S1** Belegt bei 1280 px, offen bei 390 px. „Läuft" an Karte „In Vorbereitung" (Sperre + Spinner). (= D1)
+- [x] **Z-S2** Belegt bei 1280 px (Beenden, Rücknahme), offen bei 390 px. „Lauf beenden" → 5-s-Rückgängig, einmal zurücknehmen, einmal durchlaufen; bei offenen Booten Dialog DNS/DNF/DSQ/Offen lassen. (= D2)
+- [x] **Z-S3** Belegt bei 1280 px, offen bei 390 px. ⋮ „In Klärung" mit Grund → Klärungs-Abschnitt; „Klärung aufheben" dort und in der Läufe-Spalte; „Lauf beenden" aus der Klärung. (= D3)
+- [x] **Z-S4** Belegt bei 1280 px, offen bei 390 px. ⋮ „Lauf deaktivieren", dann „Lauf aktivieren". (= D4)
+- [ ] **Z-S5** Beendete Karte ⋮ „Lauf aktivieren". Erwartet seit 14.11.2026: Das Backend lehnt mit 409 ab, der Lauf bleibt beendet. Wieder geöffnet wird er über „Beenden zurücknehmen" oder „Lauf zurücksetzen" in der Durchführung. Zu prüfen ist auch, ob der Menüeintrag an einer beendeten Karte überhaupt noch erscheinen soll. (= D5)
+- [x] **Z-S6** Belegt bei 1280 px, offen bei 390 px. Bootszeile → Team-Dialog, Notiz anlegen/löschen. (= D6)
 - [ ] **Z-S7** Netz weg → Chip „Keine Verbindung". (= D7)
 
 ### Sprecher
@@ -338,3 +343,16 @@ Ergebnis des Durchlaufs wird nachgetragen. Die Listen unten sind die Durchlauf-P
 - [ ] **Z-B1** Jede Kachel öffnen (= E9)
 - [ ] **Z-B2** „Prüfungen verwalten" und „Laufende Läufe verwalten" (= E10)
 - [ ] **Z-B3** Posten-Tabelle: Anlegen und Teilen (= E11)
+
+### Nachträge (offen, sofern nicht abgehakt)
+
+- [ ] **Z-N1** Startposten ohne Sitzung (nur Geräte-Token): Statt „Sequenz starten" steht ein Hinweis. Die ARMED-Leiste nennt den Lauf der scharfen Sequenz.
+- [ ] **Z-N2** Durchführung ⋮ „Lauf zurücksetzen" mit interner Zeitnahme: Der Dialog nennt, dass die Posten-Marken bleiben, und widerspricht sich nicht („Gelöscht werden …"). Prüfen in de, en und da.
+- [ ] **Z-N3** Lauf in Klärung: Der Zeitstrahl und die Liste „Nicht verplant" zeigen die Klärung.
+- [ ] **Z-N4** Sprecher-Board: Die Legende „Live (n)" zählt nur Läufe auf dem Wasser, keine gerufenen oder strittigen.
+- [x] **Z-N5** Vereinssicht: Der Bereich „Meldungen" erscheint bei READ REGISTRATION OWN, der Kopfknopf heißt „Meldung ansehen und ändern". Mit Vereinsrolle in der App gesehen.
+- [x] **Z-N6** CSV-Downloads liefern eine Datei. Am 14.11.2026 im Seed `71ed` mit vorübergehend gesetztem Startlisten-Preset belegt: Startliste je Lauf (⋮ „Startliste herunterladen (CSV)"), Startliste der Runde und Startlisten-Export im Zeitplan (Zweig CSV). Jeweils wurde der Download ausgelöst, Inhaltstyp `text/csv`, CSV-Zeilen. Die Platzierungen-CSV ist nur über denselben Codepfad belegt, nicht über den Knopf: Im Seed gibt es keine Platzierungen, der Knopf ist deshalb ausgeblendet.
+- [ ] **Z-N7** Durchführung und Zeitplan: „An den Start rufen" oder „Läuft" an einem inzwischen beendeten Lauf (veralteter Tab) zeigt „Der Lauf ist bereits beendet …". Der Lauf bleibt beendet.
+- [ ] **Z-N8** Rückfragen haben in der Verwaltung das Verwaltungs-Theme (Radius 12, Fokusring, dunkler Text auf Rot) und an Posten, Regie und Helfer-App deren eigenes. Die Verwaltung ist an „Lauf zurücksetzen" belegt; Posten, Regie und Helfer-App sind offen.
+- [ ] **Z-N9** Meldung halb ausgefüllt, oben rechts „Abmelden": Es kommt keine Rückfrage, die Abmeldung geht durch.
+- [ ] **Z-N10** Helfer-App, Bändchen entfernen im Funkloch: Nur „Keine Verbindung" erscheint, kein „Bändchen entfernt", kein Rücksprung.
