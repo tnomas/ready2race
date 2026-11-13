@@ -150,6 +150,11 @@ data class Config(
          * werden mit ihren eigenen Parametern geprüft und beim nächsten Login neu berechnet.
          */
         val argon2MemoryKiB: Int = PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB,
+        /**
+         * Höchstzahl gleichzeitiger Argon2-Rechnungen (Login, Passwort setzen). Vorgabe: Kernzahl.
+         * Jede Rechnung belegt [argon2MemoryKiB] Heap.
+         */
+        val argon2MaxConcurrent: Int = PasswordUtilities.defaultArgon2MaxConcurrent(),
     )
 
     data class Admin(
@@ -293,7 +298,23 @@ data class Config(
                     }
                 }
 
-                Security(pepper = pepper, argon2MemoryKiB = argon2MemoryKiB)
+                val argon2MaxConcurrent = !optional("SECURITY_ARGON2_MAX_CONCURRENT", int)
+                    ?: PasswordUtilities.defaultArgon2MaxConcurrent()
+                if (argon2MaxConcurrent < 1) {
+                    !KIO.fail(
+                        ParseEnvError.UnparsableValue(
+                            "SECURITY_ARGON2_MAX_CONCURRENT",
+                            argon2MaxConcurrent.toString(),
+                            Int::class
+                        )
+                    )
+                }
+
+                Security(
+                    pepper = pepper,
+                    argon2MemoryKiB = argon2MemoryKiB,
+                    argon2MaxConcurrent = argon2MaxConcurrent,
+                )
             }
 
             val admin = run {

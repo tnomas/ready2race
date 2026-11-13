@@ -33,34 +33,79 @@ object AuthService {
         }
     }
 
+    /** Ergebnis der Passwortprüfung: der Nutzer und, falls fällig, sein neu berechneter Hash. */
+    data class VerifiedLogin(
+        val user: AppUserWithPrivilegesRecord,
+        /** Hash mit den aktuellen Parametern, wenn der gespeicherte aus einem älteren Stand ist. */
+        val rehashed: String?,
+    )
+
+    /**
+     * Login in einem Zug - für Aufrufer ohne eigene Transaktionssteuerung (Tests). Die Routen
+     * rufen [verifyCredentials] außerhalb und [startSession] innerhalb der Transaktion auf.
+     */
     fun login(
         request: LoginRequest,
         onSuccess: (String) -> Unit,
     ): App<AuthError, ApiResponse.Dto<LoginDto>> = KIO.comprehension {
+        val verified = !verifyCredentials(request)
+        startSession(verified, onSuccess)
+    }
 
-        val user = !AppUserRepo.getWithPrivilegesByEmail(request.email).orDie().onNullFail { AuthError.CredentialsIncorrect }
+    /**
+     * Schritt 1 des Logins: Nutzer lesen und Passwort prüfen. Läuft in den Routen AUSSERHALB der
+     * Anfrage-Transaktion - jede Leseabfrage gibt ihre Poolverbindung sofort zurück, während
+     * Argon2 (rund 55 ms, 19 MiB) rechnet. Vorher hielt jeder Login dabei eine der Verbindungen,
+     * und eine Welle falscher Logins ließ Boards und Zeitnahme auf den Pool warten.
+     *
+     * Bei unbekannter E-Mail wird gegen einen Platzhalter-Hash gerechnet: Beide Fehlschläge
+     * dauern gleich lang und antworten gleich ([AuthError.CredentialsIncorrect]).
+     *
+     * Ein veralteter Hash wird hier schon neu berechnet (der Klartext liegt nur jetzt vor),
+     * geschrieben wird er erst in [startSession].
+     */
+    fun verifyCredentials(
+        request: LoginRequest,
+    ): App<AuthError, VerifiedLogin> = KIO.comprehension {
+        val user = !AppUserRepo.getWithPrivilegesByEmail(request.email).orDie()
+        if (user == null) {
+            !PasswordUtilities.checkAgainstDummy(request.password)
+            return@comprehension KIO.fail(AuthError.CredentialsIncorrect)
+        }
 
         val credentialsOk = !PasswordUtilities.check(request.password, user.password!!)
+        if (!credentialsOk) {
+            return@comprehension KIO.fail(AuthError.CredentialsIncorrect)
+        }
 
-        if (credentialsOk) {
+        // Hashes aus einem älteren Parameterstand (bis 11/2026: 15 KiB Speicher) beim Login mit
+        // dem gerade geprüften Klartext neu berechnen. Anders kommt man an den Klartext nicht heran.
+        val outdated = !PasswordUtilities.needsRehash(user.password!!)
+        val rehashed = if (outdated) !PasswordUtilities.hash(request.password) else null
 
-            // Hashes aus einem älteren Parameterstand (bis 11/2026: 15 KiB Speicher) beim Login mit
-            // dem gerade geprüften Klartext neu berechnen. Anders kommt man an den Klartext nicht heran.
-            val outdated = !PasswordUtilities.needsRehash(user.password!!)
-            if (outdated) {
-                val rehashed = !PasswordUtilities.hash(request.password)
-                !AppUserRepo.update(user.id!!) { password = rehashed }.orDie()
-            }
+        KIO.ok(VerifiedLogin(user, rehashed))
+    }
 
-            val record = !user.toSession(tokenLifetime)
-            val token = !AppUserSessionRepo.create(record).orDie()
-            onSuccess(token)
+    /**
+     * Schritt 2 des Logins, in der Transaktion: neu berechneten Hash schreiben und Sitzung
+     * anlegen. Der Hash wird nur ersetzt, wenn der gespeicherte noch derselbe ist wie bei der
+     * Prüfung - hat jemand das Passwort dazwischen geändert, bleibt das neue stehen.
+     */
+    fun startSession(
+        verified: VerifiedLogin,
+        onSuccess: (String) -> Unit,
+    ): App<AuthError, ApiResponse.Dto<LoginDto>> = KIO.comprehension {
+        val user = verified.user
+        if (verified.rehashed != null) {
+            !AppUserRepo.replacePasswordIfUnchanged(user.id!!, user.password!!, verified.rehashed).orDie()
+        }
 
-            user.loginDto().map {
-                ApiResponse.Dto(it)
-            }
-        } else {
-            KIO.fail(AuthError.CredentialsIncorrect)
+        val record = !user.toSession(tokenLifetime)
+        val token = !AppUserSessionRepo.create(record).orDie()
+        onSuccess(token)
+
+        user.loginDto().map {
+            ApiResponse.Dto(it)
         }
     }
 

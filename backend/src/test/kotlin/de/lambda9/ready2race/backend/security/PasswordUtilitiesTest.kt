@@ -14,6 +14,10 @@ import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
 import java.time.LocalDateTime
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,6 +51,63 @@ class PasswordUtilitiesTest {
     fun `alter Hash mit 15 KiB laesst sich weiter pruefen`() {
         val legacy = PasswordUtilities.hashWith(password, pepper, legacyFunction)
         assertTrue(legacy.startsWith("\$argon2id\$v=19\$m=15,t=2,p=1\$"), legacy)
+    }
+
+    @Test
+    fun `unbekannte E-Mail rechnet genauso einen Argon2-Lauf wie ein falsches Passwort`() = testComprehension {
+        val (_, email) = seedUser(!PasswordUtilities.hash(password))
+
+        val beforeUnknown = PasswordUtilities.computations.get()
+        assertKIOFails(AuthError.CredentialsIncorrect) {
+            AuthService.login(LoginRequest(email = "niemand-${UUID.randomUUID()}@example.org", password = password)) {}
+        }
+        val unknownRuns = PasswordUtilities.computations.get() - beforeUnknown
+
+        val beforeWrong = PasswordUtilities.computations.get()
+        assertKIOFails(AuthError.CredentialsIncorrect) {
+            AuthService.login(LoginRequest(email = email, password = "falsch-falsch")) {}
+        }
+        val wrongRuns = PasswordUtilities.computations.get() - beforeWrong
+
+        assertEquals(1, unknownRuns, "unbekannte E-Mail")
+        assertEquals(1, wrongRuns, "falsches Passwort")
+    }
+
+    @Test
+    fun `hoechstens so viele Argon2-Laeufe gleichzeitig wie erlaubt`() {
+        val permits = 2
+        val running = AtomicInteger(0)
+        val maxSeen = AtomicInteger(0)
+        val callers = 8
+        val start = CountDownLatch(1)
+        val pool = Executors.newFixedThreadPool(callers)
+        try {
+            val done = (1..callers).map {
+                pool.submit {
+                    start.await()
+                    PasswordUtilities.limited(permits) {
+                        val now = running.incrementAndGet()
+                        maxSeen.accumulateAndGet(now, ::maxOf)
+                        Thread.sleep(30)
+                        running.decrementAndGet()
+                    }
+                }
+            }
+            start.countDown()
+            done.forEach { it.get(10, TimeUnit.SECONDS) }
+        } finally {
+            pool.shutdownNow()
+        }
+
+        assertEquals(permits, maxSeen.get())
+    }
+
+    @Test
+    fun `Vorgabe fuer gleichzeitige Argon2-Laeufe ist die Kernzahl`() {
+        assertEquals(
+            Runtime.getRuntime().availableProcessors(),
+            Config.Security(pepper = pepper).argon2MaxConcurrent,
+        )
     }
 
     private fun TestComprehensionScope<JEnv>.seedUser(passwordHash: String): Pair<UUID, String> {

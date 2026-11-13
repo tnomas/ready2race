@@ -26,7 +26,9 @@ fun Route.qrCodeApp() {
                 post {
                     call.respondComprehension {
                         val body = !receiveKIO(LoginRequest.example)
-                        AuthService.login(body) { token ->
+                        // Passwortprüfung vor der Transaktion: Argon2 hält so keine Poolverbindung.
+                        val verified = !AuthService.verifyCredentials(body)
+                        AuthService.startSession(verified) { token ->
                             sessions.set(UserSession(token))
                         }
                     }

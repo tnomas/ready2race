@@ -5,6 +5,9 @@ import com.password4j.Password
 import com.password4j.types.Argon2
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.tailwind.core.KIO
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicLong
 
 object PasswordUtilities {
 
@@ -18,6 +21,14 @@ object PasswordUtilities {
 
     /** Argon2 verlangt mindestens 8 KiB je Spur; wir rechnen mit einer Spur. */
     const val MIN_ARGON2_MEMORY_KIB = 8
+
+    /**
+     * Wie viele Argon2-Rechnungen gleichzeitig laufen dürfen, wenn
+     * `SECURITY_ARGON2_MAX_CONCURRENT` nicht gesetzt ist: so viele, wie es Kerne gibt. Mehr bringt
+     * keinen Durchsatz (die Rechnung ist CPU-gebunden), kostet aber je Lauf den vollen
+     * Argon2-Speicher (19 MiB) - 64 parallele Logins auf Dispatchers.IO wären über 1 GiB Heap.
+     */
+    fun defaultArgon2MaxConcurrent(): Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
 
     private const val ARGON2_ITERATIONS = 2
     private const val ARGON2_PARALLELISM = 1
@@ -38,9 +49,31 @@ object PasswordUtilities {
             ARGON2_VERSION,
         )
 
+    private val gates = ConcurrentHashMap<Int, Semaphore>()
+
+    /** Zahl der bisher gerechneten Argon2-Läufe (Hash oder Prüfung) - für Tests. */
+    internal val computations = AtomicLong()
+
+    /**
+     * Führt eine Argon2-Rechnung aus, höchstens [permits] gleichzeitig. Wer warten muss, wartet
+     * fair in Ankunftsreihenfolge. Die Grenze gilt prozessweit je konfigurierter Größe.
+     */
+    internal fun <A> limited(permits: Int, block: () -> A): A {
+        val gate = gates.computeIfAbsent(permits) { Semaphore(it, true) }
+        gate.acquire()
+        try {
+            computations.incrementAndGet()
+            return block()
+        } finally {
+            gate.release()
+        }
+    }
+
     fun hash(plain: String): App<Nothing, String> = KIO.access { env ->
         val security = env.env.config.security
-        hashWith(plain, security.pepper, argon2(security.argon2MemoryKiB))
+        limited(security.argon2MaxConcurrent) {
+            hashWith(plain, security.pepper, argon2(security.argon2MemoryKiB))
+        }
     }
 
     internal fun hashWith(plain: String, pepper: String, function: Argon2Function): String =
@@ -52,7 +85,25 @@ object PasswordUtilities {
             .result
 
     fun check(plain: String, password: String): App<Nothing, Boolean> = KIO.access { env ->
-        checkWith(plain, password, env.env.config.security.pepper)
+        val security = env.env.config.security
+        limited(security.argon2MaxConcurrent) { checkWith(plain, password, security.pepper) }
+    }
+
+    private val dummyHashes = ConcurrentHashMap<Int, String>()
+
+    /**
+     * Prüft gegen einen Platzhalter-Hash mit den aktuell konfigurierten Parametern und verwirft
+     * das Ergebnis. Für den Login mit unbekannter E-Mail: Ohne diese Rechnung antwortete er um die
+     * Dauer eines Argon2-Laufs (rund 55 ms) schneller als mit falschem Passwort, und die
+     * Antwortzeit verriete, ob es ein Konto gibt.
+     */
+    fun checkAgainstDummy(plain: String): App<Nothing, Unit> = KIO.access { env ->
+        val security = env.env.config.security
+        val dummy = dummyHashes.computeIfAbsent(security.argon2MemoryKiB) {
+            hashWith(RandomUtilities.alphanumerical(32), security.pepper, argon2(it))
+        }
+        limited(security.argon2MaxConcurrent) { checkWith(plain, dummy, security.pepper) }
+        Unit
     }
 
     /**
