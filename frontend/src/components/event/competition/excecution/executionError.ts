@@ -214,3 +214,20 @@ export const raceClockerErrorText = (error: ExecutionApiError): ExecutionErrorTe
 
     return undefined
 }
+
+const runningKeys = {
+    alreadyFinished: 'event.competition.execution.running.error.alreadyFinished',
+    update: 'event.competition.execution.running.error.update',
+} as const
+
+/**
+ * Der i18n-Key zu einem abgelehnten „An den Start rufen" oder „Läuft" (Durchführung). Ein
+ * beendeter Lauf lässt sich darüber nicht wieder öffnen; der Text nennt die beiden Wege, die es
+ * dafür gibt. Alles andere bleibt bei der Sammelmeldung.
+ */
+export const runningErrorKey = (
+    error: ExecutionApiError,
+): (typeof runningKeys)[keyof typeof runningKeys] =>
+    error.errorCode === 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED'
+        ? runningKeys.alreadyFinished
+        : runningKeys.update

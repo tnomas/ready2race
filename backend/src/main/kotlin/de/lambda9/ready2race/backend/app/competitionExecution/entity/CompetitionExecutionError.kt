@@ -39,6 +39,13 @@ sealed interface CompetitionExecutionError : ServiceError {
     data object MatchNotFinished : CompetitionExecutionError
 
     /**
+     * An den Start rufen oder „Läuft" auf einem beendeten Lauf. Wieder geöffnet wird er über
+     * „Beenden zurücknehmen" oder „Zurücksetzen". Der Fehlercode ist derselbe wie beim
+     * Schiedsrichter-Dashboard, weil es dieselbe Regel ist (siehe CompetitionMatchGuards).
+     */
+    data object MatchAlreadyFinished : CompetitionExecutionError
+
+    /**
      * Ein Lauf lässt sich nur zurücksetzen, solange seine Folgerunde noch keine erzeugten Läufe
      * hat - dieselbe Stromrichtung wie beim Löschen der aktuellen Runde: Sobald aus den Ergebnissen
      * die nächste Runde gesät ist, würde der Reset einen Stand leeren, auf dem die Setzung der
@@ -125,6 +132,12 @@ sealed interface CompetitionExecutionError : ServiceError {
         MatchNotFound -> ApiError(
             status = HttpStatusCode.NotFound,
             message = "Competition match not found",
+        )
+
+        MatchAlreadyFinished -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Match is already finished and cannot be called to the start again",
+            errorCode = ErrorCode.LIVE_DASHBOARD_MATCH_ALREADY_FINISHED,
         )
 
         MatchTeamNotFound -> ApiError(

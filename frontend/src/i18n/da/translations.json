@@ -1277,6 +1277,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "Løbet er allerede afsluttet. Det kan genåbnes med „Fortryd afslutning“ eller „Nulstil løb“.",
             "hasPlaces": "Kørselstatus kan ikke ændres for kampe med resultater",
             "update": "Fejl ved opdatering af kørselstatus"
           },

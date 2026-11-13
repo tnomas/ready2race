@@ -1277,6 +1277,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "The match is already finished. Use “Undo finish” or “Reset race” to reopen it.",
             "hasPlaces": "Cannot change running state for matches with results",
             "update": "Failed to update running state"
           },

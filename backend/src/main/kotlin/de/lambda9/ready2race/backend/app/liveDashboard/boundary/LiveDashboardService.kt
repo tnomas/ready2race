@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.club.boundary.ClubShortNameSettings
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionLogic
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionService
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionMatchGuards
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.ChainProgressionMode
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
@@ -716,25 +717,13 @@ object LiveDashboardService {
         noData
     }
 
-    /**
-     * Der Lauf muss zur Veranstaltung des Pfads gehören: ein Lauf einer anderen Veranstaltung ist
-     * unter diesem Pfad unbekannt ([LiveDashboardError.MatchNotFound]) - sonst könnte jede
-     * Sitzung mit Recht an Veranstaltung B einen Lauf von A anfassen, und der Änderungsmarker von
-     * B zählte für eine Änderung an A hoch.
-     */
+    /** Siehe [CompetitionMatchGuards.requireMatchOfEvent]. */
     private fun requireMatchOfEvent(eventId: UUID, matchId: UUID): App<LiveDashboardError, Unit> =
-        KIO.comprehension {
-            val matchEvent = !LiveDashboardRepo.getMatchEventId(matchId).orDie()
-            !KIO.failOn(matchEvent != eventId) { LiveDashboardError.MatchNotFound(matchId) }
-            KIO.unit
-        }
+        CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { LiveDashboardError.MatchNotFound(matchId) }
 
+    /** Siehe [CompetitionMatchGuards.requireMatchNotFinished]. */
     private fun requireMatchNotFinished(matchId: UUID): App<LiveDashboardError, Unit> =
-        KIO.comprehension {
-            val finished = !CompetitionMatchRepo.isFinished(matchId).orDie()
-            !KIO.failOn(finished) { LiveDashboardError.MatchAlreadyFinished(matchId) }
-            KIO.unit
-        }
+        CompetitionMatchGuards.requireMatchNotFinished(matchId) { LiveDashboardError.MatchAlreadyFinished(matchId) }
 
     /**
      * Setzt einen Lauf in Klärung - der Weg für einen Einspruch, der noch nicht entschieden ist.

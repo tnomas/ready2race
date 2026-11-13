@@ -26,7 +26,10 @@ import {
     updateMatchActivation,
     updateMatchByeMustRace,
 } from '@api/sdk.gen.ts'
-import {matchErrorText} from '@components/event/competition/excecution/executionError.ts'
+import {
+    matchErrorText,
+    runningErrorKey,
+} from '@components/event/competition/excecution/executionError.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {
     CompetitionScopeProps,
@@ -232,7 +235,7 @@ const CompetitionExecutionRound = ({
         if (isRequestNetworkError(error)) {
             networkFeedback()
         } else if (error) {
-            feedback.error(t('event.competition.execution.running.error.update'))
+            feedback.error(t(runningErrorKey(error)))
         } else {
             feedback.success(t('event.competition.execution.running.success'))
             props.reloadRoundDto()
@@ -417,7 +420,7 @@ const CompetitionExecutionRound = ({
         if (isRequestNetworkError(error)) {
             networkFeedback()
         } else if (error) {
-            feedback.error(t('event.competition.execution.running.error.update'))
+            feedback.error(t(runningErrorKey(error)))
         } else {
             feedback.success(t('event.competition.execution.running.success'))
             props.reloadRoundDto()

@@ -1762,7 +1762,9 @@ object CompetitionExecutionService {
         userId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
-        !CompetitionMatchRepo.exists(matchId).orDie().onNullFail { CompetitionExecutionError.MatchNotFound }
+        !CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { CompetitionExecutionError.MatchNotFound }
+        // „Läuft" auf einem beendeten Lauf setzte activated_at und holte ihn als RUNNING zurück.
+        !CompetitionMatchGuards.requireMatchNotFinished(matchId) { CompetitionExecutionError.MatchAlreadyFinished }
 
         !CompetitionMatchRepo.update(matchId) {
             if (startedAt == null) {
@@ -1989,7 +1991,13 @@ object CompetitionExecutionService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
-        !CompetitionMatchRepo.exists(matchId).orDie().onNullFail { CompetitionExecutionError.MatchNotFound }
+        !CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { CompetitionExecutionError.MatchNotFound }
+        // Ein veralteter Zeitplan- oder Durchführungs-Tab genügte, um einen beendeten Lauf als
+        // „In Vorbereitung" zurückzuholen. Zurücknehmen bleibt erlaubt: es ändert an einem
+        // beendeten Lauf nichts Sichtbares.
+        if (request.activated) {
+            !CompetitionMatchGuards.requireMatchNotFinished(matchId) { CompetitionExecutionError.MatchAlreadyFinished }
+        }
 
         !setMatchActivation(matchId, request.activated, userId)
 

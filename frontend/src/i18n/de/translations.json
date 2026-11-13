@@ -1277,6 +1277,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "Der Lauf ist bereits beendet. Wieder öffnen lässt er sich über „Beenden zurücknehmen“ oder „Lauf zurücksetzen“.",
             "hasPlaces": "Der Laufstatus kann nicht für Spiele mit Ergebnissen geändert werden",
             "update": "Fehler beim Aktualisieren des Laufstatus"
           },
