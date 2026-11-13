@@ -158,7 +158,10 @@ export const usePolledEndpoint = <T>(
 
         try {
             const result = await loadRef.current(controller.signal)
-            if (!mountedRef.current) return
+            // Abgelöst, aber die Antwort war schon unterwegs: Sie gehört womöglich zum vorigen
+            // Ziel (anderes Board, andere Veranstaltung) und darf den Nachfolger nicht
+            // überschreiben. Timer und Zustand gehören dann dem neueren Aufruf (siehe finally).
+            if (!mountedRef.current || abortRef.current !== controller) return
             if (result.response.status === 404) {
                 setNotFound(true)
                 setLoadFailed(false)
@@ -191,7 +194,7 @@ export const usePolledEndpoint = <T>(
         } catch (err) {
             if (err instanceof DOMException && err.name === 'AbortError') {
                 // Ein neuerer load()-Aufruf hat diesen Abruf abgelöst — kein echter Fehler.
-            } else if (mountedRef.current) {
+            } else if (mountedRef.current && abortRef.current === controller) {
                 // Netzabbruch o.ä.: letzten guten Stand stehen lassen, aber als
                 // fehlgeschlagenen Versuch markieren (siehe loadFailed oben).
                 setLoadFailed(true)
@@ -244,8 +247,16 @@ export const usePolledEndpoint = <T>(
         // Andere Abhängigkeiten heißen: andere Daten. Eine Warnung, die zum vorigen Stand
         // gehörte, darf nicht über den Wechsel hinweg stehen bleiben — die Ablehnung des vorigen
         // Boards sagt nichts über die Rechte am nächsten.
+        // Dasselbe gilt für Daten und die übrigen Meldungen: Ein Board-Gerät, das von Board A auf
+        // Board B umgestellt wird, soll nicht kurz „Board B" mit den Kacheln von A zeigen, und
+        // ein 404 von A nicht bis zum ersten Erfolg von B stehen bleiben.
         setStale(false)
         setUnauthorized(false)
+        setData(null)
+        setNotFound(false)
+        setLoadFailed(false)
+        setInitialLoad(true)
+        setLastUpdated(null)
         stopPollingRef.current = false
         staleWatchRef.current = createStaleWatch({
             onStale: value => {

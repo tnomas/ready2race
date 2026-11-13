@@ -12,5 +12,12 @@ import {darken, Theme} from '@mui/material'
  * Palette anwendet (`darken(palette.warning.light, 0.6)`): kein erfundener Farbton, sondern
  * derselbe, in dem Warn-Alerts der App ihren Text setzen — Fließtext-Warnungen und Alerts
  * sehen damit zusammengehörig aus. Verwendung: `sx={{color: warningTextColor}}`.
+ *
+ * Innerhalb des Verwaltungs-Themes (AdminThemeScope) liefert die Funktion stattdessen die dort
+ * abgeleitete Lesefarbe `palette.statusText.warning` (≥ 4,5:1 gegen die Inhaltsfläche), damit
+ * alle Status-Texte der Verwaltung derselben Regel folgen. Außerhalb (Zeitnahme-Posten, Boards)
+ * bleibt der bisherige Ton pixelgleich. Für neue Stellen: `statusTextColor(theme, 'warning')`
+ * aus `theme/themeColors.ts`.
  */
-export const warningTextColor = (theme: Theme): string => darken(theme.palette.warning.light, 0.6)
+export const warningTextColor = (theme: Theme): string =>
+    theme.palette.statusText?.warning ?? darken(theme.palette.warning.light, 0.6)

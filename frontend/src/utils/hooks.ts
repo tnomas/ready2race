@@ -1,11 +1,10 @@
 import {RequestResult} from '@hey-api/client-fetch'
-import {DependencyList, useCallback, useEffect, useLayoutEffect, useState} from 'react'
-import {useSnackbar} from 'notistack'
+import {DependencyList, useCallback, useEffect, useLayoutEffect, useMemo, useState} from 'react'
+import {SnackbarKey, useSnackbar} from 'notistack'
 import {GridValidRowModel} from '@mui/x-data-grid'
 import {useTranslation} from 'react-i18next'
 import {ApiError, CaptchaDto} from '@api/types.gen.ts'
 import {newCaptcha} from '@api/sdk.gen.ts'
-import {ifDefined} from '@utils/helpers.ts'
 import {useTheme} from '@mui/material'
 
 type UseFetchOptions<T, E, R> = {
@@ -17,10 +16,39 @@ type UseFetchOptions<T, E, R> = {
     deps?: DependencyList
 }
 
-export type FetchError<E> = {
-    status: number
-    error: E
+/**
+ * Fehlerzustand von `useFetch`.
+ *
+ * `status` ist der HTTP-Status der Antwort. **`status === 0` heißt Netzfehler**: Es kam gar keine
+ * Antwort (Funkloch, Backend weg, DNS); `error` trägt dann statt eines `E` die Marke
+ * `NETWORK_ERROR`. Zuvor blieb in diesem Fall `pending` für immer `true`.
+ */
+export type FetchError<E> =
+    | {
+          status: number
+          error: E
+      }
+    | {
+          status: typeof NETWORK_ERROR_STATUS
+          error: NetworkError
+      }
+
+export const NETWORK_ERROR_STATUS = 0
+
+export type NetworkError = {
+    kind: 'network'
+    cause: unknown
 }
+
+export const isNetworkError = <E>(
+    error: FetchError<E> | null | undefined,
+): error is {status: typeof NETWORK_ERROR_STATUS; error: NetworkError} =>
+    error != null &&
+    error.status === NETWORK_ERROR_STATUS &&
+    typeof error.error === 'object' &&
+    error.error !== null &&
+    'kind' in error.error &&
+    error.error.kind === 'network'
 
 export type UseFetchReturn<T, E> = {
     reload: () => void
@@ -44,8 +72,10 @@ export const useFetch = <T, E, R = T>(
     req: (abortSignal: AbortSignal) => RequestResult<T, E, false>,
     options?: UseFetchOptions<T, E, R>,
 ): UseFetchReturn<R, E> => {
-    const [lastTry, setLastTry] = useState(Date.now())
-    const reload = () => setLastTry(Date.now())
+    // Ein Zähler statt `Date.now()`: Zwei `reload()` in derselben Millisekunde (oder unter
+    // eingefrorener Uhr) ergaben denselben Wert, und der zweite Abruf fiel still aus.
+    const [lastTry, setLastTry] = useState(0)
+    const reload = useCallback(() => setLastTry(n => n + 1), [])
 
     const fetchInit: UseFetchReturn<R, E> = {
         reload,
@@ -57,61 +87,117 @@ export const useFetch = <T, E, R = T>(
     const [result, setResult] = useState<UseFetchReturn<R, E>>(fetchInit)
 
     useEffect(() => {
-        if (options?.preCondition?.() != false) {
-            const controller = new AbortController()
-            let timer: ReturnType<typeof setTimeout> | null = null
-            setResult(prev => ({...prev, pending: true}))
-            ;(async () => {
-                try {
-                    const result = await req(controller.signal)
-                    const {data, error, response} = result
-                    options?.onResponse?.(result)
-                    if (data !== undefined) {
-                        setResult({
-                            reload,
-                            pending: false,
-                            error: null,
-                            data: options?.mapData ? options.mapData(data) : (data as R),
-                        })
-                    } else if (error !== undefined) {
-                        setResult({
-                            reload,
-                            pending: false,
-                            error: {
-                                status: response.status,
-                                error,
-                            },
-                            data: null,
-                        })
-                    }
-                } catch (error) {
-                    if (!controller.signal.aborted) {
-                        if (options?.onPanic) {
-                            options.onPanic(error)
-                        } else {
-                            throw error
-                        }
-                    }
-                } finally {
-                    // Der nächste Takt zählt ab der Antwort, nicht ab dem Absenden. Beides hält
-                    // Anfragen davon ab, sich zu überlappen — aber ein Wecker, der beim Absenden
-                    // gestellt wird, bricht auf einer langsamen Verbindung jede Anfrage ab, bevor
-                    // sie ankommt: Die Seite holt dann nie wieder etwas und merkt es nicht einmal,
-                    // weil ein Abbruch kein Fehler ist. So wartet der Takt auf die Antwort.
-                    //
-                    // Nach einem Abbruch (Seitenwechsel, geänderte deps) wird kein Wecker mehr
-                    // gestellt: Der Nachfolger dieses Effekts stellt seinen eigenen.
-                    if (!controller.signal.aborted) {
-                        timer = ifDefined(options?.autoReloadInterval, i => setTimeout(reload, i))
+        if (options?.preCondition?.() == false) {
+            // Ohne Vorbedingung kein Stand: Was hier noch stünde, gehörte zur vorigen Lage (etwa
+            // zum abgemeldeten Nutzer). Ein abgebrochener Vorgänger hinterließe sonst auch ein
+            // ewiges `pending`.
+            setResult(prev =>
+                prev.pending || prev.data !== null || prev.error !== null ? fetchInit : prev,
+            )
+            return
+        }
+
+        const controller = new AbortController()
+        let timer: ReturnType<typeof setTimeout> | null = null
+        let settled = false
+        const autoReloadInterval = options?.autoReloadInterval
+        const watchVisibility = autoReloadInterval !== undefined && typeof document !== 'undefined'
+
+        setResult(prev => ({...prev, pending: true}))
+        ;(async () => {
+            try {
+                const result = await req(controller.signal)
+                // Abgelöst (andere deps, Seitenwechsel), aber die Antwort war schon da: Sie
+                // gehört zum vorigen Parameter und darf den neueren Stand nicht überschreiben.
+                if (controller.signal.aborted) return
+                const {data, error, response} = result
+                options?.onResponse?.(result)
+                if (data !== undefined) {
+                    setResult({
+                        reload,
+                        pending: false,
+                        error: null,
+                        data: options?.mapData ? options.mapData(data) : (data as R),
+                    })
+                } else if (error !== undefined) {
+                    setResult({
+                        reload,
+                        pending: false,
+                        error: {
+                            status: response.status,
+                            error,
+                        },
+                        data: null,
+                    })
+                } else {
+                    setResult(prev => ({...prev, pending: false}))
+                }
+            } catch (error) {
+                if (controller.signal.aborted) return
+                if (options?.onPanic) {
+                    options.onPanic(error)
+                    setResult(prev => ({...prev, pending: false}))
+                } else {
+                    // Früher wurde hier weitergeworfen: eine unbehandelte Rejection, und `pending`
+                    // blieb für immer wahr. Ein schon geladener Stand bleibt stehen (ein Aussetzer
+                    // im Funkloch soll keine Liste leeren); ohne Stand gibt es den Netzfehler als
+                    // Fehlerzustand mit Status 0.
+                    setResult(prev =>
+                        prev.data !== null
+                            ? {...prev, pending: false}
+                            : {
+                                  reload,
+                                  pending: false,
+                                  error: {
+                                      status: NETWORK_ERROR_STATUS,
+                                      error: {kind: 'network', cause: error},
+                                  },
+                                  data: null,
+                              },
+                    )
+                }
+            } finally {
+                // Der nächste Takt zählt ab der Antwort, nicht ab dem Absenden. Beides hält
+                // Anfragen davon ab, sich zu überlappen — aber ein Wecker, der beim Absenden
+                // gestellt wird, bricht auf einer langsamen Verbindung jede Anfrage ab, bevor
+                // sie ankommt: Die Seite holt dann nie wieder etwas und merkt es nicht einmal,
+                // weil ein Abbruch kein Fehler ist. So wartet der Takt auf die Antwort.
+                //
+                // Nach einem Abbruch (Seitenwechsel, geänderte deps) wird kein Wecker mehr
+                // gestellt: Der Nachfolger dieses Effekts stellt seinen eigenen. Im verdeckten
+                // Tab auch nicht: Die Rückkehr lädt sofort (siehe unten).
+                if (!controller.signal.aborted) {
+                    settled = true
+                    if (autoReloadInterval !== undefined && !(watchVisibility && document.hidden)) {
+                        timer = setTimeout(reload, autoReloadInterval)
                     }
                 }
-            })()
+            }
+        })()
 
-            return () => {
-                controller.abort()
+        // Wie `usePolledEndpoint`: Im Hintergrund wird nicht getaktet, beim Zurückkehren sofort
+        // einmal geladen. Nur für Aufrufer mit Takt; einmalige Abrufe bleiben unberührt.
+        const onVisibilityChange = () => {
+            if (document.hidden) {
                 if (timer !== null) {
                     clearTimeout(timer)
+                    timer = null
                 }
+            } else if (settled && timer === null) {
+                reload()
+            }
+        }
+        if (watchVisibility) {
+            document.addEventListener('visibilitychange', onVisibilityChange)
+        }
+
+        return () => {
+            controller.abort()
+            if (timer !== null) {
+                clearTimeout(timer)
+            }
+            if (watchVisibility) {
+                document.removeEventListener('visibilitychange', onVisibilityChange)
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -203,48 +289,43 @@ export const useEntityAdministration = <T extends GridValidRowModel | undefined 
     }
 }
 
-export const useFeedback = () => {
+export type Feedback = {
+    success: (msg: string) => SnackbarKey
+    warning: (msg: string) => SnackbarKey
+    error: (msg: string) => SnackbarKey
+    info: (msg: string) => SnackbarKey
+}
+
+/**
+ * Snackbar-Meldungen in den Farben des Themes.
+ *
+ * Das Objekt ist über Renderdurchläufe stabil (solange Snackbar-Kontext und Theme gleich bleiben):
+ * Viele Aufrufer führen `feedback` in den Abhängigkeiten von `useCallback`/`useEffect`, und ein
+ * neues Objekt je Render machte die alle wirkungslos.
+ */
+export const useFeedback = (): Feedback => {
     const {enqueueSnackbar} = useSnackbar()
     const theme = useTheme()
 
-    return {
-        success: (msg: string) =>
-            enqueueSnackbar(msg, {
-                variant: 'success',
-                style: {
-                    backgroundColor: theme.palette.success.main,
-                    color: theme.palette.success.contrastText,
-                    flexWrap: 'nowrap',
-                },
-            }),
-        warning: (msg: string) =>
-            enqueueSnackbar(msg, {
-                variant: 'warning',
-                style: {
-                    backgroundColor: theme.palette.warning.main,
-                    color: theme.palette.warning.contrastText,
-                    flexWrap: 'nowrap',
-                },
-            }),
-        error: (msg: string) =>
-            enqueueSnackbar(msg, {
-                variant: 'error',
-                style: {
-                    backgroundColor: theme.palette.error.main,
-                    color: theme.palette.error.contrastText,
-                    flexWrap: 'nowrap',
-                },
-            }),
-        info: (msg: string) =>
-            enqueueSnackbar(msg, {
-                variant: 'info',
-                style: {
-                    backgroundColor: theme.palette.info.main,
-                    color: theme.palette.info.contrastText,
-                    flexWrap: 'nowrap',
-                },
-            }),
-    }
+    return useMemo(() => {
+        const show =
+            (variant: 'success' | 'warning' | 'error' | 'info') =>
+            (msg: string): SnackbarKey =>
+                enqueueSnackbar(msg, {
+                    variant,
+                    style: {
+                        backgroundColor: theme.palette[variant].main,
+                        color: theme.palette[variant].contrastText,
+                        flexWrap: 'nowrap',
+                    },
+                })
+        return {
+            success: show('success'),
+            warning: show('warning'),
+            error: show('error'),
+            info: show('info'),
+        }
+    }, [enqueueSnackbar, theme])
 }
 
 export const useDebounce = <T>(value: T, delay?: number) => {
