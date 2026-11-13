@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.appuser.control.*
 import de.lambda9.ready2race.backend.app.appuser.entity.*
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
+import de.lambda9.ready2race.backend.app.auth.control.AppUserSessionRepo
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.club.control.ClubRepo
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
@@ -756,6 +757,10 @@ object AppUserService {
 
         val newPassword = !PasswordUtilities.hash(request.password)
         !AppUserRepo.update(passwordReset.appUser) { password = newPassword }.orDie()
+
+        // Wer das Konto übernommen hatte, behielte mit einer laufenden Sitzung den Zugriff (6 h
+        // gleitend, bei Aktivität also unbegrenzt). Nach dem Reset meldet man sich neu an.
+        !AppUserSessionRepo.deleteByUser(passwordReset.appUser).orDie()
 
         noData
     }

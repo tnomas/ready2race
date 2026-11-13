@@ -7,6 +7,7 @@ import de.lambda9.ready2race.backend.database.insertReturning
 import de.lambda9.ready2race.backend.database.update
 import org.jooq.impl.DSL
 import java.time.LocalDateTime
+import java.util.UUID
 
 object AppUserSessionRepo {
 
@@ -20,5 +21,8 @@ object AppUserSessionRepo {
     }
 
     fun delete(token: String?) = APP_USER_SESSION.delete { TOKEN.eq(token) }
+    /** Alle Sitzungen eines Kontos beenden, z.B. nach einem Passwort-Reset. */
+    fun deleteByUser(appUserId: UUID) = APP_USER_SESSION.delete { APP_USER.eq(appUserId) }
+
     fun deleteExpired() = APP_USER_SESSION.delete { EXPIRES_AT.le(LocalDateTime.now()) }
 }
