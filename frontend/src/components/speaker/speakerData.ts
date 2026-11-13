@@ -205,6 +205,10 @@ export const nextUpcomingSpeakerMatch = (
 export const isLiveOnWater = (match: SpeakerMatch): boolean =>
     match.status === 'RUNNING' && !match.clarification && !match.preparing
 
+/** Die Zahl in der Legende „● n live": nur Läufe auf dem Wasser ([isLiveOnWater]). */
+export const liveOnWaterCount = (matches: SpeakerMatch[]): number =>
+    matches.filter(isLiveOnWater).length
+
 /**
  * Wohin „Live folgen" springt, wenn keine Startsequenz den Lauf vorgibt: der zuletzt gestartete
  * fahrende Lauf, sonst der an den Start gerufene, sonst der nächste anstehende, sonst das jüngste

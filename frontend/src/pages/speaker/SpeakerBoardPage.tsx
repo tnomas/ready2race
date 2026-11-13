@@ -19,8 +19,8 @@ import SpeakerTimeline from '@components/speaker/SpeakerTimeline.tsx'
 import SpeakerTimingPanel from '@components/speaker/SpeakerTimingPanel.tsx'
 import {
     computeSpeakerBadges,
-    isLiveOnWater,
     liveFollowCandidate,
+    liveOnWaterCount,
     matchLabel,
     mergeSpeakerMatches,
     nextUpcomingSpeakerMatch,
@@ -175,7 +175,7 @@ const SpeakerBoardPage = () => {
 
     // Strittige Läufe zählen nicht als "live" — sie laufen gerade eben nicht, sie werden geklärt.
     // Ebenso wenig die nur an den Start gerufenen (In Vorbereitung).
-    const runningCount = matches.filter(isLiveOnWater).length
+    const runningCount = liveOnWaterCount(matches)
 
     // Echtzeit-Zeitnahme (Sequenzen, Fehlstärte, Zieleinläufe) über denselben Kanal wie der
     // Leitstand — rein lesend, ohne Berechtigung degradiert das Panel zu einem Hinweis.

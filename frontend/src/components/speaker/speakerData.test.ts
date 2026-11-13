@@ -10,6 +10,7 @@ import {
     displayPlace,
     isLiveOnWater,
     liveFollowCandidate,
+    liveOnWaterCount,
     mergeSpeakerMatches,
     nextUpcomingSpeakerMatch,
     SpeakerMatch,
@@ -215,5 +216,31 @@ describe('Lauf in Vorbereitung ist nicht live', () => {
         expect(liveFollowCandidate(mergeSpeakerMatches([upcoming], [disputed], []), now)).toBe(
             'next',
         )
+    })
+})
+
+describe('liveOnWaterCount', () => {
+    it('zählt für die Legende „● n live" nur die Läufe auf dem Wasser', () => {
+        // Befund 13.11.2026: gerufene (In Vorbereitung) und strittige Läufe zählten mit.
+        const running = (overrides: Partial<RunningMatchInfo>): RunningMatchInfo => ({
+            matchId: 'r',
+            competitionId: 'c',
+            competitionName: 'CF 2x',
+            executionOrder: 0,
+            state: 'RUNNING',
+            teams: [],
+            ...overrides,
+        })
+        const matches = mergeSpeakerMatches(
+            [],
+            [
+                running({matchId: 'live', startedAt: '2026-11-13T22:45:59'}),
+                running({matchId: 'prep', state: 'PREPARING'}),
+                running({matchId: 'disputed', state: 'CLARIFICATION', clarification: true}),
+            ],
+            [],
+        )
+        expect(matches).toHaveLength(3)
+        expect(liveOnWaterCount(matches)).toBe(1)
     })
 })
