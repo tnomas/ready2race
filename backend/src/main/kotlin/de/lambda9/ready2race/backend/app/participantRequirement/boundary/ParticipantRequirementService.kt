@@ -3,7 +3,9 @@ package de.lambda9.ready2race.backend.app.participantRequirement.boundary
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
+import de.lambda9.ready2race.backend.app.namedParticipant.control.NamedParticipantRepo
 import de.lambda9.ready2race.backend.app.participant.boundary.ParticipantService
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantForEventRepo
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
@@ -22,6 +24,7 @@ import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.int
 import de.lambda9.tailwind.core.KIO
 import de.lambda9.tailwind.core.KIO.Companion.ok
+import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.traverse
@@ -663,14 +666,24 @@ object ParticipantRequirementService {
         namedParticipantId: UUID,
         qrCodeRequired: Boolean,
         userId: UUID
-    ): App<Nothing, ApiResponse.NoData> = KIO.comprehension {
+    ): App<ParticipantRequirementError, ApiResponse.NoData> = KIO.comprehension {
+        // Unbekannte Veranstaltung, Bedingung oder Rolle liefen bisher in einen Fremdschlüssel-
+        // fehler (500); fachlich ist das "nicht gefunden".
+        !EventRepo.exists(eventId).orDie().onFalseFail { ParticipantRequirementError.NotFound }
+        !ParticipantRequirementRepo.get(requirementId).orDie().onNullFail { ParticipantRequirementError.NotFound }
+        !NamedParticipantRepo.get(namedParticipantId).orDie().onNullFail { ParticipantRequirementError.NotFound }
+
+        // Eine zweite Zuweisung (Doppelklick im Dialog) traf den Unique-Index; das `!!` hinter
+        // `onConflictDoNothing().returning()` warf dann eine NullPointerException (500). Der
+        // Konflikt ist eine fachliche Antwort - auch, wenn zwei Aufrufe gleichzeitig kommen,
+        // denn der Index entscheidet atomar.
         !ParticipantRequirementForEventRepo.assignRequirementToNamedParticipant(
             eventId = eventId,
             participantRequirementId = requirementId,
             namedParticipantId = namedParticipantId,
             qrCodeRequired = qrCodeRequired,
             createdBy = userId
-        ).orDie()
+        ).orDie().onNullFail { ParticipantRequirementError.InUse }
         noData
     }
 

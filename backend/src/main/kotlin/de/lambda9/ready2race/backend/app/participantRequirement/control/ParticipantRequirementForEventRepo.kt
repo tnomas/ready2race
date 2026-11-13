@@ -13,6 +13,7 @@ import de.lambda9.ready2race.backend.database.select
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
 import org.jooq.impl.DSL
+import java.time.LocalDateTime
 import java.util.*
 
 object ParticipantRequirementForEventRepo {
@@ -97,17 +98,18 @@ object ParticipantRequirementForEventRepo {
         namedParticipantId: UUID?,
         qrCodeRequired: Boolean,
         createdBy: UUID
-    ): JIO<EventHasParticipantRequirementRecord> = Jooq.query {
+    ): JIO<EventHasParticipantRequirementRecord?> = Jooq.query {
         insertInto(EVENT_HAS_PARTICIPANT_REQUIREMENT)
             .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.EVENT, eventId)
             .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.PARTICIPANT_REQUIREMENT, participantRequirementId)
             .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.NAMED_PARTICIPANT, namedParticipantId)
             .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.QR_CODE_REQUIRED, qrCodeRequired)
-            .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.CREATED_AT, DSL.currentLocalDateTime())
+            .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.CREATED_AT, LocalDateTime.now())
             .set(EVENT_HAS_PARTICIPANT_REQUIREMENT.CREATED_BY, createdBy)
             .onConflictDoNothing()
             .returning()
-            .fetchOne()!!
+            // null: die Zuweisung gibt es schon (Unique-Index event, requirement, named_participant).
+            .fetchOne()
     }
 
     fun updateQrCodeRequirement(
