@@ -13,7 +13,7 @@ import {useFetch} from '@utils/hooks.ts'
 import {getClubNames, getQrAssignmentParticipants} from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
 import PersonIcon from '@mui/icons-material/Person'
-import AssignmentSearchField from "@components/qrApp/assign/AssignmentSearchField.tsx";
+import AssignmentSearchField from '@components/qrApp/assign/AssignmentSearchField.tsx'
 
 export interface ParticipantAssignmentContext {
     competitionName: string
@@ -54,7 +54,7 @@ const ParticipantAssignment: React.FC<ParticipantAssignmentProps> = ({
 
     const handleClubChange = (
         _event: React.SyntheticEvent,
-        newValue: { id: string; name: string } | null,
+        newValue: {id: string; name: string} | null,
     ) => {
         setClub(newValue?.id || '')
     }
@@ -77,7 +77,9 @@ const ParticipantAssignment: React.FC<ParticipantAssignmentProps> = ({
                     existing.qrCodeValue = existing.qrCodeValue ?? p.qrCodeValue ?? undefined
                     if (
                         !existing.contexts.some(
-                            c => c.competitionName === context.competitionName && c.role === context.role,
+                            c =>
+                                c.competitionName === context.competitionName &&
+                                c.role === context.role,
                         )
                     ) {
                         existing.contexts.push(context)
@@ -102,7 +104,9 @@ const ParticipantAssignment: React.FC<ParticipantAssignmentProps> = ({
                 .filter(
                     p =>
                         searchQuery === '' ||
-                        `${p.firstname} ${p.lastname}`.toLowerCase().includes(searchQuery.toLowerCase()),
+                        `${p.firstname} ${p.lastname}`
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase()),
                 )
                 .sort((a, b) =>
                     `${a.lastname} ${a.firstname}`.localeCompare(`${b.lastname} ${b.firstname}`),
@@ -150,15 +154,22 @@ const ParticipantAssignment: React.FC<ParticipantAssignmentProps> = ({
                                     }}>
                                     <CardActionArea
                                         onClick={() =>
-                                            !participant.qrCodeValue && onSelectParticipant(participant)
+                                            !participant.qrCodeValue &&
+                                            onSelectParticipant(participant)
                                         }
                                         disabled={participant.qrCodeValue !== undefined}>
                                         <CardContent sx={{py: 2}}>
-                                            <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1,
+                                                }}>
                                                 <PersonIcon sx={{color: 'text.secondary'}} />
                                                 <Box sx={{flexGrow: 1}}>
                                                     <Typography variant="body1" fontWeight="medium">
-                                                        {participant.firstname} {participant.lastname}
+                                                        {participant.firstname}{' '}
+                                                        {participant.lastname}
                                                     </Typography>
                                                     {participant.contexts.map((c, i) => (
                                                         <Typography

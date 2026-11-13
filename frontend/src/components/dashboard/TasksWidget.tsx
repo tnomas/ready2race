@@ -1,7 +1,6 @@
 import React, {useState} from 'react'
 import {
     Box,
-    Button,
     Divider,
     IconButton,
     List,
@@ -17,11 +16,11 @@ import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getOpenTasksForUser} from '@api/sdk.gen.ts'
-import {Link} from '@tanstack/react-router'
 import {TaskStateIcon} from '@components/event/task/TaskStateIcon.tsx'
 import TaskDialog from '@components/event/task/TaskDialog.tsx'
 import {Edit, TaskAlt} from '@mui/icons-material'
 import {TaskDto} from '@api/types.gen.ts'
+import {ButtonLink} from '@components/ui'
 
 export function TasksWidget({userId}: {userId: string}) {
     const feedback = useFeedback()
@@ -111,6 +110,7 @@ export function TasksWidget({userId}: {userId: string}) {
                                                         </Typography>
                                                         <IconButton
                                                             onClick={() => onEdit(task)}
+                                                            aria-label={t('common.edit')}
                                                             size={'small'}>
                                                             <Edit
                                                                 color={'primary'}
@@ -123,18 +123,17 @@ export function TasksWidget({userId}: {userId: string}) {
                                                             }}>
                                                             <Typography>|</Typography>
                                                         </Box>
-                                                        <Link
+                                                        <ButtonLink
                                                             to={'/event/$eventId'}
                                                             search={{
                                                                 tab: 'organization',
                                                             }}
-                                                            params={{eventId: task.event}}>
-                                                            <Button size={'small'}>
-                                                                <Typography color={'primary'}>
-                                                                    {task.eventName}
-                                                                </Typography>
-                                                            </Button>
-                                                        </Link>
+                                                            params={{eventId: task.event}}
+                                                            size={'small'}>
+                                                            <Typography color={'primary'}>
+                                                                {task.eventName}
+                                                            </Typography>
+                                                        </ButtonLink>
                                                         <Stack
                                                             direction={'row'}
                                                             alignItems={'center'}

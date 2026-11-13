@@ -166,7 +166,7 @@ export const parseCsvFile = async (
                         columnValues: collectColumnValues(headers, dataRows),
                     })
                 },
-                error: (error: any) => {
+                error: (error: Error) => {
                     reject(new Error(`Failed to parse CSV: ${error.message}`))
                 },
             })

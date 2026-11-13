@@ -91,7 +91,7 @@ const TeamInput = (props: {
     ])
 
     return (
-        <Paper sx={{p: {xs: 1, sm: 2}}} elevation={2}>
+        <Paper sx={{p: {xs: 1, sm: 2}}}>
             <Stack rowGap={2}>
                 <Stack spacing={2}>
                     {props.competition.namedParticipant?.map(
@@ -165,6 +165,7 @@ const TeamInput = (props: {
                 <IconButton
                     sx={{alignSelf: 'end', cursor: 'pointer', minWidth: '44px', minHeight: '44px'}}
                     disabled={props.locked}
+                    aria-label={t('common.remove')}
                     onClick={() => props.onRemove(props.teamIndex)}>
                     <DeleteIcon />
                 </IconButton>

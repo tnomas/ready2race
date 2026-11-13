@@ -22,17 +22,19 @@ describe('covers', () => {
         // Der Bestand aus der Migration trägt einen Tag, obwohl die Bedingung
         // veranstaltungsweit gilt - er darf deshalb nicht durchfallen.
         expect(
-            covers(wholeEvent, {id: 'r', eventDayId: gestern, competitionId: wettkampfB}, {
-                todayEventDayId: heute,
-                competitionId: wettkampfA,
-            }),
+            covers(
+                wholeEvent,
+                {id: 'r', eventDayId: gestern, competitionId: wettkampfB},
+                {
+                    todayEventDayId: heute,
+                    competitionId: wettkampfA,
+                },
+            ),
         ).toBe(true)
     })
 
     test('perEventDay: gestern gewogen deckt heute nicht ab', () => {
-        expect(
-            covers(perDay, {id: 'r', eventDayId: gestern}, {todayEventDayId: heute}),
-        ).toBe(false)
+        expect(covers(perDay, {id: 'r', eventDayId: gestern}, {todayEventDayId: heute})).toBe(false)
         expect(covers(perDay, {id: 'r', eventDayId: heute}, {todayEventDayId: heute})).toBe(true)
     })
 
@@ -42,14 +44,22 @@ describe('covers', () => {
 
     test('perCompetition: die Bestätigung des anderen Wettkampfs zählt nicht', () => {
         expect(
-            covers(perCompetition, {id: 'r', competitionId: wettkampfB}, {
-                competitionId: wettkampfA,
-            }),
+            covers(
+                perCompetition,
+                {id: 'r', competitionId: wettkampfB},
+                {
+                    competitionId: wettkampfA,
+                },
+            ),
         ).toBe(false)
         expect(
-            covers(perCompetition, {id: 'r', competitionId: wettkampfA}, {
-                competitionId: wettkampfA,
-            }),
+            covers(
+                perCompetition,
+                {id: 'r', competitionId: wettkampfA},
+                {
+                    competitionId: wettkampfA,
+                },
+            ),
         ).toBe(true)
     })
 
@@ -187,12 +197,22 @@ describe('requirementStatus', () => {
     test('nur tagesbezogen: eine Zeile, die auf heute schaut', () => {
         const scope = {perEventDay: true, perCompetition: false}
         expect(
-            requirementStatus('waage', scope, [{id: 'waage', eventDayId: heute}], wettkaempfe, heute)[0]
-                .fulfilled,
+            requirementStatus(
+                'waage',
+                scope,
+                [{id: 'waage', eventDayId: heute}],
+                wettkaempfe,
+                heute,
+            )[0].fulfilled,
         ).toBe(true)
         expect(
-            requirementStatus('waage', scope, [{id: 'waage', eventDayId: gestern}], wettkaempfe, heute)[0]
-                .fulfilled,
+            requirementStatus(
+                'waage',
+                scope,
+                [{id: 'waage', eventDayId: gestern}],
+                wettkaempfe,
+                heute,
+            )[0].fulfilled,
         ).toBe(false)
     })
 

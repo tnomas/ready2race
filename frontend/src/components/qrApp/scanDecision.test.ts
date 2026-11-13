@@ -17,9 +17,9 @@ describe('bandTypeOf', () => {
 
 describe('decideScan – unbekanntes Band', () => {
     it('führt zur Zuweisung, wenn die Person Bänder verwalten darf, egal in welchem Modus', () => {
-        expect(
-            decideScan({band: 'UNKNOWN', rights: ['APP_QR_MANAGEMENT'], mode: null}),
-        ).toEqual({kind: 'ASSIGN'})
+        expect(decideScan({band: 'UNKNOWN', rights: ['APP_QR_MANAGEMENT'], mode: null})).toEqual({
+            kind: 'ASSIGN',
+        })
         expect(
             decideScan({
                 band: 'UNKNOWN',

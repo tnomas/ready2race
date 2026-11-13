@@ -369,20 +369,30 @@ const SpeakerBoardPage = () => {
                     <IconButton
                         onClick={() => updateSettings({showTimeline: !settings.showTimeline})}
                         title={t('speaker.tabs.timeline')}
+                        aria-label={t('speaker.tabs.timeline')}
+                        aria-pressed={settings.showTimeline}
                         sx={{
                             color: settings.showTimeline ? colors.upcoming : colors.textSecondary,
                         }}>
                         <ViewTimelineIcon />
                     </IconButton>
-                    <IconButton onClick={reloadAll} sx={{color: colors.textSecondary}}>
+                    <IconButton
+                        onClick={reloadAll}
+                        aria-label={t('common.reload')}
+                        sx={{color: colors.textSecondary}}>
                         <RefreshIcon />
                     </IconButton>
                     <IconButton
                         onClick={() => setSettingsOpen(true)}
+                        aria-label={t('common.settings')}
                         sx={{color: colors.textSecondary}}>
                         <SettingsIcon />
                     </IconButton>
-                    <IconButton onClick={toggleFullscreen} sx={{color: colors.textSecondary}}>
+                    <IconButton
+                        onClick={toggleFullscreen}
+                        aria-label={t('common.fullscreen')}
+                        aria-pressed={fullscreen}
+                        sx={{color: colors.textSecondary}}>
                         {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                     </IconButton>
                 </Stack>

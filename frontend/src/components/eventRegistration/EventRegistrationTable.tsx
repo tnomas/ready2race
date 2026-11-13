@@ -97,7 +97,10 @@ const EventRegistrationTable = ({
             renderCell: ({value}) =>
                 value ? (
                     <HtmlTooltip title={value}>
-                        <IconButton size={'small'} onClick={event => showMessage(event, value)}>
+                        <IconButton
+                            size={'small'}
+                            aria-label={t('event.registration.message')}
+                            onClick={event => showMessage(event, value)}>
                             <Message fontSize={'small'} />
                         </IconButton>
                     </HtmlTooltip>

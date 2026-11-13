@@ -1,8 +1,8 @@
-import {InputAdornment, TextField} from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import React, {useEffect} from "react";
-import {useTranslation} from "react-i18next";
-import {useDebounce} from "@utils/hooks.ts";
+import {InputAdornment, TextField} from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
+import React, {useEffect} from 'react'
+import {useTranslation} from 'react-i18next'
+import {useDebounce} from '@utils/hooks.ts'
 
 type Props = {
     setSearchQuery: (query: string) => void
@@ -15,24 +15,26 @@ const AssignmentSearchField = (props: Props) => {
 
     useEffect(() => {
         props.setSearchQuery(debouncedSearchQuery)
-    }, [debouncedSearchQuery, props]);
+    }, [debouncedSearchQuery, props])
 
-    return (<TextField
-        fullWidth
-        placeholder={t('common.search')}
-        value={searchQuery}
-        onChange={e => setSearchQuery(e.target.value)}
-        slotProps={{
-            input: {
-                startAdornment: (
-                    <InputAdornment position="start">
-                        <SearchIcon/>
-                    </InputAdornment>
-                ),
-            },
-        }}
-        sx={{mb: 1}}
-    />)
+    return (
+        <TextField
+            fullWidth
+            placeholder={t('common.search')}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            slotProps={{
+                input: {
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <SearchIcon />
+                        </InputAdornment>
+                    ),
+                },
+            }}
+            sx={{mb: 1}}
+        />
+    )
 }
 
 export default AssignmentSearchField

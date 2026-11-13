@@ -24,6 +24,8 @@ import {
     LiveDashboardApiError,
     qrAssignErrorKey,
 } from '@components/event/liveDashboard/liveDashboardError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import type {NetworkError} from '@utils/hooks.ts'
 
 type UserTyp = 'Participant' | 'User'
 
@@ -57,9 +59,13 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
      * Grund (Bändchen schon vergeben) hilft nur ein anderes Bändchen.
      */
     const showAssignError = (
-        error: LiveDashboardApiError,
+        error: LiveDashboardApiError | NetworkError,
         fallbackKey: 'common.error.unexpected' | 'qrAssign.notAssigned',
     ) => {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
         feedback.error(t(qrAssignErrorKey(error) ?? fallbackKey))
     }
 
@@ -104,17 +110,17 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
      */
     const handleConfirmSelection = async () => {
         if (!selectedPerson || submitting) return
-        setSubmitting(true)
-
         let assigned = false
         if (selectedPerson.type === 'participant') {
-            const {error} = await updateQrCodeParticipant({
-                body: {
-                    qrCodeId: qrCodeId,
-                    eventId: eventId,
-                    id: selectedPerson.id,
-                },
-            })
+            const {error} = await runRequest(setSubmitting, () =>
+                updateQrCodeParticipant({
+                    body: {
+                        qrCodeId: qrCodeId,
+                        eventId: eventId,
+                        id: selectedPerson.id,
+                    },
+                }),
+            )
             if (error) {
                 showAssignError(error, 'common.error.unexpected')
             } else {
@@ -122,13 +128,15 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
                 feedback.success(t('qrAssign.successParticipant'))
             }
         } else {
-            const {error} = await updateQrCodeAppuser({
-                body: {
-                    qrCodeId: qrCodeId,
-                    eventId: eventId,
-                    id: selectedPerson.id,
-                },
-            })
+            const {error} = await runRequest(setSubmitting, () =>
+                updateQrCodeAppuser({
+                    body: {
+                        qrCodeId: qrCodeId,
+                        eventId: eventId,
+                        id: selectedPerson.id,
+                    },
+                }),
+            )
             if (error) {
                 showAssignError(error, 'common.error.unexpected')
             } else {
@@ -137,7 +145,6 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
             }
         }
 
-        setSubmitting(false)
         setConfirmationOpen(false)
         if (assigned) {
             onDone()
@@ -216,13 +223,20 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
                     </ToggleButton>
                 </ToggleButtonGroup>
 
-                <Button variant={'outlined'} fullWidth onClick={handleScanSystemUser} sx={{py: 1.5}}>
+                <Button
+                    variant={'outlined'}
+                    fullWidth
+                    onClick={handleScanSystemUser}
+                    sx={{py: 1.5}}>
                     {t('qrAssign.scanSystemUser')}
                 </Button>
             </Stack>
 
             {userTyp === 'Participant' && !scanningSystemUser && (
-                <ParticipantAssignment eventId={eventId} onSelectParticipant={handleParticipantClick} />
+                <ParticipantAssignment
+                    eventId={eventId}
+                    onSelectParticipant={handleParticipantClick}
+                />
             )}
 
             {userTyp === 'User' && !scanningSystemUser && (
@@ -236,7 +250,11 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
                 />
             )}
 
-            <Dialog open={confirmationOpen} onClose={handleCloseConfirmation} maxWidth="sm" fullWidth>
+            <Dialog
+                open={confirmationOpen}
+                onClose={handleCloseConfirmation}
+                maxWidth="sm"
+                fullWidth>
                 <DialogTitle>{t('common.confirmation.title')}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{pt: 2}}>
@@ -246,7 +264,10 @@ export const AssignBand = ({eventId, qrCodeId, onDone}: Props) => {
                                 <Typography variant="h6">{selectedPerson?.name}</Typography>
                                 {selectedPerson?.additionalInfo &&
                                     selectedPerson.additionalInfo.map((info, index) => (
-                                        <Typography key={index} variant="body2" color="text.secondary">
+                                        <Typography
+                                            key={index}
+                                            variant="body2"
+                                            color="text.secondary">
                                             {info}
                                         </Typography>
                                     ))}

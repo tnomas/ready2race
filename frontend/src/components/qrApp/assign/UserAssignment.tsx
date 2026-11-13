@@ -1,17 +1,10 @@
-import {
-    Box,
-    Card,
-    CardActionArea,
-    CardContent,
-    Stack,
-    Typography,
-} from '@mui/material'
+import {Box, Card, CardActionArea, CardContent, Stack, Typography} from '@mui/material'
 import React, {useMemo} from 'react'
 import {useFetch} from '@utils/hooks.ts'
 import {getUsersForEvent} from '@api/sdk.gen.ts'
 import {useTranslation} from 'react-i18next'
 import PersonIcon from '@mui/icons-material/Person'
-import AssignmentSearchField from "@components/qrApp/assign/AssignmentSearchField.tsx";
+import AssignmentSearchField from '@components/qrApp/assign/AssignmentSearchField.tsx'
 
 interface UserAssignmentProps {
     eventId: string
@@ -29,14 +22,16 @@ const UserAssignment: React.FC<UserAssignmentProps> = ({eventId, onSelectUser}) 
             .filter(
                 user =>
                     searchQuery === '' ||
-                    `${user.firstname} ${user.lastname}`.toLowerCase().includes(searchQuery.toLowerCase()),
+                    `${user.firstname} ${user.lastname}`
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()),
             )
             .sort((a, b) => {
                 const nameA = `${a.firstname} ${a.lastname}`.toLowerCase()
                 const nameB = `${b.firstname} ${b.lastname}`.toLowerCase()
                 return nameA.localeCompare(nameB)
             })
-    },[searchQuery, users])
+    }, [searchQuery, users])
 
     return (
         <Stack sx={{width: '100%'}} spacing={2}>

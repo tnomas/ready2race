@@ -159,7 +159,8 @@ const updateResourcesWithDependencies = (
     const checkedTypes = getCheckedExportTypes(resources)
 
     const updatedResources = resources.map(item => {
-        const shouldBeChecked = requiredDependencies.has(item.type) ||
+        const shouldBeChecked =
+            requiredDependencies.has(item.type) ||
             (item.type === 'DB_EVENT' && anyEventSelected) ||
             (item.type === 'DB_COMPETITION' && anyCompetitionSelected)
 
@@ -199,13 +200,17 @@ const createDependencyChecker = (
     const checkedTypes = getCheckedExportTypes(checkedResources)
 
     return (type: WebDAVExportType): boolean => {
-        return checkedTypes.some(checkedType =>
-            webDAVExportTypeDependencies[checkedType]?.includes(type) ?? false
-        ) || (anyEventSelected && (
-            type === 'DB_EVENT' || (webDAVExportTypeDependencies['DB_EVENT']?.includes(type) ?? false)
-        )) || (anyCompetitionSelected && (
-            type === 'DB_COMPETITION' || (webDAVExportTypeDependencies['DB_COMPETITION']?.includes(type) ?? false)
-        ))
+        return (
+            checkedTypes.some(
+                checkedType => webDAVExportTypeDependencies[checkedType]?.includes(type) ?? false,
+            ) ||
+            (anyEventSelected &&
+                (type === 'DB_EVENT' ||
+                    (webDAVExportTypeDependencies['DB_EVENT']?.includes(type) ?? false))) ||
+            (anyCompetitionSelected &&
+                (type === 'DB_COMPETITION' ||
+                    (webDAVExportTypeDependencies['DB_COMPETITION']?.includes(type) ?? false)))
+        )
     }
 }
 
@@ -213,7 +218,7 @@ const createDependencyChecker = (
 const useDependencies = <T extends ExportForm | ImportForm>(
     formData: T,
     setFormData: React.Dispatch<React.SetStateAction<T>>,
-    options?: { activeStep?: number },
+    options?: {activeStep?: number},
 ) => {
     const isExport = 'events' in formData && 'checkedDatabaseExports' in formData
     const resources = isExport
@@ -249,15 +254,21 @@ const useDependencies = <T extends ExportForm | ImportForm>(
 
         if (hasChanges) {
             if (isExport) {
-                setFormData(prev => ({
-                    ...prev,
-                    checkedDatabaseExports: updatedResources,
-                }) as T)
+                setFormData(
+                    prev =>
+                        ({
+                            ...prev,
+                            checkedDatabaseExports: updatedResources,
+                        }) as T,
+                )
             } else {
-                setFormData(prev => ({
-                    ...prev,
-                    checkedResources: updatedResources,
-                }) as T)
+                setFormData(
+                    prev =>
+                        ({
+                            ...prev,
+                            checkedResources: updatedResources,
+                        }) as T,
+                )
             }
         }
     }, [
@@ -276,9 +287,16 @@ const useDependencies = <T extends ExportForm | ImportForm>(
                 ? hasSelectedCompetitions((formData as ExportForm).events)
                 : hasSelectedImportCompetitions((formData as ImportForm).availableEvents)
 
-            return createDependencyChecker(resources ?? [], anyEventSelected, anyCompetitionSelected)(type)
+            return createDependencyChecker(
+                resources ?? [],
+                anyEventSelected,
+                anyCompetitionSelected,
+            )(type)
         },
-        [resources, isExport ? (formData as ExportForm).events : (formData as ImportForm).availableEvents],
+        [
+            resources,
+            isExport ? (formData as ExportForm).events : (formData as ImportForm).availableEvents,
+        ],
     )
 
     return {isRequiredDependency}

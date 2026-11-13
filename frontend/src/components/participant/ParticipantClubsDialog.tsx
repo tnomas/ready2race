@@ -22,6 +22,7 @@ import {
     removeParticipantAdditionalClub,
 } from '@api/index.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 /**
  * Die weiteren Vereine einer Person pflegen.
@@ -85,16 +86,18 @@ const ParticipantClubsDialog = (props: {
 
     const add = async () => {
         if (!participant || !selected) return
-        setPending(true)
-        const {error} = await addParticipantAdditionalClub({
-            path: {
-                clubId: props.clubId,
-                participantId: participant.id,
-                additionalClubId: selected.id,
-            },
-        })
-        setPending(false)
-        if (error) {
+        const {error} = await runRequest(setPending, () =>
+            addParticipantAdditionalClub({
+                path: {
+                    clubId: props.clubId,
+                    participantId: participant.id,
+                    additionalClubId: selected.id,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('club.participant.additionalClubs.addError'))
         } else {
             feedback.success(t('club.participant.additionalClubs.addSuccess'))
@@ -106,12 +109,14 @@ const ParticipantClubsDialog = (props: {
 
     const remove = async (additionalClubId: string) => {
         if (!participant) return
-        setPending(true)
-        const {error} = await removeParticipantAdditionalClub({
-            path: {clubId: props.clubId, participantId: participant.id, additionalClubId},
-        })
-        setPending(false)
-        if (error) {
+        const {error} = await runRequest(setPending, () =>
+            removeParticipantAdditionalClub({
+                path: {clubId: props.clubId, participantId: participant.id, additionalClubId},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('club.participant.additionalClubs.removeError'))
         } else {
             feedback.success(t('club.participant.additionalClubs.removeSuccess'))

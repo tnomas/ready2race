@@ -4,7 +4,7 @@ import {Alert, Box, Stack, ToggleButton, ToggleButtonGroup, Typography} from '@m
 import EventRegistrationTeamsForm from './EventRegistrationTeamsForm.tsx'
 import {useTranslation} from 'react-i18next'
 import {FilterAlt} from '@mui/icons-material'
-import {useEventRegistration} from "@contexts/eventRegistration/EventRegistrationContext.ts";
+import {useEventRegistration} from '@contexts/eventRegistration/EventRegistrationContext.ts'
 
 export const EventRegistrationTeamCompetitionForm = () => {
     const ALL_CATEGORIES = 'show_all_categories'
@@ -14,16 +14,14 @@ export const EventRegistrationTeamCompetitionForm = () => {
 
     const {info} = useEventRegistration()
 
-    const handleChange = (_: any, newCategory: string | null) => {
+    const handleChange = (_: unknown, newCategory: string | null) => {
         if (newCategory !== null) {
             setCategory(newCategory)
         }
     }
 
     const getToggleButtons = useCallback(() => {
-        const allCategories = new Set(
-            info?.competitionsTeam.map(c => c.competitionCategory),
-        )
+        const allCategories = new Set(info?.competitionsTeam.map(c => c.competitionCategory))
         if (allCategories.size > 1) {
             return (
                 <Alert icon={<FilterAlt />} color={'info'} sx={{mB: 2}}>

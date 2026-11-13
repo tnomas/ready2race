@@ -11,6 +11,7 @@ import {
 import {FormContainer} from 'react-hook-form-mui'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useState} from 'react'
+import {runRequest} from '@utils/request.ts'
 
 type Props = {
     eventId: string
@@ -51,13 +52,15 @@ const InitializeRegistrationDialog = ({eventId, open, onClose, onSuccess, ...pro
 
         if (!props.registrationInitialized) {
             // Scenario 1: Create new registration
-            const {error: createError} = await addEventRegistration({
-                path: {eventId},
-                body: {
-                    participants: [],
-                    competitionRegistrations: [],
-                },
-            })
+            const {error: createError} = await runRequest(undefined, () =>
+                addEventRegistration({
+                    path: {eventId},
+                    body: {
+                        participants: [],
+                        competitionRegistrations: [],
+                    },
+                }),
+            )
 
             if (createError) {
                 setSubmitting(false)
@@ -66,9 +69,11 @@ const InitializeRegistrationDialog = ({eventId, open, onClose, onSuccess, ...pro
             }
         } else {
             // Scenario 2: Accept event documents
-            const {error: acceptError} = await acceptEventRegistrationDocuments({
-                path: {eventId},
-            })
+            const {error: acceptError} = await runRequest(undefined, () =>
+                acceptEventRegistrationDocuments({
+                    path: {eventId},
+                }),
+            )
 
             if (acceptError) {
                 setSubmitting(false)

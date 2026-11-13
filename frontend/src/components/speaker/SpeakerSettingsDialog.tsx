@@ -52,7 +52,10 @@ const SpeakerSettingsDialog = ({open, onClose}: Props) => {
                     <Typography variant={'h6'} fontWeight={'bold'} sx={{flex: 1}}>
                         ⚙️ {t('speaker.settings.title')}
                     </Typography>
-                    <IconButton onClick={onClose} sx={{color: colors.textSecondary}}>
+                    <IconButton
+                        onClick={onClose}
+                        aria-label={t('common.close')}
+                        sx={{color: colors.textSecondary}}>
                         <CloseIcon />
                     </IconButton>
                 </Stack>

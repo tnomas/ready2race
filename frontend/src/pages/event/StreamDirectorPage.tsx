@@ -5,8 +5,13 @@ import TuneIcon from '@mui/icons-material/Tune'
 import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
-import {Link, useNavigate} from '@tanstack/react-router'
-import {getEvent, getStreamPickerMatches, getStreamSceneView, getStreamScenes} from '@api/sdk.gen.ts'
+import {useNavigate} from '@tanstack/react-router'
+import {
+    getEvent,
+    getStreamPickerMatches,
+    getStreamSceneView,
+    getStreamScenes,
+} from '@api/sdk.gen.ts'
 import {StreamPickerMatchDto, StreamSceneDto, StreamSceneViewDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
@@ -29,6 +34,7 @@ import StreamSceneShareDialog from '@components/event/stream/StreamSceneShareDia
 import {STREAM_GRAPHIC_TYPES} from '@components/event/stream/streamGraphicCatalog.ts'
 import {STREAM_PRELOAD_FONT_FACES} from '@components/event/stream/graphics/design/streamTheme.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {ButtonLink} from '@components/ui'
 
 type Props = {eventId: string}
 
@@ -146,13 +152,13 @@ const StreamDirectorPage = ({eventId}: Props) => {
                                 <Typography color="text.secondary">
                                     {t('event.stream.scenes.none')}
                                 </Typography>
-                                <Link to="/event/$eventId/streamScenes" params={{eventId}}>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<ViewCarouselOutlinedIcon />}>
-                                        {t('event.stream.director.manageScenes')}
-                                    </Button>
-                                </Link>
+                                <ButtonLink
+                                    to="/event/$eventId/streamScenes"
+                                    params={{eventId}}
+                                    variant="outlined"
+                                    startIcon={<ViewCarouselOutlinedIcon />}>
+                                    {t('event.stream.director.manageScenes')}
+                                </ButtonLink>
                             </Stack>
                         )}
                     </>
@@ -275,7 +281,9 @@ const DirectorScene = ({
         },
         onError: change =>
             feedback.error(
-                change === 'trialMode' ? t('event.stream.scenes.trialMode.error') : t('common.error.unexpected'),
+                change === 'trialMode'
+                    ? t('event.stream.scenes.trialMode.error')
+                    : t('common.error.unexpected'),
             ),
     })
 
@@ -400,14 +408,14 @@ const DirectorScene = ({
                                         {t('event.stream.director.shareLink')}
                                     </Button>
                                 )}
-                                <Link to="/event/$eventId/streamScenes" params={{eventId}}>
-                                    <Button
-                                        size="small"
-                                        variant="text"
-                                        startIcon={<ViewCarouselOutlinedIcon />}>
-                                        {t('event.stream.director.manageScenes')}
-                                    </Button>
-                                </Link>
+                                <ButtonLink
+                                    to="/event/$eventId/streamScenes"
+                                    params={{eventId}}
+                                    size="small"
+                                    variant="text"
+                                    startIcon={<ViewCarouselOutlinedIcon />}>
+                                    {t('event.stream.director.manageScenes')}
+                                </ButtonLink>
                             </Stack>
                         </Section>
                     </Stack>

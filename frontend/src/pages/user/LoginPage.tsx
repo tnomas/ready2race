@@ -11,6 +11,7 @@ import FormInputPassword from '@components/form/input/FormInputPassword.tsx'
 import {TextLink} from '@components/ui'
 import {userLogin} from '@api/sdk.gen.ts'
 import {LoginRequest} from '@api/types.gen.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = LoginRequest
 
@@ -24,14 +25,18 @@ const LoginPage = () => {
     const formContext = useForm<Form>()
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {data, error, response} = await userLogin({
-            body: formData,
+        const captured: {response?: Response} = {}
+        const {data, error} = await runRequest(setSubmitting, async () => {
+            const result = await userLogin({body: formData})
+            captured.response = result.response
+            return result
         })
 
-        setSubmitting(false)
-        if (data !== undefined && response.ok) {
+        const response = captured.response
+        if (data !== undefined && response?.ok) {
             login(data, response.headers)
+        } else if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
         } else if (error) {
             if (error.status.value === 429) {
                 feedback.error(t('user.login.error.tooManyRequests'))

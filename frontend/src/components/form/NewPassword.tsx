@@ -16,7 +16,7 @@ type Props<F extends FieldValues> = {
     passwordFieldLabel?: string
 }
 
-export const NewPassword = <F extends FieldValues>({formContext, ...props}: Props<F>) => {
+export const NewPassword = <F extends FieldValues>(props: Props<F>) => {
     const minPasswordLength = 10
 
     const {t} = useTranslation()

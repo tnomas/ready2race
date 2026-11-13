@@ -35,7 +35,8 @@ export const covers = (
     fulfillment: CheckedParticipantRequirement,
     context: ScanContext,
 ): boolean =>
-    (!scope.perEventDay || (fulfillment.eventDayId ?? null) === (context.todayEventDayId ?? null)) &&
+    (!scope.perEventDay ||
+        (fulfillment.eventDayId ?? null) === (context.todayEventDayId ?? null)) &&
     (!scope.perCompetition ||
         (fulfillment.competitionId ?? null) === (context.competitionId ?? null))
 
@@ -123,9 +124,7 @@ export const requirementStatus = (
     if (!scope.perCompetition) {
         return [entryFor(null, null)]
     }
-    return competitions.map(competition =>
-        entryFor(competition.id, competitionLabel(competition)),
-    )
+    return competitions.map(competition => entryFor(competition.id, competitionLabel(competition)))
 }
 
 /** Anzeigename eines Wettkampfs: Kennung plus Kürzel, sonst der volle Name. */

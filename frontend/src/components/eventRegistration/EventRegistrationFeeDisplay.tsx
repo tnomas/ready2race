@@ -116,7 +116,6 @@ export const EventRegistrationFeeDisplay = () => {
 
     return !hideFees ? (
         <Paper
-            elevation={2}
             sx={{
                 width: {xs: '100%', sm: '240px'},
                 alignSelf: {xs: 'stretch', sm: 'end'},

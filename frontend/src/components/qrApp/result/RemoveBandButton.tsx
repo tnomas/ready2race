@@ -4,6 +4,7 @@ import {useTranslation} from 'react-i18next'
 import {deleteQrCode} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {QrDeleteDialog} from '@components/qrApp/QrDeleteDialog'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     qrCodeId: string
@@ -20,13 +21,17 @@ export const RemoveBandButton = ({qrCodeId, bandType, emphasis, onRemoved}: Prop
     const [submitting, setSubmitting] = useState(false)
 
     const handleDelete = async () => {
-        setSubmitting(true)
-        const {error} = await deleteQrCode({path: {qrCodeId}})
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () => deleteQrCode({path: {qrCodeId}}))
         setOpen(false)
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(
-                t(bandType === 'participant' ? 'qrParticipant.deleteError' : 'qrAppuser.deleteError'),
+                t(
+                    bandType === 'participant'
+                        ? 'qrParticipant.deleteError'
+                        : 'qrAppuser.deleteError',
+                ),
             )
             return
         }

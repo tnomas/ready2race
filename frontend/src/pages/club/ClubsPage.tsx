@@ -18,6 +18,7 @@ import {useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {readClubGlobal, updateAdministrationConfigGlobal} from '@authorization/privileges.ts'
 import {clubsIndexRoute} from '../../routes.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type GlobalConfigForm = {
     allowClubCreationOnRegistration: boolean
@@ -75,14 +76,16 @@ const ClubsPage = () => {
     })
 
     const onSubmit = async (data: GlobalConfigForm) => {
-        setSubmitting(true)
-        const {error} = await updateGlobalConfigurations({
-            body: {
-                allowClubCreationOnRegistration: data.allowClubCreationOnRegistration,
-            },
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            updateGlobalConfigurations({
+                body: {
+                    allowClubCreationOnRegistration: data.allowClubCreationOnRegistration,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('club.settings.saved'))

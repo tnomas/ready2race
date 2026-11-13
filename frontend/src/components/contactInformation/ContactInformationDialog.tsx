@@ -19,7 +19,8 @@ const defaultValues: Form = {
 }
 
 const mapDtoToForm = (dto: ContactInformationDto): Form => {
-    const {id, ...rest} = dto
+    const {id: _id, ...rest} = dto
+    void _id
     return rest
 }
 

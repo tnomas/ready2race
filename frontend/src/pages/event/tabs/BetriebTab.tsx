@@ -22,6 +22,7 @@ import {
     visibleBetriebActions,
     visibleBetriebTiles,
 } from './betriebTiles.ts'
+import {ButtonLink} from '@components/ui'
 
 export type BetriebTabProps = {
     eventId: string
@@ -127,15 +128,16 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                         t('event.betrieb.referee.title'),
                         t('event.betrieb.referee.description'),
                         <>
-                            <Link
+                            <ButtonLink
                                 to={'/event/$eventId/liveDashboard'}
                                 params={{eventId}}
                                 target="_blank"
-                                rel="noopener">
-                                <Button variant="outlined" fullWidth endIcon={<OpenInNewIcon />}>
-                                    {t('event.betrieb.referee.open')}
-                                </Button>
-                            </Link>
+                                rel="noopener"
+                                variant="outlined"
+                                fullWidth
+                                endIcon={<OpenInNewIcon />}>
+                                {t('event.betrieb.referee.open')}
+                            </ButtonLink>
                             {/* Prüfungen verwalten: vorher in der Karte „Schiedsrichter-Dashboard"
                                 auf der Übersicht, mit demselben zusätzlichen Recht. */}
                             {can('checkSeverity') && (
@@ -154,15 +156,16 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                         <CampaignOutlined color="primary" />,
                         t('event.betrieb.speaker.title'),
                         t('event.betrieb.speaker.description'),
-                        <Link
+                        <ButtonLink
                             to={'/speaker/event/$eventId'}
                             params={{eventId}}
                             target="_blank"
-                            rel="noopener">
-                            <Button variant="outlined" fullWidth endIcon={<OpenInNewIcon />}>
-                                {t('event.betrieb.speaker.open')}
-                            </Button>
-                        </Link>,
+                            rel="noopener"
+                            variant="outlined"
+                            fullWidth
+                            endIcon={<OpenInNewIcon />}>
+                            {t('event.betrieb.speaker.open')}
+                        </ButtonLink>,
                     )}
                 {/* Anzeigen und Livestream sind seit dem 31.08.2026 ZWEI Kacheln: das eine sind
                     die öffentlichen Bildschirme am Gelände, das andere die Overlay-Szenen der
@@ -172,11 +175,13 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                         <ConnectedTvOutlined color="primary" />,
                         t('event.betrieb.boards.title'),
                         t('event.betrieb.boards.description'),
-                        <Link to={'/event/$eventId/info'} params={{eventId}}>
-                            <Button variant="outlined" fullWidth>
-                                {t('event.betrieb.boards.open')}
-                            </Button>
-                        </Link>,
+                        <ButtonLink
+                            to={'/event/$eventId/info'}
+                            params={{eventId}}
+                            variant="outlined"
+                            fullWidth>
+                            {t('event.betrieb.boards.open')}
+                        </ButtonLink>,
                     )}
                 {show('livestream') &&
                     tileCard(
@@ -184,20 +189,23 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                         t('event.betrieb.livestream.title'),
                         t('event.betrieb.livestream.description'),
                         <>
-                            <Link
+                            <ButtonLink
                                 to={'/event/$eventId/streamPanel'}
                                 params={{eventId}}
                                 target="_blank"
-                                rel="noopener">
-                                <Button variant="contained" fullWidth endIcon={<OpenInNewIcon />}>
-                                    {t('event.betrieb.livestream.openDirector')}
-                                </Button>
-                            </Link>
-                            <Link to={'/event/$eventId/streamScenes'} params={{eventId}}>
-                                <Button variant="outlined" fullWidth>
-                                    {t('event.betrieb.livestream.open')}
-                                </Button>
-                            </Link>
+                                rel="noopener"
+                                variant="contained"
+                                fullWidth
+                                endIcon={<OpenInNewIcon />}>
+                                {t('event.betrieb.livestream.openDirector')}
+                            </ButtonLink>
+                            <ButtonLink
+                                to={'/event/$eventId/streamScenes'}
+                                params={{eventId}}
+                                variant="outlined"
+                                fullWidth>
+                                {t('event.betrieb.livestream.open')}
+                            </ButtonLink>
                         </>,
                     )}
                 {show('helpers') &&
@@ -206,11 +214,15 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                         t('event.betrieb.helpers.title'),
                         t('event.betrieb.helpers.description'),
                         <>
-                            <Link to={'/app'} target="_blank" rel="noopener">
-                                <Button variant="outlined" fullWidth endIcon={<OpenInNewIcon />}>
-                                    {t('event.betrieb.helpers.openApp')}
-                                </Button>
-                            </Link>
+                            <ButtonLink
+                                to={'/app'}
+                                target="_blank"
+                                rel="noopener"
+                                variant="outlined"
+                                fullWidth
+                                endIcon={<OpenInNewIcon />}>
+                                {t('event.betrieb.helpers.openApp')}
+                            </ButtonLink>
                             {/* Der Schichtplan wohnt im Bereich „Team & Helfer"; der ist nur mit
                                 Nutzer-Leserecht sichtbar, also gilt das auch für den Verweis. */}
                             {can('openShifts') && (
@@ -235,19 +247,17 @@ const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProp
                     </Typography>
                     {/* Der Leitstand ist der Laptop-Einstieg der Zeitnahme-Leitung - deshalb der
                         prominente Knopf, in neuem Fenster (läuft am Renntag im Vollbild). */}
-                    <Link
+                    <ButtonLink
                         to={'/event/$eventId/timing/leitstand'}
                         params={{eventId}}
                         target="_blank"
-                        rel="noopener">
-                        <Button
-                            variant="contained"
-                            size="large"
-                            fullWidth
-                            endIcon={<OpenInNewIcon />}>
-                            {t('event.betrieb.timing.openLeitstand')}
-                        </Button>
-                    </Link>
+                        rel="noopener"
+                        variant="contained"
+                        size="large"
+                        fullWidth
+                        endIcon={<OpenInNewIcon />}>
+                        {t('event.betrieb.timing.openLeitstand')}
+                    </ButtonLink>
                     {/* Die Postenverwaltung wohnt hier, in der Zeitnahme-Kachel des
                         Betrieb-Reiters. Das macht die Verlegung auf die Boards-Seite (Commit
                         cdd5fbc7, feature/timing-module) BEWUSST rückgängig - dort hat sie in der

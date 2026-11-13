@@ -6,6 +6,7 @@ import {useState} from 'react'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {participantTrackingErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     eventId: string
@@ -51,19 +52,21 @@ export const TeamCheckInOut = ({eventId, qrCodeId, participantId, onDone}: Props
 
     const handleCheckInOut = async (checkIn: boolean) => {
         if (!selectedParticipant) return
-        setSubmitting(true)
-
-        const {error} = await checkInOutParticipant({
-            path: {
-                eventId,
-                participantId: selectedParticipant.participantId,
-            },
-            query: {
-                checkIn: checkIn,
-            },
-        })
-
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            checkInOutParticipant({
+                path: {
+                    eventId,
+                    participantId: selectedParticipant.participantId,
+                },
+                query: {
+                    checkIn: checkIn,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
         if (error) {
             // Vier Gründe teilten sich diese beiden Texte - dabei ist "schon eingecheckt" keine
             // Störung, sondern die Auskunft, dass nichts mehr zu tun ist.
@@ -195,9 +198,7 @@ export const TeamCheckInOut = ({eventId, qrCodeId, participantId, onDone}: Props
                                 size="large"
                                 fullWidth
                                 onClick={() =>
-                                    handleCheckInOut(
-                                        selectedParticipant.currentStatus !== 'ENTRY',
-                                    )
+                                    handleCheckInOut(selectedParticipant.currentStatus !== 'ENTRY')
                                 }>
                                 {selectedParticipant.currentStatus === 'ENTRY'
                                     ? t('club.participant.tracking.checkOutText')

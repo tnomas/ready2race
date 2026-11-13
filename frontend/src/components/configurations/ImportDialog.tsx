@@ -27,6 +27,7 @@ import Throbber from '@components/Throbber.tsx'
 import {ImportForm, useImportDependencies} from '@components/configurations/common.ts'
 import SelectAllCheckbox from './SelectAllCheckbox'
 import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type ImportDialogProps = {
     dialogOpen: boolean
@@ -232,24 +233,26 @@ const ImportDialog = memo(
                 return
             }
 
-            setSubmitting(true)
-            const {error} = await importDataFromWebDav({
-                body: {
-                    folderName: formData.selectedFolder,
-                    selectedData: selectedTypes,
-                    selectedEvents: formData.availableEvents
-                        .filter(event => event.checked)
-                        .map(event => ({
-                            eventFolderName: event.eventFolderName,
-                            competitionFolderNames: event.availableCompetitions
-                                .filter(comp => comp.checked)
-                                .map(comp => comp.competitionFolderName),
-                        })),
-                },
-            })
-            setSubmitting(false)
+            const {error} = await runRequest(setSubmitting, () =>
+                importDataFromWebDav({
+                    body: {
+                        folderName: formData.selectedFolder,
+                        selectedData: selectedTypes,
+                        selectedEvents: formData.availableEvents
+                            .filter(event => event.checked)
+                            .map(event => ({
+                                eventFolderName: event.eventFolderName,
+                                competitionFolderNames: event.availableCompetitions
+                                    .filter(comp => comp.checked)
+                                    .map(comp => comp.competitionFolderName),
+                            })),
+                    },
+                }),
+            )
 
-            if (error) {
+            if (isRequestNetworkError(error)) {
+                feedback.error(t('common.error.network'))
+            } else if (error) {
                 feedback.error(t('webDAV.import.error.failed'))
             } else {
                 feedback.success(t('webDAV.import.success'))

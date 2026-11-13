@@ -79,7 +79,7 @@ const EventSingleCompetitionField = (props: {
     })
 
     useEffect(() => {
-        let index = singleCompetitions?.findIndex(r => r.competitionId === props.option.id) ?? -1
+        const index = singleCompetitions?.findIndex(r => r.competitionId === props.option.id) ?? -1
         setCompetitionIndex(index !== -1 ? index : undefined)
         setActive(index !== -1)
     }, [singleCompetitions])
@@ -288,7 +288,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
         name: `participants`,
     })
 
-    const handleChange = (_: any, newCategory: string | null) => {
+    const handleChange = (_: unknown, newCategory: string | null) => {
         if (newCategory !== null) {
             setCategory(newCategory)
         }
@@ -481,7 +481,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
             {getToggleButtons()}
             {participantList.length > 0 && <Box>{getSelectAllButton()}</Box>}
             {participantList.map((participant, index) => (
-                <Paper sx={{p: {xs: 1, sm: 2}}} elevation={2} key={participant.id}>
+                <Paper sx={{p: {xs: 1, sm: 2}}} key={participant.id}>
                     <Stack direction="row" spacing={1}>
                         <Stack spacing={2} flex={1}>
                             <Stack direction="row" alignItems={'end'} spacing={1}>

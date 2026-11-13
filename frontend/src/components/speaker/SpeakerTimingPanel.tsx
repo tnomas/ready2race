@@ -129,6 +129,7 @@ const SpeakerTimingPanel = ({timing, matchLabelOf, onSelectMatch}: Props) => {
                                         clickEvent.stopPropagation()
                                         timing.dismissFalseStart(event.matchId)
                                     }}
+                                    aria-label={t('common.close')}
                                     sx={{color: colors.now}}>
                                     <CloseIcon fontSize={'small'} />
                                 </IconButton>

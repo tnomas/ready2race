@@ -19,7 +19,14 @@ type Props = {
 }
 
 /** Die Ansicht eines Teilnehmerbands je Modus — siehe Tabelle in Abschnitt 8.2 der Spezifikation. */
-export const ParticipantActions = ({eventId, qrCodeId, response, mode, canRemove, onDone}: Props) => {
+export const ParticipantActions = ({
+    eventId,
+    qrCodeId,
+    response,
+    mode,
+    canRemove,
+    onDone,
+}: Props) => {
     const {t} = useTranslation()
     const participantId = response.id
 

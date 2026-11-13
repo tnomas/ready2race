@@ -1,6 +1,7 @@
 import {Box, IconButton, Typography, useMediaQuery, useTheme} from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import {Link} from '@tanstack/react-router'
+import {useTranslation} from 'react-i18next'
+import {IconButtonLink} from '@components/ui'
 import LanguageWidget from '@components/appbar/LanguageWidget.tsx'
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 }
 
 const ResultsConfigurationTopBar = (props: Props) => {
+    const {t} = useTranslation()
     const theme = useTheme()
     const smallScreenLayout = useMediaQuery(`(max-width:${theme.breakpoints.values.sm}px)`)
 
@@ -24,21 +26,19 @@ const ResultsConfigurationTopBar = (props: Props) => {
             }}>
             <Box>
                 {props.navigateToHome ? (
-                    <Link to={'/'}>
-                        <IconButton>
-                            <ArrowBackIcon />
-                        </IconButton>
-                    </Link>
+                    <IconButtonLink to={'/'} aria-label={t('common.back')}>
+                        <ArrowBackIcon />
+                    </IconButtonLink>
                 ) : props.competitionSelected ? (
-                    <IconButton onClick={props.resetSelectedCompetition}>
+                    <IconButton
+                        onClick={props.resetSelectedCompetition}
+                        aria-label={t('common.back')}>
                         <ArrowBackIcon />
                     </IconButton>
                 ) : (
-                    <Link to={'/results'}>
-                        <IconButton>
-                            <ArrowBackIcon />
-                        </IconButton>
-                    </Link>
+                    <IconButtonLink to={'/results'} aria-label={t('common.back')}>
+                        <ArrowBackIcon />
+                    </IconButtonLink>
                 )}
             </Box>
             {props.title && !smallScreenLayout && (

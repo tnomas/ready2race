@@ -25,8 +25,7 @@ import ResultsIndividualRanking from '@components/results/ResultsIndividualRanki
 import {MyEventPanel} from '@components/results/myEvent/MyEventPanel.tsx'
 import {initialResultsTab, ResultsTab} from './resultsTab.ts'
 
-const CHALLENGE_RESULTS_TABS = ['club', 'individual', 'relative'] as const
-export type ChallengeResultsTab = (typeof CHALLENGE_RESULTS_TABS)[number]
+export type ChallengeResultsTab = 'club' | 'individual' | 'relative'
 
 const ResultsPage = () => {
     const theme = useTheme()
@@ -57,8 +56,7 @@ const ResultsPage = () => {
     // Direkteinstieg über die URL (siehe resultsTab.ts): Der QR-Einstieg leitet mit
     // ?tab=my-event weiter, QR-Aushänge zeigen mit ?tab=live direkt auf den Live-Reiter, und
     // ?tab=results ist das ausgeschriebene Default-Ziel.
-    const {tab: tabFromSearch, competition: competitionFromSearch} =
-        resultsEventRoute.useSearch()
+    const {tab: tabFromSearch, competition: competitionFromSearch} = resultsEventRoute.useSearch()
     const [activeResultsTab, setActiveResultsTab] = useState<ResultsTab>(
         initialResultsTab(tabFromSearch),
     )
@@ -75,10 +73,9 @@ const ResultsPage = () => {
     }
     const challengeTabProps = (tab: ChallengeResultsTab) => a11yProps('challengeResults', tab)
 
-    const {data: programData} = useFetch(
-        signal => getPublicProgram({signal, path: {eventId}}),
-        {deps: [eventId]},
-    )
+    const {data: programData} = useFetch(signal => getPublicProgram({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
     const hasProgram = (programData?.length ?? 0) > 0
     // Solange das Programm noch lädt (oder es keines gibt), existiert der Zeitplan-Reiter nicht —
     // ein ?tab=schedule-Einstieg fällt dann sauber auf die Ergebnisse zurück, statt die Tabs auf

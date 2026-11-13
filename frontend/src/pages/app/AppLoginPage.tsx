@@ -18,6 +18,7 @@ import {LoginRequest} from '@api/types.gen.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useFeedback} from "@utils/hooks.ts";
 import {useInstallHint} from '@pwa/useInstallHint.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 const AppLoginPage = () => {
     const user = useUser()
@@ -28,11 +29,18 @@ const AppLoginPage = () => {
     const feedback = useFeedback();
 
     const handleSubmit = async (formData: LoginRequest) => {
-        setSubmitting(true)
-        const {data, error, response} = await userLogin({ body: formData })
-        setSubmitting(false)
-        if (data !== undefined && response.ok) {
+        const captured: {response?: Response} = {}
+        const {data, error} = await runRequest(setSubmitting, async () => {
+            const result = await userLogin({body: formData})
+            captured.response = result.response
+            return result
+        })
+
+        const response = captured.response
+        if (data !== undefined && response?.ok) {
             login(data, response.headers, true)
+        } else if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
         } else if (error) {
             if (error.status.value === 429) {
                 feedback.error(t('user.login.error.tooManyRequests'))

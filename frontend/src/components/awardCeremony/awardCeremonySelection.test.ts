@@ -33,9 +33,9 @@ describe('ceremonyKey', () => {
     })
 
     it('hält gleichnamige Wertungen verschiedener Wettkämpfe auseinander', () => {
-        expect(
-            ceremonyKey(choice({competitionId: 'c1', ratingCategoryId: 'r1'})),
-        ).not.toBe(ceremonyKey(choice({competitionId: 'c2', ratingCategoryId: 'r2'})))
+        expect(ceremonyKey(choice({competitionId: 'c1', ratingCategoryId: 'r1'}))).not.toBe(
+            ceremonyKey(choice({competitionId: 'c2', ratingCategoryId: 'r2'})),
+        )
     })
 
     it('hält zwei gleichnamige Wertungen desselben Wettkampfs auseinander', () => {

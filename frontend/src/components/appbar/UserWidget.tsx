@@ -2,6 +2,7 @@ import {useUser} from '@contexts/user/UserContext.ts'
 import {IconButton, Menu, MenuItem, Stack, Tooltip, Typography} from '@mui/material'
 import {AccountCircle, Login, Logout, Person} from '@mui/icons-material'
 import {Link} from '@tanstack/react-router'
+import {IconButtonLink} from '@components/ui'
 import React, {useState} from 'react'
 import {useTranslation} from 'react-i18next'
 
@@ -26,7 +27,7 @@ const UserWidget = () => {
         return (
             <>
                 <Tooltip title={t('user.settings.menu')}>
-                    <IconButton onClick={handleClick}>
+                    <IconButton onClick={handleClick} aria-label={t('user.settings.menu')}>
                         <AccountCircle />
                     </IconButton>
                 </Tooltip>
@@ -73,11 +74,9 @@ const UserWidget = () => {
     } else {
         return (
             <Tooltip title={t('user.login.login')}>
-                <Link to={'/login'}>
-                    <IconButton>
-                        <Login />
-                    </IconButton>
-                </Link>
+                <IconButtonLink to={'/login'} aria-label={t('user.login.login')}>
+                    <Login />
+                </IconButtonLink>
             </Tooltip>
         )
     }

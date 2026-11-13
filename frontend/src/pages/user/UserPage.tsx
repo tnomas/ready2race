@@ -15,6 +15,7 @@ import RolesSelect from '@components/user/RolesSelect.tsx'
 import {UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
 import {roleLabel} from '@authorization/roleLabels.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = {
     firstname: string
@@ -67,14 +68,16 @@ const UserPage = () => {
         user.checkPrivilege(updateStaffGlobal) && user.checkPrivilege(updateUserGlobal)
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error} = await updateUser({
-            path: {userId: userId},
-            body: mapFormToRequest(formData, mayEditRoles),
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            updateUser({
+                path: {userId: userId},
+                body: mapFormToRequest(formData, mayEditRoles),
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 403 && 'errorCode' in error) {
                 if (error.errorCode === 'SELF_ASSIGNMENT') {
                     feedback.error(t('role.error.selfAssignment'))

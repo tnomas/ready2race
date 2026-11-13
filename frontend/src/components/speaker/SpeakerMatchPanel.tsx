@@ -284,6 +284,7 @@ const SpeakerMatchPanel = ({
                     <IconButton
                         size={'small'}
                         onClick={() => timing.dismissFalseStart(match.matchId)}
+                        aria-label={t('common.close')}
                         sx={{color: colors.now}}>
                         <CloseIcon fontSize={'small'} />
                     </IconButton>

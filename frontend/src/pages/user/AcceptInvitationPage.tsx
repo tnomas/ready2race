@@ -9,6 +9,8 @@ import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {acceptUserInvitation} from '@api/sdk.gen.ts'
 import {invitationTokenRoute} from '@routes'
 import RequestStatusResponse from '@components/user/RequestStatusResponse.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {useFeedback} from '@utils/hooks.ts'
 
 type Form = PasswordFormPart
 
@@ -19,6 +21,7 @@ const defaultValues: Form = {
 
 const AcceptInvitationPage = () => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
 
     const {invitationToken} = invitationTokenRoute.useParams()
 
@@ -30,19 +33,20 @@ const AcceptInvitationPage = () => {
     >(null)
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-
-        const result = await acceptUserInvitation({
-            body: {
-                token: invitationToken,
-                password: formData.password,
-            },
-        })
-
-        setSubmitting(false)
+        const result = await runRequest(setSubmitting, () =>
+            acceptUserInvitation({
+                body: {
+                    token: invitationToken,
+                    password: formData.password,
+                },
+            }),
+        )
 
         if (result.error === undefined) {
             setRequestResult('Success')
+        } else if (isRequestNetworkError(result.error)) {
+            // Formular bleibt stehen, damit der Versuch wiederholt werden kann
+            feedback.error(t('common.error.network'))
         } else {
             setRequestResult(result.error.status.value === 404 ? 'NotFound' : 'Unexpected')
         }

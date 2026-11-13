@@ -26,6 +26,7 @@ import {
     AdministrationTab,
     DEFAULT_ADMINISTRATION_TAB,
 } from '@utils/navigation/searchParams.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = SmtpConfigOverrideDto
 
@@ -84,22 +85,29 @@ const AdministrationPage = () => {
         setSubmitting(true)
         confirmAction(
             async () => {
-                const {data, error, response} = await setSmtpOverride({
-                    body: {
-                        host: formData.host,
-                        port: formData.port,
-                        username: formData.username,
-                        password: formData.password,
-                        smtpStrategy: formData.smtpStrategy,
-                        fromAddress: formData.fromAddress,
-                        fromName: takeIfNotEmpty(formData.fromName),
-                        localhost: takeIfNotEmpty(formData.localhost),
-                        replyTo: takeIfNotEmpty(formData.replyTo),
-                    },
+                const captured: {response?: Response} = {}
+                const {data, error} = await runRequest(undefined, async () => {
+                    const result = await setSmtpOverride({
+                        body: {
+                            host: formData.host,
+                            port: formData.port,
+                            username: formData.username,
+                            password: formData.password,
+                            smtpStrategy: formData.smtpStrategy,
+                            fromAddress: formData.fromAddress,
+                            fromName: takeIfNotEmpty(formData.fromName),
+                            localhost: takeIfNotEmpty(formData.localhost),
+                            replyTo: takeIfNotEmpty(formData.replyTo),
+                        },
+                    })
+                    captured.response = result.response
+                    return result
                 })
                 setSubmitting(false)
-                if (response.ok && data !== undefined) {
+                if (captured.response?.ok && data !== undefined) {
                     currentConfig.reload()
+                } else if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
                 } else if (error) {
                     if (error.status.value === 500) {
                         feedback.error(t('common.error.unexpected'))
@@ -122,11 +130,18 @@ const AdministrationPage = () => {
         setResetting(true)
         confirmAction(
             async () => {
-                const {error, response} = await deleteSmtpOverride()
+                const captured: {response?: Response} = {}
+                const {error} = await runRequest(undefined, async () => {
+                    const result = await deleteSmtpOverride()
+                    captured.response = result.response
+                    return result
+                })
                 setResetting(false)
 
-                if (response.ok) {
+                if (captured.response?.ok) {
                     currentConfig.reload()
+                } else if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
                 } else if (error) {
                     if (error.status.value === 500) {
                         feedback.error(t('common.error.unexpected'))

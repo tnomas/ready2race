@@ -5,6 +5,7 @@ import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useTranslation} from 'react-i18next'
 import {resetThemeConfig, updateThemeConfig} from '../../api'
 import {useFeedback} from '@utils/hooks.ts'
+import {runRequest} from '@utils/request.ts'
 
 export function ThemeConfigForm() {
     const {t} = useTranslation()
@@ -82,37 +83,37 @@ export function ThemeConfigForm() {
     const handleSubmit = () => {
         confirmAction(
             async () => {
-                setLoading(true)
-                const {data, error} = await updateThemeConfig({
-                    body: {
-                        request: {
-                            primary: {
-                                main: primaryMain,
-                                light: primaryLight,
+                const {data, error} = await runRequest(setLoading, () =>
+                    updateThemeConfig({
+                        body: {
+                            request: {
+                                primary: {
+                                    main: primaryMain,
+                                    light: primaryLight,
+                                },
+                                textColor: {
+                                    primary: textColorPrimary,
+                                    secondary: textColorSecondary,
+                                },
+                                actionColors: {
+                                    success: actionColorSuccess,
+                                    warning: actionColorWarning,
+                                    error: actionColorError,
+                                    info: actionColorInfo,
+                                },
+                                backgroundColor,
+                                enableCustomFont:
+                                    enableCustomFont &&
+                                    (fontFile !== null || currentFontFilename !== null),
+                                enableCustomLogo:
+                                    enableCustomLogo &&
+                                    (logoFile !== null || currentLogoFilename !== null),
                             },
-                            textColor: {
-                                primary: textColorPrimary,
-                                secondary: textColorSecondary,
-                            },
-                            actionColors: {
-                                success: actionColorSuccess,
-                                warning: actionColorWarning,
-                                error: actionColorError,
-                                info: actionColorInfo,
-                            },
-                            backgroundColor,
-                            enableCustomFont:
-                                enableCustomFont &&
-                                (fontFile !== null || currentFontFilename !== null),
-                            enableCustomLogo:
-                                enableCustomLogo &&
-                                (logoFile !== null || currentLogoFilename !== null),
+                            fontFile: fontFile || undefined,
+                            logoFile: logoFile || undefined,
                         },
-                        fontFile: fontFile || undefined,
-                        logoFile: logoFile || undefined,
-                    },
-                })
-                setLoading(false)
+                    }),
+                )
 
                 if (data) {
                     await reloadTheme()
@@ -136,9 +137,7 @@ export function ThemeConfigForm() {
     const handleReset = () => {
         confirmAction(
             async () => {
-                setLoading(true)
-                const {data, error} = await resetThemeConfig()
-                setLoading(false)
+                const {data, error} = await runRequest(setLoading, () => resetThemeConfig())
 
                 if (data) {
                     await reloadTheme()

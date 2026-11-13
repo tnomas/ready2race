@@ -37,6 +37,7 @@ import {SubmitButton} from '@components/form/SubmitButton'
 import FormInputNumber from '@components/form/input/FormInputNumber'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
 import {FormInputText} from '@components/form/input/FormInputText'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type RatingCategoryForm = {
     ratingCategoryId: string
@@ -80,23 +81,24 @@ const RatingCategoriesForEvent = () => {
         if (!formData.ratingCategoryId) {
             return
         }
-        setSubmitting(true)
+        const {error} = await runRequest(setSubmitting, () =>
+            assignRatingCategoriesToEvent({
+                path: {eventId},
+                body: {
+                    ratingCategories: [
+                        {
+                            ratingCategory: formData.ratingCategoryId,
+                            yearFrom: formData.yearFrom ?? undefined,
+                            yearTo: formData.yearTo ?? undefined,
+                        },
+                    ],
+                },
+            }),
+        )
 
-        const {error} = await assignRatingCategoriesToEvent({
-            path: {eventId},
-            body: {
-                ratingCategories: [
-                    {
-                        ratingCategory: formData.ratingCategoryId,
-                        yearFrom: formData.yearFrom ?? undefined,
-                        yearTo: formData.yearTo ?? undefined,
-                    },
-                ],
-            },
-        })
-        setSubmitting(false)
-
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.ratingCategory.add.error'))
         } else {
             feedback.success(t('event.ratingCategory.add.success'))
@@ -109,13 +111,15 @@ const RatingCategoriesForEvent = () => {
     const handleRemove = async (category: RatingCategoryToEventDto) => {
         confirmAction(
             async () => {
-                setSubmitting(true)
-                const {error} = await removeRatingCategoryFromEvent({
-                    path: {eventId, ratingCategoryId: category.ratingCategory.id},
-                })
-                setSubmitting(false)
+                const {error} = await runRequest(setSubmitting, () =>
+                    removeRatingCategoryFromEvent({
+                        path: {eventId, ratingCategoryId: category.ratingCategory.id},
+                    }),
+                )
 
-                if (error) {
+                if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
+                } else if (error) {
                     feedback.error(t('event.ratingCategory.delete.error'))
                 } else {
                     feedback.success(t('event.ratingCategory.delete.success'))
@@ -141,14 +145,16 @@ const RatingCategoriesForEvent = () => {
         if (target < 0 || target >= order.length) return
         ;[order[index], order[target]] = [order[target], order[index]]
 
-        setSubmitting(true)
-        const {error} = await updateRatingCategoryOrderForEvent({
-            path: {eventId},
-            body: {ratingCategories: order},
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            updateRatingCategoryOrderForEvent({
+                path: {eventId},
+                body: {ratingCategories: order},
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             reload()
@@ -196,6 +202,7 @@ const RatingCategoriesForEvent = () => {
                                     <IconButton
                                         edge="end"
                                         title={t('event.ratingCategory.order.moveUp')}
+                                        aria-label={t('event.ratingCategory.order.moveUp')}
                                         disabled={submitting || index === 0}
                                         onClick={() => handleMove(index, -1)}>
                                         <ArrowUpwardIcon />
@@ -203,6 +210,7 @@ const RatingCategoriesForEvent = () => {
                                     <IconButton
                                         edge="end"
                                         title={t('event.ratingCategory.order.moveDown')}
+                                        aria-label={t('event.ratingCategory.order.moveDown')}
                                         disabled={
                                             submitting || index === assignedCategories.length - 1
                                         }
@@ -212,6 +220,7 @@ const RatingCategoriesForEvent = () => {
                                     <IconButton
                                         edge="end"
                                         onClick={() => handleRemove(category)}
+                                        aria-label={t('common.remove')}
                                         className="cursor-pointer">
                                         <DeleteIcon />
                                     </IconButton>

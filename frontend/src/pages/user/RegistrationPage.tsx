@@ -13,7 +13,7 @@ import {
     registerUser,
 } from 'api/sdk.gen.ts'
 import {useEffect, useState} from 'react'
-import {useCaptcha, useFeedback, useFetch} from '@utils/hooks.ts'
+import {type NetworkError, useCaptcha, useFeedback, useFetch} from '@utils/hooks.ts'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import SimpleFormLayout from '@components/SimpleFormLayout.tsx'
 import ConfirmationMailSent from '@components/user/ConfirmationMailSent.tsx'
@@ -42,6 +42,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {StepIconProps} from '@mui/material/StepIcon'
 import {CheckCircleOutline} from '@mui/icons-material'
 import {getRegistrationState} from '@utils/helpers.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 const stepIcons: Record<RegistrationStep, JSX.Element> = {
     [RegistrationStep.REGISTRATION_TYPE]: <HowToRegIcon />,
@@ -131,8 +132,7 @@ const RegistrationPage = () => {
     // The event/competition step is only shown when the registrant participates and single
     // competitions are available. For the participant flow it is mandatory; for the club flow
     // it only appears once they opt in to participate themselves.
-    const showCompetitionStep =
-        participatesAsParticipant && anySingleCompetitionsAvailable === true
+    const showCompetitionStep = participatesAsParticipant && anySingleCompetitionsAvailable === true
 
     const steps: RegistrationStep[] = [
         RegistrationStep.REGISTRATION_TYPE,
@@ -227,13 +227,15 @@ const RegistrationPage = () => {
 
             setCompetitionsLoading(true)
 
-            const {data, error} = await getCompetitionsForRegistration({
-                path: {eventId: watchEvent.id},
-                query: {
-                    birthYear: Number(watchBirthYear),
-                    gender: watchGender,
-                },
-            })
+            const {data, error} = await runRequest(undefined, () =>
+                getCompetitionsForRegistration({
+                    path: {eventId: watchEvent.id},
+                    query: {
+                        birthYear: Number(watchBirthYear),
+                        gender: watchGender,
+                    },
+                }),
+            )
 
             if (cancelled) return
 
@@ -342,37 +344,41 @@ const RegistrationPage = () => {
             return
         }
 
-        setSubmitting(true)
-
-        let error: RegisterUserError | ParticipantSelfRegisterError | undefined
+        let error: RegisterUserError | ParticipantSelfRegisterError | NetworkError | undefined
         if (formData.registrationType === 'CLUB') {
-            const result = await registerUser({
-                query: {
-                    challenge: captcha.data!.id,
-                    input: formData.captcha,
-                },
-                body: mapFormToAppUserRegisterRequest(formData),
-            })
+            const result = await runRequest(setSubmitting, () =>
+                registerUser({
+                    query: {
+                        challenge: captcha.data!.id,
+                        input: formData.captcha,
+                    },
+                    body: mapFormToAppUserRegisterRequest(formData),
+                }),
+            )
             error = result.error
         } else {
-            if (!formData.event) return
+            const event = formData.event
+            if (!event) return
 
-            const result = await participantSelfRegister({
-                path: {eventId: formData.event.id},
-                query: {
-                    challenge: captcha.data!.id,
-                    input: formData.captcha,
-                },
-                body: mapFormToParticipantRegisterRequest(formData),
-            })
+            const result = await runRequest(setSubmitting, () =>
+                participantSelfRegister({
+                    path: {eventId: event.id},
+                    query: {
+                        challenge: captcha.data!.id,
+                        input: formData.captcha,
+                    },
+                    body: mapFormToParticipantRegisterRequest(formData),
+                }),
+            )
             error = result.error
         }
 
-        setSubmitting(false)
         onReloadCaptcha()
         formContext.resetField('captcha')
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 404) {
                 feedback.error(t('captcha.error.notFound'))
             } else if (error.status.value === 409) {

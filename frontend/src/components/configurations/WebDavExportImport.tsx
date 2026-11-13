@@ -10,6 +10,7 @@ import ImportDialog from './ImportDialog'
 import WebDAVStatusDisplay from '@components/configurations/WebDAVStatusDisplay.tsx'
 import {updateWebDavGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 const WebDavExportImport = () => {
     const {t} = useTranslation()
@@ -107,32 +108,34 @@ const WebDavExportImport = () => {
             return
         }
 
-        setSubmitting(true)
-        const {error} = await exportDataByWebDav({
-            body: {
-                name: formData.name,
-                events: formData.events
-                    .filter(event => event.docExportChecked || event.exportData)
-                    .map(event => ({
-                        eventId: event.eventId,
-                        selectedExports: [
-                            ...event.selectedDocExports
-                                .filter(e => e.checked)
-                                .map(value => value.type),
-                            ...(event.exportData ? ['DB_EVENT'] : []),
-                        ],
-                        selectedCompetitions: event.selectedCompetitionIds
-                            .filter(comp => comp.checked)
-                            .map(comp => comp.competitionId),
-                    })),
-                selectedDatabaseExports: formData.checkedDatabaseExports
-                    .filter(type => type.checked)
-                    .map(type => type.type),
-            },
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            exportDataByWebDav({
+                body: {
+                    name: formData.name,
+                    events: formData.events
+                        .filter(event => event.docExportChecked || event.exportData)
+                        .map(event => ({
+                            eventId: event.eventId,
+                            selectedExports: [
+                                ...event.selectedDocExports
+                                    .filter(e => e.checked)
+                                    .map(value => value.type),
+                                ...(event.exportData ? ['DB_EVENT'] : []),
+                            ],
+                            selectedCompetitions: event.selectedCompetitionIds
+                                .filter(comp => comp.checked)
+                                .map(comp => comp.competitionId),
+                        })),
+                    selectedDatabaseExports: formData.checkedDatabaseExports
+                        .filter(type => type.checked)
+                        .map(type => type.type),
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 409) {
                 setNameError(t('webDAV.export.error.nameConflict'))
                 setActiveStep(0)

@@ -21,6 +21,7 @@ import {
     START_DISPLAY_SCALE_MIN,
     isDefaultStartDisplay,
 } from '@utils/timing/startDisplay.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 export type StartDisplaySettingsDialogProps = {
     open: boolean
@@ -102,11 +103,13 @@ const StartDisplaySettingsDialog = ({open, onClose, eventId}: StartDisplaySettin
             startDisplay: isDefaultStartDisplay(values) ? null : values,
         }
 
-        setSubmitting(true)
-        const {error} = await updateEventTimingConfig({path: {eventId}, body})
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            updateEventTimingConfig({path: {eventId}, body}),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(
                 error.status.value === 422
                     ? t('event.timing.invalid')
