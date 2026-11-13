@@ -147,14 +147,16 @@ private suspend fun DefaultWebSocketServerSession.eventChangeSocket(env: JEnv) {
         return
     }
 
-    // Der aktuelle Stand sofort beim Verbinden: ein Client, der nach einem Funkloch neu
-    // verbindet, sieht daran (und am Reconnect selbst), dass er nachladen muss.
-    send(Frame.Text(EventChangeBroadcaster.message(EventChangeMarker.current(eventId))))
-
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = EventChangeBroadcaster.subscribe(eventId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der aktuelle Stand sofort beim Verbinden: ein Client, der nach einem Funkloch neu
+        // verbindet, sieht daran (und am Reconnect selbst), dass er nachladen muss.
+        send(Frame.Text(EventChangeBroadcaster.message(EventChangeMarker.current(eventId))))
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }
@@ -245,17 +247,19 @@ private suspend fun DefaultWebSocketServerSession.boardViewSocket(env: JEnv) {
     val tokenBinding = if (sessionAuthorized) null
     else deviceTokenId(env, token)?.let { DeviceTokenBoundSockets.bind(it, this) }
 
-    // Der volle Stand sofort beim Verbinden: damit ist ein Client nach einem Funkloch allein durch
-    // den Reconnect wieder aktuell und braucht keinen HTTP-Nachschlag. Lässt sich die Ansicht
-    // gerade nicht bauen (unbekanntes Board, Datenbank hakt), bleibt die Verbindung trotzdem
-    // stehen - die Anzeige hat ihren Sicherheitstakt, und der beantwortet ein unbekanntes Board
-    // ohnehin sauberer (404) als ein geschlossener Socket.
-    BoardViewBroadcaster.currentView(env, eventId, boardId)?.let { send(Frame.Text(it)) }
-
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = BoardViewBroadcaster.subscribe(env, eventId, boardId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der volle Stand sofort beim Verbinden: damit ist ein Client nach einem Funkloch allein durch
+        // den Reconnect wieder aktuell und braucht keinen HTTP-Nachschlag. Lässt sich die Ansicht
+        // gerade nicht bauen (unbekanntes Board, Datenbank hakt), bleibt die Verbindung trotzdem
+        // stehen - die Anzeige hat ihren Sicherheitstakt, und der beantwortet ein unbekanntes Board
+        // ohnehin sauberer (404) als ein geschlossener Socket.
+        BoardViewBroadcaster.currentView(env, eventId, boardId)?.let { send(Frame.Text(it)) }
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }
@@ -344,16 +348,18 @@ private suspend fun DefaultWebSocketServerSession.streamSceneSocket(env: JEnv) {
     val tokenBinding = if (sessionAuthorized) null
     else deviceTokenId(env, token)?.let { DeviceTokenBoundSockets.bind(it, this) }
 
-    // Der volle Stand sofort beim Verbinden: eine Bühne ist nach einem Funkloch allein durch den
-    // Reconnect wieder aktuell. Lässt sich der Stand gerade nicht bauen (unbekannte Szene,
-    // Datenbank hakt), bleibt die Verbindung trotzdem stehen - die Szene behält ihren letzten
-    // Stand, statt schwarz zu werden.
-    StreamSceneBroadcaster.currentView(env, eventId, sceneId)?.let { send(Frame.Text(it)) }
-
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = StreamSceneBroadcaster.subscribe(env, eventId, sceneId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der volle Stand sofort beim Verbinden: eine Bühne ist nach einem Funkloch allein durch den
+        // Reconnect wieder aktuell. Lässt sich der Stand gerade nicht bauen (unbekannte Szene,
+        // Datenbank hakt), bleibt die Verbindung trotzdem stehen - die Szene behält ihren letzten
+        // Stand, statt schwarz zu werden.
+        StreamSceneBroadcaster.currentView(env, eventId, sceneId)?.let { send(Frame.Text(it)) }
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }

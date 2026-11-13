@@ -195,15 +195,9 @@ class StreamSceneSocketTest {
         val wsClient = createClient { install(WebSockets) }
         val session = wsClient.sceneSocketSession(eventId, sceneId, link.token)
         session.receiveText()
-        // Der Handler schickt die aktuelle Ansicht VOR dem Abonnieren (Sockets.kt); der erste Text
-        // beweist also noch kein Abonnement - kurz nachfassen.
-        var subscribed: Int? = StreamSceneBroadcaster.subscriptionCount(sceneId)
-        repeat(50) {
-            if (subscribed == 1) return@repeat
-            delay(100)
-            subscribed = StreamSceneBroadcaster.subscriptionCount(sceneId)
-        }
-        assertEquals(1, subscribed)
+        // Der Handler abonniert, BEVOR er den Stand schickt (Sockets.kt): Mit dem ersten Text steht
+        // das Abonnement schon - eine Änderung direkt nach dem Handshake geht nicht verloren.
+        assertEquals(1, StreamSceneBroadcaster.subscriptionCount(sceneId))
         session.close()
 
         // Das Schließen läuft nebenläufig (unsubscribe hängt am finally des Socket-Handlers),
