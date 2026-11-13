@@ -58,6 +58,25 @@ export function visibleBetriebTiles(
 }
 
 /**
+ * Reihenfolge der Kacheln im Betrieb: nach Häufigkeit am Renntag (13.11.2026). Der Betrieb ist die
+ * Startseite des Renntags — oben steht, was ständig gebraucht wird (Steg, Regattabüro, Zeitnahme),
+ * unten, was einmal eingerichtet und dann nur noch selten angefasst wird (Anzeigen, Helfer).
+ * `visibleBetriebTiles` entscheidet das OB, diese Liste das WO.
+ */
+export const BETRIEB_TILE_ORDER: readonly BetriebTileId[] = [
+    'referee',
+    'raceOffice',
+    'timing',
+    'speaker',
+    'livestream',
+    'boards',
+    'helpers',
+]
+
+export const orderBetriebTiles = (tiles: readonly BetriebTileId[]): BetriebTileId[] =>
+    BETRIEB_TILE_ORDER.filter(tile => tiles.includes(tile))
+
+/**
  * Zusätzliche Knöpfe innerhalb einer Kachel, die ein strengeres Recht verlangen als die Kachel
  * selbst. Jede Aktion gehört zu genau einer Kachel und erscheint nur, wenn auch die Kachel
  * sichtbar ist:

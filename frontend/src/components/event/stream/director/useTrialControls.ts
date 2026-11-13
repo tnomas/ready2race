@@ -1,6 +1,7 @@
 import {useState} from 'react'
 import {setStreamSceneTrialMode, setStreamSceneTrialPhase} from '@api/sdk.gen.ts'
 import {StreamTrialPhase} from '@api/types.gen.ts'
+import {runRequest} from '@utils/request.ts'
 
 export type TrialChange = 'trialMode' | 'phase'
 
@@ -21,18 +22,20 @@ interface UseTrialControlsOptions {
  * Die beiden Probemodus-Eingriffe des Regie-Boards (an/aus, Phase) mit gemeinsamem
  * Beschäftigt-Zustand. Herausgelöst aus der Seite, damit die Nachlade-Regel oben prüfbar ist.
  */
-export const useTrialControls = ({eventId, sceneId, onChanged, onError}: UseTrialControlsOptions) => {
+export const useTrialControls = ({
+    eventId,
+    sceneId,
+    onChanged,
+    onError,
+}: UseTrialControlsOptions) => {
     const [busy, setBusy] = useState(false)
 
+    // runRequest: ein Netzfehler (Funkloch, Backend weg) wirft im API-Client — ohne Übersetzung
+    // bliebe die Rückmeldung aus. Er meldet sich hier wie eine Ablehnung über onError.
     const run = async (change: TrialChange, call: () => Promise<{error?: unknown}>) => {
-        setBusy(true)
-        try {
-            const {error} = await call()
-            if (error) onError(change)
-            else onChanged(change)
-        } finally {
-            setBusy(false)
-        }
+        const {error} = await runRequest(setBusy, call)
+        if (error) onError(change)
+        else onChanged(change)
     }
 
     return {
@@ -42,6 +45,8 @@ export const useTrialControls = ({eventId, sceneId, onChanged, onError}: UseTria
                 setStreamSceneTrialMode({path: {eventId, sceneId}, query: {trialMode: on}}),
             ),
         setTrialPhase: (phase: StreamTrialPhase) =>
-            run('phase', () => setStreamSceneTrialPhase({path: {eventId, sceneId}, query: {phase}})),
+            run('phase', () =>
+                setStreamSceneTrialPhase({path: {eventId, sceneId}, query: {phase}}),
+            ),
     }
 }

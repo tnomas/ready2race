@@ -15,6 +15,7 @@ import {
 import {StreamPickerMatchDto, StreamSceneDto, StreamSceneViewDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
+import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {updateEventGlobal, updateStreamGlobal} from '@authorization/privileges.ts'
 import {useStreamSceneSocket} from '@components/event/stream/useStreamSceneSocket.ts'
 import {matchOptionLabel} from '@components/event/stream/panel/streamPanelMatchOptions.ts'
@@ -200,6 +201,7 @@ const DirectorScene = ({
 }: SceneProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
+    const {confirmAction} = useConfirmation()
     const sceneId = scene.id
 
     const initial = useFetch(signal => getStreamSceneView({signal, path: {eventId, sceneId}}), {
@@ -383,7 +385,17 @@ const DirectorScene = ({
                                 trialPhase={view?.trialPhase ?? scene.trialPhase}
                                 canEdit={canEdit}
                                 busy={trialBusy}
-                                onToggle={on => void toggleTrialMode(on)}
+                                // Einschalten fragt nach: die Bühne zeigt dann einen Demo-Lauf —
+                                // auf einer Szene, die gerade gesendet wird, sähe das Publikum ihn.
+                                // Ausschalten (zurück zu echten Daten) geht ohne Rückfrage.
+                                onToggle={on =>
+                                    on
+                                        ? confirmAction(() => void toggleTrialMode(true), {
+                                              content: t('event.stream.director.trial.confirmOn'),
+                                              okText: t('event.stream.director.trial.confirmOk'),
+                                          })
+                                        : void toggleTrialMode(false)
+                                }
                                 onPhase={phase => void setTrialPhase(phase)}
                             />
                         </Section>
@@ -392,7 +404,6 @@ const DirectorScene = ({
                             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                                 {canEdit && (
                                     <Button
-                                        size="small"
                                         variant="outlined"
                                         startIcon={<TuneIcon />}
                                         onClick={() => setConfigOpen(true)}>
@@ -401,7 +412,6 @@ const DirectorScene = ({
                                 )}
                                 {canEdit && (
                                     <Button
-                                        size="small"
                                         variant="outlined"
                                         startIcon={<LinkIcon />}
                                         onClick={() => setShareOpen(true)}>
@@ -411,7 +421,6 @@ const DirectorScene = ({
                                 <ButtonLink
                                     to="/event/$eventId/streamScenes"
                                     params={{eventId}}
-                                    size="small"
                                     variant="text"
                                     startIcon={<ViewCarouselOutlinedIcon />}>
                                     {t('event.stream.director.manageScenes')}

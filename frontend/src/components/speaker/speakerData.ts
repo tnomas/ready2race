@@ -170,6 +170,26 @@ export const compareByStartTime = (a: SpeakerMatch, b: SpeakerMatch): number => 
     return (a.executionOrder ?? 0) - (b.executionOrder ?? 0)
 }
 
+/** Wie lange ein überfälliger Lauf noch als „als Nächstes" gilt, bevor die Anzeige weiterspringt. */
+export const NEXT_UP_GRACE_MILLIS = 5 * 60 * 1000
+
+/**
+ * Der nächste anstehende Lauf: nicht abgesagt, mit Startzeit, höchstens fünf Minuten überfällig.
+ * Die Liste kommt nach Startzeit sortiert aus `mergeSpeakerMatches`. Eine Stelle für „Live
+ * folgen" (Rückfall, wenn nichts läuft) und den „Als Nächstes"-Sprung in der Kopfzeile.
+ */
+export const nextUpcomingSpeakerMatch = (
+    matches: SpeakerMatch[],
+    nowMillis: number,
+): SpeakerMatch | undefined =>
+    matches.find(
+        match =>
+            match.status === 'UPCOMING' &&
+            !match.cancelled &&
+            match.startTime !== undefined &&
+            match.startTime.getTime() >= nowMillis - NEXT_UP_GRACE_MILLIS,
+    )
+
 export const matchLabel = (match: SpeakerMatch): string =>
     [
         match.competitionName,
@@ -264,9 +284,7 @@ export const turnaroundMinutes = (
     next: ParticipantStart,
 ): number | undefined =>
     previous.match.startTime && next.match.startTime
-        ? Math.round(
-              (next.match.startTime.getTime() - previous.match.startTime.getTime()) / 60000,
-          )
+        ? Math.round((next.match.startTime.getTime() - previous.match.startTime.getTime()) / 60000)
         : undefined
 
 export const medalEmoji = (place: number): string =>
@@ -334,4 +352,8 @@ export const statusColorOf = (colors: SpeakerColors, status: SpeakerStatus): str
  * (warnrot) - dieselbe Rangfolge, in der eine Sprecherin die Lage ansagen würde.
  */
 export const matchDisplayColor = (colors: SpeakerColors, match: SpeakerMatch): string =>
-    match.cancelled ? colors.now : match.clarification ? colors.gold : statusColorOf(colors, match.status)
+    match.cancelled
+        ? colors.now
+        : match.clarification
+          ? colors.gold
+          : statusColorOf(colors, match.status)

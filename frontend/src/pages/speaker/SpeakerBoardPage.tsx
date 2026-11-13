@@ -1,11 +1,16 @@
-import {Box, Collapse, IconButton, Stack, Typography} from '@mui/material'
+import {Box, ButtonBase, Collapse, IconButton, Stack, Typography} from '@mui/material'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline'
-import {getEvent, getLatestMatchResults, getRunningMatches, getUpcomingMatches} from '@api/sdk.gen.ts'
+import {
+    getEvent,
+    getLatestMatchResults,
+    getRunningMatches,
+    getUpcomingMatches,
+} from '@api/sdk.gen.ts'
 import SpeakerMatchPanel from '@components/speaker/SpeakerMatchPanel.tsx'
 import SpeakerParticipantPanel from '@components/speaker/SpeakerParticipantPanel.tsx'
 import SpeakerProgramPanel from '@components/speaker/SpeakerProgramPanel.tsx'
@@ -16,6 +21,7 @@ import {
     computeSpeakerBadges,
     matchLabel,
     mergeSpeakerMatches,
+    nextUpcomingSpeakerMatch,
     SpeakerMatch,
 } from '@components/speaker/speakerData.ts'
 import {summarizeFeeds} from '@components/speaker/speakerFeeds.ts'
@@ -95,10 +101,9 @@ const SpeakerBoardPage = () => {
         }
     }
 
-    const {data: eventData} = useFetch(
-        signal => getEvent({signal, path: {eventId}}),
-        {deps: [eventId]},
-    )
+    const {data: eventData} = useFetch(signal => getEvent({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
 
     // Push-Kanal der Veranstaltung: Änderungen laden alle drei Listen sofort (entprellt) nach.
     // Der Rückruf hängt an einer Ref, weil reloadAll erst unterhalb der drei Abrufe entsteht.
@@ -258,13 +263,7 @@ const SpeakerBoardPage = () => {
         // aber die Automatik springt nicht auf ihn.
         const running = matches.filter(match => match.status === 'RUNNING' && !match.clarification)
         if (running.length > 0) return running[running.length - 1].matchId
-        const upcoming = matches.find(
-            match =>
-                match.status === 'UPCOMING' &&
-                !match.cancelled &&
-                match.startTime &&
-                match.startTime.getTime() >= now.getTime() - 5 * 60 * 1000,
-        )
+        const upcoming = nextUpcomingSpeakerMatch(matches, now.getTime())
         if (upcoming) return upcoming.matchId
         const finished = matches.filter(match => match.status === 'FINISHED')
         return finished.length > 0 ? finished[finished.length - 1].matchId : null
@@ -275,6 +274,13 @@ const SpeakerBoardPage = () => {
             setSelectedMatchId(liveMatchId)
         }
     }, [settings.followLive, liveMatchId])
+
+    // „Als Nächstes" in der Kopfzeile: derselbe Lauf, auf den „Live folgen" zurückfällt, wenn
+    // nichts läuft — ein Tipp springt hin, ohne durchs Programm zu scrollen.
+    const nextMatch = useMemo(
+        () => nextUpcomingSpeakerMatch(matches, now.getTime()),
+        [matches, now],
+    )
 
     const selectedMatch = useMemo(
         () => matches.find(match => match.matchId === selectedMatchId) ?? null,
@@ -309,12 +315,20 @@ const SpeakerBoardPage = () => {
                     flexDirection: 'column',
                     overflow: {xs: 'auto', lg: 'hidden'},
                 }}>
+                {/*
+                    Kopfzeile (13.11.2026): Zurück, Veranstaltung, Verbindung in Worten, „Als
+                    Nächstes" zum Antippen, Uhr und Werkzeuge. Schmal bricht sie in zwei Zeilen
+                    um, statt den Titel Wort für Wort zu stapeln; die Knöpfe haben 48 px.
+                */}
                 <Stack
                     direction={'row'}
                     alignItems={'center'}
-                    spacing={2}
+                    flexWrap={'wrap'}
+                    useFlexGap
+                    columnGap={1.5}
+                    rowGap={0.5}
                     sx={{
-                        px: 2,
+                        px: {xs: 1, sm: 2},
                         py: 1,
                         borderBottom: `1px solid ${colors.border}`,
                         position: 'sticky',
@@ -322,6 +336,7 @@ const SpeakerBoardPage = () => {
                         bgcolor: colors.background,
                         zIndex: 10,
                         flexShrink: 0,
+                        '& .MuiIconButton-root': {width: 48, height: 48},
                     }}>
                     {/* Zurück zum fachlichen Elternteil: wer die Veranstaltung lesen darf, in
                         deren Betrieb; sonst wie bisher zur Auswahl der Sprecher-Boards. */}
@@ -342,12 +357,27 @@ const SpeakerBoardPage = () => {
                             <ArrowBackIcon />
                         </IconButtonLink>
                     )}
-                    <Box sx={{minWidth: 0, flex: 1}}>
-                        <Typography variant={'h6'} noWrap fontWeight={'bold'}>
+                    <Box sx={{minWidth: 0, flex: '1 1 200px'}}>
+                        <Typography component={'h1'} variant={'h6'} noWrap fontWeight={'bold'}>
                             🎙️ {eventData?.name ?? t('speaker.title')}
                         </Typography>
-                        <Typography variant={'caption'} sx={{color: colors.textSecondary}}>
-                            {t('speaker.subtitle')}
+                        <Typography
+                            variant={'caption'}
+                            noWrap
+                            sx={{color: colors.textSecondary, display: 'block'}}>
+                            {t('speaker.title')}
+                            {/* Verbindung des Push-Kanals in Worten: ohne ihn lädt das Board nur
+                                im 30-s-Takt nach (siehe POLL_BASE_MS). */}
+                            {' · '}
+                            <Typography
+                                component={'span'}
+                                variant={'caption'}
+                                fontWeight={'bold'}
+                                sx={{color: pushConnected ? colors.running : colors.now}}>
+                                {pushConnected
+                                    ? t('speaker.connection.live')
+                                    : t('speaker.connection.polling')}
+                            </Typography>
                             {runningCount > 0 && (
                                 <Typography
                                     component={'span'}
@@ -360,41 +390,73 @@ const SpeakerBoardPage = () => {
                             )}
                         </Typography>
                     </Box>
-                    <Typography
-                        variant={'h6'}
-                        fontWeight={'bold'}
-                        sx={{fontVariantNumeric: 'tabular-nums'}}>
-                        {format(now, t('format.time'))}
-                    </Typography>
-                    <IconButton
-                        onClick={() => updateSettings({showTimeline: !settings.showTimeline})}
-                        title={t('speaker.tabs.timeline')}
-                        aria-label={t('speaker.tabs.timeline')}
-                        aria-pressed={settings.showTimeline}
-                        sx={{
-                            color: settings.showTimeline ? colors.upcoming : colors.textSecondary,
-                        }}>
-                        <ViewTimelineIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={reloadAll}
-                        aria-label={t('common.reload')}
-                        sx={{color: colors.textSecondary}}>
-                        <RefreshIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={() => setSettingsOpen(true)}
-                        aria-label={t('common.settings')}
-                        sx={{color: colors.textSecondary}}>
-                        <SettingsIcon />
-                    </IconButton>
-                    <IconButton
-                        onClick={toggleFullscreen}
-                        aria-label={t('common.fullscreen')}
-                        aria-pressed={fullscreen}
-                        sx={{color: colors.textSecondary}}>
-                        {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                    </IconButton>
+                    {nextMatch && (
+                        <ButtonBase
+                            onClick={() => selectMatchManually(nextMatch)}
+                            sx={{
+                                minHeight: 48,
+                                px: 1.5,
+                                borderRadius: 1,
+                                border: `1px solid ${colors.border}`,
+                                textAlign: 'left',
+                                display: 'block',
+                                maxWidth: {xs: '100%', md: 360},
+                                order: {xs: 3, md: 0},
+                                flex: {xs: '1 1 100%', md: '0 1 auto'},
+                                cursor: 'pointer',
+                                '&:hover': {borderColor: colors.upcoming},
+                            }}>
+                            <Typography
+                                variant={'caption'}
+                                sx={{color: colors.upcoming, display: 'block', fontWeight: 'bold'}}>
+                                {t('speaker.nextUp')}
+                                {nextMatch.startTime &&
+                                    ` · ${format(nextMatch.startTime, t('format.time'))}`}
+                            </Typography>
+                            <Typography variant={'body2'} noWrap sx={{color: colors.text}}>
+                                {matchLabel(nextMatch)}
+                            </Typography>
+                        </ButtonBase>
+                    )}
+                    <Stack direction={'row'} alignItems={'center'} spacing={0.5}>
+                        <Typography
+                            variant={'h6'}
+                            fontWeight={'bold'}
+                            sx={{fontVariantNumeric: 'tabular-nums', mx: 1}}>
+                            {format(now, t('format.time'))}
+                        </Typography>
+                        <IconButton
+                            onClick={() => updateSettings({showTimeline: !settings.showTimeline})}
+                            title={t('speaker.tabs.timeline')}
+                            aria-label={t('speaker.tabs.timeline')}
+                            aria-pressed={settings.showTimeline}
+                            sx={{
+                                color: settings.showTimeline
+                                    ? colors.upcoming
+                                    : colors.textSecondary,
+                            }}>
+                            <ViewTimelineIcon />
+                        </IconButton>
+                        <IconButton
+                            onClick={reloadAll}
+                            aria-label={t('common.reload')}
+                            sx={{color: colors.textSecondary}}>
+                            <RefreshIcon />
+                        </IconButton>
+                        <IconButton
+                            onClick={() => setSettingsOpen(true)}
+                            aria-label={t('common.settings')}
+                            sx={{color: colors.textSecondary}}>
+                            <SettingsIcon />
+                        </IconButton>
+                        <IconButton
+                            onClick={toggleFullscreen}
+                            aria-label={t('common.fullscreen')}
+                            aria-pressed={fullscreen}
+                            sx={{color: colors.textSecondary}}>
+                            {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                        </IconButton>
+                    </Stack>
                 </Stack>
                 {feeds.failed > 0 && (
                     <Box
@@ -443,12 +505,14 @@ const SpeakerBoardPage = () => {
                                 display: 'grid',
                                 gap: 2,
                                 gridTemplateColumns: {
-                                    xs: '1fr',
+                                    xs: 'minmax(0, 1fr)',
                                     lg: 'minmax(320px, 3fr) minmax(400px, 4.5fr) minmax(300px, 3fr)',
                                 },
                                 alignItems: 'stretch',
                             }}>
-                            <Box sx={{minHeight: {xs: 320, lg: 0}}}>
+                            {/* Schmal (unter lg) steht der gewählte Lauf zuerst: aktueller Lauf und
+                                Ergebnis ohne Scrollen, das Programm darunter. */}
+                            <Box sx={{minHeight: {xs: 320, lg: 0}, order: {xs: 2, lg: 0}}}>
                                 <SpeakerProgramPanel
                                     matches={matches}
                                     badges={badges}
@@ -458,7 +522,7 @@ const SpeakerBoardPage = () => {
                                     falseStartMatchIds={falseStartMatchIds}
                                 />
                             </Box>
-                            <Box sx={{minHeight: {xs: 320, lg: 0}}}>
+                            <Box sx={{minHeight: {xs: 320, lg: 0}, order: {xs: 1, lg: 0}}}>
                                 <SpeakerMatchPanel
                                     match={selectedMatch}
                                     badges={badges}
@@ -473,6 +537,7 @@ const SpeakerBoardPage = () => {
                             <Box
                                 sx={{
                                     minHeight: {xs: 320, lg: 0},
+                                    order: {xs: 3, lg: 0},
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: 2,

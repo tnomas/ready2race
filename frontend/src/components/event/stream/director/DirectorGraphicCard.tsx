@@ -4,6 +4,7 @@ import {useTranslation} from 'react-i18next'
 import {clearStreamOverride, setStreamOverride} from '@api/sdk.gen'
 import {StreamGraphicViewDto, StreamOverrideState, StreamSceneViewDto} from '@api/types.gen'
 import {useFeedback} from '@utils/hooks'
+import {isRequestNetworkError, runRequest} from '@utils/request'
 import {extractErrorReason} from '../streamApiError'
 import {
     buildOverrideRequest,
@@ -64,26 +65,22 @@ const DirectorGraphicCard = ({eventId, view, graphic, matchOptions, clockOffsetM
     const forceOnLocked = feed.status === 'noFeed' && graphic.overrideState !== 'FORCED_ON'
 
     const applyOverride = async (state: 'FORCED_ON' | 'FORCED_OFF', match: string | null, dur: StreamPanelDurationChoice) => {
-        setPending(true)
-        try {
-            const {error} = await setStreamOverride({
+        const {error} = await runRequest(setPending, () =>
+            setStreamOverride({
                 path: {eventId, sceneId, graphicType: graphic.type},
                 body: buildOverrideRequest(state, match, dur),
-            })
-            if (error) feedback.error(extractErrorReason(error) ?? t('common.error.unexpected'))
-        } finally {
-            setPending(false)
-        }
+            }),
+        )
+        if (isRequestNetworkError(error)) feedback.error(t('common.error.network'))
+        else if (error) feedback.error(extractErrorReason(error) ?? t('common.error.unexpected'))
     }
 
     const clearOverride = async () => {
-        setPending(true)
-        try {
-            const {error} = await clearStreamOverride({path: {eventId, sceneId, graphicType: graphic.type}})
-            if (error) feedback.error(t('common.error.unexpected'))
-        } finally {
-            setPending(false)
-        }
+        const {error} = await runRequest(setPending, () =>
+            clearStreamOverride({path: {eventId, sceneId, graphicType: graphic.type}}),
+        )
+        if (isRequestNetworkError(error)) feedback.error(t('common.error.network'))
+        else if (error) feedback.error(t('common.error.unexpected'))
     }
 
     const handleStateChange = (_: unknown, value: StreamOverrideState | null) => {
@@ -172,7 +169,10 @@ const DirectorGraphicCard = ({eventId, view, graphic, matchOptions, clockOffsetM
                             disabled={pending}
                             onChange={handleStateChange}
                             sx={{
-                                '& .MuiToggleButton-root': {minHeight: 40, fontWeight: 700},
+                                // Drei gleich breite Felder: das „An" steckt für seinen Tooltip in
+                                // einem span und blieb ohne gleiche Flex-Basis 32 px schmal.
+                                '& > *': {flex: '1 1 0', minWidth: 0},
+                                '& .MuiToggleButton-root': {minHeight: 48, fontWeight: 700},
                                 '& .MuiToggleButton-root.Mui-selected': {
                                     color: '#fff',
                                     backgroundColor:
@@ -186,7 +186,7 @@ const DirectorGraphicCard = ({eventId, view, graphic, matchOptions, clockOffsetM
                             <ToggleButton value="AUTO">{t('event.stream.panel.overrideAction.AUTO')}</ToggleButton>
                             <Tooltip title={forceOnLocked ? t('event.stream.director.forceHint') : ''} placement="top">
                                 <span style={{display: 'flex', flex: 1}}>
-                                    <ToggleButton value="FORCED_ON" disabled={pending || forceOnLocked} sx={{flex: 1}}>
+                                    <ToggleButton value="FORCED_ON" disabled={pending || forceOnLocked} sx={{flex: 1, width: '100%'}}>
                                         {t('event.stream.panel.overrideAction.FORCED_ON')}
                                     </ToggleButton>
                                 </span>

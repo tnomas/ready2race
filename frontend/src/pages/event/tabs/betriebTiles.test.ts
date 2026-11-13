@@ -1,6 +1,12 @@
 import {describe, expect, test} from 'vitest'
 import {Privilege} from '@api/types.gen.ts'
-import {BETRIEB_ACTION_TILE, visibleBetriebActions, visibleBetriebTiles} from './betriebTiles.ts'
+import {
+    BETRIEB_ACTION_TILE,
+    BETRIEB_TILE_ORDER,
+    orderBetriebTiles,
+    visibleBetriebActions,
+    visibleBetriebTiles,
+} from './betriebTiles.ts'
 
 const checkOf =
     (...granted: Privilege[]) =>
@@ -162,5 +168,38 @@ describe('visibleBetriebActions', () => {
                 expect(tiles).toContain(BETRIEB_ACTION_TILE[action])
             }
         }
+    })
+})
+
+describe('orderBetriebTiles', () => {
+    test('ordnet nach Häufigkeit am Renntag: Steg, Regattabüro, Zeitnahme zuerst', () => {
+        const check = checkOf(p('READ', 'EVENT'), p('UPDATE', 'EVENT'), p('READ', 'LIVE_DASHBOARD'))
+        expect(orderBetriebTiles(visibleBetriebTiles(check))).toEqual([
+            'referee',
+            'raceOffice',
+            'timing',
+            'speaker',
+            'livestream',
+            'boards',
+            'helpers',
+        ])
+    })
+
+    test('ändert nur die Reihenfolge, nie die Menge', () => {
+        const all: Privilege[] = [
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'BOARD'),
+            p('READ', 'STREAM'),
+        ]
+        for (let mask = 0; mask < 1 << all.length; mask++) {
+            const tiles = visibleBetriebTiles(checkOf(...all.filter((_, i) => mask & (1 << i))))
+            expect([...orderBetriebTiles(tiles)].sort()).toEqual([...tiles].sort())
+        }
+    })
+
+    test('jede Kachel hat einen Platz in der Reihenfolge', () => {
+        expect(new Set(BETRIEB_TILE_ORDER).size).toBe(7)
     })
 })
