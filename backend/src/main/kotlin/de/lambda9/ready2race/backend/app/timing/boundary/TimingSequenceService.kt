@@ -41,7 +41,6 @@ object TimingSequenceService {
 
     private val logger = KotlinLogging.logger {}
 
-
     /** How long a finished sequence still counts as "active" for [getActiveSequence]'s fallback. */
     private val RECENT_TERMINAL_WINDOW: Duration = Duration.ofMinutes(10)
 

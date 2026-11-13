@@ -80,6 +80,7 @@ private object TestRunner {
     private val postgres = PostgreSQLContainer("postgres:17")
     private val config: Config
     private val connectionProvider: ConnectionProvider
+    private val datasource: HikariDataSource
     private val flyway: Flyway
 
     private var initial: Boolean
@@ -126,7 +127,7 @@ private object TestRunner {
         val hikariProps = Properties().apply {
             put("dataSource.logWriter", PrintWriter(System.out))
         }
-        val datasource = HikariDataSource(HikariConfig(hikariProps).apply {
+        datasource = HikariDataSource(HikariConfig(hikariProps).apply {
             jdbcUrl = postgres.jdbcUrl
             driverClassName = "org.postgresql.Driver"
             username = postgres.username
@@ -216,6 +217,11 @@ private object TestRunner {
                 flyway.clean()
             }
             flyway.migrate()
+            // Nach clean + migrate sind alle Tabellen und Views neu angelegt. Verbindungen im Pool,
+            // die vorher Statements vorbereitet hatten, scheitern sonst mit "cached plan must not
+            // change result type" - seit es Tests mit echten Commits gibt (testCommittingComprehension),
+            // die den Pool zwischen zwei Zurücksetzungen benutzen, tritt das tatsächlich auf.
+            datasource.hikariPoolMXBean?.softEvictConnections()
             initializeDatabase(env)
             dirty = false
         }
