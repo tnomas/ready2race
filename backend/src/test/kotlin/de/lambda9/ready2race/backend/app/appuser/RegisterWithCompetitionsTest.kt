@@ -10,9 +10,18 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.ParticipantRegisterCompetitionRequest
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
+import de.lambda9.ready2race.backend.app.appuser.entity.VerifyRegistrationRequest
+import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER
+import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
+import de.lambda9.ready2race.backend.database.generated.tables.references.PARTICIPANT
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.jooq.Jooq
 import java.util.UUID
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Die öffentliche Registrierung mit Wettkampfmeldung muss dieselben Bedingungen erfüllen wie die
@@ -60,5 +69,58 @@ class RegisterWithCompetitionsTest {
         val c = seedSingleCompetition(open, seedNamedParticipant())
 
         !AppUserService.register(request(c))
+    }
+
+    /**
+     * Zwischen Registrierung und Bestätigung schaltet die Veranstaltung die Selbstmeldung ab (oder
+     * schließt die Meldung). Die Bestätigung legt trotzdem Konto, Verein und Teilnehmer an - nur
+     * die Wettkampfmeldung entfällt. Früher scheiterte die ganze Bestätigung, auf Dauer.
+     */
+    @Test
+    fun confirmationAfterSelfRegistrationClosedKeepsTheAccountWithoutCompetitionRegistration() = testComprehension {
+        val event = seedEvent(participantSelfRegistration = true)
+        val c = seedSingleCompetition(event, seedNamedParticipant())
+        val registerRequest = request(c)
+        !AppUserService.register(registerRequest)
+
+        !Jooq.query {
+            update(EVENT).set(EVENT.PARTICIPANT_SELF_REGISTRATION, false).where(EVENT.ID.eq(event)).execute()
+        }
+        val token = !Jooq.query {
+            select(APP_USER_REGISTRATION.TOKEN).from(APP_USER_REGISTRATION)
+                .where(APP_USER_REGISTRATION.EMAIL.eq(registerRequest.email)).fetchOne(APP_USER_REGISTRATION.TOKEN)
+        }
+
+        !AppUserService.verifyRegistration(VerifyRegistrationRequest(token!!, "https://example.org/verify/"))
+
+        val userCount = !Jooq.query { fetchCount(APP_USER, APP_USER.EMAIL.eq(registerRequest.email)) }
+        assertEquals(1, userCount)
+        val participant = !Jooq.query {
+            selectFrom(PARTICIPANT).where(PARTICIPANT.EMAIL.eq(registerRequest.email)).fetchOne()
+        }
+        assertNotNull(participant)
+        val competitionRegistrations = !Jooq.query {
+            fetchCount(COMPETITION_REGISTRATION, COMPETITION_REGISTRATION.COMPETITION.eq(c))
+        }
+        assertEquals(0, competitionRegistrations)
+    }
+
+    @Test
+    fun confirmationWhileStillOpenRegistersTheCompetition() = testComprehension {
+        val event = seedEvent(participantSelfRegistration = true)
+        val c = seedSingleCompetition(event, seedNamedParticipant())
+        val registerRequest = request(c)
+        !AppUserService.register(registerRequest)
+        val token = !Jooq.query {
+            select(APP_USER_REGISTRATION.TOKEN).from(APP_USER_REGISTRATION)
+                .where(APP_USER_REGISTRATION.EMAIL.eq(registerRequest.email)).fetchOne(APP_USER_REGISTRATION.TOKEN)
+        }
+
+        !AppUserService.verifyRegistration(VerifyRegistrationRequest(token!!, "https://example.org/verify/"))
+
+        val competitionRegistrations = !Jooq.query {
+            fetchCount(COMPETITION_REGISTRATION, COMPETITION_REGISTRATION.COMPETITION.eq(c))
+        }
+        assertEquals(1, competitionRegistrations)
     }
 }

@@ -3,6 +3,8 @@ package de.lambda9.ready2race.backend.app.appuser.boundary
 import de.lambda9.ready2race.backend.afterNow
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.tailwind.core.extensions.kio.recoverDefault
+import io.github.oshai.kotlinlogging.KotlinLogging
 import de.lambda9.ready2race.backend.app.appuser.control.*
 import de.lambda9.ready2race.backend.app.appuser.entity.*
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
@@ -54,6 +56,9 @@ import java.util.*
 import kotlin.time.Duration.Companion.days
 
 object AppUserService {
+
+    private val logger = KotlinLogging.logger {}
+
 
     fun AppUserRecord.fullName(): String = "$firstname $lastname"
 
@@ -594,17 +599,32 @@ object AppUserService {
             val participantId = !ParticipantRepo.create(participantRecord).orDie()
 
             // Handle competition registrations if present
-            if (competitionRegistrations.isNotEmpty()) {
-                val competitions = !CompetitionRepo.getByIds(competitionRegistrations.map { it.competitionId }).orDie()
-                val eventId = competitions.first().event!!
+            val competitions = if (competitionRegistrations.isEmpty()) emptyList()
+            else !CompetitionRepo.getByIds(competitionRegistrations.map { it.competitionId }).orDie()
 
-                // Zwischen Registrierung und Bestätigung kann die Veranstaltung schließen oder die
-                // Selbstmeldung abschalten - deshalb hier noch einmal alles.
-                val openForRegistrationType = !CompetitionRegistrationValidation.validateSelfRegistration(
-                    eventId = eventId,
+            // Zwischen Registrierung und Bestätigung kann die Veranstaltung schließen, die
+            // Selbstmeldung abschalten oder ein Wettkampf verschwinden - deshalb hier noch einmal
+            // alles. Scheitert die Prüfung, entfällt nur die Wettkampfmeldung: Konto, Verein und
+            // Teilnehmer entstehen trotzdem. Früher scheiterte die ganze Bestätigung, und weil
+            // sich am Grund nichts mehr ändert, kam die Person nie zu ihrem Konto. Melden kann sie
+            // sich danach regulär über ihren Verein (Nachmeldung), soweit die Veranstaltung das zulässt.
+            val openForRegistrationType: OpenForRegistrationType? =
+                if (competitions.isEmpty()) null
+                else !CompetitionRegistrationValidation.validateSelfRegistration(
+                    eventId = competitions.first().event!!,
                     expectedCount = competitionRegistrations.size,
                     competitions = competitions,
-                )
+                ).recoverDefault { null }
+
+            if (competitionRegistrations.isNotEmpty() && openForRegistrationType == null) {
+                logger.info {
+                    "Registration of app user $userId confirmed without its ${competitionRegistrations.size} " +
+                        "competition registration(s): self registration no longer possible"
+                }
+            }
+
+            if (openForRegistrationType != null) {
+                val eventId = competitions.first().event!!
 
                 val eventRegistration = !EventRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
                 val eventRegistrationId = if (eventRegistration == null) {
