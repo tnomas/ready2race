@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest'
-import {isRequestNetworkError, runRequest} from './request.ts'
+import {isRequestNetworkError, networkError, requestOutcomeKind, runRequest} from './request.ts'
 
 describe('runRequest', () => {
     it('liefert Daten und löst die Sperre', async () => {
@@ -49,5 +49,20 @@ describe('isRequestNetworkError', () => {
         expect(isRequestNetworkError({kind: 'other'})).toBe(false)
         expect(isRequestNetworkError(undefined)).toBe(false)
         expect(isRequestNetworkError('network')).toBe(false)
+    })
+})
+
+describe('requestOutcomeKind', () => {
+    it('ein Netzfehler ist nie ein Erfolg', () => {
+        expect(requestOutcomeKind(networkError(new TypeError('Failed to fetch')))).toBe('network')
+    })
+
+    it('ein Fachfehler ist ein Fehler, kein Netzfehler', () => {
+        expect(requestOutcomeKind({status: {value: 409}})).toBe('error')
+    })
+
+    it('ohne Fehler ist es ein Erfolg', () => {
+        expect(requestOutcomeKind(undefined)).toBe('ok')
+        expect(requestOutcomeKind(null)).toBe('ok')
     })
 })

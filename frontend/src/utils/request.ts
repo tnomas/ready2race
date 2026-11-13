@@ -31,7 +31,10 @@ export const isRequestNetworkError = (error: unknown): error is NetworkError =>
     (error as {kind: unknown}).kind === 'network'
 
 const isAbortError = (e: unknown): boolean =>
-    typeof e === 'object' && e !== null && 'name' in e && (e as {name: unknown}).name === 'AbortError'
+    typeof e === 'object' &&
+    e !== null &&
+    'name' in e &&
+    (e as {name: unknown}).name === 'AbortError'
 
 export const runRequest = async <T, E>(
     setBusy: ((busy: boolean) => void) | undefined,
@@ -48,3 +51,13 @@ export const runRequest = async <T, E>(
         setBusy?.(false)
     }
 }
+
+/**
+ * Ordnet das Ergebnis eines Schreibaufrufs genau einer Art zu. Für Handler, die je Art
+ * verzweigen: Mit `switch` statt `if/else if` plus nachgestelltem Erfolgscode kann der
+ * Erfolgspfad nicht mehr versehentlich hinter einem Fehlerzweig ohne `return` weiterlaufen.
+ */
+export type RequestOutcomeKind = 'network' | 'error' | 'ok'
+
+export const requestOutcomeKind = (error: unknown): RequestOutcomeKind =>
+    isRequestNetworkError(error) ? 'network' : error ? 'error' : 'ok'
