@@ -11,6 +11,9 @@ import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.utils.io.*
+import de.lambda9.ready2race.backend.calls.responses.clientFaultStatus
+import de.lambda9.ready2race.backend.calls.responses.isClientAbort
+import kotlinx.coroutines.CancellationException
 
 /** Dateien und Formularfelder einer Multipart-Anfrage. */
 data class MultipartUpload(
@@ -57,9 +60,23 @@ suspend fun ApplicationCall.receiveUploads(maxFiles: Int): IO<RequestError, Mult
         }
         error?.let { KIO.fail(it) } ?: KIO.ok(MultipartUpload(files, fields))
     } catch (ex: Exception) {
-        logger.warn(ex) { "Error during receiving multipart body" }
-        KIO.fail(RequestError.Other(ex))
+        KIO.fail(uploadReadFailure(ex))
     }
+}
+
+/**
+ * Ordnet einen Fehler beim Lesen des Multipart-Körpers ein. Nur echte Formatfehler werden zu
+ * [RequestError.Other] (400, ohne interne Ausnahmetexte). Alles andere fliegt weiter bis
+ * `respondDefect`, das es schon richtig einordnet: Upload zu groß (413), falscher Inhaltstyp
+ * (415), Abbruch des Clients (kein Antwortversuch, kein WARN mit Stacktrace) - und ein Abbruch
+ * der Coroutine bleibt ein Abbruch.
+ */
+internal fun uploadReadFailure(ex: Exception): RequestError {
+    if (ex is CancellationException || clientFaultStatus(ex) != null || isClientAbort(ex)) {
+        throw ex
+    }
+    logger.info { "Malformed multipart body: ${ex::class.simpleName}: ${ex.message}" }
+    return RequestError.Other(Exception("Malformed multipart body"))
 }
 
 /**

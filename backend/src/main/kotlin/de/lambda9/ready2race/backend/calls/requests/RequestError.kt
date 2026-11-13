@@ -114,10 +114,12 @@ sealed interface RequestError : ToApiError {
                 message = "Unsupported file type"
             )
 
+        // Nur der Text, nicht der Klassenname der Ausnahme: Der stand bisher auch in PROD in der
+        // Antwort (z. B. „io.ktor…Exception: …").
         is Other ->
             ApiError(
                 status = HttpStatusCode.BadRequest,
-                message = cause.toString()
+                message = cause.message ?: HttpStatusCode.BadRequest.description
             )
     }
 }
