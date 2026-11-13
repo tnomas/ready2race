@@ -3,8 +3,48 @@ import react from '@vitejs/plugin-react'
 import tsconfigPaths from "vite-tsconfig-paths";
 import { VitePWA } from 'vite-plugin-pwa'
 import type { ManifestOptions } from 'vite-plugin-pwa'
-import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+
+/**
+ * Das pdfjs-dist, das react-pdf selbst verwendet (es liegt verschachtelt unter
+ * react-pdf/node_modules). Über diesen Alias holt utils/pdfWorker.ts den passenden Worker - die
+ * Versionen von API und Worker können so nicht mehr auseinanderlaufen.
+ */
+const pdfjsDistDir = (() => {
+  const require = createRequire(import.meta.url)
+  return dirname(
+    require.resolve('pdfjs-dist/package.json', {paths: [dirname(require.resolve('react-pdf'))]}),
+  )
+})()
+
+/**
+ * Bibliotheken, die fast jede Seite braucht, als eigene, lange gültige Stücke: Ein neues
+ * Deployment ändert meist nur App-Code, und Browser, Boards und Helfer-Handys behalten dann
+ * React und MUI im Cache. Schwere Spezialbibliotheken (pdf.js, Kalender, dnd-kit, QR-Scanner)
+ * stehen bewusst NICHT hier - sie landen über das Lazy-Loading der Routen von selbst in den
+ * Stücken der wenigen Seiten, die sie brauchen.
+ */
+const vendorChunk = (id: string): string | undefined => {
+  const match = /[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/.exec(id)
+  if (!match) return undefined
+  const pkg = match[1].replace('\\', '/')
+  if (['react', 'react-dom', 'scheduler'].includes(pkg)) return 'vendor-react'
+  if (pkg.startsWith('@tanstack/')) return 'vendor-router'
+  // Die MUI-X-Pakete (Datengitter, Datumsauswahl) bekommen bewusst kein Sammelstück: i18n/config.ts
+  // holt ihre Sprachpakete schon beim Start, ein Sammelstück zöge damit das ganze Gitter ins
+  // Startpaket. Ohne Zuordnung legt Rollup sie in gemeinsame Stücke der Seiten, die sie nutzen.
+  // (Ein eigenes Stück für MUI X ergab außerdem einen Zirkelbezug mit vendor-mui.)
+  if (pkg.startsWith('@mui/x-')) return undefined
+  // Die Symbole folgen ebenso den Seiten, die sie zeigen: gebündelt wären es alle Symbole aller
+  // Seiten im Startpaket jeder Anzeige.
+  if (pkg === '@mui/icons-material') return undefined
+  if (pkg.startsWith('@mui/') || pkg.startsWith('@emotion/')) return 'vendor-mui'
+  if (pkg === 'date-fns') return 'vendor-date-fns'
+  if (pkg.startsWith('i18next') || pkg === 'react-i18next') return 'vendor-i18n'
+  return undefined
+}
 
 /**
  * Das Web-App-Manifest der Helfer-App - als eigene Konstante, weil es zwei Abnehmer hat: den
@@ -81,13 +121,22 @@ const serveManifestInDev = (): Plugin => ({
  * sonst parallel auf, und dann läuft der Umzug, bevor vite-plugin-pwa die Datei überhaupt
  * geschrieben hat - der Build bricht mit ENOENT auf dist/sw.js ab.
  */
-const moveServiceWorkerToApp = (): Plugin => ({
+const moveServiceWorkerToApp = (): Plugin => {
+  // Rollup ruft `closeBundle` auch nach einem gescheiterten Bündeln auf. Ohne diese Merkstelle
+  // überdeckte dann ein ENOENT auf dist/sw.js den eigentlichen Fehler (etwa einen Syntaxfehler
+  // in einer Quelldatei) - die Ausgabe nannte nur noch den Service Worker.
+  let bundleFailed = false
+  return {
   name: 'r2r-move-sw-to-app',
   apply: 'build',
+  buildEnd(error) {
+    bundleFailed = error !== undefined
+  },
   closeBundle: {
     sequential: true,
     order: 'post',
     handler() {
+      if (bundleFailed) return
       const dist = resolve(__dirname, 'dist')
       const built = readFileSync(resolve(dist, 'sw.js'), 'utf8')
       const fixed = built.replace(/"url":"(?!\/)/g, '"url":"/')
@@ -106,12 +155,26 @@ const moveServiceWorkerToApp = (): Plugin => ({
         throw new Error(`Precache zeigt auf nicht vorhandene Dateien: ${missing.join(', ')}`)
       }
 
+      // Seit dem Code-Splitting holt die App ihre Seiten, Bibliotheken und Sprachen in einzelnen
+      // Stücken nach. Offline startet die Helfer-App nur, wenn JEDES davon im Precache liegt -
+      // Workbox lässt aber Dateien über `maximumFileSizeToCacheInBytes` bloß mit einer Warnung
+      // aus. Fehlt ein Skript oder Stylesheet, bricht der Build deshalb hier ab.
+      const precached = new Set([...fixed.matchAll(/"url":"([^"]*)"/g)].map(m => m[1]))
+      const notPrecached = readdirSync(resolve(dist, 'assets'))
+        .filter(file => /\.(js|css)$/.test(file))
+        .map(file => `/assets/${file}`)
+        .filter(url => !precached.has(url))
+      if (notPrecached.length > 0) {
+        throw new Error(`Nicht im Precache (offline fehlend): ${notPrecached.join(', ')}`)
+      }
+
       mkdirSync(resolve(dist, 'app'), {recursive: true})
       writeFileSync(resolve(dist, 'app/sw.js'), fixed)
       rmSync(resolve(dist, 'sw.js'))
     },
   },
-})
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -127,12 +190,11 @@ export default defineConfig({
       injectManifest: {
         // Die index.html wird bewusst nicht vorgeladen, sie läuft über NetworkFirst.
         globIgnores: ['**/index.html'],
-        // Das Bundle ist ein einziger Brocken von gut 3 MB und wird vom Server unkomprimiert
-        // ausgeliefert. Workbox lässt standardmäßig nur 2 MiB in den Precache und würde es
-        // stillschweigend auslassen - womit die Helfer-App offline nichts mehr hätte. Die
-        // Grenze liegt deshalb darüber. Fällt das Bundle durch Code-Splitting einmal kleiner
-        // aus, kann sie zurück.
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Früher war das Bundle ein einziger Brocken von gut 3 MB, und die Grenze stand auf
+        // 5 MiB. Seit dem Code-Splitting gilt wieder der Workbox-Standard von 2 MiB; ein Stück
+        // darüber ließe Workbox nur mit Warnung aus - `moveServiceWorkerToApp` bricht dann den
+        // Build ab, statt die Helfer-App offline ohne dieses Stück auszuliefern.
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         // Macht die relativen Precache-Adressen absolut, siehe die Erläuterung oben. Ohne das
         // sucht der Worker seine Dateien unter /app/assets/ statt unter /assets/.
         modifyURLPrefix: {'': '/'},
@@ -142,7 +204,24 @@ export default defineConfig({
     moveServiceWorkerToApp(),
     serveManifestInDev(),
   ],
+  resolve: {
+    alias: [{find: /^pdfjs-dist(?=\/|$)/, replacement: pdfjsDistDir}],
+  },
+  build: {
+    // Vites Standardziel, hier ausdrücklich festgehalten: Es deckt die Browser der Boards, der
+    // OBS-/Wirecast-Quellen und der Helfer-Handys ab. Top-Level-await ist damit nicht erlaubt
+    // (bräuchte Chrome 89/Safari 15) - das Laden der Startsprache wartet deshalb in der
+    // Wurzelroute statt im Modul.
+    target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+    rollupOptions: {
+      output: {
+        manualChunks: vendorChunk,
+      },
+    },
+  },
   server: {
+    // Bewusst auf allen Schnittstellen: Helfer-Handys, Boards und Tablets im LAN sollen den
+    // Dev-Server direkt erreichen (PWA- und Board-Tests am echten Gerät).
     host: '0.0.0.0',
     port: 5123,
   },

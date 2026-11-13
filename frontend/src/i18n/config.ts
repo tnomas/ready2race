@@ -1,9 +1,7 @@
-import i18next from 'i18next'
+import i18next, {type BackendModule, type ReadCallback} from 'i18next'
 import {initReactI18next} from 'react-i18next'
 import I18nextBrowserLanguageDetector from 'i18next-browser-languagedetector'
 import enTrans from './en/translations.json'
-import deTrans from './de/translations.json'
-import daTrans from './da/translations.json'
 import {Locale as DateLocale} from 'date-fns'
 import {de} from 'date-fns/locale/de'
 import {da} from 'date-fns/locale/da'
@@ -18,6 +16,7 @@ import {deDE as deDatePicker} from '@mui/x-date-pickers/locales/deDE'
 import {daDK as daDatePicker} from '@mui/x-date-pickers/locales/daDK'
 import {PickersLocaleText} from '@mui/x-date-pickers'
 import {isFromUnion} from '@utils/helpers.ts'
+import {loadChunk} from '@utils/chunkReload.ts'
 
 export const LANGUAGES = ['de', 'en', 'da'] as const
 export type Language = (typeof LANGUAGES)[number]
@@ -59,23 +58,79 @@ export const languageNames: Record<Language, string> = {
 
 export const fallbackLng: Language = 'en'
 export const defaultNS = 'translations'
+
+// Nur die Rückfallsprache liegt im Hauptbündel. Sie ist zugleich die Quelle der Schlüsseltypen
+// (`strictKeyChecks` in `@types/i18next.d.ts` liest `typeof resources['en']`), daran ändert das
+// Nachladen nichts. Deutsch und Dänisch kommen als eigene Stücke: die aktive Sprache gleich beim
+// Start (die Wurzelroute wartet auf `i18nReady`), die übrigen erst beim Umschalten.
+// Englisch bleibt statisch, weil i18next die Rückfallsprache ohnehin immer mitlädt - wäre sie ein
+// eigenes Stück, holte jede deutsche Sitzung beim Start zwei Sprachdateien statt einer.
 export const resources = {
     en: {
         translations: enTrans,
     },
-    de: {
-        translations: deTrans,
-    },
-    da: {
-        translations: daTrans,
-    },
 } as const
 
-i18next
+type LazyLanguage = Exclude<Language, 'en'>
+
+const lazyTranslations: Record<LazyLanguage, () => Promise<{default: object}>> = {
+    de: () => import('./de/translations.json'),
+    da: () => import('./da/translations.json'),
+}
+
+const isLazyLanguage = (language: string): language is LazyLanguage =>
+    Object.prototype.hasOwnProperty.call(lazyTranslations, language)
+
+/**
+ * Lädt Sprachdateien als eigene Stücke nach. i18next fragt dabei die ganze Sprachkette ab
+ * (z. B. `de-DE`, `de`, `en`); Varianten ohne eigene Datei bekommen sofort ein leeres Bündel,
+ * sonst versuchte i18next sie mehrfach mit Wartezeit erneut.
+ */
+const lazyTranslationBackend: BackendModule = {
+    type: 'backend',
+    init: () => {},
+    read: (language: string, namespace: string, callback: ReadCallback) => {
+        if (namespace !== defaultNS || !isLazyLanguage(language)) {
+            callback(null, {})
+            return
+        }
+        loadChunk(lazyTranslations[language]).then(
+            module => callback(null, module.default),
+            (error: unknown) =>
+                callback(error instanceof Error ? error : new Error(String(error)), false),
+        )
+    },
+}
+
+/**
+ * Eine Einbettung gibt die Sprache über `data-lng` am Wurzelelement vor (App.tsx stellt sie danach
+ * ein). Seit Sprachen nachgeladen werden, liefen Erkennung und Vorgabe sonst um die Wette - wer
+ * zuletzt fertig wird, setzt die Sprache. Deshalb startet i18next gleich mit der Vorgabe.
+ * Bewusst ohne `isLanguage`: helpers.ts und diese Datei importieren einander, beim Auswerten
+ * dieser Zeile ist `isFromUnion` womöglich noch nicht da.
+ */
+const embeddedLanguage = (() => {
+    if (typeof document === 'undefined') return undefined
+    const lng = document.getElementById('ready2race-root')?.dataset.lng
+    return lng !== undefined && (LANGUAGES as readonly string[]).includes(lng) ? lng : undefined
+})()
+
+/**
+ * Erfüllt sich, sobald die beim Start erkannte Sprache geladen ist (auch wenn das Laden scheitert:
+ * dann greift die Rückfallsprache). Die Wurzelroute wartet darauf, damit keine Seite kurz in der
+ * falschen Sprache aufblitzt.
+ */
+export const i18nReady: Promise<unknown> = i18next
     .use(I18nextBrowserLanguageDetector)
+    .use(lazyTranslationBackend)
     .use(initReactI18next)
     .init({
+        lng: embeddedLanguage,
         resources,
+        partialBundledLanguages: true,
+        // Ohne ausdrückliche Liste fragte i18next beim Backend den Standard-Namensraum
+        // „translation" ab statt „translations".
+        ns: [defaultNS],
         defaultNS,
         fallbackLng,
         interpolation: {
@@ -84,5 +139,11 @@ i18next
             // Variablen zusätzlich und HTML-Entities wie &#x2F; erschienen als Klartext in Dialogen
             // (z. B. „Steuerfrau&#x2F;mann" statt „Steuerfrau/mann").
             escapeValue: false,
+        },
+        react: {
+            // Während die Startsprache lädt, darf `useTranslation` nicht suspendieren: Oberhalb
+            // des Routers (Provider in App.tsx) gibt es keine Suspense-Grenze. Sichtbare Texte
+            // rendert erst der Router, und der wartet auf `i18nReady`.
+            useSuspense: false,
         },
     })
