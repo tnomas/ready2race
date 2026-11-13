@@ -1290,6 +1290,7 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                                     onOpenMenu={openMatchMenu}
                                     menuAvailable={matchMenuAvailable}
                                     manualCaptureVisible={settings.showManualCapture}
+                                    sequenceControlAvailable={user.loggedIn}
                                     onPause={handlePauseSequence}
                                     onResume={handleResumeSequence}
                                     onRewind={handleRewindSequence}

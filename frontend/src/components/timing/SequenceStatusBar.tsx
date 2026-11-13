@@ -35,6 +35,13 @@ export type SequenceStatusBarProps = {
     onSkip: (entryId: string, teamLabel: string) => void
     /** Terminale Zusammenfassung (DONE/ABORTED) wegklicken. */
     onDismiss: () => void
+    /**
+     * Titel des Laufs, zu dem die Sequenz gehört (nicht der fokussierte!). Steht in der
+     * ARMED-Leiste, damit „Sequenz starten" sagt, WAS es startet.
+     */
+    matchLabel?: string
+    /** Die Sequenz gehört zu einem anderen Lauf als dem oben fokussierten. */
+    otherMatch?: boolean
 }
 
 /**
@@ -59,6 +66,8 @@ const SequenceStatusBar = ({
     onAbort,
     onSkip,
     onDismiss,
+    matchLabel,
+    otherMatch = false,
 }: SequenceStatusBarProps) => {
     const {t} = useTranslation()
     const split = useMemo(() => splitRunningEntries(sequence), [sequence])
@@ -83,6 +92,9 @@ const SequenceStatusBar = ({
     const startedCount = sequence.entries.filter(entry => entry.status === 'STARTED').length
     const total = sequence.entries.length
     const paused = sequence.state === 'PAUSED'
+    // Scharf, aber für einen anderen Lauf als den fokussierten: so deutlich wie die Pause, damit
+    // niemand den vorigen Lauf ein zweites Mal losschickt.
+    const armedElsewhere = sequence.state === 'ARMED' && otherMatch
 
     return (
         <Paper
@@ -94,7 +106,7 @@ const SequenceStatusBar = ({
                 flexShrink: 0,
                 px: 1.5,
                 py: 0.75,
-                ...(paused
+                ...(paused || armedElsewhere
                     ? {
                           borderColor: 'warning.main',
                           borderWidth: 2,
@@ -110,6 +122,16 @@ const SequenceStatusBar = ({
                         <Typography variant="body2" sx={{fontWeight: 600}}>
                             {t('timing.sequence.armed.title')}
                         </Typography>
+                        {matchLabel !== undefined && (
+                            <Typography variant="body1" sx={{fontWeight: 700, minWidth: 0}}>
+                                {t('timing.sequence.armed.match', {match: matchLabel})}
+                            </Typography>
+                        )}
+                        {armedElsewhere && (
+                            <Typography variant="body2" color="warning.dark" sx={{fontWeight: 700}}>
+                                {t('timing.sequence.armed.otherMatch')}
+                            </Typography>
+                        )}
                         <Button
                             size="small"
                             variant="contained"
@@ -195,10 +217,7 @@ const SequenceStatusBar = ({
                                 disabled={busy}
                                 sx={touchTargetSx}
                                 onClick={() =>
-                                    onSkip(
-                                        split.next!.id,
-                                        label(split.next!.competitionMatchTeam),
-                                    )
+                                    onSkip(split.next!.id, label(split.next!.competitionMatchTeam))
                                 }>
                                 {t('timing.sequence.entry.skip')}
                             </Button>

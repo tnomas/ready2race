@@ -283,3 +283,38 @@ export function groupMatchesByDay(matches: TimingMatchDto[]): DayScheduleGroup[]
     if (withoutTime !== undefined) ordered.push(withoutTime)
     return ordered
 }
+
+/**
+ * Gehört die Sequenz zu einem anderen Lauf als dem, den der Startposten gerade fokussiert? Der
+ * Fokus rückt nach einem Start weiter; eine noch scharfe Sequenz („Sequenz starten") startet dann
+ * den VORIGEN Lauf. Die Leiste macht das sichtbar. Ohne eine der beiden Seiten gibt es nichts zu
+ * vergleichen.
+ */
+export function sequenceMatchDiffersFromFocus(
+    sequenceMatch: TimingMatchDto | undefined,
+    focusedMatch: TimingMatchDto | undefined,
+): boolean {
+    if (sequenceMatch === undefined || focusedMatch === undefined) return false
+    return sequenceMatch.competitionSetupMatch !== focusedMatch.competitionSetupMatch
+}
+
+export type SequenceControlHintKey =
+    | 'timing.matches.sequenceNeedsLogin'
+    | 'timing.matches.sequenceNeedsLoginNoCapture'
+
+/**
+ * Lässt sich die Startsequenz an diesem Gerät steuern? Die Sequenz-Routen
+ * (`/timing/sequences/**`) verlangen eine Sitzung; ein Gerät, das nur per Geräte-Token am Posten
+ * hängt, bekäme auf jeden Sequenz-Knopf einen 401. Statt der Knöpfe steht dann ein Hinweis - der
+ * eine Satz zeigt auf den Stempel, der andere sagt, dass er abgeschaltet ist (seine Vorgabe ist
+ * AUS, siehe `noStartSequenceNoCaptureHint`). Angemeldet: null, kein Hinweis.
+ */
+export function sequenceControlHint(
+    loggedIn: boolean,
+    manualCaptureVisible: boolean,
+): SequenceControlHintKey | null {
+    if (loggedIn) return null
+    return manualCaptureVisible
+        ? 'timing.matches.sequenceNeedsLogin'
+        : 'timing.matches.sequenceNeedsLoginNoCapture'
+}

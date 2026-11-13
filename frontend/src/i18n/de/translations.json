@@ -3946,6 +3946,8 @@
       "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
       "noStartSequenceHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Die Startzeit kommt über den Stempel, nicht über eine Sequenz.",
       "noStartSequenceNoCaptureHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Der manuelle Stempel ist ausgeblendet — dieses Board kann gerade gar keine Startzeit erfassen. Einschalten in den Zeitnahme-Einstellungen der Veranstaltung unter „Manueller Stempel am Startposten“; das Board folgt sofort.",
+      "sequenceNeedsLogin": "Die Startsequenz lässt sich nur angemeldet steuern. Dieses Gerät ist über den Posten-Link ohne Anmeldung verbunden – die Startzeit kommt hier über den Stempel.",
+      "sequenceNeedsLoginNoCapture": "Die Startsequenz lässt sich nur angemeldet steuern. Dieses Gerät ist über den Posten-Link ohne Anmeldung verbunden, und der manuelle Stempel ist ausgeblendet – hier lässt sich gerade keine Startzeit erfassen. Anmelden oder den Stempel in den Zeitnahme-Einstellungen unter „Manueller Stempel am Startposten“ einschalten.",
       "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
       "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
       "start": "Startsequenz starten",
@@ -3995,7 +3997,9 @@
       },
       "armed": {
         "title": "Sequenz scharf",
-        "start": "Sequenz starten"
+        "start": "Sequenz starten",
+        "match": "Lauf: {{match}}",
+        "otherMatch": "Nicht der oben angezeigte Lauf"
       },
       "running": {
         "finishing": "Wird abgeschlossen…",
