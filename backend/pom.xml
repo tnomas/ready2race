@@ -43,9 +43,9 @@
         <log4j2.version>2.24.3</log4j2.version>
         <postgres.version>42.7.7</postgres.version>
         <flyway.version>11.3.4</flyway.version>
+        <flyway.cleanDisabled>true</flyway.cleanDisabled>
         <jooq.version>3.19.20</jooq.version> <!-- <3.20 with JAVA 17 -->
         <jackson.version>2.18.3</jackson.version>
-        <kotlinx.coroutines.debug.version>1.10.1</kotlinx.coroutines.debug.version>
         <kotlin.dotenv.version>6.5.1</kotlin.dotenv.version>
         <kotlin.logging.version>7.0.4</kotlin.logging.version>
         <tailwind.version>0.2.0</tailwind.version>
@@ -239,11 +239,6 @@
             <version>${jooq.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.jooq</groupId>
-            <artifactId>jooq-kotlin-coroutines</artifactId>
-            <version>${jooq.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
             <version>${kotlin.version}</version>
@@ -257,12 +252,6 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test-junit5</artifactId>
             <version>${kotlin.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlinx</groupId>
-            <artifactId>kotlinx-coroutines-debug</artifactId>
-            <version>${kotlinx.coroutines.debug.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -419,7 +408,9 @@
                     <user>${database.user}</user>
                     <password>${database.password}</password>
                     <schemas>${database.schemas}</schemas>
-                    <cleanDisabled>false</cleanDisabled>
+                    <!-- flyway:clean nur auf ausdrücklichen Wunsch (-Dflyway.cleanDisabled=false), damit ein
+                         Aufruf mit falscher database.url nicht die Entwicklungsdatenbank leert. -->
+                    <cleanDisabled>${flyway.cleanDisabled}</cleanDisabled>
                 </configuration>
                 <dependencies>
                     <dependency>
