@@ -20,6 +20,7 @@ import de.lambda9.tailwind.core.extensions.kio.mapNotNull
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.recover
 import de.lambda9.ready2race.backend.calls.requests.CallbackUrls
+import de.lambda9.ready2race.backend.security.PasswordUtilities
 import io.github.cdimascio.dotenv.Dotenv
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.simplejavamail.api.mailer.Mailer
@@ -116,7 +117,12 @@ data class Config(
     }
 
     data class Security(
-        val pepper: String
+        val pepper: String,
+        /**
+         * Speicherbedarf neuer Argon2id-Hashes in KiB (`SECURITY_ARGON2_MEMORY_KIB`). Ältere Hashes
+         * werden mit ihren eigenen Parametern geprüft und beim nächsten Login neu berechnet.
+         */
+        val argon2MemoryKiB: Int = PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB,
     )
 
     data class Admin(
@@ -225,8 +231,25 @@ data class Config(
 
             val security = run {
                 val pepper = !required("SECURITY_PEPPER")
+                val argon2MemoryKiB = !optional("SECURITY_ARGON2_MEMORY_KIB", int)
+                    ?: PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB
 
-                Security(pepper = pepper)
+                if (argon2MemoryKiB < PasswordUtilities.MIN_ARGON2_MEMORY_KIB) {
+                    !KIO.fail(
+                        ParseEnvError.UnparsableValue(
+                            "SECURITY_ARGON2_MEMORY_KIB",
+                            argon2MemoryKiB.toString(),
+                            Int::class
+                        )
+                    )
+                }
+                if (argon2MemoryKiB < PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB && (mode == Mode.PROD || mode == Mode.STAGING)) {
+                    logger.warn {
+                        "SECURITY_ARGON2_MEMORY_KIB=$argon2MemoryKiB is below the recommended ${PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB} KiB"
+                    }
+                }
+
+                Security(pepper = pepper, argon2MemoryKiB = argon2MemoryKiB)
             }
 
             val admin = run {

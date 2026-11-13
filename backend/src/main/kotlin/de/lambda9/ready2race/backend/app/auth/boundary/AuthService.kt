@@ -40,6 +40,14 @@ object AuthService {
 
         if (credentialsOk) {
 
+            // Hashes aus einem älteren Parameterstand (bis 11/2026: 15 KiB Speicher) beim Login mit
+            // dem gerade geprüften Klartext neu berechnen. Anders kommt man an den Klartext nicht heran.
+            val outdated = !PasswordUtilities.needsRehash(user.password!!)
+            if (outdated) {
+                val rehashed = !PasswordUtilities.hash(request.password)
+                !AppUserRepo.update(user.id!!) { password = rehashed }.orDie()
+            }
+
             val record = !user.toSession(tokenLifetime)
             val token = !AppUserSessionRepo.create(record).orDie()
             onSuccess(token)

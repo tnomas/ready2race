@@ -75,6 +75,9 @@ open class DefaultTestApplicationExtension(val builder: ApplicationTestBuilder) 
 
 interface TestApplicationComprehensionScope<R> : TestApplicationExtension, TestComprehensionScope<R>, ClientProvider
 
+/** Argon2-Speicher der Test-Konfiguration in KiB (Produktionsvorgabe siehe PasswordUtilities). */
+const val TEST_ARGON2_MEMORY_KIB = 64
+
 private object TestRunner {
 
     private val postgres = PostgreSQLContainer("postgres:17")
@@ -107,6 +110,9 @@ private object TestRunner {
             smtp = null,
             security = Config.Security(
                 pepper = "pepper",
+                // Bewusst klein: die Suite hasht hunderte Male (Admin bei jedem Zurücksetzen,
+                // Testkonten). Die echte Vorgabe prüft PasswordUtilitiesTest.
+                argon2MemoryKiB = TEST_ARGON2_MEMORY_KIB,
             ),
             admin = Config.Admin(
                 email = "admin",
