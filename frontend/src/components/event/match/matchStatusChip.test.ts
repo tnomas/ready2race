@@ -418,6 +418,24 @@ const slot = (overrides: Partial<EventScheduleSlotDto>): EventScheduleSlotDto =>
 })
 
 describe('slotMatchStatus', () => {
+    it('liest einen strittigen Lauf als CLARIFICATION - vor der Aktivierung, nach dem Beenden', () => {
+        // Befund 13.11.2026: der Zeitplan zeigte „Läuft", Durchführung und Dashboard „Klärung".
+        expect(
+            slotMatchStatus(
+                slot({
+                    matchActivatedAt: minutesAgo(9),
+                    matchStartedAt: minutesAgo(8),
+                    matchClarificationSince: minutesAgo(1),
+                }),
+            )?.state,
+        ).toBe('CLARIFICATION')
+        expect(
+            slotMatchStatus(
+                slot({matchFinishedAt: minutesAgo(1), matchClarificationSince: minutesAgo(2)}),
+            )?.state,
+        ).toBe('FINISHED')
+    })
+
     it('lässt einen Slot ohne verknüpften Lauf bei seinem eigenen Chip', () => {
         expect(slotMatchStatus(slot({matchId: null, state: 'FREE'}))).toBeNull()
         expect(slotMatchStatus(slot({matchId: undefined, state: 'WAITING'}))).toBeNull()

@@ -1,8 +1,15 @@
 import {describe, expect, it} from 'vitest'
-import {LatestMatchResultInfo, MatchResultTeamInfo} from '@api/types.gen.ts'
+import {
+    LatestMatchResultInfo,
+    MatchResultTeamInfo,
+    RunningMatchInfo,
+    UpcomingCompetitionMatchInfo,
+} from '@api/types.gen.ts'
 import {
     computeSpeakerBadges,
     displayPlace,
+    isLiveOnWater,
+    liveFollowCandidate,
     mergeSpeakerMatches,
     nextUpcomingSpeakerMatch,
     SpeakerMatch,
@@ -145,5 +152,68 @@ describe('nextUpcomingSpeakerMatch', () => {
                 now,
             ),
         ).toBeUndefined()
+    })
+})
+
+describe('Lauf in Vorbereitung ist nicht live', () => {
+    const running = (overrides: Partial<RunningMatchInfo>): RunningMatchInfo => ({
+        matchId: 'r',
+        competitionId: 'c',
+        competitionName: 'CF 2x',
+        executionOrder: 0,
+        state: 'RUNNING',
+        teams: [],
+        ...overrides,
+    })
+    const at = (iso: string) => new Date(iso)
+    const now = at('2026-11-13T23:00:00').getTime()
+
+    it('übernimmt den Zustand der einen Ableitung aus dem Running-Feed', () => {
+        const [preparing, live] = mergeSpeakerMatches(
+            [],
+            [
+                running({matchId: 'prep', state: 'PREPARING', startTime: '2026-11-13T23:02:00'}),
+                running({
+                    matchId: 'live',
+                    startedAt: '2026-11-13T22:45:59',
+                    startTime: '2026-11-13T23:10:00',
+                }),
+            ],
+            [],
+        )
+        // Vorher: beide „● Live" (status RUNNING ohne Unterscheidung).
+        expect(preparing.preparing).toBe(true)
+        expect(isLiveOnWater(preparing)).toBe(false)
+        expect(live.preparing).toBe(false)
+        expect(isLiveOnWater(live)).toBe(true)
+    })
+
+    it('„Live folgen" nimmt den fahrenden Lauf vor dem gerufenen, den gerufenen vor dem anstehenden', () => {
+        const prep = running({
+            matchId: 'prep',
+            state: 'PREPARING',
+            startTime: '2026-11-13T23:02:00',
+        })
+        const live = running({matchId: 'live', startTime: '2026-11-13T22:44:00'})
+        const disputed = running({matchId: 'disputed', state: 'CLARIFICATION', clarification: true})
+        const upcoming: UpcomingCompetitionMatchInfo = {
+            matchId: 'next',
+            pendingRound: false,
+            cancelled: false,
+            competitionId: 'c',
+            competitionName: 'CM 2x',
+            scheduledStartTime: '2026-11-13T23:22:00',
+            executionOrder: 1,
+            teams: [],
+        }
+        expect(
+            liveFollowCandidate(mergeSpeakerMatches([upcoming], [prep, live, disputed], []), now),
+        ).toBe('live')
+        expect(
+            liveFollowCandidate(mergeSpeakerMatches([upcoming], [prep, disputed], []), now),
+        ).toBe('prep')
+        expect(liveFollowCandidate(mergeSpeakerMatches([upcoming], [disputed], []), now)).toBe(
+            'next',
+        )
     })
 })

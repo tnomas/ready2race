@@ -4839,7 +4839,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Cancelled",
       "CLARIFICATION": "Under review",
-      "clarificationShort": "Review"
+      "clarificationShort": "Review",
+      "PREPARING": "Preparing",
+      "preparingShort": "Prep."
     },
     "timeline": {
       "empty": "No races with a start time found.",

@@ -380,17 +380,21 @@ export const unplannedMatchStatus = (match: UnplannedSetupMatchDto): MatchStatus
 export const slotMatchStatus = (slot: EventScheduleSlotDto): MatchStatusDto | null => {
     if (!slot.matchId) return null
 
-    const state = slot.matchActivatedAt
-        ? slot.matchStartedAt
-            ? 'RUNNING'
-            : 'PREPARING'
-        : slot.matchFinishedAt
-          ? 'FINISHED'
-          : slot.state === 'SKIPPED'
-            ? 'SKIPPED'
-            : slot.matchTeamsTotal > 0 && slot.matchTeamsScored >= slot.matchTeamsTotal
-              ? 'AWAITING_FINISH'
-              : 'UPCOMING'
+    // Klärung ganz vorn, aber nicht vor „beendet" - dieselbe Reihenfolge wie deriveMatchState.
+    const state =
+        slot.matchClarificationSince && !slot.matchFinishedAt
+            ? 'CLARIFICATION'
+            : slot.matchActivatedAt
+              ? slot.matchStartedAt
+                  ? 'RUNNING'
+                  : 'PREPARING'
+              : slot.matchFinishedAt
+                ? 'FINISHED'
+                : slot.state === 'SKIPPED'
+                  ? 'SKIPPED'
+                  : slot.matchTeamsTotal > 0 && slot.matchTeamsScored >= slot.matchTeamsTotal
+                    ? 'AWAITING_FINISH'
+                    : 'UPCOMING'
 
     return {
         state,

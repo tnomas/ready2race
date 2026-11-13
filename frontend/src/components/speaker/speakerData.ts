@@ -62,6 +62,12 @@ export type SpeakerMatch = {
      * Running-Feed mit; beendete strittige Läufe tragen das Flag im Ergebnis-Feed.
      */
     clarification?: boolean
+    /**
+     * Der Lauf ist an den Start gerufen, aber noch nicht unterwegs (`state === 'PREPARING'` aus
+     * der einen Zustandsableitung im Backend). Er kommt über den Running-Feed, ist aber nicht
+     * „● Live" - bis zum 13.11.2026 stand er genau so da.
+     */
+    preparing?: boolean
     teams: SpeakerTeam[]
 }
 
@@ -106,6 +112,7 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
     executionOrder: match.executionOrder,
     elapsedMinutes: match.elapsedMinutes,
     clarification: match.clarification ?? undefined,
+    preparing: match.state === 'PREPARING',
     teams: match.teams.map(team => ({
         teamId: team.teamId,
         teamName: team.teamName,
@@ -189,6 +196,32 @@ export const nextUpcomingSpeakerMatch = (
             match.startTime !== undefined &&
             match.startTime.getTime() >= nowMillis - NEXT_UP_GRACE_MILLIS,
     )
+
+/**
+ * Fährt dieser Lauf gerade auf dem Wasser? Der Running-Feed bringt auch die nur an den Start
+ * gerufenen (PREPARING) und - für das Sprecher-Board bestellt - die strittigen Läufe mit; beide
+ * sind nicht „live".
+ */
+export const isLiveOnWater = (match: SpeakerMatch): boolean =>
+    match.status === 'RUNNING' && !match.clarification && !match.preparing
+
+/**
+ * Wohin „Live folgen" springt, wenn keine Startsequenz den Lauf vorgibt: der zuletzt gestartete
+ * fahrende Lauf, sonst der an den Start gerufene, sonst der nächste anstehende, sonst das jüngste
+ * Ergebnis. Ein strittiger Lauf ist nie das Ziel der Automatik.
+ */
+export const liveFollowCandidate = (matches: SpeakerMatch[], nowMillis: number): string | null => {
+    const live = matches.filter(isLiveOnWater)
+    if (live.length > 0) return live[live.length - 1].matchId
+    const preparing = matches.filter(
+        match => match.status === 'RUNNING' && match.preparing && !match.clarification,
+    )
+    if (preparing.length > 0) return preparing[0].matchId
+    const upcoming = nextUpcomingSpeakerMatch(matches, nowMillis)
+    if (upcoming) return upcoming.matchId
+    const finished = matches.filter(match => match.status === 'FINISHED')
+    return finished.length > 0 ? finished[finished.length - 1].matchId : null
+}
 
 export const matchLabel = (match: SpeakerMatch): string =>
     [
@@ -356,4 +389,6 @@ export const matchDisplayColor = (colors: SpeakerColors, match: SpeakerMatch): s
         ? colors.now
         : match.clarification
           ? colors.gold
-          : statusColorOf(colors, match.status)
+          : match.preparing
+            ? colors.upcoming
+            : statusColorOf(colors, match.status)

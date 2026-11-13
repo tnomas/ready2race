@@ -20,6 +20,7 @@ import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import {
     displayPlace,
+    isLiveOnWater,
     matchDisplayColor,
     medalEmoji,
     SpeakerBadges,
@@ -229,7 +230,9 @@ const SpeakerMatchPanel = ({
                                 ? t('speaker.status.CANCELLED')
                                 : match.clarification
                                   ? `⚖ ${t('speaker.status.CLARIFICATION')}`
-                                  : match.status === 'RUNNING'
+                                  : match.preparing
+                                    ? t('speaker.status.PREPARING')
+                                    : match.status === 'RUNNING'
                                     ? `● ${t('speaker.status.RUNNING')}`
                                     : match.status === 'FINISHED'
                                       ? `✓ ${t('speaker.status.FINISHED')}`
@@ -250,7 +253,7 @@ const SpeakerMatchPanel = ({
                     : '') +
                 // Bei Klärung keine weiterlaufende "läuft seit"-Uhr — die Zahl wäre eine
                 // Aussage über ein Rennen, dessen Zustand gerade strittig ist.
-                (match.status === 'RUNNING' && !match.clarification && match.elapsedMinutes != undefined
+                (isLiveOnWater(match) && match.elapsedMinutes != undefined
                     ? ` · ${t('speaker.match.elapsed', {minutes: match.elapsedMinutes})}`
                     : '')
             }

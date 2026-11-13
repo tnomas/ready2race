@@ -3,6 +3,7 @@ import {format} from 'date-fns'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
+    isLiveOnWater,
     matchBadgeSummary,
     matchDisplayColor,
     SpeakerBadges,
@@ -236,7 +237,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     zIndex: 1,
                                     transition: 'background-color 0.15s',
                                     '&:hover': {bgcolor: colors.panelHover},
-                                    ...(match.status === 'RUNNING' && {
+                                    ...(isLiveOnWater(match) && {
                                         boxShadow: `0 0 8px ${colors.running}55`,
                                     }),
                                     ...(match.cancelled && {
@@ -257,7 +258,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                             ? ` · ${t('speaker.status.CANCELLED')}`
                                             : match.clarification
                                               ? ` · ⚖ ${t('speaker.status.clarificationShort')}`
-                                              : match.status === 'RUNNING'
+                                              : match.preparing
+                                                ? ` · ${t('speaker.status.preparingShort')}`
+                                                : match.status === 'RUNNING'
                                                 ? ` · ${t('speaker.status.liveShort')}`
                                                 : match.status === 'FINISHED'
                                                   ? ' · ✓'

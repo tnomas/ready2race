@@ -6,6 +6,7 @@ import {BoardProgramEntry} from '@api/types.gen.ts'
 import {getPublicProgram} from '@api/sdk.gen.ts'
 import {usePolledFetch} from '@utils/usePolledFetch.ts'
 import {format} from 'date-fns'
+import {programStateChip} from './programStateChip.ts'
 
 type Props = {
     eventId: string
@@ -73,25 +74,16 @@ const ResultsProgram = ({eventId}: Props) => {
     )
 
     const stateChip = (entry: BoardProgramEntry) => {
-        // Programmpunkte (Pausen) tragen keinen Laufzustand — ein "Anstehend" an der
-        // Mittagspause wäre nur Rauschen.
-        if (entry.name != null && entry.state === 'UPCOMING') {
-            return null
-        }
-        switch (entry.state) {
-            case 'RUNNING':
-                return <Chip size={'small'} color={'info'} label={t('results.program.running')} />
-            case 'FINISHED':
-                return <Chip size={'small'} label={t('results.program.finished')} />
-            default:
-                return (
-                    <Chip
-                        size={'small'}
-                        variant={'outlined'}
-                        label={t('results.program.upcoming')}
-                    />
-                )
-        }
+        const chip = programStateChip(entry.state, entry.name != null)
+        if (chip === null) return null
+        return (
+            <Chip
+                size={'small'}
+                color={chip.color}
+                variant={chip.variant}
+                label={t(chip.labelKey)}
+            />
+        )
     }
 
     return (

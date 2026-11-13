@@ -4839,7 +4839,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Aflyst",
       "CLARIFICATION": "Under afklaring",
-      "clarificationShort": "Afklaring"
+      "clarificationShort": "Afklaring",
+      "PREPARING": "Forbereder",
+      "preparingShort": "Forb."
     },
     "timeline": {
       "empty": "Ingen løb med starttid fundet.",

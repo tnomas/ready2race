@@ -619,7 +619,16 @@ export type BoardProgramEntry = {
     state: BoardProgramState
 }
 
-export type BoardProgramState = 'FINISHED' | 'RUNNING' | 'UPCOMING'
+/**
+ * State of a schedule row, mapped from the one match-state derivation (LiveDashboardMatchState): PREPARING = called to the start without a real start, CLARIFICATION = an objection is being settled, AWAITING_FINISH = every boat scored, nobody finished the match yet. Cancelled slots are not part of the program, so there is no SKIPPED/UNSCHEDULED here.
+ */
+export type BoardProgramState =
+    | 'FINISHED'
+    | 'RUNNING'
+    | 'PREPARING'
+    | 'CLARIFICATION'
+    | 'AWAITING_FINISH'
+    | 'UPCOMING'
 
 export type BoardRequest = {
     name: string
@@ -2077,6 +2086,10 @@ export type EventScheduleSlotDto = {
      * When the linked match was called to the start - drives whether the schedule tab offers 'activate' or 'finish' for a LINKED slot, and together with matchStartedAt whether the slot reads 'preparing' or 'running'. Null without a linked match.
      */
     matchActivatedAt?: string | null
+    /**
+     * competition_match.clarification_since of the linked match - set means 'under clarification', which beats 'preparing'/'running' in the state derivation. The reason stays internal. Null without a linked match.
+     */
+    matchClarificationSince?: string | null
     /**
      * Teams of the linked match that are still in the race (without the OUT rows carried over from the previous round) - 0 without a linked match
      */
@@ -4024,6 +4037,10 @@ export type RunningMatchInfo = {
      * An objection is running against this match (competition_match.clarification_since set). Only populated when the request asked for disputed matches (includeClarification); the referees' reason stays internal and is never part of this payload.
      */
     clarification?: boolean | null
+    /**
+     * Match state from the one derivation: PREPARING (activated, no real start yet), RUNNING, or - only with includeClarification - CLARIFICATION.
+     */
+    state: LiveDashboardMatchState
     placeName?: string | null
     roundNumber?: number | null
     roundName?: string | null

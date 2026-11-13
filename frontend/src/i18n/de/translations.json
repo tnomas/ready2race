@@ -4839,7 +4839,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Abgesagt",
       "CLARIFICATION": "In Klärung",
-      "clarificationShort": "Klärung"
+      "clarificationShort": "Klärung",
+      "PREPARING": "In Vorbereitung",
+      "preparingShort": "Vorb."
     },
     "timeline": {
       "empty": "Keine Rennen mit Startzeit gefunden.",

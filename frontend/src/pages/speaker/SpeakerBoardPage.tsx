@@ -19,6 +19,8 @@ import SpeakerTimeline from '@components/speaker/SpeakerTimeline.tsx'
 import SpeakerTimingPanel from '@components/speaker/SpeakerTimingPanel.tsx'
 import {
     computeSpeakerBadges,
+    isLiveOnWater,
+    liveFollowCandidate,
     matchLabel,
     mergeSpeakerMatches,
     nextUpcomingSpeakerMatch,
@@ -172,9 +174,8 @@ const SpeakerBoardPage = () => {
     reloadAllRef.current = reloadAll
 
     // Strittige Läufe zählen nicht als "live" — sie laufen gerade eben nicht, sie werden geklärt.
-    const runningCount = matches.filter(
-        match => match.status === 'RUNNING' && !match.clarification,
-    ).length
+    // Ebenso wenig die nur an den Start gerufenen (In Vorbereitung).
+    const runningCount = matches.filter(isLiveOnWater).length
 
     // Echtzeit-Zeitnahme (Sequenzen, Fehlstärte, Zieleinläufe) über denselben Kanal wie der
     // Leitstand — rein lesend, ohne Berechtigung degradiert das Panel zu einem Hinweis.
@@ -261,12 +262,7 @@ const SpeakerBoardPage = () => {
         }
         // Ein strittiger Lauf ist nicht "das Live-Geschehen auf dem Wasser" — er bleibt sichtbar,
         // aber die Automatik springt nicht auf ihn.
-        const running = matches.filter(match => match.status === 'RUNNING' && !match.clarification)
-        if (running.length > 0) return running[running.length - 1].matchId
-        const upcoming = nextUpcomingSpeakerMatch(matches, now.getTime())
-        if (upcoming) return upcoming.matchId
-        const finished = matches.filter(match => match.status === 'FINISHED')
-        return finished.length > 0 ? finished[finished.length - 1].matchId : null
+        return liveFollowCandidate(matches, now.getTime())
     }, [timing.sequences, timing.index, matches, now])
 
     useEffect(() => {
