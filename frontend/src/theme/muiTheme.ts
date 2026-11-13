@@ -1,6 +1,6 @@
 import {createTheme, Theme, ThemeOptions} from '@mui/material'
-import {Locale} from './i18n/config.ts'
-import type {ThemeConfigDto} from './api'
+import {Locale} from '../i18n/config.ts'
+import type {ThemeConfigDto} from '../api'
 
 const baseThemeOptions: ThemeOptions = {
     palette: {

@@ -4,8 +4,10 @@ import {RouterProvider} from '@tanstack/react-router'
 import {router} from '@routes'
 import {client} from './api'
 import Config from './Config'
-import {muiTheme} from './theme'
-import {ThemeProvider, CssBaseline, IconButton} from '@mui/material'
+import {muiTheme} from './theme/muiTheme.ts'
+import {ThemeProvider, CssBaseline, IconButton, useMediaQuery} from '@mui/material'
+import {useMemo} from 'react'
+import {useTranslation} from 'react-i18next'
 import {SnackbarProvider, closeSnackbar} from 'notistack'
 import {ConfirmationProvider} from './contexts/confirmation/ConfirmationProvider.tsx'
 import {LocalizationProvider} from '@mui/x-date-pickers'
@@ -44,8 +46,14 @@ const App = () => {
     const user = useUser()
     const {themeConfig} = useThemeConfig()
 
+    const {t} = useTranslation()
     const locale = locales[user.language]
-    const theme = muiTheme(locale, themeConfig)
+    // Memoisiert: eine neue Theme-Identität ließe jedes Kind mit useTheme/sx neu rechnen und
+    // würde das abgeleitete Verwaltungs-Theme (AdminThemeScope) bei jedem Render neu erzeugen.
+    const theme = useMemo(() => muiTheme(locale, themeConfig), [locale, themeConfig])
+    // Schmal: Meldungen unten mittig statt in der Ecke, wo sie den Daumen-Bereich verdecken.
+    // Rohe Medienabfrage, weil hier noch kein Theme-Kontext existiert (MUI-Breakpoint sm = 600 px).
+    const narrow = useMediaQuery('(max-width:599.95px)')
 
     return (
         <LocalizationProvider
@@ -55,10 +63,12 @@ const App = () => {
             <ThemeProvider theme={theme}>
                 <CssBaseline />
                 <SnackbarProvider
-                    maxSnack={1}
-                    anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
+                    maxSnack={3}
+                    anchorOrigin={{vertical: 'bottom', horizontal: narrow ? 'center' : 'right'}}
                     action={snackbarId => (
-                        <IconButton onClick={() => closeSnackbar(snackbarId)}>
+                        <IconButton
+                            aria-label={t('common.close')}
+                            onClick={() => closeSnackbar(snackbarId)}>
                             <CloseIcon />
                         </IconButton>
                     )}>

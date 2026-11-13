@@ -1,0 +1,16 @@
+// Gemeinsame UI-Bausteine der Verwaltungsoberfläche. Einzelimporte (`@components/ui/PageHeader.tsx`)
+// und dieser Sammelimport (`@components/ui`) sind gleichwertig.
+export {PageHeader} from './PageHeader.tsx'
+export type {PageHeaderProps, PageHeaderBack} from './PageHeader.tsx'
+export {SectionHeader} from './SectionHeader.tsx'
+export type {SectionHeaderProps} from './SectionHeader.tsx'
+export {EmptyState} from './EmptyState.tsx'
+export type {EmptyStateProps} from './EmptyState.tsx'
+export {ErrorState} from './ErrorState.tsx'
+export type {ErrorStateProps} from './ErrorState.tsx'
+export {LoadingState} from './LoadingState.tsx'
+export type {LoadingStateProps} from './LoadingState.tsx'
+export {TableSkeleton} from './TableSkeleton.tsx'
+export type {TableSkeletonProps} from './TableSkeleton.tsx'
+export {ButtonLink, IconButtonLink, ListItemButtonLink, TextLink} from './links.tsx'
+export {visuallyHiddenSx} from './visuallyHidden.ts'

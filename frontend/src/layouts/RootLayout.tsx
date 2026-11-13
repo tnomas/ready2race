@@ -1,14 +1,11 @@
-import {Link, Outlet, useLocation, useMatchRoute} from '@tanstack/react-router'
+import {Outlet, useLocation, useMatchRoute} from '@tanstack/react-router'
 import {
     AppBar,
     Box,
-    Button,
     Chip,
-    Container,
     Divider,
     Drawer,
     IconButton,
-    Paper,
     Stack,
     Toolbar,
     Typography,
@@ -25,8 +22,41 @@ import SidebarContent from '@components/sidebar/SidebarContent.tsx'
 import {useThemeConfig} from '@contexts/theme/ThemeContext.ts'
 import Config from '../Config.ts'
 import {FullWidthLayoutContext} from './fullWidthLayout.ts'
+import {AdminThemeScope, LegacyThemeScope} from '../theme/AdminThemeScope.tsx'
+import {ButtonLink, TextLink} from '@components/ui/links.tsx'
 
-const RootLayout = () => {
+/** Innere Inhaltsbreite des Verwaltungsrahmens (der Rahmen selbst ist vollflächig). */
+const CONTENT_MAX_WIDTH = 1600
+
+/**
+ * Vollbild-Arbeitsplätze unter diesem Layout, die ihr eigenes, fertig gestaltetes Erscheinungsbild
+ * haben und deshalb das unveränderte Mandanten-Theme behalten (LegacyThemeScope): Regie,
+ * Leitstand, Zeitnahme-Posten und Startanzeige liegen als `position: fixed` über dem Rahmen.
+ * Das Schiedsrichter-Dashboard steht im Rahmen, ist aber eine Renntags-Arbeitsfläche am Steg
+ * (Tablet): unter dem Verwaltungs-Theme schrumpften alle Überschriften (Laufname, „geplant
+ * 18:06", Platzziffern) von 20,8 auf 16 px – deshalb behält auch sein Inhalt das
+ * Mandanten-Theme; nur der Rahmen (Kopfleiste, Seitenleiste, Arbeitsfläche) ist neu.
+ */
+const useIsLegacyThemeRoute = (): boolean => {
+    const matchRoute = useMatchRoute()
+    return Boolean(
+        matchRoute({to: '/event/$eventId/streamPanel'}) ||
+            matchRoute({to: '/event/$eventId/timing', fuzzy: true}) ||
+            matchRoute({to: '/event/$eventId/liveDashboard'}),
+    )
+}
+
+/**
+ * Rahmen der Verwaltungsoberfläche: Kopfleiste, Seitenleiste, Arbeitsfläche. Legt das
+ * Verwaltungs-Theme über alles darunter (siehe theme/adminTheme.ts).
+ */
+const RootLayout = () => (
+    <AdminThemeScope>
+        <RootLayoutFrame />
+    </AdminThemeScope>
+)
+
+const RootLayoutFrame = () => {
     const {t} = useTranslation()
     const theme = useTheme()
     const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -42,9 +72,10 @@ const RootLayout = () => {
     const isOnLoginRoute = matchRoute({to: '/login'})
     const isOnRegistrationRoute = matchRoute({to: '/registration'})
 
-    // Einzelne Ansichten (Veranstaltungs-Modus im Zeitplan-Tab) heben die xl-Beschränkung des
-    // Containers vorübergehend auf — siehe fullWidthLayout.ts.
+    // Einzelne Ansichten (Veranstaltungs-Modus im Zeitplan-Tab) heben die Beschränkung der
+    // Inhaltsbreite vorübergehend auf — siehe fullWidthLayout.ts.
     const [fullWidth, setFullWidth] = useState(false)
+    const legacyTheme = useIsLegacyThemeRoute()
 
     // Auto-close drawer on navigation when on mobile
     useEffect(() => {
@@ -53,119 +84,135 @@ const RootLayout = () => {
         }
     }, [location.pathname, isMobile])
 
+    const customLogo =
+        themeConfig?.customLogo?.enabled && themeConfig?.customLogo?.filename
+            ? `${Config.logosUrl}/${themeConfig.customLogo.filename}`
+            : null
+    const showModeChip = Config.mode === 'development' || Config.mode === 'test'
+
     return (
         <FullWidthLayoutContext.Provider value={setFullWidth}>
-        <Container maxWidth={fullWidth ? false : 'xl'} disableGutters={isMobile}>
-            <Paper elevation={isMobile ? 0 : 24}>
-                <Box sx={{background: t => t.palette.background.default}}>
-                    <AppBar
-                        elevation={2}
-                        sx={{
-                            position: 'static',
-                        }}>
-                        <Toolbar sx={{justifyContent: 'space-between'}}>
-                            <Stack direction={'row'} spacing={2} alignItems={'center'}>
-                                {isMobile ? (
-                                    <IconButton onClick={() => setDrawerExpanded(prev => !prev)}>
-                                        {drawerExpanded ? <MenuOpen /> : <Menu />}
-                                    </IconButton>
-                                ) : (
-                                    <>
-                                        <Box
-                                            component={'img'}
-                                            src={logo}
-                                            alt={'Ready2Race Logo'}
-                                            sx={{
-                                                height: {xs: 32, sm: 40},
-                                                width: 'auto',
-                                            }}
-                                        />
-                                        {themeConfig?.customLogo?.enabled &&
-                                            themeConfig?.customLogo?.filename && (
-                                                <>
-                                                    <Typography
-                                                        variant={'subtitle2'}
-                                                        color={'text.secondary'}>
-                                                        {t('common.for')}
-                                                    </Typography>
-                                                    <Box
-                                                        component={'img'}
-                                                        src={`${Config.logosUrl}/${themeConfig.customLogo.filename}`}
-                                                        alt={'Custom Logo'}
-                                                        sx={{
-                                                            height: {xs: 32, sm: 40},
-                                                            width: 'auto',
-                                                        }}
-                                                    />
-                                                </>
-                                            )}
-                                    </>
-                                )}
-                            </Stack>
-                            {(Config.mode === 'development' || Config.mode === 'test') && (
+            <Box
+                sx={{
+                    minHeight: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    bgcolor: 'canvas',
+                }}>
+                <AppBar position={'static'}>
+                    <Toolbar sx={{justifyContent: 'space-between', gap: 1}}>
+                        <Stack
+                            direction={'row'}
+                            spacing={{xs: 1, sm: 2}}
+                            alignItems={'center'}
+                            sx={{minWidth: 0}}>
+                            {isMobile && (
+                                <IconButton
+                                    edge={'start'}
+                                    aria-label={
+                                        drawerExpanded
+                                            ? t('navigation.sidebar.collapse')
+                                            : t('navigation.sidebar.expand')
+                                    }
+                                    aria-expanded={drawerExpanded}
+                                    onClick={() => setDrawerExpanded(prev => !prev)}>
+                                    {drawerExpanded ? <MenuOpen /> : <Menu />}
+                                </IconButton>
+                            )}
+                            <Box
+                                component={'img'}
+                                src={logo}
+                                alt={'Ready2Race Logo'}
+                                sx={{height: {xs: 24, sm: 32, md: 40}, width: 'auto'}}
+                            />
+                            {customLogo && (
+                                <>
+                                    <Typography
+                                        variant={'subtitle2'}
+                                        color={'text.secondary'}
+                                        sx={{display: {xs: 'none', sm: 'block'}}}>
+                                        {t('common.for')}
+                                    </Typography>
+                                    <Box
+                                        component={'img'}
+                                        src={customLogo}
+                                        alt={'Custom Logo'}
+                                        sx={{height: {xs: 24, sm: 32, md: 40}, width: 'auto'}}
+                                    />
+                                </>
+                            )}
+                            {showModeChip && (
                                 <Chip
+                                    size={'small'}
                                     label={Config.mode === 'development' ? 'Dev-Mode' : 'Test-Mode'}
                                     color={Config.mode === 'development' ? 'warning' : 'secondary'}
-                                    sx={{
-                                        position: 'absolute',
-                                        left: '50%',
-                                        transform: 'translateX(-50%)',
-                                        fontWeight: 'bold',
-                                    }}
+                                    sx={{fontWeight: 600}}
                                 />
                             )}
-                            <Stack direction={'row'} spacing={1}>
-                                {!languageSet && <LanguageWidget />}
-                                <UserWidget />
-                            </Stack>
-                        </Toolbar>
-                    </AppBar>
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            position: 'relative',
-                        }}>
-                        {isMobile ? (
-                            <Drawer
-                                variant="temporary"
-                                open={drawerExpanded}
-                                onClose={() => setDrawerExpanded(false)}
-                                ModalProps={{
-                                    keepMounted: true,
-                                }}
-                                className={'ready2race'}
-                                sx={{
-                                    '& .MuiDrawer-paper': {
-                                        boxSizing: 'border-box',
-                                        width: 280,
-                                    },
-                                }}>
-                                <SidebarContent
-                                    drawerExpanded={drawerExpanded}
-                                    setDrawerExpanded={setDrawerExpanded}
-                                    isSmallScreen={isMobile}
-                                />
-                            </Drawer>
-                        ) : (
+                        </Stack>
+                        <Stack direction={'row'} spacing={1} sx={{flexShrink: 0}}>
+                            {!languageSet && <LanguageWidget />}
+                            <UserWidget />
+                        </Stack>
+                    </Toolbar>
+                </AppBar>
+                <Box sx={{display: 'flex', position: 'relative', flex: 1}}>
+                    {isMobile ? (
+                        <Drawer
+                            variant="temporary"
+                            open={drawerExpanded}
+                            onClose={() => setDrawerExpanded(false)}
+                            ModalProps={{
+                                keepMounted: true,
+                            }}
+                            className={'ready2race'}
+                            sx={{
+                                '& .MuiDrawer-paper': {
+                                    boxSizing: 'border-box',
+                                    width: 280,
+                                },
+                            }}>
                             <SidebarContent
                                 drawerExpanded={drawerExpanded}
                                 setDrawerExpanded={setDrawerExpanded}
                                 isSmallScreen={isMobile}
                             />
-                        )}
+                        </Drawer>
+                    ) : (
+                        <Box sx={{display: 'flex', bgcolor: 'background.paper'}}>
+                            <SidebarContent
+                                drawerExpanded={drawerExpanded}
+                                setDrawerExpanded={setDrawerExpanded}
+                                isSmallScreen={isMobile}
+                            />
+                        </Box>
+                    )}
+                    <Stack
+                        component={'main'}
+                        sx={{
+                            padding: {xs: 2, sm: 3, md: 4},
+                            boxSizing: 'border-box',
+                            flex: 1,
+                            minWidth: 0,
+                        }}>
                         <Stack
                             sx={{
-                                padding: {xs: 2, sm: 3, md: 4},
-                                boxSizing: 'border-box',
+                                width: '100%',
+                                maxWidth: fullWidth ? 'none' : CONTENT_MAX_WIDTH,
+                                mx: 'auto',
                                 flex: 1,
-                                minWidth: 0,
                                 justifyContent: 'space-between',
                             }}>
-                            <Outlet />
+                            {legacyTheme ? (
+                                <LegacyThemeScope>
+                                    <Outlet />
+                                </LegacyThemeScope>
+                            ) : (
+                                <Outlet />
+                            )}
                             {!user.loggedIn && (
                                 <Stack
-                                    mt={2}
-                                    mb={{xs: 0, md: -2}}
+                                    mt={3}
                                     spacing={{xs: 1, sm: 2}}
                                     direction={{xs: 'column', sm: 'row'}}
                                     alignItems={'center'}
@@ -174,35 +221,33 @@ const RootLayout = () => {
                                     }
                                     justifyContent={'center'}>
                                     {!isOnLoginRoute && (
-                                        <Link to={'/login'}>
-                                            <Button endIcon={<Login />} fullWidth={isMobile}>
-                                                <Typography>{t('user.login.login')}</Typography>
-                                            </Button>
-                                        </Link>
+                                        <ButtonLink
+                                            to={'/login'}
+                                            endIcon={<Login />}
+                                            fullWidth={isMobile}>
+                                            {t('user.login.login')}
+                                        </ButtonLink>
                                     )}
                                     {!isOnRegistrationRoute && (
                                         <Stack
                                             direction={isMobile ? 'column' : 'row'}
-                                            spacing="5px"
+                                            spacing={0.5}
                                             justifyContent="center"
                                             sx={{textAlign: 'center'}}>
-                                            <Typography sx={{fontWeight: 'light'}}>
+                                            <Typography variant={'body2'} color={'text.secondary'}>
                                                 {t('user.login.signUp.message')}
                                             </Typography>
-                                            <Link to="/registration">
-                                                <Typography color={'primary'}>
-                                                    {t('user.login.signUp.link')}
-                                                </Typography>
-                                            </Link>
+                                            <TextLink to="/registration" variant={'body2'}>
+                                                {t('user.login.signUp.link')}
+                                            </TextLink>
                                         </Stack>
                                     )}
                                 </Stack>
                             )}
                         </Stack>
-                    </Box>
+                    </Stack>
                 </Box>
-            </Paper>
-        </Container>
+            </Box>
         </FullWidthLayoutContext.Provider>
     )
 }

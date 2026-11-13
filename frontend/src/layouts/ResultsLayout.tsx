@@ -1,6 +1,7 @@
 import {Outlet} from '@tanstack/react-router'
 import {Container, Box} from '@mui/material'
 import {useEffect} from 'react'
+import {AdminThemeScope} from '../theme/AdminThemeScope.tsx'
 
 const ResultsLayout = () => {
     // Die Ergebnisseite trägt Namen von Teilnehmenden und über "Mein Event" den Zustand
@@ -19,29 +20,33 @@ const ResultsLayout = () => {
         }
     }, [])
 
+    // Gleiche Designsprache wie die Verwaltung (Typo, Radien, Rahmen statt Schatten, Fokusring,
+    // lesbare Statusfarben). `.mobile-optimized-layout` behält die großen Touch-Knöpfe unter sm.
     return (
-        <Container
-            className="mobile-optimized-layout"
-            maxWidth="lg"
-            sx={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                py: {xs: 1, sm: 4},
-                px: {xs: 2, sm: 3},
-            }}>
-            <Box
-                component="main"
+        <AdminThemeScope>
+            <Container
+                className="mobile-optimized-layout"
+                maxWidth="lg"
                 sx={{
-                    width: '100%',
-                    flex: 1,
+                    minHeight: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
+                    alignItems: 'center',
+                    py: {xs: 1, sm: 4},
+                    px: {xs: 2, sm: 3},
                 }}>
-                <Outlet />
-            </Box>
-        </Container>
+                <Box
+                    component="main"
+                    sx={{
+                        width: '100%',
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}>
+                    <Outlet />
+                </Box>
+            </Container>
+        </AdminThemeScope>
     )
 }
 
