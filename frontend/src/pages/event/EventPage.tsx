@@ -7,7 +7,7 @@ import {format, parseISO} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import {useNavigate} from '@tanstack/react-router'
 import {eventIndexRoute, eventRoute} from '@routes'
-import {getEvent, getEventDays} from '@api/sdk.gen.ts'
+import {getEvent, getEventDays, getRegistrationsForEvent} from '@api/sdk.gen.ts'
 import {EventDto} from '@api/types.gen.ts'
 import {readEventGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
@@ -133,6 +133,20 @@ const EventPage = () => {
         {deps: [eventId]},
     )
 
+    // Hat der eigene Verein schon gemeldet? Verlässlich nur mit Leserecht im Umfang OWN: dann
+    // liefert die Meldungsliste genau die Meldung(en) des eigenen Vereins. Mit GLOBAL (etwa
+    // Administration mit Verein) wäre es eine Seite fremder Meldungen - dort bleibt der Knopf
+    // beim neutralen „Zur Meldung".
+    const ownRegistrationScope =
+        user.loggedIn &&
+        Boolean(user.clubId) &&
+        user.getPrivilegeScope('READ', 'REGISTRATION') === 'OWN'
+    const {data: ownRegistrations} = useFetch(
+        signal => getRegistrationsForEvent({signal, path: {eventId}, query: {limit: 1}}),
+        {preCondition: () => ownRegistrationScope, deps: [eventId, ownRegistrationScope]},
+    )
+    const hasOwnRegistration = ownRegistrationScope && (ownRegistrations?.pagination.total ?? 0) > 0
+
     useDocumentTitle(data?.name)
 
     const eventAdministration = useEntityAdministration<EventDto>(t('event.event'))
@@ -241,7 +255,7 @@ const EventPage = () => {
                         params={{eventId}}
                         variant={'contained'}
                         endIcon={<Forward />}>
-                        {t('event.registerNow')}
+                        {hasOwnRegistration ? t('event.registerEdit') : t('event.registerNow')}
                     </ButtonLink>
                 )}
             </>

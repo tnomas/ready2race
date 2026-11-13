@@ -124,7 +124,9 @@ export type EventSectionAccess = {
  * etwas:
  * - Übersicht, Wettkämpfe & Tage: alle, auch anonym.
  * - Teilnehmende: Meldungen lesen (GLOBAL oder OWN).
- * - Meldungen, Zeitplan, Einstellungen: Veranstaltung lesen (GLOBAL).
+ * - Meldungen: Veranstaltung lesen (GLOBAL) oder Meldungen lesen (OWN reicht; das Backend liefert
+ *   dann nur die Meldung des eigenen Vereins, seit 13.11.2026).
+ * - Zeitplan, Einstellungen: Veranstaltung lesen (GLOBAL).
  * - Team & Helfer: Veranstaltung UND Benutzer:innen lesen (GLOBAL).
  * - Betrieb: sobald mindestens eine Kachel sichtbar wäre (`visibleBetriebTiles`, ADR-0093).
  * - Rechnungen: irgendein Leserecht auf Rechnungen (OWN oder GLOBAL) oder Rechnungen erstellen.
@@ -141,7 +143,7 @@ export function visibleEventSections(access: EventSectionAccess): EventSection[]
         general: true,
         competitions: true,
         settings: readEvent,
-        registrations: readEvent,
+        registrations: readEvent || can(readRegistrationOwn),
         participants: can(readRegistrationGlobal) || can(readRegistrationOwn),
         invoices:
             access.getPrivilegeScope('READ', 'INVOICE') !== undefined || can(createInvoiceGlobal),
@@ -176,11 +178,15 @@ export type EventSectionGroupBlock = {
     sections: EventSection[]
 }
 
-/** Ab wie vielen sichtbaren Bereichen Gruppenüberschriften erscheinen (mehr als fünf). */
-export const EVENT_SECTION_GROUP_HEADING_THRESHOLD = 5
+/**
+ * Ab wie vielen sichtbaren Bereichen Gruppenüberschriften erscheinen (mehr als sechs). Die
+ * Vereinsvertretung hat seit 13.11.2026 sechs Bereiche (Meldungen kam dazu) und soll weiter eine
+ * schlichte Liste sehen (ADR-0103).
+ */
+export const EVENT_SECTION_GROUP_HEADING_THRESHOLD = 6
 
 /**
- * Gruppenüberschriften lohnen erst bei vielen Bereichen; ein Vereinsvertreter mit fünf
+ * Gruppenüberschriften lohnen erst bei vielen Bereichen; ein Vereinsvertreter mit sechs
  * Bereichen bekommt eine schlichte Liste.
  */
 export const showEventSectionGroupHeadings = (visible: readonly EventSection[]): boolean =>

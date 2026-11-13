@@ -767,6 +767,7 @@
     "name": "Name",
     "description": "Beschreibung",
     "registerNow": "Zur Meldung",
+    "registerEdit": "Meldung ansehen und ändern",
     "registerHere": {
       "1": " ",
       "2": "Hier",

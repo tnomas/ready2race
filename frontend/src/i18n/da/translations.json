@@ -767,6 +767,7 @@
     "name": "Navn",
     "description": "Beskrivelse",
     "registerNow": "Til tilmelding",
+    "registerEdit": "Se og ændr tilmelding",
     "registerHere": {
       "1": " ",
       "2": "Her",

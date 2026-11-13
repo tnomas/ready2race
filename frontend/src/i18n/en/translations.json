@@ -767,6 +767,7 @@
     "name": "Name",
     "description": "Description",
     "registerNow": "To Registration",
+    "registerEdit": "View and change registration",
     "registerHere": {
       "1": " You can register for the whole event ",
       "2": "here",

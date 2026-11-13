@@ -8,6 +8,8 @@ import {useEntityAdministration} from '@utils/hooks.ts'
 import {EventDto, EventRegistrationViewDto} from '@api/types.gen.ts'
 import {eventRoute} from '@routes'
 import {useTranslation} from 'react-i18next'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {readRegistrationGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 
 type Props = {
     registrationsFinalized: boolean
@@ -17,6 +19,14 @@ const EventRegistrations = (props: Props) => {
     const {t} = useTranslation()
 
     const {eventId} = eventRoute.useParams()
+    const {checkPrivilege} = useUser()
+
+    // Seit der Bereich auch Vereinen mit Leserecht OWN offensteht (sie sehen nur ihre eigene
+    // Meldung), zeigt er die Verwaltung nur denen, deren Abfragen das Backend auch beantwortet:
+    // Meldeabschluss (missingTeamNumbers, registrationResult) braucht Meldungen lesen GLOBAL,
+    // die Rundmail (mailRecipients, mail) Veranstaltung bearbeiten GLOBAL.
+    const canFinalize = checkPrivilege(readRegistrationGlobal)
+    const canMail = checkPrivilege(updateEventGlobal)
 
     const [mailDialogOpen, setMailDialogOpen] = useState(false)
 
@@ -27,24 +37,28 @@ const EventRegistrations = (props: Props) => {
 
     return (
         <Stack spacing={4}>
-            {!props.eventDto.challengeEvent && (
+            {canFinalize && !props.eventDto.challengeEvent && (
                 <FinalizeRegistrations registrationsFinalized={props.registrationsFinalized} />
             )}
-            <Box>
-                <Button startIcon={<Email />} onClick={() => setMailDialogOpen(true)}>
-                    {t('event.registration.mail.open')}
-                </Button>
-            </Box>
+            {canMail && (
+                <Box>
+                    <Button startIcon={<Email />} onClick={() => setMailDialogOpen(true)}>
+                        {t('event.registration.mail.open')}
+                    </Button>
+                </Box>
+            )}
             <EventRegistrationTable
                 {...eventRegistrationProps.table}
                 title={t('event.registration.registrations')}
                 eventId={eventId}
             />
-            <RegistrationMailDialog
-                open={mailDialogOpen}
-                onClose={() => setMailDialogOpen(false)}
-                eventId={eventId}
-            />
+            {canMail && (
+                <RegistrationMailDialog
+                    open={mailDialogOpen}
+                    onClose={() => setMailDialogOpen(false)}
+                    eventId={eventId}
+                />
+            )}
         </Stack>
     )
 }

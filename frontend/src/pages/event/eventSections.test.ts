@@ -53,7 +53,9 @@ const legacyTabs = (user: EventSectionAccess): EventSectionKey[] => {
     const c = user.checkPrivilege
     const tabs: EventSectionKey[] = ['general', 'competitions']
     if (c(o('READ', 'REGISTRATION')) || c(g('READ', 'REGISTRATION'))) tabs.push('participants')
-    if (c(g('READ', 'EVENT'))) tabs.push('registrations')
+    // Seit 13.11.2026 (P14b) auch mit Meldungen lesen OWN: das Backend liefert dann nur die
+    // eigene Meldung. Die einzige gewollte Abweichung von den alten Reiter-Regeln.
+    if (c(g('READ', 'EVENT')) || c(o('READ', 'REGISTRATION'))) tabs.push('registrations')
     if (c(g('READ', 'EVENT')) && c(g('READ', 'USER'))) tabs.push('organization')
     if (c(g('READ', 'EVENT'))) tabs.push('schedule')
     // Betrieb: mindestens eine Kachel (Stand vor der Regattabüro-Kachel)
@@ -209,10 +211,11 @@ describe('visibleEventSections je Rolle', () => {
         expect(keysOf(anonymous)).toEqual(['general', 'competitions', 'results'])
     })
 
-    test('Vereinsvertretung: Übersicht · Wettkämpfe & Tage · Teilnehmende · Rechnungen · Ergebnisse', () => {
+    test('Vereinsvertretung: Übersicht · Wettkämpfe & Tage · Meldungen · Teilnehmende · Rechnungen · Ergebnisse', () => {
         expect(keysOf(clubRepresentative)).toEqual([
             'general',
             'competitions',
+            'registrations',
             'participants',
             'invoices',
             'results',
@@ -246,6 +249,15 @@ describe('visibleEventSections je Rolle', () => {
         expect(keysOf(accessOf(o('READ', 'REGISTRATION')))).toContain('participants')
         expect(keysOf(accessOf(g('READ', 'REGISTRATION')))).toContain('participants')
         expect(keysOf(accessOf(o('CREATE', 'REGISTRATION')))).not.toContain('participants')
+    })
+
+    test('Meldungen: Veranstaltung lesen GLOBAL oder Meldungen lesen (OWN reicht)', () => {
+        // Mit OWN liefert GET /event/{id}/eventRegistration nur die Meldung des eigenen Vereins.
+        expect(keysOf(accessOf(o('READ', 'REGISTRATION')))).toContain('registrations')
+        expect(keysOf(accessOf(g('READ', 'REGISTRATION')))).toContain('registrations')
+        expect(keysOf(eventReader)).toContain('registrations')
+        expect(keysOf(accessOf(o('CREATE', 'REGISTRATION')))).not.toContain('registrations')
+        expect(keysOf(anonymous)).not.toContain('registrations')
     })
 
     test('Rechnungen: Leserecht in jedem Scope oder Erstellen-Recht', () => {
@@ -304,7 +316,7 @@ describe('visibleEventSections je Rolle', () => {
 })
 
 describe('Gruppenüberschriften', () => {
-    test('erst ab mehr als fünf sichtbaren Bereichen', () => {
+    test('erst ab mehr als sechs sichtbaren Bereichen', () => {
         expect(showEventSectionGroupHeadings(visibleEventSections(clubRepresentative))).toBe(false)
         expect(showEventSectionGroupHeadings(visibleEventSections(anonymous))).toBe(false)
         expect(showEventSectionGroupHeadings(visibleEventSections(eventReader))).toBe(true)
@@ -417,12 +429,15 @@ describe('sectionForRoute', () => {
         )
     })
 
-    test('Zusammenspiel: Verein auf der Meldestrecke landet sichtbar auf der Übersicht', () => {
+    test('Zusammenspiel: Verein auf der Meldestrecke landet in seinem Bereich „Meldungen"', () => {
+        // Bis 13.11.2026 sah der Verein den Bereich nicht und die Seitenleiste markierte die
+        // Übersicht; seit die Liste OWN liefert, ist „Meldungen" auch seiner.
         const route = sectionForRoute(`/event/${id}/register`)
         expect(route?.section).toBe('registrations')
         expect(resolveEventTab(route?.section, visibleEventSections(clubRepresentative))).toBe(
-            'general',
+            'registrations',
         )
+        expect(resolveEventTab(route?.section, visibleEventSections(anonymous))).toBe('general')
         expect(resolveEventTab(route?.section, visibleEventSections(admin))).toBe('registrations')
     })
 })
