@@ -95,7 +95,7 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
             ...(isSingle ? {} : {maxPlace: Number(formData.maxPlace)}),
         }
 
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             setSubmitting,
             () =>
                 registrationId !== undefined && competitionId !== undefined
@@ -121,6 +121,10 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
             setErrorKey(
                 awardCertificateErrorKey(isRequestNetworkError(error) ? {message: ''} : error),
             )
+            return
+        }
+        if (!downloaded) {
+            setErrorKey(awardCertificateErrorKey({message: ''}))
             return
         }
 

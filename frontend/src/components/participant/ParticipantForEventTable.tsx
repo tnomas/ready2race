@@ -503,7 +503,7 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
         entity: ParticipantForEventDto,
         format: 'pdf' | 'docx' = 'pdf',
     ) => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () =>
                 downloadCertificateOfParticipation({
@@ -522,6 +522,8 @@ const ParticipantForEventTable = ({eventData, ...props}: Props) => {
             // Bis hierher stand der englische Backend-Satz ("No results in this event for this
             // participant") mitten in der deutschen Oberfläche.
             feedback.error(t(participationCertificateErrorKey(error)))
+        } else if (!downloaded) {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 

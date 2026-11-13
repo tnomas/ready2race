@@ -65,7 +65,7 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     }
 
     const handleReportDownload = async () => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () =>
                 getRegistrationResult({
@@ -79,7 +79,7 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
 
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
-        } else if (error) {
+        } else if (error || !downloaded) {
             feedback.error(t('event.document.download.error'))
         }
     }

@@ -31,7 +31,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import AddIcon from '@mui/icons-material/Add'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {useState} from 'react'
-import {downloadBlob} from '@utils/download.ts'
+import {downloadNamed} from '@utils/download.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import ChallengeResultDialog, {
     ResultInputTeamInfo,
@@ -229,8 +229,8 @@ const ChallengePage = () => {
             feedback.error(t('common.error.network'))
         } else if (error) {
             feedback.error(t('event.competition.execution.results.document.download.error'))
-        } else if (data !== undefined) {
-            downloadBlob(data, 'proof-document.jpg')
+        } else if (!downloadNamed(data, 'proof-document.jpg')) {
+            feedback.error(t('event.competition.execution.results.document.download.error'))
         }
     }
 

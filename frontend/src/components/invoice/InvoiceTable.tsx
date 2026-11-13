@@ -111,7 +111,7 @@ const InvoiceTable = (props: Props) => {
     ]
 
     const handleDownload = async (invoiceId: string) => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () => downloadInvoice({path: {invoiceId}}),
             'invoice.pdf',
@@ -119,7 +119,7 @@ const InvoiceTable = (props: Props) => {
 
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
-        } else if (error) {
+        } else if (error || !downloaded) {
             feedback.error(t('invoice.downloadError'))
         }
     }

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {downloadBlob, downloadResponse, REVOKE_DELAY_MS, runDownload} from './download.ts'
+import {
+    downloadBlob,
+    downloadNamed,
+    downloadResponse,
+    REVOKE_DELAY_MS,
+    runDownload,
+} from './download.ts'
 
 describe('download', () => {
     let clicked: {href: string; download: string}[]
@@ -64,8 +70,27 @@ describe('download', () => {
         expect(clicked.map(c => c.download)).toEqual(['invoice.pdf', 'andere.pdf'])
     })
 
+    it('verpackt einen String auch ohne Antwort und Kopfzeilen', () => {
+        expect(downloadResponse('a;b\n', undefined, 'liste.csv')).toBe(true)
+        expect(clicked.map(c => c.download)).toEqual(['liste.csv'])
+        expect(created[0].type).toBe('')
+    })
+
+    it('downloadNamed lädt Text-Dokumente unter festem Namen und meldet Fehlschläge statt zu werfen', () => {
+        expect(downloadNamed('hallo', 'notiz.txt')).toBe(true)
+        expect(clicked.map(c => c.download)).toEqual(['notiz.txt'])
+
+        expect(downloadNamed(undefined, 'x.pdf')).toBe(false)
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        URL.createObjectURL = () => {
+            throw new TypeError('kaputt')
+        }
+        expect(downloadNamed(new Blob(['x']), 'x.pdf')).toBe(false)
+    })
+
     it('tut ohne Daten nichts', () => {
         expect(downloadResponse(undefined, new Response(null), 'x.pdf')).toBe(false)
+        expect(downloadResponse({}, new Response(null), 'x.pdf')).toBe(false)
         expect(clicked).toEqual([])
         expect(created).toEqual([])
     })
@@ -108,6 +133,49 @@ describe('download', () => {
 
             expect(outcome).toEqual({downloaded: false, error: {code: 'X'}})
             expect(clicked).toEqual([])
+        })
+
+        it('verpackt CSV-Text (String vom Client) mit dem Inhaltstyp der Antwort', async () => {
+            const response = new Response(null, {headers: {'Content-Type': 'text/csv'}})
+
+            const outcome = await runDownload(
+                undefined,
+                () => Promise.resolve({data: 'a;b\n1;2\n', response}),
+                'startliste.csv',
+            )
+
+            expect(outcome).toEqual({downloaded: true})
+            expect(clicked.map(c => c.download)).toEqual(['startliste.csv'])
+            expect(created[0]).toBeInstanceOf(Blob)
+            expect(created[0].type).toBe('text/csv')
+            expect(await created[0].text()).toBe('a;b\n1;2\n')
+        })
+
+        it('meldet eine leere Antwort (204 als {}) als nicht heruntergeladen, ohne zu werfen', async () => {
+            const outcome = await runDownload(
+                undefined,
+                () => Promise.resolve({data: {}, response: new Response(null, {status: 204})}),
+                'leer.csv',
+            )
+
+            expect(outcome).toEqual({downloaded: false})
+            expect(created).toEqual([])
+            expect(clicked).toEqual([])
+        })
+
+        it('fängt einen Wurf beim Erzeugen der Datei ab', async () => {
+            vi.spyOn(console, 'error').mockImplementation(() => {})
+            URL.createObjectURL = () => {
+                throw new TypeError('Overload resolution failed')
+            }
+
+            const outcome = await runDownload(
+                undefined,
+                () => Promise.resolve({data: new Blob(['x']), response: new Response(null)}),
+                'a.pdf',
+            )
+
+            expect(outcome).toEqual({downloaded: false})
         })
 
         it('übersetzt Netzfehler und gibt die Sperre frei', async () => {

@@ -130,7 +130,7 @@ const AwardCeremonyDialog = ({open, onClose, eventId, competitionId}: Props) => 
     const handleSubmit = async () => {
         setErrorKey(null)
 
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             setSubmitting,
             () =>
                 downloadAwardCeremonySheets({
@@ -143,6 +143,10 @@ const AwardCeremonyDialog = ({open, onClose, eventId, competitionId}: Props) => 
         if (error) {
             // Ein Netzfehler hat keinen ErrorCode und landet bei der allgemeinen Meldung.
             setErrorKey(awardCeremonyErrorKey(isRequestNetworkError(error) ? {message: ''} : error))
+            return
+        }
+        if (!downloaded) {
+            setErrorKey(awardCeremonyErrorKey({message: ''}))
             return
         }
 

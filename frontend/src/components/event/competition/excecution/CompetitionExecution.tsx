@@ -150,7 +150,6 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     const feedback = useFeedback()
     const theme = useTheme()
 
-
     const smallScreenLayout = useMediaQuery(`(max-width:${theme.breakpoints.values.md}px)`)
 
     const {eventId, competitionId} = useCompetitionScope(scope)
@@ -554,7 +553,7 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         competitionMatchId: string,
         fileType: StartListFileType,
     ) => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () =>
                 downloadStartList({
@@ -583,12 +582,14 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
+        } else if (!downloaded) {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 
     /** Die ganze Runde als eine CSV - ein Import ins Zeitnahme-System statt Lauf für Lauf. */
     const handleDownloadRoundStartList = async (setupRoundId: string) => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () =>
                 downloadRoundStartList({
@@ -614,6 +615,8 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
+        } else if (!downloaded) {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 

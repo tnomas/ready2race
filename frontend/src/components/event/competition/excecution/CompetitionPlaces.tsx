@@ -70,7 +70,7 @@ const CompetitionPlaces = () => {
     const [resultListDialogOpen, setResultListDialogOpen] = useState(false)
 
     const handleDownloadCompetitionPlacesCSV = async () => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () =>
                 downloadCompetitionPlacesCsv({
@@ -90,6 +90,8 @@ const CompetitionPlaces = () => {
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
+        } else if (!downloaded) {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 

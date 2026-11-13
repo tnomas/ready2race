@@ -4,7 +4,7 @@ import {competitionRoute, eventRoute} from '@routes'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {useMemo, useRef, useState} from 'react'
-import {downloadBlob} from '@utils/download.ts'
+import {downloadNamed} from '@utils/download.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import EntityTable from '@components/EntityTable.tsx'
 import {
@@ -872,8 +872,8 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
             feedback.error(t('common.error.network'))
         } else if (error) {
             feedback.error(t('event.competition.execution.results.document.download.error'))
-        } else if (data !== undefined) {
-            downloadBlob(data, docName)
+        } else if (!downloadNamed(data, docName)) {
+            feedback.error(t('event.competition.execution.results.document.download.error'))
         }
     }
 

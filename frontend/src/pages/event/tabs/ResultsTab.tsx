@@ -58,14 +58,14 @@ const ResultsTab = ({event}: Props) => {
     const can = (action: (typeof actions)[number]) => actions.includes(action)
 
     const handleResultsDownload = async () => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () => downloadEventResults({path: {eventId}}),
             'event-results.pdf',
         )
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
-        } else if (error) {
+        } else if (error || !downloaded) {
             feedback.error(t('event.results.downloadError'))
         }
     }
@@ -84,14 +84,14 @@ const ResultsTab = ({event}: Props) => {
     }
 
     const handleClubCertificatesDownload = async (format: 'pdf' | 'docx') => {
-        const {error} = await runDownload(
+        const {downloaded, error} = await runDownload(
             undefined,
             () => downloadCertificatesOfParticipation({path: {eventId}, query: {format}}),
             'certificates_of_participation.zip',
         )
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
-        } else if (error) {
+        } else if (error || !downloaded) {
             feedback.error(t('common.error.unexpected'))
         }
     }

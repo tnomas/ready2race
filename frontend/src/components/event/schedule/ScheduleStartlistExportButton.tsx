@@ -284,6 +284,8 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
             }
         } else if (downloaded) {
             setOpen(false)
+        } else {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 

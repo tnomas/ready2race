@@ -67,6 +67,8 @@ const OpenRequirementExportDialog = ({open, onClose, requirements}: Props) => {
 
         if (downloaded) {
             onClose()
+        } else {
+            feedback.error(t('event.participantRequirement.openExport.error'))
         }
     }
 

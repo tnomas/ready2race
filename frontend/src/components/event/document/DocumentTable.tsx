@@ -7,7 +7,7 @@ import {deleteDocument, downloadDocument, getDocuments} from '@api/sdk.gen.ts'
 import {eventIndexRoute} from '@routes'
 import {Download} from '@mui/icons-material'
 import {Box} from '@mui/material'
-import {downloadBlob} from '@utils/download.ts'
+import {downloadNamed} from '@utils/download.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
@@ -73,8 +73,8 @@ const DocumentTable = (props: BaseEntityTableProps<EventDocumentDto>) => {
             feedback.error(t('common.error.network'))
         } else if (error) {
             feedback.error(t('event.document.download.error'))
-        } else if (data !== undefined) {
-            downloadBlob(data, entity.name)
+        } else if (!downloadNamed(data, entity.name)) {
+            feedback.error(t('event.document.download.error'))
         }
     }
 

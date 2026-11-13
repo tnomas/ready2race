@@ -4,7 +4,7 @@ import {EventRegistrationDocumentTypeDto} from '@api/types.gen.ts'
 import {useMemo} from 'react'
 import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
 import {useFeedback} from '@utils/hooks.ts'
-import {downloadBlob} from '@utils/download.ts'
+import {downloadNamed} from '@utils/download.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {downloadDocument} from '@api/sdk.gen.ts'
 import {FileDownload} from '@mui/icons-material'
@@ -40,8 +40,8 @@ export const EventRegistrationConfirmDocumentsForm = (props: {
             feedback.error(t('common.error.network'))
         } else if (error) {
             feedback.error(t('event.document.download.error'))
-        } else if (data !== undefined) {
-            downloadBlob(data, name)
+        } else if (!downloadNamed(data, name)) {
+            feedback.error(t('event.document.download.error'))
         }
     }
 
