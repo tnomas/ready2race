@@ -31,6 +31,11 @@ export type BetriebTabProps = {
      * Veranstaltungsseite hängt.
      */
     switchTab: (tab: 'organization' | 'schedule') => void
+    /**
+     * Challenge-Veranstaltung: „Laufende Läufe verwalten" und „Prüfungen verwalten" entfallen
+     * (siehe `visibleBetriebActions`).
+     */
+    challengeEvent?: boolean
 }
 
 /**
@@ -50,7 +55,7 @@ export type BetriebTabProps = {
  * Welche Kacheln und Zusatzknöpfe erscheinen, entscheiden `visibleBetriebTiles` und
  * `visibleBetriebActions` (getestet) — nur Ziele, die die Person auch erreichen darf.
  */
-const BetriebTab = ({eventId, switchTab}: BetriebTabProps) => {
+const BetriebTab = ({eventId, switchTab, challengeEvent = false}: BetriebTabProps) => {
     const {t} = useTranslation()
     const user = useUser()
 
@@ -58,7 +63,7 @@ const BetriebTab = ({eventId, switchTab}: BetriebTabProps) => {
     const [checkSeverityOpen, setCheckSeverityOpen] = useState(false)
 
     const tiles = visibleBetriebTiles(user.checkPrivilege)
-    const actions = visibleBetriebActions(user.checkPrivilege)
+    const actions = visibleBetriebActions(user.checkPrivilege, {challengeEvent})
     const show = (tile: BetriebTileId) => tiles.includes(tile)
     const can = (action: BetriebActionId) => actions.includes(action)
 

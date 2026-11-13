@@ -122,6 +122,29 @@ describe('visibleBetriebActions', () => {
         ])
     })
 
+    test('Challenge-Veranstaltung: ohne Laufende Läufe und ohne Prüfungen', () => {
+        const check = checkOf(
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'USER'),
+        )
+        expect(visibleBetriebActions(check, {challengeEvent: true})).toEqual([
+            'openSchedule',
+            'openShifts',
+        ])
+        expect(visibleBetriebActions(check, {challengeEvent: false})).toEqual([
+            'manageRunningMatches',
+            'openSchedule',
+            'checkSeverity',
+            'openShifts',
+        ])
+        // ohne Angabe wie bisher (keine Challenge)
+        expect(visibleBetriebActions(check)).toEqual(
+            visibleBetriebActions(check, {challengeEvent: false}),
+        )
+    })
+
     test('jede sichtbare Aktion hat ihre Kachel sichtbar', () => {
         const all: Privilege[] = [
             p('READ', 'EVENT'),

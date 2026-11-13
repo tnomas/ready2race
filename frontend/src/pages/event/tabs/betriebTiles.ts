@@ -83,13 +83,26 @@ export const BETRIEB_ACTION_TILE: Record<BetriebActionId, BetriebTileId> = {
     openShifts: 'helpers',
 }
 
+export type BetriebActionOptions = {
+    /**
+     * Challenge-Veranstaltung: ohne Läufe in der Arena und ohne Prüfungen am Steg. Wie früher auf
+     * der Übersicht (Karten „Öffentliche Anzeigen" und „Schiedsrichter-Dashboard") entfallen dann
+     * „Laufende Läufe verwalten" und „Prüfungen verwalten".
+     */
+    challengeEvent?: boolean
+}
+
 export function visibleBetriebActions(
     checkPrivilege: (privilege: Privilege) => boolean,
+    {challengeEvent = false}: BetriebActionOptions = {},
 ): BetriebActionId[] {
     const tiles = visibleBetriebTiles(checkPrivilege)
     const actions: BetriebActionId[] = []
-    if (checkPrivilege(readEventGlobal)) actions.push('manageRunningMatches', 'openSchedule')
-    if (checkPrivilege(updateEventGlobal)) actions.push('checkSeverity')
+    if (checkPrivilege(readEventGlobal)) {
+        if (!challengeEvent) actions.push('manageRunningMatches')
+        actions.push('openSchedule')
+    }
+    if (checkPrivilege(updateEventGlobal) && !challengeEvent) actions.push('checkSeverity')
     if (checkPrivilege(readEventGlobal) && checkPrivilege(readUserGlobal))
         actions.push('openShifts')
     return actions.filter(action => tiles.includes(BETRIEB_ACTION_TILE[action]))
