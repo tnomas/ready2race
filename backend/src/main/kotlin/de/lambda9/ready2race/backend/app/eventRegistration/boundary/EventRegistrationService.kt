@@ -730,25 +730,13 @@ object EventRegistrationService {
         val competitions =
             !CompetitionRepo.getByIds(request.registerToSingleCompetitions.map { it.competitionId }).orDie()
 
-        // Validate competitions exist and belong to event
-        !CompetitionRegistrationValidation.validateCompetitionConsistency(
+        val openForRegistrationType = !CompetitionRegistrationValidation.validateSelfRegistration(
+            eventId = eventId,
             expectedCount = request.registerToSingleCompetitions.size,
-            actualCompetitions = competitions,
-            eventId = eventId
+            competitions = competitions,
         )
 
-        // Validate single competitions
-        !CompetitionRegistrationValidation.validateSingleCompetitions(competitions)
-
         val event = !EventRepo.get(eventId).orDie().onNullDie("Competition should reference the event")
-
-        !KIO.failOn(event.participantSelfRegistration == false) {
-            EventRegistrationError.SelfRegistrationNotAllowed
-        }
-
-        val openForRegistrationType = !EventService.getOpenForRegistrationType(eventId).failIf({
-            it == OpenForRegistrationType.CLOSED
-        }) { EventRegistrationError.RegistrationClosed }
 
         // Get rating category restrictions
         val (ratingCategoryAgeRestrictions, ratingCategoryExistsForEvent) =

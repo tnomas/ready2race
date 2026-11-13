@@ -387,12 +387,15 @@ object AppUserService {
             }
             val eventId = competitions.first().event!!
 
-            // Validate single competitions
-            !CompetitionRegistrationValidation.validateSingleCompetitions(competitions)
-
-            !EventService.getOpenForRegistrationType(eventId).failIf({
-                it == OpenForRegistrationType.CLOSED
-            }) { EventRegistrationError.RegistrationClosed }
+            // Dieselben Bedingungen wie bei der Teilnehmer-Selbstmeldung: alle Wettkämpfe aus
+            // DIESER Veranstaltung, Einer, Selbstmeldung erlaubt, veröffentlicht und offen.
+            // Vorher ließ sich ein Wettkampf einer geschlossenen oder unveröffentlichten
+            // Veranstaltung an die Meldung einer offenen hängen.
+            !CompetitionRegistrationValidation.validateSelfRegistration(
+                eventId = eventId,
+                expectedCount = request.registerToSingleCompetitions.size,
+                competitions = competitions,
+            )
 
             // Get rating category restrictions
             val (ratingCategoryAgeRestrictions, ratingCategoryExistsForEvent) =
@@ -594,6 +597,14 @@ object AppUserService {
                 val competitions = !CompetitionRepo.getByIds(competitionRegistrations.map { it.competitionId }).orDie()
                 val eventId = competitions.first().event!!
 
+                // Zwischen Registrierung und Bestätigung kann die Veranstaltung schließen oder die
+                // Selbstmeldung abschalten - deshalb hier noch einmal alles.
+                val openForRegistrationType = !CompetitionRegistrationValidation.validateSelfRegistration(
+                    eventId = eventId,
+                    expectedCount = competitionRegistrations.size,
+                    competitions = competitions,
+                )
+
                 val eventRegistration = !EventRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
                 val eventRegistrationId = if (eventRegistration == null) {
                     !EventRegistrationRepo.create(
@@ -611,11 +622,6 @@ object AppUserService {
                         )
                     ).orDie()
                 } else eventRegistration.id!!
-
-
-                val openForRegistrationType = !EventService.getOpenForRegistrationType(eventId).failIf({
-                    it == OpenForRegistrationType.CLOSED
-                }) { EventRegistrationError.RegistrationClosed }
 
                 val event = !EventRepo.get(eventId).orDie()
                     .onNullDie("Event must be provided")
