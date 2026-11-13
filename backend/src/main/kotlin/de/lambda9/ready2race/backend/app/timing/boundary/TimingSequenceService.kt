@@ -756,7 +756,42 @@ object TimingSequenceService {
             planned != null && planned <= now
         }
 
-        val fired = !due.traverse { entry -> fireEntry(sequence, entry) }
+        val firedEntries = !due.traverse { entry -> fireEntry(sequence, entry) }
+
+        // Übernahme und Zwischenzeiten EINMAL für alle eben gefeuerten Boote. Bis Ende 2026 lief
+        // beides in fireEntry je Eintrag: ein Massenstart mit zehn Booten las zwanzigmal alle
+        // Marken der Veranstaltung, in derselben Transaktion und unter den Eintragssperren (BB-09).
+        // Das Ergebnis ist dasselbe - die Marken stehen bei diesem einen Aufruf schon alle da.
+        //
+        // Bewusst recomputeAndApply statt recomputeApplyAndBroadcast: dies läuft in der
+        // Scheduler-Transaktion, wo kein AfterCommit-Puffer installiert ist (siehe FireResult) -
+        // ein dort registrierter Broadcast ginge VOR dem Commit raus. Die geänderten Zeilen wandern
+        // stattdessen im FireResult nach draußen und werden von broadcastFireResult gesendet; der
+        // bündelt sie je Veranstaltung, deshalb hängt der ganze Ausgang am ersten Eintrag.
+        //
+        // Die gefeuerten Startmarken sind der Bezugspunkt aller Zwischenzeiten ihrer Boote - hat ein
+        // verworfener Versuch noch welche stehen lassen, räumt die Übernahme sie hier ab. Ihr
+        // Rückgabewert wird bewusst verworfen: der EventChangeMarker-Bump darf in dieser
+        // Scheduler-Transaktion nicht laufen, und die Anzeigen holen die Zeilen spätestens mit dem
+        // nächsten Bump - vor dem Start hat ohnehin kein Boot eine Zwischenzeit.
+        val fired = if (firedEntries.isEmpty()) {
+            firedEntries
+        } else {
+            val applyOutcome = !TimingOfficialTimeService.recomputeAndApply(
+                sequence.event,
+                due.map { it.competitionMatchTeam },
+                sequence.createdBy,
+            )
+            !TimingSplitService.recomputeEvent(sequence.event, sequence.createdBy)
+            firedEntries.mapIndexed { index, entry ->
+                if (index == 0) {
+                    entry.copy(
+                        changedOfficialTimes = applyOutcome.officialTimes,
+                        resultsWritten = applyOutcome.resultsWritten,
+                    )
+                } else entry
+            }
+        }
 
         // Everything that was pending and did not just fire is what remains; a sequence with
         // nothing left (all started or skipped) is finished. Der Übergang schreibt nur aus
@@ -834,32 +869,15 @@ object TimingSequenceService {
         // change what the team's official time would compute to. Die Echtzeit-Übernahme rechnet
         // deshalb in derselben Transaktion nach und schreibt ggf. zurück.
         //
-        // Bewusst recomputeAndApply statt recomputeApplyAndBroadcast: dies läuft in der
-        // Scheduler-Transaktion, wo kein AfterCommit-Puffer installiert ist (siehe FireResult) -
-        // ein dort registrierter Broadcast ginge VOR dem Commit raus. Die geänderten Zeilen wandern
-        // stattdessen im FireResult nach draußen und werden von broadcastFireResult gesendet.
-        val applyOutcome = !TimingOfficialTimeService.recomputeAndApply(
-            sequence.event,
-            listOf(entry.competitionMatchTeam),
-            sequence.createdBy,
-        )
-
-        // Die gefeuerte Startmarke ist der Bezugspunkt aller Zwischenzeiten ihres Bootes - hat ein
-        // verworfener Versuch noch welche stehen lassen, räumt die Übernahme sie hier ab. Ihr
-        // Rückgabewert wird bewusst verworfen: Der EventChangeMarker-Bump darf in dieser
-        // Scheduler-Transaktion nicht laufen (siehe oben), und die Anzeigen holen die Zeilen
-        // spätestens mit dem nächsten Bump - vor dem Start hat ohnehin kein Boot eine
-        // Zwischenzeit.
-        !TimingSplitService.recomputeEvent(sequence.event, sequence.createdBy)
+        // Übernahme und Zwischenzeiten laufen NICHT hier je Eintrag, sondern einmal je Sequenz in
+        // [fireSequence] über alle gefeuerten Boote (siehe dort).
 
         KIO.ok(
             FiredEntry(
                 sequenceId = sequence.id,
                 entryId = entry.id,
                 mark = timeMarkDto(mark, entry.competitionMatchTeam),
-                changedOfficialTimes = applyOutcome.officialTimes,
                 matchStamped = matchStamped,
-                resultsWritten = applyOutcome.resultsWritten,
             )
         )
     }
