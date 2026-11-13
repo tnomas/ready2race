@@ -39,6 +39,7 @@ import de.lambda9.ready2race.backend.app.webDAV.boundary.webDAV
 import de.lambda9.ready2race.backend.app.workType.boundary.workType
 import de.lambda9.ready2race.backend.config.Config
 import de.lambda9.ready2race.backend.dev.devRoutes
+import de.lambda9.ready2race.backend.health.health
 import io.ktor.server.application.*
 import io.ktor.server.plugins.swagger.*
 import io.ktor.server.routing.*
@@ -48,6 +49,7 @@ fun Application.configureRouting(config: Config, env: JEnv) {
         route("/api") {
             swaggerUI(path = "documentation")
             devRoutes(config)
+            health()
             auth()
             user()
             role()
