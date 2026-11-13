@@ -24,7 +24,7 @@ export const EventRegistrationTeamCompetitionForm = () => {
         const allCategories = new Set(info?.competitionsTeam.map(c => c.competitionCategory))
         if (allCategories.size > 1) {
             return (
-                <Alert icon={<FilterAlt />} color={'info'} sx={{mB: 2}}>
+                <Alert icon={<FilterAlt />} color={'info'} sx={{mb: 2}}>
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={1} alignItems={'center'}>
                         <Typography>{t('event.competition.category.category')}</Typography>
                         <ToggleButtonGroup

@@ -1,7 +1,7 @@
 import {CheckboxButtonGroup, useFieldArray, useFormContext, useWatch} from 'react-hook-form-mui'
-import {Box, Button, Divider, IconButton, Paper, Stack} from '@mui/material'
+import {Box, Button, Chip, Divider, IconButton, Paper, Stack, Typography} from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
-import {GroupAdd} from '@mui/icons-material'
+import {GroupAdd, Lock} from '@mui/icons-material'
 import {v4 as uuid} from 'uuid'
 import {
     EventRegistrationCompetitionDto,
@@ -93,6 +93,23 @@ const TeamInput = (props: {
     return (
         <Paper sx={{p: {xs: 1, sm: 2}}}>
             <Stack rowGap={2}>
+                <Stack
+                    direction={'row'}
+                    spacing={1}
+                    alignItems={'center'}
+                    flexWrap={'wrap'}
+                    useFlexGap>
+                    <Typography variant={'subtitle2'} component={'h4'}>
+                        {t('event.registration.teamNumber', {number: props.teamIndex + 1})}
+                    </Typography>
+                    {props.locked && (
+                        <Chip
+                            size={'small'}
+                            icon={<Lock fontSize={'small'} />}
+                            label={t('event.registration.review.locked')}
+                        />
+                    )}
+                </Stack>
                 <Stack spacing={2}>
                     {props.competition.namedParticipant?.map(
                         (namedParticipant, namedParticipantIndex) => (
@@ -179,6 +196,7 @@ const EventRegistrationTeamsForm = (props: {
     competition: EventRegistrationCompetitionDto
     isLate: boolean
 }) => {
+    const {t} = useTranslation()
     const formContext = useFormContext<EventRegistrationFormData>()
 
     const {
@@ -225,12 +243,22 @@ const EventRegistrationTeamsForm = (props: {
                         locked={team.locked}
                     />
                 ))}
+                {teams.length === 0 && (
+                    <Typography variant={'body2'} color={'text.secondary'}>
+                        {props.isLate && !props.competition.lateRegistrationAllowed
+                            ? t('event.registration.noLateRegistration')
+                            : t('event.registration.noTeamYet')}
+                    </Typography>
+                )}
                 <Button
+                    variant={'outlined'}
+                    startIcon={<GroupAdd />}
                     disabled={props.isLate && !props.competition.lateRegistrationAllowed}
                     sx={{
                         minHeight: '44px',
                         cursor: 'pointer',
                         width: {xs: '100%', sm: 'auto'},
+                        alignSelf: 'flex-start',
                     }}
                     onClick={() => {
                         append({
@@ -242,7 +270,7 @@ const EventRegistrationTeamsForm = (props: {
                             ratingCategory: props.competition.ratingCategoryRequired ? '' : 'none',
                         })
                     }}>
-                    <GroupAdd />
+                    {t('event.registration.addTeam')}
                 </Button>
             </Stack>
             <Divider />

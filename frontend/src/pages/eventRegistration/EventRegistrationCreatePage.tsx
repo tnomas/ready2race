@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {useForm} from 'react-hook-form-mui'
 import {
     addEventRegistration,
@@ -17,7 +17,17 @@ import {ButtonLink, PageHeader} from '@components/ui'
 import {buildEventTrail} from '@utils/navigation/breadcrumbs.ts'
 import EventRegistrationForm from '../../components/eventRegistration/EventRegistrationForm.tsx'
 import EventRegistrationProvider from '@contexts/eventRegistration/EventRegistrationProvider.tsx'
-import {useNavigate} from '@tanstack/react-router'
+import {useBlocker, useNavigate} from '@tanstack/react-router'
+import {Alert, Box, Button, Stack} from '@mui/material'
+import {runRequest} from '@utils/request.ts'
+import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
+import {shouldConfirmDiscard} from '@utils/entityDialog.ts'
+import {
+    buildRegistrationSummary,
+    formatAmount,
+    RegistrationSummary,
+    submitErrorKey,
+} from '@components/eventRegistration/eventRegistrationLogic.ts'
 
 export type CompetitionRegistrationSingleFormData = CompetitionRegistrationSingleUpsertDto & {
     locked: boolean
@@ -88,9 +98,14 @@ const EventRegistrationCreatePage = () => {
     // const user = useUser() // TODO use later for explicit clubId
     const feedback = useFeedback()
     const [registrationWasSuccessful, setRegistrationWasSuccessful] = useState<boolean>(false)
+    const [submitting, setSubmitting] = useState(false)
+    const submittingRef = useRef(false)
+    const [submitError, setSubmitError] = useState<string | null>(null)
+    const [submittedSummary, setSubmittedSummary] = useState<RegistrationSummary | null>(null)
+    const confirmation = useConfirmation()
     const {eventId} = eventRegisterRoute.useParams()
 
-    const {data} = useFetch(
+    const {data, reload} = useFetch(
         signal => getEventRegistrationTemplate({signal, path: {eventId: eventId}}),
         {
             onResponse: ({error}) => {
@@ -103,42 +118,30 @@ const EventRegistrationCreatePage = () => {
         },
     )
 
-    const onSubmit = () => {
-        addEventRegistration({
-            path: {eventId: eventId},
-            body: formDataToRequest(formContext.getValues()),
-        }).then(({error}) => {
-            if (error) {
-                if (error.status.value === 404)
-                    feedback.error(t('common.error.notFound', {entity: t('event.event')}))
-                else if (error.status.value === 403) feedback.error(t('common.error.unauthorized'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_CLOSED')
-                    feedback.error(t('event.registration.error.closed'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_UPSERT_PARTICIPANT_NOT_FOUND')
-                    feedback.error(t('event.registration.error.participantUpsertNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_TEAM_PARTICIPANT_NOT_FOUND')
-                    feedback.error(t('event.registration.error.teamParticipantNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_COMPETITION_NOT_FOUND')
-                    feedback.error(t('event.registration.error.competitionNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_NAMED_PARTICIPANT_NOT_FOUND')
-                    feedback.error(t('event.registration.error.namedParticipantNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_FEE_NOT_FOUND')
-                    feedback.error(t('event.registration.error.feeNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_RATING_CATEGORY_NOT_FOUND')
-                    feedback.error(t('event.registration.error.ratingCategoryNotFound'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_RATING_CATEGORY_MISSING')
-                    feedback.error(t('event.registration.error.ratingCategoryMissing'))
-                else if (error.errorCode === 'EVENT_REGISTRATION_AGE_REQUIREMENT_NOT_MET')
-                    feedback.error(t('event.registration.error.ageRequirementNotMet'))
-                else if (
-                    error.errorCode === 'EVENT_REGISTRATION_PARTICIPANT_DUPLICATE_IN_COMPETITION'
-                )
-                    feedback.error(t('event.registration.error.participantDuplicateInCompetition'))
-                else feedback.error(t('common.error.unexpected'))
-            } else {
-                setRegistrationWasSuccessful(true)
-            }
-        })
+    const onSubmit = async () => {
+        // Sperre gegen Doppelklick, bevor der nächste Render den Knopf deaktiviert.
+        if (submittingRef.current) return
+        submittingRef.current = true
+        setSubmitError(null)
+        const values = formContext.getValues()
+        const {error} = await runRequest(setSubmitting, () =>
+            addEventRegistration({
+                path: {eventId: eventId},
+                body: formDataToRequest(values),
+            }),
+        )
+        submittingRef.current = false
+        const key = submitErrorKey(error)
+        if (key !== null) {
+            // Eingaben bleiben stehen: Fehler beheben und erneut absenden.
+            const message =
+                key === 'common.error.notFound' ? t(key, {entity: t('event.event')}) : t(key)
+            feedback.error(message)
+            setSubmitError(message)
+        } else {
+            setSubmittedSummary(buildRegistrationSummary(values, data?.info ?? null))
+            setRegistrationWasSuccessful(true)
+        }
     }
 
     const registrationInfo = useMemo(() => data?.info ?? null, [data?.info])
@@ -148,6 +151,30 @@ const EventRegistrationCreatePage = () => {
             participants: [],
             competitionRegistrations: [],
         },
+    })
+
+    // Ungespeicherte Eingaben: Verlassen (Link, Zurück, Neuladen) fragt nach, wie in den Dialogen.
+    const isDirty = formContext.formState.isDirty
+    const blockLeaving = shouldConfirmDiscard({
+        enabled: !registrationWasSuccessful,
+        dirty: isDirty,
+        submitting,
+    })
+    useBlocker({
+        shouldBlockFn: () =>
+            blockLeaving
+                ? new Promise<boolean>(resolve =>
+                      confirmation.confirmAction(() => resolve(false), {
+                          title: t('entity.discard.title'),
+                          content: t('event.registration.leave.content'),
+                          okText: t('event.registration.leave.ok'),
+                          cancelText: t('entity.discard.keep'),
+                          destructive: true,
+                          cancelAction: () => resolve(true),
+                      }),
+                  )
+                : false,
+        enableBeforeUnload: () => blockLeaving,
     })
 
     useEffect(() => {
@@ -223,34 +250,84 @@ const EventRegistrationCreatePage = () => {
 
     return (
         <EventRegistrationProvider info={registrationInfo}>
-            <PageHeader
-                title={t('event.registration.registration')}
-                subtitle={registrationInfo?.name}
-                breadcrumbs={buildEventTrail({
-                    eventsLabel: t('navigation.titles.events'),
-                    eventId,
-                    eventName: registrationInfo?.name,
-                    trail: [{label: t('event.registration.registration')}],
-                })}
-            />
-            {registrationWasSuccessful ? (
-                <Result
-                    status={'SUCCESS'}
-                    title={t('event.registration.success.title')}
-                    subtitle={t('event.registration.success.subtitle')}
-                    extra={
-                        <ButtonLink
-                            to={'/event/$eventId'}
-                            params={{eventId}}
-                            variant={'contained'}
-                            sx={{mt: 1}}>
-                            {t('event.registration.success.toEvent')}
-                        </ButtonLink>
-                    }
+            {/* Ein Wurzelelement: das Layout verteilt seine Kinder sonst über die volle Höhe. */}
+            <Box>
+                <PageHeader
+                    title={t('event.registration.page.title')}
+                    subtitle={registrationInfo?.name}
+                    breadcrumbs={buildEventTrail({
+                        eventsLabel: t('navigation.titles.events'),
+                        eventId,
+                        eventName: registrationInfo?.name,
+                        trail: [{label: t('event.registration.page.title')}],
+                    })}
                 />
-            ) : (
-                <EventRegistrationForm onSubmit={onSubmit} formContext={formContext} />
-            )}
+                {registrationWasSuccessful ? (
+                    <Result
+                        status={'SUCCESS'}
+                        title={t('event.registration.success.title')}
+                        subtitle={[
+                            submittedSummary &&
+                                t('event.registration.success.entries', {
+                                    count:
+                                        submittedSummary.openEntries +
+                                        submittedSummary.lockedEntries,
+                                }),
+                            submittedSummary &&
+                                submittedSummary.fees.regular + submittedSummary.fees.late > 0 &&
+                                t('event.registration.success.amount', {
+                                    amount: formatAmount(
+                                        submittedSummary.fees.regular + submittedSummary.fees.late,
+                                    ),
+                                }),
+                            t('event.registration.success.subtitle'),
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        extra={
+                            // Zwei Wege statt einer Sackgasse. „Ansehen und bearbeiten" führt zurück in
+                            // dieses Formular, frisch vom Server geladen: Es ist der Ort, an dem ein
+                            // Verein seine Meldung sieht und ändert (die Meldungsliste der
+                            // Veranstaltung ist der Veranstaltung vorbehalten).
+                            <Stack
+                                direction={{xs: 'column', sm: 'row'}}
+                                spacing={1}
+                                sx={{mt: 1}}
+                                justifyContent={'center'}>
+                                <ButtonLink
+                                    to={'/event/$eventId'}
+                                    params={{eventId}}
+                                    variant={'contained'}>
+                                    {t('event.registration.success.toEvent')}
+                                </ButtonLink>
+                                <Button
+                                    variant={'outlined'}
+                                    sx={{cursor: 'pointer'}}
+                                    onClick={() => {
+                                        reload()
+                                        setSubmittedSummary(null)
+                                        setRegistrationWasSuccessful(false)
+                                    }}>
+                                    {t('event.registration.success.editRegistration')}
+                                </Button>
+                            </Stack>
+                        }
+                    />
+                ) : (
+                    <Stack spacing={2}>
+                        {submitError && (
+                            <Alert severity={'error'} onClose={() => setSubmitError(null)}>
+                                {submitError}
+                            </Alert>
+                        )}
+                        <EventRegistrationForm
+                            onSubmit={onSubmit}
+                            formContext={formContext}
+                            submitting={submitting}
+                        />
+                    </Stack>
+                )}
+            </Box>
         </EventRegistrationProvider>
     )
 }
