@@ -123,6 +123,16 @@ object TimingSequenceRepo {
     fun update(id: UUID, f: TimingStartSequenceRecord.() -> Unit) = TIMING_START_SEQUENCE.update(f) { ID.eq(id) }
 
     /**
+     * Liest die Sequenzzeile mit Zeilensperre (FOR UPDATE). Jede Zustandsmutation nimmt diese
+     * Sperre, bevor sie über den Zustand entscheidet: das `update { }` oben liest ohne Sperre und
+     * schreibt per Primärschlüssel zurück, ein gleichzeitiger Abbruch würde sonst von einem
+     * Fortsetzen oder Starten mit RUNNING überschrieben.
+     */
+    fun getForUpdate(id: UUID): JIO<TimingStartSequenceRecord?> = Jooq.query {
+        selectFrom(TIMING_START_SEQUENCE).where(TIMING_START_SEQUENCE.ID.eq(id)).forUpdate().fetchOne()
+    }
+
+    /**
      * Zustandswechsel mit Vorbedingung: schreibt [new] nur, wenn die Zeile gerade in [expected]
      * steht, und liefert die Zahl der geänderten Zeilen (0 oder 1).
      *

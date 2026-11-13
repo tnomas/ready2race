@@ -300,7 +300,7 @@ object TimingSequenceService {
         userId: UUID,
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        val sequence = !lockSequenceRowOfEvent(sequenceId, eventId)
         !KIO.failOn(sequence.stateEnum != SequenceState.ARMED) { TimingError.SequenceStateConflict }
 
         // The server's clock is the record: every board derives its countdown from this instant plus
@@ -432,7 +432,7 @@ object TimingSequenceService {
         userId: UUID,
         eventId: UUID,
     ): App<TimingError, ApiResponse.NoData> = KIO.comprehension {
-        val sequence = !getSequenceOfEvent(sequenceId, eventId)
+        val sequence = !lockSequenceRowOfEvent(sequenceId, eventId)
         !KIO.failOn(sequence.stateEnum != SequenceState.PAUSED) { TimingError.SequenceStateConflict }
 
         val pausedAt = sequence.pausedAtMillis
@@ -836,13 +836,36 @@ object TimingSequenceService {
     ): App<TimingError, TimingStartSequenceRecord> =
         lockAndGetSequenceOfEventWithPending(sequenceId, eventId).map { it.first }
 
+    /**
+     * Nur die Sequenzzeile sperren (ohne die Einträge) - für Starten (ARMED) und Fortsetzen
+     * (PAUSED): in diesen Zuständen feuert der Tick nichts, es gibt also keinen Takt, gegen den die
+     * Einträge geschützt werden müssten. Gegen einen gleichzeitigen Abbruch reicht die Zeilensperre,
+     * die auch [lockAndGetSequenceOfEventWithPending] nimmt: der zweite Weg wartet und entscheidet
+     * über den committeten Zustand.
+     */
+    private fun lockSequenceRowOfEvent(
+        sequenceId: UUID,
+        eventId: UUID,
+    ): App<TimingError, TimingStartSequenceRecord> = KIO.comprehension {
+        !getSequenceOfEvent(sequenceId, eventId)
+        val current = !TimingSequenceRepo.getForUpdate(sequenceId).orDie()
+            .onNullFail { TimingError.SequenceNotFound }
+        KIO.ok(current)
+    }
+
     private fun lockAndGetSequenceOfEventWithPending(
         sequenceId: UUID,
         eventId: UUID,
     ): App<TimingError, Pair<TimingStartSequenceRecord, List<TimingStartSequenceEntryRecord>>> = KIO.comprehension {
         !getSequenceOfEvent(sequenceId, eventId)
         val pending = !TimingSequenceEntryRepo.getPendingForUpdate(sequenceId).orDie()
-        val current = !getSequenceOfEvent(sequenceId, eventId)
+        // Zusätzlich die Sequenzzeile selbst: die Eintragssperre greift nur, solange es noch
+        // anstehende Einträge gibt, und Mutation gegen Mutation (Abbruch gegen Fortsetzen oder
+        // Starten) muss auch dann serialisieren. Reihenfolge wie der Tick (erst Einträge, dann
+        // Sequenz über updateStateIf) - so verklemmen sich die beiden nicht.
+        val current = !TimingSequenceRepo.getForUpdate(sequenceId).orDie()
+            .onNullFail { TimingError.SequenceNotFound }
+        !KIO.failOn(current.event != eventId) { TimingError.EventMismatch }
         KIO.ok(current to pending)
     }
 
