@@ -31,6 +31,7 @@
     "deselectAll": "Deselect all",
     "error": {
       "unexpected": "An unexpected error has occurred. Please try again later.",
+      "network": "No connection to the server. Please check your internet connection and try again.",
       "tooManyRequests": "Too many requests. Try again in {{val, relativetime(minute)}}.",
       "upload": {
         "unsupportedType": "This file type is not supported.",
@@ -377,7 +378,28 @@
     },
     "delete": {
       "success": "{{entity}} deleted",
-      "error": "An error has occurred when deleting {{entity}}"
+      "error": "An error has occurred when deleting {{entity}}",
+      "confirmTitle": "Delete {{entity}}?",
+      "confirmNamed": "“{{name}}” will be permanently deleted. This cannot be undone.",
+      "confirmGeneric": "The entry will be permanently deleted. This cannot be undone."
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "content": "Your entries have not been saved yet and will be lost when you close.",
+      "ok": "Discard",
+      "keep": "Keep editing"
+    },
+    "empty": {
+      "title": "No entries yet.",
+      "search": "No results for “{{query}}”.",
+      "resetSearch": "Reset search"
+    },
+    "search": {
+      "clear": "Clear search"
+    },
+    "card": {
+      "more": "More details ({{count}})",
+      "less": "Show less"
     },
     "description": "Description",
     "createdAt": "Created at",
@@ -397,7 +419,11 @@
     "color": "Color"
   },
   "nav": {
+    "mainLabel": "Main navigation",
+    "management": "Administration",
     "event": {
+      "areasLabel": "Event sections",
+      "fallbackName": "Event",
       "sectionSelect": "Section",
       "groups": {
         "preparation": "Preparation",
@@ -455,6 +481,7 @@
     }
   },
   "club": {
+    "editClub": "Edit club",
     "tabs": {
       "clubs": "Clubs",
       "shortNames": "Short names",
@@ -532,6 +559,7 @@
     "participants": "Members",
     "representative": {
       "representatives": "Representatives",
+      "noRepresentatives": "Nobody is registered for this club yet.",
       "pendingApprovals": "Pending Approvals",
       "approve": {
         "approve": "Approve",
@@ -764,6 +792,7 @@
       "shortLabels": "Short names instead of full competition names",
       "compact": "Compact view",
       "deviceHint": "All settings apply to this device only.",
+      "jumpTo": "Jump to",
       "execution": {
         "title": "Execution",
         "hint": "How matches are finished and following rounds are created on race day, and how often the execution page keeps itself up to date. Applies to the whole event, not just this device."
@@ -1604,7 +1633,8 @@
       "finish": "Submit registration",
       "success": {
         "title": "Registration successful!",
-        "subtitle": "You will receive a confirmation by e-mail."
+        "subtitle": "You will receive a confirmation by e-mail.",
+        "toEvent": "Back to the event"
       },
       "error": {
         "closed": "Registration for this event is closed",
@@ -1917,10 +1947,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Public displays",
-      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
-      "manageInfoViews": "Manage boards",
-      "manageStreamScenes": "Manage livestream scenes",
       "pendingRound": "Race not yet set",
       "freeSlot": "Schedule item",
       "athleteBoard": {
@@ -2004,9 +2030,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Referee dashboard",
-      "pageDescription": "Live view for referees with running and upcoming matches, participant requirements, and invoice status.",
-      "open": "Open referee dashboard",
       "title": "Referee dashboard",
       "tabs": {
         "live": "Live",
@@ -2420,7 +2443,37 @@
     },
     "results": {
       "download": "Download previous results",
-      "downloadError": "Die datei konnte nicht heruntergeladen werden."
+      "downloadError": "Die datei konnte nicht heruntergeladen werden.",
+      "public": {
+        "title": "Public results",
+        "description": "The results page for participants and spectators, available without signing in."
+      },
+      "documents": {
+        "title": "Download results and certificates",
+        "description": "Result list, award ceremony sheet and winner certificates as documents for notice boards, the ceremony and the archive."
+      },
+      "participation": {
+        "title": "Certificates of participation",
+        "description": "Once the challenge has ended: send certificates to all participants or download those of your own club."
+      }
+    },
+    "overview": {
+      "loadError": "The event could not be loaded.",
+      "notFound": "This event does not exist or is not visible to you.",
+      "registration": {
+        "open": "Registration open",
+        "late": "Late registration",
+        "closed": "Registration closed"
+      },
+      "raceDay": {
+        "title": "Race day",
+        "description": "Race office, referee dashboard, speaker board, displays, livestream, timing and the helper app are all gathered under Operations.",
+        "open": "Go to Operations"
+      },
+      "results": {
+        "description": "Public results page, downloadable results and certificates.",
+        "open": "Go to Results & certificates"
+      }
     },
     "ratingCategory": {
       "title": "Rating categories",
@@ -3158,32 +3211,99 @@
     }
   },
   "job": {
-    "SUPERADMIN": {"name": "Superadmin", "description": "Runs the installation. The only role that can see and assign superadmin accounts."},
-    "ADMIN": {"name": "Admin", "description": "Everything except superadmin accounts."},
-    "USER": {"name": "User", "description": "Read and change own account. Held by every account."},
-    "CLUB_REPRESENTATIVE": {"name": "Club representative", "description": "Own club, own registrations, invoices and results."},
-    "COMPETITION_MANAGEMENT": {"name": "Competition management", "description": "Event, competitions, execution and day-of team."},
-    "REGISTRATION_OFFICE": {"name": "Registration office", "description": "Review registrations and rebook."},
-    "FINANCE": {"name": "Finance", "description": "Invoices and bank accounts."},
-    "JUDGE": {"name": "Judge", "description": "Penalties, clarification, judge dashboard."},
-    "TIMEKEEPER": {"name": "Timekeeper", "description": "Stations, sequences and timing connection."},
-    "ANNOUNCER": {"name": "Announcer", "description": "Boards and announcer dashboard."},
-    "STREAM_DIRECTOR": {"name": "Stream director", "description": "Livestream graphics and director board."},
-    "HELPER_REQUIREMENTS": {"name": "Helper: requirements", "description": "Check participant requirements."},
-    "HELPER_ACCESS_PASS": {"name": "Helper: access passes", "description": "Issue wristbands and QR codes."},
-    "HELPER_CHECK_IN": {"name": "Helper: check-in", "description": "Check-in, check-out and competition check."},
-    "HELPER_CATERING": {"name": "Helper: catering", "description": "Serve catering."}
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Runs the installation. The only role that can see and assign superadmin accounts."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Everything except superadmin accounts."
+    },
+    "USER": {
+      "name": "User",
+      "description": "Read and change own account. Held by every account."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Club representative",
+      "description": "Own club, own registrations, invoices and results."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Competition management",
+      "description": "Event, competitions, execution and day-of team."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Registration office",
+      "description": "Review registrations and rebook."
+    },
+    "FINANCE": {
+      "name": "Finance",
+      "description": "Invoices and bank accounts."
+    },
+    "JUDGE": {
+      "name": "Judge",
+      "description": "Penalties, clarification, judge dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Timekeeper",
+      "description": "Stations, sequences and timing connection."
+    },
+    "ANNOUNCER": {
+      "name": "Announcer",
+      "description": "Boards and announcer dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Stream director",
+      "description": "Livestream graphics and director board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Helper: requirements",
+      "description": "Check participant requirements."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Helper: access passes",
+      "description": "Issue wristbands and QR codes."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Helper: check-in",
+      "description": "Check-in, check-out and competition check."
+    },
+    "HELPER_CATERING": {
+      "name": "Helper: catering",
+      "description": "Serve catering."
+    }
   },
   "privilege": {
-    "action": {"CREATE": "Create", "READ": "Read", "UPDATE": "Update", "DELETE": "Delete"},
-    "scope": {"OWN": "Own", "EVENT": "Event", "GLOBAL": "All"},
+    "action": {
+      "CREATE": "Create",
+      "READ": "Read",
+      "UPDATE": "Update",
+      "DELETE": "Delete"
+    },
+    "scope": {
+      "OWN": "Own",
+      "EVENT": "Event",
+      "GLOBAL": "All"
+    },
     "resource": {
-      "USER": "Accounts", "EVENT": "Events", "CLUB": "Clubs", "REGISTRATION": "Registrations",
-      "INVOICE": "Invoices", "SUBSTITUTION": "Rebookings", "APP_EVENT_REQUIREMENT": "App: requirements",
-      "APP_QR_MANAGEMENT": "App: wristbands", "APP_COMPETITION_CHECK": "App: competition check",
-      "APP_CATERER": "App: catering", "APP_TIMING": "App: timing", "WEB_DAV": "WebDAV",
-      "RESULT": "Results", "LIVE_DASHBOARD": "Judge dashboard", "BOARD": "Boards",
-      "STREAM": "Livestream", "ADMINISTRATION": "Configuration", "ROLE": "Roles", "STAFF": "Role assignment",
+      "USER": "Accounts",
+      "EVENT": "Events",
+      "CLUB": "Clubs",
+      "REGISTRATION": "Registrations",
+      "INVOICE": "Invoices",
+      "SUBSTITUTION": "Rebookings",
+      "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands",
+      "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering",
+      "APP_TIMING": "App: timing",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Results",
+      "LIVE_DASHBOARD": "Judge dashboard",
+      "BOARD": "Boards",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Configuration",
+      "ROLE": "Roles",
+      "STAFF": "Role assignment",
       "SYSTEM": "Installation"
     }
   },

@@ -1,27 +1,86 @@
-import {Box, Card, CardContent, IconButton, Menu, MenuItem, Stack, Typography} from '@mui/material'
+import {
+    Box,
+    Button,
+    Card,
+    CardActionArea,
+    CardContent,
+    IconButton,
+    Menu,
+    MenuItem,
+    Stack,
+    Typography,
+} from '@mui/material'
 import {
     GridColDef,
     GridValidRowModel,
     GridActionsCellItemProps,
     GridRenderCellParams,
 } from '@mui/x-data-grid'
-import {MoreVert} from '@mui/icons-material'
-import React, {useState, ReactElement} from 'react'
+import {ExpandLess, ExpandMore, MoreVert} from '@mui/icons-material'
+import React, {useState, ReactElement, ReactNode} from 'react'
+import {useTranslation} from 'react-i18next'
+import {MobileColumnMode} from '@utils/types.ts'
+import {planCardFields} from '@utils/entityTable.ts'
+
+export type EntityCardColumn<Entity extends GridValidRowModel> = GridColDef<Entity> & {
+    mobile?: MobileColumnMode
+}
 
 type EntityCardProps<Entity extends GridValidRowModel> = {
     entity: Entity
-    columns: GridColDef<Entity>[]
+    columns: EntityCardColumn<Entity>[]
     actions: ReactElement<GridActionsCellItemProps>[]
     onRowClick?: () => void
 }
 
+/** Zellwert wie im Grid: erst `valueGetter`, dann `renderCell` bzw. `valueFormatter`. */
+const cellContent = <Entity extends GridValidRowModel>(
+    entity: Entity,
+    col: GridColDef<Entity>,
+): ReactNode => {
+    let value = entity[col.field]
+
+    if (col.valueGetter) {
+        // @ts-expect-error - valueGetter requires GridApi ref which we don't have in card view
+        value = col.valueGetter(value, entity, col, {current: null})
+    }
+
+    if (col.renderCell) {
+        const params = {
+            value,
+            row: entity,
+            field: col.field,
+            id: entity.id,
+            tabIndex: 0,
+            hasFocus: false,
+            formattedValue: value,
+            colDef: col,
+            isEditable: false,
+            cellMode: 'view' as const,
+        } as GridRenderCellParams<Entity>
+        return col.renderCell(params)
+    }
+    if (col.valueFormatter) {
+        // @ts-expect-error - valueFormatter requires GridApi ref which we don't have in card view
+        return col.valueFormatter(value, entity, col, {current: null})
+    }
+    return value
+}
+
+/**
+ * Mobile Darstellung einer Tabellenzeile: Titelzeile, höchstens vier Felder in einem Raster,
+ * der Rest hinter „Weitere Angaben". Klickbar (Maus, Enter, Leertaste), wenn die Zeile zu einer
+ * Detailseite führt; das Aktionsmenü liegt daneben und nicht im klickbaren Bereich.
+ */
 const EntityCard = <Entity extends GridValidRowModel>({
     entity,
     columns,
     actions,
     onRowClick,
 }: EntityCardProps<Entity>) => {
+    const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+    const [expanded, setExpanded] = useState(false)
     const open = Boolean(anchorEl)
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -44,18 +103,81 @@ const EntityCard = <Entity extends GridValidRowModel>({
             }
         }
 
+    const plan = planCardFields(columns)
+    const fields = expanded ? [...plan.visible, ...plan.more] : plan.visible
+
+    const content = (
+        <CardContent sx={{'&:last-child': {pb: 2}}}>
+            {plan.title && (
+                <Box sx={{mb: fields.length > 0 ? 1.5 : 0, minWidth: 0}}>
+                    {plan.title.headerName && (
+                        <Typography
+                            variant={'caption'}
+                            color={'text.secondary'}
+                            sx={{display: 'block', fontWeight: 500}}>
+                            {plan.title.headerName}
+                        </Typography>
+                    )}
+                    <Typography
+                        variant={'subtitle1'}
+                        component={'div'}
+                        sx={{fontWeight: 600, overflowWrap: 'anywhere'}}>
+                        {cellContent(entity, plan.title)}
+                    </Typography>
+                </Box>
+            )}
+            {fields.length > 0 && (
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                        columnGap: 2,
+                        rowGap: 1.5,
+                    }}>
+                    {fields.map(col => (
+                        <Box key={col.field} sx={{minWidth: 0}}>
+                            <Typography
+                                variant={'caption'}
+                                color={'text.secondary'}
+                                sx={{fontWeight: 500, display: 'block'}}>
+                                {col.headerName}
+                            </Typography>
+                            <Typography
+                                variant={'body2'}
+                                component={'div'}
+                                sx={{overflowWrap: 'anywhere'}}>
+                                {cellContent(entity, col)}
+                            </Typography>
+                        </Box>
+                    ))}
+                </Box>
+            )}
+        </CardContent>
+    )
+
     return (
-        <Card
-            sx={{
-                cursor: onRowClick ? 'pointer' : 'default',
-                '&:hover': onRowClick ? {boxShadow: 3} : {},
-                position: 'relative',
-            }}
-            onClick={onRowClick}>
-            <CardContent>
+        <Card sx={{position: 'relative'}}>
+            <Box sx={{display: 'flex', alignItems: 'flex-start'}}>
+                {onRowClick ? (
+                    // `div` statt `button`: Zellen dürfen eigene Links und Knöpfe enthalten.
+                    <CardActionArea
+                        component={'div'}
+                        onClick={onRowClick}
+                        sx={{flex: 1, minWidth: 0, cursor: 'pointer'}}>
+                        {content}
+                    </CardActionArea>
+                ) : (
+                    <Box sx={{flex: 1, minWidth: 0}}>{content}</Box>
+                )}
                 {actions.length > 0 && (
-                    <Box sx={{position: 'absolute', top: 8, right: 8}}>
-                        <IconButton size="small" onClick={handleMenuOpen} sx={{cursor: 'pointer'}}>
+                    <Box sx={{p: 1, flexShrink: 0}}>
+                        <IconButton
+                            size={'small'}
+                            aria-label={t('common.actions')}
+                            aria-haspopup={'menu'}
+                            aria-expanded={open}
+                            onClick={handleMenuOpen}
+                            sx={{cursor: 'pointer'}}>
                             <MoreVert />
                         </IconButton>
                         <Menu
@@ -74,6 +196,7 @@ const EntityCard = <Entity extends GridValidRowModel>({
                                 <MenuItem
                                     key={index}
                                     onClick={handleActionClick(action)}
+                                    disabled={action.props.disabled}
                                     sx={{cursor: 'pointer'}}>
                                     <Stack direction="row" spacing={1} alignItems="center">
                                         {action.props.icon}
@@ -84,67 +207,21 @@ const EntityCard = <Entity extends GridValidRowModel>({
                         </Menu>
                     </Box>
                 )}
-                <Stack spacing={1.5}>
-                    {columns
-                        .filter(col => col.field !== 'actions')
-                        .map((col, index) => {
-                            let value = entity[col.field]
-                            let displayValue: React.ReactNode = value
-
-                            // First, compute the value using valueGetter if present
-                            if (col.valueGetter) {
-                                // @ts-expect-error - valueGetter requires GridApi ref which we don't have in card view
-                                value = col.valueGetter(value, entity, col, {current: null})
-                            }
-
-                            // Then apply formatting or custom rendering
-                            if (col.renderCell) {
-                                const params = {
-                                    value,
-                                    row: entity,
-                                    field: col.field,
-                                    id: entity.id,
-                                    tabIndex: 0,
-                                    hasFocus: false,
-                                    formattedValue: value,
-                                    colDef: col,
-                                    isEditable: false,
-                                    cellMode: 'view' as const,
-                                } as GridRenderCellParams<Entity>
-                                displayValue = col.renderCell(params)
-                            } else if (col.valueFormatter) {
-                                // @ts-expect-error - valueFormatter requires GridApi ref which we don't have in card view
-                                displayValue = col.valueFormatter(value, entity, col, {
-                                    current: null,
-                                })
-                            } else {
-                                displayValue = value
-                            }
-
-                            return (
-                                <Box key={col.field}>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{
-                                            fontWeight: 500,
-                                            display: 'block',
-                                        }}>
-                                        {col.headerName}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            fontWeight: index === 0 ? 600 : 400,
-                                            fontSize: index === 0 ? '1rem' : '0.875rem',
-                                        }}>
-                                        {displayValue}
-                                    </Typography>
-                                </Box>
-                            )
-                        })}
-                </Stack>
-            </CardContent>
+            </Box>
+            {plan.more.length > 0 && (
+                <Box sx={{px: 1, pb: 1}}>
+                    <Button
+                        size={'small'}
+                        onClick={() => setExpanded(e => !e)}
+                        aria-expanded={expanded}
+                        endIcon={expanded ? <ExpandLess /> : <ExpandMore />}
+                        sx={{cursor: 'pointer'}}>
+                        {expanded
+                            ? t('entity.card.less')
+                            : t('entity.card.more', {count: plan.more.length})}
+                    </Button>
+                </Box>
+            )}
         </Card>
     )
 }

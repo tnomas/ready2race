@@ -31,6 +31,7 @@
     "deselectAll": "Fravælg alle",
     "error": {
       "unexpected": "Der opstod en uventet fejl. Prøv venligst igen senere.",
+      "network": "Ingen forbindelse til serveren. Kontroller internetforbindelsen, og prøv igen.",
       "tooManyRequests": "For mange forsøg. Prøv igen om {{val, relativetime(minute)}}.",
       "upload": {
         "unsupportedType": "Denne filtype understøttes ikke.",
@@ -377,7 +378,28 @@
     },
     "delete": {
       "success": "{{entity}} slettet",
-      "error": "Der opstod en fejl - {{entity}} blev ikke slettet"
+      "error": "Der opstod en fejl - {{entity}} blev ikke slettet",
+      "confirmTitle": "Slet {{entity}}?",
+      "confirmNamed": "„{{name}}“ slettes permanent. Det kan ikke fortrydes.",
+      "confirmGeneric": "Posten slettes permanent. Det kan ikke fortrydes."
+    },
+    "discard": {
+      "title": "Kassér ændringer?",
+      "content": "Dine indtastninger er endnu ikke gemt og går tabt, når du lukker.",
+      "ok": "Kassér",
+      "keep": "Fortsæt redigering"
+    },
+    "empty": {
+      "title": "Ingen poster endnu.",
+      "search": "Ingen resultater for „{{query}}“.",
+      "resetSearch": "Nulstil søgning"
+    },
+    "search": {
+      "clear": "Ryd søgning"
+    },
+    "card": {
+      "more": "Flere oplysninger ({{count}})",
+      "less": "Vis mindre"
     },
     "description": "Beskrivelse",
     "createdAt": "Oprettet den",
@@ -397,7 +419,11 @@
     "color": "Farve"
   },
   "nav": {
+    "mainLabel": "Hovednavigation",
+    "management": "Administration",
     "event": {
+      "areasLabel": "Arrangementets områder",
+      "fallbackName": "Arrangement",
       "sectionSelect": "Område",
       "groups": {
         "preparation": "Forberedelse",
@@ -455,6 +481,7 @@
     }
   },
   "club": {
+    "editClub": "Rediger klub",
     "tabs": {
       "clubs": "Klubber",
       "shortNames": "Korte navne",
@@ -532,6 +559,7 @@
     "participants": "Medlemmer",
     "representative": {
       "representatives": "Administration",
+      "noRepresentatives": "Ingen er endnu registreret for denne klub.",
       "pendingApprovals": "Afventer godkendelser",
       "approve": {
         "approve": "Godkend",
@@ -764,6 +792,7 @@
       "shortLabels": "Korte navne i stedet for fulde konkurrencenavne",
       "compact": "Kompakt visning",
       "deviceHint": "Alle indstillinger gælder kun for denne enhed.",
+      "jumpTo": "Gå til",
       "execution": {
         "title": "Gennemførelse",
         "hint": "Hvordan løb afsluttes og følgende runder oprettes på løbsdagen, og hvor ofte gennemførelsessiden holder sig opdateret. Gælder for hele arrangementet, ikke kun denne enhed."
@@ -1604,7 +1633,8 @@
       "finish": "Indsend tilmelding",
       "success": {
         "title": "Tilmeldt!",
-        "subtitle": "Du modtager en bekræftelse via e-mail."
+        "subtitle": "Du modtager en bekræftelse via e-mail.",
+        "toEvent": "Til arrangementet"
       },
       "error": {
         "closed": "Tilmeldingen til dette arrangement er lukket",
@@ -1917,10 +1947,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Offentlige visninger",
-      "pageDescription": "Sammensæt boards til offentlige skærme: løb, lister, ur og infotekster frit arrangeret, tilgængelige via en fast URL.",
-      "manageInfoViews": "Administrér boards",
-      "manageStreamScenes": "Administrér livestream-scener",
       "pendingRound": "Løb endnu ikke fastsat",
       "freeSlot": "Programpunkt",
       "athleteBoard": {
@@ -2004,9 +2030,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Dommer-dashboard",
-      "pageDescription": "Live-visning for dommere med igangværende og kommende løb, deltagerkrav og fakturastatus.",
-      "open": "Åbn dommer-dashboard",
       "title": "Dommer-dashboard",
       "tabs": {
         "live": "Live",
@@ -2420,7 +2443,37 @@
     },
     "results": {
       "download": "Download tidligere resultater",
-      "downloadError": "Filen kunne ikke downloades."
+      "downloadError": "Filen kunne ikke downloades.",
+      "public": {
+        "title": "Offentlige resultater",
+        "description": "Resultatsiden for deltagere og publikum, tilgængelig uden login."
+      },
+      "documents": {
+        "title": "Download resultater og diplomer",
+        "description": "Resultatliste, ark til præmieoverrækkelse og vinderdiplomer som dokumenter til opslag, præmieoverrækkelse og arkiv."
+      },
+      "participation": {
+        "title": "Deltagerdiplomer",
+        "description": "Når challengen er slut: send diplomer til alle deltagere eller download dem for din egen klub."
+      }
+    },
+    "overview": {
+      "loadError": "Arrangementet kunne ikke indlæses.",
+      "notFound": "Dette arrangement findes ikke eller er ikke synligt for dig.",
+      "registration": {
+        "open": "Tilmelding åben",
+        "late": "Eftertilmelding",
+        "closed": "Tilmelding lukket"
+      },
+      "raceDay": {
+        "title": "Løbsdag",
+        "description": "Regattakontor, dommer-dashboard, speaker-board, skærme, livestream, tidtagning og hjælper-app er samlet under Drift.",
+        "open": "Til Drift"
+      },
+      "results": {
+        "description": "Offentlig resultatside, resultater til download og diplomer.",
+        "open": "Til Resultater og diplomer"
+      }
     },
     "ratingCategory": {
       "title": "Rangeringskategorier",
@@ -3156,32 +3209,99 @@
     }
   },
   "job": {
-    "SUPERADMIN": {"name": "Superadmin", "description": "Runs the installation. The only role that can see and assign superadmin accounts."},
-    "ADMIN": {"name": "Admin", "description": "Everything except superadmin accounts."},
-    "USER": {"name": "Bruger", "description": "Read and change own account. Held by every account."},
-    "CLUB_REPRESENTATIVE": {"name": "Klubrepræsentant", "description": "Own club, own registrations, invoices and results."},
-    "COMPETITION_MANAGEMENT": {"name": "Konkurrenceledelse", "description": "Event, competitions, execution and day-of team."},
-    "REGISTRATION_OFFICE": {"name": "Tilmeldingskontor", "description": "Review registrations and rebook."},
-    "FINANCE": {"name": "Kasse", "description": "Invoices and bank accounts."},
-    "JUDGE": {"name": "Dommer", "description": "Penalties, clarification, judge dashboard."},
-    "TIMEKEEPER": {"name": "Tidtagning", "description": "Stations, sequences and timing connection."},
-    "ANNOUNCER": {"name": "Speaker", "description": "Boards and announcer dashboard."},
-    "STREAM_DIRECTOR": {"name": "Regi", "description": "Livestream graphics and director board."},
-    "HELPER_REQUIREMENTS": {"name": "Hjælper: betingelser", "description": "Check participant requirements."},
-    "HELPER_ACCESS_PASS": {"name": "Hjælper: udlevering", "description": "Issue wristbands and QR codes."},
-    "HELPER_CHECK_IN": {"name": "Hjælper: check-in", "description": "Check-in, check-out and competition check."},
-    "HELPER_CATERING": {"name": "Hjælper: forplejning", "description": "Serve catering."}
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Runs the installation. The only role that can see and assign superadmin accounts."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Everything except superadmin accounts."
+    },
+    "USER": {
+      "name": "Bruger",
+      "description": "Read and change own account. Held by every account."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Klubrepræsentant",
+      "description": "Own club, own registrations, invoices and results."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Konkurrenceledelse",
+      "description": "Event, competitions, execution and day-of team."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Tilmeldingskontor",
+      "description": "Review registrations and rebook."
+    },
+    "FINANCE": {
+      "name": "Kasse",
+      "description": "Invoices and bank accounts."
+    },
+    "JUDGE": {
+      "name": "Dommer",
+      "description": "Penalties, clarification, judge dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Tidtagning",
+      "description": "Stations, sequences and timing connection."
+    },
+    "ANNOUNCER": {
+      "name": "Speaker",
+      "description": "Boards and announcer dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Regi",
+      "description": "Livestream graphics and director board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Hjælper: betingelser",
+      "description": "Check participant requirements."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Hjælper: udlevering",
+      "description": "Issue wristbands and QR codes."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Hjælper: check-in",
+      "description": "Check-in, check-out and competition check."
+    },
+    "HELPER_CATERING": {
+      "name": "Hjælper: forplejning",
+      "description": "Serve catering."
+    }
   },
   "privilege": {
-    "action": {"CREATE": "Opret", "READ": "Læs", "UPDATE": "Opdater", "DELETE": "Slet"},
-    "scope": {"OWN": "Egen", "EVENT": "Arrangement", "GLOBAL": "Alle"},
+    "action": {
+      "CREATE": "Opret",
+      "READ": "Læs",
+      "UPDATE": "Opdater",
+      "DELETE": "Slet"
+    },
+    "scope": {
+      "OWN": "Egen",
+      "EVENT": "Arrangement",
+      "GLOBAL": "Alle"
+    },
     "resource": {
-      "USER": "Konti", "EVENT": "Arrangementer", "CLUB": "Klubber", "REGISTRATION": "Tilmeldinger",
-      "INVOICE": "Fakturaer", "SUBSTITUTION": "Rebookings", "APP_EVENT_REQUIREMENT": "App: requirements",
-      "APP_QR_MANAGEMENT": "App: wristbands", "APP_COMPETITION_CHECK": "App: competition check",
-      "APP_CATERER": "App: catering", "APP_TIMING": "App: timing", "WEB_DAV": "WebDAV",
-      "RESULT": "Resultater", "LIVE_DASHBOARD": "Judge dashboard", "BOARD": "Tavler",
-      "STREAM": "Livestream", "ADMINISTRATION": "Konfiguration", "ROLE": "Roller", "STAFF": "Rolletildeling",
+      "USER": "Konti",
+      "EVENT": "Arrangementer",
+      "CLUB": "Klubber",
+      "REGISTRATION": "Tilmeldinger",
+      "INVOICE": "Fakturaer",
+      "SUBSTITUTION": "Rebookings",
+      "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands",
+      "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering",
+      "APP_TIMING": "App: timing",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Resultater",
+      "LIVE_DASHBOARD": "Judge dashboard",
+      "BOARD": "Tavler",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Konfiguration",
+      "ROLE": "Roller",
+      "STAFF": "Rolletildeling",
       "SYSTEM": "Installation"
     }
   },

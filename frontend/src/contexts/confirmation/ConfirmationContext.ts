@@ -22,4 +22,9 @@ export type ConfirmationOptions = {
     okText?: string
     cancelAction?: () => void
     buttonsSX?: SxProps<Theme>
+    /**
+     * Unumkehrbare Aktion (Löschen, Änderungen verwerfen): Der Bestätigen-Knopf erscheint in der
+     * Fehlerfarbe. Den Knopftext („Löschen") über `okText` setzen; Standard bleibt „Ok".
+     */
+    destructive?: boolean
 }

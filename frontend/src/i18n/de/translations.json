@@ -31,6 +31,7 @@
     "deselectAll": "Alle abwählen",
     "error": {
       "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+      "network": "Keine Verbindung zum Server. Bitte prüfen Sie die Internetverbindung und versuchen Sie es erneut.",
       "tooManyRequests": "Zu viele Versuche. Versuchen Sie es in {{val, relativetime(minute)}} erneut.",
       "upload": {
         "unsupportedType": "Dieser Dateityp wird nicht unterstützt.",
@@ -377,7 +378,28 @@
     },
     "delete": {
       "success": "{{entity}} gelöscht",
-      "error": "Ein Fehler ist aufgetreten - {{entity}} nicht gelöscht"
+      "error": "Ein Fehler ist aufgetreten - {{entity}} nicht gelöscht",
+      "confirmTitle": "{{entity}} löschen?",
+      "confirmNamed": "„{{name}}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "confirmGeneric": "Der Eintrag wird endgültig gelöscht. Das lässt sich nicht rückgängig machen."
+    },
+    "discard": {
+      "title": "Änderungen verwerfen?",
+      "content": "Ihre Eingaben sind noch nicht gespeichert und gehen beim Schließen verloren.",
+      "ok": "Verwerfen",
+      "keep": "Weiter bearbeiten"
+    },
+    "empty": {
+      "title": "Noch keine Einträge vorhanden.",
+      "search": "Keine Treffer für „{{query}}“.",
+      "resetSearch": "Suche zurücksetzen"
+    },
+    "search": {
+      "clear": "Suche leeren"
+    },
+    "card": {
+      "more": "Weitere Angaben ({{count}})",
+      "less": "Weniger anzeigen"
     },
     "description": "Beschreibung",
     "createdAt": "Erstellt am",
@@ -397,7 +419,11 @@
     "color": "Farbe"
   },
   "nav": {
+    "mainLabel": "Hauptnavigation",
+    "management": "Verwaltung",
     "event": {
+      "areasLabel": "Bereiche der Veranstaltung",
+      "fallbackName": "Veranstaltung",
       "sectionSelect": "Bereich",
       "groups": {
         "preparation": "Vorbereitung",
@@ -455,6 +481,7 @@
     }
   },
   "club": {
+    "editClub": "Verein bearbeiten",
     "tabs": {
       "clubs": "Vereine",
       "shortNames": "Kurzformen",
@@ -532,6 +559,7 @@
     "participants": "Mitglieder",
     "representative": {
       "representatives": "Verwaltung",
+      "noRepresentatives": "Noch niemand für diesen Verein hinterlegt.",
       "pendingApprovals": "Ausstehende Genehmigungen",
       "approve": {
         "approve": "Bestätigen",
@@ -764,6 +792,7 @@
       "shortLabels": "Kurznamen statt ausgeschriebener Wettkampfnamen",
       "compact": "Kompakte Darstellung",
       "deviceHint": "Alle Einstellungen gelten nur für dieses Gerät.",
+      "jumpTo": "Springen zu",
       "execution": {
         "title": "Durchführung",
         "hint": "Wie Läufe am Renntag beendet und Folgerunden erzeugt werden und in welchem Takt sich die Durchführungsseite selbst aktualisiert. Gilt für die ganze Veranstaltung, nicht nur für dieses Gerät."
@@ -1604,7 +1633,8 @@
       "finish": "Anmeldung abschicken",
       "success": {
         "title": "Erfolgreich angemeldet!",
-        "subtitle": "Sie bekommen eine Bestätigung per Mail."
+        "subtitle": "Sie bekommen eine Bestätigung per Mail.",
+        "toEvent": "Zur Veranstaltung"
       },
       "error": {
         "closed": "Die Anmeldung für diese Veranstaltung ist geschlossen",
@@ -1917,10 +1947,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Öffentliche Anzeigen",
-      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
-      "manageInfoViews": "Boards verwalten",
-      "manageStreamScenes": "Livestream-Szenen verwalten",
       "pendingRound": "Lauf noch nicht gesetzt",
       "freeSlot": "Programmpunkt",
       "athleteBoard": {
@@ -2004,9 +2030,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Schiedsrichter-Dashboard",
-      "pageDescription": "Live-Ansicht für Schiedsrichter mit laufenden und anstehenden Läufen, Teilnahmebedingungen und Rechnungsstatus.",
-      "open": "Schiedsrichter-Dashboard öffnen",
       "title": "Schiedsrichter-Dashboard",
       "tabs": {
         "live": "Live",
@@ -2420,7 +2443,37 @@
     },
     "results": {
       "download": "Bisherige Ergebnisse herunterladen",
-      "downloadError": "Die datei konnte nicht heruntergeladen werden."
+      "downloadError": "Die datei konnte nicht heruntergeladen werden.",
+      "public": {
+        "title": "Öffentliche Ergebnisse",
+        "description": "Die Ergebnisseite für Teilnehmende und Publikum, ohne Anmeldung erreichbar."
+      },
+      "documents": {
+        "title": "Ergebnisse und Urkunden herunterladen",
+        "description": "Ergebnisliste, Siegerehrungsbogen und Siegerurkunden als Dokumente für Aushang, Siegerehrung und Archiv."
+      },
+      "participation": {
+        "title": "Teilnahmeurkunden",
+        "description": "Nach dem Ende der Challenge: Urkunden an alle Teilnehmenden versenden bzw. die des eigenen Vereins herunterladen."
+      }
+    },
+    "overview": {
+      "loadError": "Die Veranstaltung konnte nicht geladen werden.",
+      "notFound": "Diese Veranstaltung gibt es nicht, oder sie ist für dich nicht sichtbar.",
+      "registration": {
+        "open": "Meldung offen",
+        "late": "Nachmeldung",
+        "closed": "Meldung geschlossen"
+      },
+      "raceDay": {
+        "title": "Renntag",
+        "description": "Regattabüro, Schiedsrichter-Dashboard, Sprecher-Board, Anzeigen, Livestream, Zeitnahme und Helfer-App stehen gesammelt im Betrieb.",
+        "open": "Zum Betrieb"
+      },
+      "results": {
+        "description": "Öffentliche Ergebnisseite, Ergebnisse zum Herunterladen und Urkunden.",
+        "open": "Zu Ergebnissen & Urkunden"
+      }
     },
     "ratingCategory": {
       "title": "Wertungskategorien",
@@ -3158,32 +3211,99 @@
     }
   },
   "job": {
-    "SUPERADMIN": {"name": "Superadmin", "description": "Betreibt die Installation. Einzige Rolle, die Superadmin-Konten sieht und vergibt."},
-    "ADMIN": {"name": "Admin", "description": "Alles außer Superadmin-Konten."},
-    "USER": {"name": "Nutzer", "description": "Eigenes Konto lesen und ändern. Trägt jedes Konto."},
-    "CLUB_REPRESENTATIVE": {"name": "Vereinsvertreter", "description": "Eigenen Verein, eigene Meldungen, Rechnungen und Ergebnisse."},
-    "COMPETITION_MANAGEMENT": {"name": "Wettkampfleitung", "description": "Veranstaltung, Wettkämpfe, Durchführung und Tagesteam."},
-    "REGISTRATION_OFFICE": {"name": "Meldestelle", "description": "Meldungen prüfen und ummelden."},
-    "FINANCE": {"name": "Kasse", "description": "Rechnungen und Bankkonten."},
-    "JUDGE": {"name": "Schiedsrichter", "description": "Strafen, Klärung, Schiedsrichter-Dashboard."},
-    "TIMEKEEPER": {"name": "Zeitnahme", "description": "Posten, Sequenzen und Zeitnahme-Anbindung."},
-    "ANNOUNCER": {"name": "Sprecher", "description": "Anzeigetafeln und Sprecher-Dashboard."},
-    "STREAM_DIRECTOR": {"name": "Regie", "description": "Livestream-Grafiken und Regie-Board."},
-    "HELPER_REQUIREMENTS": {"name": "Helfer: Bedingungen", "description": "Bedingungen der Teilnehmenden prüfen."},
-    "HELPER_ACCESS_PASS": {"name": "Helfer: Ausgabe", "description": "Bänder und QR-Codes ausgeben."},
-    "HELPER_CHECK_IN": {"name": "Helfer: Check-in", "description": "Check-in, Check-out und Wettkampf-Check."},
-    "HELPER_CATERING": {"name": "Helfer: Verpflegung", "description": "Verpflegung ausgeben."}
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Betreibt die Installation. Einzige Rolle, die Superadmin-Konten sieht und vergibt."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Alles außer Superadmin-Konten."
+    },
+    "USER": {
+      "name": "Nutzer",
+      "description": "Eigenes Konto lesen und ändern. Trägt jedes Konto."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Vereinsvertreter",
+      "description": "Eigenen Verein, eigene Meldungen, Rechnungen und Ergebnisse."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Wettkampfleitung",
+      "description": "Veranstaltung, Wettkämpfe, Durchführung und Tagesteam."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Meldestelle",
+      "description": "Meldungen prüfen und ummelden."
+    },
+    "FINANCE": {
+      "name": "Kasse",
+      "description": "Rechnungen und Bankkonten."
+    },
+    "JUDGE": {
+      "name": "Schiedsrichter",
+      "description": "Strafen, Klärung, Schiedsrichter-Dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Zeitnahme",
+      "description": "Posten, Sequenzen und Zeitnahme-Anbindung."
+    },
+    "ANNOUNCER": {
+      "name": "Sprecher",
+      "description": "Anzeigetafeln und Sprecher-Dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Regie",
+      "description": "Livestream-Grafiken und Regie-Board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Helfer: Bedingungen",
+      "description": "Bedingungen der Teilnehmenden prüfen."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Helfer: Ausgabe",
+      "description": "Bänder und QR-Codes ausgeben."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Helfer: Check-in",
+      "description": "Check-in, Check-out und Wettkampf-Check."
+    },
+    "HELPER_CATERING": {
+      "name": "Helfer: Verpflegung",
+      "description": "Verpflegung ausgeben."
+    }
   },
   "privilege": {
-    "action": {"CREATE": "Anlegen", "READ": "Lesen", "UPDATE": "Ändern", "DELETE": "Löschen"},
-    "scope": {"OWN": "Eigene", "EVENT": "Veranstaltung", "GLOBAL": "Alle"},
+    "action": {
+      "CREATE": "Anlegen",
+      "READ": "Lesen",
+      "UPDATE": "Ändern",
+      "DELETE": "Löschen"
+    },
+    "scope": {
+      "OWN": "Eigene",
+      "EVENT": "Veranstaltung",
+      "GLOBAL": "Alle"
+    },
     "resource": {
-      "USER": "Konten", "EVENT": "Veranstaltungen", "CLUB": "Vereine", "REGISTRATION": "Meldungen",
-      "INVOICE": "Rechnungen", "SUBSTITUTION": "Ummeldungen", "APP_EVENT_REQUIREMENT": "App: Bedingungen",
-      "APP_QR_MANAGEMENT": "App: Bänder", "APP_COMPETITION_CHECK": "App: Wettkampf-Check",
-      "APP_CATERER": "App: Verpflegung", "APP_TIMING": "App: Zeitnahme", "WEB_DAV": "WebDAV",
-      "RESULT": "Ergebnisse", "LIVE_DASHBOARD": "Schiedsrichter-Dashboard", "BOARD": "Anzeigetafeln",
-      "STREAM": "Livestream", "ADMINISTRATION": "Konfiguration", "ROLE": "Rollen", "STAFF": "Rollenvergabe",
+      "USER": "Konten",
+      "EVENT": "Veranstaltungen",
+      "CLUB": "Vereine",
+      "REGISTRATION": "Meldungen",
+      "INVOICE": "Rechnungen",
+      "SUBSTITUTION": "Ummeldungen",
+      "APP_EVENT_REQUIREMENT": "App: Bedingungen",
+      "APP_QR_MANAGEMENT": "App: Bänder",
+      "APP_COMPETITION_CHECK": "App: Wettkampf-Check",
+      "APP_CATERER": "App: Verpflegung",
+      "APP_TIMING": "App: Zeitnahme",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Ergebnisse",
+      "LIVE_DASHBOARD": "Schiedsrichter-Dashboard",
+      "BOARD": "Anzeigetafeln",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Konfiguration",
+      "ROLE": "Rollen",
+      "STAFF": "Rollenvergabe",
       "SYSTEM": "Installation"
     }
   },
