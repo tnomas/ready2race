@@ -9,6 +9,7 @@ import {
     DialogContentText,
     DialogTitle,
     Drawer,
+    IconButton,
     Menu,
     MenuItem,
     Stack,
@@ -20,7 +21,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import {useTranslation} from 'react-i18next'
-import {useNavigate} from '@tanstack/react-router'
+import {useMatchRoute, useNavigate} from '@tanstack/react-router'
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext'
@@ -57,6 +58,7 @@ import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
 import {TimingMatchDto} from '@api/types.gen.ts'
 import {createTimeMark, falseStartMatch, getTimingTeams, retractMatchAttempt} from '@api/sdk.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import Throbber from '@components/Throbber.tsx'
 import {
     classifyStatus,
     counts as queueCounts,
@@ -123,16 +125,22 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
     const {refetch: refetchSequence} = sequenceState
     // Offizielle Zeiten für die Live-Anzeige am Boot (Zielposten): initialer Stand per GET, danach
     // aus den officialTimeChanged-Nachrichten des Boards — beides läuft auch mit Geräte-Token.
-    const {officialTimes, applyChanged: applyOfficialTimes, reload: reloadOfficialTimes} =
-        useOfficialTimes(eventId)
+    const {
+        officialTimes,
+        applyChanged: applyOfficialTimes,
+        reload: reloadOfficialTimes,
+    } = useOfficialTimes(eventId)
     const officialTimesByTeam = useMemo(
         () => new Map(officialTimes.map(entry => [entry.competitionMatchTeam, entry])),
         [officialTimes],
     )
     // Genauigkeit der Veranstaltung für die Zeit-Anzeige am Boot: initial per GET (läuft auch mit
     // Geräte-Token), live über settingsChanged.
-    const {settings, applyChanged: applySettingsChanged, reload: reloadSettings} =
-        useTimingSettings(eventId)
+    const {
+        settings,
+        applyChanged: applySettingsChanged,
+        reload: reloadSettings,
+    } = useTimingSettings(eventId)
 
     // Die Partie-Startliste der intern gezeiteten Wettkämpfe (leer ohne INTERN-Wettkampf). Zwei
     // Auffrischungswege, beide entprellt über denselben `bump`: `matchesChanged` meldet, dass die
@@ -183,9 +191,11 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
     // websocket reconnect like the time marks/stations are — the team roster for an event does not
     // change during a running board session), ordered client-side so the currently expected teams
     // (active matches) come first — see orderTeamsForBoard.
-    const {data: teamsData, pending: teamsPending, error: teamsError} = useFetch(signal =>
-        getTimingTeams({signal, path: {eventId}}),
-    )
+    const {
+        data: teamsData,
+        pending: teamsPending,
+        error: teamsError,
+    } = useFetch(signal => getTimingTeams({signal, path: {eventId}}))
     const teams = useMemo(() => orderTeamsForBoard(teamsData ?? []), [teamsData])
 
     // `marks` ändert seine Identität bei jeder timeMarkCreated/assignmentChanged-Nachricht, die
@@ -683,9 +693,7 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
     // Posten weiter und deckt weiterhin die Partien ab, die in ihr stehen.
     const sequenceLive =
         sequence !== undefined &&
-        (sequence.state === 'ARMED' ||
-            sequence.state === 'RUNNING' ||
-            sequence.state === 'PAUSED')
+        (sequence.state === 'ARMED' || sequence.state === 'RUNNING' || sequence.state === 'PAUSED')
 
     /** Läuft/steht die Sequenz dieses Postens für Teams genau dieser Partie? */
     const sequenceCoversMatch = useCallback(
@@ -693,12 +701,43 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
             sequenceLive &&
             sequence !== undefined &&
             sequence.entries.some(entry =>
-                match.teams.some(
-                    team => team.competitionMatchTeam === entry.competitionMatchTeam,
-                ),
+                match.teams.some(team => team.competitionMatchTeam === entry.competitionMatchTeam),
             ),
         [sequence, sequenceLive],
     )
+
+    // --- Zurück ----------------------------------------------------------------------------------
+    //
+    // Die installierte App hat keine Browser-Leiste: ohne eigenen Pfeil kommt man vom Posten nicht
+    // mehr weg. In der App-Welt geht es zur Postenwahl, unter `/event/…/timing` mit Anmeldung zum
+    // Betrieb der Veranstaltung. Ein geteiltes Gerät mit nur dem Geräte-Token hat kein Ziel —
+    // dort bleibt der Pfeil weg. Läuft am Startposten gerade eine Sequenz, wird gefragt: Sie läuft
+    // auf dem Server weiter, die Töne kommen aber nur von diesem Gerät.
+    const matchRoute = useMatchRoute()
+    const inAppWorld = Boolean(matchRoute({to: '/app/timing/$stationId'}))
+    const leaveTo: 'app' | 'event' | null = inAppWorld ? 'app' : user.loggedIn ? 'event' : null
+    const handleBack = useMemo(() => {
+        if (leaveTo === null) return undefined
+        const leave = () => {
+            if (leaveTo === 'app') {
+                void navigate({to: '/app/timing'})
+            } else {
+                void navigate({to: '/event/$eventId', params: {eventId}, search: {tab: 'betrieb'}})
+            }
+        }
+        return () => {
+            if (isStart && sequenceLive) {
+                confirmAction(leave, {
+                    title: t('timing.board.leave.title'),
+                    content: t('timing.board.leave.sequenceRunning'),
+                    okText: t('timing.board.leave.ok'),
+                    cancelText: t('timing.board.leave.stay'),
+                })
+            } else {
+                leave()
+            }
+        }
+    }, [leaveTo, navigate, eventId, isStart, sequenceLive, confirmAction, t])
 
     const handleAbortSequence = useCallback(() => {
         confirmAction(
@@ -1044,9 +1083,24 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
             }}>
             <BoardHeader
                 stationName={station?.name}
+                stationType={station?.type}
                 wsStatus={wsStatus}
                 clockQuality={clock.quality}
                 now={clock.now}
+                onBack={handleBack}
+                actions={
+                    // Öffner der Tagesablauf-Schublade (nur Telefon) in der Kopfzeile statt in
+                    // einer eigenen Zeile über der Erfassung: spart dort rund 56 px Höhe.
+                    isPhone && matchesAvailable ? (
+                        <IconButton
+                            onClick={() => setScheduleDrawerOpen(true)}
+                            aria-label={t('timing.schedule.title')}
+                            className="cursor-pointer"
+                            sx={{width: 48, height: 48, color: 'primary.main'}}>
+                            <ListAltIcon />
+                        </IconButton>
+                    ) : undefined
+                }
             />
 
             {showUnauthorizedBanner && (
@@ -1149,17 +1203,6 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                         gap: 1.5,
                         p: 2,
                     }}>
-                    {/* Öffner der Tagesablauf-Schublade (nur Telefon): oben, wo er die
-                        Erfassungsflächen im Daumenbereich nicht verdeckt. */}
-                    {isPhone && matchesAvailable && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<ListAltIcon />}
-                            onClick={() => setScheduleDrawerOpen(true)}
-                            sx={{alignSelf: 'flex-start', minHeight: 44, flexShrink: 0}}>
-                            {t('timing.schedule.title')}
-                        </Button>
-                    )}
                     {/* `onPointerDown` unlocks the WebAudio context from a real user gesture (see
                         `unlockAudio`): a board whose operator only ever taps the capture button
                         would otherwise stay mute for the sequence countdown beeps. */}
@@ -1181,21 +1224,29 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                                     // Der Warnbalken. Er muss aus drei Metern lesbar sein — ein
                                     // Zeitnehmer schaut aufs Wasser, nicht auf den Schirm — und er
                                     // sagt beides: dass nicht erfasst wird UND was zu tun ist.
+                                    // Auf dem Telefon eine Stufe kleiner: in voller Größe
+                                    // belegten Balken und Schalter dort die ganze Höhe, und die
+                                    // Boote – auch als Ziel einer gebankten Zeit – fielen aus
+                                    // dem Bild. Der Schalter darunter trägt dieselbe Warnfarbe.
                                     <Box
+                                        role="alert"
                                         sx={{
                                             bgcolor: 'warning.main',
                                             color: 'warning.contrastText',
                                             borderRadius: 2,
                                             px: 2,
-                                            py: 1.5,
+                                            py: isPhone ? 1 : 1.5,
                                             textAlign: 'center',
                                         }}>
                                         <Typography
-                                            variant="h4"
+                                            variant={isPhone ? 'h6' : 'h4'}
+                                            component="p"
                                             sx={{fontWeight: 800, lineHeight: 1.15}}>
                                             {t('timing.board.armed.blockedTitle')}
                                         </Typography>
-                                        <Typography variant="subtitle1" sx={{fontWeight: 600}}>
+                                        <Typography
+                                            variant={isPhone ? 'body2' : 'subtitle1'}
+                                            sx={{fontWeight: 600}}>
                                             {t('timing.board.armed.blockedHint')}
                                         </Typography>
                                     </Box>
@@ -1208,7 +1259,24 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
                                 />
                             </Stack>
                         )}
-                        {isStart ? (
+                        {station === undefined ? (
+                            // Solange der Posten nicht geladen ist, ist sein Typ unbekannt — statt
+                            // einer geratenen Ziel-Ansicht (Boots-Hilfetext auch am Startposten)
+                            // steht hier nur, dass geladen wird. Erfassen ginge ohnehin nicht: der
+                            // Erfassungsknopf hängt am geladenen Posten.
+                            <Stack
+                                alignItems="center"
+                                justifyContent="center"
+                                spacing={2}
+                                sx={{flexGrow: 1, minHeight: 0}}>
+                                <Box sx={{height: 48}}>
+                                    <Throbber size={40} />
+                                </Box>
+                                <Typography color="text.secondary">
+                                    {t('timing.board.capture.stationLoading')}
+                                </Typography>
+                            </Stack>
+                        ) : isStart ? (
                             <>
                                 <StartBoardPanel
                                     stationId={stationId}
@@ -1396,10 +1464,7 @@ const TimingBoardPage = ({eventId, stationId, onUnknownStation}: TimingBoardPage
 
             {/* Aktionsmenü einer Partie (nur Startposten): Sequenz abbrechen, Start zurücknehmen
                 und neu starten. Die Einträge erscheinen nur, wenn sie gerade anwendbar sind. */}
-            <Menu
-                open={matchMenu !== null}
-                anchorEl={matchMenu?.anchor}
-                onClose={closeMatchMenu}>
+            <Menu open={matchMenu !== null} anchorEl={matchMenu?.anchor} onClose={closeMatchMenu}>
                 {matchMenu !== null && sequenceCoversMatch(matchMenu.match) && (
                     <MenuItem
                         onClick={() => {

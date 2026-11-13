@@ -1,4 +1,13 @@
-import {Alert, Box, Button, ButtonBase, Chip, CircularProgress, Stack, Typography} from '@mui/material'
+import {
+    Alert,
+    Box,
+    Button,
+    ButtonBase,
+    Chip,
+    CircularProgress,
+    Stack,
+    Typography,
+} from '@mui/material'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -302,8 +311,7 @@ const MatchCaptureView = ({
                         gap: 1,
                     }}>
                     {teams.map((team, position) => {
-                        const done =
-                            team.finished || finishedTeams.has(team.competitionMatchTeam)
+                        const done = team.finished || finishedTeams.has(team.competitionMatchTeam)
                         // Fertig oder gesperrt sieht gleich aus: nicht anfassbar. Der Unterschied
                         // steht im Warnbalken darüber, nicht in sechzehn kleinen Knöpfen.
                         const dead = done || blocked
@@ -348,9 +356,7 @@ const MatchCaptureView = ({
                                     // Wartet eine Zeit auf ihre Zuordnung, sind die Boote die
                                     // Zuordnungs-Ziele — sichtbar durch die Zielfarbe.
                                     borderColor:
-                                        pending !== undefined && !done
-                                            ? 'info.main'
-                                            : 'divider',
+                                        pending !== undefined && !done ? 'info.main' : 'divider',
                                     bgcolor: dead
                                         ? 'action.disabledBackground'
                                         : 'background.paper',
@@ -359,9 +365,7 @@ const MatchCaptureView = ({
                                     // toter Knopf tot aussehen, nicht bloß etwas matter.
                                     opacity: blocked && !done ? 0.4 : done ? 0.6 : 1,
                                     textAlign: 'left',
-                                    '&:active': dead
-                                        ? undefined
-                                        : {bgcolor: 'action.selected'},
+                                    '&:active': dead ? undefined : {bgcolor: 'action.selected'},
                                 }}>
                                 <Stack sx={{width: 1, minWidth: 0}} spacing={0.25}>
                                     <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -386,10 +390,7 @@ const MatchCaptureView = ({
                                         )}
                                         <Box sx={{flexGrow: 1}} />
                                         {done && (
-                                            <CheckCircleIcon
-                                                color="success"
-                                                fontSize="small"
-                                            />
+                                            <CheckCircleIcon color="success" fontSize="small" />
                                         )}
                                     </Stack>
                                     <Typography
@@ -440,14 +441,15 @@ const MatchCaptureView = ({
             {pending !== undefined ? (
                 <Alert
                     severity="info"
-                    sx={{flexShrink: 0}}
+                    sx={{flexShrink: 0, alignItems: 'center'}}
                     action={
+                        // Einzeilig: umgebrochen kostete der Knopf auf dem Telefon eine zweite
+                        // Zeile Höhe, die den Booten darunter fehlte.
                         <Button
                             color="inherit"
                             size="small"
-                            onClick={() =>
-                                setSkippedMarks(prev => new Set(prev).add(pending.id))
-                            }>
+                            sx={{whiteSpace: 'nowrap', minHeight: 44}}
+                            onClick={() => setSkippedMarks(prev => new Set(prev).add(pending.id))}>
                             {t('timing.finish.assignLater')}
                         </Button>
                     }>
