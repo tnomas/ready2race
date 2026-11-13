@@ -233,6 +233,16 @@ object InvoiceService {
         val contact =
             !ContactInformationRepo.get(contactUsage.contactInformation).orDie().onNullDie("foreign key constraint")
 
+        // Erst den Schalter atomar setzen, dann die Jobs anlegen: zwei gleichzeitige Aufrufe
+        // (Doppelklick, zwei Admins) bestehen sonst beide die Prüfung oben und legen je Meldung
+        // zwei Jobs an. Scheitert danach etwas, rollt die Transaktion den Schalter mit zurück.
+        val marked = !EventRepo.markInvoicesProduced(
+            eventId,
+            late = type == RegistrationInvoiceType.LATE,
+            at = LocalDateTime.now(),
+        ).orDie()
+        !KIO.failOn(marked == 0) { InvoiceError.Registration.AlreadyProduced }
+
         val registrations = !EventRegistrationRepo.getIdsForInvoicing(eventId, type).orDie()
 
         !ProduceInvoiceForRegistrationRepo.create(
@@ -255,13 +265,6 @@ object InvoiceService {
                 )
             }
         ).orDie()
-
-        when (type) {
-            RegistrationInvoiceType.REGULAR -> event.invoicesProduced = LocalDateTime.now()
-            RegistrationInvoiceType.LATE -> event.lateInvoicesProduced = LocalDateTime.now()
-        }
-
-        event.update()
 
         noData
     }
