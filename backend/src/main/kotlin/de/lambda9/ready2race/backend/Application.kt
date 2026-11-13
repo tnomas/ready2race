@@ -7,8 +7,8 @@ import de.lambda9.ready2race.backend.app.auth.boundary.AuthService
 import de.lambda9.ready2race.backend.app.captcha.boundary.CaptchaService
 import de.lambda9.ready2race.backend.app.certificate.boundary.CertificateService
 import de.lambda9.ready2race.backend.app.certificate.entity.CertificateJobError
+import de.lambda9.ready2race.backend.app.email.boundary.EmailJob
 import de.lambda9.ready2race.backend.app.email.boundary.EmailService
-import de.lambda9.ready2race.backend.app.email.entity.EmailError
 import de.lambda9.ready2race.backend.app.invoice.boundary.InvoiceService
 import de.lambda9.ready2race.backend.app.invoice.entity.ProduceInvoiceError
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
@@ -78,17 +78,8 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
 
             scheduleDynamic("Send next email", 10.seconds) {
                 EmailService.sendNext()
-                    .map { DynamicIntervalJobState.Processed }
-                    .recoverDefault { error ->
-                        when (error) {
-                            EmailError.SmtpConfigMissing -> DynamicIntervalJobState.Fatal("Smtp config missing")
-                            EmailError.NoEmailsToSend -> DynamicIntervalJobState.Empty
-                            is EmailError.SendingFailed -> {
-                                logger.warn(error.cause) { "Error sending email ${error.emailId}" }
-                                DynamicIntervalJobState.Processed
-                            }
-                        }
-                    }
+                    .map { EmailJob.sent() }
+                    .recoverDefault { error -> EmailJob.stateFor(error) }
             }
 
             scheduleDynamic("Produce next invoice", 5.minutes) {
@@ -124,11 +115,14 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
                     }
             }
 
-            /*scheduleFixed("Delete sent emails", 1.hours) {
+            // Versandte Mails tragen Tokens im Klartext (Reset-, Einladungs-, Zugangslinks) und bei
+            // Meldebestätigungen alle Ausschreibungs-PDFs als Anhang - sie bleiben nur ihre
+            // Haltefrist (keep_after_sending) lang liegen.
+            scheduleFixed("Delete sent emails", 1.hours) {
                 EmailService.deleteSent().map {
                     logger.info { "${"sent email".count(it)} deleted" }
                 }
-            }*/
+            }
 
             scheduleDynamic("Export next file to WebDAV Server", 10.seconds) {
                 WebDAVExportService.exportNext(env)

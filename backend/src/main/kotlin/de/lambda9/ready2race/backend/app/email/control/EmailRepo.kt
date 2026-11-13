@@ -4,6 +4,8 @@ import de.lambda9.ready2race.backend.beforeNow
 import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.generated.tables.records.EmailRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.SmtpConfigOverrideRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER_INVITATION_TO_EMAIL
+import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER_REGISTRATION_TO_EMAIL
 import de.lambda9.ready2race.backend.database.generated.tables.references.EMAIL
 import de.lambda9.ready2race.backend.database.generated.tables.references.SMTP_CONFIG_OVERRIDE
 import de.lambda9.ready2race.backend.database.insert
@@ -26,6 +28,14 @@ object EmailRepo {
     fun update(id: UUID, f: EmailRecord.() -> Unit) = EMAIL.update(f) { ID.eq(id) }
     fun update(record: EmailRecord, f: EmailRecord.() -> Unit) = EMAIL.update(record, f)
 
+    /**
+     * Versandte Mails nach ihrer Haltefrist löschen (samt Anhängen, Fremdschlüssel mit Cascade).
+     *
+     * Ausgenommen sind Mails, an denen noch eine offene Einladung oder Registrierung hängt: deren
+     * Listen zeigen Versandzeit und -fehler der verknüpften Mail. Fällt die Einladung oder
+     * Registrierung weg (angenommen, abgelaufen, zurückgezogen), wird die Mail im nächsten
+     * Durchlauf mitgenommen.
+     */
     fun deleteSent() = EMAIL.delete {
         DSL.and(
             SENT_AT.isNotNull,
@@ -33,7 +43,13 @@ object EmailRepo {
                 SENT_AT,
                 KEEP_AFTER_SENDING,
                 DatePart.SECOND
-            ).lt(LocalDateTime.now())
+            ).lt(LocalDateTime.now()),
+            DSL.notExists(
+                DSL.selectOne().from(APP_USER_INVITATION_TO_EMAIL).where(APP_USER_INVITATION_TO_EMAIL.EMAIL.eq(ID))
+            ),
+            DSL.notExists(
+                DSL.selectOne().from(APP_USER_REGISTRATION_TO_EMAIL).where(APP_USER_REGISTRATION_TO_EMAIL.EMAIL.eq(ID))
+            ),
         )
     }
 
