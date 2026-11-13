@@ -1,5 +1,15 @@
 import {Fragment} from 'react'
-import {Box, Button, Card, CardContent, Divider, Stack, Tooltip, Typography} from '@mui/material'
+import {
+    Box,
+    Button,
+    Card,
+    CardContent,
+    CircularProgress,
+    Divider,
+    Stack,
+    Tooltip,
+    Typography,
+} from '@mui/material'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import StickyNote2OutlinedIcon from '@mui/icons-material/StickyNote2Outlined'
 import {useTranslation} from 'react-i18next'
@@ -33,6 +43,10 @@ import {
     teamsInDisplayOrder,
 } from './common.ts'
 import FinishMatchButton from './FinishMatchButton.tsx'
+import ExecutionMoreMenu, {
+    ExecutionMoreMenuItem,
+} from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
+import {CardActionId, cardActionPlan, TOUCH_TARGET_PX} from './cardActionPlan.ts'
 import SeverityIcon from './SeverityIcon.tsx'
 import LiveDashboardSequenceStrip from './LiveDashboardSequenceStrip.tsx'
 import {showsFalseStart, teamSequenceMarker} from './liveDashboardSequence.ts'
@@ -84,6 +98,11 @@ type Props = {
     shortLabels: boolean
     /** Detailgrad der Bootszeilen (Notiz-Vorschau, Aufstellung) — geräte-lokal eingestellt. */
     detail: LiveDashboardDetailSettings
+    /**
+     * Eine Handlung dieses Laufs ist unterwegs: alle Knöpfe der Karte sind solange gesperrt —
+     * ein zweiter Tipper am Steg schickt sonst denselben Schritt doppelt.
+     */
+    busy?: boolean
 }
 
 const LiveDashboardMatchCard = ({
@@ -98,6 +117,7 @@ const LiveDashboardMatchCard = ({
     raceClockerAutoPull = false,
     shortLabels,
     detail,
+    busy = false,
 }: Props) => {
     const {t} = useTranslation()
 
@@ -117,6 +137,41 @@ const LiveDashboardMatchCard = ({
         showClarify,
         showResolveClarification,
     } = matchControls(match, onFinish != null, onSetActivated != null)
+    const controls = {
+        showFinish,
+        showActivationToggle,
+        showMarkStarted,
+        showClarify,
+        showResolveClarification,
+    }
+    const plan = cardActionPlan(match.state, controls)
+    // Je Handlung der Aufruf — fehlt der Handler (kein Recht, veralteter Stand), entfällt der Knopf.
+    const handlers: Partial<Record<CardActionId, () => void>> = {
+        activate: onSetActivated ? () => void onSetActivated(match.matchId, true) : undefined,
+        deactivate: onSetActivated ? () => void onSetActivated(match.matchId, false) : undefined,
+        markStarted: onMarkStarted ? () => void onMarkStarted(match.matchId) : undefined,
+        clarify: onClarifyClick ? () => onClarifyClick(match.matchId) : undefined,
+        resolveClarification: onResolveClarification
+            ? () => void onResolveClarification(match.matchId)
+            : undefined,
+    }
+    const actionLabels: Record<CardActionId, string> = {
+        activate: t('event.liveDashboard.control.activate'),
+        deactivate: t('event.liveDashboard.control.deactivate'),
+        markStarted: t('event.liveDashboard.control.markStarted'),
+        finish: t('event.liveDashboard.control.finish'),
+        clarify: t('event.liveDashboard.clarification.set'),
+        resolveClarification: t('event.liveDashboard.clarification.resolve'),
+    }
+    const menuItem = (id: CardActionId): ExecutionMoreMenuItem | null => {
+        const handler = handlers[id]
+        return handler ? {id, label: actionLabels[id], onSelect: handler} : null
+    }
+    const hasActions =
+        (plan.primary !== null &&
+            (plan.primary === 'finish' ? onFinish : handlers[plan.primary])) ||
+        plan.secondary.length > 0 ||
+        plan.menu.some(id => handlers[id] !== undefined)
     /**
      * Der Zustandstext der Karte kommt aus derselben Ableitung wie in Durchführung und Zeitplan —
      * die Karte entscheidet nichts mehr selbst, sie malt nur. Vorher stand hier eigene Textlogik
@@ -169,6 +224,42 @@ const LiveDashboardMatchCard = ({
     // Sobald Zeit und Platz ihre Spalten belegen, bleibt der Vereinszeile am Telefon noch die
     // Hälfte der Breite - die Kette muss dann früher aufs "+n" ausweichen.
     const narrowChainChars = hasResults ? CLUB_CHAIN_NARROW_RESULT_CHARS : CLUB_CHAIN_NARROW_CHARS
+
+    /**
+     * Ein Knopf der Aktionsleiste. `primary` ist gefüllt und wächst am Telefon über die Breite,
+     * `secondary` steht umrandet daneben. Beenden bleibt der eigene Knopf mit Bedenkzeit und
+     * Rückfrage nach offenen Ergebnissen (FinishMatchButton) — nie ein einfacherer Weg.
+     */
+    const renderAction = (id: CardActionId, emphasis: 'primary' | 'secondary') => {
+        if (id === 'finish') {
+            return onFinish ? (
+                <FinishMatchButton
+                    key={id}
+                    emphasis={emphasis}
+                    grow={emphasis === 'primary'}
+                    disabled={busy}
+                    openTeamCount={openTeams.length}
+                    onFinish={openResults => onFinish(match.matchId, openResults)}
+                />
+            ) : null
+        }
+        const handler = handlers[id]
+        if (!handler) return null
+        return (
+            <Button
+                key={id}
+                variant={emphasis === 'primary' ? 'contained' : 'outlined'}
+                disabled={busy}
+                onClick={handler}
+                sx={{
+                    minHeight: TOUCH_TARGET_PX,
+                    fontWeight: 700,
+                    flex: emphasis === 'primary' ? '1 1 auto' : undefined,
+                }}>
+                {actionLabels[id]}
+            </Button>
+        )
+    }
 
     return (
         <Card
@@ -389,6 +480,60 @@ const LiveDashboardMatchCard = ({
                         </Stack>
                     )
                 })()}
+                {/*
+                    Handlungen OBEN, direkt unter Kopf und Zustand (13.11.2026): vorher standen
+                    sie unter der Bootsliste — am Telefon lag „Lauf beenden" bei sechs Booten eine
+                    Bildschirmhöhe tief, der „Läuft"-Knopf des nächsten Laufs fast zwei. Jetzt
+                    steht der nächste übliche Schritt als EIN großer Knopf vorn (siehe
+                    cardActionPlan), Seltenes (Klärung, Deaktivieren) im flachen ⋮-Menü. Hinweise
+                    stehen gedämpft darüber, damit sie vor dem Tippen gelesen werden.
+                */}
+                {hasActions && (
+                    <Stack spacing={1} sx={{pt: 1.25}}>
+                        {running && !resultsComplete && (
+                            <Typography variant="caption" sx={{color: 'grey.700'}}>
+                                {t('event.liveDashboard.control.incompleteWarning')}
+                            </Typography>
+                        )}
+                        {(awaitingFinish || (running && resultsComplete)) && (
+                            <Typography variant="caption" sx={{color: 'success.dark'}}>
+                                {t('event.liveDashboard.resultsCompleteWaiting')}
+                            </Typography>
+                        )}
+                        {showMarkStarted && onMarkStarted && raceClockerAutoPull && (
+                            <Typography variant="caption" sx={{color: 'grey.700'}}>
+                                {t('event.liveDashboard.control.markStartedAutoHint')}
+                            </Typography>
+                        )}
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
+                            sx={{
+                                // Der ⋮-Knopf des geteilten Menüs bekommt hier die Steg-Größe.
+                                '& .MuiIconButton-root': {
+                                    width: TOUCH_TARGET_PX,
+                                    height: TOUCH_TARGET_PX,
+                                },
+                            }}>
+                            {plan.primary && renderAction(plan.primary, 'primary')}
+                            {plan.secondary.map(id => renderAction(id, 'secondary'))}
+                            {busy && <CircularProgress size={20} aria-label={t('ui.loading')} />}
+                            <Box sx={{ml: 'auto'}}>
+                                <ExecutionMoreMenu
+                                    label={t('event.liveDashboard.control.moreActions')}
+                                    disabled={busy}
+                                    items={plan.menu.flatMap(id => {
+                                        const item = menuItem(id)
+                                        return item ? [item] : []
+                                    })}
+                                />
+                            </Box>
+                        </Stack>
+                    </Stack>
+                )}
                 <Divider sx={{mt: 1.5}} />
                 {teams.map((team, index) => {
                     const substituted = team.substituted
@@ -767,102 +912,6 @@ const LiveDashboardMatchCard = ({
                         </Fragment>
                     )
                 })}
-                {(showFinish ||
-                    showActivationToggle ||
-                    showMarkStarted ||
-                    showClarify ||
-                    showResolveClarification) && (
-                    /*
-                        Fußzeile aufgeräumt (Rückmeldung vom 10.08.2026): Hinweistexte stehen
-                        gedämpft ZEILEN­WEISE oben, die Knöpfe darunter in EINER rechtsbündigen
-                        Reihe in fester Reihenfolge (deaktivieren · Läuft · Beenden). Vorher
-                        mischten sich Texte und Knöpfe im selben umbrechenden Flexraum und
-                        landeten am Telefon in vier verschiedenen Ausrichtungen.
-                    */
-                    <Stack spacing={1} sx={{pt: 1.5}}>
-                        {running && !resultsComplete && (
-                            <Typography variant="caption" sx={{color: 'grey.700'}}>
-                                {t('event.liveDashboard.control.incompleteWarning')}
-                            </Typography>
-                        )}
-                        {(awaitingFinish || (running && resultsComplete)) && (
-                            <Typography variant="caption" sx={{color: 'success.dark'}}>
-                                {t('event.liveDashboard.resultsCompleteWaiting')}
-                            </Typography>
-                        )}
-                        {showMarkStarted && onMarkStarted && raceClockerAutoPull && (
-                            <Typography variant="caption" sx={{color: 'grey.700'}}>
-                                {t('event.liveDashboard.control.markStartedAutoHint')}
-                            </Typography>
-                        )}
-                        <Stack
-                            direction="row"
-                            spacing={1}
-                            flexWrap="wrap"
-                            justifyContent="flex-end"
-                            alignItems="center">
-                            {showActivationToggle && onSetActivated && (
-                                <Button
-                                    size="small"
-                                    variant="text"
-                                    onClick={() =>
-                                        onSetActivated(match.matchId, !(running || preparing))
-                                    }>
-                                    {running || preparing
-                                        ? t('event.liveDashboard.control.deactivate')
-                                        : t('event.liveDashboard.control.activate')}
-                                </Button>
-                            )}
-                            {/*
-                                „Läuft" statt „Start": der Klick löst keine Zeitnahme aus, er stellt
-                                fest, dass das Rennen unterwegs ist. Bei eingeschaltetem RaceClocker-
-                                Abruf bleibt er trotzdem bedienbar — der Feed kann ausfallen, und
-                                manche Zeitnahme meldet gar keinen Startstempel.
-                            */}
-                            {showMarkStarted && onMarkStarted && (
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => onMarkStarted(match.matchId)}>
-                                    {t('event.liveDashboard.control.markStarted')}
-                                </Button>
-                            )}
-                            {showFinish && onFinish && (
-                                <FinishMatchButton
-                                    openTeamCount={openTeams.length}
-                                    onFinish={openResults => onFinish(match.matchId, openResults)}
-                                />
-                            )}
-                            {/*
-                                In Klärung setzen: hinter "Beenden", weil sie sich am selben Lauf
-                                gegenseitig ausschließen (siehe matchControls) und der Knopf hier
-                                nur den Dialog öffnet — der Grund wird dort erfragt, nicht hier.
-                            */}
-                            {showClarify && onClarifyClick && (
-                                <Button
-                                    size="small"
-                                    color="warning"
-                                    onClick={() => onClarifyClick(match.matchId)}>
-                                    {t('event.liveDashboard.clarification.set')}
-                                </Button>
-                            )}
-                            {/*
-                                Der Rückweg aus der Klärung, derselbe wie im eingeklappten
-                                Abschnitt der Live-Spalte: ein strittiger Lauf steht in der
-                                Läufe-Spalte als volle Karte, und dort bot die Karte bis hierher
-                                „Lauf beenden" an, aber kein Aufheben — der Ausweg lag nur in der
-                                anderen Spalte.
-                            */}
-                            {showResolveClarification && onResolveClarification && (
-                                <Button
-                                    size="small"
-                                    onClick={() => onResolveClarification(match.matchId)}>
-                                    {t('event.liveDashboard.clarification.resolve')}
-                                </Button>
-                            )}
-                        </Stack>
-                    </Stack>
-                )}
             </CardContent>
         </Card>
     )

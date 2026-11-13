@@ -6,7 +6,6 @@ import {
     BottomNavigationAction,
     Box,
     Chip,
-    CircularProgress,
     IconButton,
     Paper,
     Stack,
@@ -91,15 +90,24 @@ import {
     resolveDashboardDay,
 } from '@components/event/schedule/timelineIndicator.ts'
 import {MatchResultStatus} from '@utils/matchResultStatus.ts'
-import {liveDashboardErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
+import {
+    LiveDashboardApiError,
+    liveDashboardErrorKey,
+} from '@components/event/liveDashboard/liveDashboardError.ts'
 import {readCachedRead, writeCachedRead} from '@pwa/readCache.ts'
 import {describeStale} from '@components/event/liveDashboard/staleState.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {useEventName} from './useEventName.ts'
+import {ErrorState, LoadingState} from '@components/ui'
 import {stretchedPollMs} from '@utils/eventChange/eventChangePush.ts'
 import {useEventChangeSocket} from '@utils/eventChange/useEventChangeSocket.ts'
 
 /** The dashboard payload carries no server clock of its own (unlike the athlete board), so the
  * now-marker ticks off the local clock every 30s - plenty for a position on a day-long axis. */
+const isLiveDashboardApiError = (error: unknown): error is LiveDashboardApiError =>
+    typeof error === 'object' && error !== null && 'message' in error
+
 const useLocalClock = (intervalMs: number): Date => {
     const [now, setNow] = useState(() => new Date())
     useEffect(() => {
@@ -238,6 +246,17 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     // Der Dialog selbst sitzt auf Seitenebene (wie die Team-Details oben) — die Karte reicht nur
     // die matchId nach oben, der Grund wird erst hier abgefragt.
     const [clarifyMatchId, setClarifyMatchId] = useState<string | null>(null)
+    // Läufe, für die gerade eine Handlung unterwegs ist: deren Karte sperrt ihre Knöpfe, bis die
+    // Antwort da ist (Schutz gegen den doppelten Tipper am Steg).
+    const [busyMatchIds, setBusyMatchIds] = useState<ReadonlySet<string>>(() => new Set())
+    const busySetter = (matchId: string) => (busy: boolean) =>
+        setBusyMatchIds(previous => {
+            const next = new Set(previous)
+            if (busy) next.add(matchId)
+            else next.delete(matchId)
+            return next
+        })
+    const eventName = useEventName(eventId)
     const runningIdsRef = useRef<string | null>(null)
     const tabRef = useRef<LiveDashboardTab>('live')
     const wideRef = useRef(wide)
@@ -467,15 +486,30 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     const handleTeamClick = (matchId: string, teamId: string) =>
         setSelectedTeamRef({matchId, teamId})
 
+    /**
+     * Fehlerton der Schreibaktionen: Funkloch und Fachfehler getrennt — am Steg ist „keine
+     * Verbindung" die häufigere Ursache und verlangt etwas anderes (warten, nicht neu tippen).
+     */
+    const reportControlError = (error: unknown) => {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
+        const reasonKey = isLiveDashboardApiError(error) ? liveDashboardErrorKey(error) : undefined
+        feedback.error(t(reasonKey ?? 'event.liveDashboard.control.error'))
+    }
+
     const handleFinish = async (matchId: string, openResults: MatchResultStatus | null) => {
-        const {error} = await finishLiveDashboardMatch({
-            path: {eventId, matchId},
-            query: openResults ? {openResults} : undefined,
-        })
+        const {error} = await runRequest(busySetter(matchId), () =>
+            finishLiveDashboardMatch({
+                path: {eventId, matchId},
+                query: openResults ? {openResults} : undefined,
+            }),
+        )
         if (error) {
             // Der haeufigste Fall am Steg ist gar keine Stoerung: die Veranstaltung laeuft im
             // Modus REGATTABUERO, dort beendet das Buero ueber den Zeitplan.
-            feedback.error(t(liveDashboardErrorKey(error) ?? 'event.liveDashboard.control.error'))
+            reportControlError(error)
         } else {
             feedback.success(t('event.liveDashboard.control.finished'))
         }
@@ -483,12 +517,14 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     }
 
     const handleSetActivated = async (matchId: string, activated: boolean) => {
-        const {error} = await setLiveDashboardMatchActivated({
-            path: {eventId, matchId},
-            query: {activated},
-        })
+        const {error} = await runRequest(busySetter(matchId), () =>
+            setLiveDashboardMatchActivated({
+                path: {eventId, matchId},
+                query: {activated},
+            }),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.control.error'))
+            reportControlError(error)
         }
         dashboardData.reload()
     }
@@ -498,9 +534,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
      * nur den Ist-Start — eine Zeitnahme löst er nicht aus.
      */
     const handleMarkStarted = async (matchId: string) => {
-        const {error} = await startLiveDashboardMatch({path: {eventId, matchId}})
+        const {error} = await runRequest(busySetter(matchId), () =>
+            startLiveDashboardMatch({path: {eventId, matchId}}),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.control.error'))
+            reportControlError(error)
         }
         dashboardData.reload()
     }
@@ -511,9 +549,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
      * angenommen hat; der Dialog bleibt sonst mit dem Text offen.
      */
     const handleClarify = async (matchId: string, reason: string): Promise<boolean> => {
-        const {error} = await setMatchClarification({path: {eventId, matchId}, body: {reason}})
+        const {error} = await runRequest(busySetter(matchId), () =>
+            setMatchClarification({path: {eventId, matchId}, body: {reason}}),
+        )
         if (error) {
-            feedback.error(t(liveDashboardErrorKey(error) ?? 'event.liveDashboard.control.error'))
+            reportControlError(error)
         }
         dashboardData.reload()
         return !error
@@ -521,9 +561,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
 
     /** Hebt die Klärung auf; der Lauf ist danach wieder das, was er vorher war. */
     const handleResolveClarification = async (matchId: string) => {
-        const {error} = await clearMatchClarification({path: {eventId, matchId}})
+        const {error} = await runRequest(busySetter(matchId), () =>
+            clearMatchClarification({path: {eventId, matchId}}),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.control.error'))
+            reportControlError(error)
         }
         dashboardData.reload()
     }
@@ -534,11 +576,13 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
      * Durchführungs-Tab käme der Schiedsrichter am Steg nicht vorbei.
      */
     const handleResumeAutoPull = async (matchId: string, competitionId: string) => {
-        const {error} = await resumeRaceClockerAutoPull({
-            path: {eventId, competitionId, competitionMatchId: matchId},
-        })
+        const {error} = await runRequest(busySetter(matchId), () =>
+            resumeRaceClockerAutoPull({
+                path: {eventId, competitionId, competitionMatchId: matchId},
+            }),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.control.error'))
+            reportControlError(error)
         } else {
             feedback.success(t('event.competition.execution.results.raceclocker.poll.resumed'))
         }
@@ -551,22 +595,38 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
      * bringt die neue Notiz über den Poll in team.notes.
      */
     const handleAddNote = async (matchId: string, teamId: string, note: string) => {
-        const {error} = await addLiveDashboardTeamNote({
-            path: {eventId, matchId, teamId},
-            body: {note},
-        })
+        const {error} = await runRequest(undefined, () =>
+            addLiveDashboardTeamNote({
+                path: {eventId, matchId, teamId},
+                body: {note},
+            }),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.notes.error'))
+            feedback.error(
+                t(
+                    isRequestNetworkError(error)
+                        ? 'common.error.network'
+                        : 'event.liveDashboard.notes.error',
+                ),
+            )
         }
         dashboardData.reload()
     }
 
     const handleDeleteNote = async (matchId: string, teamId: string, noteId: string) => {
-        const {error} = await deleteLiveDashboardTeamNote({
-            path: {eventId, matchId, teamId, noteId},
-        })
+        const {error} = await runRequest(undefined, () =>
+            deleteLiveDashboardTeamNote({
+                path: {eventId, matchId, teamId, noteId},
+            }),
+        )
         if (error) {
-            feedback.error(t('event.liveDashboard.notes.deleteError'))
+            feedback.error(
+                t(
+                    isRequestNetworkError(error)
+                        ? 'common.error.network'
+                        : 'event.liveDashboard.notes.deleteError',
+                ),
+            )
         }
         dashboardData.reload()
     }
@@ -574,9 +634,17 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     const handleSkipSlot = (slotId: string, label: string, time: string) => {
         confirmAction(
             async () => {
-                const {error} = await skipScheduleSlot({path: {eventId, slotId}})
+                const {error} = await runRequest(undefined, () =>
+                    skipScheduleSlot({path: {eventId, slotId}}),
+                )
                 if (error) {
-                    feedback.error(t('common.error.unexpected'))
+                    feedback.error(
+                        t(
+                            isRequestNetworkError(error)
+                                ? 'common.error.network'
+                                : 'common.error.unexpected',
+                        ),
+                    )
                 }
                 dashboardData.reload()
             },
@@ -588,6 +656,11 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
     }
 
     const staleState = describeStale(lastUpdated?.getTime() ?? null, stale, now.getTime())
+    const connectionState: 'live' | 'polling' | 'offline' = stale
+        ? 'offline'
+        : pushConnected
+          ? 'live'
+          : 'polling'
     // Null im Normalzustand — der Wrapper unten spannt dann gar keine CSS-Regeln auf.
     const typographySizes = dashboardTypographySizes(compact, fontScale)
 
@@ -608,8 +681,8 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             mayControl && !staleState.actionsLocked ? handleResolveClarification : undefined,
         // Öffnet nur den Dialog (wie onTeamClick für die Team-Details) — den Grund erfragt der
         // Dialog auf dieser Seite und schickt ihn selbst über handleClarify ab.
-        onClarifyClick:
-            mayControl && !staleState.actionsLocked ? setClarifyMatchId : undefined,
+        onClarifyClick: mayControl && !staleState.actionsLocked ? setClarifyMatchId : undefined,
+        busyMatchIds,
     }
 
     const liveColumn = (
@@ -630,9 +703,7 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
             // Bewusst gegen die UNgefilterten Daten: „Keine Läufe vorhanden" ist eine Aussage
             // über die Veranstaltung — eine leere Ansicht wegen Filtern erklärt der Chip oben.
             empty={
-                dashboard !== null &&
-                dashboard.matches.length === 0 &&
-                allPendingSlots.length === 0
+                dashboard !== null && dashboard.matches.length === 0 && allPendingSlots.length === 0
             }
             actions={actions}
             shortLabels={shortLabels}
@@ -656,42 +727,74 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                 overflowX: {xs: 'hidden', md: 'visible'},
             }}>
             <Stack spacing={2} sx={{px: 1, py: 2, minWidth: 0}}>
-                <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="baseline"
-                    spacing={1}>
-                    {/* Ohne onBack bleibt die Kopfzeile exakt wie bisher — der Wrapper existiert
-                        nur, damit Pfeil und Titel zusammen als ein Flex-Kind links stehen. */}
-                    {onBack ? (
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={0.5}
-                            sx={{minWidth: 0}}>
-                            <IconButton
-                                size="small"
-                                onClick={onBack}
-                                aria-label={t('common.back')}
-                                sx={{flexShrink: 0}}>
-                                <ArrowBack fontSize="small" />
-                            </IconButton>
-                            <Typography
-                                variant="subtitle1"
-                                fontWeight={700}
-                                sx={{minWidth: 0, lineHeight: 1.2}}>
-                                {t('event.liveDashboard.title')}
-                            </Typography>
-                        </Stack>
-                    ) : (
+                {/*
+                    Kopfzeile des Arbeitsplatzes (13.11.2026): wo bin ich (Titel + Veranstaltung),
+                    wie frisch ist der Stand (Verbindungs-Chip in Worten, Uhrzeit, Ring) und die
+                    Einstellungen. Zurück-Pfeil und Zahnrad in Steg-Größe (48 px).
+                */}
+                <Stack direction="row" alignItems="center" spacing={1} sx={{minWidth: 0}}>
+                    {/* Ohne onBack bleibt die Kopfzeile ohne Pfeil (siehe Prop). */}
+                    {onBack && (
+                        <IconButton
+                            onClick={onBack}
+                            aria-label={t('common.back')}
+                            sx={{flexShrink: 0, width: 48, height: 48, cursor: 'pointer'}}>
+                            <ArrowBack />
+                        </IconButton>
+                    )}
+                    <Box sx={{minWidth: 0, flex: 1}}>
                         <Typography
+                            component="h1"
                             variant="subtitle1"
                             fontWeight={700}
-                            sx={{minWidth: 0, lineHeight: 1.2}}>
+                            noWrap
+                            sx={{lineHeight: 1.2, mb: 0.25}}>
                             {t('event.liveDashboard.title')}
                         </Typography>
-                    )}
-                    <Stack direction="row" spacing={0.5} alignItems="center" flexShrink={0}>
+                        {/* Zweite Zeile: Verbindung und Veranstaltung — so behält der Titel
+                            auch am Telefon seine volle Breite. */}
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{minWidth: 0}}>
+                            {/* Verbindung in Worten statt nur als Ring: am Steg muss man ohne
+                                Nachdenken sehen, ob die Anzeige lebt. Abgeleitet aus genau den
+                                Werten, die auch Takt und Sperre steuern (stale, Push-Kanal). */}
+                            <Chip
+                                size="small"
+                                variant={connectionState === 'offline' ? 'filled' : 'outlined'}
+                                color={connectionState === 'offline' ? 'error' : 'default'}
+                                label={
+                                    connectionState === 'live'
+                                        ? t('event.liveDashboard.connection.live')
+                                        : connectionState === 'offline'
+                                          ? t('event.liveDashboard.connection.offline')
+                                          : t('event.liveDashboard.connection.polling', {
+                                                seconds: Math.round(effectivePollMs / 1000),
+                                            })
+                                }
+                                sx={{
+                                    fontWeight: 700,
+                                    ...(connectionState === 'live'
+                                        ? {color: 'success.dark', borderColor: 'success.dark'}
+                                        : {}),
+                                }}
+                            />
+                            {eventName && (
+                                <Typography
+                                    variant="caption"
+                                    noWrap
+                                    sx={{minWidth: 0, color: 'grey.700'}}>
+                                    {eventName}
+                                </Typography>
+                            )}
+                        </Stack>
+                    </Box>
+                    <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                        flexShrink={0}
+                        sx={{
+                            '& .MuiIconButton-root': {width: 48, height: 48},
+                        }}>
                         {/* Die gefilterte Ansicht muss erkennbar sein, damit am Renntag niemand
                             Läufe „verliert": Solange der Wettkampf-Filter greift, steht das hier
                             als Chip in der Kopfzeile — der Klick führt direkt ins Popover. */}
@@ -704,10 +807,14 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                                     count: competitionFilter.length,
                                 })}
                                 onClick={() => setSettingsOpen(true)}
+                                sx={{cursor: 'pointer'}}
                             />
                         )}
                         {lastUpdated && (
-                            <Typography variant="caption" noWrap sx={{color: 'grey.700'}}>
+                            <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{color: 'grey.700', display: {xs: 'none', sm: 'block'}}}>
                                 {format(lastUpdated, t('format.timeWithSeconds'))}
                             </Typography>
                         )}
@@ -743,13 +850,12 @@ const LiveDashboardPage = ({eventId, cacheReads = false, onBack}: LiveDashboardP
                     </Alert>
                 )}
                 {stale && !dashboard && (
-                    <Alert severity="error">{t('event.liveDashboard.loadError')}</Alert>
+                    <ErrorState
+                        message={t('event.liveDashboard.loadError')}
+                        onRetry={dashboardData.reload}
+                    />
                 )}
-                {!dashboard && !stale && (
-                    <Box display="flex" justifyContent="center" py={4}>
-                        <CircularProgress />
-                    </Box>
-                )}
+                {!dashboard && !stale && <LoadingState variant="section" />}
                 {dashboard && indicatorEntries.length > 0 && (
                     <ScheduleTimelineIndicator
                         entries={indicatorEntries}
