@@ -63,7 +63,7 @@ fun Application.module(env: JEnv) {
     configureHTTP(env.env.config.mode)
     configureSerialization()
     configureSessions()
-    configureRequests()
+    configureRequests(env.env.config.trustedProxyHops)
     configureResponses()
     configureSockets(env)
     configureRouting(env.env.config, env)

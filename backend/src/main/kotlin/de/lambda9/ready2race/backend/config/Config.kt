@@ -52,6 +52,11 @@ data class Config(
      * des Hosts.
      */
     val timezone: ZoneId? = null,
+    /**
+     * Anzahl vertrauenswürdiger Reverse-Proxys vor dem Backend (`TRUSTED_PROXY_HOPS`). `0` heißt:
+     * `X-Forwarded-For` wird ignoriert. Siehe [de.lambda9.ready2race.backend.plugins.clientAddress].
+     */
+    val trustedProxyHops: Int = 0,
 ) {
 
     enum class Mode {
@@ -348,6 +353,10 @@ data class Config(
             // Bewusst nicht `TZ`: Basis-Images setzen das gern auf UTC, und dann folgte die App wieder
             // still der Zone des Containers.
             val timezone = !optional("APP_TIMEZONE") { ZoneId.of(it.trim()) }
+            val trustedProxyHops = !optional("TRUSTED_PROXY_HOPS", int) ?: 0
+            if (trustedProxyHops < 0) {
+                !KIO.fail(ParseEnvError.UnparsableValue("TRUSTED_PROXY_HOPS", trustedProxyHops.toString(), Int::class))
+            }
 
             val config = Config(
                 mode = mode,
@@ -361,6 +370,7 @@ data class Config(
                 webDAV = webDAV,
                 frontendOrigins = frontendOrigins,
                 timezone = timezone,
+                trustedProxyHops = trustedProxyHops,
             )
 
             if (frontendOrigins == null && (mode == Mode.PROD || mode == Mode.STAGING)) {

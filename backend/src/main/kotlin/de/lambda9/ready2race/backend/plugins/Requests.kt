@@ -15,7 +15,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 // todo: @refactor: remove as middleware and implement own version
-fun Application.configureRequests() {
+fun Application.configureRequests(trustedProxyHops: Int = 0) {
     install(DoubleReceive) {
         // A websocket handshake hands the raw request channel to the upgraded session. Caching it
         // (and discarding the remainder once the call completes) races with the session's reads and
@@ -53,7 +53,40 @@ fun Application.configureRequests() {
         // der Zwischenspeicher in EventInfoService.
         register(RateLimitName("publicInfo")) {
             rateLimiter(limit = 500, refillPeriod = 5.seconds)
-            requestKey { call -> call.request.origin.remoteHost }
+            requestKey { call -> call.clientAddress(trustedProxyHops) }
         }
     }
+}
+
+/**
+ * Die Adresse des Clients für Rate-Limits. Hinter einem Reverse-Proxy ist `origin.remoteHost` für
+ * alle Zuschauer die Adresse des Proxys; die echte steht dann in `X-Forwarded-For`.
+ *
+ * Dem Kopf wird nur so weit getraut, wie Proxys davor stehen ([trustedProxyHops], aus
+ * `TRUSTED_PROXY_HOPS`): Jeder Proxy hängt die Adresse, von der er die Anfrage bekam, HINTEN an.
+ * Bei einem Proxy (nginx mit `$proxy_add_x_forwarded_for`) ist also der letzte Eintrag die echte
+ * Client-Adresse; alles links davon kann der Client selbst geschrieben haben. Ohne gesetzte Hops
+ * (Vorgabe 0) bleibt der Kopf unbeachtet - sonst könnte jeder Client sich beliebige Schlüssel
+ * ausdenken.
+ */
+fun ApplicationCall.clientAddress(trustedProxyHops: Int): String =
+    forwardedClientAddress(
+        forwardedFor = request.headers.getAll(HttpHeaders.XForwardedFor),
+        remoteHost = request.origin.remoteHost,
+        trustedProxyHops = trustedProxyHops,
+    )
+
+internal fun forwardedClientAddress(
+    forwardedFor: List<String>?,
+    remoteHost: String,
+    trustedProxyHops: Int,
+): String {
+    if (trustedProxyHops <= 0) return remoteHost
+    val chain = forwardedFor.orEmpty()
+        .flatMap { it.split(',') }
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    val index = chain.size - trustedProxyHops
+    // Kürzer als erwartet: der Kopf stammt nicht von den konfigurierten Proxys - nicht trauen.
+    return if (index >= 0) chain[index] else remoteHost
 }
