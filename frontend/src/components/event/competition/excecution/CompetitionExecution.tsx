@@ -20,7 +20,6 @@ import {
     Chip,
     Divider,
     InputAdornment,
-    Link,
     Stack,
     Table,
     TableBody,
@@ -40,9 +39,11 @@ import {BaseSyntheticEvent, Fragment, useEffect, useMemo, useRef, useState} from
 import {format} from 'date-fns'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {Controller, FormContainer, useFieldArray, useForm} from 'react-hook-form-mui'
-import Throbber from '@components/Throbber.tsx'
+import {EmptyState, ErrorState, LoadingState} from '@components/ui'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {runDownload} from '@utils/download.ts'
 import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
-import {getFilename, groupBy, shuffle, teamNameSuffix} from '@utils/helpers.ts'
+import {groupBy, shuffle, teamNameSuffix} from '@utils/helpers.ts'
 import {
     formatFailedReason,
     MatchResultStatus,
@@ -67,9 +68,8 @@ import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined'
 import SyncProblemIcon from '@mui/icons-material/SyncProblem'
 import Info from '@mui/icons-material/Info'
 import InlineLink from '@components/InlineLink.tsx'
-import CompetitionExecutionRound, {
-    executionMatchDomId,
-} from '@components/event/competition/excecution/CompetitionExecutionRound.tsx'
+import CompetitionExecutionRound from '@components/event/competition/excecution/CompetitionExecutionRound.tsx'
+import {executionMatchDomId} from '@components/event/competition/excecution/executionMatchDomId.ts'
 import RoundProgressionSetting from '@components/event/competition/excecution/RoundProgressionSetting.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import BaseDialog from '@components/BaseDialog.tsx'
@@ -98,10 +98,7 @@ import {
     CompetitionScopeProps,
     useCompetitionScope,
 } from '@components/event/competition/excecution/competitionScope.ts'
-import {
-    centeredScrollTop,
-    scrollContainerOf,
-} from '@components/event/liveDashboard/common.ts'
+import {centeredScrollTop, scrollContainerOf} from '@components/event/liveDashboard/common.ts'
 
 type EnterResultsTeam = {
     registrationId: string
@@ -153,7 +150,6 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     const feedback = useFeedback()
     const theme = useTheme()
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const smallScreenLayout = useMediaQuery(`(max-width:${theme.breakpoints.values.md}px)`)
 
@@ -192,10 +188,9 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     // Startzeit-Feld hier read-only, damit die Kette (Task 10) nicht durch eine hier eingegebene
     // abweichende Zeit ausgehebelt wird. Events ohne Zeitstrahl liefern eine leere Slot-Liste,
     // dann bleibt das Feld wie bisher editierbar.
-    const {data: eventSchedule} = useFetch(
-        signal => getEventSchedule({signal, path: {eventId}}),
-        {deps: [eventId]},
-    )
+    const {data: eventSchedule} = useFetch(signal => getEventSchedule({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
     const slotManagedMatchIds = useMemo(
         () =>
             new Set(
@@ -450,15 +445,17 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         .map(r => r.round)
 
     const handleCreateNextRound = async () => {
-        setSubmitting(true)
-        const {error} = await createNextCompetitionRound({
-            path: {
-                eventId: eventId,
-                competitionId: competitionId,
-            },
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            createNextCompetitionRound({
+                path: {
+                    eventId: eventId,
+                    competitionId: competitionId,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.competition.execution.nextRound.error'))
         } else {
             feedback.success(t('event.competition.execution.nextRound.success'))
@@ -557,19 +554,25 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         competitionMatchId: string,
         fileType: StartListFileType,
     ) => {
-        const {data, error, response} = await downloadStartList({
-            path: {
-                eventId,
-                competitionId,
-                competitionMatchId,
-            },
-            query: {
-                fileType,
-            },
-        })
-        const anchor = downloadRef.current
+        const {error} = await runDownload(
+            undefined,
+            () =>
+                downloadStartList({
+                    path: {
+                        eventId,
+                        competitionId,
+                        competitionMatchId,
+                    },
+                    query: {
+                        fileType,
+                    },
+                }),
+            `startList-${competitionMatchId}.${fileType.toLowerCase()}`,
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 409) {
                 feedback.error(t('event.competition.execution.startList.error.missingStartTime'))
             } else if (
@@ -580,29 +583,27 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
-        } else if (data !== undefined && anchor) {
-            // need Blob constructor for text/csv
-            anchor.href = URL.createObjectURL(new Blob([data])) // TODO: @Memory: revokeObjectURL() when done
-            anchor.download =
-                getFilename(response) ?? `startList-${competitionMatchId}.${fileType.toLowerCase()}`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
     /** Die ganze Runde als eine CSV - ein Import ins Zeitnahme-System statt Lauf für Lauf. */
     const handleDownloadRoundStartList = async (setupRoundId: string) => {
-        const {data, error, response} = await downloadRoundStartList({
-            path: {
-                eventId,
-                competitionId,
-                setupRoundId,
-            },
-        })
-        const anchor = downloadRef.current
+        const {error} = await runDownload(
+            undefined,
+            () =>
+                downloadRoundStartList({
+                    path: {
+                        eventId,
+                        competitionId,
+                        setupRoundId,
+                    },
+                }),
+            `startList-round-${setupRoundId}.csv`,
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 409) {
                 feedback.error(t('event.competition.execution.startList.error.missingStartTime'))
             } else if (
@@ -613,29 +614,27 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(new Blob([data]))
-            anchor.download = getFilename(response) ?? `startList-round-${setupRoundId}.csv`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
     const handlePullRaceClockerResults = async (competitionMatchId: string) => {
-        setSubmitting(true)
-        const {error} = await pullMatchResultsFromRaceClocker({
-            path: {
-                eventId,
-                competitionId,
-                competitionMatchId,
-            },
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            pullMatchResultsFromRaceClocker({
+                path: {
+                    eventId,
+                    competitionId,
+                    competitionMatchId,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             const text = raceClockerErrorText(error)
-            feedback.error(text === undefined ? t('common.error.unexpected') : t(text.key, text.values))
+            feedback.error(
+                text === undefined ? t('common.error.unexpected') : t(text.key, text.values),
+            )
         } else {
             feedback.success(t('event.competition.execution.results.raceclocker.success'))
             setReloadData(!reloadData)
@@ -643,13 +642,15 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     }
 
     const handleResumeRaceClockerAutoPull = async (competitionMatchId: string) => {
-        setSubmitting(true)
-        const {error} = await resumeRaceClockerAutoPull({
-            path: {eventId, competitionId, competitionMatchId},
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            resumeRaceClockerAutoPull({
+                path: {eventId, competitionId, competitionMatchId},
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('event.competition.execution.results.raceclocker.poll.resumed'))
@@ -659,14 +660,16 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
 
     /** Notfallweg: RaceClocker-Ergebnis-xlsx auf den Lauf schreiben (eigener Parser fürs Results-Blatt). */
     const handleUploadRaceClockerFile = async (competitionMatchId: string, file: File) => {
-        setSubmitting(true)
-        const {error} = await uploadRaceClockerResultFile({
-            path: {eventId, competitionId, competitionMatchId},
-            body: {files: [file]},
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            uploadRaceClockerResultFile({
+                path: {eventId, competitionId, competitionMatchId},
+                body: {files: [file]},
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 400 && error.errorCode === 'RACECLOCKER_MATCH_NOT_IN_FEED') {
                 feedback.error(t('event.competition.execution.results.raceclocker.file.notInFile'))
             } else if (error.status.value === 400 && error.errorCode === 'FILE_ERROR') {
@@ -681,18 +684,22 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
     }
 
     const handleUploadMatchResults = async (competitionMatchId: string, file: File) => {
-        const {error} = await uploadResultFile({
-            path: {
-                eventId,
-                competitionId,
-                competitionMatchId,
-            },
-            body: {
-                files: [file],
-            },
-        })
+        const {error} = await runRequest(undefined, () =>
+            uploadResultFile({
+                path: {
+                    eventId,
+                    competitionId,
+                    competitionMatchId,
+                },
+                body: {
+                    files: [file],
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.status.value === 400) {
                 if (error.errorCode === 'FILE_ERROR') {
                     feedback.error(t('common.error.upload.FILE_ERROR'))
@@ -826,53 +833,59 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         if (formData.selectedMatchDto === null || currentRound === undefined) {
             feedback.error(t('common.error.unexpected'))
         } else {
-            setSubmitting(true)
-            const {error} = await updateMatchResults({
-                path: {
-                    eventId: eventId,
-                    competitionId: competitionId,
-                    competitionMatchId: formData.selectedMatchDto.id,
-                },
-                body: {
-                    // Offene Zeilen (kein Platz, keine Zeit, nicht ausgeschieden) bleiben ohne
-                    // Ergebnis: das Backend verlangt je übertragenem Team Platz, Zeit oder Grund.
-                    teamResults: formData.teamResults
-                        .filter(
-                            results =>
-                                results.failed ||
-                                takeIfNotEmpty(results.place) !== undefined ||
-                                takeIfNotEmpty(results.timeString) !== undefined,
-                        )
-                        .map(results => ({
-                            registrationId: results.registrationId,
-                            place:
-                                results.failed || !results.place
+            const selectedMatchId = formData.selectedMatchDto.id
+            const {error} = await runRequest(setSubmitting, () =>
+                updateMatchResults({
+                    path: {
+                        eventId: eventId,
+                        competitionId: competitionId,
+                        competitionMatchId: selectedMatchId,
+                    },
+                    body: {
+                        // Offene Zeilen (kein Platz, keine Zeit, nicht ausgeschieden) bleiben ohne
+                        // Ergebnis: das Backend verlangt je übertragenem Team Platz, Zeit oder Grund.
+                        teamResults: formData.teamResults
+                            .filter(
+                                results =>
+                                    results.failed ||
+                                    takeIfNotEmpty(results.place) !== undefined ||
+                                    takeIfNotEmpty(results.timeString) !== undefined,
+                            )
+                            .map(results => ({
+                                registrationId: results.registrationId,
+                                place:
+                                    results.failed || !results.place
+                                        ? undefined
+                                        : Number(results.place),
+                                timeString: results.failed
                                     ? undefined
-                                    : Number(results.place),
-                            timeString: results.failed
-                                ? undefined
-                                : takeIfNotEmpty(results.timeString),
-                            failed: results.failed,
-                            failedReason: results.failed
-                                ? (formatFailedReason(
-                                      results.failedStatus || null,
-                                      results.failedReason,
-                                  ) ?? undefined)
-                                : undefined,
-                            penaltySeconds:
-                                takeIfNotEmpty(results.penaltySeconds) !== undefined
-                                    ? Number(results.penaltySeconds)
+                                    : takeIfNotEmpty(results.timeString),
+                                failed: results.failed,
+                                failedReason: results.failed
+                                    ? (formatFailedReason(
+                                          results.failedStatus || null,
+                                          results.failedReason,
+                                      ) ?? undefined)
                                     : undefined,
-                            penaltyNote: takeIfNotEmpty(results.penaltyNote),
-                        })),
-                },
-            })
-            if (error) {
+                                penaltySeconds:
+                                    takeIfNotEmpty(results.penaltySeconds) !== undefined
+                                        ? Number(results.penaltySeconds)
+                                        : undefined,
+                                penaltyNote: takeIfNotEmpty(results.penaltyNote),
+                            })),
+                    },
+                }),
+            )
+            if (isRequestNetworkError(error)) {
+                // Funkloch: Dialog samt Eingaben offen lassen, damit nichts neu getippt werden
+                // muss — ein zweiter Klick auf Speichern schickt dieselben Werte.
+                feedback.error(t('common.error.network'))
+                return
+            } else if (error) {
                 showMatchError(error, 'event.competition.execution.results.submit.error')
             } else {
                 feedback.success(t('event.competition.execution.results.submit.success'))
             }
-            setSubmitting(false)
         }
         setReloadData(!reloadData)
 
@@ -953,27 +966,32 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
         if (formData.selectedMatchDto === null || currentRound === undefined) {
             feedback.error(t('common.error.unexpected'))
         } else {
-            setSubmitting(true)
-            const {error} = await updateMatchData({
-                path: {
-                    eventId: eventId,
-                    competitionId: competitionId,
-                    competitionMatchId: formData.selectedMatchDto.id,
-                },
-                body: {
-                    startTime: takeIfNotEmpty(formData.startTime),
-                    teams: formData.teams.map(team => ({
-                        registrationId: team.registrationId,
-                        startNumber: Number(team.startNumber),
-                    })),
-                },
-            })
-            if (error) {
+            const selectedMatchId = formData.selectedMatchDto.id
+            const {error} = await runRequest(setSubmitting, () =>
+                updateMatchData({
+                    path: {
+                        eventId: eventId,
+                        competitionId: competitionId,
+                        competitionMatchId: selectedMatchId,
+                    },
+                    body: {
+                        startTime: takeIfNotEmpty(formData.startTime),
+                        teams: formData.teams.map(team => ({
+                            registrationId: team.registrationId,
+                            startNumber: Number(team.startNumber),
+                        })),
+                    },
+                }),
+            )
+            if (isRequestNetworkError(error)) {
+                // Wie beim Ergebnis: bei Netzfehler bleiben Dialog und Eingaben stehen.
+                feedback.error(t('common.error.network'))
+                return
+            } else if (error) {
                 showMatchError(error, 'event.competition.execution.matchData.submit.error')
             } else {
                 feedback.success(t('event.competition.execution.matchData.submit.success'))
             }
-            setSubmitting(false)
         }
         setReloadData(!reloadData)
 
@@ -1016,7 +1034,10 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                     {t(
                         'event.competition.execution.nextRound.reasons.registrationsNotFinalized.textStart',
                     )}
-                    <InlineLink to={'/event/$eventId'} params={{eventId}} search={{tab: 'registrations'}}>
+                    <InlineLink
+                        to={'/event/$eventId'}
+                        params={{eventId}}
+                        search={{tab: 'registrations'}}>
                         {t(
                             'event.competition.execution.nextRound.reasons.registrationsNotFinalized.link',
                         )}
@@ -1108,7 +1129,10 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                         Zweck dieser Warnung ist der Weg zur Abhilfe, also muss sie dorthin
                         zeigen, wo das Format wirklich steht. Absolut statt relativ: eingebettet
                         im Zeitplan-Tab gibt es kein `from`, das hier passen würde. */}
-                    <InlineLink to={'/event/$eventId'} params={{eventId}} search={{tab: 'settings'}}>
+                    <InlineLink
+                        to={'/event/$eventId'}
+                        params={{eventId}}
+                        search={{tab: 'settings'}}>
                         <Trans i18nKey={'event.competition.timing.incomplete.link'} />
                     </InlineLink>
                 </Alert>
@@ -1135,22 +1159,17 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                                 placement={'right'}
                                 title={
                                     <Stack spacing={1} p={1}>
-                                        {progressDto.canNotCreateRoundReasons.map(
-                                            (reason, idx) => (
-                                                <Fragment key={reason}>
-                                                    <Stack direction={'row'} spacing={1}>
-                                                        <WarningIcon color={'warning'} />
-                                                        <Typography>
-                                                            {getReasonText(reason)}
-                                                        </Typography>
-                                                    </Stack>
-                                                    {idx <
-                                                        progressDto.canNotCreateRoundReasons
-                                                            .length -
-                                                            1 && <Divider />}
-                                                </Fragment>
-                                            ),
-                                        )}
+                                        {progressDto.canNotCreateRoundReasons.map((reason, idx) => (
+                                            <Fragment key={reason}>
+                                                <Stack direction={'row'} spacing={1}>
+                                                    <WarningIcon color={'warning'} />
+                                                    <Typography>{getReasonText(reason)}</Typography>
+                                                </Stack>
+                                                {idx <
+                                                    progressDto.canNotCreateRoundReasons.length -
+                                                        1 && <Divider />}
+                                            </Fragment>
+                                        ))}
                                     </Stack>
                                 }>
                                 <Info sx={{ml: 1}} color={'info'} fontSize={'small'} />
@@ -1163,14 +1182,22 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                         dem Knopf, den er betrifft; das Popover baut den Inhalt erst beim Öffnen,
                         die Einstellung lädt also jedes Mal frisch. */}
                     <SettingsPopover minWidth={420} maxWidth={'min(520px, 90vw)'}>
-                        <RoundProgressionSetting
-                            eventId={eventId}
-                            competitionId={competitionId}
-                        />
+                        <RoundProgressionSetting eventId={eventId} competitionId={competitionId} />
                     </SettingsPopover>
                 </Box>
             )}
-            <Stack spacing={6}>
+            {sortedRounds.length === 0 && (
+                <EmptyState
+                    dense
+                    title={t('event.competition.execution.noRounds.title')}
+                    description={
+                        allRoundsCreated
+                            ? undefined
+                            : t('event.competition.execution.noRounds.description')
+                    }
+                />
+            )}
+            <Stack spacing={4}>
                 {sortedRounds.map((round, roundIndex) => (
                     <CompetitionExecutionRound
                         key={round.setupRoundId}
@@ -1293,7 +1320,9 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                                                                         variant={'body2'}>
                                                                         {`${t('club.registeredBy')} ` +
                                                                             team.clubName +
-                                                                            teamNameSuffix(team.name)}
+                                                                            teamNameSuffix(
+                                                                                team.name,
+                                                                            )}
                                                                     </Typography>
                                                                     <Typography
                                                                         color={'textSecondary'}
@@ -1386,19 +1415,22 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                                                                                     )}
                                                                                     slotProps={{
                                                                                         input: {
-                                                                                            endAdornment: (
-                                                                                                <InputAdornment
-                                                                                                    position={
-                                                                                                        'end'
-                                                                                                    }>
-                                                                                                    {t(
-                                                                                                        'common.form.secondsShort',
-                                                                                                    )}
-                                                                                                </InputAdornment>
-                                                                                            ),
+                                                                                            endAdornment:
+                                                                                                (
+                                                                                                    <InputAdornment
+                                                                                                        position={
+                                                                                                            'end'
+                                                                                                        }>
+                                                                                                        {t(
+                                                                                                            'common.form.secondsShort',
+                                                                                                        )}
+                                                                                                    </InputAdornment>
+                                                                                                ),
                                                                                         },
                                                                                     }}
-                                                                                    sx={{width: 116}}
+                                                                                    sx={{
+                                                                                        width: 116,
+                                                                                    }}
                                                                                 />
                                                                                 <FormInputText
                                                                                     name={`teamResults.${fieldIndex}.penaltyNote`}
@@ -1648,16 +1680,16 @@ const CompetitionExecution = ({autoRefresh, focusMatchId, onDataChanged, ...scop
                 onClose={closeMatchResultImportConfigDialog}
                 onSuccess={async file => handleUploadMatchResults(resultImportMatch!, file)}
             />
-            <Link ref={downloadRef} display={'none'}></Link>
         </Box>
     ) : connection === 'error' ? (
         // Nie etwas angekommen: Hier gibt es keinen letzten guten Stand zu halten, also sagt es
         // die Seite deutlich statt endlos zu drehen.
-        <Alert severity={'error'} sx={{my: 2}}>
-            {t('event.competition.execution.progress.error')}
-        </Alert>
+        <ErrorState
+            message={t('event.competition.execution.progress.error')}
+            onRetry={reloadProgress}
+        />
     ) : (
-        progressDtoPending && <Throbber />
+        progressDtoPending && <LoadingState />
     )
 }
 export default CompetitionExecution

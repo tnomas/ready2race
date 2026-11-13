@@ -64,8 +64,11 @@ const MatchResultUploadDialog = ({open, onSuccess, onClose}: Props) => {
                 formContext={formContext}
                 onSuccess={async (data: Form) => {
                     setSubmitting(true)
-                    await onSuccess(data.files[0].file)
-                    setSubmitting(false)
+                    try {
+                        await onSuccess(data.files[0].file)
+                    } finally {
+                        setSubmitting(false)
+                    }
                     onClose()
                 }}>
                 <DialogContent>
