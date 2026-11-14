@@ -7,7 +7,19 @@ danach `docs/seeds/seed-material.sql`".
 
 ## Testdaten auf einen Blick
 
-- **Veranstaltung:** Coastal Regatta Flensburg 2026, Event-ID `5eed0001-0000-0000-0000-000000000001`.
+- **Veranstaltung:** DM Coastal Rowing 2026, Event-ID `5eed0001-0000-0000-0000-000000000001`. Der
+  Seed stellt die Meldefrist offen (gestern bis in 14 Tagen).
+- **Konten** (Passwort jeweils `material123`, Pepper siehe unten): `material@test.de` (Bootshaus
+  Nord), `material2@test.de` (zweiter Anbieter „Ruderwerft Süd", Sprache en - für F1 und die
+  englische Rückzugs-Mail), `verein@material.test` (Vereinsvertretung DM-Verein 1 - für Block A).
+- **Wettkampf mit Läufen für Block E:** „M1 Männer-Doppelvierer Materialtest" (CM 4x+ MT) mit
+  Vorlauf 1 (läuft seit dem Einspielen), Vorlauf 2 (in 20 min) und Finale (in 90 min). MT 1: Boot 7
+  bei Startnummer 1 (Abweichung); MT 2: „Vierer 2" bei Startnummer 2 (passt); MT 3: Grundzuteilung
+  Boot 6 (Totalschaden), im Vorlauf 2 Ersatz Boot 8 als Ausnahme; MT 4: eigenes Boot, offene
+  Anfrage beim zweiten Anbieter. Dazu das Board „Materialtest-Board", die Stream-Szene
+  „Materialtest" und Mein Event unter `/event/<eventId>/my-event/MATERIAL-MEINEVENT-1`.
+- **Abweichung** heißt seit dem 14.11.2026: Bootsnummer ≠ Startnummer **im jeweiligen Lauf**
+  (`competition_match_team.start_number`), nicht die Meldungsnummer aus der Fixierung.
 - **Anbieter:** Bootshaus Nord, eingeladen, Vergabe offen (`requests_closed = false`).
 - **Anbieter-Login:** `material@test.de` / `material123` (Rolle Materialanbieter, `READ`/`UPDATE MATERIAL OWN`).
   Der Passwort-Hash im Seed ist mit Pepper `pepper` erzeugt (siehe Kopfkommentar der Seed-Datei)
