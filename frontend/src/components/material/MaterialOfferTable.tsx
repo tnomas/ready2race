@@ -1,3 +1,4 @@
+import {useMemo} from 'react'
 import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {BaseEntityTableProps, PageResponse} from '@utils/types.ts'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
@@ -33,9 +34,7 @@ const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
 
             const search = paginationParameters.search?.toLowerCase()
             const filtered = search
-                ? result.data.filter(offer =>
-                      offer.materialTypeName.toLowerCase().includes(search),
-                  )
+                ? result.data.filter(offer => offer.materialTypeName.toLowerCase().includes(search))
                 : result.data
             const sorted = [...filtered].sort((a, b) =>
                 a.materialTypeName.localeCompare(b.materialTypeName),
@@ -59,30 +58,33 @@ const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
     const deleteRequest = (dto: MaterialOfferDto) =>
         deleteMaterialOffer({path: {eventId, providerId, offerId: dto.id}})
 
-    const columns: GridColDef<MaterialOfferDto>[] = [
-        {
-            field: 'materialTypeName',
-            headerName: t('material.offer.type'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'priceText',
-            headerName: t('material.offer.priceText'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'plannedCount',
-            headerName: t('material.offer.plannedCount'),
-            width: 140,
-        },
-        {
-            field: 'changeoverMinutes',
-            headerName: t('material.offer.changeoverMinutes'),
-            width: 160,
-        },
-    ]
+    const columns: GridColDef<MaterialOfferDto>[] = useMemo(
+        () => [
+            {
+                field: 'materialTypeName',
+                headerName: t('material.offer.type'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'priceText',
+                headerName: t('material.offer.priceText'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'plannedCount',
+                headerName: t('material.offer.plannedCount'),
+                width: 140,
+            },
+            {
+                field: 'changeoverMinutes',
+                headerName: t('material.offer.changeoverMinutes'),
+                width: 160,
+            },
+        ],
+        [t],
+    )
 
     return (
         <EntityTable

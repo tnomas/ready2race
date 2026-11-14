@@ -3115,7 +3115,12 @@
       "openDamages": "Åbne skader",
       "closed": "Lukket",
       "none": "Ingen udbyder inviteret.",
-      "inviteNeedsMaterialRead": "Invitation kræver ret til at læse udlejere."
+      "inviteNeedsMaterialRead": "Invitation kræver ret til at læse udlejere.",
+      "counts": "Uafgjorte forespørgsler: {{requests}} · åbne skader: {{damages}}",
+      "description": "Inviterede udbydere opretter tilbud; klubber forespørger ved tilmeldingen. Udbyderen afgør forespørgslerne i sit dashboard.",
+      "jumpLabel": "Materieludlejning",
+      "uninviteNamed": "Fjern invitation for {{name}}",
+      "uninviteTitle": "Fjern invitation for {{name}}?"
     }
   },
   "task": {
@@ -3363,7 +3368,20 @@
       }
     },
     "materialProvider": "Materieludlejer",
-    "materialProviderNone": "Ingen udlejer"
+    "materialProviderNone": "Ingen udlejer",
+    "materialProviderHint": "Rollen \"Materieludbyder\" følger denne tildeling: Med udbyder får kontoen den, uden udbyder fjernes den. Den kan ikke vælges i rollelisten.",
+    "materialProviderBlocked": {
+      "self": "Din egen tildeling skal ændres af en anden person med ret til at administrere personale.",
+      "system": "Systemkontoen kan ikke tildeles en udbyder.",
+      "superadmin": "Kun brugere med systemrettighed kan tildele superadmin-konti."
+    },
+    "materialProviderError": {
+      "cannotAssign": "Rollen \"Materieludbyder\" indeholder rettigheder, du ikke selv har; tildelingen blev ikke gemt.",
+      "forbidden": "Udbydertildelingen blev ikke gemt: Det kræver ret til at administrere personale (superadmin-konti desuden systemrettighed).",
+      "generic": "Navn og roller er gemt, udbydertildelingen ikke.",
+      "notFound": "Den valgte udbyder findes ikke længere; tildelingen blev ikke gemt."
+    },
+    "managedRoles": "Desuden tildelt via egne processer: {{roles}}"
   },
   "role": {
     "role": "Rolle",
@@ -4872,7 +4890,8 @@
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "egen båd",
-      "deviates": "afvigende"
+      "deviates": "afvigende",
+      "lineProvider": "{{type}} · {{provider}}"
     }
   },
   "speaker": {
@@ -5018,7 +5037,8 @@
       "contactName": "Kontaktperson",
       "contactEmail": "E-mail",
       "contactPhone": "Telefon",
-      "note": "Note"
+      "note": "Note",
+      "none": "Ingen udbydere oprettet endnu."
     },
     "type": {
       "type": "Materieltype",
@@ -5056,15 +5076,18 @@
     },
     "fleet": {
       "title": "Flåde",
-      "noProvider": "Din konto er ikke tilknyttet en udbyder."
+      "noProvider": "Din konto er ikke tilknyttet en udbyder.",
+      "noProviderHint": "Administrationen tildeler kontoen til en udbyder på kontoens side.",
+      "subtitle": "Alle udbyderens enheder på tværs af arrangementer"
     },
     "admin": {
-      "title": "Udbydere og materieltyper"
+      "title": "Udbydere og materieltyper",
+      "subtitle": "Stamdata for udlejning: hvem udlejer, og hvilke materialetyper der findes."
     },
     "events": {
-      "title": "Arrangementer",
       "none": "Udbyderen er ikke inviteret til noget arrangement.",
-      "open": "Forespørgsler åbne"
+      "open": "Forespørgsler åbne",
+      "subtitle": "Arrangementer, som udbyderen er inviteret til"
     },
     "dashboard": {
       "tabs": {
@@ -5074,7 +5097,8 @@
         "settings": "Indstillinger"
       },
       "comingSoon": "Udfyldes i en senere opgave.",
-      "chooseProvider": "Vælg først en udlejer."
+      "chooseProvider": "Vælg først en udlejer.",
+      "subtitle": "Forespørgsler, tildeling og skader for dette arrangement"
     },
     "offer": {
       "offer": "Tilbud",
@@ -5101,7 +5125,9 @@
     "settings": {
       "title": "Indstillinger",
       "requestsClosed": "Forespørgsler lukket",
-      "requestsClosedHint": "Så længe forespørgsler er lukket, kan der ikke oprettes nye forespørgsler."
+      "requestsClosedHint": "Så længe forespørgsler er lukket, kan der ikke oprettes nye forespørgsler.",
+      "closedNow": "Klubber kan i øjeblikket ikke oprette nye forespørgsler eller trække eksisterende tilbage.",
+      "openNow": "Klubber kan forespørge ved tilmeldingen og trække forespørgsler tilbage."
     },
     "registration": {
       "ownMaterial": "Eget materiel",
@@ -5121,37 +5147,53 @@
         "DECLINED": "Afvist",
         "WITHDRAWN": "Trukket tilbage"
       },
-      "error": "Materielvalget for {{competition}} kunne ikke gemmes - tilmeldingen blev alligevel gemt."
+      "error": "Materielvalget for {{competition}} kunne ikke gemmes - tilmeldingen blev alligevel gemt.",
+      "closedExisting": "Tildeling lukket: Den eksisterende forespørgsel kan ikke længere ændres eller trækkes tilbage. Kontakt udbyderen direkte.",
+      "decisionNote": "Udbyderens note: {{note}}",
+      "errorAfterSave": "Tilmeldingen er gemt, men materialevalget blev ikke gemt for: {{competitions}}. Åbn \"Se og rediger\" og indsend igen.",
+      "errorSummary_one": "Materialevalget for {{count}} konkurrence blev ikke gemt.",
+      "errorSummary_other": "Materialevalget for {{count}} konkurrencer blev ikke gemt.",
+      "legend": "Indikator: grøn = ledig, gul = knap (forespørgslen kan havne på ventelisten). Efter indsendelse afgør udbyderen; status kan ses her og i \"Mit arrangement\".",
+      "offerClosed": "{{provider}} · tildeling lukket",
+      "review": {
+        "afterSubmit": "Nye materialeforespørgsler sendes til udbyderen efter indsendelse. Udbyderen bekræfter, sætter på venteliste eller afviser; status kan ses ved din tilmelding og i \"Mit arrangement\".",
+        "new": "ny forespørgsel",
+        "withdraw": "forespørgsel hos {{provider}} trækkes tilbage"
+      },
+      "willWithdraw": "Forespørgslen hos {{provider}} trækkes tilbage ved indsendelse.",
+      "withdrawHowSelect": "For at trække tilbage, vælg \"egen båd\" eller \"eget materiel\" og indsend tilmeldingen.",
+      "withdrawHowSwitch": "For at trække tilbage, slå kontakten fra og indsend tilmeldingen."
     },
     "requests": {
       "reload": "Opdater",
       "filterAll": "Alle",
-      "filterStatus": "Status",
       "filterType": "Materieltype",
-      "showWithdrawn": "Vis tilbagetrukne",
       "none": "Ingen forespørgsler med dette valg.",
       "noOffers": "Der findes endnu ingen tilbud til denne begivenhed.",
-      "summaryLine": "{{type}}: {{confirmed}} bekræftet / {{requested}} åben / {{waitlisted}} venteliste af {{planned}}",
-      "confirmAllOpen": "Bekræft alle åbne",
       "confirmAllSuccess_one": "{{count}} forespørgsel bekræftet",
       "confirmAllSuccess_other": "{{count}} forespørgsler bekræftet",
       "confirmAllError_one": "{{count}} forespørgsel kunne ikke bekræftes",
       "confirmAllError_other": "{{count}} forespørgsler kunne ikke bekræftes",
-      "columns": {
-        "competition": "Konkurrence",
-        "team": "Hold",
-        "club": "Klub",
-        "type": "Materieltype",
-        "count": "Antal",
-        "status": "Status",
-        "requestedAt": "Forespurgt den",
-        "actions": "Handlinger"
-      },
       "actions": {
         "confirm": "Bekræft",
         "waitlist": "Sæt på venteliste",
         "decline": "Afvis"
-      }
+      },
+      "confirmSelected_one": "Bekræft {{count}} forespørgsel",
+      "confirmSelected_other": "Bekræft {{count}} forespørgsler",
+      "filter": {
+        "ALL": "Alle",
+        "CONFIRMED": "Bekræftet",
+        "DECLINED": "Afvist",
+        "OPEN": "Åbne",
+        "WITHDRAWN": "Trukket tilbage"
+      },
+      "moreActions": "Flere beslutninger",
+      "nextInLine": "næste i køen",
+      "noneOpen": "Ingen åbne forespørgsler – alt er afgjort.",
+      "selectForBulk": "Medtag forespørgsel fra {{club}} i samlet bekræftelse",
+      "summaryShort": "{{confirmed}} af {{planned}} bekræftet · {{requested}} åbne · {{waitlisted}} venteliste",
+      "capacityTitle": "Belægning pr. tilbud"
     },
     "decision": {
       "title": {
@@ -5160,7 +5202,11 @@
       },
       "note": "Note (valgfri)",
       "success": "Beslutning gemt",
-      "error": "Beslutning kunne ikke gemmes"
+      "error": "Beslutning kunne ikke gemmes",
+      "hint": {
+        "WAITLISTED": "Forespørgslen sættes på ventelisten. Bliver en plads ledig, vises den ældste først. Klubben ser noten ved sin tilmelding.",
+        "DECLINED": "Forespørgslen afvises. Klubben ser noten ved sin tilmelding."
+      }
     },
     "assignment": {
       "viewByTeam": "Efter hold",
@@ -5172,11 +5218,8 @@
       "assignByStartNumberError_one": "{{count}} tildeling kunne ikke overføres",
       "assignByStartNumberError_other": "{{count}} tildelinger kunne ikke overføres",
       "noRequests": "Endnu ingen bekræftede forespørgsler.",
-      "teamNumber": "Startnummer",
-      "baseAssignment": "Grundtildeling",
       "addItem": "Tilføj stykke",
       "exception": "Undtagelse pr. løb",
-      "conflicts": "Konflikter",
       "deviates": "afviger fra startnummer",
       "success": "Tildeling gemt",
       "error": "Tildeling kunne ikke gemmes",
@@ -5187,11 +5230,22 @@
         "add": "Tilføj",
         "none": "Endnu ingen undtagelser.",
         "success": "Tildeling gemt",
-        "error": "Tildeling kunne ikke gemmes"
+        "error": "Tildeling kunne ikke gemmes",
+        "hint": "Brug en anden enhed end grundtildelingen i et enkelt løb, fx som erstatning efter et udfald.",
+        "remove": "Fjern undtagelse"
       },
       "byItem": {
         "noAssignments": "Ingen gældende tildeling."
-      }
+      },
+      "assignItem": "Tildel enhed",
+      "exceptionCount_one": "{{count}} undtagelse",
+      "exceptionCount_other": "{{count}} undtagelser",
+      "moreActions": "Flere handlinger for tildeling",
+      "noFreeItem": "Ingen passende enhed i flåden",
+      "noRequestsHint": "Bekræftede forespørgsler vises her og får en enhed fra flåden.",
+      "removeItem": "Fjern {{item}}",
+      "workDone": "Alle bekræftede forespørgsler har en enhed, ingen konflikter.",
+      "workSummary": "Åbent: {{unassigned}} uden enhed, {{conflicts}} med konflikt."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5222,15 +5276,6 @@
       "photoTooLarge": "Foto er for stort (maks. 10 MB)",
       "photoUploadError": "Foto kunne ikke uploades",
       "photoDeleteError": "Foto kunne ikke slettes",
-      "columns": {
-        "item": "Stykke",
-        "type": "Materieltype",
-        "reportedAt": "Meldt den",
-        "severity": "Alvorlighed",
-        "status": "Status",
-        "causedBy": "Forårsaget af",
-        "photos": "Fotos"
-      },
       "impact": {
         "title": "Berørte løb",
         "none": "Ingen berørte løb.",
@@ -5239,10 +5284,25 @@
         "later": "Senere",
         "save": "Overfør",
         "success": "Erstatning gemt",
-        "error": "Erstatning kunne ikke gemmes"
+        "error": "Erstatning kunne ikke gemmes",
+        "hint": "{{item}} er ude af drift i disse løb. Vælg en erstatning pr. løb; grundtildelingen bevares.",
+        "noCandidates": "Ingen ledig enhed af denne type"
       },
       "baseAgain": "Grundtildeling mulig igen",
-      "baseAgainRemove": "Fjern undtagelse"
+      "baseAgainRemove": "Fjern undtagelse",
+      "deletePhoto": "Slet foto {{name}}",
+      "editItem": "Rediger skade på {{item}}",
+      "filter": {
+        "ALL": "Alle",
+        "OPEN": "Åbne",
+        "REPAIRED": "Repareret"
+      },
+      "moreActions": "Flere handlinger for skader",
+      "noneOpen": "Ingen åbne skader.",
+      "outOfServiceHint": "Udfald: Så længe enheden mangler, foreslår systemet erstatning for berørte løb. Lad \"til\" stå tomt, hvis åbent.",
+      "outOfServiceOpen": "ude af drift fra {{from}}",
+      "outOfServiceRange": "ude af drift {{from}} – {{until}}",
+      "scopeHint": "Her vises skader, der er meldt i arrangementets dage eller tilknyttet en tilmelding til dette arrangement."
     },
     "severity": {
       "MINOR": "let",

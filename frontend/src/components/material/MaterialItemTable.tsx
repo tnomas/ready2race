@@ -1,11 +1,12 @@
-import {GridActionsCellItem, GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
+import {useCallback, useMemo} from 'react'
+import {GridActionsCellItem, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialItem, getMaterialItems} from '@api/sdk.gen.ts'
 import {MaterialItemDto} from '@api/types.gen.ts'
 import {BaseEntityTableProps, EntityAction} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
-import EntityTable from '@components/EntityTable.tsx'
+import EntityTable, {ExtendedGridColDef} from '@components/EntityTable.tsx'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -23,14 +24,19 @@ type Props = BaseEntityTableProps<MaterialItemDto> & {
 const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
     const {t} = useTranslation()
 
-    const customEntityActions = (item: MaterialItemDto): EntityAction[] => [
-        <GridActionsCellItem
-            icon={<ReportProblemIcon />}
-            label={t('material.damage.report')}
-            onClick={() => onReportDamage(item)}
-            showInMenu
-        />,
-    ]
+    // Stabil halten, sonst lädt die Tabelle bei jedem Rendern neu (ADR-0105).
+    const customEntityActions = useCallback(
+        (item: MaterialItemDto): EntityAction[] => [
+            <GridActionsCellItem
+                key={'report-damage'}
+                icon={<ReportProblemIcon />}
+                label={t('material.damage.report')}
+                onClick={() => onReportDamage(item)}
+                showInMenu
+            />,
+        ],
+        [t, onReportDamage],
+    )
 
     const dataRequest = (signal: AbortSignal, paginationParameters: PaginationParameters) =>
         getMaterialItems({
@@ -42,36 +48,40 @@ const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
     const deleteRequest = (dto: MaterialItemDto) =>
         deleteMaterialItem({path: {providerId, itemId: dto.id}})
 
-    const columns: GridColDef<MaterialItemDto>[] = [
-        {
-            field: 'number',
-            headerName: t('material.item.number'),
-            width: 100,
-        },
-        {
-            field: 'label',
-            headerName: t('material.item.label'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'materialTypeName',
-            headerName: t('material.item.type'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'status',
-            headerName: t('material.item.status'),
-            minWidth: 120,
-            valueGetter: (v: MaterialItemDto['status']) => t(`material.itemStatus.${v}`),
-        },
-        {
-            field: 'openDamages',
-            headerName: t('material.item.openDamages'),
-            width: 140,
-        },
-    ]
+    const columns: ExtendedGridColDef<MaterialItemDto>[] = useMemo(
+        () => [
+            {
+                field: 'number',
+                headerName: t('material.item.number'),
+                width: 100,
+            },
+            {
+                field: 'label',
+                headerName: t('material.item.label'),
+                mobile: 'title',
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'materialTypeName',
+                headerName: t('material.item.type'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'status',
+                headerName: t('material.item.status'),
+                minWidth: 120,
+                valueGetter: (v: MaterialItemDto['status']) => t(`material.itemStatus.${v}`),
+            },
+            {
+                field: 'openDamages',
+                headerName: t('material.item.openDamages'),
+                width: 140,
+            },
+        ],
+        [t],
+    )
 
     return (
         <EntityTable

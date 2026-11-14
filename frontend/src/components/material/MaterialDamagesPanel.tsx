@@ -1,86 +1,82 @@
-import {useRef, useState} from 'react'
-import {
-    Box,
-    Button,
-    Card,
-    Chip,
-    FormControl,
-    IconButton,
-    InputLabel,
-    Link,
-    MenuItem,
-    Select,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Tooltip,
-    Typography,
-} from '@mui/material'
+import {useState} from 'react'
+import {Box, Button, Chip, Divider, ListItemButton, Paper, Stack, Typography} from '@mui/material'
 import {format} from 'date-fns'
-import RefreshIcon from '@mui/icons-material/Refresh'
-import DownloadIcon from '@mui/icons-material/Download'
 import AddIcon from '@mui/icons-material/Add'
+import BuildOutlined from '@mui/icons-material/BuildOutlined'
+import PhotoCameraOutlined from '@mui/icons-material/PhotoCameraOutlined'
 import {useTranslation} from 'react-i18next'
 import {getMaterialDamages, getMaterialDamagesCsv} from '@api/sdk.gen.ts'
-import {MaterialDamageDto, MaterialDamageStatus} from '@api/types.gen.ts'
+import {
+    MaterialDamageDto,
+    MaterialDamageSeverity,
+    MaterialOverviewDto,
+    MaterialOverviewItemDto,
+} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
-import {useMaterialOverview} from '@components/material/useMaterialOverview.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
+import {EmptyState, ErrorState, LoadingState} from '@components/ui'
+import {
+    DAMAGE_FILTERS,
+    damageFilterCounts,
+    DamageFilter,
+    DEFAULT_DAMAGE_FILTER,
+    itemLabel,
+    matchesDamageFilter,
+    sortDamagesForWork,
+} from '@components/material/materialWorkplace.ts'
 import MaterialDamageDialog, {SavedDamageInfo} from '@components/material/MaterialDamageDialog.tsx'
 import MaterialOutageImpactDialog from '@components/material/MaterialOutageImpactDialog.tsx'
-import Throbber from '@components/Throbber.tsx'
+import ExecutionMoreMenu from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
 
 type Props = {
     eventId: string
     providerId: string
+    overview: MaterialOverviewDto
+    reloadOverview: () => void
 }
 
-const STATUS_OPTIONS: MaterialDamageStatus[] = ['REPORTED', 'REPAIRED']
-
-const SEVERITY_CHIP_COLOR: Record<string, 'default' | 'warning' | 'error'> = {
+/**
+ * Schwere als Etikett: Totalschaden ist ein Alarm (rot), schwerer Schaden eine Warnung, alles
+ * andere ruhig grau – ein bloßer Ausfall oder Kratzer ist am Steg Alltag.
+ */
+const SEVERITY_CHIP_COLOR: Record<MaterialDamageSeverity, 'default' | 'warning' | 'error'> = {
     MINOR: 'default',
     MAJOR: 'warning',
     TOTAL: 'error',
-    OUTAGE_ONLY: 'warning',
+    OUTAGE_ONLY: 'default',
 }
 
-const causerOf = (damage: MaterialDamageDto): string =>
+const FILTER_LABEL_KEYS = {
+    OPEN: 'material.damage.filter.OPEN',
+    REPAIRED: 'material.damage.filter.REPAIRED',
+    ALL: 'material.damage.filter.ALL',
+} as const satisfies Record<DamageFilter, string>
+
+const causerOf = (damage: MaterialDamageDto): string | null =>
     damage.causedByRegistration == null
-        ? '–'
-        : [damage.causedByTeam, damage.causedByClub, damage.causedByCompetition].filter(Boolean).join(' · ')
+        ? null
+        : [damage.causedByTeam, damage.causedByClub, damage.causedByCompetition]
+              .filter(Boolean)
+              .join(' · ')
 
 /**
- * Reiter "Schäden": Schadensakte der Veranstaltung, Melden per Dialog, CSV-Export. Lädt zwei
- * Dinge unabhängig - die Schadensliste selbst (limit 200, dieselbe Veranstaltung reicht
- * praktisch immer) und die Anbieter-Übersicht (Angebote/Anfragen/Läufe), die der Dialog für
- * den Verursacher-Vorschlag und der Ausfall-Dialog für die Ersatzwahl braucht.
+ * Reiter „Schäden": „Schaden melden" als Primäraktion oben, offene Schäden vorbelegt, je Schaden
+ * eine antippbare Zeile (öffnet Bearbeiten), CSV-Export im ⋮-Menü. Mit Ausfallfenster folgt nach
+ * dem Speichern die Ersatzwahl je betroffenem Lauf.
  */
-const MaterialDamagesPanel = ({eventId, providerId}: Props) => {
+const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
-
-    const {overview, reload: reloadOverview} = useMaterialOverview({eventId, providerId})
 
     const {
         data: damages,
         pending,
+        error,
         reload: reloadDamages,
     } = useFetch(
         signal => getMaterialDamages({signal, path: {providerId}, query: {eventId, limit: 200}}),
-        {
-            onResponse: ({error}) => {
-                if (error) {
-                    feedback.error(
-                        t('common.load.error.multiple.short', {entity: t('material.damage.damages')}),
-                    )
-                }
-            },
-            deps: [eventId, providerId],
-        },
+        {deps: [eventId, providerId]},
     )
 
     const reload = () => {
@@ -88,18 +84,19 @@ const MaterialDamagesPanel = ({eventId, providerId}: Props) => {
         reloadOverview()
     }
 
-    const [statusFilter, setStatusFilter] = useState<MaterialDamageStatus | 'ALL'>('ALL')
+    const [filter, setFilter] = useState<DamageFilter>(DEFAULT_DAMAGE_FILTER)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editDamage, setEditDamage] = useState<MaterialDamageDto | null>(null)
     const [impact, setImpact] = useState<{
-        item: NonNullable<typeof overview>['items'][number]
+        item: MaterialOverviewItemDto
         from: string
         until?: string
     } | null>(null)
-    const [csvLoading, setCsvLoading] = useState(false)
-    const downloadRef = useRef<HTMLAnchorElement>(null)
+    const [csvBusy, setCsvBusy] = useState(false)
 
-    const rows = (damages?.data ?? []).filter(d => statusFilter === 'ALL' || d.status === statusFilter)
+    const all = damages?.data ?? []
+    const counts = damageFilterCounts(all)
+    const rows = sortDamagesForWork(all.filter(d => matchesDamageFilter(d, filter)))
 
     const openCreate = () => {
         setEditDamage(null)
@@ -115,146 +112,227 @@ const MaterialDamagesPanel = ({eventId, providerId}: Props) => {
         if (outOfServiceFrom == null) {
             return
         }
-        const item = overview?.items.find(i => i.id === itemId)
+        const item = overview.items.find(i => i.id === itemId)
         if (item != null) {
             setImpact({item, from: outOfServiceFrom, until: outOfServiceUntil})
         }
     }
 
     const handleDownloadCsv = async () => {
-        setCsvLoading(true)
-        const {data, error, response} = await getMaterialDamagesCsv({path: {eventId, providerId}})
-        setCsvLoading(false)
-        const anchor = downloadRef.current
-        if (error) {
+        if (csvBusy) return
+        const {downloaded, error} = await runDownload(
+            setCsvBusy,
+            () => getMaterialDamagesCsv({path: {eventId, providerId}}),
+            `Schaeden-${eventId}.csv`,
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error || !downloaded) {
             feedback.error(t('common.error.unexpected'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? `Schaeden-${eventId}.csv`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
     return (
         <Stack spacing={2}>
-            <Link ref={downloadRef} display={'none'}></Link>
-            <Stack direction={'row'} spacing={2} alignItems={'center'} flexWrap={'wrap'} useFlexGap>
-                <FormControl size={'small'} sx={{minWidth: 160}}>
-                    <InputLabel id={'material-damage-status-filter'}>
-                        {t('material.requests.filterStatus')}
-                    </InputLabel>
-                    <Select
-                        labelId={'material-damage-status-filter'}
-                        label={t('material.requests.filterStatus')}
-                        value={statusFilter}
-                        onChange={e => setStatusFilter(e.target.value as MaterialDamageStatus | 'ALL')}>
-                        <MenuItem value={'ALL'}>{t('material.requests.filterAll')}</MenuItem>
-                        {STATUS_OPTIONS.map(status => (
-                            <MenuItem key={status} value={status}>
-                                {t(`material.damageStatus.${status}`)}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <Box sx={{flexGrow: 1}} />
-                <Tooltip title={t('material.requests.reload')}>
-                    <IconButton onClick={reload} disabled={pending}>
-                        <RefreshIcon />
-                    </IconButton>
-                </Tooltip>
+            <Stack direction={'row'} gap={1} alignItems={'center'} flexWrap={'wrap'}>
                 <Button
-                    variant={'outlined'}
-                    startIcon={<DownloadIcon />}
-                    disabled={csvLoading}
-                    onClick={() => void handleDownloadCsv()}>
-                    {t('material.damage.csv')}
-                </Button>
-                <Button variant={'contained'} startIcon={<AddIcon />} onClick={openCreate}>
+                    variant={'contained'}
+                    startIcon={<AddIcon />}
+                    onClick={openCreate}
+                    sx={{cursor: 'pointer'}}>
                     {t('material.damage.report')}
                 </Button>
+                <Box sx={{flexGrow: 1}} />
+                <ExecutionMoreMenu
+                    label={t('material.damage.moreActions')}
+                    disabled={csvBusy}
+                    items={[
+                        {
+                            id: 'csv',
+                            label: t('material.damage.csv'),
+                            onSelect: () => void handleDownloadCsv(),
+                        },
+                    ]}
+                />
+            </Stack>
+            <Stack direction={'row'} gap={1} flexWrap={'wrap'}>
+                {DAMAGE_FILTERS.map(f => (
+                    <Chip
+                        key={f}
+                        label={`${t(FILTER_LABEL_KEYS[f])} (${counts[f]})`}
+                        color={filter === f ? 'primary' : 'default'}
+                        variant={filter === f ? 'filled' : 'outlined'}
+                        onClick={() => setFilter(f)}
+                        aria-pressed={filter === f}
+                        sx={{cursor: 'pointer'}}
+                    />
+                ))}
             </Stack>
 
-            {pending && !damages ? (
-                <Throbber />
+            <Typography variant={'body2'} color={'text.secondary'}>
+                {t('material.damage.scopeHint')}
+            </Typography>
+            {error && !damages ? (
+                <ErrorState
+                    message={t('common.load.error.multiple.short', {
+                        entity: t('material.damage.damages'),
+                    })}
+                    onRetry={reloadDamages}
+                />
+            ) : pending && !damages ? (
+                <LoadingState variant={'section'} />
             ) : rows.length === 0 ? (
-                <Typography color={'text.secondary'}>{t('material.damage.none')}</Typography>
+                <EmptyState
+                    dense
+                    icon={<BuildOutlined />}
+                    title={
+                        filter === 'OPEN'
+                            ? t('material.damage.noneOpen')
+                            : t('material.damage.none')
+                    }
+                />
             ) : (
-                <TableContainer component={Card}>
-                    <Table size={'small'}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>{t('material.damage.columns.item')}</TableCell>
-                                <TableCell>{t('material.damage.columns.type')}</TableCell>
-                                <TableCell>{t('material.damage.columns.reportedAt')}</TableCell>
-                                <TableCell>{t('material.damage.columns.severity')}</TableCell>
-                                <TableCell>{t('material.damage.columns.status')}</TableCell>
-                                <TableCell>{t('material.damage.columns.causedBy')}</TableCell>
-                                <TableCell align={'right'}>{t('material.damage.columns.photos')}</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {rows.map(damage => (
-                                <TableRow
+                <Paper variant={'outlined'}>
+                    <Stack divider={<Divider flexItem />}>
+                        {rows.map(damage => {
+                            const causer = causerOf(damage)
+                            return (
+                                <ListItemButton
                                     key={damage.id}
-                                    hover
                                     onClick={() => openEdit(damage)}
-                                    sx={{cursor: 'pointer'}}>
-                                    <TableCell>
-                                        {damage.itemNumber != null
-                                            ? `${damage.itemLabel} #${damage.itemNumber}`
-                                            : damage.itemLabel}
-                                    </TableCell>
-                                    <TableCell>{damage.materialTypeName}</TableCell>
-                                    <TableCell>
-                                        {format(new Date(damage.reportedAt), 'dd.MM.yyyy HH:mm')}
-                                    </TableCell>
-                                    <TableCell>
+                                    aria-label={t('material.damage.editItem', {
+                                        item: itemLabel({
+                                            label: damage.itemLabel,
+                                            number: damage.itemNumber,
+                                        }),
+                                    })}
+                                    sx={{
+                                        cursor: 'pointer',
+                                        px: {xs: 1, sm: 2},
+                                        py: 1.25,
+                                        display: 'block',
+                                    }}>
+                                    <Typography
+                                        variant={'body1'}
+                                        fontWeight={600}
+                                        sx={{overflowWrap: 'anywhere'}}>
+                                        {itemLabel({
+                                            label: damage.itemLabel,
+                                            number: damage.itemNumber,
+                                        })}
+                                        <Typography component={'span'} color={'text.secondary'}>
+                                            {' · '}
+                                            {damage.materialTypeName}
+                                        </Typography>
+                                    </Typography>
+                                    <Typography
+                                        variant={'body2'}
+                                        color={'text.secondary'}
+                                        sx={{overflowWrap: 'anywhere'}}>
+                                        {format(new Date(damage.reportedAt), t('format.datetime'))}
+                                        {' · '}
+                                        {damage.description}
+                                    </Typography>
+                                    <Stack
+                                        direction={'row'}
+                                        gap={0.5}
+                                        flexWrap={'wrap'}
+                                        alignItems={'center'}
+                                        sx={{mt: 0.5}}>
                                         <Chip
                                             size={'small'}
                                             color={SEVERITY_CHIP_COLOR[damage.severity]}
                                             label={t(`material.severity.${damage.severity}`)}
                                         />
-                                    </TableCell>
-                                    <TableCell>
                                         <Chip
                                             size={'small'}
-                                            color={damage.status === 'REPAIRED' ? 'success' : 'default'}
+                                            variant={'outlined'}
+                                            color={
+                                                damage.status === 'REPAIRED' ? 'success' : 'default'
+                                            }
                                             label={t(`material.damageStatus.${damage.status}`)}
                                         />
-                                    </TableCell>
-                                    <TableCell>{causerOf(damage)}</TableCell>
-                                    <TableCell align={'right'}>{damage.photos.length}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                        {damage.outOfServiceFrom &&
+                                            damage.status !== 'REPAIRED' && (
+                                                <Chip
+                                                    size={'small'}
+                                                    variant={'outlined'}
+                                                    label={
+                                                        damage.outOfServiceUntil
+                                                            ? t(
+                                                                  'material.damage.outOfServiceRange',
+                                                                  {
+                                                                      from: format(
+                                                                          new Date(
+                                                                              damage.outOfServiceFrom,
+                                                                          ),
+                                                                          t('format.datetime'),
+                                                                      ),
+                                                                      until: format(
+                                                                          new Date(
+                                                                              damage.outOfServiceUntil,
+                                                                          ),
+                                                                          t('format.datetime'),
+                                                                      ),
+                                                                  },
+                                                              )
+                                                            : t(
+                                                                  'material.damage.outOfServiceOpen',
+                                                                  {
+                                                                      from: format(
+                                                                          new Date(
+                                                                              damage.outOfServiceFrom,
+                                                                          ),
+                                                                          t('format.datetime'),
+                                                                      ),
+                                                                  },
+                                                              )
+                                                    }
+                                                />
+                                            )}
+                                        {damage.photos.length > 0 && (
+                                            <Chip
+                                                size={'small'}
+                                                variant={'outlined'}
+                                                icon={<PhotoCameraOutlined />}
+                                                label={damage.photos.length}
+                                            />
+                                        )}
+                                        {causer && (
+                                            <Typography
+                                                variant={'caption'}
+                                                color={'text.secondary'}>
+                                                {t('material.damage.causedBy')}: {causer}
+                                            </Typography>
+                                        )}
+                                    </Stack>
+                                </ListItemButton>
+                            )
+                        })}
+                    </Stack>
+                </Paper>
             )}
 
             <MaterialDamageDialog
                 open={dialogOpen}
                 providerId={providerId}
                 damage={editDamage}
-                overview={overview ?? undefined}
+                overview={overview}
                 onClose={() => setDialogOpen(false)}
                 onSaved={handleSaved}
                 reload={reload}
             />
-            {overview && (
-                <MaterialOutageImpactDialog
-                    open={impact != null}
-                    eventId={eventId}
-                    providerId={providerId}
-                    item={impact?.item ?? null}
-                    from={impact?.from ?? null}
-                    until={impact?.until}
-                    overview={overview}
-                    onClose={() => setImpact(null)}
-                    reload={reload}
-                />
-            )}
+            <MaterialOutageImpactDialog
+                open={impact != null}
+                eventId={eventId}
+                providerId={providerId}
+                item={impact?.item ?? null}
+                from={impact?.from ?? null}
+                until={impact?.until}
+                overview={overview}
+                onClose={() => setImpact(null)}
+                reload={reload}
+            />
         </Stack>
     )
 }

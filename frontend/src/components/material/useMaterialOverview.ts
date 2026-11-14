@@ -1,34 +1,33 @@
-import {useTranslation} from 'react-i18next'
 import {getMaterialOverview} from '@api/sdk.gen.ts'
-import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {useFetch} from '@utils/hooks.ts'
 
 type Props = {
     eventId: string
-    providerId: string
+    /** Ohne Anbieter wird nichts geladen (Konto ohne Zuordnung, noch kein `?provider=`). */
+    providerId: string | undefined
 }
 
 /**
- * Lädt die Anbieter-Übersicht (Angebote, Flotte, Anfragen, Läufe) für die Reiter Anfragen und
- * Zuteilung. Jeder Reiter ruft dies selbst auf - kein gemeinsamer Kontext, dafür ein eigener
- * Reload-Knopf je Panel nach jeder Änderung.
+ * Lädt die Anbieter-Übersicht (Angebote, Flotte, Anfragen, Läufe, Vergabeschluss) EINMAL je
+ * Dashboard. Die Seite reicht sie an alle Reiter weiter, damit die Zähler im Reiterkopf und die
+ * Listen denselben Stand zeigen und ein Neuladen alle Reiter erfasst. Ladefehler zeigt die Seite
+ * als `ErrorState` an der Stelle des Inhalts, nicht als Snackbar.
  */
 export const useMaterialOverview = ({eventId, providerId}: Props) => {
-    const {t} = useTranslation()
-    const feedback = useFeedback()
-
     const {
         data: overview,
         pending,
         error,
         reload,
-    } = useFetch(signal => getMaterialOverview({signal, path: {eventId, providerId}}), {
-        onResponse: ({error}) => {
-            if (error) {
-                feedback.error(t('common.load.error.single', {entity: t('material.material')}))
-            }
+    } = useFetch(
+        signal => getMaterialOverview({signal, path: {eventId, providerId: providerId ?? ''}}),
+        {
+            preCondition: () => providerId !== undefined,
+            deps: [eventId, providerId],
         },
-        deps: [eventId, providerId],
-    })
+    )
 
-    return {overview, pending, error, reload}
+    return {overview: overview ?? undefined, pending, error, reload}
 }
+
+export type MaterialOverviewState = ReturnType<typeof useMaterialOverview>

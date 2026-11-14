@@ -14,8 +14,15 @@ import {format} from 'date-fns'
 import {useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
-import {MaterialAssignmentEntry, MaterialOverviewDto, MaterialOverviewItemDto, MaterialOverviewRequestDto} from '@api/types.gen.ts'
+import {
+    MaterialAssignmentEntry,
+    MaterialOverviewDto,
+    MaterialOverviewItemDto,
+    MaterialOverviewRequestDto,
+} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {itemLabel} from '@components/material/materialWorkplace.ts'
 import {effectiveAssignments} from '@components/material/effectiveAssignments.ts'
 import {affectedByOutage, replacementCandidates} from '@components/material/affectedByOutage.ts'
 
@@ -105,7 +112,7 @@ const MaterialOutageImpactDialog = ({
             )
             const options: Option[] = candidates.map(c => ({
                 id: c.item.id,
-                label: `${c.item.label} (Nr. ${c.item.number ?? '–'})`,
+                label: itemLabel(c.item),
                 sameNumber: c.sameNumber,
             }))
             const time = match.startTime ? format(new Date(match.startTime), 'HH:mm') : ''
@@ -128,7 +135,7 @@ const MaterialOutageImpactDialog = ({
         if (option == null) {
             return
         }
-        setSubmittingKey(row.key)
+        if (submittingKey) return
         const remaining: MaterialAssignmentEntry[] = row.request.assignments
             .filter(a => a.competitionMatch !== row.matchId)
             .map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}))
@@ -136,12 +143,17 @@ const MaterialOutageImpactDialog = ({
             ...remaining,
             {materialItem: option.id, competitionMatch: row.matchId},
         ]
-        const {error} = await setMaterialAssignments({
-            path: {eventId, providerId, requestId: row.requestId},
-            body: {assignments: entries},
-        })
-        setSubmittingKey(null)
-        if (error) {
+        const {error} = await runRequest(
+            busy => setSubmittingKey(busy ? row.key : null),
+            () =>
+                setMaterialAssignments({
+                    path: {eventId, providerId, requestId: row.requestId},
+                    body: {assignments: entries},
+                }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('material.damage.impact.error'))
         } else {
             feedback.success(t('material.damage.impact.success'))
@@ -155,17 +167,30 @@ const MaterialOutageImpactDialog = ({
             <DialogTitle>{t('material.damage.impact.title')}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{mt: 1}}>
+                    {rows.length > 0 && (
+                        <Typography variant={'body2'} color={'text.secondary'}>
+                            {t('material.damage.impact.hint', {item: itemLabel(item)})}
+                        </Typography>
+                    )}
                     {rows.length === 0 ? (
-                        <Typography color={'text.secondary'}>{t('material.damage.impact.none')}</Typography>
+                        <Typography color={'text.secondary'}>
+                            {t('material.damage.impact.none')}
+                        </Typography>
                     ) : (
                         rows.map(row => (
                             <Stack key={row.key} spacing={1}>
                                 <Typography variant={'body2'}>{row.label}</Typography>
-                                <Stack direction={'row'} spacing={1} alignItems={'center'}>
+                                <Stack
+                                    direction={{xs: 'column', sm: 'row'}}
+                                    spacing={1}
+                                    alignItems={{xs: 'stretch', sm: 'center'}}>
                                     <Autocomplete
                                         options={row.options}
+                                        noOptionsText={t('material.damage.impact.noCandidates')}
                                         value={selected[row.key] ?? null}
-                                        onChange={(_, v) => setSelected(prev => ({...prev, [row.key]: v}))}
+                                        onChange={(_, v) =>
+                                            setSelected(prev => ({...prev, [row.key]: v}))
+                                        }
                                         getOptionLabel={o => o.label}
                                         isOptionEqualToValue={(o, v) => o.id === v.id}
                                         renderOption={(liProps, option) => (
@@ -175,7 +200,9 @@ const MaterialOutageImpactDialog = ({
                                                     <Chip
                                                         size={'small'}
                                                         sx={{ml: 1}}
-                                                        label={t('material.damage.impact.sameNumber')}
+                                                        label={t(
+                                                            'material.damage.impact.sameNumber',
+                                                        )}
                                                     />
                                                 )}
                                             </li>
@@ -192,8 +219,11 @@ const MaterialOutageImpactDialog = ({
                                     <Button
                                         variant={'contained'}
                                         size={'small'}
-                                        disabled={selected[row.key] == null || submittingKey === row.key}
-                                        onClick={() => void handleSave(row)}>
+                                        disabled={
+                                            selected[row.key] == null || submittingKey === row.key
+                                        }
+                                        onClick={() => void handleSave(row)}
+                                        sx={{cursor: 'pointer'}}>
                                         {t('material.damage.impact.save')}
                                     </Button>
                                 </Stack>
@@ -203,7 +233,9 @@ const MaterialOutageImpactDialog = ({
                 </Stack>
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose}>{t('material.damage.impact.later')}</Button>
+                <Button onClick={handleClose} sx={{cursor: 'pointer'}}>
+                    {rows.length === 0 ? t('common.close') : t('material.damage.impact.later')}
+                </Button>
             </DialogActions>
         </BaseDialog>
     )

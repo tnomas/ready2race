@@ -3115,7 +3115,12 @@
       "openDamages": "Open damages",
       "closed": "Closed",
       "none": "No provider invited.",
-      "inviteNeedsMaterialRead": "Inviting requires the right to read providers."
+      "inviteNeedsMaterialRead": "Inviting requires the right to read providers.",
+      "counts": "Undecided requests: {{requests}} · open damages: {{damages}}",
+      "description": "Invited providers create offers; clubs request equipment when registering. The provider decides on requests in their dashboard.",
+      "jumpLabel": "Equipment rental",
+      "uninviteNamed": "Uninvite {{name}}",
+      "uninviteTitle": "Uninvite {{name}}?"
     }
   },
   "task": {
@@ -3363,7 +3368,20 @@
       }
     },
     "materialProvider": "Equipment provider",
-    "materialProviderNone": "No provider"
+    "materialProviderNone": "No provider",
+    "materialProviderHint": "The \"Equipment provider\" role follows this assignment: with a provider the account gets it, without one it is removed. It cannot be selected in the role list.",
+    "materialProviderBlocked": {
+      "self": "Your own assignment must be changed by another person allowed to manage staff.",
+      "system": "The system account cannot be assigned to a provider.",
+      "superadmin": "Only users with the system privilege can assign superadmin accounts."
+    },
+    "materialProviderError": {
+      "cannotAssign": "The \"Equipment provider\" role contains privileges you do not hold; the assignment was not saved.",
+      "forbidden": "The provider assignment was not saved: it requires the right to manage staff (superadmin accounts also the system privilege).",
+      "generic": "Name and roles are saved, the provider assignment is not.",
+      "notFound": "The selected provider no longer exists; the assignment was not saved."
+    },
+    "managedRoles": "Also assigned through their own processes: {{roles}}"
   },
   "role": {
     "role": "Role",
@@ -4872,7 +4890,8 @@
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "own boat",
-      "deviates": "deviating"
+      "deviates": "deviating",
+      "lineProvider": "{{type}} · {{provider}}"
     }
   },
   "speaker": {
@@ -5018,7 +5037,8 @@
       "contactName": "Contact person",
       "contactEmail": "Email",
       "contactPhone": "Phone",
-      "note": "Note"
+      "note": "Note",
+      "none": "No providers created yet."
     },
     "type": {
       "type": "Equipment type",
@@ -5056,15 +5076,18 @@
     },
     "fleet": {
       "title": "Fleet",
-      "noProvider": "Your account is not assigned to a provider."
+      "noProvider": "Your account is not assigned to a provider.",
+      "noProviderHint": "An administrator assigns the account to a provider on the account page.",
+      "subtitle": "All of the provider's items across all events"
     },
     "admin": {
-      "title": "Providers and equipment types"
+      "title": "Providers and equipment types",
+      "subtitle": "Rental master data: who rents out equipment and which equipment types exist."
     },
     "events": {
-      "title": "Events",
       "none": "The provider is not invited to any event.",
-      "open": "Requests open"
+      "open": "Requests open",
+      "subtitle": "Events the provider is invited to"
     },
     "dashboard": {
       "tabs": {
@@ -5074,7 +5097,8 @@
         "settings": "Settings"
       },
       "comingSoon": "Will be filled in a later task.",
-      "chooseProvider": "Please choose a provider first."
+      "chooseProvider": "Please choose a provider first.",
+      "subtitle": "Requests, assignment and damages for this event"
     },
     "offer": {
       "offer": "Offer",
@@ -5101,7 +5125,9 @@
     "settings": {
       "title": "Settings",
       "requestsClosed": "Requests closed",
-      "requestsClosedHint": "While requests are closed, no new requests can be made."
+      "requestsClosedHint": "While requests are closed, no new requests can be made.",
+      "closedNow": "Clubs currently cannot make new requests or withdraw existing ones.",
+      "openNow": "Clubs can request equipment when registering and withdraw requests."
     },
     "registration": {
       "ownMaterial": "Own equipment",
@@ -5121,37 +5147,53 @@
         "DECLINED": "Declined",
         "WITHDRAWN": "Withdrawn"
       },
-      "error": "Equipment selection for {{competition}} could not be saved - the registration was saved anyway."
+      "error": "Equipment selection for {{competition}} could not be saved - the registration was saved anyway.",
+      "closedExisting": "Requests closed: the existing request can no longer be changed or withdrawn. Please contact the provider directly.",
+      "decisionNote": "Provider's note: {{note}}",
+      "errorAfterSave": "The registration is saved, but the equipment choice was not saved for: {{competitions}}. Please open \"View and edit\" and submit again.",
+      "errorSummary_one": "The equipment choice for {{count}} competition was not saved.",
+      "errorSummary_other": "The equipment choice for {{count}} competitions was not saved.",
+      "legend": "Indicator: green = available, yellow = scarce (the request may end up on the waiting list). After submitting, the provider decides; you can see the status here and in \"My event\".",
+      "offerClosed": "{{provider}} · requests closed",
+      "review": {
+        "afterSubmit": "New equipment requests are sent to the provider after submitting. They confirm, waitlist or decline; you can see the status in your registration and in \"My event\".",
+        "new": "new request",
+        "withdraw": "request with {{provider}} will be withdrawn"
+      },
+      "willWithdraw": "The request with {{provider}} will be withdrawn on submit.",
+      "withdrawHowSelect": "To withdraw, choose \"own boat\" or \"own equipment\" and submit the registration.",
+      "withdrawHowSwitch": "To withdraw, switch it off and submit the registration."
     },
     "requests": {
       "reload": "Reload",
       "filterAll": "All",
-      "filterStatus": "Status",
       "filterType": "Material type",
-      "showWithdrawn": "Show withdrawn",
       "none": "No requests match this selection.",
       "noOffers": "No offers exist yet for this event.",
-      "summaryLine": "{{type}}: {{confirmed}} confirmed / {{requested}} open / {{waitlisted}} waitlisted of {{planned}}",
-      "confirmAllOpen": "Confirm all open",
       "confirmAllSuccess_one": "{{count}} request confirmed",
       "confirmAllSuccess_other": "{{count}} requests confirmed",
       "confirmAllError_one": "{{count}} request could not be confirmed",
       "confirmAllError_other": "{{count}} requests could not be confirmed",
-      "columns": {
-        "competition": "Competition",
-        "team": "Team",
-        "club": "Club",
-        "type": "Material type",
-        "count": "Count",
-        "status": "Status",
-        "requestedAt": "Requested at",
-        "actions": "Actions"
-      },
       "actions": {
         "confirm": "Confirm",
         "waitlist": "Waitlist",
         "decline": "Decline"
-      }
+      },
+      "confirmSelected_one": "Confirm {{count}} request",
+      "confirmSelected_other": "Confirm {{count}} requests",
+      "filter": {
+        "ALL": "All",
+        "CONFIRMED": "Confirmed",
+        "DECLINED": "Declined",
+        "OPEN": "Open",
+        "WITHDRAWN": "Withdrawn"
+      },
+      "moreActions": "More decisions",
+      "nextInLine": "next in line",
+      "noneOpen": "No open requests – everything decided.",
+      "selectForBulk": "Include request from {{club}} in bulk confirmation",
+      "summaryShort": "{{confirmed}} of {{planned}} confirmed · {{requested}} open · {{waitlisted}} waiting list",
+      "capacityTitle": "Capacity per offer"
     },
     "decision": {
       "title": {
@@ -5160,7 +5202,11 @@
       },
       "note": "Note (optional)",
       "success": "Decision saved",
-      "error": "Decision could not be saved"
+      "error": "Decision could not be saved",
+      "hint": {
+        "WAITLISTED": "The request goes onto the waiting list. When a place becomes free, the oldest one is shown first. The club sees the note in its registration.",
+        "DECLINED": "The request is declined. The club sees the note in its registration."
+      }
     },
     "assignment": {
       "viewByTeam": "By team",
@@ -5172,11 +5218,8 @@
       "assignByStartNumberError_one": "{{count}} assignment could not be applied",
       "assignByStartNumberError_other": "{{count}} assignments could not be applied",
       "noRequests": "No confirmed requests yet.",
-      "teamNumber": "Start number",
-      "baseAssignment": "Base assignment",
       "addItem": "Add item",
       "exception": "Exception per race",
-      "conflicts": "Conflicts",
       "deviates": "differs from start number",
       "success": "Assignment saved",
       "error": "Assignment could not be saved",
@@ -5187,11 +5230,22 @@
         "add": "Add",
         "none": "No exceptions yet.",
         "success": "Assignment saved",
-        "error": "Assignment could not be saved"
+        "error": "Assignment could not be saved",
+        "hint": "Use a different item than the base assignment for a single race, e.g. as a replacement after an outage.",
+        "remove": "Remove exception"
       },
       "byItem": {
         "noAssignments": "No effective assignment."
-      }
+      },
+      "assignItem": "Assign item",
+      "exceptionCount_one": "{{count}} exception",
+      "exceptionCount_other": "{{count}} exceptions",
+      "moreActions": "More assignment actions",
+      "noFreeItem": "No matching item in the fleet",
+      "noRequestsHint": "Confirmed requests appear here and get an item from the fleet.",
+      "removeItem": "Remove {{item}}",
+      "workDone": "All confirmed requests have an item, no conflicts.",
+      "workSummary": "Open: {{unassigned}} without item, {{conflicts}} with conflict."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5222,15 +5276,6 @@
       "photoTooLarge": "Photo is too large (max. 10 MB)",
       "photoUploadError": "Photo could not be uploaded",
       "photoDeleteError": "Photo could not be deleted",
-      "columns": {
-        "item": "Item",
-        "type": "Equipment type",
-        "reportedAt": "Reported at",
-        "severity": "Severity",
-        "status": "Status",
-        "causedBy": "Caused by",
-        "photos": "Photos"
-      },
       "impact": {
         "title": "Affected races",
         "none": "No affected races.",
@@ -5239,10 +5284,25 @@
         "later": "Later",
         "save": "Apply",
         "success": "Replacement saved",
-        "error": "Replacement could not be saved"
+        "error": "Replacement could not be saved",
+        "hint": "{{item}} is out of service in these races. Choose a replacement per race; the base assignment remains.",
+        "noCandidates": "No free item of this type"
       },
       "baseAgain": "Base assignment possible again",
-      "baseAgainRemove": "Remove exception"
+      "baseAgainRemove": "Remove exception",
+      "deletePhoto": "Delete photo {{name}}",
+      "editItem": "Edit damage to {{item}}",
+      "filter": {
+        "ALL": "All",
+        "OPEN": "Open",
+        "REPAIRED": "Repaired"
+      },
+      "moreActions": "More damage actions",
+      "noneOpen": "No open damages.",
+      "outOfServiceHint": "Outage: while the item is missing, the system suggests replacements for affected races. Leave \"until\" empty if open-ended.",
+      "outOfServiceOpen": "out of service from {{from}}",
+      "outOfServiceRange": "out of service {{from}} – {{until}}",
+      "scopeHint": "Shown are damages reported during the event days or attributed to a registration of this event."
     },
     "severity": {
       "MINOR": "minor",

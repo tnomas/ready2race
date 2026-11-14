@@ -3115,7 +3115,12 @@
       "openDamages": "Offene Schäden",
       "closed": "Geschlossen",
       "none": "Kein Anbieter eingeladen.",
-      "inviteNeedsMaterialRead": "Zum Einladen fehlt das Recht, Anbieter zu lesen."
+      "inviteNeedsMaterialRead": "Zum Einladen fehlt das Recht, Anbieter zu lesen.",
+      "counts": "Anfragen ohne Entscheidung: {{requests}} · offene Schäden: {{damages}}",
+      "description": "Eingeladene Anbieter legen Angebote an; Vereine fragen bei der Meldung an. Die Anfragen entscheidet der Anbieter in seinem Dashboard.",
+      "jumpLabel": "Materialvermietung",
+      "uninviteNamed": "{{name}} ausladen",
+      "uninviteTitle": "{{name}} ausladen?"
     }
   },
   "task": {
@@ -3363,7 +3368,20 @@
       }
     },
     "materialProvider": "Materialanbieter",
-    "materialProviderNone": "Kein Anbieter"
+    "materialProviderNone": "Kein Anbieter",
+    "materialProviderHint": "Die Rolle „Materialanbieter\" hängt an dieser Zuordnung: Mit Anbieter bekommt das Konto sie, ohne Anbieter entfällt sie. In der Rollenliste lässt sie sich nicht wählen.",
+    "materialProviderBlocked": {
+      "self": "Die Zuordnung des eigenen Kontos ändert eine andere Person mit dem Recht, Personal zu verwalten.",
+      "system": "Das Systemkonto kann keinem Anbieter zugeordnet werden.",
+      "superadmin": "Superadmin-Konten ordnet nur zu, wer das Systemrecht hat."
+    },
+    "materialProviderError": {
+      "cannotAssign": "Die Rolle „Materialanbieter\" enthält Rechte, die Sie selbst nicht haben; die Zuordnung wurde nicht gespeichert.",
+      "forbidden": "Die Anbieter-Zuordnung wurde nicht gespeichert: Dafür braucht es das Recht, Personal zu verwalten (Superadmin-Konten zusätzlich das Systemrecht).",
+      "generic": "Name und Rollen sind gespeichert, die Anbieter-Zuordnung nicht.",
+      "notFound": "Den gewählten Anbieter gibt es nicht mehr; die Zuordnung wurde nicht gespeichert."
+    },
+    "managedRoles": "Außerdem, über eigene Abläufe vergeben: {{roles}}"
   },
   "role": {
     "role": "Rolle",
@@ -4872,7 +4890,8 @@
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "eigenes Boot",
-      "deviates": "abweichend"
+      "deviates": "abweichend",
+      "lineProvider": "{{type}} · {{provider}}"
     }
   },
   "speaker": {
@@ -5018,7 +5037,8 @@
       "contactName": "Ansprechperson",
       "contactEmail": "E-Mail",
       "contactPhone": "Telefon",
-      "note": "Notiz"
+      "note": "Notiz",
+      "none": "Noch keine Anbieter angelegt."
     },
     "type": {
       "type": "Materialart",
@@ -5056,15 +5076,18 @@
     },
     "fleet": {
       "title": "Flotte",
-      "noProvider": "Ihr Konto ist keinem Anbieter zugeordnet."
+      "noProvider": "Ihr Konto ist keinem Anbieter zugeordnet.",
+      "noProviderHint": "Die Zuordnung zu einem Anbieter nimmt die Verwaltung auf der Seite des Kontos vor.",
+      "subtitle": "Alle Stücke des Anbieters über alle Veranstaltungen"
     },
     "admin": {
-      "title": "Anbieter und Materialarten"
+      "title": "Anbieter und Materialarten",
+      "subtitle": "Stammdaten der Vermietung: wer verleiht und welche Materialarten es gibt."
     },
     "events": {
-      "title": "Veranstaltungen",
       "none": "Der Anbieter ist zu keiner Veranstaltung eingeladen.",
-      "open": "Anfragen offen"
+      "open": "Anfragen offen",
+      "subtitle": "Veranstaltungen, zu denen der Anbieter eingeladen ist"
     },
     "dashboard": {
       "tabs": {
@@ -5074,7 +5097,8 @@
         "settings": "Einstellungen"
       },
       "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt.",
-      "chooseProvider": "Bitte zuerst einen Anbieter auswählen."
+      "chooseProvider": "Bitte zuerst einen Anbieter auswählen.",
+      "subtitle": "Anfragen, Zuteilung und Schäden dieser Veranstaltung"
     },
     "offer": {
       "offer": "Angebot",
@@ -5101,7 +5125,9 @@
     "settings": {
       "title": "Einstellungen",
       "requestsClosed": "Vergabe geschlossen",
-      "requestsClosedHint": "Solange die Vergabe geschlossen ist, können keine neuen Anfragen gestellt werden."
+      "requestsClosedHint": "Solange die Vergabe geschlossen ist, können keine neuen Anfragen gestellt werden.",
+      "closedNow": "Vereine können derzeit keine neuen Anfragen stellen und bestehende nicht zurückziehen.",
+      "openNow": "Vereine können bei der Meldung anfragen und Anfragen zurückziehen."
     },
     "registration": {
       "ownMaterial": "Eigenes Material",
@@ -5121,37 +5147,53 @@
         "DECLINED": "Abgelehnt",
         "WITHDRAWN": "Zurückgezogen"
       },
-      "error": "Materialauswahl für {{competition}} konnte nicht gespeichert werden - die Anmeldung wurde trotzdem gespeichert."
+      "error": "Materialauswahl für {{competition}} konnte nicht gespeichert werden - die Anmeldung wurde trotzdem gespeichert.",
+      "closedExisting": "Vergabe geschlossen: Die bestehende Anfrage lässt sich nicht mehr ändern oder zurückziehen. Bitte direkt an den Anbieter wenden.",
+      "decisionNote": "Notiz des Anbieters: {{note}}",
+      "errorAfterSave": "Die Meldung ist gespeichert, die Materialwahl aber nicht für: {{competitions}}. Bitte „Ansehen und bearbeiten\" öffnen und erneut absenden.",
+      "errorSummary_one": "Die Materialwahl für {{count}} Wettkampf wurde nicht gespeichert.",
+      "errorSummary_other": "Die Materialwahl für {{count}} Wettkämpfe wurde nicht gespeichert.",
+      "legend": "Ampel: grün = noch frei, gelb = knapp (die Anfrage landet eventuell auf der Warteliste). Nach dem Absenden entscheidet der Anbieter; den Stand sehen Sie hier und in „Mein Event\".",
+      "offerClosed": "{{provider}} · Vergabe geschlossen",
+      "review": {
+        "afterSubmit": "Neue Materialanfragen gehen nach dem Absenden an den Anbieter. Er bestätigt, setzt auf die Warteliste oder lehnt ab; den Stand sehen Sie bei Ihrer Meldung und in „Mein Event\".",
+        "new": "neue Anfrage",
+        "withdraw": "Anfrage bei {{provider}} wird zurückgezogen"
+      },
+      "willWithdraw": "Die Anfrage bei {{provider}} wird beim Absenden zurückgezogen.",
+      "withdrawHowSelect": "Zum Zurückziehen „eigenes Boot\" bzw. „eigenes Material\" wählen und die Meldung absenden.",
+      "withdrawHowSwitch": "Zum Zurückziehen den Schalter ausschalten und die Meldung absenden."
     },
     "requests": {
       "reload": "Aktualisieren",
       "filterAll": "Alle",
-      "filterStatus": "Status",
       "filterType": "Materialart",
-      "showWithdrawn": "Zurückgezogene zeigen",
       "none": "Keine Anfragen mit dieser Auswahl.",
       "noOffers": "Für diese Veranstaltung gibt es noch keine Angebote.",
-      "summaryLine": "{{type}}: {{confirmed}} bestätigt / {{requested}} offen / {{waitlisted}} Warteliste von {{planned}}",
-      "confirmAllOpen": "Alle offenen bestätigen",
       "confirmAllSuccess_one": "{{count}} Anfrage bestätigt",
       "confirmAllSuccess_other": "{{count}} Anfragen bestätigt",
       "confirmAllError_one": "{{count}} Anfrage konnte nicht bestätigt werden",
       "confirmAllError_other": "{{count}} Anfragen konnten nicht bestätigt werden",
-      "columns": {
-        "competition": "Wettkampf",
-        "team": "Team",
-        "club": "Verein",
-        "type": "Materialart",
-        "count": "Anzahl",
-        "status": "Status",
-        "requestedAt": "Angefragt am",
-        "actions": "Aktionen"
-      },
       "actions": {
         "confirm": "Bestätigen",
         "waitlist": "Auf Warteliste setzen",
         "decline": "Ablehnen"
-      }
+      },
+      "confirmSelected_one": "{{count}} Anfrage bestätigen",
+      "confirmSelected_other": "{{count}} Anfragen bestätigen",
+      "filter": {
+        "ALL": "Alle",
+        "CONFIRMED": "Bestätigt",
+        "DECLINED": "Abgelehnt",
+        "OPEN": "Offen",
+        "WITHDRAWN": "Zurückgezogen"
+      },
+      "moreActions": "Weitere Entscheidungen",
+      "nextInLine": "rückt als Nächste nach",
+      "noneOpen": "Keine offenen Anfragen – alles entschieden.",
+      "selectForBulk": "Anfrage von {{club}} in die Sammelbestätigung aufnehmen",
+      "summaryShort": "{{confirmed}} von {{planned}} bestätigt · {{requested}} offen · {{waitlisted}} Warteliste",
+      "capacityTitle": "Auslastung je Angebot"
     },
     "decision": {
       "title": {
@@ -5160,7 +5202,11 @@
       },
       "note": "Notiz (optional)",
       "success": "Entscheidung gespeichert",
-      "error": "Entscheidung konnte nicht gespeichert werden"
+      "error": "Entscheidung konnte nicht gespeichert werden",
+      "hint": {
+        "WAITLISTED": "Die Anfrage kommt auf die Warteliste. Wird ein Platz frei, steht die älteste als Nächste oben. Die Notiz sieht der Verein bei seiner Meldung.",
+        "DECLINED": "Die Anfrage wird abgelehnt. Die Notiz sieht der Verein bei seiner Meldung."
+      }
     },
     "assignment": {
       "viewByTeam": "Nach Team",
@@ -5172,11 +5218,8 @@
       "assignByStartNumberError_one": "{{count}} Zuteilung konnte nicht übernommen werden",
       "assignByStartNumberError_other": "{{count}} Zuteilungen konnten nicht übernommen werden",
       "noRequests": "Noch keine bestätigten Anfragen.",
-      "teamNumber": "Startnummer",
-      "baseAssignment": "Grundzuteilung",
       "addItem": "Stück hinzufügen",
       "exception": "Ausnahme je Lauf",
-      "conflicts": "Konflikte",
       "deviates": "weicht von Startnummer ab",
       "success": "Zuteilung gespeichert",
       "error": "Zuteilung konnte nicht gespeichert werden",
@@ -5187,11 +5230,22 @@
         "add": "Hinzufügen",
         "none": "Noch keine Ausnahmen.",
         "success": "Zuteilung gespeichert",
-        "error": "Zuteilung konnte nicht gespeichert werden"
+        "error": "Zuteilung konnte nicht gespeichert werden",
+        "hint": "Für einen einzelnen Lauf ein anderes Stück als die Grundzuteilung, etwa als Ersatz nach einem Ausfall.",
+        "remove": "Ausnahme entfernen"
       },
       "byItem": {
         "noAssignments": "Keine wirksame Zuteilung."
-      }
+      },
+      "assignItem": "Stück zuteilen",
+      "exceptionCount_one": "{{count}} Ausnahme",
+      "exceptionCount_other": "{{count}} Ausnahmen",
+      "moreActions": "Weitere Aktionen zur Zuteilung",
+      "noFreeItem": "Kein passendes Stück in der Flotte",
+      "noRequestsHint": "Bestätigte Anfragen erscheinen hier und bekommen ein Stück aus der Flotte.",
+      "removeItem": "{{item}} entfernen",
+      "workDone": "Alle bestätigten Anfragen haben ein Stück, keine Konflikte.",
+      "workSummary": "Offen: {{unassigned}} ohne Stück, {{conflicts}} mit Konflikt."
     },
     "conflict": {
       "OVERLAP": "Überschneidung",
@@ -5222,15 +5276,6 @@
       "photoTooLarge": "Foto ist zu groß (max. 10 MB)",
       "photoUploadError": "Foto konnte nicht hochgeladen werden",
       "photoDeleteError": "Foto konnte nicht gelöscht werden",
-      "columns": {
-        "item": "Stück",
-        "type": "Materialart",
-        "reportedAt": "Gemeldet am",
-        "severity": "Schwere",
-        "status": "Status",
-        "causedBy": "Verursacher",
-        "photos": "Fotos"
-      },
       "impact": {
         "title": "Betroffene Läufe",
         "none": "Keine betroffenen Läufe.",
@@ -5239,10 +5284,25 @@
         "later": "Später",
         "save": "Übernehmen",
         "success": "Ersatz gespeichert",
-        "error": "Ersatz konnte nicht gespeichert werden"
+        "error": "Ersatz konnte nicht gespeichert werden",
+        "hint": "{{item}} fällt in diesen Läufen aus. Je Lauf ein Ersatzstück wählen; die Grundzuteilung bleibt.",
+        "noCandidates": "Kein freies Stück dieser Art"
       },
       "baseAgain": "Grundzuteilung wieder möglich",
-      "baseAgainRemove": "Ausnahme entfernen"
+      "baseAgainRemove": "Ausnahme entfernen",
+      "deletePhoto": "Foto {{name}} löschen",
+      "editItem": "Schaden an {{item}} bearbeiten",
+      "filter": {
+        "ALL": "Alle",
+        "OPEN": "Offen",
+        "REPAIRED": "Repariert"
+      },
+      "moreActions": "Weitere Aktionen zu Schäden",
+      "noneOpen": "Keine offenen Schäden.",
+      "outOfServiceHint": "Ausfall: Solange das Stück fehlt, schlägt das System für betroffene Läufe Ersatz vor. „Bis\" leer lassen, wenn offen.",
+      "outOfServiceOpen": "fällt aus ab {{from}}",
+      "outOfServiceRange": "fällt aus {{from}} – {{until}}",
+      "scopeHint": "Hier stehen Schäden, die während der Veranstaltungstage gemeldet oder einer Meldung dieser Veranstaltung zugeordnet wurden."
     },
     "severity": {
       "MINOR": "leicht",

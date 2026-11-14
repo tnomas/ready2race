@@ -1,3 +1,4 @@
+import {useMemo} from 'react'
 import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialProvider, getMaterialProviders} from '@api/sdk.gen.ts'
@@ -22,26 +23,29 @@ const deleteRequest = (dto: MaterialProviderDto) =>
 const MaterialProviderTable = (props: BaseEntityTableProps<MaterialProviderDto>) => {
     const {t} = useTranslation()
 
-    const columns: GridColDef<MaterialProviderDto>[] = [
-        {
-            field: 'name',
-            headerName: t('material.provider.name'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'contactName',
-            headerName: t('material.provider.contactName'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'contactEmail',
-            headerName: t('material.provider.contactEmail'),
-            minWidth: 150,
-            flex: 1,
-        },
-    ]
+    const columns: GridColDef<MaterialProviderDto>[] = useMemo(
+        () => [
+            {
+                field: 'name',
+                headerName: t('material.provider.name'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'contactName',
+                headerName: t('material.provider.contactName'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'contactEmail',
+                headerName: t('material.provider.contactEmail'),
+                minWidth: 150,
+                flex: 1,
+            },
+        ],
+        [t],
+    )
 
     return (
         <EntityTable

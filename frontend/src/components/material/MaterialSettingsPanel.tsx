@@ -1,63 +1,57 @@
 import {useEffect, useState} from 'react'
-import {Card, FormControlLabel, Stack, Switch, Typography} from '@mui/material'
+import {FormControlLabel, Paper, Stack, Switch, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
-import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
-import {getMaterialProviderEvents, setMaterialRequestsClosed} from '@api/sdk.gen.ts'
+import {useEntityAdministration, useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {setMaterialRequestsClosed} from '@api/sdk.gen.ts'
 import {MaterialOfferDto} from '@api/types.gen.ts'
+import {SectionHeader} from '@components/ui'
 import MaterialOfferTable from '@components/material/MaterialOfferTable.tsx'
 import MaterialOfferDialog from '@components/material/MaterialOfferDialog.tsx'
 
 type Props = {
     eventId: string
     providerId: string
+    /** Stand aus der Übersicht der Seite (eine Quelle für Kopf-Chip und Schalter). */
+    requestsClosed: boolean
+    reload: () => void
 }
 
 /**
- * Einstellungen-Reiter des Anbieter-Dashboards: Vergabe öffnen/schließen und die Angebote für
- * diese Veranstaltung pflegen. requestsClosed lebt am Paar (Veranstaltung, Anbieter) - der
- * Anfangswert kommt aus der Veranstaltungswahl des Anbieters (READ MATERIAL reicht dafür, anders
- * als bei der Veranstalter-Karte, die READ EVENT GLOBAL braucht).
+ * Reiter „Einstellungen": Vergabe öffnen/schließen und die Angebote dieser Veranstaltung. Der
+ * Schalter schaltet sofort (optimistisch) und springt bei Fehler zurück.
  */
-const MaterialSettingsPanel = ({eventId, providerId}: Props) => {
+const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const [lastRequested, setLastRequested] = useState(Date.now())
     const [submitting, setSubmitting] = useState(false)
-
-    const {data: events, pending} = useFetch(
-        signal => getMaterialProviderEvents({signal, path: {providerId}}),
-        {
-            onResponse: ({error}) => {
-                if (error) {
-                    feedback.error(t('common.load.error.single', {entity: t('event.event')}))
-                }
-            },
-            deps: [providerId, lastRequested],
-        },
-    )
-
-    const requestsClosed = events?.find(event => event.event === eventId)?.requestsClosed ?? false
-
     const [checked, setChecked] = useState(requestsClosed)
     useEffect(() => {
         setChecked(requestsClosed)
     }, [requestsClosed])
 
     const handleToggle = async (value: boolean) => {
+        if (submitting) return
         setChecked(value)
-        setSubmitting(true)
-        const {error} = await setMaterialRequestsClosed({
-            path: {eventId, providerId},
-            body: {requestsClosed: value},
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            setMaterialRequestsClosed({
+                path: {eventId, providerId},
+                body: {requestsClosed: value},
+            }),
+        )
         if (error) {
-            feedback.error(t('entity.edit.error', {entity: t('material.settings.requestsClosed')}))
             setChecked(!value)
+            feedback.error(
+                isRequestNetworkError(error)
+                    ? t('common.error.network')
+                    : t('entity.edit.error', {entity: t('material.settings.requestsClosed')}),
+            )
         } else {
-            feedback.success(t('entity.edit.success', {entity: t('material.settings.requestsClosed')}))
-            setLastRequested(Date.now())
+            feedback.success(
+                t('entity.edit.success', {entity: t('material.settings.requestsClosed')}),
+            )
+            reload()
         }
     }
 
@@ -67,24 +61,26 @@ const MaterialSettingsPanel = ({eventId, providerId}: Props) => {
 
     return (
         <Stack spacing={4}>
-            <Card sx={{p: 2}}>
-                <Typography variant="h6" sx={{mb: 1}}>
-                    {t('material.settings.title')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-                    {t('material.settings.requestsClosedHint')}
-                </Typography>
+            <Paper variant={'outlined'} sx={{p: 2}}>
+                <SectionHeader
+                    title={t('material.settings.title')}
+                    description={t('material.settings.requestsClosedHint')}
+                />
                 <FormControlLabel
                     control={
                         <Switch
                             checked={checked}
-                            disabled={pending || submitting}
-                            onChange={(_, value) => handleToggle(value)}
+                            disabled={submitting}
+                            onChange={(_, value) => void handleToggle(value)}
                         />
                     }
                     label={t('material.settings.requestsClosed')}
+                    sx={{cursor: 'pointer'}}
                 />
-            </Card>
+                <Typography variant={'body2'} color={'text.secondary'}>
+                    {checked ? t('material.settings.closedNow') : t('material.settings.openNow')}
+                </Typography>
+            </Paper>
             <MaterialOfferTable
                 eventId={eventId}
                 providerId={providerId}

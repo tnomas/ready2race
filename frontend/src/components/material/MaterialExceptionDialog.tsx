@@ -24,6 +24,8 @@ import {
     MaterialOverviewRequestDto,
 } from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {itemLabel} from '@components/material/materialWorkplace.ts'
 
 type Props = {
     open: boolean
@@ -41,9 +43,6 @@ type Option = {id: string; label: string}
 
 const matchLabel = (match: MaterialOverviewMatchDto): string =>
     [match.roundName, match.name].filter(Boolean).join(' · ') || match.id
-
-const itemLabel = (item: {label: string; number?: number}): string =>
-    item.number != null ? `${item.label} #${item.number}` : item.label
 
 const toEntries = (
     assignments: MaterialOverviewRequestDto['assignments'],
@@ -98,13 +97,16 @@ const MaterialExceptionDialog = ({
     const exceptions = request.assignments.filter(a => a.competitionMatch != null)
 
     const submitEntries = async (entries: MaterialAssignmentEntry[]) => {
-        setSubmitting(true)
-        const {error} = await setMaterialAssignments({
-            path: {eventId, providerId, requestId: request.id},
-            body: {assignments: entries},
-        })
-        setSubmitting(false)
-        if (error) {
+        if (submitting) return
+        const {error} = await runRequest(setSubmitting, () =>
+            setMaterialAssignments({
+                path: {eventId, providerId, requestId: request.id},
+                body: {assignments: entries},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('material.assignment.exceptionDialog.error'))
         } else {
             feedback.success(t('material.assignment.exceptionDialog.success'))
@@ -149,8 +151,12 @@ const MaterialExceptionDialog = ({
                                         secondaryAction={
                                             <IconButton
                                                 edge={'end'}
+                                                aria-label={t(
+                                                    'material.assignment.exceptionDialog.remove',
+                                                )}
                                                 onClick={() => handleRemove(exception.id)}
-                                                disabled={submitting}>
+                                                disabled={submitting}
+                                                sx={{cursor: 'pointer'}}>
                                                 <DeleteIcon />
                                             </IconButton>
                                         }>
@@ -169,7 +175,10 @@ const MaterialExceptionDialog = ({
                             })}
                         </List>
                     )}
-                    <Stack direction={'row'} spacing={2}>
+                    <Typography variant={'body2'} color={'text.secondary'}>
+                        {t('material.assignment.exceptionDialog.hint')}
+                    </Typography>
+                    <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                         <Autocomplete
                             options={matchOptions}
                             value={selectedMatch}
@@ -204,11 +213,14 @@ const MaterialExceptionDialog = ({
                 </Stack>
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose}>{t('common.close')}</Button>
+                <Button onClick={handleClose} sx={{cursor: 'pointer'}}>
+                    {t('common.close')}
+                </Button>
                 <Button
                     variant={'contained'}
                     disabled={selectedMatch == null || selectedItem == null || submitting}
-                    onClick={handleAdd}>
+                    onClick={handleAdd}
+                    sx={{cursor: 'pointer'}}>
                     {t('material.assignment.exceptionDialog.add')}
                 </Button>
             </DialogActions>

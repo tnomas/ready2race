@@ -1,9 +1,17 @@
 import {useState} from 'react'
-import {Button, DialogActions, DialogContent, DialogTitle, TextField} from '@mui/material'
+import {
+    Button,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    TextField,
+    Typography,
+} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {decideMaterialRequest} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     open: boolean
@@ -42,16 +50,18 @@ const MaterialDecisionDialog = ({
     }
 
     const handleSubmit = async () => {
-        if (requestId == null) {
+        if (requestId == null || submitting) {
             return
         }
-        setSubmitting(true)
-        const {error} = await decideMaterialRequest({
-            path: {eventId, providerId, requestId},
-            body: {status, decisionNote: note.trim() === '' ? undefined : note.trim()},
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            decideMaterialRequest({
+                path: {eventId, providerId, requestId},
+                body: {status, decisionNote: note.trim() === '' ? undefined : note.trim()},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('material.decision.error'))
         } else {
             feedback.success(t('material.decision.success'))
@@ -64,6 +74,9 @@ const MaterialDecisionDialog = ({
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
             <DialogTitle>{t(`material.decision.title.${status}`)}</DialogTitle>
             <DialogContent>
+                <Typography variant={'body2'} color={'text.secondary'}>
+                    {t(`material.decision.hint.${status}`)}
+                </Typography>
                 <TextField
                     autoFocus
                     fullWidth
@@ -76,14 +89,15 @@ const MaterialDecisionDialog = ({
                 />
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} disabled={submitting}>
+                <Button onClick={handleClose} disabled={submitting} sx={{cursor: 'pointer'}}>
                     {t('common.cancel')}
                 </Button>
                 <Button
                     onClick={() => void handleSubmit()}
                     variant={'contained'}
                     color={status === 'DECLINED' ? 'error' : 'primary'}
-                    disabled={submitting}>
+                    disabled={submitting}
+                    sx={{cursor: 'pointer'}}>
                     {t(`material.decision.title.${status}`)}
                 </Button>
             </DialogActions>

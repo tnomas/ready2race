@@ -1,3 +1,4 @@
+import {useMemo} from 'react'
 import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialType, getMaterialTypes} from '@api/sdk.gen.ts'
@@ -21,27 +22,30 @@ const deleteRequest = (dto: MaterialTypeDto) => deleteMaterialType({path: {typeI
 const MaterialTypeTable = (props: BaseEntityTableProps<MaterialTypeDto>) => {
     const {t} = useTranslation()
 
-    const columns: GridColDef<MaterialTypeDto>[] = [
-        {
-            field: 'name',
-            headerName: t('material.type.name'),
-            minWidth: 150,
-            flex: 1,
-        },
-        {
-            field: 'category',
-            headerName: t('material.type.category'),
-            minWidth: 150,
-            valueGetter: (v: MaterialTypeDto['category']) => t(`material.category.${v}`),
-        },
-        {
-            field: 'description',
-            headerName: t('material.type.description'),
-            minWidth: 150,
-            flex: 1,
-            sortable: false,
-        },
-    ]
+    const columns: GridColDef<MaterialTypeDto>[] = useMemo(
+        () => [
+            {
+                field: 'name',
+                headerName: t('material.type.name'),
+                minWidth: 150,
+                flex: 1,
+            },
+            {
+                field: 'category',
+                headerName: t('material.type.category'),
+                minWidth: 150,
+                valueGetter: (v: MaterialTypeDto['category']) => t(`material.category.${v}`),
+            },
+            {
+                field: 'description',
+                headerName: t('material.type.description'),
+                minWidth: 150,
+                flex: 1,
+                sortable: false,
+            },
+        ],
+        [t],
+    )
 
     return (
         <EntityTable

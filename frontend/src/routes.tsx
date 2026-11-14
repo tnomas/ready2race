@@ -38,7 +38,10 @@ import {
 } from './utils/navigation/searchParams.ts'
 import {validateCompetitionSearch} from './pages/event/competitionPageLogic.ts'
 import type {ClubTab} from './pages/club/ClubsPage.tsx'
-import type {MaterialTab} from './pages/material/MaterialDashboardPage.tsx'
+import {
+    validateMaterialEventSearch,
+    validateMaterialProviderSearch,
+} from './pages/material/materialDashboardLogic.ts'
 import {validateConfigurationSearch} from './pages/configurationPageLogic.ts'
 import {readRememberedEvent} from './components/qrApp/appMemory.ts'
 import {scanRightsOf} from './components/qrApp/appAccess.ts'
@@ -926,49 +929,27 @@ export const materialRoute = createRoute({
     },
 })
 
-type MaterialIndexSearch = {
-    provider?: string
-}
-
 export const materialIndexRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: '/',
     component: SelectMaterialEventPage,
-    validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialIndexSearch => ({
-        provider,
-    }),
+    validateSearch: validateMaterialProviderSearch,
 })
 
-type MaterialEventSearch = TabSearch<MaterialTab> & {
-    // Nur für Konten ohne eigene Anbieter-Zuordnung mit READ MATERIAL GLOBAL relevant - der
-    // eigene Anbieter (materialProviderId am Konto) hat immer Vorrang, siehe MaterialDashboardPage.
-    provider?: string
-}
-
+// `?tab=` mit Rückfall auf den ersten Reiter (ADR-0103); `?provider=` zählt nur für Konten ohne
+// eigene Anbieter-Zuordnung mit READ MATERIAL GLOBAL (siehe materialDashboardLogic.ts).
 export const materialEventRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'event/$eventId',
     component: MaterialDashboardPage,
-    validateSearch: ({
-        tab,
-        provider,
-    }: MaterialEventSearch & SearchSchemaInput): MaterialEventSearch => ({
-        tab,
-        provider,
-    }),
+    validateSearch: validateMaterialEventSearch,
 })
-
-type MaterialFleetSearch = {
-    provider?: string
-}
 
 export const materialFleetRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'fleet',
     component: MaterialFleetPage,
-    validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialFleetSearch => ({
-        provider,
-    }),
+    validateSearch: validateMaterialProviderSearch,
 })
 
 export const materialAdminRoute = createRoute({

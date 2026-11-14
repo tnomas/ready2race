@@ -19,6 +19,8 @@ import {
 } from '@mui/icons-material'
 import {Box, Divider, IconButton, ListSubheader, Tooltip, Typography} from '@mui/material'
 import EventSidebarSection from '@components/sidebar/EventSidebarSection.tsx'
+import {useLocation, useRouter} from '@tanstack/react-router'
+import {isMaterialWorkplacePath} from '../../pages/material/materialDashboardLogic.ts'
 import {
     readAdministrationConfigGlobal,
     readClubGlobal,
@@ -45,6 +47,11 @@ const SidebarContent = ({...props}: Props) => {
     const {t} = useTranslation()
     const user = useUser()
     const {themeConfig} = useThemeConfig()
+    const location = useLocation()
+    const router = useRouter()
+    // „Material" ist der Arbeitsplatz des Anbieters (Wahl, Dashboard, Flotte); die Stammdaten
+    // unter /material/admin haben ihren eigenen Eintrag im Verwaltungsblock.
+    const materialActive = isMaterialWorkplacePath(location.pathname, router.basepath)
 
     // Überschrift „Verwaltung" nur, wenn mindestens ein Eintrag darunter sichtbar ist.
     const showManagement =
@@ -153,6 +160,7 @@ const SidebarContent = ({...props}: Props) => {
                 icon={<Sailing />}
                 privilege={readMaterialOwn}
                 to={'/material'}
+                active={materialActive}
             />
             <SidebarItem
                 text={t('navigation.titles.invoices')}

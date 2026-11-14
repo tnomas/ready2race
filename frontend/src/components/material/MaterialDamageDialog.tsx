@@ -1,5 +1,16 @@
 import {useEffect, useMemo, useState} from 'react'
-import {Avatar, Box, Button, Chip, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography} from '@mui/material'
+import {
+    Avatar,
+    Box,
+    Button,
+    Chip,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    IconButton,
+    Stack,
+    Typography,
+} from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import {useTranslation} from 'react-i18next'
@@ -15,6 +26,7 @@ import SelectFileButton from '@components/SelectFileButton.tsx'
 import {resizeImage} from '@utils/resizeImage.ts'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {AutocompleteOption} from '@utils/types.ts'
 import {
     addMaterialDamage,
@@ -80,17 +92,24 @@ const itemOptionLabel = (item: {label: string; number?: number}) =>
 const causerLabel = (r: MaterialOverviewRequestDto) =>
     `#${r.teamNumber ?? '–'} ${r.teamName ?? '–'} · ${r.clubName} · ${r.competitionIdentifier}`
 
-const causerOptionFromDto = (dto: MaterialDamageDto, overview?: MaterialOverviewDto): AutocompleteOption => {
+const causerOptionFromDto = (
+    dto: MaterialDamageDto,
+    overview?: MaterialOverviewDto,
+): AutocompleteOption => {
     if (dto.causedByRegistration == null) {
         return null
     }
-    const request = overview?.requests.find(r => r.competitionRegistration === dto.causedByRegistration)
+    const request = overview?.requests.find(
+        r => r.competitionRegistration === dto.causedByRegistration,
+    )
     if (request) {
         return {id: request.competitionRegistration, label: causerLabel(request)}
     }
     return {
         id: dto.causedByRegistration,
-        label: [dto.causedByTeam, dto.causedByClub, dto.causedByCompetition].filter(Boolean).join(' · '),
+        label: [dto.causedByTeam, dto.causedByClub, dto.causedByCompetition]
+            .filter(Boolean)
+            .join(' · '),
     }
 }
 
@@ -107,7 +126,10 @@ const defaultValues = (presetItem?: {id: string; label: string; number?: number}
 })
 
 const mapDtoToForm = (dto: MaterialDamageDto, overview?: MaterialOverviewDto): DamageForm => ({
-    item: {id: dto.materialItem, label: itemOptionLabel({label: dto.itemLabel, number: dto.itemNumber})},
+    item: {
+        id: dto.materialItem,
+        label: itemOptionLabel({label: dto.itemLabel, number: dto.itemNumber}),
+    },
     reportedAt: dto.reportedAt.slice(0, 19),
     description: dto.description,
     severity: dto.severity,
@@ -146,17 +168,21 @@ const PhotoThumbnail = ({
     onDelete: () => void
     disabled: boolean
 }) => {
+    const {t} = useTranslation()
     const [url, setUrl] = useState<string | null>(null)
 
     useEffect(() => {
         let objectUrl: string | null = null
         let cancelled = false
-        getMaterialDamagePhoto({path: {providerId, photoId: photo.id}}).then(({data}) => {
-            if (data !== undefined && !cancelled) {
-                objectUrl = URL.createObjectURL(data)
-                setUrl(objectUrl)
-            }
-        })
+        getMaterialDamagePhoto({path: {providerId, photoId: photo.id}})
+            .then(({data}) => {
+                if (data instanceof Blob && !cancelled) {
+                    objectUrl = URL.createObjectURL(data)
+                    setUrl(objectUrl)
+                }
+            })
+            // Netzfehler: die Miniatur bleibt beim Platzhalter-Symbol.
+            .catch(() => undefined)
         return () => {
             cancelled = true
             if (objectUrl) {
@@ -167,14 +193,20 @@ const PhotoThumbnail = ({
 
     return (
         <Box sx={{position: 'relative'}}>
-            <Avatar variant={'rounded'} src={url ?? undefined} sx={{width: 72, height: 72}}>
+            <Avatar
+                variant={'rounded'}
+                src={url ?? undefined}
+                alt={photo.name}
+                sx={{width: 72, height: 72}}>
                 <InsertDriveFileIcon />
             </Avatar>
             <IconButton
                 size={'small'}
+                aria-label={t('material.damage.deletePhoto', {name: photo.name})}
                 onClick={onDelete}
                 disabled={disabled}
                 sx={{
+                    cursor: 'pointer',
                     position: 'absolute',
                     top: -10,
                     right: -10,
@@ -193,7 +225,16 @@ const PhotoThumbnail = ({
  * gewählten Fotos hochladen (die Schaden-ID gibt es vorher nicht), und der Aufrufer öffnet bei
  * einem Ausfallfenster im Anschluss den Ersatz-Dialog statt einfach zu schließen.
  */
-const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, onClose, onSaved, reload}: Props) => {
+const MaterialDamageDialog = ({
+    open,
+    providerId,
+    damage,
+    presetItem,
+    overview,
+    onClose,
+    onSaved,
+    reload,
+}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -222,7 +263,8 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
             deps: [open, providerId],
         },
     )
-    const itemOptions: AutocompleteOption[] = items?.data.map(i => ({id: i.id, label: itemOptionLabel(i)})) ?? []
+    const itemOptions: AutocompleteOption[] =
+        items?.data.map(i => ({id: i.id, label: itemOptionLabel(i)})) ?? []
 
     const causerOptions: AutocompleteOption[] = useMemo(() => {
         if (!overview) {
@@ -230,11 +272,17 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
         }
         const byRegistration = new Map<string, MaterialOverviewRequestDto>()
         for (const request of overview.requests) {
-            if (request.status === 'CONFIRMED' && !byRegistration.has(request.competitionRegistration)) {
+            if (
+                request.status === 'CONFIRMED' &&
+                !byRegistration.has(request.competitionRegistration)
+            ) {
                 byRegistration.set(request.competitionRegistration, request)
             }
         }
-        return [...byRegistration.values()].map(r => ({id: r.competitionRegistration, label: causerLabel(r)}))
+        return [...byRegistration.values()].map(r => ({
+            id: r.competitionRegistration,
+            label: causerLabel(r),
+        }))
     }, [overview])
 
     const status = formContext.watch('status')
@@ -282,38 +330,51 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
         }
     }
 
+    const photoErrorMessage = (error: unknown) =>
+        isRequestNetworkError(error)
+            ? t('common.error.network')
+            : typeof error === 'object' &&
+                error !== null &&
+                'errorCode' in error &&
+                error.errorCode === 'MATERIAL_PHOTO_TOO_LARGE'
+              ? t('material.damage.photoTooLarge')
+              : t('material.damage.photoUploadError')
+
     const handleAddFiles = async (files: FileList) => {
         const selected = Array.from(files)
         if (damage == null) {
             setPendingFiles(prev => [...prev, ...selected])
             return
         }
-        setUploadingPhoto(true)
-        const resized = await Promise.all(selected.map(file => resizeImage(file)))
-        const {error} = await addMaterialDamagePhotos({
-            path: {providerId, damageId: damage.id},
-            body: {files: resized},
+        if (uploadingPhoto) return
+        const {error} = await runRequest(setUploadingPhoto, async () => {
+            const resized = await Promise.all(selected.map(file => resizeImage(file)))
+            return addMaterialDamagePhotos({
+                path: {providerId, damageId: damage.id},
+                body: {files: resized},
+            })
         })
         if (error) {
-            feedback.error(
-                error.errorCode === 'MATERIAL_PHOTO_TOO_LARGE'
-                    ? t('material.damage.photoTooLarge')
-                    : t('material.damage.photoUploadError'),
-            )
-        } else {
-            const {data: refreshed} = await getMaterialDamage({path: {providerId, damageId: damage.id}})
-            setExistingPhotos(refreshed?.photos ?? [])
-            reload()
+            feedback.error(photoErrorMessage(error))
+            return
         }
-        setUploadingPhoto(false)
+        const {data: refreshed} = await runRequest(undefined, () =>
+            getMaterialDamage({path: {providerId, damageId: damage.id}}),
+        )
+        if (refreshed) setExistingPhotos(refreshed.photos)
+        reload()
     }
 
     const handleDeletePhoto = async (photoId: string) => {
-        if (damage == null) {
+        if (damage == null || uploadingPhoto) {
             return
         }
-        const {error} = await deleteMaterialDamagePhoto({path: {providerId, photoId}})
-        if (error) {
+        const {error} = await runRequest(setUploadingPhoto, () =>
+            deleteMaterialDamagePhoto({path: {providerId, photoId}}),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('material.damage.photoDeleteError'))
         } else {
             setExistingPhotos(prev => prev.filter(p => p.id !== photoId))
@@ -326,44 +387,43 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
     }
 
     const onSubmit = async (formData: DamageForm) => {
-        setSubmitting(true)
+        if (submitting) return
         const body = mapFormToRequest(formData)
 
-        let damageId: string
-        if (damage) {
-            const {error} = await updateMaterialDamage({path: {providerId, damageId: damage.id}, body})
-            if (error) {
-                setSubmitting(false)
-                feedback.error(t('material.damage.error'))
-                return
+        const saved = await runRequest(setSubmitting, async () => {
+            if (damage) {
+                const {error} = await updateMaterialDamage({
+                    path: {providerId, damageId: damage.id},
+                    body,
+                })
+                return error ? {error} : {data: damage.id}
             }
-            damageId = damage.id
-        } else {
-            const {data, error} = await addMaterialDamage({path: {providerId}, body})
-            if (error || data === undefined) {
-                setSubmitting(false)
-                feedback.error(t('material.damage.error'))
-                return
-            }
-            damageId = data
+            return addMaterialDamage({path: {providerId}, body})
+        })
+        if (saved.error || saved.data === undefined) {
+            feedback.error(
+                isRequestNetworkError(saved.error)
+                    ? t('common.error.network')
+                    : t('material.damage.error'),
+            )
+            return
         }
+        const damageId = saved.data
 
         if (!damage && pendingFiles.length > 0) {
-            const resized = await Promise.all(pendingFiles.map(file => resizeImage(file)))
-            const {error: photoError} = await addMaterialDamagePhotos({
-                path: {providerId, damageId},
-                body: {files: resized},
+            const {error: photoError} = await runRequest(setSubmitting, async () => {
+                const resized = await Promise.all(pendingFiles.map(file => resizeImage(file)))
+                return addMaterialDamagePhotos({
+                    path: {providerId, damageId},
+                    body: {files: resized},
+                })
             })
             if (photoError) {
-                feedback.error(
-                    photoError.errorCode === 'MATERIAL_PHOTO_TOO_LARGE'
-                        ? t('material.damage.photoTooLarge')
-                        : t('material.damage.photoUploadError'),
-                )
+                // Der Schaden steht; nur die Fotos fehlen und lassen sich nachträglich ergänzen.
+                feedback.error(photoErrorMessage(photoError))
             }
         }
 
-        setSubmitting(false)
         feedback.success(t('material.damage.success'))
         reload()
         onSaved({
@@ -376,7 +436,9 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
-            <DialogTitle>{t(damage ? 'material.damage.edit' : 'material.damage.report')}</DialogTitle>
+            <DialogTitle>
+                {t(damage ? 'material.damage.edit' : 'material.damage.report')}
+            </DialogTitle>
             <FormContainer
                 FormProps={{style: {display: 'contents'}}}
                 formContext={formContext}
@@ -410,11 +472,14 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
                             rows={3}
                             required
                         />
-                        <Stack direction={'row'} spacing={2}>
+                        <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                             <FormInputSelect
                                 name={'severity'}
                                 label={t('material.damage.severity')}
-                                options={severities.map(s => ({id: s, label: t(`material.severity.${s}`)}))}
+                                options={severities.map(s => ({
+                                    id: s,
+                                    label: t(`material.severity.${s}`),
+                                }))}
                                 onChange={handleSeverityChange}
                                 sx={{flex: 1}}
                                 required
@@ -422,7 +487,10 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
                             <FormInputSelect
                                 name={'status'}
                                 label={t('material.damage.status')}
-                                options={statuses.map(s => ({id: s, label: t(`material.damageStatus.${s}`)}))}
+                                options={statuses.map(s => ({
+                                    id: s,
+                                    label: t(`material.damageStatus.${s}`),
+                                }))}
                                 sx={{flex: 1}}
                                 required
                             />
@@ -435,7 +503,10 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
                                 autocompleteProps={{getOptionKey: option => option.id}}
                             />
                         )}
-                        <Stack direction={'row'} spacing={2}>
+                        <Typography variant={'body2'} color={'text.secondary'}>
+                            {t('material.damage.outOfServiceHint')}
+                        </Typography>
+                        <Stack direction={{xs: 'column', sm: 'row'}} spacing={2}>
                             <FormInputDateTime
                                 name={'outOfServiceFrom'}
                                 label={t('material.damage.outOfServiceFrom')}
@@ -455,7 +526,9 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
                             />
                         )}
                         <Stack spacing={1}>
-                            <Typography variant={'subtitle2'}>{t('material.damage.photos')}</Typography>
+                            <Typography variant={'subtitle2'}>
+                                {t('material.damage.photos')}
+                            </Typography>
                             <Stack direction={'row'} spacing={1} flexWrap={'wrap'} useFlexGap>
                                 {existingPhotos.map(photo => (
                                     <PhotoThumbnail
@@ -487,7 +560,7 @@ const MaterialDamageDialog = ({open, providerId, damage, presetItem, overview, o
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleClose} disabled={submitting}>
+                    <Button onClick={handleClose} disabled={submitting} sx={{cursor: 'pointer'}}>
                         {t('common.cancel')}
                     </Button>
                     <SubmitButton submitting={submitting}>{t('common.save')}</SubmitButton>

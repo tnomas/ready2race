@@ -1,6 +1,7 @@
 import {useEntityAdministration} from '@utils/hooks.ts'
 import {MaterialProviderDto, MaterialTypeDto} from '@api/types.gen.ts'
 import {Box, Stack} from '@mui/material'
+import {PageHeader} from '@components/ui'
 import {useTranslation} from 'react-i18next'
 import MaterialProviderTable from '@components/material/MaterialProviderTable.tsx'
 import MaterialProviderDialog from '@components/material/MaterialProviderDialog.tsx'
@@ -22,6 +23,7 @@ const MaterialAdminPage = () => {
 
     return (
         <Box>
+            <PageHeader title={t('material.admin.title')} subtitle={t('material.admin.subtitle')} />
             <Stack spacing={4}>
                 <MaterialProviderTable
                     {...providerAdministrationProps.table}
