@@ -1,5 +1,5 @@
 -- Testdaten fuer die Materialvermietung (Spec docs/superpowers/specs/2026-09-07-materialvermietung-design.md,
--- Testkatalog docs/testkatalog-materialvermietung.md Bloecke A-F).
+-- Testkatalog docs/superpowers/specs/2026-11-14-materialvermietung-testkatalog.md Bloecke A-F).
 -- Haengt sich an die bestehende Veranstaltung "DM Coastal Rowing 2026"
 -- (docs/seeds/seed-dm-coastal-2026.sql, Event 5eed0001-...) und deren Wettkaempfe 1 (CF 2x),
 -- 2 (CM 4x+) und 3 (CF 1x). seed-dm-coastal-2026.sql muss also vorher eingespielt sein, und das

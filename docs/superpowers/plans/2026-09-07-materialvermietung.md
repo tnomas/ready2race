@@ -1552,5 +1552,5 @@ export const materialLabel = (material: MaterialForTeamDto | null | undefined, m
 
 **Files:**
 - Create: `docs/seeds/seed-material.sql` (Präfix `5eed0009-…`; Anbieter „Bootshaus Nord", Nutzer `material@test.de` mit Rolle Materialanbieter, Materialarten C1x/C2x/C4x+ (BOAT) und Skull-Paar (OTHER), acht Boote 1–8, Einladung zur Veranstaltung `5eed0001-0000-0000-0000-000000000001` aus `docs/seeds/seed-dm-coastal-2026.sql`, Angebote, Bedarf an drei Wettkämpfen, vier Anfragen in verschiedenen Status, eine Zuteilung mit Abweichung, ein Totalschaden mit offenem Fenster; mehrfach ausführbar per `on conflict do nothing`)
-- Create: `docs/testkatalog-materialvermietung.md` (Handtests Block A Anmeldung, B Dashboard, C Fixierung, D Schäden, E Anzeigen — je Fall Vorbedingung, Schritte, Erwartung)
+- Create: `docs/superpowers/specs/2026-11-14-materialvermietung-testkatalog.md` (Handtests Block A Anmeldung, B Dashboard, C Fixierung, D Schäden, E Anzeigen — je Fall Vorbedingung, Schritte, Erwartung)
 - [ ] Voller Backend-Lauf `./mvnw -o clean test -Ddatabase.url=…`, `npm test`, `npm run build`, `npm run lint` (Fehleranzahl ≤ Baseline 28 Dateien), Commit `"Materialvermietung: Seed und Testkatalog"`
