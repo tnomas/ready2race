@@ -19,8 +19,10 @@
 --   Laeufe) und Finale, alle Laeufe angelegt, Zeiten relativ zum Einspielzeitpunkt:
 --     Vorlauf 1 laeuft seit zwei Minuten, Vorlauf 2 startet in 20 Minuten, Finale in 90 Minuten.
 --   Vier Boote (DM-Verein 1-4). Die Veranstaltung gilt als mit "Meldungsnummern nach
---   Bootsnummern vergeben" fixiert (event.team_numbers_as_start_numbers = true, ADR-0111): Die
---   Startnummer in jedem Lauf ist die Meldungsnummer. Was die Anzeigen zeigen:
+--   Bootsnummern vergeben" fixiert (event.team_numbers_as_start_numbers = true, ADR-0111), und die
+--   drei Laeufe tragen die Regel als Stempel (competition_match.team_numbers_as_start_numbers =
+--   true, V202611141415): Die Startnummer in jedem Lauf ist die Meldungsnummer, der
+--   RaceClocker-Abruf schreibt keine Listenpositionen hinein. Was die Anzeigen zeigen:
 --     MT 1 (Verein 1, Meldungsnr. 7): bestaetigt, Grundzuteilung Boot 7 - "#7 · Boot 7" in
 --       Vorlauf 1 und Finale, keine Abweichung (der neue Normalfall).
 --     MT 2 (Verein 2, Meldungsnr. 3): bestaetigt, Grundzuteilung "Vierer 2" - ein Stueck mit
@@ -56,7 +58,12 @@
 -- - Ein Vereinsvertreter-Konto des DM-Vereins 1; die Meldefrist der DM-Veranstaltung wird dafuer
 --   offen gestellt (gestern bis in 14 Tagen) - Anfrage/Rueckzug im Meldeformular (Block A).
 --   ACHTUNG: das veraendert eine Zeile des DM-Seeds (event.registration_available_* und
---   event.team_numbers_as_start_numbers = true); der Cleanup setzt sie nicht zurueck.
+--   event.team_numbers_as_start_numbers = true). Die Meldefrist setzt der Cleanup nicht zurueck;
+--   den Schalter setzt er zuerst auf false (Vorgabe des DM-Seeds) und dieser Seed danach bewusst
+--   wieder auf true - ein Testlauf "Fixieren ohne Haken" hinterlaesst so keinen Stand, und wer
+--   nur den DM-Seed neu einspielt, findet den Schalter so, wie der letzte Seed ihn setzte.
+-- - Erste Fixierung nach dem Seed: Die Meldungen von M1 stehen in Laeufen und behalten ihre
+--   Meldungsnummern 7/3/6/1 (mit und ohne "behalten", RS-03); M4 (ohne Laeufe) bekommt Nummern.
 --
 -- Konten (Passwort bei allen dreien "material123"):
 --   material@test.de       Bootshaus Nord   USER + Materialanbieter
@@ -140,8 +147,13 @@ delete from app_user where id::text like '5eed0009-0002%';
 
 delete from material_provider where id::text like '5eed0009-0001%';
 
--- Fixierung zuruecksetzen (siehe Kopfkommentar): der DM-Seed kennt keinen Meldebericht.
+-- Fixierung zuruecksetzen (siehe Kopfkommentar): der DM-Seed kennt keinen Meldebericht, und der
+-- Schalter "Meldungsnummern nach Bootsnummern" steht dort auf der Vorgabe false. Weiter unten setzt
+-- dieser Seed ihn bewusst wieder auf true.
 delete from event_registration_report where event = '5eed0001-0000-0000-0000-000000000001';
+update event
+set team_numbers_as_start_numbers = false
+where id = '5eed0001-0000-0000-0000-000000000001';
 
 -- =========================================================================================
 -- Anbieter, Nutzer, Materialarten
@@ -403,14 +415,15 @@ select ('5eed0009-0020-0000-0000-00000000000' || ((n + 1) / 2))::uuid,
 from generate_series(1, 8) as n;
 
 -- Vorlauf 1 läuft seit zwei Minuten (aktiviert vor fünf), Vorlauf 2 und Finale stehen an.
+-- Alle drei mit der Regel "Startnummer = Meldungsnummer" angelegt (Stempel am Lauf, V202611141415).
 insert into competition_match (competition_setup_match, start_time, started_at, activated_at, finished_at,
-                                created_at, created_by, updated_at, updated_by)
+                                team_numbers_as_start_numbers, created_at, created_by, updated_at, updated_by)
 values ('5eed0009-0014-0000-0000-000000000001', date_trunc('minute', now()) - interval '2 minutes',
-        now() - interval '2 minutes', now() - interval '5 minutes', null, now(), null, now(), null),
+        now() - interval '2 minutes', now() - interval '5 minutes', null, true, now(), null, now(), null),
        ('5eed0009-0014-0000-0000-000000000002', date_trunc('minute', now()) + interval '20 minutes',
-        null, null, null, now(), null, now(), null),
+        null, null, null, true, now(), null, now(), null),
        ('5eed0009-0014-0000-0000-000000000003', date_trunc('minute', now()) + interval '90 minutes',
-        null, null, null, now(), null, now(), null);
+        null, null, null, true, now(), null, now(), null);
 
 -- Startnummer = Meldungsnummer in jedem Lauf (Schalter an der Veranstaltung, ADR-0111): MT 1 #7,
 -- MT 2 #3, MT 3 #6, MT 4 #1 - in Vorlauf und Finale dieselbe Zahl.
