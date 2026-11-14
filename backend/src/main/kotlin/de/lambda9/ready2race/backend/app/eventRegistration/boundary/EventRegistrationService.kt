@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.auth.entity.AuthError
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.club.control.ClubRepo
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.boundary.CompetitionRegistrationService
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationNamedParticipantRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationOptionalFeeRepo
@@ -1145,46 +1146,52 @@ object EventRegistrationService {
             emptyMap()
         }
 
+        // Meldungen, die schon in mindestens einem Lauf stehen, behalten ihre Meldungsnummer - mit
+        // und ohne "behalten" (RS-03). Ihre Läufe tragen die Nummer womöglich schon als Startnummer
+        // (ADR-0111), und die nächste Runde übernähme eine neue: Das Boot wechselte zwischen Vorlauf
+        // und Finale die Zahl. Neu vergeben werden nur Meldungen ohne Lauf, kollisionsfrei gegen die
+        // festen Nummern.
+        val inMatches = (!CompetitionMatchTeamRepo.getByCompetitionRegistrations(registrations.map { it.id!! }).orDie())
+            .mapNotNull { it.competitionRegistration }
+            .toSet()
+
         registrations.groupBy { it.competition }.values.forEach { registrationsForSameComp ->
+            val keep = registrationsForSameComp.filter {
+                it.teamNumber != null && (keepNumbers || it.id in inMatches)
+            }
+            val taken = keep.mapNotNull { it.teamNumber }.toSet()
+            val toNumber = registrationsForSameComp.filterNot { it in keep }
+
+            fun assign(record: CompetitionRegistrationRecord, number: Int) {
+                record.teamNumber = number
+                record.updatedBy = userId
+                record.updatedAt = LocalDateTime.now()
+                record.update()
+            }
+
             if (alignMaterialNumbers) {
                 // Spec Abschnitt 8: Startnummer soll der Bootsnummer des Mietboots entsprechen.
-                // taken/toNumber wie im keepNumbers-Zweig unten, nur mit der tatsächlichen Menge
-                // vergebener Nummern statt nur dem höchsten Wert - TeamNumberAlignment muss jede
-                // einzelne belegte Nummer meiden können, nicht nur nach oben anschließen.
-                val taken = if (keepNumbers) registrationsForSameComp.mapNotNull { it.teamNumber }.toSet() else emptySet()
-                val toNumber = if (keepNumbers) registrationsForSameComp.filter { it.teamNumber == null } else registrationsForSameComp
-
+                // TeamNumberAlignment bekommt die tatsächliche Menge fester Nummern statt nur des
+                // höchsten Werts - es muss jede einzelne belegte Nummer meiden können.
                 val rented = toNumber.mapNotNull { r -> boatNumbers[r.id]?.let { r.id to it } }.toMap()
                 val fixed = toNumber.mapNotNull { r -> assignedNumbers[r.id]?.let { r.id to it } }.toMap()
                 val own = toNumber.map { it.id }.filterNot { it in rented || it in fixed }
 
                 val byRegistration = toNumber.associateBy { it.id }
                 TeamNumberAlignment.align(rented, own, taken, Random, fixed).forEach { (registrationId, number) ->
-                    val record = byRegistration.getValue(registrationId)
-                    record.teamNumber = number
-                    record.updatedBy = userId
-                    record.updatedAt = LocalDateTime.now()
-                    record.update()
+                    assign(byRegistration.getValue(registrationId), number)
                 }
             } else if (keepNumbers) {
-
-                val highestNumber = registrationsForSameComp.mapNotNull { it.teamNumber }.maxOfOrNull { it } ?: 0
-
-                registrationsForSameComp
-                    .filter { it.teamNumber == null }
-                    .shuffled()
-                    .forEachIndexed { idx, record ->
-                        record.teamNumber = highestNumber + idx + 1
-                        record.updatedBy = userId
-                        record.updatedAt = LocalDateTime.now()
-                        record.update()
-                    }
+                // Neue Nummern oberhalb der höchsten - wie bisher.
+                val highestNumber = taken.maxOrNull() ?: 0
+                toNumber.shuffled().forEachIndexed { idx, record -> assign(record, highestNumber + idx + 1) }
             } else {
-                registrationsForSameComp.shuffled().forEachIndexed { idx, record ->
-                    record.teamNumber = idx + 1
-                    record.updatedBy = userId
-                    record.updatedAt = LocalDateTime.now()
-                    record.update()
+                // Alles neu, bis auf die Meldungen in Läufen: die kleinsten freien Zahlen ab 1 (ohne
+                // Läufe also wie bisher 1..n in zufälliger Reihenfolge).
+                var next = 0
+                toNumber.shuffled().forEach { record ->
+                    do next++ while (next in taken)
+                    assign(record, next)
                 }
             }
         }

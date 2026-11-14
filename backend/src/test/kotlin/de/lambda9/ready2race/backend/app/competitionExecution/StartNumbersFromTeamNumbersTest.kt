@@ -1,8 +1,16 @@
 package de.lambda9.ready2race.backend.app.competitionExecution
 
 import de.lambda9.ready2race.backend.app.JEnv
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionService
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
+import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
+import de.lambda9.ready2race.backend.app.competitionSetup.boundary.CompetitionSetupService
 import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetupPlacesOption
+import de.lambda9.ready2race.backend.app.eventRegistration.boundary.EventRegistrationService
+import de.lambda9.ready2race.backend.app.matchStatus.control.MatchByeRepo
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerFeedRow
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerMatchTarget
+import de.lambda9.ready2race.backend.app.raceclocker.entity.RaceClockerRaceRef
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.database.generated.tables.records.ClubRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesRecord
@@ -16,6 +24,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.EventReco
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventRegistrationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.CLUB
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
@@ -27,8 +36,10 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.EFFECT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_REGISTRATION
 import de.lambda9.ready2race.backend.database.insert
+import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import java.util.UUID
@@ -231,6 +242,59 @@ class StartNumbersFromTeamNumbersTest {
         }
     }
 
+    /** Die am Lauf gestempelte Regel (competition_match.team_numbers_as_start_numbers). */
+    private fun TestComprehensionScope<JEnv>.stamps(setupMatchIds: List<UUID>): Map<UUID, Boolean> = !Jooq.query {
+        select(COMPETITION_MATCH.COMPETITION_SETUP_MATCH, COMPETITION_MATCH.TEAM_NUMBERS_AS_START_NUMBERS)
+            .from(COMPETITION_MATCH)
+            .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.`in`(setupMatchIds))
+            .fetch { it.value1()!! to it.value2()!! }
+            .toMap()
+    }
+
+    /** Meldungsnummer je Meldung, wie sie gerade in der Datenbank steht. */
+    private fun TestComprehensionScope<JEnv>.teamNumbers(registrationIds: Collection<UUID>): Map<UUID, Int?> =
+        registrationIds.associateWith { id -> (!COMPETITION_REGISTRATION.selectOne { ID.eq(id) })!!.teamNumber }
+
+    private fun TestComprehensionScope<JEnv>.eventSwitch(eventId: UUID): Boolean =
+        (!EVENT.selectOne { ID.eq(eventId) })!!.teamNumbersAsStartNumbers!!
+
+    /**
+     * Ein RaceClocker-Abruf für [setupMatchId] mit umgekehrter Listenreihenfolge (das Boot mit der
+     * höchsten Startnummer steht oben) - über denselben Weg wie der automatische Abruf.
+     */
+    private fun TestComprehensionScope<JEnv>.pullReversed(seeded: Seeded, setupMatchId: UUID) {
+        val teams = (!CompetitionMatchTeamRepo.getByMatch(setupMatchId).orDie()).sortedByDescending { it.startNumber }
+        val rows = teams.mapIndexed { index, team ->
+            RaceClockerFeedRow(
+                name = "Team ${team.startNumber}",
+                rank = index + 1,
+                bib = null,
+                wave = null,
+                ids = listOf(team.id!!),
+                result = "Not started",
+                start = null,
+                penaltySeconds = null,
+                penaltyNote = null,
+            )
+        }
+        val target = RaceClockerMatchTarget(
+            waveName = null,
+            race = RaceClockerRaceRef(UUID.randomUUID(), "Vorlauf", "https://www.raceclocker.com/heats"),
+        )
+        val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(seeded.competitionId)
+        val match = !CompetitionExecutionService.checkUpdateMatchResult(setupRounds, setupMatchId)
+        !CompetitionExecutionService.applyRaceClockerRows(match, setupMatchId, target, rows, SYSTEM_USER)
+    }
+
+    private fun TestComprehensionScope<JEnv>.startNumbersOf(setupMatchId: UUID): Map<UUID, Int> =
+        rows(listOf(setupMatchId)).associate { it.registrationId to it.startNumber }
+
+    /** Setzungszahl, die der Freilos-Chip je Team-Zeile des Laufs zurückliest. */
+    private fun TestComprehensionScope<JEnv>.byeSeeds(seeded: Seeded, setupMatchId: UUID): List<Int?> =
+        (!MatchByeRepo.getByeInputs(seeded.eventId, seeded.competitionId))
+            .filter { it.get("setup_match_id", UUID::class.java) == setupMatchId }
+            .map { it.get("team_seed", Int::class.javaObjectType) }
+
     @Test
     fun withTheSwitchEveryBoatStartsUnderItsTeamNumberInHeatsAndFinal() = testComprehension {
         val seeded = seed(teamNumbersAsStartNumbers = true)
@@ -276,6 +340,15 @@ class StartNumbersFromTeamNumbersTest {
                 assertEquals(false, row.deviates, "keine Abweichung im Finale")
             }
         }
+
+        // RS-01: Die Regel steht an jedem angelegten Lauf.
+        assertEquals(
+            (seeded.heatSetupMatchIds + seeded.finalSetupMatchId).associateWith { true },
+            stamps(seeded.heatSetupMatchIds + seeded.finalSetupMatchId),
+        )
+        // RS-04: Mit Meldungsnummer als Startnummer liest der Freilos-Chip keine Setzungszahl über
+        // die Startnummer zurück - der Join träfe einen fremden Setup-Platz.
+        assertEquals(List(4) { null }, byeSeeds(seeded, seeded.finalSetupMatchId))
     }
 
     @Test
@@ -295,5 +368,215 @@ class StartNumbersFromTeamNumbersTest {
 
         val final = rows(listOf(seeded.finalSetupMatchId))
         assertEquals(setOf(1, 2, 3, 4), final.map { it.startNumber }.toSet(), "Finale: Rang des Setup-Platzes")
+
+        assertEquals(
+            (seeded.heatSetupMatchIds + seeded.finalSetupMatchId).associateWith { false },
+            stamps(seeded.heatSetupMatchIds + seeded.finalSetupMatchId),
+        )
+        // Ohne Schalter bleibt der Rückweg Startnummer = ranking: Setzungszahl wie bisher.
+        assertEquals(listOf(1, 2, 3, 4), byeSeeds(seeded, seeded.finalSetupMatchId).sortedBy { it })
+    }
+
+    /**
+     * RS-01 und RS-03 im Zusammenhang: Vorläufe mit Schalter angelegt, danach ohne Haken und ohne
+     * "behalten" refinalisiert. Die Meldungen in Läufen behalten ihre Meldungsnummer, die Vorläufe
+     * ihre Regel - ein RaceClocker-Abruf schreibt keine Listenpositionen hinein. Erst die nächste
+     * Rundenanlage folgt dem neuen Schalter (Setzposition, Stempel aus).
+     */
+    @Test
+    fun refinalizingWithoutTheSwitchLeavesExistingMatchesAndTheirTeamNumbersAlone() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = true)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+        val heatNumbersBefore = seeded.heatSetupMatchIds.associateWith { startNumbersOf(it) }
+
+        !EventRegistrationService.finalizeRegistrations(
+            SYSTEM_USER, seeded.eventId, keepNumbers = false, alignMaterialNumbers = false,
+        )
+
+        assertEquals(false, eventSwitch(seeded.eventId), "Refinalisieren ohne Haken schaltet die Veranstaltung aus")
+        assertEquals(
+            seeded.registrationByTeamNumber.entries.associate { (number, id) -> id to number },
+            teamNumbers(seeded.registrationByTeamNumber.values),
+            "Meldungen in Läufen behalten ihre Meldungsnummer, auch ohne 'behalten'",
+        )
+
+        seeded.heatSetupMatchIds.forEach { pullReversed(seeded, it) }
+        assertEquals(
+            heatNumbersBefore,
+            seeded.heatSetupMatchIds.associateWith { startNumbersOf(it) },
+            "Der Abruf schreibt keine Listenpositionen in Läufe, die mit Schalter angelegt wurden",
+        )
+        assertEquals(seeded.heatSetupMatchIds.associateWith { true }, stamps(seeded.heatSetupMatchIds))
+
+        placeHeats(seeded)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        assertEquals(mapOf(seeded.finalSetupMatchId to false), stamps(listOf(seeded.finalSetupMatchId)))
+        assertEquals(setOf(1, 2, 3, 4), startNumbersOf(seeded.finalSetupMatchId).values.toSet(), "neue Runde: Rang")
+        assertEquals(seeded.heatSetupMatchIds.associateWith { true }, stamps(seeded.heatSetupMatchIds))
+    }
+
+    /**
+     * RS-01, Gegenrichtung: Vorläufe ohne Schalter (Setzposition), danach mit Haken refinalisiert.
+     * Die Vorläufe bleiben Positionsläufe - ein Bahntausch aus RaceClocker kommt weiter an.
+     */
+    @Test
+    fun refinalizingWithTheSwitchKeepsLanesArrivingInPositionalMatches() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = false)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        !EventRegistrationService.finalizeRegistrations(
+            SYSTEM_USER, seeded.eventId, keepNumbers = false, alignMaterialNumbers = true,
+        )
+        assertEquals(true, eventSwitch(seeded.eventId))
+        assertEquals(seeded.heatSetupMatchIds.associateWith { false }, stamps(seeded.heatSetupMatchIds))
+
+        val heat = seeded.heatSetupMatchIds.first()
+        val before = startNumbersOf(heat)
+        pullReversed(seeded, heat)
+        val after = startNumbersOf(heat)
+        assertEquals(setOf(1, 2), after.values.toSet())
+        before.forEach { (registration, number) ->
+            assertEquals(3 - number, after.getValue(registration), "Bahntausch aus RaceClocker kommt an")
+        }
+    }
+
+    /**
+     * RS-03 mit Schalter: Hat sich die Grundzuteilung einer Meldung, die schon in Läufen steht, seit
+     * der Rundenanlage geändert (#7 fährt jetzt Boot 8), bleibt ihre Meldungsnummer trotzdem 7 -
+     * sonst wechselte das Boot zwischen Vorlauf und Finale die Nummer. Eine neue Meldung ohne Lauf
+     * bekommt eine Nummer, die keine feste Nummer trifft.
+     */
+    @Test
+    fun refinalizingWithTheSwitchRenumbersOnlyRegistrationsWithoutMatches() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = true)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        sql(
+            "update material_assignment set material_item = ? where material_request = ? and competition_match is null",
+            seeded.itemByNumber.getValue(8), seeded.requestByTeamNumber.getValue(7),
+        )
+        val newcomer = UUID.randomUUID()
+        val eventRegistration = !Jooq.query {
+            select(EVENT_REGISTRATION.ID).from(EVENT_REGISTRATION).where(EVENT_REGISTRATION.EVENT.eq(seeded.eventId))
+                .fetchOne(EVENT_REGISTRATION.ID)
+        }
+        val club = (!COMPETITION_REGISTRATION.selectOne { ID.eq(seeded.registrationByTeamNumber.getValue(7)) })!!.club
+        !COMPETITION_REGISTRATION.insert(
+            CompetitionRegistrationRecord(
+                id = newcomer, eventRegistration = eventRegistration!!, competition = seeded.competitionId, club = club!!,
+                name = "Nachmeldung", createdAt = now, updatedAt = now,
+            )
+        )
+
+        !EventRegistrationService.finalizeRegistrations(
+            SYSTEM_USER, seeded.eventId, keepNumbers = false, alignMaterialNumbers = true,
+        )
+
+        val numbers = teamNumbers(seeded.registrationByTeamNumber.values + newcomer)
+        seeded.registrationByTeamNumber.forEach { (number, id) ->
+            assertEquals(number, numbers.getValue(id), "Meldung in Läufen behält #$number")
+        }
+        val newNumber = numbers.getValue(newcomer)!!
+        assertTrue(newNumber !in seeded.registrationByTeamNumber.keys, "neue Nummer $newNumber trifft keine feste")
+    }
+
+    /**
+     * RS-03 ohne Schalter und ohne "behalten": Nur die Meldung ohne Lauf wird neu vergeben, und zwar
+     * mit der kleinsten Zahl, die keine Meldung in einem Lauf trägt (7, 2, 6, 1 bleiben → 3).
+     */
+    @Test
+    fun refinalizingWithoutKeepingFillsTheLowestFreeNumberForNewRegistrations() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = false)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        val newcomer = UUID.randomUUID()
+        val eventRegistration = !Jooq.query {
+            select(EVENT_REGISTRATION.ID).from(EVENT_REGISTRATION).where(EVENT_REGISTRATION.EVENT.eq(seeded.eventId))
+                .fetchOne(EVENT_REGISTRATION.ID)
+        }
+        val club = (!COMPETITION_REGISTRATION.selectOne { ID.eq(seeded.registrationByTeamNumber.getValue(7)) })!!.club
+        !COMPETITION_REGISTRATION.insert(
+            CompetitionRegistrationRecord(
+                id = newcomer, eventRegistration = eventRegistration!!, competition = seeded.competitionId, club = club!!,
+                name = "Nachmeldung", createdAt = now, updatedAt = now,
+            )
+        )
+
+        !EventRegistrationService.finalizeRegistrations(
+            SYSTEM_USER, seeded.eventId, keepNumbers = false, alignMaterialNumbers = false,
+        )
+
+        val numbers = teamNumbers(seeded.registrationByTeamNumber.values + newcomer)
+        seeded.registrationByTeamNumber.forEach { (number, id) -> assertEquals(number, numbers.getValue(id)) }
+        assertEquals(3, numbers.getValue(newcomer))
+    }
+
+    /**
+     * Rundenanlage über den Service mit Schalter, einer doppelten Meldungsnummer (#6 trägt jetzt
+     * ebenfalls 2) und einem abgemeldeten Boot (#1): je Lauf eindeutige Startnummern, das
+     * abgemeldete Boot steht `out` unter seiner Meldungsnummer, und von zwei gleichen Nummern im
+     * selben Lauf behält eine sie, die andere bekommt eine Zahl oberhalb der höchsten
+     * Meldungsnummer des Wettkampfs (7).
+     */
+    @Test
+    fun duplicateTeamNumbersAndDeregisteredTeamsThroughCreateNewRound() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = true)
+        val six = seeded.registrationByTeamNumber.getValue(6)
+        val one = seeded.registrationByTeamNumber.getValue(1)
+        sql("update competition_registration set team_number = 2 where id = ?", six)
+        sql(
+            "insert into competition_deregistration (competition_registration, created_at, updated_at) values (?, now(), now())",
+            one,
+        )
+        val teamNumberOf = teamNumbers(seeded.registrationByTeamNumber.values)
+
+        fun checkMatch(setupMatchId: UUID) {
+            val numbers = startNumbersOf(setupMatchId)
+            assertEquals(numbers.size, numbers.values.toSet().size, "eindeutig je Lauf")
+            numbers.entries.groupBy { teamNumberOf.getValue(it.key) }.forEach { (teamNumber, entries) ->
+                assertEquals(1, entries.count { it.value == teamNumber }, "eine behält #$teamNumber")
+                entries.filter { it.value != teamNumber }.forEach { assertTrue(it.value > 7, "Ersatz oberhalb von 7") }
+            }
+        }
+
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+        seeded.heatSetupMatchIds.forEach { checkMatch(it) }
+        val outRow = !Jooq.query {
+            select(COMPETITION_MATCH_TEAM.OUT, COMPETITION_MATCH_TEAM.START_NUMBER).from(COMPETITION_MATCH_TEAM)
+                .where(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(one))
+                .and(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.`in`(seeded.heatSetupMatchIds))
+                .fetchOne()
+        }
+        assertEquals(true, outRow!!.value1(), "abgemeldet = out")
+        assertEquals(1, outRow.value2(), "abgemeldetes Boot unter seiner Meldungsnummer")
+
+        placeHeats(seeded)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+        checkMatch(seeded.finalSetupMatchId)
+        assertEquals(listOf(1, 2, 7, 8), startNumbersOf(seeded.finalSetupMatchId).values.sorted())
+    }
+
+    /**
+     * Die Folgerunden-Automatik erbt die Regel: Vorläufe beendet, Automatik an der Veranstaltung an
+     * → das Finale entsteht mit Meldungsnummern als Startnummern und gestempelter Regel.
+     */
+    @Test
+    fun theAutomaticFollowingRoundUsesTeamNumbers() = testComprehension {
+        val seeded = seed(teamNumbersAsStartNumbers = true)
+        sql("update event set auto_create_following_rounds = true where id = ?", seeded.eventId)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+        placeHeats(seeded)
+        seeded.heatSetupMatchIds.forEach {
+            sql("update competition_match set finished_at = now() where competition_setup_match = ?", it)
+        }
+
+        !AutoRoundProgressionService.progressIfRoundComplete(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        val teamNumberOf = seeded.registrationByTeamNumber.entries.associate { (number, id) -> id to number }
+        val final = startNumbersOf(seeded.finalSetupMatchId)
+        assertEquals(4, final.size, "Finale angelegt")
+        final.forEach { (registration, startNumber) -> assertEquals(teamNumberOf.getValue(registration), startNumber) }
+        assertEquals(mapOf(seeded.finalSetupMatchId to true), stamps(listOf(seeded.finalSetupMatchId)))
     }
 }
