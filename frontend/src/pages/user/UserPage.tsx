@@ -19,7 +19,7 @@ import {
     Typography,
 } from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
-import {useState} from 'react'
+import {useRef, useState} from 'react'
 import {ErrorState, LoadingState, PageHeader} from '@components/ui'
 import {buildUserTrail} from '@utils/navigation/breadcrumbs.ts'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
@@ -78,6 +78,9 @@ const UserPage = () => {
     // UpdateAppUserRequest ist, sondern über einen eigenen Aufruf gespeichert wird.
     const [materialProviderId, setMaterialProviderId] = useState<string>(NO_PROVIDER)
     const [savedMaterialProviderId, setSavedMaterialProviderId] = useState<string>(NO_PROVIDER)
+    // Scheitert nur die Anbieter-Zuordnung, lädt die Seite Name und Rollen neu, behält aber die
+    // gewählte Zuordnung stehen – sonst müsste man sie nach dem Fehler noch einmal suchen.
+    const keepProviderSelection = useRef<string | null>(null)
 
     const {
         data: userData,
@@ -96,7 +99,10 @@ const UserPage = () => {
                     // sie sonst als nackte IDs.
                     roles: data.roles.filter(r => !isManagedRole(r)).map(r => r.id),
                 })
-                setMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
+                setMaterialProviderId(
+                    keepProviderSelection.current ?? data.materialProviderId ?? NO_PROVIDER,
+                )
+                keepProviderSelection.current = null
                 setSavedMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
             }
         },
@@ -178,6 +184,7 @@ const UserPage = () => {
         } else if (providerResult?.error) {
             // Name und Rollen sind gespeichert, nur die Anbieter-Zuordnung nicht.
             feedback.error(t(providerAssignmentErrorKey(providerResult.error)))
+            keepProviderSelection.current = materialProviderId
             setReloadUserData(!reloadUserData)
         } else {
             feedback.success(t('user.update.success'))
