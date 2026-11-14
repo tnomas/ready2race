@@ -1047,6 +1047,10 @@
           },
           "deregistered": "Afmeldt",
           "reason": "Begrundelse"
+        },
+        "teamNumber": {
+          "label": "Tilmeldingsnr. {{number}}",
+          "hint": "Tilmeldingsnummer i konkurrencen, tildelt ved færdiggørelsen af tilmeldingerne. Den ordner seedningen i første runde; startnummeret i løbet tildeles først, når runderne oprettes."
         }
       },
       "setup": {
@@ -1619,7 +1623,7 @@
           "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
           "numbersExplained": "Tilmeldingsnummeret ligger fast for holdet; hold med lejet båd får så vidt muligt bådens nummer, og udlejeren tildeler derefter. Startnummeret i heatet tildeles først ved opsætningen af runderne (fra 1 pr. heat, i senere runder placeringen) – står der et andet tal end på båden, viser visningerne „afviger“."
         },
-        "whereNumbers": "Der er tildelt tilmeldingsnumre pr. konkurrence. De står i tilmeldingsresultatet (PDF, knappen ovenfor) og ordner seedningen i første runde."
+        "whereNumbers": "Der er tildelt tilmeldingsnumre pr. konkurrence. De står under fanen „Tilmeldinger“ i hver konkurrence („Tilmeldingsnr. n“ ved holdet) og i tilmeldingsresultatet (PDF, knappen ovenfor) og ordner seedningen i første runde."
       }
     },
     "assign": {

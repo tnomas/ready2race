@@ -15,6 +15,7 @@ import {Fragment, useMemo, useState} from 'react'
 import EntityTable from '@components/EntityTable.tsx'
 import {
     Button,
+    Chip,
     Stack,
     Table,
     TableBody,
@@ -106,7 +107,29 @@ const CompetitionRegistrationTable = ({registrationState, reloadEvent, ...props}
                 valueGetter: value => value ?? '-',
                 renderCell: ({row}) => {
                     return (
-                        <Stack direction={'row'} alignItems={'center'} spacing={1}>
+                        <Stack
+                            direction={'row'}
+                            alignItems={'center'}
+                            spacing={1}
+                            useFlexGap
+                            sx={{flexWrap: 'wrap'}}>
+                            {/* Meldungsnummer: erst ab der Fixierung gesetzt; ohne Nummer bleibt
+                                die Zelle wie bisher (keine leere Angabe). */}
+                            {row.teamNumber != null && (
+                                <Tooltip
+                                    title={t('event.competition.registration.teamNumber.hint')}>
+                                    <Chip
+                                        size={'small'}
+                                        variant={'outlined'}
+                                        label={t(
+                                            'event.competition.registration.teamNumber.label',
+                                            {
+                                                number: row.teamNumber,
+                                            },
+                                        )}
+                                    />
+                                </Tooltip>
+                            )}
                             {row.name && <Typography>{row.name}</Typography>}
                             {row.isLate ? (
                                 <Tooltip title={t('event.competition.registration.isLate')}>

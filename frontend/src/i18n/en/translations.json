@@ -1047,6 +1047,10 @@
           },
           "deregistered": "Deregistered",
           "reason": "Reason"
+        },
+        "teamNumber": {
+          "label": "Entry no. {{number}}",
+          "hint": "Entry number within the competition, assigned when the registrations are finalized. It orders the seeding of the first round; the start number in a race is only assigned when the rounds are set up."
         }
       },
       "setup": {
@@ -1619,7 +1623,7 @@
           "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
           "numbersExplained": "The entry number stays fixed for the team; teams with a rental boat get their boat's number where possible, and the provider assigns accordingly. The start number in a race is only set when the rounds are created (from 1 per race, in later rounds the rank) – if it differs from the number on the boat, displays show “differs”."
         },
-        "whereNumbers": "Entry numbers were assigned per competition. They are listed in the registration result (PDF, button above) and order the seeding of the first round."
+        "whereNumbers": "Entry numbers were assigned per competition. They are shown in each competition’s “Registrations” tab (“Entry no. n” next to the team) and in the registration result (PDF, button above), and they order the seeding of the first round."
       }
     },
     "assign": {

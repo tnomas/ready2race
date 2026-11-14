@@ -1186,6 +1186,10 @@ export type CompetitionRegistrationDto = {
     optionalFees: Array<CompetitionRegistrationFeeDto>
     namedParticipants: Array<CompetitionRegistrationNamedParticipantDto>
     isLate: boolean
+    /**
+     * Meldungsnummer im Wettkampf (je Wettkampf eindeutig). Wird bei der Fixierung der Meldungen vergeben, vorher leer.
+     */
+    teamNumber?: number
     ratingCategory?: RatingCategoryDto
     updatedAt: string
     createdAt: string

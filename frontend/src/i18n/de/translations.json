@@ -1047,6 +1047,10 @@
           },
           "deregistered": "Abgemeldet",
           "reason": "Begründung"
+        },
+        "teamNumber": {
+          "label": "Meldungsnr. {{number}}",
+          "hint": "Meldungsnummer im Wettkampf, vergeben bei der Fixierung der Meldungen. Sie ordnet die Setzliste der ersten Runde; die Startnummer im Lauf vergibt erst die Rundenanlage."
         }
       },
       "setup": {
@@ -1619,7 +1623,7 @@
           "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
           "numbersExplained": "Die Meldungsnummer bleibt dem Team fest; Teams mit Leihboot bekommen nach Möglichkeit die Nummer ihres Boots, und der Anbieter teilt danach zu. Die Startnummer im Lauf vergibt erst die Rundenanlage (je Lauf ab 1, in Folgerunden der Rang) – steht dort eine andere Zahl als auf dem Boot, zeigen die Anzeigen „abweichend“."
         },
-        "whereNumbers": "Vergeben wurden Meldungsnummern je Wettkampf. Sie stehen im Meldeergebnis (PDF, Knopf oben) und ordnen die Setzliste der ersten Runde."
+        "whereNumbers": "Vergeben wurden Meldungsnummern je Wettkampf. Sie stehen bei jedem Wettkampf im Reiter „Meldungen“ („Meldungsnr. n“ beim Team) und im Meldeergebnis (PDF, Knopf oben) und ordnen die Setzliste der ersten Runde."
       }
     },
     "assign": {
