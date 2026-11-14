@@ -3285,9 +3285,12 @@ export type MaterialOverviewMatchDto = {
     roundName?: string
     startTime?: string
     endTime?: string
+    /**
+     * Meldungen dieses Laufs mit einer Anfrage bei diesem Anbieter (gleich welcher Status); fremde Teams fehlen.
+     */
     registrationIds: Array<string>
     /**
-     * Je Meldung dieses Laufs die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+     * Je Meldung dieses Laufs mit Anfrage bei diesem Anbieter die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren. Fremde Teams fehlen.
      */
     teams: Array<MaterialOverviewMatchTeamDto>
 }
@@ -3412,6 +3415,10 @@ export type MyEventDto = {
     upcoming: Array<MyEventMatchDto>
     results: Array<MyEventResultDto>
     unscheduled: Array<MyEventRegistrationDto>
+    /**
+     * Meldungen mit Lauf, die Materialanfragen tragen (Materialblock je Meldung, immer sichtbar). Meldungen ohne Lauf tragen ihre Anfragen in unscheduled.
+     */
+    materialRegistrations: Array<MyEventRegistrationDto>
     requirements: Array<MyEventRequirementDto>
     notice?: EventNoticeDto
 }
@@ -8642,6 +8649,9 @@ export type GetMaterialDamagesData = {
         providerId: string
     }
     query?: {
+        /**
+         * Schäden zu dieser Veranstaltung - Verursacher-Meldung gehört zu ihr, Schaden noch offen (REPORTED), gemeldet an einem Veranstaltungstag oder Ausfallfenster berührt die Veranstaltungstage.
+         */
         eventId?: string
         itemId?: string
         /**

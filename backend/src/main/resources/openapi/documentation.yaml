@@ -4532,7 +4532,7 @@ paths:
           format: uuid
     put:
       operationId: inviteMaterialProvider
-      description: Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL.
+      description: Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL und READ MATERIAL GLOBAL (wer einlädt, muss die Anbieter lesen dürfen); fehlt eines, 403.
       responses:
         204:
           description: Anbieter erfolgreich eingeladen
@@ -5174,6 +5174,7 @@ paths:
         - name: eventId
           in: query
           required: false
+          description: Schäden zu dieser Veranstaltung - Verursacher-Meldung gehört zu ihr, Schaden noch offen (REPORTED), gemeldet an einem Veranstaltungstag oder Ausfallfenster berührt die Veranstaltungstage.
           schema:
             type: string
             format: uuid
@@ -19320,12 +19321,13 @@ components:
         endTime: {type: string, format: date-time}
         registrationIds:
           type: array
+          description: Meldungen dieses Laufs mit einer Anfrage bei diesem Anbieter (gleich welcher Status); fremde Teams fehlen.
           items:
             type: string
             format: uuid
         teams:
           type: array
-          description: Je Meldung dieses Laufs die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+          description: Je Meldung dieses Laufs mit Anfrage bei diesem Anbieter die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren. Fremde Teams fehlen.
           items:
             $ref: '#/components/schemas/MaterialOverviewMatchTeamDto'
 
@@ -20333,6 +20335,7 @@ components:
         - upcoming
         - results
         - unscheduled
+        - materialRegistrations
         - requirements
       properties:
         displayName:
@@ -20361,6 +20364,11 @@ components:
             $ref: '#/components/schemas/MyEventResultDto'
         unscheduled:
           type: array
+          items:
+            $ref: '#/components/schemas/MyEventRegistrationDto'
+        materialRegistrations:
+          type: array
+          description: Meldungen mit Lauf, die Materialanfragen tragen (Materialblock je Meldung, immer sichtbar). Meldungen ohne Lauf tragen ihre Anfragen in unscheduled.
           items:
             $ref: '#/components/schemas/MyEventRegistrationDto'
         requirements:

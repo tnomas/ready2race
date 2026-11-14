@@ -3449,7 +3449,7 @@ export const getEventMaterialProviders = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL.
+ * Lädt einen Anbieter zur Veranstaltung ein. Idempotent - ein zweites Mal einladen ändert nichts. Braucht UPDATE EVENT GLOBAL und READ MATERIAL GLOBAL (wer einlädt, muss die Anbieter lesen dürfen); fehlt eines, 403.
  */
 export const inviteMaterialProvider = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<InviteMaterialProviderData, ThrowOnError>,

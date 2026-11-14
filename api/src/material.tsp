@@ -249,9 +249,12 @@ model MaterialOverviewMatchDto {
   roundName?: string;
   startTime?: utcDateTime;
   endTime?: utcDateTime;
+  // Meldungen dieses Laufs mit einer Anfrage bei diesem Anbieter (gleich welcher Status);
+  // Meldungen fremder Teams fehlen.
   registrationIds: uuid[];
-  // Je Meldung dieses Laufs die Startnummer im Lauf (competition_match_team.start_number) -
-  // dieselbe Zahl, gegen die effective_material_for_match_team die Abweichung des Boots rechnet.
+  // Je Meldung dieses Laufs mit Anfrage bei diesem Anbieter die Startnummer im Lauf
+  // (competition_match_team.start_number) - dieselbe Zahl, gegen die
+  // effective_material_for_match_team die Abweichung des Boots rechnet. Fremde Teams fehlen.
   teams: MaterialOverviewMatchTeamDto[];
 }
 
@@ -428,6 +431,8 @@ interface MaterialRoutes {
   @operationId("")
   getMaterialDamages(
     @path providerId: string, // UUID
+    // Schäden zu dieser Veranstaltung: Verursacher-Meldung gehört zu ihr, Schaden noch offen
+    // (REPORTED), gemeldet an einem Veranstaltungstag oder Ausfallfenster berührt die Tage.
     @query eventId?: string, // UUID
     @query itemId?: string, // UUID
     // Pagination parameters
@@ -551,7 +556,8 @@ interface EventMaterialRoutes {
     @path eventId: string, // UUID
   ): EventMaterialProviderDto[];
 
-  // Anbieter zur Veranstaltung einladen (idempotent)
+  // Anbieter zur Veranstaltung einladen (idempotent). Braucht UPDATE EVENT GLOBAL und
+  // READ MATERIAL GLOBAL (wer einlädt, muss die Anbieter lesen dürfen); sonst 403.
   @put
   @route("/{providerId}")
   @operationId("")
@@ -560,7 +566,7 @@ interface EventMaterialRoutes {
     @path providerId: string, // UUID
   ): void;
 
-  // Einladung zurückziehen
+  // Einladung zurückziehen. Braucht nur UPDATE EVENT GLOBAL (Veranstalter-Sache).
   @delete
   @route("/{providerId}")
   @operationId("")
