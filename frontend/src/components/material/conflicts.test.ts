@@ -1,7 +1,11 @@
 import {describe, expect, test} from 'vitest'
-import {MaterialOverviewItemDto, MaterialOverviewMatchDto} from '@api/types.gen.ts'
+import {
+    MaterialOverviewItemDto,
+    MaterialOverviewMatchDto,
+    MaterialOverviewRequestDto,
+} from '@api/types.gen.ts'
 import {DEFAULT_MATCH_MINUTES, findConflicts, severityOf} from './conflicts.ts'
-import {EffectiveAssignment} from './effectiveAssignments.ts'
+import {EffectiveAssignment, effectiveAssignments} from './effectiveAssignments.ts'
 
 const match = (overrides: Partial<MaterialOverviewMatchDto> = {}): MaterialOverviewMatchDto => ({
     id: 'match-1',
@@ -57,7 +61,12 @@ describe('findConflicts', () => {
         ]
         const result = findConflicts(effective, matches, [item()], {r2: 30})
         expect(result).toEqual([
-            {kind: 'CHANGEOVER', itemId: 'item-1', matchIds: ['m1', 'm2'], requestIds: ['r1', 'r2']},
+            {
+                kind: 'CHANGEOVER',
+                itemId: 'item-1',
+                matchIds: ['m1', 'm2'],
+                requestIds: ['r1', 'r2'],
+            },
         ])
     })
 
@@ -126,6 +135,84 @@ describe('findConflicts', () => {
         const result = findConflicts(effective, matches, [item()], {})
         expect(result).toEqual([
             {kind: 'OVERLAP', itemId: 'item-1', matchIds: ['m1', 'm2'], requestIds: ['r1', 'r2']},
+        ])
+    })
+})
+
+const request = (
+    overrides: Partial<MaterialOverviewRequestDto> = {},
+): MaterialOverviewRequestDto => ({
+    id: 'req-1',
+    materialOffer: 'offer-1',
+    materialType: 'type-1',
+    materialTypeName: 'C4x+',
+    category: 'BOAT',
+    count: 1,
+    status: 'CONFIRMED',
+    requestedAt: '2026-11-14T08:00:00Z',
+    competitionRegistration: 'reg-1',
+    competition: 'comp-1',
+    competitionIdentifier: 'M4',
+    competitionName: 'Rundentest',
+    clubId: 'club-1',
+    clubName: 'Verein 1',
+    assignments: [],
+    ...overrides,
+})
+
+describe('findConflicts: dasselbe Stück zweimal im selben Lauf (H4-B1)', () => {
+    test('ohne Startzeit: OVERLAP mit dem einen Lauf und beiden Anfragen', () => {
+        const effective = [
+            eff({requestId: 'r1', matchId: 'm1', itemIds: ['item-1']}),
+            eff({requestId: 'r2', matchId: 'm1', itemIds: ['item-1']}),
+        ]
+        const result = findConflicts(effective, [match({id: 'm1'})], [item()], {})
+        expect(result).toEqual([
+            {kind: 'OVERLAP', itemId: 'item-1', matchIds: ['m1'], requestIds: ['r1', 'r2']},
+        ])
+    })
+
+    test('mit Startzeit: genau ein OVERLAP, der Lauf nicht doppelt genannt', () => {
+        const effective = [
+            eff({requestId: 'r1', matchId: 'm1', itemIds: ['item-1']}),
+            eff({requestId: 'r2', matchId: 'm1', itemIds: ['item-1']}),
+        ]
+        const matches = [match({id: 'm1', startTime: '2026-11-14T10:00:00Z'})]
+        expect(findConflicts(effective, matches, [item()], {})).toEqual([
+            {kind: 'OVERLAP', itemId: 'item-1', matchIds: ['m1'], requestIds: ['r1', 'r2']},
+        ])
+    })
+
+    test('Handtest-Fall: Ausnahme für #21 im Finale auf Süd 22, #22 hat Süd 22 als Grundzuteilung', () => {
+        const final = match({id: 'final', registrationIds: ['reg-21', 'reg-22']})
+        const heat = match({id: 'heat', registrationIds: ['reg-21']})
+        const requests = [
+            request({
+                id: 'r21',
+                competitionRegistration: 'reg-21',
+                assignments: [
+                    {id: 'a1', materialItem: 'sued-21'},
+                    {id: 'a2', materialItem: 'sued-22', competitionMatch: 'final'},
+                ],
+            }),
+            request({
+                id: 'r22',
+                competitionRegistration: 'reg-22',
+                assignments: [{id: 'a3', materialItem: 'sued-22'}],
+            }),
+        ]
+        const items = [
+            item({id: 'sued-21', label: 'Süd 21'}),
+            item({id: 'sued-22', label: 'Süd 22'}),
+        ]
+        const result = findConflicts(
+            effectiveAssignments(requests, [heat, final]),
+            [heat, final],
+            items,
+            {},
+        )
+        expect(result).toEqual([
+            {kind: 'OVERLAP', itemId: 'sued-22', matchIds: ['final'], requestIds: ['r21', 'r22']},
         ])
     })
 })
