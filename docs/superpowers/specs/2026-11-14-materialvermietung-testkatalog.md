@@ -8,10 +8,11 @@ Was dort nicht „bestanden“ steht, ist **nicht verifiziert**.
 ## Wie die Ergebnisse zu lesen sind
 
 Stand der Berichte: Handtest **H1** (Blöcke A bis C, vor den Korrekturen F1/F2), **H2** (Blöcke D bis F, vor F3), **H3**
-(Nachtest von 16 Pflichtfällen nach F1/F2/F3) und **F4** (Fall 17, nach der Korrektur `e9d466a1`), alle am 14.11.2026 im Browser
-gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und die Quelle.
+(Nachtest von 16 Pflichtfällen nach F1/F2/F3), **F4** (Fall 17, nach der Korrektur `e9d466a1`), **H4** (Block G, Startnummer aus
+Meldungsnummer, vor S2) und **S2** (Nachtest der Korrekturen aus Review und H4), alle am 14.11.2026 im Browser gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und die Quelle.
 
 - **bestanden** = so gesehen. **bestanden mit Einschränkung** = gesehen, aber ein Teil des Falls fehlt (steht im Ergebnis).
+- **teilweise testbar** = ein Teil des Falls gesehen, der Rest (steht im Ergebnis) im Seed nicht herstellbar.
 - **nicht testbar** = im Seed oder mit dem Werkzeug nicht herstellbar. **nicht gelaufen** = nicht versucht oder ohne passendes
   Konto bzw. Netz nicht möglich. Beides gilt als **nicht verifiziert**; nur Tests oder API belegen dann allenfalls etwas.
 - Fälle, die H1 vor den Korrekturen sah und die H3 nicht abdeckt, tragen das H1-Ergebnis mit dem Vermerk, was nach F1/F2 nicht
@@ -19,8 +20,8 @@ gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und 
 
 ## Übersicht
 
-75 Fälle: **42 bestanden**, **17 bestanden mit Einschränkung**, **1 nicht testbar**, **6 nicht gelaufen**, **9 offen**
-(Block G, nach der Entscheidung vom 14.11.2026 gebaut, noch von keinem Tester gesehen).
+81 Fälle: **51 bestanden**, **19 bestanden mit Einschränkung**, **2 teilweise testbar**, **1 nicht testbar**, **7 nicht gelaufen**,
+**1 offen** (G13, Freilos-Chip: im Seed nicht herstellbar, nur Backend-Test).
 
 | Fall | Kurz | Ergebnis | Quelle |
 |---|---|---|---|
@@ -90,15 +91,21 @@ gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und 
 | F8 neu | Anbieter-Wechsel für globale Konten | bestanden | H2 |
 | F9 neu | Meldung gibt Anfragen frei (Veranstalter-Wege) | nicht gelaufen | - |
 | F10 neu | Einladen braucht zusätzlich READ MATERIAL GLOBAL | bestanden | H3 |
-| G1 neu | Fixieren mit Schalter → Runde anlegen: Startnummer = Meldungsnummer | offen | - |
-| G2 neu | Folgerunde (Finale) behält die Meldungsnummer | offen | - |
-| G3 neu | Schalter aus: Setzposition wie bisher | offen | - |
-| G4 neu | Bestehende Läufe bleiben beim Fixieren unverändert | offen | - |
-| G5 neu | Anzeigen ohne „abweichend“ im Normalfall | offen | - |
-| G6 neu | Echte Abweichung bleibt sichtbar | offen | - |
-| G7 neu | Startlisten-Export und RaceClocker | offen | - |
-| G8 neu | Zeitnahme-Posten und Startanzeige mit großen Nummern | offen | - |
-| G9 neu | Freilos in einer Folgerunde mit Schalter | offen | - |
+| G1 neu | Fixieren mit Schalter → Runde anlegen: Startnummer = Meldungsnummer | bestanden | H4, S2 |
+| G2 neu | Folgerunde (Finale) behält die Meldungsnummer | bestanden | H4 |
+| G3 neu | Schalter aus: Setzposition wie bisher | bestanden | H4 |
+| G4 neu | Bestehende Läufe bleiben beim Fixieren unverändert | bestanden | H4, S2 |
+| G5 neu | Anzeigen ohne „abweichend“ im Normalfall | bestanden mit Einschränkung | H4 |
+| G6 neu | Echte Abweichung bleibt sichtbar | bestanden | H4 |
+| G7 neu | Startlisten-Export und RaceClocker | teilweise testbar | H4 |
+| G8 neu | Zeitnahme-Posten und Startanzeige mit großen Nummern | teilweise testbar | H4 |
+| G9 neu | Freilos in einer Folgerunde mit Schalter | nicht gelaufen | - |
+| G10 neu | Regel steht am Lauf (Refinalisieren ohne/mit Haken) | bestanden mit Einschränkung | S2 |
+| G11 neu | Fixieren gesperrt ohne Anbieterliste, Schalter nie still aus | bestanden | S2 |
+| G12 neu | Meldungen in Läufen behalten ihre Meldungsnummer | bestanden | S2 |
+| G13 neu | Freilos-Chip gestempelter Läufe ohne Zahl | offen | - |
+| G14 neu | Dasselbe Stück zweimal im selben Lauf ist ein Konflikt | bestanden | S2 |
+| G15 neu | Dialogtext der Fixierung zustandsabhängig | bestanden | S2 |
 
 ## Testdaten
 
@@ -628,7 +635,7 @@ solange kein Lauf „in Vorbereitung“ ist; Startliste im Regie-Panel erzwingen
 **Schritte:** Startliste erzwingen, „Material immer zeigen“ umschalten.
 **Erwartung:** Boot-Angabe mit der Kürzungsleiter (fällt bei knappem Platz zuerst weg); mit erzwungener Startliste
 Vorlauf 2: „Boot 8“, abweichend.
-**Ergebnis 14.11.:** bestanden (H2). Szene mit Schalter an: Finale „Boot 7 / Vierer 2 / Boot 6 / eigenes Boot“, Schalter aus: nur Nr. 1 und 3; die Grafik zeigt kein „abweichend“. **Nicht belegt:** Wirecast/OBS (nur Browserquelle gelesen), Kürzungsleiter bei knappem Platz.
+**Ergebnis 14.11.:** bestanden (H2). Szene mit Schalter an: Finale „Boot 7 / Vierer 2 / Boot 6 / eigenes Boot“, Schalter aus: nur Nr. 1 und 3; die Grafik zeigt kein Wort „abweichend“ – Absicht: Abweichung in Akzentfarbe, Boot nur in der Langform (siehe Hinweis H4-B2 in Block G). **Nicht belegt:** Wirecast/OBS (nur Browserquelle gelesen), Kürzungsleiter bei knappem Platz, die Akzentfarbe.
 
 ### E7 (neu) - Lauf-Karte der Durchführung
 
@@ -746,7 +753,9 @@ aus; Anfrage und Zuteilungen sind weg; der Marker wird gebumpt.
 Hintergrund: ADR-0111, Abschnitt 4. Mit dem Schalter „Meldungsnummern nach Bootsnummern vergeben“ speichert die
 Fixierung den Wunsch an der Veranstaltung; jede **danach** angelegte Runde gibt jedem Boot seine Meldungsnummer als
 Startnummer. Wettkampf **M4 Rundentest** ist dafür vorbereitet (siehe Testdaten). Vor dem Block den Seed frisch einspielen;
-Fixieren wirkt veranstaltungsweit (auch M1/M2 und die DM-Wettkämpfe bekommen neue Meldungsnummern).
+Fixieren wirkt veranstaltungsweit (M2 und die DM-Wettkämpfe bekommen neue Meldungsnummern). Seit S2 (Nachtrag ADR-0111): Jeder
+Lauf trägt die Regel, mit der er angelegt wurde, und Meldungen, die schon in Läufen stehen (M1), behalten beim Fixieren ihre
+Meldungsnummer.
 
 ### G1 (neu) - Fixieren mit Schalter → Runde anlegen: Startnummer = Meldungsnummer
 
@@ -757,7 +766,7 @@ finalisieren“. Danach Wettkampf M4 → Meldungen (Chips „Meldungsnr. n“), 
 haben Meldungsnr. **21** und **22** (ihre Süd-Boote), DM-Verein 3 und 4 **1** und **2**. Die Lauf-Karten des Vorlaufs zeigen
 die Meldungsnummern als Startnummern: Vorlauf 1 **#1** und **#22**, Vorlauf 2 **#2** und **#21**; „Süd 21“/„Süd 22“ ohne
 Chip „abweichend“.
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** bestanden (H4 Fall 1/2). Meldeseite: Haken „Meldungsnummern nach Bootsnummern vergeben“ mit gespeichertem Stand (an) vorbelegt; nach „Meldungen finalisieren“ Block „Startnummer = Meldungsnummer: …“. M4-Chips Meldungsnr. V1=21, V2=22, V3=2, V4=1 (Oberfläche = SQL), Veranstaltung `t`. Runde: Vorlauf 1 #1 DM-Verein 4, #22 DM-Verein 2 Süd 22; Vorlauf 2 #2 DM-Verein 3, #21 DM-Verein 1 Süd 21; kein „abweichend“; SQL `start_number = team_number` in allen vier Zeilen.
 
 ### G2 (neu) - Folgerunde (Finale) behält die Meldungsnummer
 
@@ -766,7 +775,7 @@ Chip „abweichend“.
 Automatik, falls eingeschaltet).
 **Erwartung:** Im Finale starten alle vier Boote unter ihrer Meldungsnummer (**#1, #2, #21, #22**), nicht unter dem Rang 1–4;
 kein „abweichend“. Die Liste ist nach Startnummer geordnet (nicht nach Setzplatz – bewusst, ADR-0111).
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** bestanden (H4 Fall 3). Vorläufe über „Ergebnis eintragen“ (Plätze), „Lauf beenden“, „Erstelle nächste Runde“: Finale #1, #2, #21, #22 (V4, V3, V1, V2), kein „abweichend“; SQL Startnummer = Meldungsnummer. Liste nach Startnummer (V1 war in Vorlauf 2 Erster und steht hinter #2). Folgerunden-Automatik nicht im Browser (nur Backend-Test, S2).
 
 ### G3 (neu) - Schalter aus: Setzposition wie bisher
 
@@ -774,7 +783,7 @@ kein „abweichend“. Die Liste ist nach Startnummer geordnet (nicht nach Setzp
 **Schritte:** Veranstaltung → Meldungen: Haken **weg**, finalisieren. M4 → Runde anlegen.
 **Erwartung:** Hinweis im Block „Die Rundenanlage vergibt die Startnummer je Lauf nach Setzposition …“. Vorläufe mit
 Startnummern **#1/#2** je Lauf; die Süd-Boote mit Nummer ≠ Startnummer tragen den Chip „abweichend“.
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** bestanden (H4 Fall 5). Seed frisch, Haken weg, finalisiert: Veranstaltung `f`, Block „Die Rundenanlage vergibt die Startnummer je Lauf nach Setzposition …“. M4: Vorlauf 1 #1 V2 „Süd 22 · abweichend“, #2 V1 „Süd 21 · abweichend“; Vorlauf 2 #1 V3, #2 V4 (SQL 1…n je Lauf). M1-Startnummern vorher/nachher gleich; das Fixieren ohne Schalter nummerierte damals die **Meldungsnummern** von M1 neu (1–4) – seit S2 behalten Meldungen in Läufen ihre Nummer (G12).
 
 ### G4 (neu) - Bestehende Läufe bleiben beim Fixieren unverändert
 
@@ -782,8 +791,8 @@ Startnummern **#1/#2** je Lauf; die Süd-Boote mit Nummer ≠ Startnummer tragen
 **Schritte:** Refinalisieren mit „Nummern behalten“ aus und Schalter an; danach M1 → Durchführung ansehen. Variante: G3 ausführen
 (Runde in M4 ohne Schalter), dann mit Schalter refinalisieren und M4 ansehen; Runde löschen und neu anlegen.
 **Erwartung:** Startnummern bestehender Läufe ändern sich durch das Fixieren **nicht** (M1 bleibt [7, 3], [6, 1], Finale
-[1, 3, 6, 7], auch wenn MT 2 jetzt Meldungsnr. 2 hat). In M4 gleicht erst „Runde löschen“ + „Runde anlegen“ an.
-**Ergebnis 14.11.:** offen
+[1, 3, 6, 7]; seit S2 behalten auch die Meldungsnummern von M1 ihren Wert, G12). In M4 gleicht erst „Runde löschen“ + „Runde anlegen“ an.
+**Ergebnis 14.11.:** bestanden (H4 Fall 6). Fixieren ohne, danach „Meldungen refinalisieren“ mit Haken (Dialog: Haken mit gespeichertem Stand „aus“ vorbelegt): `start_number` aller 12 Lauf-Zeilen (M1 und M4) vorher/nachher gleich (SQL-Diff leer). „Runde löschen“ (Bestätigung) + neu anlegen: M4 #1/#22 und #2/#21 = Meldungsnummern, kein „abweichend“. Der Block nennt „zum Angleichen die Runde löschen und neu anlegen (nur ohne Ergebnisse)“.
 
 ### G5 (neu) - Anzeigen ohne „abweichend“ im Normalfall
 
@@ -791,7 +800,7 @@ Startnummern **#1/#2** je Lauf; die Süd-Boote mit Nummer ≠ Startnummer tragen
 **Schritte:** M1 auf Lauf-Karte (Durchführung), Board, Schiedsrichter-Dashboard, Sprecher, Mein Event (`MATERIAL-MEINEVENT-1`),
 Stream-Szene ansehen.
 **Erwartung:** MT 1 überall „#7 · Boot 7“ **ohne** „abweichend“; MT 3 im Finale „#6 · Boot 6“ ohne „abweichend“.
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** bestanden mit Einschränkung (H4 Fall 7, Seed frisch, Schalter an). Lauf-Karte: Vorlauf 1 #3 „Vierer 2 · abweichend“, #7 „Boot 7“; Vorlauf 2 #1 ohne Zeile, #6 „Boot 8 · abweichend“; Finale #6 „Boot 6“ ohne Chip. Schiedsrichter-Dashboard ebenso, MT 4 „eigenes Boot“. Board „#7 Boot 7“ ohne, „#3 Vierer 2 · abweichend“. Mein Event „#7 · Boot 7“ ohne „abweichend“, Block Leihmaterial „C4x+ · Bootshaus Nord · bestätigt“. Sprecher-Detail Vorlauf 1: #3 „Vierer 2 abweichend“, #7 ohne Bootsname. Stream-Szene (Startliste Vorlauf 2): „1 DM-Verein 4 … eigenes Boot“, „6 DM-Verein 3 … Boot 8“ ohne das Wort „abweichend“. 390 px: M4 #21/#22 50 px breit, nicht abgeschnitten, kein waagrechtes Scrollen. **Einschränkung:** Sprecher und Stream zeigen das Boot bewusst anders als die übrigen Anzeigen (siehe H4-B2 unten).
 
 ### G6 (neu) - Echte Abweichung bleibt sichtbar
 
@@ -799,7 +808,7 @@ Stream-Szene ansehen.
 **Schritte:** Wie G5, dazu Anbieter-Dashboard (Bootshaus Nord) → Einteilung.
 **Erwartung:** MT 3 im Vorlauf 2 „#6 · Boot 8“ **abweichend** (Ausnahme wegen Ausfall); MT 2 „#3 · Vierer 2“ **abweichend**
 in Vorlauf 1 und Finale, im Dashboard „ohne Nummerngleichheit“. Dashboard trennt „Meldungsnr.“ und „Startnr.“.
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** bestanden (H4 Fall 4 und 7). Anbieter 2 setzt eine Ausnahme je Lauf (Finale · Startnr. 21 → Süd 22): nur im Finale bei #21 „Süd 22 · abweichend“, Vorläufe ohne; Anbieter-Dashboard „Startnummer weicht in 1 Lauf ab · 1 Ausnahme“ bei V1. Anbieter 1: „Meldungsnr. 7 · Boot 7 #7“, „Meldungsnr. 6 · Boot 6 #6 · Startnummer weicht in 1 Lauf ab · Ausfall · 1 Ausnahme“, „Meldungsnr. 3 · Vierer 2 #2 · ohne Nummerngleichheit · Startnummer weicht in 2 Läufen ab“. Startlisten-PDF: „3 / Boot Vierer 2 (abweichend / differs)“, „6 / Boot 8 (abweichend / differs)“, Finale „6 / Boot 6“. Die doppelte Belegung von Süd 22 im Finale meldete die Übersicht damals als „keine Konflikte“ (H4-B1, seit S2 behoben, G14).
 
 ### G7 (neu) - Startlisten-Export und RaceClocker
 
@@ -810,7 +819,7 @@ umsortieren, Ergebnisse abrufen.
 **Erwartung:** CSV/PDF tragen die Meldungsnummern als Startnummer/Bib (#1, #22). Nach dem Abruf stehen in R2R weiter #1/#22
 (das Umsortieren in RaceClocker ändert keine Startnummer); Zeiten kommen an. Ohne Schalter (G3) schreibt der Abruf wie bisher
 die Listenpositionen.
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** teilweise testbar (H4 Fall 9). PDF M4 Vorlauf 1 „Start number 1 / Boot eigenes Boot“, „22 / Süd 22“; Vorlauf 2 „2 / eigenes Boot“, „21 / Süd 21“ (nach Setzen der Startzeit über „Partie bearbeiten“, vorher 409 „StartTime not set“). CSV je Lauf und Runde: 400 `STARTLIST_CONFIG_NOT_CONFIGURED` (kein Zeitnahmeprofil am DM-Event) – **nicht testbar**. RaceClocker-Datei und -Abruf: **nicht testbar** (kein Profil); belegt nur durch Backend-Tests (`RaceClockerStartNumberWriteTest`, seit S2 mit Stempel am Lauf).
 
 ### G8 (neu) - Zeitnahme-Posten und Startanzeige mit großen Nummern
 
@@ -818,7 +827,7 @@ die Listenpositionen.
 **Schritte:** Posten (Helfer-App) und Startanzeige/Leitstand für Vorlauf 1 öffnen, eine Marke einem Boot zuordnen.
 **Erwartung:** Boote erscheinen als „#1“ und „#22“, nach Startnummer geordnet; Zuordnen klappt; zweistellige Nummern werden
 nicht abgeschnitten (auch Stream-Zeile).
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** teilweise testbar (H4 Fall 8). Die DM-Veranstaltung hat keine Posten und kein Zeitnahmeprofil (Posten nur bei Event 71ed). Ersatzweise die Ergebnis-Eingabe der Durchführung: Zeilen „1 / 22“ bzw. „2 / 21“ mit Team, Plätze je Startnummer – SQL #22 Platz 2, #21 Platz 1 (Vorlauf 2), #1 Platz 1, #2 Platz 2: Zuordnung stimmt. Posten, Leitstand, Stempeln und Startanzeige **nicht gesehen**.
 
 ### G9 (neu) - Freilos in einer Folgerunde mit Schalter
 
@@ -826,7 +835,78 @@ nicht abgeschnitten (auch Stream-Zeile).
 Boot).
 **Schritte:** Folgerunde anlegen, Freilos-Chip und Laufnamen ansehen.
 **Erwartung:** Laufname „Freilos n“ stimmt; der Chip zeigt mit Schalter nur „Freilos“ ohne Zahl (bekannte Grenze, ADR-0111).
-**Ergebnis 14.11.:** offen
+**Ergebnis 14.11.:** nicht gelaufen (H4: weder im Auftrag noch im Seed). Seit S2 zeigt der Chip in gestempelten Läufen bewusst keine Zahl (G13); belegt nur durch Backend-Test.
+
+### G10 (neu) - Regel steht am Lauf (Refinalisieren ohne/mit Haken)
+
+**Vorbedingung:** Frischer Seed; Fixieren mit Schalter, Runde in M4 angelegt (G1).
+**Schritte:** „Meldungen refinalisieren“, Haken **abwählen**, refinalisieren. Startnummern und Stempel per SQL
+(`competition_match.team_numbers_as_start_numbers`) vorher/nachher vergleichen. Mit RaceClocker-Profil: zwei Boote umsortieren,
+abrufen. Gegenrichtung: Runde ohne Schalter anlegen, mit Haken refinalisieren, in RaceClocker umsortieren, abrufen.
+**Erwartung:** Veranstaltung danach aus; Startnummern und Stempel der angelegten Läufe unverändert; der Abruf schreibt in mit
+Schalter angelegte Läufe keine Listenpositionen, in ohne Schalter angelegte Läufe kommt der Bahntausch an. Erst neu angelegte
+Runden folgen dem neuen Schalter.
+**Ergebnis 14.11.:** bestanden mit Einschränkung (S2 (b)). Vorlauf 1 „1 DM-Verein 4 / 22 DM-Verein 2 Süd 22“, Vorlauf 2 „2 DM-Verein
+3 / 21 DM-Verein 1 Süd 21“, Stempel `t`; nach Refinalisieren ohne Haken Veranstaltung `f`, Startnummern und Stempel aller 5 Läufe
+identisch (SQL-Diff leer). Backfill nach dem Neustart: M1-Läufe `t`, alle übrigen `f`. **Nicht belegt:** der RaceClocker-Abruf selbst
+(kein Profil an der DM-Veranstaltung) – nur Backend-Tests (`RaceClockerStartNumberWriteTest`,
+`StartNumbersFromTeamNumbersTest.refinalizing…`).
+
+### G11 (neu) - Fixieren gesperrt ohne Anbieterliste, Schalter nie still aus
+
+**Vorbedingung:** Fixierte Veranstaltung mit gespeichertem Schalter an.
+**Schritte:** Abruf der Anbieterliste scheitern lassen (z. B. Netz trennen) und den Dialog öffnen; eine Veranstaltung ohne Anbieter
+mit gespeichertem Schalter ansehen; nach dem Fixieren den Bereich wechseln und zurück.
+**Erwartung:** Fehlerhinweis mit „Neu laden“, Fixieren gesperrt; ohne Anbieter bleibt der Haken sichtbar und vorbelegt; nach dem
+Bereichswechsel stimmt der Haken mit dem gespeicherten Stand.
+**Ergebnis 14.11.:** bestanden (S2). `/materialProvider` per Konsole auf 500 umgebogen: „Die Materialanbieter der Veranstaltung ließen
+sich nicht laden. Fixieren geht erst, wenn sie geladen sind.“ mit „Neu laden“, „Refinalisieren“ gesperrt, Haken sichtbar. Nach
+Refinalisieren mit Haken und Bereichswechsel: Block „Startnummer = Meldungsnummer …“, Haken an (vorher belegte der neu eingehängte Block
+mit dem alten Stand vor – in S2 behoben). **Nicht belegt:** Veranstaltung ohne Anbieter mit gespeichertem Schalter (nur Vitest).
+
+### G12 (neu) - Meldungen in Läufen behalten ihre Meldungsnummer
+
+**Vorbedingung:** Frischer Seed (M1 mit Läufen, Meldungsnummern 7/3/6/1).
+**Schritte:** Fixieren mit Schalter; danach refinalisieren ohne Haken (ohne „behalten“).
+**Erwartung:** M1 behält 7/3/6/1 in beiden Fixierungen, Meldungen ohne Lauf (M2, M4 vor der Runde) werden vergeben, ohne eine feste
+Nummer zu treffen. Der Dialog nennt das, sobald es Läufe gibt.
+**Ergebnis 14.11.:** bestanden (S2 (a), (b)). Erste Fixierung nach dem Seed: M1 7/3/6/1 unverändert, M4 21/22/2/1. Refinalisieren
+ohne Haken: M1 und M4 unverändert (beide mit Läufen), nur M2 neu (4/1/3/2 → 1/3/2/4). Dialog: „Es gibt schon Läufe. Sie behalten ihre
+Startnummern, und ihre Teams behalten die Meldungsnummer. …“. **Nicht belegt:** Nachmeldung in einem Wettkampf mit Läufen (nur
+Backend-Test).
+
+### G13 (neu) - Freilos-Chip gestempelter Läufe ohne Zahl
+
+**Vorbedingung:** Folgerunde mit Freilos in einem mit Schalter angelegten Wettkampf (nicht im Seed).
+**Schritte:** Folgerunde anlegen, Freilos-Chip und Laufnamen ansehen.
+**Erwartung:** Laufname „Freilos n“ stimmt, der Chip zeigt „Freilos“ ohne Zahl – nie eine fremde Setzung („Freilos 8“).
+**Ergebnis 14.11.:** offen (im Seed nicht herstellbar). Belegt nur durch `StartNumbersFromTeamNumbersTest` (Setzungszahl im
+gestempelten Finale `null`, ohne Schalter 1–4).
+
+### G14 (neu) - Dasselbe Stück zweimal im selben Lauf ist ein Konflikt
+
+**Vorbedingung:** M4 mit Finale (Vorläufe gewertet), Anbieter 2.
+**Schritte:** Zuteilung → DM-Verein 1 ⋮ „Ausnahme je Lauf“ → „Finale · Startnr. 21“ → „Süd 22“ → Hinzufügen; neu laden.
+**Erwartung:** Beide Teams rot „Überschneidung“, Kopf „… 2 mit Konflikt“; Speichern wird nicht verhindert (Spec Abschnitt 8).
+**Ergebnis 14.11.:** bestanden (S2 (c)). „Offen: 0 ohne Stück, 2 mit Konflikt.“; DM-Verein 1 „Süd 21 #21 · Startnummer weicht in 1 Lauf
+ab · Überschneidung · 1 Ausnahme“, DM-Verein 2 „Süd 22 #22 · Überschneidung“; „Nach Materialstück“: Süd 22 mit „Startnummer
+abweichend · Überschneidung“. In H4 hieß es hier „keine Konflikte“ (H4-B1).
+
+### G15 (neu) - Dialogtext der Fixierung zustandsabhängig
+
+**Vorbedingung:** Veranstaltung mit Anbieter.
+**Schritte:** Haken an- und abwählen, vor dem Fixieren und im Refinalisieren-Dialog.
+**Erwartung:** Je Hakenstand genau ein Erklärtext; bei vorhandenen Läufen der Satz, dass Läufe mit Ergebnissen sich nicht angleichen
+lassen und Läufe ohne Ergebnisse über Runde löschen und neu anlegen.
+**Ergebnis 14.11.:** bestanden (S2 (d)). „Mit Haken: Teams mit Leihboot bekommen …“ bzw. „Ohne Haken: Neu angelegte Runden vergeben die
+Startnummer je Lauf ab 1 …“, Hinweis „Es gibt schon Läufe. …“. **Nicht belegt:** en/da, 390 px.
+
+### Hinweis H4-B2 - Stream-Szene ohne Wort „abweichend“ (Absicht)
+
+Die Stream-Zeile (`StreamBoatRow`) zeigt das Boot nur in der Langform und markiert eine Abweichung mit der Akzentfarbe statt mit
+einem Wort; die Kurzform lässt die Bootszeile ganz weg (Kürzungsleiter, Spec Livestream-Grafiken). Das Sprecher-Detail zeigt den
+Bootsnamen im Modus „nur Abweichungen“. Beides ist so gebaut (`materialLabel`), kein Fehler. Die Farbe selbst wurde im Handtest nicht
+geprüft (Seitentext).
 
 ---
 
@@ -839,9 +919,13 @@ Ausfall-Konflikt in B9, die Formularansicht bei geschlossener Vergabe (A5) und d
 
 ## Nicht belegt und offen (Endstand 14.11.2026)
 
-- **Startnummer aus Meldungsnummer** (ADR-0111, Abschnitt 4): am 14.11.2026 entschieden und gebaut; Block G ist **offen**
-  (nur Backend-Tests und ein kurzer Blick der Entwicklung, kein Handtest). Die Fälle B6, C2, C4, E4, E5, E7 sahen noch den
-  alten Seed (Startnummer = Setzposition, MT 1 #1 mit Boot 7 abweichend); der neue Seed zeigt dort andere Zahlen.
+- **Startnummer aus Meldungsnummer** (ADR-0111, Abschnitte 4 und 5): Block G in H4 und S2 gesehen. **Offen bzw. nicht belegt:**
+  Zeitnahme-Posten, Leitstand und Startanzeige mit nicht fortlaufenden Startnummern (G8; DM-Veranstaltung ohne Posten), RaceClocker-
+  Datei und -Abruf gegen einen echten Feed, auch die Regel am Lauf (G7, G10; nur Backend-Tests), CSV-Startliste (G7; ohne Profil
+  400), Freilos in der Folgerunde (G9, G13; nicht im Seed), Folgerunden-Automatik mit Schalter (nur Backend-Test), dreistellige
+  Nummern in Stream, Boards und Athletenanzeige (nur zweistellig bei 390 px gesehen), die Akzentfarbe der Stream-Zeile bei
+  Abweichung (H4-B2). Die Fälle B6, C2, C4, E4, E5, E7 sahen noch den alten Seed (Startnummer = Setzposition, MT 1 #1 mit Boot 7
+  abweichend); der neue Seed zeigt dort andere Zahlen.
 - **Anmeldung über das Login-Formular wurde nie getestet:** Die Seed-Passwörter passen nicht zum lokalen Pepper, „Passwort vergessen“
   verlangt ein Captcha. Alle Rollen liefen über Sitzungs-Token in `localStorage`.
 - **Nicht herstellbar im Seed (nicht belegt):** überzähliges Mietteam oberhalb des Bestands bei der Fixierung (C3), doppelte

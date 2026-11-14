@@ -171,9 +171,11 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   - Optionale Request-Felder mit Bedeutung: `null` heißt „unverändert", sonst setzt jedes PUT still zurück.
   - Schreiben zwei Oberflächen dieselbe Spalte, darf keine davon sie „aufräumen".
   - Externe Feeds werden ohne Redirect-Folge geholt (SSRF-Schutz).
-  - Wer `competition_match_team.start_number` neu schreibt, prüft `event.team_numbers_as_start_numbers`: mit
-    Schalter ist die Startnummer die Bootsnummer (Rundenanlage über `StartNumberAssignment`), kein Bahnplatz;
-    Positionen 1..n dürfen sie dann nicht überschreiben (ADR-0111).
+  - Wer `competition_match_team.start_number` eines **bestehenden** Laufs neu schreibt, prüft den Stempel
+    `competition_match.team_numbers_as_start_numbers` (`CompetitionMatchRepo.teamNumbersAsStartNumbers`), nicht
+    den Schalter der Veranstaltung: mit Stempel ist die Startnummer die Bootsnummer, kein Bahnplatz, und Positionen
+    1..n dürfen sie nicht überschreiben. `event.team_numbers_as_start_numbers` gilt nur beim Anlegen neuer Runden
+    (`StartNumberAssignment`); Meldungen in Läufen behalten beim Fixieren ihre Meldungsnummer (ADR-0111).
   - `page { }` im PDF-Baukasten ist keine harte Seitengrenze; wer „eine Seite je X" zusagt, misst die Seitenzahl.
 
 ## 5. Frontend-Architektur
@@ -355,7 +357,7 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 | Posten / Zeitnahmetyp / Zeitnahmeprofil (`timing*`) | Messstellen am Kurs; Profil = Vererbungsbaum Veranstaltung → Wettkampf → Runde → Partie, Art über `event.timing_system`; Scharfschaltung je Posten; Startsequenzen mit Ton-Sätzen |
 | Zwischenzeit (SPLIT) | Stempel am Lauf; Distanz gehört dem Wettkampf |
 | Zeitstrafe | wird ausgewiesen, nie verrechnet: die gespeicherte Zeit enthält die Strafe schon; `penalty_seconds`/`penalty_note` sind Ausweis |
-| Startnummer | die eine Zahl je Boot und Lauf (`start_number`, überall `startNumber`); „Bahn" gibt es als Begriff nicht mehr. Vergibt die Rundenanlage: ohne Schalter Setzposition bzw. Rang, mit `event.team_numbers_as_start_numbers` (gesetzt von der Fixierung „nach Bootsnummern“) die Meldungsnummer – dann schreibt auch der RaceClocker-Abgleich keine Listenpositionen hinein (ADR-0111) |
+| Startnummer | die eine Zahl je Boot und Lauf (`start_number`, überall `startNumber`); „Bahn" gibt es als Begriff nicht mehr. Vergibt die Rundenanlage: ohne Schalter Setzposition bzw. Rang, mit `event.team_numbers_as_start_numbers` (gesetzt von der Fixierung „nach Bootsnummern“) die Meldungsnummer; die Regel steht danach als Stempel am Lauf (`competition_match.team_numbers_as_start_numbers`), und in so angelegte Läufe schreibt der RaceClocker-Abgleich keine Listenpositionen (ADR-0111) |
 | Rechnung | `invoice.contact_email` ist der Ausrichter, nicht der Empfänger; Empfänger sind die aktuellen Nutzer des Vereins |
 | Meldender Verein | reine Verwaltung, wird nirgends angezeigt; angezeigt werden die Vereine der Athleten |
 | Board | konfigurierbare Kachel-Anzeige (`board`, JSONB-Konfiguration; Athleten-Board, Tagesprogramm, Sprecher) mit eigenem Recht `BOARD`, hinter Auth oder Geräte-Token |
@@ -368,5 +370,5 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 | Anfrage (`material_request`) | Wunsch einer Meldung nach einem Angebot (`REQUESTED`, `CONFIRMED`, `WAITLISTED`, `DECLINED`, `WITHDRAWN`); ohne Fremdschlüssel auf die Meldung; Anbieter schließt die Vergabe mit „Vergabe geschlossen“ |
 | Zuteilung / Ausnahme je Lauf | Zuteilung ohne Lauf = Grundzuteilung der bestätigten Anfrage; mit Lauf = Ausnahme, die für diesen Lauf Vorrang hat (etwa Ersatz) |
 | Ausfall | Schaden mit Ausfallfenster (`material_damage`); wirkt nicht auf die Anzeigen, nur über eine Ausnahme je Lauf |
-| Meldungsnummer | `competition_registration.team_number`: je Wettkampf eindeutig, fest ab der Fixierung (Schalter „Meldungsnummern nach Bootsnummern vergeben“); mit ihr paart die Grundzuteilung. Eine eigene Zahl neben der Startnummer im Lauf; nur mit dem Schalter übernimmt die Rundenanlage sie als Startnummer, bestehende Läufe ändert eine Fixierung nie (ADR-0111) |
+| Meldungsnummer | `competition_registration.team_number`: je Wettkampf eindeutig, fest ab der Fixierung (Schalter „Meldungsnummern nach Bootsnummern vergeben“); mit ihr paart die Grundzuteilung. Eine eigene Zahl neben der Startnummer im Lauf; nur mit dem Schalter übernimmt die Rundenanlage sie als Startnummer, bestehende Läufe ändert eine Fixierung nie, und Meldungen, die schon in Läufen stehen, behalten beim Fixieren ihre Nummer (ADR-0111) |
 | RaceClocker | angebundener externer Zeitnahmedienst: Rennen als Zeitnahmeprofile, Ergebnis-Feed per Polling, Lauf-Team-ID in „Extra info", Bahn = Position nach Rank |

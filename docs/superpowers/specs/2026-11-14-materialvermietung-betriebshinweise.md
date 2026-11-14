@@ -20,6 +20,7 @@ gekennzeichnet.
 | `V202611140800__material_rental.sql` | 11 Tabellen der Materialvermietung, die Spalte `app_user.material_provider` und der aufgeschobene Constraint-Trigger `A0_material_request_orphan_cleanup`. Sichten stehen in `afterMigrate.sql` (u. a. `effective_material_for_match_team`, `material_request_view`). | Legt nur neu an, ändert vorhandene Daten nicht. Datenbanken, auf denen der **alte** Material-Zweig lief, tragen die Version `V202609071000__material_rental` (und die alte Rollenkennung `…0003` am Anbieter-Konto) und **lassen sich nicht hochziehen**: Flyway findet die Datei nicht mehr, die Tabellen existieren schon. Solche Datenbanken neu aufsetzen (nur Entwicklungs-/Testdatenbanken; Produktion kannte den alten Zweig nicht). |
 | `V202611140840__material_fk_indizes.sql` | Sechs Fremdschlüssel-Indizes (Schadensfotos, Einladungen, Konten, Materialarten an Stück, Angebot und Bedarf). | Ohne `concurrently` (Flyway läuft transaktional): kurze Schreibsperre; die Tabellen sind klein. Nach Datenbestand in Produktion nicht gemessen. |
 | `V202611141330__startnummer_aus_meldungsnummer.sql` | Spalte `event.team_numbers_as_start_numbers boolean not null default false`; `event_view` liest sie (`afterMigrate.sql`). | Vorgabe `false`: für jede bestehende Veranstaltung bleibt alles, wie es war, auch bei schon fixierten Meldungen nach Bootsnummern (der Schalter wurde bis dahin nicht gespeichert). Wer dort die neue Wirkung will, refinalisiert mit dem Schalter. Ändert keine Läufe. |
+| `V202611141415__startnummer_regel_am_lauf.sql` | Spalte `competition_match.team_numbers_as_start_numbers boolean not null default false`: die Regel, mit der die Rundenanlage den Lauf angelegt hat. Der RaceClocker-Abruf und die Freilos-Setzungszahl entscheiden daran, nicht am Schalter der Veranstaltung. **Backfill:** `true` nur, wenn die Veranstaltung den Schalter trägt **und** jede Startnummer des Laufs der Meldungsnummer ihres Teams entspricht (mindestens ein Team, keine fehlende Meldungsnummer), sonst `false`. | In Produktion trägt keine Veranstaltung den Schalter (Spalte erst seit `V202611141330`), der Backfill setzt dort also nichts. Ein Lauf, der fälschlich `false` bekommt, verhält sich wie vor dem Schalter (Bahnen aus RaceClocker). Am Seed gemessen, nicht an Produktionsdaten. |
 
 Letzte Nummer vor diesem Zweig: `V202611132020`. Nach `git mv` einer Migration die alte Kopie unter
 `backend/target/classes/db/migration/` löschen. Der Seed `docs/seeds/seed-material.sql` setzt auf den Namen der neuen Rolle
@@ -90,18 +91,21 @@ ist keine nginx-Konfiguration eingecheckt, ob die ausgelieferte Konfiguration da
   angelegte Runde** (erste Runde, Folgerunden, Automatik) die Meldungsnummer als Startnummer; „abweichend“ erscheint dann nur bei
   echter Abweichung. **Bestehende Läufe ändert die Fixierung nie**, auch ohne Ergebnisse: zum Angleichen die Runde löschen und neu
   anlegen (nur ohne Ergebnisse möglich), am besten vor dem Startlisten-Export und vor dem Verteilen an Zeitnahme-Posten.
-  Mit Schalter schreibt der **RaceClocker-Abgleich keine Listenpositionen** mehr in die Startnummern: Ein Umsortieren in RaceClocker
-  ändert in R2R nichts (Zeiten kommen weiter an). Grenzen: In Folgerunden sind Listen nach Bootsnummer statt nach Setzplatz geordnet,
-  und der Freilos-Chip einer Folgerunde zeigt „Freilos“ ohne Zahl. Wer refinalisiert, prüft den vorbelegten Haken – ohne ihn
-  nummerieren künftige Runden wieder nach Setzposition.
+  Jeder Lauf trägt die Regel, mit der er angelegt wurde (Stempel, `V202611141415`). In so angelegte Läufe schreibt der
+  **RaceClocker-Abgleich keine Listenpositionen**: Ein Umsortieren in RaceClocker ändert in R2R nichts (Zeiten kommen weiter an);
+  in Läufe ohne Stempel kommt ein Bahntausch weiter an, auch nach einem Refinalisieren mit Haken. **Meldungen, die schon in Läufen
+  stehen, behalten beim Fixieren ihre Meldungsnummer** – auch ohne „behalten“; neu vergeben werden nur Meldungen ohne Lauf. Grenzen:
+  In Folgerunden sind Listen nach Bootsnummer statt nach Setzplatz geordnet, und der Freilos-Chip gestempelter Läufe zeigt
+  „Freilos“ ohne Zahl. Wer refinalisiert, prüft den vorbelegten Haken – ohne ihn nummerieren künftig angelegte Runden wieder nach
+  Setzposition; schon angelegte Läufe bleiben, wie sie sind. Das Fixieren ist gesperrt, bis die Anbieterliste geladen ist.
 - Nach Meldeschluss können Vereine über die API noch anfragen oder zurückziehen, solange der Anbieter die Vergabe offen lässt.
 
 ## 7. Vor einem Produktiveinsatz von Hand zu prüfen
 
 Nichts davon ist bisher in der laufenden App belegt, soweit der Testkatalog nicht ausdrücklich „bestanden“ sagt:
 
-1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Die Handtests H1 bis H3 und F4 sind eingetragen (66 Fälle, 0 fehlgeschlagen),
-   Block G (Startnummer aus Meldungsnummer, 9 Fälle) ist **offen**;
+1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Die Handtests H1 bis H4, F4 und der Nachtest S2 sind eingetragen
+   (81 Fälle, 0 fehlgeschlagen; Block G mit G10 bis G15, G13 Freilos-Chip **offen**);
    von Hand bleiben die Fälle „nicht gelaufen“/„nicht testbar“ und der Abschnitt „Nicht belegt und offen“, vor allem die Anmeldung
    über das Login-Formular (nie getestet), Excel-Öffnen der CSV, Fotos von der Handykamera, 768 px, en/da, verdeckter Tab.
 2. Wirecast/OBS-Handtest der Stream-Grafik (die Anzeigen selbst sind im Browser gesehen).

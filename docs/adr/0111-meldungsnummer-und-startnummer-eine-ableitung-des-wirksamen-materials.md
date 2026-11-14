@@ -67,8 +67,13 @@ den Anzeigen – die Spec-Zusage „Boot 3 fährt in jedem Rennen als #3“ war 
 - **Dauerhafter Schalter an der Veranstaltung:** `event.team_numbers_as_start_numbers` (Migration
   `V202611141330`), lesbar als `EventDto.teamNumbersAsStartNumbers`. Die Fixierung ist
   veranstaltungsweit, eine Fixierung je Wettkampf gibt es nicht. **Jede Fixierung schreibt ihn** (mit
-  Schalter an, ohne aus); die letzte Fixierung bestimmt, wie künftige Läufe nummeriert werden. Der
-  Dialog belegt den Haken mit dem gespeicherten Stand vor. `PUT /event` kennt das Feld nicht.
+  Schalter an, ohne aus); die letzte Fixierung bestimmt, wie **neu anzulegende** Läufe nummeriert
+  werden. Der Dialog belegt den Haken mit dem gespeicherten Stand vor und sendet nie einen Wert, den der
+  Nutzer nicht sieht (siehe Nachtrag). `PUT /event` kennt das Feld nicht.
+- **Die Regel steht am Lauf** (Nachtrag 14.11.2026, Migration `V202611141415`): Die Rundenanlage
+  stempelt sie an jeden angelegten Lauf (`competition_match.team_numbers_as_start_numbers`). Wer über
+  einen bestehenden Lauf entscheidet – der RaceClocker-Abruf und die Freilos-Setzungszahl –, liest den
+  Stempel, nie den aktuellen Schalter der Veranstaltung.
 - **Rundenanlage** (`createNewRound`: erste Runde, Folgerunden und damit die Folgerunden-Automatik)
   setzt mit Schalter `start_number := team_number` über die eine reine Funktion `StartNumberAssignment`:
   eindeutig je Lauf (die Datenbank erzwingt keine eindeutige Meldungsnummer); doppelte oder fehlende
@@ -77,23 +82,51 @@ den Anzeigen – die Spec-Zusage „Boot 3 fährt in jedem Rennen als #3“ war 
 - **Die Abweichung rechnet weiter allein die Sicht gegen `start_number`** (Abschnitt 2, unverändert).
   Mit Schalter fallen Boot und Startnummer zusammen; „abweichend“ heißt dann: Ausnahme je Lauf, Stück
   mit anderer Nummer, überzähliges Mietteam.
-- **RaceClocker-Abgleich:** Mit Schalter schreibt der Abruf keine Listenpositionen mehr in die
-  Startnummern (`applyLanesFromFeed`). Die Startnummer ist dann die Bootsnummer und reist mit dem Boot
-  wie die Bib in RaceClocker; ein Umsortieren dort ändert in R2R nichts. Zeiten, Zwischenzeiten,
-  Start und Reset laufen unverändert.
-- **Bestehende Läufe** ändert die Fixierung nicht – auch nicht ohne Ergebnisse. Sie können schon
-  exportiert (RaceClocker, gedruckte Startliste) oder an Posten verteilt sein; eine stille
-  Umnummerierung aus dem Meldungsdialog wäre am Renntag gefährlich. Weg: Runde löschen und neu anlegen
-  (gesperrt, sobald Ergebnisse da sind). Die Veranstalter-Sicht sagt das unter „Meldungen fixieren“.
+- **RaceClocker-Abgleich:** In einen Lauf mit Stempel schreibt der Abruf keine Listenpositionen in die
+  Startnummern (`applyLanesFromFeed`, entschieden am Stempel). Die Startnummer ist dann die Bootsnummer
+  und reist mit dem Boot wie die Bib in RaceClocker; ein Umsortieren dort ändert in R2R nichts. In Läufe
+  ohne Stempel (Setzposition) kommt ein Bahntausch weiter an – auch wenn die Veranstaltung inzwischen
+  mit Haken refinalisiert wurde. Zeiten, Zwischenzeiten, Start und Reset laufen unverändert.
+- **Bestehende Läufe** ändert die Fixierung nicht – auch nicht ohne Ergebnisse: weder ihre Startnummern
+  noch ihre Regel. Sie können schon exportiert (RaceClocker, gedruckte Startliste) oder an Posten
+  verteilt sein; eine stille Umnummerierung aus dem Meldungsdialog wäre am Renntag gefährlich. Weg:
+  Runde löschen und neu anlegen (gesperrt, sobald Ergebnisse da sind). Die Veranstalter-Sicht sagt das
+  unter „Meldungen fixieren“, der Dialog, sobald es Läufe gibt.
+- **Meldungen in Läufen behalten ihre Meldungsnummer** (Nachtrag 14.11.2026): Eine Meldung, die in
+  mindestens einem Lauf steht, behält beim Fixieren ihre Meldungsnummer – unabhängig von „behalten“
+  (`keepNumbers`) und vom Schalter. Neu vergeben werden nur Meldungen ohne Lauf, ohne eine der festen
+  Nummern zu treffen (ohne Schalter und ohne „behalten“: die kleinsten freien Zahlen ab 1). Sonst
+  wechselte ein Boot zwischen Vorlauf (alte Nummer) und Finale (neue Nummer) die Zahl.
 - **Grenzen:** In Folgerunden ordnen Listen (Boards, Posten, Startlisten) nach Bootsnummer statt nach
   Setzplatz – die erste Runde behält ihre Reihenfolge, weil die Setzliste nach Meldungsnummer ordnet
-  und `getSeedingList` je Lauf aufsteigend setzt. Der Freilos-Chip findet in Folgerunden seine
-  Setzungszahl nicht mehr (`MatchByeRepo` liest sie über `ranking = start_number`) und zeigt „Freilos“
-  ohne Zahl; der materialisierte Laufname „Freilos n“ bleibt richtig. „Neu mischen“ im Dialog „Partie
+  und `getSeedingList` je Lauf aufsteigend setzt. Der Freilos-Chip zeigt in gestempelten Läufen
+  **bewusst keine Setzungszahl** („Freilos“ ohne Zahl): `MatchByeRepo` liest sie sonst über
+  `ranking = start_number` zurück, und mit der Meldungsnummer als Startnummer träfe dieser Join einen
+  fremden Setup-Platz (Review RS-04: Boot mit Setzung 1 und Meldungsnr. 2 → „Freilos 8“). Eine zweite
+  Quelle der Setzung an der Team-Zeile gibt es nicht; der materialisierte Laufname „Freilos n“ stammt aus
+  der Rundenanlage und bleibt richtig. „Neu mischen“ im Dialog „Partie
   bearbeiten“ bleibt eine bewusste Handaktion und erzeugt ehrlich „abweichend“. Challenge-Veranstaltungen
   (keine Rundenanlage) bleiben unberührt.
 
+**5. Nachtrag nach Review und Handtest (14.11.2026).** Der erste Stand las den Schalter beim
+RaceClocker-Abruf zur Laufzeit an der Veranstaltung (Review RS-01): Runden mit Schalter angelegt, danach
+ohne Haken refinalisiert, und der nächste Abruf schrieb mitten im Renntag 1…n in alle angelegten Läufe;
+umgekehrt kam ein Bahntausch für Positionsläufe nach einem Refinalisieren mit Haken nicht mehr an.
+Entschieden: Stempel am Lauf (`V202611141415`, Backfill konservativ: `true` nur, wenn die Veranstaltung
+den Schalter trägt und jede Startnummer des Laufs der Meldungsnummer ihres Teams entspricht). Dazu:
+Refinalisieren lässt Meldungen in Läufen unverändert (RS-03, Backend-Regel, nicht nur Dialog); der Dialog
+sperrt das Fixieren, bis die Anbieterliste geladen ist, und zeigt einen gespeicherten Schalter auch ohne
+Anbieter (RS-02); der Freilos-Chip gestempelter Läufe zeigt keine Zahl (RS-04).
+
 ## Verworfene Alternativen
+
+- **Zum Nachtrag – Schalter beim Ausschalten auf bestehende Läufe ausnehmen** (statt Stempel): bräuchte
+  trotzdem eine Stelle, die weiß, mit welcher Regel ein Lauf angelegt wurde – genau der Stempel.
+- **Zum Nachtrag – Stempel an der Runde** statt am Lauf: Der RaceClocker-Abruf und `MatchByeRepo`
+  arbeiten je Lauf; die Runde (Setup-Runde) überlebt das Löschen ihrer Läufe und trüge eine Regel ohne
+  Lauf. Am Lauf stirbt der Stempel mit der Runde und entsteht beim Neuanlegen frisch.
+- **Zum Nachtrag – Freilos-Setzungszahl aus dem Laufnamen „Freilos n“ zurücklesen:** eine zweite
+  Ableitung aus einem Anzeigetext; lieber keine Zahl als eine geparste.
 
 - **Zu Abschnitt 4 – Schalter je Wettkampf:** Es gibt keine Fixierung je Wettkampf, also keinen Ort,
   an dem er gesetzt würde; Wettkämpfe ohne Leihboote vertragen die Meldungsnummer als Startnummer
