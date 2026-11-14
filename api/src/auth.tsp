@@ -30,6 +30,7 @@ enum Resource {
   BOARD;
   STREAM;
   ADMINISTRATION;
+  MATERIAL;
 }
 
 enum Scope {

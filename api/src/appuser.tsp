@@ -173,7 +173,11 @@ interface UserRoutes {
     @query approve: boolean,
   ): void;
 
-  // Assign or clear the material provider of a user (admin only)
+  // Ordnet das Konto einem Materialanbieter zu oder löst die Zuordnung. Vergibt bzw. entzieht
+  // die systemverwaltete Rolle Materialanbieter (00000000-0000-0000-0000-000000000040) unter
+  // denselben Vergaberegeln wie jede Rollenvergabe: UPDATE USER GLOBAL und UPDATE STAFF GLOBAL,
+  // die Rechte der Rolle selbst decken, nicht am eigenen Konto, Superadmin nur mit UPDATE SYSTEM.
+  // Die normale Rollenpflege (PUT /user/{id}, Einladung) vergibt und entzieht diese Rolle nie.
   @put
   @route("/{userId}/materialProvider")
   setUserMaterialProvider(

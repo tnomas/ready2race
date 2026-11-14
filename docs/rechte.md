@@ -14,6 +14,16 @@ nachgetragen, behalten aber ihre Abweichungen.
 
 Rollen verwalten: `ROLE`. Rollen zuweisen: `STAFF`. `UPDATE USER GLOBAL` bearbeitet nur Kontodaten.
 
+## Systemverwaltete Rollen
+
+Drei Jobs vergibt nicht die Rollenverwaltung, sondern ein eigener Ablauf (`ROLES_MANAGED_ELSEWHERE`
+in `database/static.kt`): USER trägt jedes Konto, CLUB_REPRESENTATIVE vergibt die Vereinsfreigabe,
+MATERIAL_PROVIDER (`…0040`) folgt der Anbieter-Zuordnung am Konto (`PUT /user/{id}/materialProvider`).
+Das Nutzer-Update übergeht sie (weder Ist- noch Soll-Stand, `deleteManaged` lässt sie stehen), die
+Einladung weist MATERIAL_PROVIDER ab. Die Anbieter-Zuordnung prüft dieselben drei Vergaberegeln wie
+jede Rollenvergabe (STAFF, Teilmenge der Rolle READ/UPDATE MATERIAL OWN, nicht am eigenen Konto,
+Superadmin-Konten nur mit UPDATE SYSTEM); entzogen wird beim Lösen der Zuordnung nur diese Rolle.
+
 ## Ein neues Privileg
 
 1. `Privilege.kt`: Ressource und `data object`.
