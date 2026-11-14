@@ -38,8 +38,10 @@ import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     registrationsFinalized: boolean
+    /** Stand der letzten Fixierung: übernimmt die Rundenanlage die Meldungsnummer als Startnummer? */
+    teamNumbersAsStartNumbers: boolean
 }
-const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
+const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumbers}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -52,7 +54,14 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     const [finalizing, setFinalizing] = useState(false)
     // Nach einer Fixierung in dieser Sitzung: sagen, was vergeben wurde und wo es steht.
     const [justFinalized, setJustFinalized] = useState(false)
-    const handleFinalizeRegistrations = async (keepNumbers: boolean, alignMaterialNumbers: boolean) => {
+    // Der Schalter steht nach jeder Fixierung an der Veranstaltung (ADR-0111). Die Seite lädt die
+    // Veranstaltung danach nicht neu, deshalb hier mitgeführt.
+    const [startNumbersFromTeamNumbers, setStartNumbersFromTeamNumbers] =
+        useState(teamNumbersAsStartNumbers)
+    const handleFinalizeRegistrations = async (
+        keepNumbers: boolean,
+        alignMaterialNumbers: boolean,
+    ) => {
         if (finalizing) return
         const {error} = await runRequest(setFinalizing, () =>
             finalizeRegistrations({
@@ -69,6 +78,7 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('event.action.finalizeRegistrations.success'))
+            setStartNumbersFromTeamNumbers(alignMaterialNumbers)
             setFinalized(Date.now())
             setJustFinalized(true)
             closeDialog()
@@ -136,8 +146,10 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     }
 
     // Zustand außerhalb des Dialogs, weil die erste Fixierung (ohne Dialog) den Schalter ebenfalls
-    // braucht - siehe Button unten.
-    const [alignMaterialNumbersSelected, setAlignMaterialNumbersSelected] = useState(false)
+    // braucht - siehe Button unten. Vorbelegt mit dem gespeicherten Stand: Refinalisieren schreibt
+    // ihn neu, ein versehentlich leerer Haken schaltete die Startnummer aus Meldungsnummer ab.
+    const [alignMaterialNumbersSelected, setAlignMaterialNumbersSelected] =
+        useState(teamNumbersAsStartNumbers)
     const handleAlignMaterialNumbersChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setAlignMaterialNumbersSelected(event.target.checked)
     }
@@ -251,6 +263,13 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                         </HtmlTooltip>
                                     </Box>
                                     {t('event.action.finalizeRegistrations.newRegistrations.hint')}
+                                </Alert>
+                            )}
+                            {(showAlignMaterialNumbers || startNumbersFromTeamNumbers) && (
+                                <Alert severity={startNumbersFromTeamNumbers ? 'success' : 'info'}>
+                                    {startNumbersFromTeamNumbers
+                                        ? t('event.action.finalizeRegistrations.material.stateOn')
+                                        : t('event.action.finalizeRegistrations.material.stateOff')}
                                 </Alert>
                             )}
                             {justFinalized && (

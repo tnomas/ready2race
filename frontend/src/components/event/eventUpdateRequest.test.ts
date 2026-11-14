@@ -15,6 +15,7 @@ const baseDto: EventDto = {
     paymentDueBy: '2026-07-20',
     latePaymentDueBy: '2026-07-30',
     registrationsFinalized: true,
+    teamNumbersAsStartNumbers: false,
     mixedTeamTerm: 'Mixed',
     challengeEvent: false,
     allowSelfSubmission: false,

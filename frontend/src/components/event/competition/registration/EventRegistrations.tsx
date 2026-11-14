@@ -38,7 +38,10 @@ const EventRegistrations = (props: Props) => {
     return (
         <Stack spacing={4}>
             {canFinalize && !props.eventDto.challengeEvent && (
-                <FinalizeRegistrations registrationsFinalized={props.registrationsFinalized} />
+                <FinalizeRegistrations
+                    registrationsFinalized={props.registrationsFinalized}
+                    teamNumbersAsStartNumbers={props.eventDto.teamNumbersAsStartNumbers}
+                />
             )}
             {canMail && (
                 <Box>

@@ -1050,7 +1050,7 @@
         },
         "teamNumber": {
           "label": "Tilmeldingsnr. {{number}}",
-          "hint": "Tilmeldingsnummer i konkurrencen, tildelt ved færdiggørelsen af tilmeldingerne. Den ordner seedningen i første runde; startnummeret i løbet tildeles først, når runderne oprettes."
+          "hint": "Tilmeldingsnummer i konkurrencen, tildelt ved færdiggørelsen af tilmeldingerne. Den ordner seedningen i første runde. Er der færdiggjort med „Tildel tilmeldingsnumre efter bådnumre“, er det også startnummeret i hvert heat; ellers tildeler runde-oprettelsen startnumre pr. heat."
         }
       },
       "setup": {
@@ -1621,7 +1621,9 @@
         "material": {
           "openRequestsHint_one": "{{count}} materialeanmodning er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
           "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
-          "numbersExplained": "Tilmeldingsnummeret ligger fast for holdet; hold med lejet båd får så vidt muligt bådens nummer, og udlejeren tildeler derefter. Startnummeret i heatet tildeles først ved opsætningen af runderne (fra 1 pr. heat, i senere runder placeringen) – står der et andet tal end på båden, viser visningerne „afviger“."
+          "numbersExplained": "Med denne indstilling får hold med lejet båd så vidt muligt bådens nummer som tilmeldingsnummer, og hver senere oprettelse af runder bruger tilmeldingsnummeret som startnummer: Båden starter under sit nummer i hvert heat. Uden den tildeler runde-oprettelsen startnumre pr. heat fra 1 (i senere runder placeringen); står der et andet tal end på båden, viser visningerne „afviger“. Allerede oprettede heats ændres ikke ved færdiggørelsen.",
+          "stateOn": "Startnummer = tilmeldingsnummer: Runde-oprettelsen giver hver båd sit tilmeldingsnummer som startnummer i hvert heat. Allerede oprettede heats forbliver, som de er – for at tilpasse dem slettes runden og oprettes igen (kun uden resultater). En omsortering i RaceClocker ændrer ikke startnumrene.",
+          "stateOff": "Runde-oprettelsen tildeler startnumre pr. heat efter seedningsposition (fra 1, i senere runder placeringen). For at lejede både bærer deres nummer i hvert heat: færdiggør igen med „Tildel tilmeldingsnumre efter bådnumre“ og opret runderne bagefter."
         },
         "whereNumbers": "Der er tildelt tilmeldingsnumre pr. konkurrence. De står under fanen „Tilmeldinger“ i hver konkurrence („Tilmeldingsnr. n“ ved holdet) og i tilmeldingsresultatet (PDF, knappen ovenfor) og ordner seedningen i første runde."
       }
@@ -5282,7 +5284,7 @@
       "withoutNumberMatchSummary_other": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer deres tilmeldingsnummer.",
       "deviatingMatches_one": "startnummer afviger i {{count}} heat",
       "deviatingMatches_other": "startnummer afviger i {{count}} heats",
-      "deviatingMatchesHint": "I disse heats bærer båden ikke det startnummer, holdet starter med der. Tavler, dommer-dashboard og heatkort viser „afviger“. Startnummeret i heatet tildeles ved opsætningen af runderne."
+      "deviatingMatchesHint": "I disse heats bærer båden ikke det startnummer, holdet starter med der. Tavler, dommer-dashboard og heatkort viser „afviger“. Færdiggør arrangøren med „Tildel tilmeldingsnumre efter bådnumre“, er startnummeret tilmeldingsnummeret; så er der kun en afvigelse, hvor et stykke med et andet nummer bruges."
     },
     "conflict": {
       "OVERLAP": "Overlap",

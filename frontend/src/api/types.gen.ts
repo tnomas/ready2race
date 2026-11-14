@@ -1878,6 +1878,10 @@ export type EventDto = {
     latePaymentDueBy?: string
     registrationCount?: number
     registrationsFinalized: boolean
+    /**
+     * Set by the last finalization with alignMaterialNumbers: round creation uses the team number as the start number in every race (rented boat number = start number), and the RaceClocker sync keeps start numbers instead of writing list positions. Existing races are not changed.
+     */
+    teamNumbersAsStartNumbers: boolean
     mixedTeamTerm?: string
     challengeEvent: boolean
     challengeResultType?: MatchResultType
@@ -8247,7 +8251,7 @@ export type FinalizeRegistrationsData = {
     }
     query?: {
         /**
-         * Whether team numbers should match the rented boat's number where possible
+         * Whether team numbers should match the rented boat's number where possible. The value is stored on the event (EventDto.teamNumbersAsStartNumbers) by every finalization: when set, every later round creation uses the team number as the start number in each race and the RaceClocker sync no longer writes list positions into start numbers. Existing races are not changed.
          */
         alignMaterialNumbers?: boolean
         /**
