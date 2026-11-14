@@ -91,10 +91,12 @@ data class MaterialOverviewMatchDto(
     val roundName: String?,
     val startTime: LocalDateTime?,
     val endTime: LocalDateTime?,
+    /** Meldungen dieses Laufs mit einer Anfrage bei diesem Anbieter - fremde Teams fehlen. */
     val registrationIds: List<UUID>,
     /**
-     * Je Meldung dieses Laufs die Startnummer im Lauf (`competition_match_team.start_number`) -
-     * dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+     * Je Meldung dieses Laufs mit Anfrage bei diesem Anbieter die Startnummer im Lauf
+     * (`competition_match_team.start_number`) - dieselbe Zahl, gegen die die Anzeigen eine
+     * Abweichung des Boots markieren. Fremde Teams fehlen.
      */
     val teams: List<MaterialOverviewMatchTeamDto>,
 )

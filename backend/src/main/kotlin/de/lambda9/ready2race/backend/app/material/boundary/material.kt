@@ -19,6 +19,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
 import de.lambda9.ready2race.backend.app.material.entity.SetRequestsClosedRequest
 import de.lambda9.ready2race.backend.calls.requests.RequestError
 import de.lambda9.ready2race.backend.calls.requests.authenticate
+import de.lambda9.ready2race.backend.calls.requests.authenticateAll
 import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
 import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
@@ -317,7 +318,9 @@ fun Route.eventMaterial() {
 
             put {
                 call.respondComprehension {
-                    val user = !authenticate(Privilege.UpdateEventGlobal)
+                    // Einladen braucht beide Rechte: die Veranstaltung ändern und die Anbieter lesen
+                    // (die Auswahl stammt aus der Anbieterliste). Ausladen bleibt Veranstalter-Sache.
+                    val user = !authenticateAll(Privilege.UpdateEventGlobal, Privilege.ReadMaterialGlobal)
                     val eventId = !pathParam("eventId", uuid)
                     val providerId = !pathParam("providerId", uuid)
                     MaterialService.inviteProvider(eventId, providerId, user.id!!)

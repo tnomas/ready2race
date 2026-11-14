@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.competitionProperties.control.Competiti
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo
 import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
 import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
+import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialRequestRepo
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCategory
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageRequest
@@ -227,6 +228,33 @@ class MaterialHttpIT {
         assertEquals(HttpStatusCode.Forbidden, foreignUpload.status)
         val anonymous = client.post("/api/materialProvider/$foreign/damage/$foreignDamage/photo") { setBody(upload) }
         assertEquals(HttpStatusCode.Unauthorized, anonymous.status)
+    }
+
+    /**
+     * Einladen braucht UPDATE EVENT GLOBAL **und** READ MATERIAL GLOBAL - die Oberfläche bietet die
+     * Auswahl ohne Leserecht gar nicht an, die API darf es auch nicht durchlassen. Ausladen bleibt
+     * mit UPDATE EVENT GLOBAL allein möglich.
+     */
+    @Test
+    fun invitingAProviderNeedsReadMaterialGlobalToo() = testApplicationComprehension {
+        val seeded = seedOpenTeamEvent()
+        val userId = !createTestUser()
+        val providerId = (!MaterialService.addProvider(provider("Einladung"), userId) as ApiResponse.Created).id
+        val path = "/api/event/${seeded.eventId}/materialProvider/$providerId"
+
+        val organizerOnly = loginWith(listOf(Privilege.UpdateEventGlobal))
+        val refused = client.put(path) { header("X-Api-Session", organizerOnly) }
+        assertEquals(HttpStatusCode.Forbidden, refused.status, refused.bodyAsText())
+        assertTrue(!(!EventHasMaterialProviderRepo.exists(seeded.eventId, providerId)))
+
+        val organizerWithRead = loginWith(listOf(Privilege.UpdateEventGlobal, Privilege.ReadMaterialGlobal))
+        val invited = client.put(path) { header("X-Api-Session", organizerWithRead) }
+        assertEquals(HttpStatusCode.NoContent, invited.status, invited.bodyAsText())
+        assertTrue(!EventHasMaterialProviderRepo.exists(seeded.eventId, providerId))
+
+        val uninvited = client.delete(path) { header("X-Api-Session", organizerOnly) }
+        assertEquals(HttpStatusCode.NoContent, uninvited.status, uninvited.bodyAsText())
+        assertTrue(!(!EventHasMaterialProviderRepo.exists(seeded.eventId, providerId)))
     }
 
     /**

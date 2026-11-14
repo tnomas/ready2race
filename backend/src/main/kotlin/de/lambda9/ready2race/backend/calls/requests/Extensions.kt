@@ -87,6 +87,15 @@ fun ApplicationCall.authenticateAny(
 ): App<AuthError, AppUserWithPrivilegesRecord> =
     authenticateAnyWithToken(sessions.get<UserSession>()?.token, *privileges)
 
+/** Wie [ApplicationCall.authenticate], verlangt aber **alle** genannten Rechte zugleich. */
+fun ApplicationCall.authenticateAll(
+    vararg privileges: Privilege,
+): App<AuthError, AppUserWithPrivilegesRecord> =
+    AuthService.useSessionToken(sessions.get<UserSession>()?.token).failIf(
+        condition = { user -> privileges.any { !user.hasPrivilege(it) } },
+        transform = { AuthError.PrivilegeMissing },
+    )
+
 /**
  * Same as [ApplicationCall.authenticateAny], but for callers that hold the raw session token
  * instead of a call session - e.g. websocket handshakes, where browsers cannot set the

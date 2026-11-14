@@ -159,19 +159,33 @@ object MaterialOverviewRepo {
 
     /**
      * Läufe, in denen wenigstens eine Anfrage dieses Anbieters an dieser Veranstaltung steht -
-     * Grundlage für die Ausnahme je Lauf. `registrationIds` zeigt alle Meldungen dieses Laufs, nicht
-     * nur die mit Anfrage an diesen Anbieter (Konvention aus dem Interface).
+     * Grundlage für die Ausnahme je Lauf. `registrationIds` und `teams` nennen nur die Meldungen
+     * dieses Laufs, die bei **diesem** Anbieter angefragt haben (gleich welcher Status): Das
+     * Dashboard rechnet ausschließlich mit den eigenen Anfragen (Läufe einer Meldung, Startnummer
+     * der eigenen Meldung im Lauf); Meldungs-IDs und Startnummern fremder Teams gehen den Anbieter
+     * nichts an.
      */
     fun matchesForEventAndProvider(eventId: UUID, providerId: UUID): JIO<List<MaterialOverviewMatchDto>> = Jooq.query {
+        val requestedHere = DSL.exists(
+            DSL.selectOne()
+                .from(MATERIAL_REQUEST)
+                .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+                .where(MATERIAL_REQUEST.COMPETITION_REGISTRATION.eq(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION))
+                .and(MATERIAL_OFFER.MATERIAL_PROVIDER.eq(providerId))
+                .and(MATERIAL_OFFER.EVENT.eq(eventId))
+        )
+
         val registrationIds = DSL.select(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION)
             .from(COMPETITION_MATCH_TEAM)
             .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(COMPETITION_MATCH.COMPETITION_SETUP_MATCH))
+            .and(requestedHere)
             .asMultiset("registration_ids")
             .convertFrom { it!!.map { r -> r.value1()!! } }
 
         val teams = DSL.select(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION, COMPETITION_MATCH_TEAM.START_NUMBER)
             .from(COMPETITION_MATCH_TEAM)
             .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(COMPETITION_MATCH.COMPETITION_SETUP_MATCH))
+            .and(requestedHere)
             .orderBy(COMPETITION_MATCH_TEAM.START_NUMBER)
             .asMultiset("teams")
             .convertFrom {

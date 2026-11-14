@@ -19,6 +19,10 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasMaterialTypeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionMatchTeamRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
+import de.lambda9.ready2race.backend.database.insert
+import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
@@ -126,6 +130,39 @@ class MaterialOverviewTest {
 
         assertTrue(overview.items.any { it.id == s.itemBoat })
         assertTrue(overview.offers.any { it.id == s.offerBoat })
+    }
+
+    /**
+     * Die Läufe der Übersicht nennen nur Meldungen mit Anfrage bei diesem Anbieter - Meldungs-IDs
+     * und Startnummern fremder Teams im selben Lauf gehen ihn nichts an.
+     */
+    @Test
+    fun overviewMatchesNameOnlyTeamsWithRequestHere() = testComprehension {
+        val s = setupScenario()
+        val match = seedMatch(s.propertiesId, s.regId, startNumber = 2)
+
+        val own = !COMPETITION_REGISTRATION.selectOne { ID.eq(s.regId) }
+        val foreignId = UUID.randomUUID()
+        !COMPETITION_REGISTRATION.insert(
+            own!!.copy().apply {
+                id = foreignId
+                name = "Fremd"
+            }
+        )
+        !COMPETITION_MATCH_TEAM.insert(
+            CompetitionMatchTeamRecord(
+                id = UUID.randomUUID(),
+                competitionMatch = match.matchId,
+                competitionRegistration = foreignId,
+                startNumber = 1,
+                createdAt = seedTime,
+                updatedAt = seedTime,
+            )
+        )
+
+        val overviewMatch = (!MaterialService.getOverview(s.eventId, s.providerId)).dto.matches.single()
+        assertEquals(listOf(s.regId), overviewMatch.registrationIds)
+        assertEquals(listOf(s.regId to 2), overviewMatch.teams.map { it.competitionRegistration to it.startNumber })
     }
 
     @Test
