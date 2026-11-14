@@ -12,6 +12,9 @@ namespace Ready2Race;
 
 model EventDto {
   // Event information
+  // (Auszug) Mit der letzten Fixierung "Meldungsnummern nach Bootsnummern vergeben" gesetzt: Die
+  // Rundenanlage übernimmt die Meldungsnummer als Startnummer in jedem Lauf (ADR-0111).
+  teamNumbersAsStartNumbers: boolean;
 }
 
 model CreateEventRequest {
@@ -76,10 +79,13 @@ interface EventRoutes {
   // erste Runde ihre Setzliste ordnet. keepNumbers behält vergebene Nummern. alignMaterialNumbers
   // (Materialvermietung): Teams mit bestätigter Bootsanfrage bekommen zuerst eine Nummer aus dem
   // Bootsbestand ihres Anbieters, Teams mit eigenem Boot danach die übrigen Nummern ab 1, die keine
-  // Bootsnummer sind; überzählige Mietteams Nummern oberhalb des Bestands. Achtung: die Startnummer
-  // im Lauf (competition_match_team.start_number) ist die Setzposition bzw. der Rang und gleicht der
-  // Meldungsnummer nur bei lückenloser Nummerierung ab 1 in einem einzigen Lauf - die Anzeigen
-  // markieren eine Abweichung gegen die Startnummer im Lauf. Bumpt den Änderungsmarker.
+  // Bootsnummer sind; überzählige Mietteams Nummern oberhalb des Bestands. Jede Fixierung speichert
+  // den Wert von alignMaterialNumbers an der Veranstaltung (EventDto.teamNumbersAsStartNumbers):
+  // Gesetzt übernimmt jede spätere Rundenanlage (erste Runde, Folgerunden, Automatik) die
+  // Meldungsnummer als Startnummer im Lauf (competition_match_team.start_number), und der
+  // RaceClocker-Abgleich schreibt keine Listenpositionen mehr in die Startnummern; ohne ihn ist die
+  // Startnummer die Setzposition bzw. der Rang. Schon angelegte Läufe ändert die Fixierung nicht.
+  // Bumpt den Änderungsmarker.
   @post
   @route("/{eventId}/finalizeRegistrations")
   finalizeRegistrations(
