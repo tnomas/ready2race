@@ -18,7 +18,8 @@ import {
     PageHeader,
 } from '@components/ui'
 import MaterialProviderPicker from '@components/material/MaterialProviderPicker.tsx'
-import {effectiveProviderId} from './materialDashboardLogic.ts'
+import MaterialProviderSwitch from '@components/material/MaterialProviderSwitch.tsx'
+import {effectiveProviderId, showsProviderSwitch} from './materialDashboardLogic.ts'
 
 /**
  * Einstieg des Materialanbieters: die Veranstaltungen, zu denen der Anbieter eingeladen ist, und
@@ -38,6 +39,11 @@ const SelectMaterialEventPage = () => {
         searchProvider: search.provider,
     })
     const providerSearch = search.provider ? {provider: search.provider} : {}
+    const switchable = showsProviderSwitch({
+        ownProviderId: user.loggedIn ? user.materialProviderId : undefined,
+        mayReadGlobal,
+        searchProvider: search.provider,
+    })
 
     const {
         data: events,
@@ -57,6 +63,17 @@ const SelectMaterialEventPage = () => {
             <PageHeader
                 title={t('navigation.titles.material')}
                 subtitle={t('material.events.subtitle')}
+                meta={
+                    switchable &&
+                    providerId && (
+                        <MaterialProviderSwitch
+                            providerId={providerId}
+                            onSwitch={() =>
+                                void navigate({from: materialIndexRoute.fullPath, search: {}})
+                            }
+                        />
+                    )
+                }
                 actions={
                     providerId && (
                         <ButtonLink

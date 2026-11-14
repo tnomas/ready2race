@@ -1,5 +1,5 @@
-import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useEffect, useMemo, useState} from 'react'
+import {TFunction} from 'i18next'
 import {
     Avatar,
     Box,
@@ -48,8 +48,9 @@ import {
     MaterialOverviewDto,
     MaterialOverviewRequestDto,
 } from '@api/types.gen.ts'
-import {effectiveAssignments} from '@components/material/effectiveAssignments.ts'
-import {windowOf} from '@components/material/conflicts.ts'
+import {causerCandidates, suggestCauser} from '@components/material/damageLogic.ts'
+import {PhotoRejection, preparePhotos} from '@components/material/damagePhotos.ts'
+import {teamNumberOf} from '@components/material/materialNumbers.ts'
 
 type DamageForm = {
     item: AutocompleteOption
@@ -68,6 +69,7 @@ const statuses: MaterialDamageStatus[] = ['REPORTED', 'REPAIRED']
 
 export type SavedDamageInfo = {
     itemId: string
+    status: MaterialDamageStatus
     outOfServiceFrom?: string
     outOfServiceUntil?: string
 }
@@ -91,10 +93,21 @@ type Props = {
 const itemOptionLabel = (item: {label: string; number?: number}) =>
     item.number != null ? `${item.label} #${item.number}` : item.label
 
-const causerLabel = (r: MaterialOverviewRequestDto) =>
-    `#${startNumberOf(r) ?? '–'} ${r.teamName ?? '–'} · ${r.clubName} · ${r.competitionIdentifier}`
+/** Verein, Team, Wettkampf und – wenn fixiert – die Meldungsnummer, ausdrücklich benannt. */
+const causerLabel = (t: TFunction, r: MaterialOverviewRequestDto) => {
+    const number = teamNumberOf(r)
+    return [
+        r.clubName,
+        r.teamName,
+        r.competitionIdentifier,
+        number != null ? t('material.number.team', {number}) : null,
+    ]
+        .filter(Boolean)
+        .join(' · ')
+}
 
 const causerOptionFromDto = (
+    t: TFunction,
     dto: MaterialDamageDto,
     overview?: MaterialOverviewDto,
 ): AutocompleteOption => {
@@ -105,7 +118,7 @@ const causerOptionFromDto = (
         r => r.competitionRegistration === dto.causedByRegistration,
     )
     if (request) {
-        return {id: request.competitionRegistration, label: causerLabel(request)}
+        return {id: request.competitionRegistration, label: causerLabel(t, request)}
     }
     return {
         id: dto.causedByRegistration,
@@ -127,7 +140,11 @@ const defaultValues = (presetItem?: {id: string; label: string; number?: number}
     repairedAt: undefined,
 })
 
-const mapDtoToForm = (dto: MaterialDamageDto, overview?: MaterialOverviewDto): DamageForm => ({
+const mapDtoToForm = (
+    t: TFunction,
+    dto: MaterialDamageDto,
+    overview?: MaterialOverviewDto,
+): DamageForm => ({
     item: {
         id: dto.materialItem,
         label: itemOptionLabel({label: dto.itemLabel, number: dto.itemNumber}),
@@ -136,7 +153,7 @@ const mapDtoToForm = (dto: MaterialDamageDto, overview?: MaterialOverviewDto): D
     description: dto.description,
     severity: dto.severity,
     status: dto.status,
-    causedByRegistration: causerOptionFromDto(dto, overview),
+    causedByRegistration: causerOptionFromDto(t, dto, overview),
     outOfServiceFrom: dto.outOfServiceFrom?.slice(0, 19),
     outOfServiceUntil: dto.outOfServiceUntil?.slice(0, 19),
     repairedAt: dto.repairedAt?.slice(0, 19),
@@ -244,12 +261,16 @@ const MaterialDamageDialog = ({
     const [pendingFiles, setPendingFiles] = useState<File[]>([])
     const [existingPhotos, setExistingPhotos] = useState<MaterialDamagePhotoDto[]>([])
     const [uploadingPhoto, setUploadingPhoto] = useState(false)
+    /** Fortschritt beim Verkleinern („3 von 15"), damit am Telefon sichtbar ist, dass es läuft. */
+    const [photoProgress, setPhotoProgress] = useState<{done: number; total: number} | null>(null)
 
     const formContext = useForm<DamageForm>({defaultValues: defaultValues()})
 
     useEffect(() => {
         if (open) {
-            formContext.reset(damage ? mapDtoToForm(damage, overview) : defaultValues(presetItem))
+            formContext.reset(
+                damage ? mapDtoToForm(t, damage, overview) : defaultValues(presetItem),
+            )
             setExistingPhotos(damage?.photos ?? [])
             setPendingFiles([])
         }
@@ -268,24 +289,14 @@ const MaterialDamageDialog = ({
     const itemOptions: AutocompleteOption[] =
         items?.data.map(i => ({id: i.id, label: itemOptionLabel(i)})) ?? []
 
-    const causerOptions: AutocompleteOption[] = useMemo(() => {
-        if (!overview) {
-            return []
-        }
-        const byRegistration = new Map<string, MaterialOverviewRequestDto>()
-        for (const request of overview.requests) {
-            if (
-                request.status === 'CONFIRMED' &&
-                !byRegistration.has(request.competitionRegistration)
-            ) {
-                byRegistration.set(request.competitionRegistration, request)
-            }
-        }
-        return [...byRegistration.values()].map(r => ({
-            id: r.competitionRegistration,
-            label: causerLabel(r),
-        }))
-    }, [overview])
+    const causerOptions: AutocompleteOption[] = useMemo(
+        () =>
+            causerCandidates(overview?.requests ?? []).map(r => ({
+                id: r.competitionRegistration,
+                label: causerLabel(t, r),
+            })),
+        [overview, t],
+    )
 
     const status = formContext.watch('status')
 
@@ -293,35 +304,39 @@ const MaterialDamageDialog = ({
         onClose()
     }
 
-    const suggestCauser = (itemId: string) => {
+    const proposeCauser = (itemId: string) => {
         if (overview == null || formContext.getValues('causedByRegistration') != null) {
             return
         }
         const reportedAtValue = formContext.getValues('reportedAt')
         const time = reportedAtValue ? new Date(reportedAtValue).getTime() : NaN
-        if (Number.isNaN(time)) {
-            return
-        }
-        const effective = effectiveAssignments(overview.requests, overview.matches)
-        const matchesById = new Map(overview.matches.map(m => [m.id, m]))
-        for (const entry of effective) {
-            if (!entry.itemIds.includes(itemId)) {
-                continue
-            }
-            const match = matchesById.get(entry.matchId)
-            const window = match ? windowOf(match) : null
-            if (window != null && window.start <= time && time <= window.end) {
-                const request = overview.requests.find(r => r.id === entry.requestId)
-                if (request) {
-                    formContext.setValue('causedByRegistration', {
-                        id: request.competitionRegistration,
-                        label: causerLabel(request),
-                    })
-                }
-                return
-            }
+        const request = suggestCauser(overview, itemId, time)
+        if (request) {
+            formContext.setValue('causedByRegistration', {
+                id: request.competitionRegistration,
+                label: causerLabel(t, request),
+            })
         }
     }
+
+    /** Verkleinert nacheinander und meldet aussortierte Fotos mit Namen und Grund. */
+    const prepare = async (files: readonly File[]): Promise<File[]> => {
+        setPhotoProgress({done: 0, total: files.length})
+        try {
+            const {accepted, rejected} = await preparePhotos(files, resizeImage, (done, total) =>
+                setPhotoProgress({done, total}),
+            )
+            if (rejected.length > 0) {
+                feedback.error(t('material.damage.photosRejected', {list: rejectionList(rejected)}))
+            }
+            return accepted
+        } finally {
+            setPhotoProgress(null)
+        }
+    }
+
+    const rejectionList = (rejected: PhotoRejection[]) =>
+        rejected.map(r => `${r.name} (${t(`material.damage.photoReject.${r.reason}`)})`).join(', ')
 
     const handleSeverityChange = (value: MaterialDamageSeverity) => {
         if (value === 'TOTAL' && !formContext.getValues('outOfServiceFrom')) {
@@ -355,7 +370,8 @@ const MaterialDamageDialog = ({
         }
         if (uploadingPhoto) return
         const {error} = await runRequest(setUploadingPhoto, async () => {
-            const resized = await Promise.all(selected.map(file => resizeImage(file)))
+            const resized = await prepare(selected)
+            if (resized.length === 0) return {data: undefined}
             return addMaterialDamagePhotos({
                 path: {providerId, damageId: damage.id},
                 body: {files: resized},
@@ -419,7 +435,8 @@ const MaterialDamageDialog = ({
 
         if (!damage && pendingFiles.length > 0) {
             const {error: photoError} = await runRequest(setSubmitting, async () => {
-                const resized = await Promise.all(pendingFiles.map(file => resizeImage(file)))
+                const resized = await prepare(pendingFiles)
+                if (resized.length === 0) return {data: undefined}
                 return addMaterialDamagePhotos({
                     path: {providerId, damageId},
                     body: {files: resized},
@@ -435,6 +452,7 @@ const MaterialDamageDialog = ({
         reload()
         onSaved({
             itemId: body.materialItem,
+            status: body.status,
             outOfServiceFrom: body.outOfServiceFrom,
             outOfServiceUntil: body.outOfServiceUntil,
         })
@@ -460,7 +478,7 @@ const MaterialDamageDialog = ({
                                 getOptionKey: option => option.id,
                                 onChange: (_, value) => {
                                     if (value) {
-                                        suggestCauser(value.id)
+                                        proposeCauser(value.id)
                                     }
                                 },
                             }}
@@ -555,6 +573,14 @@ const MaterialDamageDialog = ({
                                     />
                                 ))}
                             </Stack>
+                            {photoProgress && (
+                                <Typography
+                                    variant={'body2'}
+                                    color={'text.secondary'}
+                                    role={'status'}>
+                                    {t('material.damage.photoProgress', photoProgress)}
+                                </Typography>
+                            )}
                             <SelectFileButton
                                 multiple
                                 accept={'image/*'}

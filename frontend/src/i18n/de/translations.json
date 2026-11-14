@@ -5060,7 +5060,6 @@
     },
     "item": {
       "item": "Materialstück",
-      "items": "Materialstücke",
       "number": "Nummer",
       "label": "Bezeichnung",
       "type": "Materialart",
@@ -5096,9 +5095,10 @@
         "damages": "Schäden",
         "settings": "Einstellungen"
       },
-      "comingSoon": "Wird in einer späteren Aufgabe ausgefüllt.",
       "chooseProvider": "Bitte zuerst einen Anbieter auswählen.",
-      "subtitle": "Anfragen, Zuteilung und Schäden dieser Veranstaltung"
+      "subtitle": "Anfragen, Zuteilung und Schäden dieser Veranstaltung",
+      "providerShown": "Anbieter: {{name}}",
+      "switchProvider": "Anbieter wechseln"
     },
     "offer": {
       "offer": "Angebot",
@@ -5106,11 +5106,9 @@
       "type": "Materialart",
       "priceText": "Preisangabe",
       "plannedCount": "Geplante Anzahl",
-      "changeoverMinutes": "Wechselzeit (Minuten)",
-      "add": "Angebot hinzufügen"
+      "changeoverMinutes": "Wechselzeit (Minuten)"
     },
     "demand": {
-      "demand": "Bedarf",
       "count": "Anzahl",
       "add": "Materialart hinzufügen",
       "none": "Kein Bedarf hinterlegt.",
@@ -5193,7 +5191,13 @@
       "noneOpen": "Keine offenen Anfragen – alles entschieden.",
       "selectForBulk": "Anfrage von {{club}} in die Sammelbestätigung aufnehmen",
       "summaryShort": "{{confirmed}} von {{planned}} bestätigt · {{requested}} offen · {{waitlisted}} Warteliste",
-      "capacityTitle": "Auslastung je Angebot"
+      "capacityTitle": "Auslastung je Angebot",
+      "overCapacity": {
+        "title": "Über die geplante Anzahl bestätigen?",
+        "line": "{{type}}: danach {{after}} bestätigt bei {{planned}} geplanten ({{over}} mehr als geplant)",
+        "hint": "Bestätigte Anfragen sind für den Verein verbindlich. Bestätige nur, wenn genug Material da ist – sonst einzelne Anfragen abwählen oder auf die Warteliste setzen.",
+        "ok": "Trotzdem bestätigen"
+      }
     },
     "decision": {
       "title": {
@@ -5211,16 +5215,10 @@
     "assignment": {
       "viewByTeam": "Nach Team",
       "viewByItem": "Nach Materialstück",
-      "assignByStartNumber": "Nach Startnummer zuteilen",
-      "assignByStartNumberNone": "Keine passenden Vorschläge gefunden.",
-      "assignByStartNumberSuccess_one": "{{count}} Zuteilung nach Startnummer übernommen",
-      "assignByStartNumberSuccess_other": "{{count}} Zuteilungen nach Startnummer übernommen",
-      "assignByStartNumberError_one": "{{count}} Zuteilung konnte nicht übernommen werden",
-      "assignByStartNumberError_other": "{{count}} Zuteilungen konnten nicht übernommen werden",
       "noRequests": "Noch keine bestätigten Anfragen.",
       "addItem": "Stück hinzufügen",
       "exception": "Ausnahme je Lauf",
-      "deviates": "weicht von Startnummer ab",
+      "deviates": "weicht von Meldungsnummer ab",
       "success": "Zuteilung gespeichert",
       "error": "Zuteilung konnte nicht gespeichert werden",
       "exceptionDialog": {
@@ -5245,7 +5243,18 @@
       "noRequestsHint": "Bestätigte Anfragen erscheinen hier und bekommen ein Stück aus der Flotte.",
       "removeItem": "{{item}} entfernen",
       "workDone": "Alle bestätigten Anfragen haben ein Stück, keine Konflikte.",
-      "workSummary": "Offen: {{unassigned}} ohne Stück, {{conflicts}} mit Konflikt."
+      "workSummary": "Offen: {{unassigned}} ohne Stück, {{conflicts}} mit Konflikt.",
+      "assignByTeamNumber": "Nach Meldungsnummer zuteilen",
+      "assignByTeamNumberNone": "Keine passenden Vorschläge: Kein freies Stück trägt die Meldungsnummer eines Teams ohne Zuteilung.",
+      "assignByTeamNumberSuccess_one": "{{count}} Zuteilung nach Meldungsnummer übernommen",
+      "assignByTeamNumberSuccess_other": "{{count}} Zuteilungen nach Meldungsnummer übernommen",
+      "assignByTeamNumberError_one": "{{count}} Zuteilung konnte nicht übernommen werden",
+      "assignByTeamNumberError_other": "{{count}} Zuteilungen konnten nicht übernommen werden",
+      "deviatesInMatch": "Startnummer abweichend",
+      "withoutNumberMatch": "ohne Nummerngleichheit",
+      "withoutNumberMatchHint": "Kein aktives Stück der eigenen Flotte trägt die Meldungsnummer dieses Teams. Ein Stück mit anderer Nummer zuteilen – die Anzeigen führen es dann als abweichend.",
+      "withoutNumberMatchSummary_one": "{{count}} Team ohne Nummerngleichheit: Seine Meldungsnummer trägt kein aktives Stück der Flotte.",
+      "withoutNumberMatchSummary_other": "{{count}} Teams ohne Nummerngleichheit: Ihre Meldungsnummer trägt kein aktives Stück der Flotte."
     },
     "conflict": {
       "OVERLAP": "Überschneidung",
@@ -5280,7 +5289,7 @@
         "title": "Betroffene Läufe",
         "none": "Keine betroffenen Läufe.",
         "replacement": "Ersatzstück",
-        "sameNumber": "Nummer passt",
+        "sameNumber": "trägt die Startnummer",
         "later": "Später",
         "save": "Übernehmen",
         "success": "Ersatz gespeichert",
@@ -5303,7 +5312,14 @@
       "outOfServiceOpen": "fällt aus ab {{from}}",
       "outOfServiceRange": "fällt aus {{from}} – {{until}}",
       "scopeHint": "Hier stehen Schäden, die während der Veranstaltungstage gemeldet oder einer Meldung dieser Veranstaltung zugeordnet wurden.",
-      "photoInvalidType": "Nur Bilder (z. B. JPEG, PNG) können als Foto hochgeladen werden."
+      "photoInvalidType": "Nur Bilder (z. B. JPEG, PNG) können als Foto hochgeladen werden.",
+      "photoProgress": "Fotos werden verkleinert: {{done}} von {{total}}",
+      "photosRejected": "Nicht hochgeladen: {{list}}",
+      "photoReject": {
+        "notImage": "kein Bild",
+        "tooLarge": "größer als 10 MB",
+        "tooMany": "mehr als 20 Fotos auf einmal"
+      }
     },
     "severity": {
       "MINOR": "leicht",
@@ -5326,6 +5342,10 @@
       "requestNotConfirmed": "Die Anfrage ist nicht (mehr) bestätigt – zugeteilt wird nur Bestätigtes. Die Übersicht wurde neu geladen.",
       "matchNotOfRegistration": "Das Team startet in diesem Lauf nicht (mehr), vermutlich wurde die Runde neu gesetzt. Die Übersicht wurde neu geladen.",
       "invalidOutageWindow": "Das Ende des Ausfalls liegt vor seinem Beginn."
+    },
+    "number": {
+      "team": "Meldungsnr. {{number}}",
+      "start": "Startnr. {{number}}"
     }
   }
 }

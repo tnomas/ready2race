@@ -54,3 +54,41 @@ export const offerSummaries = (
             highlightRequestId,
         }
     })
+
+export type CapacityOverrun = {
+    offerId: string
+    materialTypeName: string
+    plannedCount: number
+    /** Bestätigte Menge, wenn die gewählten Anfragen dazukommen. */
+    confirmedAfter: number
+}
+
+/**
+ * Würde die Sammelbestätigung die geplante Anzahl eines Angebots überschreiten? Je Angebot die
+ * bestätigte Menge plus die Mengen der gewählten Anfragen gegen `plannedCount`. Bestätigen über
+ * den Plan bleibt erlaubt (der Anbieter kennt seinen Bestand), aber nicht still: Die Oberfläche
+ * nennt die Zahl vorher.
+ */
+export const capacityOverruns = (
+    offers: readonly MaterialOfferDto[],
+    requests: readonly MaterialOverviewRequestDto[],
+    selectedIds: readonly string[],
+): CapacityOverrun[] => {
+    const selected = new Set(selectedIds)
+    return offers
+        .map(offer => {
+            const forOffer = requests.filter(r => r.materialOffer === offer.id)
+            const confirmedAfter = forOffer
+                .filter(r => r.status === 'CONFIRMED' || selected.has(r.id))
+                .reduce((sum, r) => sum + r.count, 0)
+            const adds = forOffer.some(r => selected.has(r.id) && r.status !== 'CONFIRMED')
+            const overrun: CapacityOverrun = {
+                offerId: offer.id,
+                materialTypeName: offer.materialTypeName,
+                plannedCount: offer.plannedCount,
+                confirmedAfter,
+            }
+            return adds && confirmedAfter > offer.plannedCount ? overrun : null
+        })
+        .filter((o): o is CapacityOverrun => o != null)
+}

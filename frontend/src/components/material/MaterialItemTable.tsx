@@ -19,25 +19,31 @@ const initialSort: GridSortModel = [{field: 'label', sort: 'asc'}]
 type Props = BaseEntityTableProps<MaterialItemDto> & {
     providerId: string
     /** Öffnet den Schadens-Dialog ohne Veranstaltungsbezug (siehe MaterialFleetPage). */
-    onReportDamage: (item: MaterialItemDto) => void
+    /** Fehlt ohne Schreibrecht – dann gibt es kein „Schaden melden". */
+    onReportDamage?: (item: MaterialItemDto) => void
+    /** Ohne Schreibrecht beim Anbieter: keine Anlage, keine Zeilenaktionen. */
+    canWrite: boolean
 }
 
-const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
+const MaterialItemTable = ({providerId, onReportDamage, canWrite, ...props}: Props) => {
     const {t} = useTranslation()
     // Noch zugeteilt nicht löschbar: sagen, warum und was stattdessen geht.
     const onDeleteError = useMaterialDeleteError(t('material.item.item'))
 
     // Stabil halten, sonst lädt die Tabelle bei jedem Rendern neu (ADR-0105).
     const customEntityActions = useCallback(
-        (item: MaterialItemDto): EntityAction[] => [
-            <GridActionsCellItem
-                key={'report-damage'}
-                icon={<ReportProblemIcon />}
-                label={t('material.damage.report')}
-                onClick={() => onReportDamage(item)}
-                showInMenu
-            />,
-        ],
+        (item: MaterialItemDto): EntityAction[] =>
+            onReportDamage
+                ? [
+                      <GridActionsCellItem
+                          key={'report-damage'}
+                          icon={<ReportProblemIcon />}
+                          label={t('material.damage.report')}
+                          onClick={() => onReportDamage(item)}
+                          showInMenu
+                      />,
+                  ]
+                : [],
         [t, onReportDamage],
     )
 
@@ -101,6 +107,8 @@ const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
             deleteRequest={deleteRequest}
             onDeleteError={onDeleteError}
             customEntityActions={customEntityActions}
+            creatable={canWrite}
+            hideEntityActions={!canWrite}
         />
     )
 }

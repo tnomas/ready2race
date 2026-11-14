@@ -28,11 +28,16 @@ import {
 import MaterialDamageDialog, {SavedDamageInfo} from '@components/material/MaterialDamageDialog.tsx'
 import MaterialOutageImpactDialog from '@components/material/MaterialOutageImpactDialog.tsx'
 import ExecutionMoreMenu from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
+import {needsOutageImpact} from '@components/material/damageLogic.ts'
 
 type Props = {
     eventId: string
     providerId: string
     overview: MaterialOverviewDto
+    /** Lädt die Übersicht gerade? Die Ersatzwahl wartet nach jeder Übernahme auf den neuen Stand. */
+    pending: boolean
+    /** Ohne Schreibrecht: keine Meldung, keine Bearbeitung, nur Liste und Export. */
+    canWrite: boolean
     reloadOverview: () => void
 }
 
@@ -65,7 +70,14 @@ const causerOf = (damage: MaterialDamageDto): string | null =>
  * eine antippbare Zeile (öffnet Bearbeiten), CSV-Export im ⋮-Menü. Mit Ausfallfenster folgt nach
  * dem Speichern die Ersatzwahl je betroffenem Lauf.
  */
-const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: Props) => {
+const MaterialDamagesPanel = ({
+    eventId,
+    providerId,
+    overview,
+    pending: overviewPending,
+    canWrite,
+    reloadOverview,
+}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -108,8 +120,9 @@ const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: P
         setDialogOpen(true)
     }
 
-    const handleSaved = ({itemId, outOfServiceFrom, outOfServiceUntil}: SavedDamageInfo) => {
-        if (outOfServiceFrom == null) {
+    const handleSaved = (info: SavedDamageInfo) => {
+        const {itemId, outOfServiceFrom, outOfServiceUntil} = info
+        if (!needsOutageImpact(info) || outOfServiceFrom == null) {
             return
         }
         const item = overview.items.find(i => i.id === itemId)
@@ -135,13 +148,15 @@ const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: P
     return (
         <Stack spacing={2}>
             <Stack direction={'row'} gap={1} alignItems={'center'} flexWrap={'wrap'}>
-                <Button
-                    variant={'contained'}
-                    startIcon={<AddIcon />}
-                    onClick={openCreate}
-                    sx={{cursor: 'pointer'}}>
-                    {t('material.damage.report')}
-                </Button>
+                {canWrite && (
+                    <Button
+                        variant={'contained'}
+                        startIcon={<AddIcon />}
+                        onClick={openCreate}
+                        sx={{cursor: 'pointer'}}>
+                        {t('material.damage.report')}
+                    </Button>
+                )}
                 <Box sx={{flexGrow: 1}} />
                 <ExecutionMoreMenu
                     label={t('material.damage.moreActions')}
@@ -199,15 +214,20 @@ const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: P
                             return (
                                 <ListItemButton
                                     key={damage.id}
-                                    onClick={() => openEdit(damage)}
-                                    aria-label={t('material.damage.editItem', {
-                                        item: itemLabel({
-                                            label: damage.itemLabel,
-                                            number: damage.itemNumber,
-                                        }),
-                                    })}
+                                    onClick={canWrite ? () => openEdit(damage) : undefined}
+                                    disableRipple={!canWrite}
+                                    aria-label={
+                                        canWrite
+                                            ? t('material.damage.editItem', {
+                                                  item: itemLabel({
+                                                      label: damage.itemLabel,
+                                                      number: damage.itemNumber,
+                                                  }),
+                                              })
+                                            : undefined
+                                    }
                                     sx={{
-                                        cursor: 'pointer',
+                                        cursor: canWrite ? 'pointer' : 'default',
                                         px: {xs: 1, sm: 2},
                                         py: 1.25,
                                         display: 'block',
@@ -330,6 +350,7 @@ const MaterialDamagesPanel = ({eventId, providerId, overview, reloadOverview}: P
                 from={impact?.from ?? null}
                 until={impact?.until}
                 overview={overview}
+                pending={overviewPending}
                 onClose={() => setImpact(null)}
                 reload={reload}
             />

@@ -15,16 +15,18 @@
  * regelmäßig ein Pixel zu klein geraten - lieber ein Pixel zu groß als das Seitenverhältnis
  * sichtbar zu verzerren.
  */
-export const targetSize = (width: number, height: number, maxEdge: number): {width: number; height: number} => {
+export const targetSize = (
+    width: number,
+    height: number,
+    maxEdge: number,
+): {width: number; height: number} => {
     const longEdge = Math.max(width, height)
     if (longEdge <= maxEdge) {
         return {width, height}
     }
     const shortEdge = Math.min(width, height)
-    const short = Math.min(maxEdge, Math.max(1, Math.ceil(shortEdge * maxEdge / longEdge)))
-    return width > height
-        ? {width: maxEdge, height: short}
-        : {width: short, height: maxEdge}
+    const short = Math.min(maxEdge, Math.max(1, Math.ceil((shortEdge * maxEdge) / longEdge)))
+    return width > height ? {width: maxEdge, height: short} : {width: short, height: maxEdge}
 }
 
 /**
@@ -38,8 +40,9 @@ export const resizeImage = async (file: File, maxEdge = 2000): Promise<File> => 
         return file
     }
 
+    let bitmap: ImageBitmap | null = null
     try {
-        const bitmap = await createImageBitmap(file)
+        bitmap = await createImageBitmap(file)
         const {width, height} = targetSize(bitmap.width, bitmap.height, maxEdge)
 
         let blob: Blob | null
@@ -47,7 +50,6 @@ export const resizeImage = async (file: File, maxEdge = 2000): Promise<File> => 
             const canvas = new OffscreenCanvas(width, height)
             const ctx = canvas.getContext('2d')
             if (!ctx) {
-                bitmap.close()
                 return file
             }
             ctx.drawImage(bitmap, 0, 0, width, height)
@@ -58,13 +60,16 @@ export const resizeImage = async (file: File, maxEdge = 2000): Promise<File> => 
             canvas.height = height
             const ctx = canvas.getContext('2d')
             if (!ctx) {
-                bitmap.close()
                 return file
             }
             ctx.drawImage(bitmap, 0, 0, width, height)
-            blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+            blob = await new Promise<Blob | null>(resolve =>
+                canvas.toBlob(resolve, 'image/jpeg', 0.85),
+            )
         }
+        // Das dekodierte Bild sofort freigeben, nicht erst beim nächsten GC.
         bitmap.close()
+        bitmap = null
 
         if (!blob) {
             return file
@@ -74,5 +79,7 @@ export const resizeImage = async (file: File, maxEdge = 2000): Promise<File> => 
         return new File([blob], name, {type: 'image/jpeg', lastModified: file.lastModified})
     } catch {
         return file
+    } finally {
+        bitmap?.close()
     }
 }

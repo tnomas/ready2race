@@ -1,4 +1,3 @@
-import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useState} from 'react'
 import {
     Autocomplete,
@@ -16,7 +15,6 @@ import {useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
 import {
-    MaterialAssignmentEntry,
     MaterialOverviewDto,
     MaterialOverviewItemDto,
     MaterialOverviewRequestDto,
@@ -27,6 +25,10 @@ import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {itemLabel} from '@components/material/materialWorkplace.ts'
 import {effectiveAssignments} from '@components/material/effectiveAssignments.ts'
 import {affectedByOutage, replacementCandidates} from '@components/material/affectedByOutage.ts'
+import {assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
+import {useReloadGate} from '@components/material/reloadGate.ts'
+import {startNumberInMatch} from '@components/material/materialNumbers.ts'
+import {roundMatchLabel} from '@utils/roundMatchLabel.ts'
 
 type Props = {
     open: boolean
@@ -37,6 +39,8 @@ type Props = {
     from: string | null
     until?: string
     overview: MaterialOverviewDto
+    /** Lädt die Übersicht gerade? Nach einer Übernahme wartet der Dialog auf den neuen Stand. */
+    pending: boolean
     onClose: () => void
     reload: () => void
 }
@@ -51,9 +55,6 @@ type Row = {
     label: string
     options: Option[]
 }
-
-const matchLabel = (match: {roundName?: string; name?: string}): string =>
-    [match.roundName, match.name].filter(Boolean).join(' · ')
 
 /**
  * Nach einem Schaden mit Ausfallfenster: je betroffenem Lauf ein Ersatzstück wählen. Jede
@@ -70,6 +71,7 @@ const MaterialOutageImpactDialog = ({
     from,
     until,
     overview,
+    pending,
     onClose,
     reload,
 }: Props) => {
@@ -79,6 +81,9 @@ const MaterialOutageImpactDialog = ({
     const [selected, setSelected] = useState<Record<string, Option | null>>({})
     const [submittingKey, setSubmittingKey] = useState<string | null>(null)
     const [done, setDone] = useState<Set<string>>(new Set())
+    // Jede Übernahme schickt die Komplettliste der Anfrage; zwei Läufe derselben Anfrage kurz
+    // hintereinander überschrieben sich ohne frischen Stand.
+    const gate = useReloadGate(overview, pending)
 
     const handleClose = () => {
         setSelected({})
@@ -104,13 +109,15 @@ const MaterialOutageImpactDialog = ({
             if (request == null || match == null) {
                 return null
             }
+            // „Nummer passt" heißt: trägt die Startnummer des Teams in genau diesem Lauf.
+            const startNumber = startNumberInMatch(match, request.competitionRegistration)
             const candidates = replacementCandidates(
                 overview.items,
                 effective,
                 overview.matches,
                 a.matchId,
                 item.materialType,
-                startNumberOf(request),
+                startNumber,
             )
             const options: Option[] = candidates.map(c => ({
                 id: c.item.id,
@@ -118,9 +125,14 @@ const MaterialOutageImpactDialog = ({
                 sameNumber: c.sameNumber,
             }))
             const time = match.startTime ? format(new Date(match.startTime), 'HH:mm') : ''
-            const label =
-                `#${startNumberOf(request) ?? '–'} ${request.clubName} · ${request.competitionIdentifier} · ` +
-                `${matchLabel(match)} ${time}`.trim()
+            const label = [
+                startNumber != null ? t('material.number.start', {number: startNumber}) : null,
+                request.clubName,
+                request.competitionIdentifier,
+                `${roundMatchLabel(match.roundName, match.name)} ${time}`.trim(),
+            ]
+                .filter(Boolean)
+                .join(' · ')
             return {
                 key: `${a.requestId}|${a.matchId}`,
                 requestId: a.requestId,
@@ -137,14 +149,13 @@ const MaterialOutageImpactDialog = ({
         if (option == null) {
             return
         }
-        if (submittingKey) return
-        const remaining: MaterialAssignmentEntry[] = row.request.assignments
-            .filter(a => a.competitionMatch !== row.matchId)
-            .map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}))
-        const entries: MaterialAssignmentEntry[] = [
-            ...remaining,
-            {materialItem: option.id, competitionMatch: row.matchId},
-        ]
+        if (submittingKey || gate.locked) return
+        const entries = assignmentEntriesAfter(row.request.assignments, {
+            kind: 'replaceInMatch',
+            matchId: row.matchId,
+            oldItemId: item.id,
+            newItemId: option.id,
+        })
         const {error} = await runRequest(
             busy => setSubmittingKey(busy ? row.key : null),
             () =>
@@ -163,6 +174,7 @@ const MaterialOutageImpactDialog = ({
         } else {
             feedback.success(t('material.damage.impact.success'))
             setDone(prev => new Set(prev).add(row.key))
+            gate.arm()
             reload()
         }
     }
@@ -225,7 +237,9 @@ const MaterialOutageImpactDialog = ({
                                         variant={'contained'}
                                         size={'small'}
                                         disabled={
-                                            selected[row.key] == null || submittingKey === row.key
+                                            selected[row.key] == null ||
+                                            submittingKey != null ||
+                                            gate.locked
                                         }
                                         onClick={() => void handleSave(row)}
                                         sx={{cursor: 'pointer'}}>

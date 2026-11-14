@@ -5,8 +5,10 @@ import {useTranslation} from 'react-i18next'
 import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
-import {MaterialAssignmentEntry, MaterialOverviewDto} from '@api/types.gen.ts'
-import {assignByStartNumber} from '@components/material/assignByStartNumber.ts'
+import {MaterialOverviewDto} from '@api/types.gen.ts'
+import {assignByTeamNumber, withoutNumberMatch} from '@components/material/materialNumbers.ts'
+import {assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
+import {useReloadGate} from '@components/material/reloadGate.ts'
 import {effectiveAssignments} from '@components/material/effectiveAssignments.ts'
 import {MaterialConflict} from '@components/material/conflicts.ts'
 import {assignmentWork} from '@components/material/materialWorkplace.ts'
@@ -18,17 +20,29 @@ type Props = {
     providerId: string
     overview: MaterialOverviewDto
     conflicts: MaterialConflict[]
+    /** Lädt die Übersicht gerade? Sperrt Zuteilungen bis zum frischen Stand. */
+    pending: boolean
+    /** Schreibrecht beim gezeigten Anbieter; ohne bleibt die Einteilung eine Ansicht. */
+    canWrite: boolean
     reload: () => void
 }
 
 type ViewMode = 'team' | 'item'
 
 /**
- * Reiter „Zuteilung": oben die offene Arbeit in einem Satz und die Sammelaktion „Nach Startnummer
- * zuteilen", darunter wahlweise die Sicht je Team (Arbeitsliste, Unzugeteiltes zuerst) oder je
+ * Reiter „Zuteilung": oben die offene Arbeit in einem Satz und die Sammelaktion „Nach
+ * Meldungsnummer zuteilen" (Boot n zur Meldungsnummer n), darunter wahlweise die Sicht je Team (Arbeitsliste, Unzugeteiltes zuerst) oder je
  * Materialstück (Belegung in Zeitfolge). Konflikte rechnet die Seite einmal und reicht sie durch.
  */
-const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, reload}: Props) => {
+const MaterialAssignmentPanel = ({
+    eventId,
+    providerId,
+    overview,
+    conflicts,
+    pending,
+    canWrite,
+    reload,
+}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -38,12 +52,14 @@ const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, relo
     const {requests, items, matches} = overview
     const effective = useMemo(() => effectiveAssignments(requests, matches), [requests, matches])
     const work = assignmentWork(requests, conflicts)
+    const noNumberMatch = useMemo(() => withoutNumberMatch(requests, items), [requests, items])
+    const gate = useReloadGate(requests, pending)
 
-    const handleAssignByStartNumber = async () => {
-        if (assigning) return
-        const proposals = assignByStartNumber(requests, items)
+    const handleAssignByTeamNumber = async () => {
+        if (assigning || gate.locked) return
+        const proposals = assignByTeamNumber(requests, items)
         if (proposals.length === 0) {
-            feedback.info(t('material.assignment.assignByStartNumberNone'))
+            feedback.info(t('material.assignment.assignByTeamNumberNone'))
             return
         }
         setAssigning(true)
@@ -51,16 +67,14 @@ const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, relo
         let network = false
         for (const proposal of proposals) {
             const request = requests.find(r => r.id === proposal.requestId)
-            const existingEntries: MaterialAssignmentEntry[] = (request?.assignments ?? []).map(
-                a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}),
-            )
-            const newEntries: MaterialAssignmentEntry[] = proposal.entries.map(e => ({
-                materialItem: e.materialItem,
-            }))
+            const assignments = assignmentEntriesAfter(request?.assignments ?? [], {
+                kind: 'addBase',
+                itemIds: proposal.entries.map(e => e.materialItem),
+            })
             const {error} = await runRequest(undefined, () =>
                 setMaterialAssignments({
                     path: {eventId, providerId, requestId: proposal.requestId},
-                    body: {assignments: [...existingEntries, ...newEntries]},
+                    body: {assignments},
                 }),
             )
             if (error) failures++
@@ -70,12 +84,13 @@ const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, relo
         if (network) {
             feedback.error(t('common.error.network'))
         } else if (failures > 0) {
-            feedback.error(t('material.assignment.assignByStartNumberError', {count: failures}))
+            feedback.error(t('material.assignment.assignByTeamNumberError', {count: failures}))
         } else {
             feedback.success(
-                t('material.assignment.assignByStartNumberSuccess', {count: proposals.length}),
+                t('material.assignment.assignByTeamNumberSuccess', {count: proposals.length}),
             )
         }
+        gate.arm()
         reload()
     }
 
@@ -85,22 +100,33 @@ const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, relo
                 direction={{xs: 'column', sm: 'row'}}
                 gap={1.5}
                 alignItems={{xs: 'stretch', sm: 'center'}}>
-                <Typography variant={'body2'} color={'text.secondary'} sx={{flex: 1}}>
-                    {work.unassigned + work.withConflicts === 0
-                        ? t('material.assignment.workDone')
-                        : t('material.assignment.workSummary', {
-                              unassigned: work.unassigned,
-                              conflicts: work.withConflicts,
-                          })}
-                </Typography>
-                <Button
-                    variant={work.unassigned > 0 ? 'contained' : 'outlined'}
-                    startIcon={<FormatListNumberedIcon />}
-                    disabled={assigning}
-                    onClick={() => void handleAssignByStartNumber()}
-                    sx={{cursor: 'pointer'}}>
-                    {t('material.assignment.assignByStartNumber')}
-                </Button>
+                <Box sx={{flex: 1}}>
+                    <Typography variant={'body2'} color={'text.secondary'}>
+                        {work.unassigned + work.withConflicts === 0
+                            ? t('material.assignment.workDone')
+                            : t('material.assignment.workSummary', {
+                                  unassigned: work.unassigned,
+                                  conflicts: work.withConflicts,
+                              })}
+                    </Typography>
+                    {noNumberMatch.size > 0 && (
+                        <Typography variant={'body2'} color={'text.secondary'}>
+                            {t('material.assignment.withoutNumberMatchSummary', {
+                                count: noNumberMatch.size,
+                            })}
+                        </Typography>
+                    )}
+                </Box>
+                {canWrite && (
+                    <Button
+                        variant={work.unassigned > 0 ? 'contained' : 'outlined'}
+                        startIcon={<FormatListNumberedIcon />}
+                        disabled={assigning || gate.locked}
+                        onClick={() => void handleAssignByTeamNumber()}
+                        sx={{cursor: 'pointer'}}>
+                        {t('material.assignment.assignByTeamNumber')}
+                    </Button>
+                )}
             </Stack>
             <Box>
                 <ToggleButtonGroup
@@ -125,6 +151,9 @@ const MaterialAssignmentPanel = ({eventId, providerId, overview, conflicts, relo
                     items={items}
                     matches={matches}
                     conflicts={conflicts}
+                    pending={pending}
+                    withoutNumberMatch={noNumberMatch}
+                    canWrite={canWrite}
                     onChanged={reload}
                 />
             ) : (

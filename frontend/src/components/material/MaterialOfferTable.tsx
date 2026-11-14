@@ -19,44 +19,56 @@ const initialSort: GridSortModel = [{field: 'materialTypeName', sort: 'asc'}]
 type Props = BaseEntityTableProps<MaterialOfferDto> & {
     eventId: string
     providerId: string
+    /** Ohne Schreibrecht beim Anbieter: keine Anlage, keine Zeilenaktionen. */
+    canWrite: boolean
 }
 
 // Angebote je Veranstaltung/Anbieter sind nicht seitenweise - die Liste ist naturgemäß klein
 // (eine Zeile je Materialart). Wie bei TimingStationTable wird alles geladen und die DataGrid
 // paginiert/sortiert lokal (gridProps unten).
-const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
+const MaterialOfferTable = ({eventId, providerId, canWrite, ...props}: Props) => {
     const {t} = useTranslation()
     // Mit Anfragen nicht löschbar: sagen, warum und was stattdessen geht.
     const onDeleteError = useMaterialDeleteError(t('material.offer.offer'))
 
-    const dataRequest = (signal: AbortSignal, paginationParameters: PaginationParameters) =>
-        getMaterialOffers({signal, path: {eventId, providerId}}).then(result => {
-            if (result.data === undefined) {
-                return result
-            }
-
-            const search = paginationParameters.search?.toLowerCase()
-            const filtered = search
-                ? result.data.filter(offer => offer.materialTypeName.toLowerCase().includes(search))
-                : result.data
-            const sorted = [...filtered].sort((a, b) =>
-                a.materialTypeName.localeCompare(b.materialTypeName),
-            )
-
+    const dataRequest = async (
+        signal: AbortSignal,
+        paginationParameters: PaginationParameters,
+    ): RequestResult<PageResponse<MaterialOfferDto>, ApiError, false> => {
+        const result = await getMaterialOffers({signal, path: {eventId, providerId}})
+        if (result.data === undefined) {
             return {
-                ...result,
-                data: {
-                    data: sorted,
-                    pagination: {
-                        total: sorted.length,
-                        limit: paginationParameters.limit,
-                        offset: paginationParameters.offset,
-                        sort: [],
-                        search: paginationParameters.search ?? '',
-                    },
-                },
+                data: undefined,
+                error: result.error,
+                request: result.request,
+                response: result.response,
             }
-        }) as unknown as RequestResult<PageResponse<MaterialOfferDto>, ApiError, false>
+        }
+
+        const search = paginationParameters.search?.toLowerCase()
+        const filtered = search
+            ? result.data.filter(offer => offer.materialTypeName.toLowerCase().includes(search))
+            : result.data
+        const sorted = [...filtered].sort((a, b) =>
+            a.materialTypeName.localeCompare(b.materialTypeName),
+        )
+
+        return {
+            data: {
+                data: sorted,
+                pagination: {
+                    total: sorted.length,
+                    limit: paginationParameters.limit,
+                    offset: paginationParameters.offset,
+                    sort: [],
+                    search: paginationParameters.search ?? '',
+                },
+            },
+            error: undefined,
+            request: result.request,
+            response: result.response,
+        }
+    }
 
     const deleteRequest = (dto: MaterialOfferDto) =>
         deleteMaterialOffer({path: {eventId, providerId, offerId: dto.id}})
@@ -103,6 +115,8 @@ const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
             deleteRequest={deleteRequest}
             onDeleteError={onDeleteError}
             gridProps={{paginationMode: 'client', sortingMode: 'client'}}
+            creatable={canWrite}
+            hideEntityActions={!canWrite}
         />
     )
 }

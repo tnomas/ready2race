@@ -3,6 +3,8 @@ import {
     effectiveProviderId,
     isMaterialWorkplacePath,
     MATERIAL_TABS,
+    mayWriteMaterial,
+    showsProviderSwitch,
     resolveMaterialTab,
     validateMaterialEventSearch,
     validateMaterialProviderSearch,
@@ -91,5 +93,40 @@ describe('isMaterialWorkplacePath', () => {
     it('berücksichtigt den Basispfad', () => {
         expect(isMaterialWorkplacePath('/r2r/material/fleet', '/r2r')).toBe(true)
         expect(isMaterialWorkplacePath('/r2r/material/admin', '/r2r/')).toBe(false)
+    })
+})
+
+describe('mayWriteMaterial', () => {
+    const base = {
+        mayUpdateGlobal: false,
+        mayUpdateOwn: false,
+        ownProviderId: 'p1',
+        providerId: 'p1',
+    }
+
+    it('eigenes Recht nur beim eigenen Anbieter', () => {
+        expect(mayWriteMaterial({...base, mayUpdateOwn: true})).toBe(true)
+        expect(mayWriteMaterial({...base, mayUpdateOwn: true, providerId: 'p2'})).toBe(false)
+        expect(mayWriteMaterial({...base, mayUpdateOwn: true, ownProviderId: undefined})).toBe(
+            false,
+        )
+    })
+
+    it('globales Recht bei jedem Anbieter, nur Lesen nirgends', () => {
+        expect(mayWriteMaterial({...base, mayUpdateGlobal: true, providerId: 'p2'})).toBe(true)
+        expect(mayWriteMaterial(base)).toBe(false)
+        expect(mayWriteMaterial({...base, mayUpdateGlobal: true, providerId: undefined})).toBe(
+            false,
+        )
+    })
+})
+
+describe('showsProviderSwitch', () => {
+    it('nur ohne eigenen Anbieter, mit globalem Lesen und gewähltem Anbieter', () => {
+        const opts = {ownProviderId: undefined, mayReadGlobal: true, searchProvider: 'p1'}
+        expect(showsProviderSwitch(opts)).toBe(true)
+        expect(showsProviderSwitch({...opts, ownProviderId: 'p1'})).toBe(false)
+        expect(showsProviderSwitch({...opts, mayReadGlobal: false})).toBe(false)
+        expect(showsProviderSwitch({...opts, searchProvider: undefined})).toBe(false)
     })
 })

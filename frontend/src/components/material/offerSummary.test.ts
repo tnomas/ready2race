@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'vitest'
 import {MaterialOfferDto, MaterialOverviewRequestDto} from '@api/types.gen.ts'
-import {offerSummaries} from './offerSummary.ts'
+import {capacityOverruns, offerSummaries} from './offerSummary.ts'
 
 const offer = (overrides: Partial<MaterialOfferDto> = {}): MaterialOfferDto => ({
     id: 'offer-1',
@@ -115,5 +115,24 @@ describe('offerSummaries', () => {
         const [summary] = offerSummaries(offers, requests)
 
         expect(summary.highlightRequestId).toBeNull()
+    })
+})
+
+describe('capacityOverruns', () => {
+    test('nennt das Angebot, dessen Plan die Sammelbestätigung überschreitet', () => {
+        const requests = [
+            request({id: 'b', status: 'CONFIRMED'}),
+            request({id: 'r1'}),
+            request({id: 'r2', count: 2}),
+        ]
+        expect(capacityOverruns([offer({plannedCount: 2})], requests, ['r1', 'r2'])).toEqual([
+            {offerId: 'offer-1', materialTypeName: 'Zweier', plannedCount: 2, confirmedAfter: 4},
+        ])
+    })
+
+    test('innerhalb des Plans oder ohne Auswahl für das Angebot: keine Warnung', () => {
+        const requests = [request({id: 'r1'}), request({id: 'x', materialOffer: 'offer-2', status: 'CONFIRMED', count: 9})]
+        const offers = [offer({plannedCount: 2}), offer({id: 'offer-2', plannedCount: 1})]
+        expect(capacityOverruns(offers, requests, ['r1'])).toEqual([])
     })
 })

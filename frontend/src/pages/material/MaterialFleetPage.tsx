@@ -12,7 +12,9 @@ import MaterialItemTable from '@components/material/MaterialItemTable.tsx'
 import MaterialItemDialog from '@components/material/MaterialItemDialog.tsx'
 import MaterialDamageDialog from '@components/material/MaterialDamageDialog.tsx'
 import MaterialProviderPicker from '@components/material/MaterialProviderPicker.tsx'
-import {effectiveProviderId} from './materialDashboardLogic.ts'
+import MaterialProviderSwitch from '@components/material/MaterialProviderSwitch.tsx'
+import {useMaterialWrite} from '@components/material/useMaterialWrite.ts'
+import {effectiveProviderId, showsProviderSwitch} from './materialDashboardLogic.ts'
 
 /**
  * Flotte eines Anbieters über alle Veranstaltungen. Eigene Anbieter sehen nur ihre Flotte; Konten
@@ -31,6 +33,12 @@ const MaterialFleetPage = () => {
         searchProvider: search.provider,
     })
     const providerSearch = search.provider ? {provider: search.provider} : {}
+    const switchable = showsProviderSwitch({
+        ownProviderId: user.loggedIn ? user.materialProviderId : undefined,
+        mayReadGlobal,
+        searchProvider: search.provider,
+    })
+    const canWrite = useMaterialWrite(providerId)
 
     const administrationProps = useEntityAdministration<MaterialItemDto>(t('material.item.item'))
     // Schaden melden aus der Flotte hat keinen Veranstaltungsbezug - kein Verursacher-Vorschlag,
@@ -42,6 +50,17 @@ const MaterialFleetPage = () => {
             <PageHeader
                 title={t('material.fleet.title')}
                 subtitle={t('material.fleet.subtitle')}
+                meta={
+                    switchable &&
+                    providerId && (
+                        <MaterialProviderSwitch
+                            providerId={providerId}
+                            onSwitch={() =>
+                                void navigate({from: materialFleetRoute.fullPath, search: {}})
+                            }
+                        />
+                    )
+                }
                 breadcrumbs={[
                     {
                         label: t('navigation.titles.material'),
@@ -61,7 +80,8 @@ const MaterialFleetPage = () => {
                 <>
                     <MaterialItemTable
                         providerId={providerId}
-                        onReportDamage={setDamageItem}
+                        onReportDamage={canWrite ? setDamageItem : undefined}
+                        canWrite={canWrite}
                         {...administrationProps.table}
                     />
                     <MaterialItemDialog providerId={providerId} {...administrationProps.dialog} />

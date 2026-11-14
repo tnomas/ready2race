@@ -6,6 +6,8 @@ import {MaterialTypeDto} from '@api/types.gen.ts'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
 import EntityTable from '@components/EntityTable.tsx'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {updateMaterialGlobal} from '@authorization/privileges.ts'
 import {useMaterialDeleteError} from './useMaterialDeleteError.ts'
 
 const initialPagination: GridPaginationModel = {
@@ -22,6 +24,8 @@ const deleteRequest = (dto: MaterialTypeDto) => deleteMaterialType({path: {typeI
 
 const MaterialTypeTable = (props: BaseEntityTableProps<MaterialTypeDto>) => {
     const {t} = useTranslation()
+    // Stammdaten verlangt das Backend mit UPDATE MATERIAL GLOBAL; EntityTable prüft nur OWN.
+    const mayEdit = useUser().checkPrivilege(updateMaterialGlobal)
     // In Verwendung (Stücke, Bedarf, Angebote) nicht löschbar: sagen, warum.
     const onDeleteError = useMaterialDeleteError(t('material.type.type'))
 
@@ -62,6 +66,8 @@ const MaterialTypeTable = (props: BaseEntityTableProps<MaterialTypeDto>) => {
             entityName={t('material.type.type')}
             deleteRequest={deleteRequest}
             onDeleteError={onDeleteError}
+            creatable={mayEdit}
+            hideEntityActions={!mayEdit}
         />
     )
 }

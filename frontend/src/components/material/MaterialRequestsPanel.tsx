@@ -1,4 +1,3 @@
-import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useMemo, useState} from 'react'
 import {
     Box,
@@ -28,7 +27,9 @@ import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {EmptyState} from '@components/ui'
-import {offerSummaries} from '@components/material/offerSummary.ts'
+import {capacityOverruns, offerSummaries} from '@components/material/offerSummary.ts'
+import {teamNumberOf} from '@components/material/materialNumbers.ts'
+import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {
     DEFAULT_REQUEST_FILTER,
     matchesRequestFilter,
@@ -46,6 +47,8 @@ type Props = {
     eventId: string
     providerId: string
     overview: MaterialOverviewDto
+    /** Ohne Schreibrecht: keine Entscheidungen, nur die Liste. */
+    canWrite: boolean
     reload: () => void
 }
 
@@ -81,9 +84,10 @@ const FILTER_LABEL_KEYS = {
  * Eine Liste statt Tabelle, damit das Telefon am Steg (390 px) ohne seitliches Scrollen
  * auskommt.
  */
-const MaterialRequestsPanel = ({eventId, providerId, overview, reload}: Props) => {
+const MaterialRequestsPanel = ({eventId, providerId, overview, canWrite, reload}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
+    const {confirmAction} = useConfirmation()
 
     const [filter, setFilter] = useState<RequestFilter>(DEFAULT_REQUEST_FILTER)
     const [typeFilter, setTypeFilter] = useState<string>('ALL')
@@ -140,6 +144,36 @@ const MaterialRequestsPanel = ({eventId, providerId, overview, reload}: Props) =
             feedback.success(t('material.decision.success'))
             reload()
         }
+    }
+
+    /** Über die geplante Anzahl hinaus nur nach Rückfrage mit Zahl, nie still. */
+    const requestConfirmSelected = () => {
+        const overruns = capacityOverruns(offers, requests, selectedIds)
+        if (overruns.length === 0) {
+            void handleConfirmSelected()
+            return
+        }
+        confirmAction(() => void handleConfirmSelected(), {
+            title: t('material.requests.overCapacity.title'),
+            content: (
+                <Stack spacing={1}>
+                    {overruns.map(o => (
+                        <Typography key={o.offerId}>
+                            {t('material.requests.overCapacity.line', {
+                                type: o.materialTypeName,
+                                after: o.confirmedAfter,
+                                planned: o.plannedCount,
+                                over: o.confirmedAfter - o.plannedCount,
+                            })}
+                        </Typography>
+                    ))}
+                    <Typography color={'text.secondary'}>
+                        {t('material.requests.overCapacity.hint')}
+                    </Typography>
+                </Stack>
+            ),
+            okText: t('material.requests.overCapacity.ok'),
+        })
     }
 
     const handleConfirmSelected = async () => {
@@ -204,13 +238,13 @@ const MaterialRequestsPanel = ({eventId, providerId, overview, reload}: Props) =
                 )}
             </Stack>
 
-            {selectableIds.length > 1 && (
+            {canWrite && selectableIds.length > 1 && (
                 <Box>
                     <Button
                         variant={'contained'}
                         startIcon={<CheckIcon />}
                         disabled={selectedIds.length === 0 || bulkBusy}
-                        onClick={() => void handleConfirmSelected()}
+                        onClick={requestConfirmSelected}
                         sx={{cursor: 'pointer'}}>
                         {t('material.requests.confirmSelected', {count: selectedIds.length})}
                     </Button>
@@ -236,8 +270,11 @@ const MaterialRequestsPanel = ({eventId, providerId, overview, reload}: Props) =
                                 request={request}
                                 highlighted={highlighted.has(request.id)}
                                 selectable={
-                                    selectableIds.length > 1 && request.status === 'REQUESTED'
+                                    canWrite &&
+                                    selectableIds.length > 1 &&
+                                    request.status === 'REQUESTED'
                                 }
+                                canWrite={canWrite}
                                 selected={!deselected.has(request.id)}
                                 onToggleSelected={() => toggleOne(request.id)}
                                 busy={rowBusy === request.id || bulkBusy}
@@ -310,6 +347,7 @@ type RowProps = {
     selected: boolean
     onToggleSelected: () => void
     busy: boolean
+    canWrite: boolean
     onDecision: (decision: RequestDecision) => void
 }
 
@@ -326,18 +364,20 @@ const RequestRow = ({
     selected,
     onToggleSelected,
     busy,
+    canWrite,
     onDecision,
 }: RowProps) => {
     const {t} = useTranslation()
-    const plan = requestActionPlan(request.status)
+    const plan = canWrite ? requestActionPlan(request.status) : {more: []}
     const primary = plan.primary
     const look = REQUEST_STATUS_CHIP[request.status]
+    const teamNumber = teamNumberOf(request)
     const team = [
-        startNumberOf(request) != null ? `#${startNumberOf(request)}` : null,
         request.teamName,
+        teamNumber != null ? t('material.number.team', {number: teamNumber}) : null,
     ]
         .filter(Boolean)
-        .join(' ')
+        .join(' · ')
 
     return (
         <Stack
@@ -409,16 +449,18 @@ const RequestRow = ({
                         {t(DECISION_LABEL_KEYS[primary])}
                     </Button>
                 )}
-                <ExecutionMoreMenu
-                    label={t('material.requests.moreActions')}
-                    disabled={busy}
-                    items={plan.more.map(decision => ({
-                        id: decision,
-                        label: t(DECISION_LABEL_KEYS[decision]),
-                        onSelect: () => onDecision(decision),
-                        destructive: decision === 'DECLINED',
-                    }))}
-                />
+                {plan.more.length > 0 && (
+                    <ExecutionMoreMenu
+                        label={t('material.requests.moreActions')}
+                        disabled={busy}
+                        items={plan.more.map(decision => ({
+                            id: decision,
+                            label: t(DECISION_LABEL_KEYS[decision]),
+                            onSelect: () => onDecision(decision),
+                            destructive: decision === 'DECLINED',
+                        }))}
+                    />
+                )}
             </Stack>
         </Stack>
     )

@@ -1,11 +1,9 @@
-import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useState} from 'react'
 import {Autocomplete, Box, Chip, Divider, Paper, Stack, TextField, Typography} from '@mui/material'
 import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined'
 import CancelIcon from '@mui/icons-material/Cancel'
 import {useTranslation} from 'react-i18next'
 import {
-    MaterialAssignmentEntry,
     MaterialOverviewItemDto,
     MaterialOverviewMatchDto,
     MaterialOverviewRequestDto,
@@ -31,6 +29,9 @@ import {
 import MaterialExceptionDialog from '@components/material/MaterialExceptionDialog.tsx'
 import {statusTextColor} from '../../theme/themeColors.ts'
 import ExecutionMoreMenu from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
+import {AssignmentChange, assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
+import {useReloadGate} from '@components/material/reloadGate.ts'
+import {teamNumberOf} from '@components/material/materialNumbers.ts'
 
 type Props = {
     eventId: string
@@ -39,6 +40,12 @@ type Props = {
     items: MaterialOverviewItemDto[]
     matches: MaterialOverviewMatchDto[]
     conflicts: MaterialConflict[]
+    /** Lädt die Übersicht gerade? Hält die Sperre bis zum frischen Stand (siehe reloadGate). */
+    pending: boolean
+    /** Anfragen, deren Meldungsnummer kein Stück der eigenen aktiven Flotte trägt. */
+    withoutNumberMatch: ReadonlySet<string>
+    /** Ohne Schreibrecht: keine Auswahl, kein Entfernen, kein ⋮-Menü. */
+    canWrite: boolean
     onChanged: () => void
 }
 
@@ -55,6 +62,9 @@ const MaterialAssignmentByTeam = ({
     items,
     matches,
     conflicts,
+    pending,
+    withoutNumberMatch,
+    canWrite,
     onChanged,
 }: Props) => {
     const {t} = useTranslation()
@@ -65,20 +75,22 @@ const MaterialAssignmentByTeam = ({
     // Zeilen, in denen „Weiteres Stück" aufgeklappt wurde, obwohl die Menge schon erfüllt ist.
     const [addOpen, setAddOpen] = useState<Set<string>>(new Set())
 
+    // Nach einem Erfolg bleibt alles gesperrt, bis die Übersicht neu da ist: Jede Zuteilung
+    // schickt die Komplettliste, ein zweiter Klick auf altem Stand überschriebe den ersten.
+    const gate = useReloadGate(requests, pending)
+    const locked = busyId != null || gate.locked
+
     const itemsById = new Map(items.map(i => [i.id, i]))
     const rows = assignmentRowsForWork(requests, conflicts)
 
-    const submit = async (
-        request: MaterialOverviewRequestDto,
-        entries: MaterialAssignmentEntry[],
-    ) => {
-        if (busyId) return
+    const submit = async (request: MaterialOverviewRequestDto, change: AssignmentChange) => {
+        if (locked) return
         const {error} = await runRequest(
             busy => setBusyId(busy ? request.id : null),
             () =>
                 setMaterialAssignments({
                     path: {eventId, providerId, requestId: request.id},
-                    body: {assignments: entries},
+                    body: {assignments: assignmentEntriesAfter(request.assignments, change)},
                 }),
         )
         if (isRequestNetworkError(error)) {
@@ -96,26 +108,16 @@ const MaterialAssignmentByTeam = ({
                 next.delete(request.id)
                 return next
             })
+            gate.arm()
             onChanged()
         }
     }
 
-    const applyBaseItems = (request: MaterialOverviewRequestDto, baseItemIds: string[]) => {
-        const exceptionEntries: MaterialAssignmentEntry[] = request.assignments
-            .filter(a => a.competitionMatch != null)
-            .map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}))
-        const baseEntries: MaterialAssignmentEntry[] = baseItemIds.map(id => ({materialItem: id}))
-        void submit(request, [...baseEntries, ...exceptionEntries])
-    }
+    const applyBaseItems = (request: MaterialOverviewRequestDto, baseItemIds: string[]) =>
+        void submit(request, {kind: 'setBase', itemIds: baseItemIds})
 
-    const removeException = (request: MaterialOverviewRequestDto, assignmentId: string) => {
-        void submit(
-            request,
-            request.assignments
-                .filter(a => a.id !== assignmentId)
-                .map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch})),
-        )
-    }
+    const removeException = (request: MaterialOverviewRequestDto, assignmentId: string) =>
+        void submit(request, {kind: 'remove', assignmentId})
 
     /**
      * Ausnahmen, deren Lauf ohne die Ausnahme keinen Ausfall-Konflikt für die Grundzuteilung
@@ -176,7 +178,7 @@ const MaterialAssignmentByTeam = ({
                         const exceptionCount = exceptionCountOf(request)
                         const state = assignmentState(request, items)
                         const missing = baseItemIds.length < request.count
-                        const showAdd = missing || addOpen.has(request.id)
+                        const showAdd = canWrite && (missing || addOpen.has(request.id))
                         const availableItems = items
                             .filter(
                                 i =>
@@ -193,7 +195,8 @@ const MaterialAssignmentByTeam = ({
                                     .map(c => c.kind),
                             ),
                         )
-                        const busy = busyId === request.id
+                        const busy = locked
+                        const teamNumber = teamNumberOf(request)
                         const team = request.teamName ? ` · ${request.teamName}` : ''
 
                         return (
@@ -208,12 +211,14 @@ const MaterialAssignmentByTeam = ({
                                         variant={'body1'}
                                         fontWeight={600}
                                         sx={{overflowWrap: 'anywhere'}}>
-                                        {startNumberOf(request) != null
-                                            ? `#${startNumberOf(request)} `
-                                            : ''}
                                         {request.clubName}
                                         {team}
                                     </Typography>
+                                    {teamNumber != null && (
+                                        <Typography variant={'body2'} color={'text.secondary'}>
+                                            {t('material.number.team', {number: teamNumber})}
+                                        </Typography>
+                                    )}
                                     <Typography
                                         variant={'body2'}
                                         color={'text.secondary'}
@@ -236,11 +241,16 @@ const MaterialAssignmentByTeam = ({
                                                     size={'small'}
                                                     label={label}
                                                     disabled={busy}
-                                                    onDelete={() =>
-                                                        applyBaseItems(
-                                                            request,
-                                                            baseItemIds.filter(i => i !== id),
-                                                        )
+                                                    onDelete={
+                                                        canWrite
+                                                            ? () =>
+                                                                  applyBaseItems(
+                                                                      request,
+                                                                      baseItemIds.filter(
+                                                                          i => i !== id,
+                                                                      ),
+                                                                  )
+                                                            : undefined
                                                     }
                                                     deleteIcon={
                                                         <CancelIcon
@@ -253,19 +263,30 @@ const MaterialAssignmentByTeam = ({
                                                 />
                                             )
                                         })}
-                                        {state === 'deviates' && (
+                                        {withoutNumberMatch.has(request.id) && (
                                             <Chip
                                                 size={'small'}
-                                                color={'warning'}
                                                 variant={'outlined'}
-                                                label={t('material.assignment.deviates')}
-                                                // Lesbarer Text statt des hellen Warnorange.
-                                                sx={{
-                                                    color: theme =>
-                                                        statusTextColor(theme, 'warning'),
-                                                }}
+                                                label={t('material.assignment.withoutNumberMatch')}
+                                                title={t(
+                                                    'material.assignment.withoutNumberMatchHint',
+                                                )}
                                             />
                                         )}
+                                        {state === 'deviates' &&
+                                            !withoutNumberMatch.has(request.id) && (
+                                                <Chip
+                                                    size={'small'}
+                                                    color={'warning'}
+                                                    variant={'outlined'}
+                                                    label={t('material.assignment.deviates')}
+                                                    // Lesbarer Text statt des hellen Warnorange.
+                                                    sx={{
+                                                        color: theme =>
+                                                            statusTextColor(theme, 'warning'),
+                                                    }}
+                                                />
+                                            )}
                                         {conflictKinds.map(kind => (
                                             <Chip
                                                 key={kind}
@@ -281,24 +302,29 @@ const MaterialAssignmentByTeam = ({
                                                 label={t('material.assignment.exceptionCount', {
                                                     count: exceptionCount,
                                                 })}
-                                                onClick={() => setExceptionRequestId(request.id)}
-                                                sx={{cursor: 'pointer'}}
+                                                onClick={
+                                                    canWrite
+                                                        ? () => setExceptionRequestId(request.id)
+                                                        : undefined
+                                                }
+                                                sx={canWrite ? {cursor: 'pointer'} : undefined}
                                             />
                                         )}
-                                        {restorableExceptions(request).map(exception => (
-                                            <Chip
-                                                key={exception.id}
-                                                size={'small'}
-                                                color={'success'}
-                                                variant={'outlined'}
-                                                label={t('material.damage.baseAgainRemove')}
-                                                title={t('material.damage.baseAgain')}
-                                                disabled={busy}
-                                                onDelete={() =>
-                                                    removeException(request, exception.id)
-                                                }
-                                            />
-                                        ))}
+                                        {canWrite &&
+                                            restorableExceptions(request).map(exception => (
+                                                <Chip
+                                                    key={exception.id}
+                                                    size={'small'}
+                                                    color={'success'}
+                                                    variant={'outlined'}
+                                                    label={t('material.damage.baseAgainRemove')}
+                                                    title={t('material.damage.baseAgain')}
+                                                    disabled={busy}
+                                                    onDelete={() =>
+                                                        removeException(request, exception.id)
+                                                    }
+                                                />
+                                            ))}
                                     </Stack>
                                     {showAdd && (
                                         <Autocomplete
@@ -331,29 +357,31 @@ const MaterialAssignmentByTeam = ({
                                         />
                                     )}
                                 </Box>
-                                <ExecutionMoreMenu
-                                    label={t('material.assignment.moreActions')}
-                                    disabled={busy}
-                                    items={[
-                                        ...(!showAdd
-                                            ? [
-                                                  {
-                                                      id: 'add',
-                                                      label: t('material.assignment.addItem'),
-                                                      onSelect: () =>
-                                                          setAddOpen(prev =>
-                                                              new Set(prev).add(request.id),
-                                                          ),
-                                                  },
-                                              ]
-                                            : []),
-                                        {
-                                            id: 'exception',
-                                            label: t('material.assignment.exception'),
-                                            onSelect: () => setExceptionRequestId(request.id),
-                                        },
-                                    ]}
-                                />
+                                {canWrite && (
+                                    <ExecutionMoreMenu
+                                        label={t('material.assignment.moreActions')}
+                                        disabled={busy}
+                                        items={[
+                                            ...(!showAdd
+                                                ? [
+                                                      {
+                                                          id: 'add',
+                                                          label: t('material.assignment.addItem'),
+                                                          onSelect: () =>
+                                                              setAddOpen(prev =>
+                                                                  new Set(prev).add(request.id),
+                                                              ),
+                                                      },
+                                                  ]
+                                                : []),
+                                            {
+                                                id: 'exception',
+                                                label: t('material.assignment.exception'),
+                                                onSelect: () => setExceptionRequestId(request.id),
+                                            },
+                                        ]}
+                                    />
+                                )}
                             </Stack>
                         )
                     })}
@@ -366,6 +394,7 @@ const MaterialAssignmentByTeam = ({
                 request={exceptionRequest}
                 matches={matches}
                 items={items}
+                pending={pending}
                 onClose={() => setExceptionRequestId(null)}
                 onChanged={onChanged}
             />

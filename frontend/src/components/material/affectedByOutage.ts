@@ -40,8 +40,8 @@ export type ReplacementCandidate = {item: MaterialOverviewItemDto; sameNumber: b
 
 /**
  * Ersatzstücke für einen Lauf: aktiv, richtige Materialart, im Lauffenster weder anderweitig
- * zugeteilt noch im Ausfall. Nummerngleichheit mit der Startnummer des Teams kommt zuerst -
- * das ist meist der naheliegendste Tausch (eigenes Ersatzboot mit gleicher Nummer).
+ * zugeteilt noch im Ausfall. Ein Stück mit der Startnummer des Teams in genau diesem Lauf kommt
+ * zuerst - dann zeigen die Anzeigen dort kein „abweichend".
  */
 export const replacementCandidates = (
     items: MaterialOverviewItemDto[],
@@ -49,7 +49,7 @@ export const replacementCandidates = (
     matches: MaterialOverviewMatchDto[],
     matchId: string,
     materialType: string,
-    teamNumber: number | undefined,
+    startNumberInMatch: number | undefined,
 ): ReplacementCandidate[] => {
     const matchesById = new Map(matches.map(m => [m.id, m]))
     const targetMatch = matchesById.get(matchId)
@@ -93,7 +93,7 @@ export const replacementCandidates = (
     })
 
     return candidates
-        .map(item => ({item, sameNumber: teamNumber != null && item.number === teamNumber}))
+        .map(item => ({item, sameNumber: startNumberInMatch != null && item.number === startNumberInMatch}))
         .sort((a, b) => {
             if (a.sameNumber !== b.sameNumber) {
                 return a.sameNumber ? -1 : 1

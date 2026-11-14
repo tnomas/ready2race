@@ -5060,7 +5060,6 @@
     },
     "item": {
       "item": "Item",
-      "items": "Items",
       "number": "Number",
       "label": "Label",
       "type": "Equipment type",
@@ -5096,9 +5095,10 @@
         "damages": "Damages",
         "settings": "Settings"
       },
-      "comingSoon": "Will be filled in a later task.",
       "chooseProvider": "Please choose a provider first.",
-      "subtitle": "Requests, assignment and damages for this event"
+      "subtitle": "Requests, assignment and damages for this event",
+      "providerShown": "Provider: {{name}}",
+      "switchProvider": "Switch provider"
     },
     "offer": {
       "offer": "Offer",
@@ -5106,11 +5106,9 @@
       "type": "Equipment type",
       "priceText": "Price note",
       "plannedCount": "Planned count",
-      "changeoverMinutes": "Changeover time (minutes)",
-      "add": "Add offer"
+      "changeoverMinutes": "Changeover time (minutes)"
     },
     "demand": {
-      "demand": "Demand",
       "count": "Count",
       "add": "Add equipment type",
       "none": "No demand set.",
@@ -5193,7 +5191,13 @@
       "noneOpen": "No open requests – everything decided.",
       "selectForBulk": "Include request from {{club}} in bulk confirmation",
       "summaryShort": "{{confirmed}} of {{planned}} confirmed · {{requested}} open · {{waitlisted}} waiting list",
-      "capacityTitle": "Capacity per offer"
+      "capacityTitle": "Capacity per offer",
+      "overCapacity": {
+        "title": "Confirm beyond the planned number?",
+        "line": "{{type}}: {{after}} confirmed afterwards, {{planned}} planned ({{over}} more than planned)",
+        "hint": "Confirmed requests are binding for the club. Only confirm if there is enough material – otherwise deselect single requests or put them on the waiting list.",
+        "ok": "Confirm anyway"
+      }
     },
     "decision": {
       "title": {
@@ -5211,16 +5215,10 @@
     "assignment": {
       "viewByTeam": "By team",
       "viewByItem": "By item",
-      "assignByStartNumber": "Assign by start number",
-      "assignByStartNumberNone": "No matching proposals found.",
-      "assignByStartNumberSuccess_one": "{{count}} assignment applied by start number",
-      "assignByStartNumberSuccess_other": "{{count}} assignments applied by start number",
-      "assignByStartNumberError_one": "{{count}} assignment could not be applied",
-      "assignByStartNumberError_other": "{{count}} assignments could not be applied",
       "noRequests": "No confirmed requests yet.",
       "addItem": "Add item",
       "exception": "Exception per race",
-      "deviates": "differs from start number",
+      "deviates": "differs from entry number",
       "success": "Assignment saved",
       "error": "Assignment could not be saved",
       "exceptionDialog": {
@@ -5245,7 +5243,18 @@
       "noRequestsHint": "Confirmed requests appear here and get an item from the fleet.",
       "removeItem": "Remove {{item}}",
       "workDone": "All confirmed requests have an item, no conflicts.",
-      "workSummary": "Open: {{unassigned}} without item, {{conflicts}} with conflict."
+      "workSummary": "Open: {{unassigned}} without item, {{conflicts}} with conflict.",
+      "assignByTeamNumber": "Assign by entry number",
+      "assignByTeamNumberNone": "No matching proposals: no free item carries the entry number of a team without an assignment.",
+      "assignByTeamNumberSuccess_one": "{{count}} assignment applied by entry number",
+      "assignByTeamNumberSuccess_other": "{{count}} assignments applied by entry number",
+      "assignByTeamNumberError_one": "{{count}} assignment could not be applied",
+      "assignByTeamNumberError_other": "{{count}} assignments could not be applied",
+      "deviatesInMatch": "start number differs",
+      "withoutNumberMatch": "no matching number",
+      "withoutNumberMatchHint": "No active item of your fleet carries this team's entry number. Assign an item with another number – displays will then mark it as differing.",
+      "withoutNumberMatchSummary_one": "{{count}} team without a matching number: no active item in the fleet carries its entry number.",
+      "withoutNumberMatchSummary_other": "{{count}} teams without a matching number: no active item in the fleet carries their entry number."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5280,7 +5289,7 @@
         "title": "Affected races",
         "none": "No affected races.",
         "replacement": "Replacement item",
-        "sameNumber": "Number matches",
+        "sameNumber": "carries the start number",
         "later": "Later",
         "save": "Apply",
         "success": "Replacement saved",
@@ -5303,7 +5312,14 @@
       "outOfServiceOpen": "out of service from {{from}}",
       "outOfServiceRange": "out of service {{from}} – {{until}}",
       "scopeHint": "Shown are damages reported during the event days or attributed to a registration of this event.",
-      "photoInvalidType": "Only images (e.g. JPEG, PNG) can be uploaded as photos."
+      "photoInvalidType": "Only images (e.g. JPEG, PNG) can be uploaded as photos.",
+      "photoProgress": "Resizing photos: {{done}} of {{total}}",
+      "photosRejected": "Not uploaded: {{list}}",
+      "photoReject": {
+        "notImage": "not an image",
+        "tooLarge": "larger than 10 MB",
+        "tooMany": "more than 20 photos at once"
+      }
     },
     "severity": {
       "MINOR": "minor",
@@ -5326,6 +5342,10 @@
       "requestNotConfirmed": "The request is not (or no longer) confirmed – only confirmed requests can be assigned. The overview has been reloaded.",
       "matchNotOfRegistration": "The team no longer races in this match; the round was probably set again. The overview has been reloaded.",
       "invalidOutageWindow": "The end of the outage lies before its start."
+    },
+    "number": {
+      "team": "Entry no. {{number}}",
+      "start": "Start no. {{number}}"
     }
   }
 }

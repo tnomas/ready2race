@@ -2,6 +2,7 @@ import {useState} from 'react'
 import {
     Autocomplete,
     Button,
+    Chip,
     DialogActions,
     DialogContent,
     DialogTitle,
@@ -18,7 +19,6 @@ import {useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
 import {
-    MaterialAssignmentEntry,
     MaterialOverviewItemDto,
     MaterialOverviewMatchDto,
     MaterialOverviewRequestDto,
@@ -27,6 +27,10 @@ import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {itemLabel} from '@components/material/materialWorkplace.ts'
+import {AssignmentChange, assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
+import {useReloadGate} from '@components/material/reloadGate.ts'
+import {startNumberInMatch} from '@components/material/materialNumbers.ts'
+import {roundMatchLabel} from '@utils/roundMatchLabel.ts'
 
 type Props = {
     open: boolean
@@ -36,19 +40,16 @@ type Props = {
     request: MaterialOverviewRequestDto | null
     matches: MaterialOverviewMatchDto[]
     items: MaterialOverviewItemDto[]
+    /** Lädt die Übersicht gerade? Hält die Sperre bis zum frischen Stand. */
+    pending: boolean
     onClose: () => void
     onChanged: () => void
 }
 
-type Option = {id: string; label: string}
+type Option = {id: string; label: string; sameNumber?: boolean}
 
 const matchLabel = (match: MaterialOverviewMatchDto): string =>
-    [match.roundName, match.name].filter(Boolean).join(' · ') || match.id
-
-const toEntries = (
-    assignments: MaterialOverviewRequestDto['assignments'],
-): MaterialAssignmentEntry[] =>
-    assignments.map(a => ({materialItem: a.materialItem, competitionMatch: a.competitionMatch}))
+    roundMatchLabel(match.roundName, match.name) || match.id
 
 /**
  * Ausnahme je Lauf: für einen Lauf dieser Meldung ein anderes Stück als die Grundzuteilung.
@@ -63,6 +64,7 @@ const MaterialExceptionDialog = ({
     request,
     matches,
     items,
+    pending,
     onClose,
     onChanged,
 }: Props) => {
@@ -72,6 +74,10 @@ const MaterialExceptionDialog = ({
     const [selectedMatch, setSelectedMatch] = useState<Option | null>(null)
     const [selectedItem, setSelectedItem] = useState<Option | null>(null)
     const [submitting, setSubmitting] = useState(false)
+    // Nach einem Erfolg erst wieder ändern, wenn der neue Stand da ist: Jede Änderung schickt die
+    // Komplettliste, ein Klick auf altem Stand überschriebe die gerade gespeicherte.
+    const gate = useReloadGate(request, pending)
+    const locked = submitting || gate.locked
 
     const handleClose = () => {
         setSelectedMatch(null)
@@ -90,19 +96,42 @@ const MaterialExceptionDialog = ({
         (a, b) => (a.status === b.status ? 0 : a.status === 'ACTIVE' ? -1 : 1),
     )
 
-    const matchOptions: Option[] = relevantMatches.map(m => ({id: m.id, label: matchLabel(m)}))
-    const itemOptions: Option[] = relevantItems.map(i => ({id: i.id, label: itemLabel(i)}))
+    /** Lauf samt Startnummer des Teams dort – die Zahl, gegen die die Anzeigen prüfen. */
+    const matchOptionLabel = (m: MaterialOverviewMatchDto) => {
+        const number = startNumberInMatch(m, request.competitionRegistration)
+        return number != null
+            ? `${matchLabel(m)} · ${t('material.number.start', {number})}`
+            : matchLabel(m)
+    }
+    const matchOptions: Option[] = relevantMatches.map(m => ({
+        id: m.id,
+        label: matchOptionLabel(m),
+    }))
+    const selectedStartNumber =
+        selectedMatch != null
+            ? startNumberInMatch(
+                  relevantMatches.find(m => m.id === selectedMatch.id),
+                  request.competitionRegistration,
+              )
+            : undefined
+    const itemOptions: Option[] = relevantItems
+        .map(i => ({
+            id: i.id,
+            label: itemLabel(i),
+            sameNumber: selectedStartNumber != null && i.number === selectedStartNumber,
+        }))
+        .sort((a, b) => (a.sameNumber === b.sameNumber ? 0 : a.sameNumber ? -1 : 1))
 
     const matchesById = new Map(relevantMatches.map(m => [m.id, m]))
     const itemsById = new Map(items.map(i => [i.id, i]))
     const exceptions = request.assignments.filter(a => a.competitionMatch != null)
 
-    const submitEntries = async (entries: MaterialAssignmentEntry[]) => {
-        if (submitting) return
+    const submitChange = async (change: AssignmentChange) => {
+        if (locked) return
         const {error} = await runRequest(setSubmitting, () =>
             setMaterialAssignments({
                 path: {eventId, providerId, requestId: request.id},
-                body: {assignments: entries},
+                body: {assignments: assignmentEntriesAfter(request.assignments, change)},
             }),
         )
         if (isRequestNetworkError(error)) {
@@ -114,6 +143,7 @@ const MaterialExceptionDialog = ({
             if (key) onChanged()
         } else {
             feedback.success(t('material.assignment.exceptionDialog.success'))
+            gate.arm()
             onChanged()
         }
     }
@@ -122,18 +152,17 @@ const MaterialExceptionDialog = ({
         if (selectedMatch == null || selectedItem == null) {
             return
         }
-        const entries: MaterialAssignmentEntry[] = [
-            ...toEntries(request.assignments),
-            {materialItem: selectedItem.id, competitionMatch: selectedMatch.id},
-        ]
+        const change: AssignmentChange = {
+            kind: 'addException',
+            matchId: selectedMatch.id,
+            itemId: selectedItem.id,
+        }
         setSelectedMatch(null)
         setSelectedItem(null)
-        void submitEntries(entries)
+        void submitChange(change)
     }
 
-    const handleRemove = (assignmentId: string) => {
-        void submitEntries(toEntries(request.assignments.filter(a => a.id !== assignmentId)))
-    }
+    const handleRemove = (assignmentId: string) => void submitChange({kind: 'remove', assignmentId})
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
@@ -159,7 +188,7 @@ const MaterialExceptionDialog = ({
                                                     'material.assignment.exceptionDialog.remove',
                                                 )}
                                                 onClick={() => handleRemove(exception.id)}
-                                                disabled={submitting}
+                                                disabled={locked}
                                                 sx={{cursor: 'pointer'}}>
                                                 <DeleteIcon />
                                             </IconButton>
@@ -170,7 +199,7 @@ const MaterialExceptionDialog = ({
                                             }
                                             secondary={
                                                 match
-                                                    ? matchLabel(match)
+                                                    ? matchOptionLabel(match)
                                                     : exception.competitionMatch
                                             }
                                         />
@@ -204,6 +233,18 @@ const MaterialExceptionDialog = ({
                             onChange={(_, v) => setSelectedItem(v)}
                             getOptionLabel={o => o.label}
                             isOptionEqualToValue={(o, v) => o.id === v.id}
+                            renderOption={(liProps, option) => (
+                                <li {...liProps} key={option.id}>
+                                    {option.label}
+                                    {option.sameNumber && (
+                                        <Chip
+                                            size={'small'}
+                                            sx={{ml: 1}}
+                                            label={t('material.damage.impact.sameNumber')}
+                                        />
+                                    )}
+                                </li>
+                            )}
                             renderInput={params => (
                                 <TextField
                                     {...params}
@@ -222,7 +263,7 @@ const MaterialExceptionDialog = ({
                 </Button>
                 <Button
                     variant={'contained'}
-                    disabled={selectedMatch == null || selectedItem == null || submitting}
+                    disabled={selectedMatch == null || selectedItem == null || locked}
                     onClick={handleAdd}
                     sx={{cursor: 'pointer'}}>
                     {t('material.assignment.exceptionDialog.add')}

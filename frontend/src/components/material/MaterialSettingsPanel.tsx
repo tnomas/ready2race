@@ -14,6 +14,8 @@ type Props = {
     providerId: string
     /** Stand aus der Übersicht der Seite (eine Quelle für Kopf-Chip und Schalter). */
     requestsClosed: boolean
+    /** Ohne Schreibrecht: Schalter gesperrt, Angebote nur lesen. */
+    canWrite: boolean
     reload: () => void
 }
 
@@ -21,7 +23,7 @@ type Props = {
  * Reiter „Einstellungen": Vergabe öffnen/schließen und die Angebote dieser Veranstaltung. Der
  * Schalter schaltet sofort (optimistisch) und springt bei Fehler zurück.
  */
-const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Props) => {
+const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, canWrite, reload}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -76,7 +78,7 @@ const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Pr
                     control={
                         <Switch
                             checked={checked}
-                            disabled={submitting}
+                            disabled={submitting || !canWrite}
                             onChange={(_, value) => void handleToggle(value)}
                         />
                     }
@@ -91,6 +93,7 @@ const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Pr
                 eventId={eventId}
                 providerId={providerId}
                 {...offerAdministrationProps.table}
+                canWrite={canWrite}
                 reloadData={reloadOffers}
                 title={t('material.offer.offers')}
             />

@@ -6,6 +6,8 @@ import {MaterialProviderDto} from '@api/types.gen.ts'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
 import EntityTable from '@components/EntityTable.tsx'
+import {useUser} from '@contexts/user/UserContext.ts'
+import {updateMaterialGlobal} from '@authorization/privileges.ts'
 import {useMaterialDeleteError} from './useMaterialDeleteError.ts'
 
 const initialPagination: GridPaginationModel = {
@@ -23,6 +25,8 @@ const deleteRequest = (dto: MaterialProviderDto) =>
 
 const MaterialProviderTable = (props: BaseEntityTableProps<MaterialProviderDto>) => {
     const {t} = useTranslation()
+    // Stammdaten verlangt das Backend mit UPDATE MATERIAL GLOBAL; EntityTable prüft nur OWN.
+    const mayEdit = useUser().checkPrivilege(updateMaterialGlobal)
 
     // Ein Anbieter mit zugeordneten Konten, Stücken oder Einladungen lässt sich nicht löschen
     // (409): sagen, was zu tun ist.
@@ -67,6 +71,8 @@ const MaterialProviderTable = (props: BaseEntityTableProps<MaterialProviderDto>)
             entityName={t('material.provider.provider')}
             deleteRequest={deleteRequest}
             onDeleteError={onDeleteError}
+            creatable={mayEdit}
+            hideEntityActions={!mayEdit}
         />
     )
 }

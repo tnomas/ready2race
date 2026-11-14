@@ -19,10 +19,23 @@ import MaterialRequestsPanel from '@components/material/MaterialRequestsPanel.ts
 import MaterialAssignmentPanel from '@components/material/MaterialAssignmentPanel.tsx'
 import MaterialDamagesPanel from '@components/material/MaterialDamagesPanel.tsx'
 import MaterialProviderPicker from '@components/material/MaterialProviderPicker.tsx'
+import MaterialProviderSwitch from '@components/material/MaterialProviderSwitch.tsx'
+import {useMaterialWrite} from '@components/material/useMaterialWrite.ts'
 import {useMaterialOverview} from '@components/material/useMaterialOverview.ts'
 import {useMaterialConflicts} from '@components/material/useMaterialConflicts.ts'
 import {assignmentWork, requestFilterCounts} from '@components/material/materialWorkplace.ts'
-import {effectiveProviderId, MaterialTab, resolveMaterialTab} from './materialDashboardLogic.ts'
+import {
+    effectiveProviderId,
+    MaterialTab,
+    resolveMaterialTab,
+    showsProviderSwitch,
+} from './materialDashboardLogic.ts'
+
+/**
+ * Am Telefon (390 px) passen vier Reiter samt Zählern nur ohne die Mindestbreite und mit
+ * schmalerem Innenabstand von MUI; sonst schnitt die Leiste „Einstellungen" ab.
+ */
+const COMPACT_TAB = {minWidth: {xs: 0, sm: 90}, px: {xs: 0.75, sm: 2}} as const
 
 /**
  * Arbeitsplatz des Materialanbieters für eine Veranstaltung. Die Übersicht wird hier EINMAL
@@ -46,6 +59,12 @@ const MaterialDashboardPage = () => {
     })
     // Der gewählte Anbieter reist in Links mit, damit globale Konten nicht neu wählen müssen.
     const providerSearch = search.provider ? {provider: search.provider} : {}
+    const switchable = showsProviderSwitch({
+        ownProviderId: user.loggedIn ? user.materialProviderId : undefined,
+        mayReadGlobal,
+        searchProvider: search.provider,
+    })
+    const canWrite = useMaterialWrite(providerId)
 
     const switchTab = (tab: MaterialTab) => {
         void navigate({from: materialEventRoute.fullPath, search: prev => ({...prev, tab})})
@@ -72,8 +91,23 @@ const MaterialDashboardPage = () => {
                 title={event?.name ?? t('material.material')}
                 subtitle={t('material.dashboard.subtitle')}
                 meta={
-                    overview?.requestsClosed && (
-                        <Chip size={'small'} label={t('event.material.closed')} />
+                    (switchable || overview?.requestsClosed) && (
+                        <Stack direction={'row'} gap={1} alignItems={'center'} flexWrap={'wrap'}>
+                            {switchable && providerId && (
+                                <MaterialProviderSwitch
+                                    providerId={providerId}
+                                    onSwitch={() =>
+                                        void navigate({
+                                            from: materialEventRoute.fullPath,
+                                            search: prev => ({...prev, provider: undefined}),
+                                        })
+                                    }
+                                />
+                            )}
+                            {overview?.requestsClosed && (
+                                <Chip size={'small'} label={t('event.material.closed')} />
+                            )}
+                        </Stack>
                     )
                 }
                 breadcrumbs={[
@@ -130,6 +164,7 @@ const MaterialDashboardPage = () => {
                     <TabSelectionContainer activeTab={activeTab} setActiveTab={switchTab}>
                         <Tab
                             label={tabLabel(t('material.dashboard.tabs.requests'), openRequests)}
+                            sx={COMPACT_TAB}
                             {...a11yProps('material', 'requests')}
                         />
                         <Tab
@@ -137,14 +172,17 @@ const MaterialDashboardPage = () => {
                                 t('material.dashboard.tabs.assignment'),
                                 assignmentOpen,
                             )}
+                            sx={COMPACT_TAB}
                             {...a11yProps('material', 'assignment')}
                         />
                         <Tab
                             label={t('material.dashboard.tabs.damages')}
+                            sx={COMPACT_TAB}
                             {...a11yProps('material', 'damages')}
                         />
                         <Tab
                             label={t('material.dashboard.tabs.settings')}
+                            sx={COMPACT_TAB}
                             {...a11yProps('material', 'settings')}
                         />
                     </TabSelectionContainer>
@@ -154,6 +192,7 @@ const MaterialDashboardPage = () => {
                                 eventId={eventId}
                                 providerId={providerId}
                                 overview={overview}
+                                canWrite={canWrite}
                                 reload={reload}
                             />
                         </TabPanel>
@@ -163,6 +202,8 @@ const MaterialDashboardPage = () => {
                                 providerId={providerId}
                                 overview={overview}
                                 conflicts={conflicts}
+                                pending={pending}
+                                canWrite={canWrite}
                                 reload={reload}
                             />
                         </TabPanel>
@@ -171,6 +212,8 @@ const MaterialDashboardPage = () => {
                                 eventId={eventId}
                                 providerId={providerId}
                                 overview={overview}
+                                pending={pending}
+                                canWrite={canWrite}
                                 reloadOverview={reload}
                             />
                         </TabPanel>
@@ -179,6 +222,7 @@ const MaterialDashboardPage = () => {
                                 eventId={eventId}
                                 providerId={providerId}
                                 requestsClosed={overview.requestsClosed}
+                                canWrite={canWrite}
                                 reload={reload}
                             />
                         </TabPanel>

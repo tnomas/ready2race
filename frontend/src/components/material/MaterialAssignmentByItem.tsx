@@ -1,4 +1,3 @@
-import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {Card, Chip, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
@@ -9,6 +8,13 @@ import {
 } from '@api/types.gen.ts'
 import {EffectiveAssignment} from '@components/material/effectiveAssignments.ts'
 import {ConflictKind, MaterialConflict, severityOf} from '@components/material/conflicts.ts'
+import {
+    deviatesInMatch,
+    startNumberInMatch,
+    teamNumberOf,
+} from '@components/material/materialNumbers.ts'
+import {itemLabel} from '@components/material/materialWorkplace.ts'
+import {statusTextColor} from '../../theme/themeColors.ts'
 
 type Props = {
     items: MaterialOverviewItemDto[]
@@ -22,14 +28,19 @@ type Row = {
     matchId: string
     requestId: string
     startTime: string | null
+    /** Startnummer des Teams in genau diesem Lauf. */
+    startNumber?: number
+    /** Meldungsnummer – nur gezeigt, solange der Lauf keine Startnummer liefert. */
     teamNumber?: number
+    deviates: boolean
     clubName: string
     competitionIdentifier: string
 }
 
 /**
  * Zuteilung nach Materialstück: je Stück die Läufe, in denen es wirksam zugeteilt ist,
- * zeitlich sortiert. Läufe ohne Startzeit stehen hinten, sortiert nach Wettkampfkennung, damit
+ * zeitlich sortiert, mit der Startnummer des Teams in diesem Lauf und „abweichend", wenn das
+ * Stück sie nicht trägt (wie auf den Anzeigen). Läufe ohne Startzeit stehen hinten, sortiert nach Wettkampfkennung, damit
  * die Reihenfolge stabil bleibt - ohne jeden Zeitplan (alle startTime null) ergibt das
  * schlicht die Teams in dieser Reihenfolge.
  */
@@ -47,11 +58,17 @@ const MaterialAssignmentByItem = ({items, requests, matches, effective, conflict
                     .map(e => {
                         const match = matchesById.get(e.matchId)
                         const request = requestsById.get(e.requestId)
+                        const startNumber =
+                            match && request
+                                ? startNumberInMatch(match, request.competitionRegistration)
+                                : undefined
                         return {
                             matchId: e.matchId,
                             requestId: e.requestId,
                             startTime: match?.startTime ?? null,
-                            teamNumber: request ? startNumberOf(request) : undefined,
+                            startNumber,
+                            teamNumber: request ? teamNumberOf(request) : undefined,
+                            deviates: deviatesInMatch(e.itemIds, startNumber, items),
                             clubName: request?.clubName ?? '',
                             competitionIdentifier: request?.competitionIdentifier ?? '',
                         }
@@ -83,10 +100,7 @@ const MaterialAssignmentByItem = ({items, requests, matches, effective, conflict
                 return (
                     <Card key={item.id} sx={{p: 2, opacity: item.status === 'RETIRED' ? 0.5 : 1}}>
                         <Stack direction={'row'} spacing={1} alignItems={'center'} sx={{mb: 1}}>
-                            <Typography variant={'subtitle1'}>
-                                {item.label}
-                                {item.number != null ? ` #${item.number}` : ''}
-                            </Typography>
+                            <Typography variant={'subtitle1'}>{itemLabel(item)}</Typography>
                             <Typography variant={'body2'} color={'text.secondary'}>
                                 {item.materialTypeName}
                             </Typography>
@@ -112,10 +126,26 @@ const MaterialAssignmentByItem = ({items, requests, matches, effective, conflict
                                             {row.startTime != null
                                                 ? format(new Date(row.startTime), t('format.time'))
                                                 : '—'}
-                                            {' · #'}
-                                            {row.teamNumber ?? '–'} {row.clubName} ·{' '}
-                                            {row.competitionIdentifier}
+                                            {' · '}
+                                            {row.startNumber != null
+                                                ? `${t('material.number.start', {number: row.startNumber})} · `
+                                                : row.teamNumber != null
+                                                  ? `${t('material.number.team', {number: row.teamNumber})} · `
+                                                  : ''}
+                                            {row.clubName} · {row.competitionIdentifier}
                                         </Typography>
+                                        {row.deviates && (
+                                            <Chip
+                                                size={'small'}
+                                                color={'warning'}
+                                                variant={'outlined'}
+                                                label={t('material.assignment.deviatesInMatch')}
+                                                sx={{
+                                                    color: theme =>
+                                                        statusTextColor(theme, 'warning'),
+                                                }}
+                                            />
+                                        )}
                                         {conflictKindsFor(row.matchId).map(kind => (
                                             <Chip
                                                 key={kind}

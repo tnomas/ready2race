@@ -44,8 +44,8 @@ export const validateMaterialProviderSearch = (
 
 /**
  * Der Reiter, der gezeigt wird: der angefragte, wenn er bekannt ist, sonst der erste. Alle Reiter
- * sind für jede Person sichtbar, die das Dashboard überhaupt betreten darf (READ MATERIAL); die
- * Schreibrechte prüft das Backend je Aktion.
+ * sind für jede Person sichtbar, die das Dashboard überhaupt betreten darf (READ MATERIAL); was
+ * darin schreibt, hängt an `mayWriteMaterial`.
  */
 export const resolveMaterialTab = (requested: unknown): MaterialTab =>
     isMaterialTab(requested) ? requested : MATERIAL_TABS[0]
@@ -60,6 +60,32 @@ export const effectiveProviderId = (opts: {
     searchProvider: string | undefined
 }): string | undefined =>
     opts.ownProviderId ?? (opts.mayReadGlobal ? opts.searchProvider : undefined)
+
+/**
+ * Ob das Konto beim gezeigten Anbieter schreiben darf (entscheiden, zuteilen, Schäden, Vergabe,
+ * Angebote, Flotte) – dieselbe Regel wie im Backend: UPDATE MATERIAL GLOBAL bei jedem Anbieter,
+ * UPDATE MATERIAL OWN nur beim eigenen. Ohne Schreibrecht bleibt die Seite eine reine Ansicht,
+ * statt Knöpfe zu zeigen, die mit 403 enden.
+ */
+export const mayWriteMaterial = (opts: {
+    mayUpdateGlobal: boolean
+    mayUpdateOwn: boolean
+    ownProviderId: string | undefined
+    providerId: string | undefined
+}): boolean =>
+    opts.providerId !== undefined &&
+    (opts.mayUpdateGlobal || (opts.mayUpdateOwn && opts.ownProviderId === opts.providerId))
+
+/**
+ * Ob der Seitenkopf den gewählten Anbieter samt „wechseln" zeigt: nur für Konten, die ohne eigene
+ * Zuordnung über `?provider=` einen Anbieter gewählt haben. Der eigene Anbieter wechselt nie.
+ */
+export const showsProviderSwitch = (opts: {
+    ownProviderId: string | undefined
+    mayReadGlobal: boolean
+    searchProvider: string | undefined
+}): boolean =>
+    opts.ownProviderId === undefined && opts.mayReadGlobal && opts.searchProvider !== undefined
 
 /**
  * Ob der Seitenleisten-Eintrag „Material" (Arbeitsplatz des Anbieters) aktiv ist: auf

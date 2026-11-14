@@ -5060,7 +5060,6 @@
     },
     "item": {
       "item": "Materielstykke",
-      "items": "Materielstykker",
       "number": "Nummer",
       "label": "Betegnelse",
       "type": "Materieltype",
@@ -5096,9 +5095,10 @@
         "damages": "Skader",
         "settings": "Indstillinger"
       },
-      "comingSoon": "Udfyldes i en senere opgave.",
       "chooseProvider": "Vælg først en udlejer.",
-      "subtitle": "Forespørgsler, tildeling og skader for dette arrangement"
+      "subtitle": "Forespørgsler, tildeling og skader for dette arrangement",
+      "providerShown": "Udlejer: {{name}}",
+      "switchProvider": "Skift udlejer"
     },
     "offer": {
       "offer": "Tilbud",
@@ -5106,11 +5106,9 @@
       "type": "Materieltype",
       "priceText": "Prisangivelse",
       "plannedCount": "Planlagt antal",
-      "changeoverMinutes": "Skiftetid (minutter)",
-      "add": "Tilføj tilbud"
+      "changeoverMinutes": "Skiftetid (minutter)"
     },
     "demand": {
-      "demand": "Behov",
       "count": "Antal",
       "add": "Tilføj materieltype",
       "none": "Intet behov angivet.",
@@ -5193,7 +5191,13 @@
       "noneOpen": "Ingen åbne forespørgsler – alt er afgjort.",
       "selectForBulk": "Medtag forespørgsel fra {{club}} i samlet bekræftelse",
       "summaryShort": "{{confirmed}} af {{planned}} bekræftet · {{requested}} åbne · {{waitlisted}} venteliste",
-      "capacityTitle": "Belægning pr. tilbud"
+      "capacityTitle": "Belægning pr. tilbud",
+      "overCapacity": {
+        "title": "Bekræft ud over det planlagte antal?",
+        "line": "{{type}}: derefter {{after}} bekræftet ved {{planned}} planlagte ({{over}} flere end planlagt)",
+        "hint": "Bekræftede forespørgsler er bindende for klubben. Bekræft kun, hvis der er nok materiel – ellers fravælg enkelte forespørgsler eller sæt dem på ventelisten.",
+        "ok": "Bekræft alligevel"
+      }
     },
     "decision": {
       "title": {
@@ -5211,16 +5215,10 @@
     "assignment": {
       "viewByTeam": "Efter hold",
       "viewByItem": "Efter materielstykke",
-      "assignByStartNumber": "Tildel efter startnummer",
-      "assignByStartNumberNone": "Ingen matchende forslag fundet.",
-      "assignByStartNumberSuccess_one": "{{count}} tildeling efter startnummer overført",
-      "assignByStartNumberSuccess_other": "{{count}} tildelinger efter startnummer overført",
-      "assignByStartNumberError_one": "{{count}} tildeling kunne ikke overføres",
-      "assignByStartNumberError_other": "{{count}} tildelinger kunne ikke overføres",
       "noRequests": "Endnu ingen bekræftede forespørgsler.",
       "addItem": "Tilføj stykke",
       "exception": "Undtagelse pr. løb",
-      "deviates": "afviger fra startnummer",
+      "deviates": "afviger fra tilmeldingsnummer",
       "success": "Tildeling gemt",
       "error": "Tildeling kunne ikke gemmes",
       "exceptionDialog": {
@@ -5245,7 +5243,18 @@
       "noRequestsHint": "Bekræftede forespørgsler vises her og får en enhed fra flåden.",
       "removeItem": "Fjern {{item}}",
       "workDone": "Alle bekræftede forespørgsler har en enhed, ingen konflikter.",
-      "workSummary": "Åbent: {{unassigned}} uden enhed, {{conflicts}} med konflikt."
+      "workSummary": "Åbent: {{unassigned}} uden enhed, {{conflicts}} med konflikt.",
+      "assignByTeamNumber": "Tildel efter tilmeldingsnummer",
+      "assignByTeamNumberNone": "Ingen passende forslag: Intet ledigt stykke bærer tilmeldingsnummeret for et hold uden tildeling.",
+      "assignByTeamNumberSuccess_one": "{{count}} tildeling efter tilmeldingsnummer overført",
+      "assignByTeamNumberSuccess_other": "{{count}} tildelinger efter tilmeldingsnummer overført",
+      "assignByTeamNumberError_one": "{{count}} tildeling kunne ikke overføres",
+      "assignByTeamNumberError_other": "{{count}} tildelinger kunne ikke overføres",
+      "deviatesInMatch": "startnummer afviger",
+      "withoutNumberMatch": "uden nummerlighed",
+      "withoutNumberMatchHint": "Intet aktivt stykke i egen flåde bærer dette holds tilmeldingsnummer. Tildel et stykke med et andet nummer – visningerne markerer det så som afvigende.",
+      "withoutNumberMatchSummary_one": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer dets tilmeldingsnummer.",
+      "withoutNumberMatchSummary_other": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer deres tilmeldingsnummer."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5280,7 +5289,7 @@
         "title": "Berørte løb",
         "none": "Ingen berørte løb.",
         "replacement": "Erstatningsstykke",
-        "sameNumber": "Nummer passer",
+        "sameNumber": "bærer startnummeret",
         "later": "Senere",
         "save": "Overfør",
         "success": "Erstatning gemt",
@@ -5303,7 +5312,14 @@
       "outOfServiceOpen": "ude af drift fra {{from}}",
       "outOfServiceRange": "ude af drift {{from}} – {{until}}",
       "scopeHint": "Her vises skader, der er meldt i arrangementets dage eller tilknyttet en tilmelding til dette arrangement.",
-      "photoInvalidType": "Kun billeder (fx JPEG, PNG) kan uploades som foto."
+      "photoInvalidType": "Kun billeder (fx JPEG, PNG) kan uploades som foto.",
+      "photoProgress": "Billeder formindskes: {{done}} af {{total}}",
+      "photosRejected": "Ikke uploadet: {{list}}",
+      "photoReject": {
+        "notImage": "ikke et billede",
+        "tooLarge": "større end 10 MB",
+        "tooMany": "mere end 20 billeder ad gangen"
+      }
     },
     "severity": {
       "MINOR": "let",
@@ -5326,6 +5342,10 @@
       "requestNotConfirmed": "Forespørgslen er ikke (længere) bekræftet – kun bekræftede forespørgsler kan tildeles. Oversigten er genindlæst.",
       "matchNotOfRegistration": "Holdet starter ikke (længere) i dette heat; runden er sandsynligvis sat igen. Oversigten er genindlæst.",
       "invalidOutageWindow": "Afslutningen af udfaldet ligger før starten."
+    },
+    "number": {
+      "team": "Tilmeldingsnr. {{number}}",
+      "start": "Startnr. {{number}}"
     }
   }
 }

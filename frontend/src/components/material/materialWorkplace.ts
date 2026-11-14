@@ -4,7 +4,7 @@ import {
     MaterialOverviewRequestDto,
     MaterialRequestStatus,
 } from '@api/types.gen.ts'
-import {deviatesFromStartNumber, startNumberOf} from './assignByStartNumber.ts'
+import {deviatesFromTeamNumber, teamNumberOf} from './materialNumbers.ts'
 import {MaterialConflict} from './conflicts.ts'
 
 /**
@@ -132,15 +132,16 @@ export const exceptionCountOf = (
 ): number => request.assignments.filter(a => a.competitionMatch != null).length
 
 /**
- * Stand einer bestätigten Anfrage: noch kein Stück (Arbeit), Stück mit anderer Nummer als die
- * Startnummer (zu beachten, aber zulässig) oder zugeteilt (Regelfall).
+ * Stand einer bestätigten Anfrage: noch kein Stück (Arbeit), Grundzuteilung mit anderer Nummer als
+ * die Meldungsnummer (zu beachten, aber zulässig) oder zugeteilt (Regelfall). Abweichungen von der
+ * Startnummer einzelner Läufe zählt `deviatingMatchCount`.
  */
 export const assignmentState = (
     request: MaterialOverviewRequestDto,
     items: MaterialOverviewItemDto[],
 ): AssignmentState => {
     if (baseItemIdsOf(request).length === 0) return 'unassigned'
-    return deviatesFromStartNumber(request, items) ? 'deviates' : 'assigned'
+    return deviatesFromTeamNumber(request, items) ? 'deviates' : 'assigned'
 }
 
 const conflictCountOf = (requestId: string, conflicts: readonly MaterialConflict[]) =>
@@ -148,7 +149,7 @@ const conflictCountOf = (requestId: string, conflicts: readonly MaterialConflict
 
 /**
  * Die Zeilen der Einteilung nach Team: nur bestätigte Anfragen; zuerst ohne Stück, dann mit
- * Konflikt, dann der Rest; innerhalb nach Wettkampfkennung und Startnummer.
+ * Konflikt, dann der Rest; innerhalb nach Wettkampfkennung und Meldungsnummer.
  */
 export const assignmentRowsForWork = (
     requests: readonly MaterialOverviewRequestDto[],
@@ -164,8 +165,8 @@ export const assignmentRowsForWork = (
                 a.competitionIdentifier.localeCompare(b.competitionIdentifier, undefined, {
                     numeric: true,
                 }) ||
-                (startNumberOf(a) ?? Number.MAX_SAFE_INTEGER) -
-                    (startNumberOf(b) ?? Number.MAX_SAFE_INTEGER),
+                (teamNumberOf(a) ?? Number.MAX_SAFE_INTEGER) -
+                    (teamNumberOf(b) ?? Number.MAX_SAFE_INTEGER),
         )
 }
 
