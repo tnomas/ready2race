@@ -1114,39 +1114,42 @@ group by ifer.event;
 
 -- Wirksames Materialstück je Lauf-Team: Ausnahme je Lauf schlägt die Grundzuteilung. Nur bestätigte Anfragen,
 -- nur Kategorie BOAT erreicht die Anzeigen (Spec Abschnitt 11); OTHER bleibt Mein Event und Dashboard vorbehalten.
--- Ein Wettkampf darf zwei BOAT-Bedarfe tragen (competition_properties_has_material_type hat den
--- Primärschlüssel (properties, type), setRequestsForRegistration verbietet nur zwei Anfragen
--- derselben Art, nicht derselben Kategorie) - dann liefert der Join unten zwei bestätigte
--- BOAT-Anfragen je Lauf-Team. `distinct on (cmt.id)` zwingt die Sicht auf eine Zeile je Lauf-Team
--- (Spec Abschnitt 11): zuerst eine Ausnahme fürs Team in diesem Lauf, sonst eine Grundzuteilung,
--- bei mehreren Kandidaten deterministisch die kleinste Stücknummer.
+-- Die Regel steht nur hier: Je Lauf-Team wählt ein Lateral-Unterabfrage über ALLE bestätigten
+-- BOAT-Anfragen seiner Meldung genau ein Stück - zuerst eine Ausnahme fürs Team in diesem Lauf,
+-- sonst eine Grundzuteilung; bei mehreren Kandidaten (zwei Grundzuteilungen bei Menge 2 oder
+-- "weiteres Stück", zwei Ausnahmen im selben Lauf, zwei BOAT-Bedarfe am Wettkampf) die kleinste
+-- Stücknummer, Stücke ohne Nummer zuletzt, dann die Zuteilungs-ID - damit deterministisch.
+-- Bewusst ohne `distinct on` und ohne äußeres `order by`: So bleibt die Sicht eine einfache Join-
+-- Abfrage, die Postgres in jede Anzeige-Abfrage hineinzieht, und die Bedingung auf das Lauf-Team
+-- (`emf.competition_match_team = cmt.id`) wirkt vor der Lateral-Unterabfrage statt nach einer
+-- Auswertung über alle Lauf-Teams aller Veranstaltungen.
 -- Die Abweichung vergleicht mit der Startnummer DIESES Laufs (competition_match_team.start_number),
 -- derselben Zahl, die jede Anzeige neben dem Boot zeigt - nicht mit der Meldungsnummer
 -- (competition_registration.team_number), die nur die Setzliste der ersten Runde ordnet und von
 -- der Startnummer im Lauf abweichen kann (Setzposition im Lauf, Rang in Folgerunden).
 create view effective_material_for_match_team as
-select distinct on (cmt.id)
-       cmt.id                                               as competition_match_team,
-       mi.id                                                as material_item,
-       mi.number,
-       mi.label,
-       mt.category,
-       (mi.number is null or mi.number <> cmt.start_number) as deviates_from_start_number
+select cmt.id                                                       as competition_match_team,
+       chosen.material_item,
+       chosen.number,
+       chosen.label,
+       chosen.category,
+       (chosen.number is null or chosen.number <> cmt.start_number) as deviates_from_start_number
 from competition_match_team cmt
-         join competition_registration cr on cr.id = cmt.competition_registration
-         join material_request mr on mr.competition_registration = cr.id and mr.status = 'CONFIRMED'
-         join material_offer mo on mo.id = mr.material_offer
-         join material_type mt on mt.id = mo.material_type and mt.category = 'BOAT'
          join lateral (
-    select ma.material_item, ma.competition_match
-    from material_assignment ma
-    where ma.material_request = mr.id
-      and (ma.competition_match = cmt.competition_match or ma.competition_match is null)
-    order by (ma.competition_match is null)     -- Ausnahme (false) vor Grundzuteilung (true)
+    select mi.id as material_item, mi.number, mi.label, mt.category
+    from material_request mr
+             join material_offer mo on mo.id = mr.material_offer
+             join material_type mt on mt.id = mo.material_type and mt.category = 'BOAT'
+             join material_assignment ma on ma.material_request = mr.id
+        and (ma.competition_match = cmt.competition_match or ma.competition_match is null)
+             join material_item mi on mi.id = ma.material_item
+    where mr.competition_registration = cmt.competition_registration
+      and mr.status = 'CONFIRMED'
+    order by (ma.competition_match is null), -- Ausnahme (false) vor Grundzuteilung (true)
+             mi.number nulls last,
+             ma.id
     limit 1
-    ) chosen on true
-         join material_item mi on mi.id = chosen.material_item
-order by cmt.id, (chosen.competition_match is null), mi.number;
+    ) chosen on true;
 
 create view startlist_team as
 select cmt.competition_match,
