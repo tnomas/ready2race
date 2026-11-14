@@ -18,13 +18,18 @@
 -- - Ein eigener Wettkampf "M1 Materialtest" (CM 4x+ MT) in der DM-Veranstaltung mit Vorlauf (zwei
 --   Laeufe) und Finale, alle Laeufe angelegt, Zeiten relativ zum Einspielzeitpunkt:
 --     Vorlauf 1 laeuft seit zwei Minuten, Vorlauf 2 startet in 20 Minuten, Finale in 90 Minuten.
---   Vier Boote (DM-Verein 1-4). Was die Anzeigen zeigen:
---     MT 1 (Verein 1): bestaetigt, Grundzuteilung Boot 7 - Abweichung (#1 bzw. #1 im Finale).
---     MT 2 (Verein 2): bestaetigt, Grundzuteilung "Vierer 2" - Nummer = Startnummer 2, keine
---       Abweichung.
---     MT 3 (Verein 3): bestaetigt, Grundzuteilung Boot 6 (Totalschaden) und Ersatz Boot 8 als
---       Ausnahme fuer Vorlauf 2 - dort "#1 · Boot 8", im Finale "#3 · Boot 6".
---     MT 4 (Verein 4): eigenes Boot; offene Anfrage beim zweiten Anbieter (fuer F1).
+--   Vier Boote (DM-Verein 1-4). Die Veranstaltung gilt als mit "Meldungsnummern nach
+--   Bootsnummern vergeben" fixiert (event.team_numbers_as_start_numbers = true, ADR-0111): Die
+--   Startnummer in jedem Lauf ist die Meldungsnummer. Was die Anzeigen zeigen:
+--     MT 1 (Verein 1, Meldungsnr. 7): bestaetigt, Grundzuteilung Boot 7 - "#7 · Boot 7" in
+--       Vorlauf 1 und Finale, keine Abweichung (der neue Normalfall).
+--     MT 2 (Verein 2, Meldungsnr. 3): bestaetigt, Grundzuteilung "Vierer 2" - ein Stueck mit
+--       anderer Nummer (ueberzaehliges Mietteam, "ohne Nummerngleichheit"): "#3 · Vierer 2"
+--       abweichend in Vorlauf 1 und Finale.
+--     MT 3 (Verein 3, Meldungsnr. 6): bestaetigt, Grundzuteilung Boot 6 (Totalschaden) und
+--       Ersatz Boot 8 als Ausnahme fuer Vorlauf 2 - dort "#6 · Boot 8" abweichend, im Finale
+--       "#6 · Boot 6" ohne Abweichung (der Ausfall ist ein Konflikt im Anbieter-Dashboard).
+--     MT 4 (Verein 4, Meldungsnr. 1): eigenes Boot; offene Anfrage beim zweiten Anbieter (F1).
 --   Ein Board (zwei Listen, Material immer zeigen), eine Stream-Szene (Startliste/Naechstes Rennen
 --   mit Material) und ein QR-Code "MATERIAL-MEINEVENT-1" fuer Mein Event (Person in MT 1).
 -- - Ein Wettkampf "M2 Anmeldetest" (CF 2x AT, Bedarf C2x und Skull-Paar) ohne Laeufe, mit zwei
@@ -36,14 +41,22 @@
 --   rueckt in der Hervorhebung nach (B5).
 -- - Ein Wettkampf "M3 Kein Angebot" (Bedarf "Gig-Vierer", den kein Anbieter anbietet) mit
 --   Meldeplaetzen - das Formular zeigt nur "eigenes Boot mitbringen" (A3).
+-- - Ein Wettkampf "M4 Rundentest" (CM 4x+ RT) mit Setup Vorlauf (2 Laeufe a 2) -> Finale (4),
+--   aber OHNE Laeufe und ohne Meldungsnummern: zum Durchspielen von Fixieren (mit Schalter) ->
+--   Runde anlegen -> Vorlauf werten -> Finale anlegen. DM-Verein 1 und 2 haben je ein bestaetigtes
+--   Boot bei Ruderwerft Sued mit Grundzuteilung (Sued 21, Sued 22), Verein 3 und 4 eigene Boote.
+--   Erwartung nach dem Fixieren mit Schalter: Meldungsnr. 21/22 fuer die Mietteams, 1/2 fuer die
+--   eigenen Boote; Runde anlegen setzt #1 und #22 in Vorlauf 1, #2 und #21 in Vorlauf 2 - jede
+--   Startnummer = Meldungsnummer, kein "abweichend". Keine Meldeplaetze: erscheint nicht im
+--   Meldeformular (Block A bleibt unberuehrt).
 -- - Ausgangszustand der Fixierung: Der Cleanup loescht den Meldebericht der DM-Veranstaltung
 --   (event_registration_report - der DM-Seed legt keinen an; ein Testlauf von "Fixieren" schon,
 --   danach zeigt die Meldeseite "refinalisieren"). Die Meldungsnummern der Seed-Meldungen setzt der
 --   Seed neu; die der DM-Seed-Meldungen (Wettkaempfe 1-3) stellt nur der DM-Seed wieder her.
 -- - Ein Vereinsvertreter-Konto des DM-Vereins 1; die Meldefrist der DM-Veranstaltung wird dafuer
 --   offen gestellt (gestern bis in 14 Tagen) - Anfrage/Rueckzug im Meldeformular (Block A).
---   ACHTUNG: das veraendert eine Zeile des DM-Seeds (event.registration_available_*); der Cleanup
---   setzt sie nicht zurueck.
+--   ACHTUNG: das veraendert eine Zeile des DM-Seeds (event.registration_available_* und
+--   event.team_numbers_as_start_numbers = true); der Cleanup setzt sie nicht zurueck.
 --
 -- Konten (Passwort bei allen dreien "material123"):
 --   material@test.de       Bootshaus Nord   USER + Materialanbieter
@@ -111,6 +124,7 @@ delete from event_schedule_slot where id::text like '5eed0009%';
 delete from competition_match_team where id::text like '5eed0009%' or competition_registration::text like '5eed0009%';
 delete from competition_match where competition_setup_match::text like '5eed0009%';
 delete from competition_registration_named_participant where competition_registration::text like '5eed0009%';
+delete from competition_setup_participant where id::text like '5eed0009%' or competition_setup_match::text like '5eed0009%';
 -- Auch Meldungen, die Handtests in den Seed-Wettkaempfen ueber das Formular angelegt haben
 -- (zufaellige IDs) - sonst scheitert das Loeschen der Wettkaempfe am Fremdschluessel.
 delete from competition_registration where id::text like '5eed0009%' or competition::text like '5eed0009%';
@@ -286,13 +300,16 @@ on conflict do nothing;
 update event
 set registration_available_from = now() - interval '1 day',
     registration_available_to   = now() + interval '14 days',
+    -- Wie nach einer Fixierung mit "Meldungsnummern nach Bootsnummern vergeben" (ADR-0111): die
+    -- Rundenanlage uebernimmt die Meldungsnummer als Startnummer.
+    team_numbers_as_start_numbers = true,
     updated_at                  = now()
 where id = '5eed0001-0000-0000-0000-000000000001';
 
 insert into material_item (id, material_provider, material_type, number, label, note, status,
                             created_at, created_by, updated_at, updated_by)
 values
-    -- Bootshaus Nord: ein C4x+ mit Nummer 2 - passt zur Startnummer 2 von MT 2 (kein Hinweis).
+    -- Bootshaus Nord: ein C4x+ mit Nummer 2 - MT 2 (#3) fährt es als Stück mit anderer Nummer.
     ('5eed0009-0004-0000-0000-000000000009', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000003', 2, 'Vierer 2', null, 'ACTIVE', now(), null, now(), null),
     -- Ruderwerft Süd: zwei eigene C4x+ - darf Bootshaus Nord nie sehen.
     ('5eed0009-0004-0000-0000-000000000021', '5eed0009-0001-0000-0000-000000000002', '5eed0009-0003-0000-0000-000000000003', 21, 'Süd 21', null, 'ACTIVE', now(), null, now(), null),
@@ -306,7 +323,8 @@ on conflict (event, material_provider) do nothing;
 
 insert into material_offer (id, event, material_provider, material_type, price_text,
                              planned_count, changeover_minutes, created_at, created_by, updated_at, updated_by)
-values ('5eed0009-0005-0000-0000-000000000005', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000002', '5eed0009-0003-0000-0000-000000000003', '80 € pro Tag', 2, 20, now(), null, now(), null)
+-- Plant 3: MT 4 (angefragt) und die zwei bestaetigten Boote im Wettkampf M4 Rundentest.
+values ('5eed0009-0005-0000-0000-000000000005', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000002', '5eed0009-0003-0000-0000-000000000003', '80 € pro Tag', 3, 20, now(), null, now(), null)
 on conflict (event, material_provider, material_type) do nothing;
 
 -- =========================================================================================
@@ -358,13 +376,13 @@ insert into competition_registration (id, event_registration, competition, club,
                                        created_at, created_by, updated_at, updated_by)
 values
     ('5eed0009-0020-0000-0000-000000000001', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000001',
-     '5eed0002-0000-0000-0000-000000000001', 'MT 1', 1, now(), null, now(), null),
+     '5eed0002-0000-0000-0000-000000000001', 'MT 1', 7, now(), null, now(), null),
     ('5eed0009-0020-0000-0000-000000000002', '5eed000a-0000-0000-0000-000000000002', '5eed0009-0010-0000-0000-000000000001',
-     '5eed0002-0000-0000-0000-000000000002', 'MT 2', 2, now(), null, now(), null),
+     '5eed0002-0000-0000-0000-000000000002', 'MT 2', 3, now(), null, now(), null),
     ('5eed0009-0020-0000-0000-000000000003', '5eed000a-0000-0000-0000-000000000003', '5eed0009-0010-0000-0000-000000000001',
-     '5eed0002-0000-0000-0000-000000000003', 'MT 3', 3, now(), null, now(), null),
+     '5eed0002-0000-0000-0000-000000000003', 'MT 3', 6, now(), null, now(), null),
     ('5eed0009-0020-0000-0000-000000000004', '5eed000a-0000-0000-0000-000000000004', '5eed0009-0010-0000-0000-000000000001',
-     '5eed0002-0000-0000-0000-000000000004', 'MT 4', 4, now(), null, now(), null);
+     '5eed0002-0000-0000-0000-000000000004', 'MT 4', 1, now(), null, now(), null);
 
 insert into participant (id, club, firstname, lastname, year, gender, external, external_club_name,
                           created_at, created_by, updated_at, updated_by)
@@ -394,18 +412,19 @@ values ('5eed0009-0014-0000-0000-000000000001', date_trunc('minute', now()) - in
        ('5eed0009-0014-0000-0000-000000000003', date_trunc('minute', now()) + interval '90 minutes',
         null, null, null, now(), null, now(), null);
 
--- Startnummer = Setzposition im Lauf: im Vorlauf 2 startet MT 3 als #1, im Finale als #3.
+-- Startnummer = Meldungsnummer in jedem Lauf (Schalter an der Veranstaltung, ADR-0111): MT 1 #7,
+-- MT 2 #3, MT 3 #6, MT 4 #1 - in Vorlauf und Finale dieselbe Zahl.
 insert into competition_match_team (id, competition_match, competition_registration, start_number,
                                      place, out, failed, started_at, created_at, created_by, updated_at, updated_by)
 values
-    ('5eed0009-0015-0000-0000-000000000001', '5eed0009-0014-0000-0000-000000000001', '5eed0009-0020-0000-0000-000000000001', 1, null, false, false, now() - interval '2 minutes', now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000002', '5eed0009-0014-0000-0000-000000000001', '5eed0009-0020-0000-0000-000000000002', 2, null, false, false, now() - interval '2 minutes', now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000003', '5eed0009-0014-0000-0000-000000000002', '5eed0009-0020-0000-0000-000000000003', 1, null, false, false, null, now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000004', '5eed0009-0014-0000-0000-000000000002', '5eed0009-0020-0000-0000-000000000004', 2, null, false, false, null, now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000005', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000001', 1, null, false, false, null, now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000006', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000002', 2, null, false, false, null, now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000007', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000003', 3, null, false, false, null, now(), null, now(), null),
-    ('5eed0009-0015-0000-0000-000000000008', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000004', 4, null, false, false, null, now(), null, now(), null);
+    ('5eed0009-0015-0000-0000-000000000001', '5eed0009-0014-0000-0000-000000000001', '5eed0009-0020-0000-0000-000000000001', 7, null, false, false, now() - interval '2 minutes', now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000002', '5eed0009-0014-0000-0000-000000000001', '5eed0009-0020-0000-0000-000000000002', 3, null, false, false, now() - interval '2 minutes', now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000003', '5eed0009-0014-0000-0000-000000000002', '5eed0009-0020-0000-0000-000000000003', 6, null, false, false, null, now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000004', '5eed0009-0014-0000-0000-000000000002', '5eed0009-0020-0000-0000-000000000004', 1, null, false, false, null, now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000005', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000001', 7, null, false, false, null, now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000006', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000002', 3, null, false, false, null, now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000007', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000003', 6, null, false, false, null, now(), null, now(), null),
+    ('5eed0009-0015-0000-0000-000000000008', '5eed0009-0014-0000-0000-000000000003', '5eed0009-0020-0000-0000-000000000004', 1, null, false, false, null, now(), null, now(), null);
 
 insert into event_schedule_slot (id, event, start_time, competition_setup_match, name, duration_minutes,
                                   created_at, created_by, updated_at, updated_by)
@@ -432,9 +451,9 @@ on conflict (competition_registration, material_offer) do nothing;
 insert into material_assignment (id, material_request, material_item, competition_match,
                                   created_at, created_by, updated_at, updated_by)
 values
-    -- MT 1: Boot 7 für alle Läufe - Abweichung von der Startnummer 1.
+    -- MT 1: Boot 7 für alle Läufe - trägt die Startnummer 7, keine Abweichung.
     ('5eed0009-0007-0000-0000-000000000011', '5eed0009-0006-0000-0000-000000000011', '5eed0009-0004-0000-0000-000000000007', null, now(), null, now(), null),
-    -- MT 2: "Vierer 2" - Nummer 2 = Startnummer 2 in Vorlauf 1 und Finale.
+    -- MT 2: "Vierer 2" - Stück mit anderer Nummer als die Startnummer 3: echte Abweichung.
     ('5eed0009-0007-0000-0000-000000000012', '5eed0009-0006-0000-0000-000000000012', '5eed0009-0004-0000-0000-000000000009', null, now(), null, now(), null),
     -- MT 3: Grundzuteilung Boot 6 (Totalschaden, Ausfall offen) ...
     ('5eed0009-0007-0000-0000-000000000013', '5eed0009-0006-0000-0000-000000000013', '5eed0009-0004-0000-0000-000000000006', null, now(), null, now(), null),
@@ -533,6 +552,81 @@ values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0012-0000-0000-0000000
 
 insert into competition_properties_has_material_type (competition_properties, material_type, count)
 values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0003-0000-0000-000000000005', 1);
+
+-- =========================================================================================
+-- Wettkampf "M4 Rundentest": Setup Vorlauf (2 x 2) -> Finale (4), KEINE Laeufe, keine
+-- Meldungsnummern - fuer Fixieren mit Schalter -> Runde anlegen von Hand (Testkatalog Block G).
+-- Ohne Meldeplaetze, damit er nicht im Meldeformular erscheint.
+-- =========================================================================================
+
+insert into competition (id, event, created_at, created_by, updated_at, updated_by)
+values ('5eed0009-0010-0000-0000-000000000004', '5eed0001-0000-0000-0000-000000000001', now(), null, now(), null);
+
+insert into event_day_has_competition (event_day, competition, created_at, created_by)
+values ('5eed0001-0001-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000004', now(), null);
+
+insert into competition_properties (id, competition, competition_template, identifier, name, short_name,
+                                     description, competition_category)
+values ('5eed0009-0011-0000-0000-000000000004', '5eed0009-0010-0000-0000-000000000004', null,
+        'M4', 'Männer-Doppelvierer Rundentest', 'CM 4x+ RT', 'Seed der Materialvermietung (Runde anlegen)', null);
+
+insert into competition_properties_has_material_type (competition_properties, material_type, count)
+values ('5eed0009-0011-0000-0000-000000000004', '5eed0009-0003-0000-0000-000000000003', 1);
+
+insert into competition_setup (competition_properties, created_at, created_by, updated_at, updated_by)
+values ('5eed0009-0011-0000-0000-000000000004', now(), null, now(), null);
+
+insert into competition_setup_round (id, competition_setup, competition_setup_template, next_round, name,
+                                      required, use_default_seeding, places_option, is_qualification)
+values ('5eed0009-0013-0000-0000-000000000004', '5eed0009-0011-0000-0000-000000000004', null,
+        null, 'Finale', true, true, 'EQUAL', false);
+
+insert into competition_setup_round (id, competition_setup, competition_setup_template, next_round, name,
+                                      required, use_default_seeding, places_option, is_qualification)
+values ('5eed0009-0013-0000-0000-000000000003', '5eed0009-0011-0000-0000-000000000004', null,
+        '5eed0009-0013-0000-0000-000000000004', 'Vorlauf', true, true, 'ASCENDING', true);
+
+insert into competition_setup_match (id, competition_setup_round, competition_setup_group, weighting,
+                                      teams, name, execution_order, start_time_offset)
+values ('5eed0009-0014-0000-0000-000000000004', '5eed0009-0013-0000-0000-000000000003', null, 1, 2, 'Vorlauf 1', 1, null),
+       ('5eed0009-0014-0000-0000-000000000005', '5eed0009-0013-0000-0000-000000000003', null, 2, 2, 'Vorlauf 2', 2, null),
+       ('5eed0009-0014-0000-0000-000000000006', '5eed0009-0013-0000-0000-000000000004', null, 1, 4, 'Finale', 1, null);
+
+-- Alle vier Vorlauf-Boote erreichen das Finale (Setzung 1-4, Rang = Setzung).
+insert into competition_setup_participant (id, competition_setup_match, seed, ranking)
+select ('5eed0009-0017-0000-0000-00000000000' || n)::uuid, '5eed0009-0014-0000-0000-000000000006', n, n
+from generate_series(1, 4) as n;
+
+-- Ohne Meldungsnummer: die vergibt erst die Fixierung (mit Schalter 21/22 fuer die Mietteams).
+insert into competition_registration (id, event_registration, competition, club, name, team_number,
+                                       created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0020-0000-0000-000000000009', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000004',
+     '5eed0002-0000-0000-0000-000000000001', null, null, now(), null, now(), null),
+    ('5eed0009-0020-0000-0000-00000000000a', '5eed000a-0000-0000-0000-000000000002', '5eed0009-0010-0000-0000-000000000004',
+     '5eed0002-0000-0000-0000-000000000002', null, null, now(), null, now(), null),
+    ('5eed0009-0020-0000-0000-00000000000b', '5eed000a-0000-0000-0000-000000000003', '5eed0009-0010-0000-0000-000000000004',
+     '5eed0002-0000-0000-0000-000000000003', null, null, now(), null, now(), null),
+    ('5eed0009-0020-0000-0000-00000000000c', '5eed000a-0000-0000-0000-000000000004', '5eed0009-0010-0000-0000-000000000004',
+     '5eed0002-0000-0000-0000-000000000004', null, null, now(), null, now(), null);
+
+-- DM-Verein 1 und 2: je ein bestaetigtes Boot bei Ruderwerft Sued mit Grundzuteilung - die
+-- Fixierung mit Schalter gibt ihnen die Bootsnummer (21/22) als Meldungsnummer.
+insert into material_request (id, competition_registration, material_offer, count, status,
+                               decision_note, requested_at, decided_at, created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0006-0000-0000-000000000019', '5eed0009-0020-0000-0000-000000000009', '5eed0009-0005-0000-0000-000000000005', 1, 'CONFIRMED',
+     null, now() - interval '4 days', now() - interval '3 days', now(), null, now(), null),
+    ('5eed0009-0006-0000-0000-00000000001a', '5eed0009-0020-0000-0000-00000000000a', '5eed0009-0005-0000-0000-000000000005', 1, 'CONFIRMED',
+     null, now() - interval '4 days', now() - interval '3 days', now(), null, now(), null)
+on conflict (competition_registration, material_offer) do nothing;
+
+insert into material_assignment (id, material_request, material_item, competition_match,
+                                  created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0007-0000-0000-000000000019', '5eed0009-0006-0000-0000-000000000019', '5eed0009-0004-0000-0000-000000000021', null, now(), null, now(), null),
+    ('5eed0009-0007-0000-0000-00000000001a', '5eed0009-0006-0000-0000-00000000001a', '5eed0009-0004-0000-0000-000000000022', null, now(), null, now(), null)
+on conflict (material_request, material_item, competition_match) do nothing;
 
 -- =========================================================================================
 -- Anzeigen: Board, Stream-Szene, Mein-Event-Zugang
