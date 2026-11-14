@@ -3112,7 +3112,7 @@
       "providers": "Materieludbydere",
       "invite": "Inviter udbyder",
       "uninvite": "Fjern invitation",
-      "uninviteConfirm": "Udbyderen fjernes fra invitationen, og deres tilbud fjernes. Fortsæt?",
+      "uninviteConfirm": "Udlejeren fjernes fra arrangementet, og dens tilbud til dette arrangement bortfalder. Det er kun muligt, så længe ingen klub har sendt den en forespørgsel.",
       "closed": "Lukket",
       "none": "Ingen udbyder inviteret.",
       "inviteNeedsMaterialRead": "Invitation kræver ret til at læse udlejere.",
@@ -3120,7 +3120,8 @@
       "description": "Inviterede udbydere opretter tilbud; klubber forespørger ved tilmeldingen. Udbyderen afgør forespørgslerne i sit dashboard.",
       "jumpLabel": "Materieludlejning",
       "uninviteNamed": "Fjern invitation for {{name}}",
-      "uninviteTitle": "Fjern invitation for {{name}}?"
+      "uninviteTitle": "Fjern invitation for {{name}}?",
+      "uninviteInUse": "{{name}} har allerede forespørgsler fra klubber og kan derfor ikke fjernes. Skal der ikke komme flere forespørgsler, lukker udlejeren for tildelingen i sit dashboard."
     }
   },
   "task": {

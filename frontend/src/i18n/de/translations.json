@@ -3112,7 +3112,7 @@
       "providers": "Materialanbieter",
       "invite": "Anbieter einladen",
       "uninvite": "Ausladen",
-      "uninviteConfirm": "Der Anbieter wird ausgeladen, seine Angebote fallen weg. Fortfahren?",
+      "uninviteConfirm": "Der Anbieter wird ausgeladen, seine Angebote für diese Veranstaltung fallen weg. Das geht nur, solange noch kein Verein bei ihm angefragt hat.",
       "closed": "Geschlossen",
       "none": "Kein Anbieter eingeladen.",
       "inviteNeedsMaterialRead": "Zum Einladen fehlt das Recht, Anbieter zu lesen.",
@@ -3120,7 +3120,8 @@
       "description": "Eingeladene Anbieter legen Angebote an; Vereine fragen bei der Meldung an. Die Anfragen entscheidet der Anbieter in seinem Dashboard.",
       "jumpLabel": "Materialvermietung",
       "uninviteNamed": "{{name}} ausladen",
-      "uninviteTitle": "{{name}} ausladen?"
+      "uninviteTitle": "{{name}} ausladen?",
+      "uninviteInUse": "{{name}} hat schon Anfragen von Vereinen und kann deshalb nicht ausgeladen werden. Sollen keine neuen Anfragen mehr kommen, schließt der Anbieter in seinem Dashboard die Vergabe."
     }
   },
   "task": {

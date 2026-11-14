@@ -1,3 +1,4 @@
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {useState} from 'react'
 import {
     Box,
@@ -106,6 +107,9 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
                 )
                 if (isRequestNetworkError(error)) {
                     feedback.error(t('common.error.network'))
+                } else if (materialErrorKey(error) === 'material.error.providerInUse') {
+                    // 409: Es gibt schon Anfragen - Ausladen würde sie verwaisen lassen.
+                    feedback.error(t('event.material.uninviteInUse', {name}))
                 } else if (error) {
                     feedback.error(
                         t('entity.delete.error', {entity: t('material.provider.provider')}),

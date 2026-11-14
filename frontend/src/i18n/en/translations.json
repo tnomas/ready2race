@@ -3112,7 +3112,7 @@
       "providers": "Equipment providers",
       "invite": "Invite provider",
       "uninvite": "Uninvite",
-      "uninviteConfirm": "The provider will be uninvited and their offers removed. Continue?",
+      "uninviteConfirm": "The provider will be uninvited and its offers for this event removed. This is only possible as long as no club has sent it a request.",
       "closed": "Closed",
       "none": "No provider invited.",
       "inviteNeedsMaterialRead": "Inviting requires the right to read providers.",
@@ -3120,7 +3120,8 @@
       "description": "Invited providers create offers; clubs request equipment when registering. The provider decides on requests in their dashboard.",
       "jumpLabel": "Equipment rental",
       "uninviteNamed": "Uninvite {{name}}",
-      "uninviteTitle": "Uninvite {{name}}?"
+      "uninviteTitle": "Uninvite {{name}}?",
+      "uninviteInUse": "{{name}} already has requests from clubs and therefore cannot be uninvited. To stop new requests, the provider closes requests in its dashboard."
     }
   },
   "task": {
