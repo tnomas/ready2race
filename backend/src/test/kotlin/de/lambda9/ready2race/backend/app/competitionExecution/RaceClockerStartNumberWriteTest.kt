@@ -92,6 +92,8 @@ class RaceClockerStartNumberWriteTest {
     private fun TestComprehensionScope<JEnv>.seedMatch(
         clubs: List<String>,
         deregistered: Set<String> = emptySet(),
+        teamNumbersAsStartNumbers: Boolean = false,
+        startNumbers: List<Int> = clubs.indices.map { it + 1 },
     ): SeededMatch {
         val eventId = UUID.randomUUID()
         val competitionId = UUID.randomUUID()
@@ -107,6 +109,7 @@ class RaceClockerStartNumberWriteTest {
                 name = "Testregatta",
                 createdAt = now,
                 updatedAt = now,
+                teamNumbersAsStartNumbers = teamNumbersAsStartNumbers,
             )
         )
         !COMPETITION.insert(
@@ -193,7 +196,7 @@ class RaceClockerStartNumberWriteTest {
                     id = matchTeamId,
                     competitionMatch = matchId,
                     competitionRegistration = registrationId,
-                    startNumber = index + 1,
+                    startNumber = startNumbers[index],
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -296,6 +299,35 @@ class RaceClockerStartNumberWriteTest {
 
         assertEquals(
             mapOf("Sonderburg" to 1, "Husum" to 2, "Kiel" to 3),
+            startNumbersByClub(seeded),
+        )
+    }
+
+    /**
+     * Mit "Meldungsnummern nach Bootsnummern" fixiert (ADR-0111) ist die Startnummer die Bootsnummer
+     * und reist mit dem Boot - wie die Bib in RaceClocker. Ein Umsortieren dort darf aus #7/#22/#3
+     * keine Listenpositionen 1..n machen; sonst stünde jedes Leihboot nach dem ersten Abruf als
+     * "abweichend" auf den Anzeigen.
+     */
+    @Test
+    fun withTeamNumbersAsStartNumbersTheFeedOrderNeverRenumbers() = testComprehension {
+        val seeded = seedMatch(
+            clubs = listOf("Kiel", "Husum", "Sonderburg"),
+            teamNumbersAsStartNumbers = true,
+            startNumbers = listOf(7, 22, 3),
+        )
+
+        pull(
+            seeded,
+            listOf(
+                row(seeded.team("Sonderburg"), rank = 1),
+                row(seeded.team("Husum"), rank = 2),
+                row(seeded.team("Kiel"), rank = 3),
+            )
+        )
+
+        assertEquals(
+            mapOf("Kiel" to 7, "Husum" to 22, "Sonderburg" to 3),
             startNumbersByClub(seeded),
         )
     }

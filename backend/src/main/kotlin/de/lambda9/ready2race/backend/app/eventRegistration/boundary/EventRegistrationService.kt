@@ -1189,6 +1189,19 @@ object EventRegistrationService {
             }
         }
 
+        // Der Schalter bleibt an der Veranstaltung stehen, weil die Rundenanlage erst später läuft:
+        // Mit ihm übernimmt sie die Meldungsnummer als Startnummer (ADR-0111). Jede Fixierung
+        // schreibt ihn, auch ohne Schalter - die letzte Fixierung bestimmt, wie künftige Läufe
+        // nummeriert werden. Bestehende Läufe bleiben unverändert.
+        val event = !EventRepo.get(eventId).orDie().onNullFail { EventError.NotFound }
+        if (event.teamNumbersAsStartNumbers != alignMaterialNumbers) {
+            !EventRepo.update(event) {
+                teamNumbersAsStartNumbers = alignMaterialNumbers
+                updatedBy = userId
+                updatedAt = LocalDateTime.now()
+            }.orDie()
+        }
+
         !EventRegistrationReportRepo.delete(eventId).orDie()
 
         !generateResultDocument(eventId)

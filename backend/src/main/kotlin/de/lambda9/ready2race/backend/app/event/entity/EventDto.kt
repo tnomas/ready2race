@@ -21,6 +21,13 @@ data class EventDto(
     val latePaymentDueBy: LocalDate?,
     val registrationCount: Int?,
     val registrationsFinalized: Boolean,
+    /**
+     * Mit der letzten Fixierung "Meldungsnummern nach Bootsnummern vergeben" gesetzt: Die
+     * Rundenanlage übernimmt dann die Meldungsnummer als Startnummer in jedem Lauf, und der
+     * RaceClocker-Abgleich schreibt keine Listenpositionen in die Startnummern (ADR-0111).
+     * Bestehende Läufe ändert der Schalter nicht.
+     */
+    val teamNumbersAsStartNumbers: Boolean,
     val mixedTeamTerm: String?,
     val challengeEvent: Boolean,
     val challengeResultType: MatchResultType?,

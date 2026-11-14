@@ -80,6 +80,7 @@ fun EventViewRecord.eventDto(scope: Privilege.Scope?, userClubId: UUID?): App<No
             null -> null
         },
         registrationsFinalized = registrationsFinalized!!,
+        teamNumbersAsStartNumbers = teamNumbersAsStartNumbers ?: false,
         mixedTeamTerm = mixedTeamTerm,
         challengeEvent = challengeEvent!!,
         challengeResultType = challengeMatchResultType?.let { MatchResultType.valueOf(it) },

@@ -15,6 +15,7 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionPropertiesHasMaterialTypeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionRegistrationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.update
@@ -101,5 +102,25 @@ class FinalizeAlignmentTest {
 
         assertTrue(rentedReg!!.teamNumber in setOf(3, 5))
         assertEquals(1, ownReg!!.teamNumber)
+    }
+
+    /**
+     * Der Schalter bleibt an der Veranstaltung stehen (die Rundenanlage läuft später) - und jede
+     * Fixierung schreibt ihn: mit Schalter an, ohne wieder aus (ADR-0111).
+     */
+    @Test
+    fun everyFinalizationStoresTheSwitchOnTheEvent() = testComprehension {
+        val seeded = seedOpenTeamEvent()
+        assertEquals(false, (!EVENT.selectOne { ID.eq(seeded.eventId) })!!.teamNumbersAsStartNumbers, "Vorgabe: aus")
+
+        !EventRegistrationService.finalizeRegistrations(
+            seeded.user.id!!, seeded.eventId, keepNumbers = false, alignMaterialNumbers = true,
+        )
+        assertEquals(true, (!EVENT.selectOne { ID.eq(seeded.eventId) })!!.teamNumbersAsStartNumbers, "Fixieren mit Schalter setzt ihn")
+
+        !EventRegistrationService.finalizeRegistrations(
+            seeded.user.id!!, seeded.eventId, keepNumbers = true, alignMaterialNumbers = false,
+        )
+        assertEquals(false, (!EVENT.selectOne { ID.eq(seeded.eventId) })!!.teamNumbersAsStartNumbers, "Refinalisieren ohne Schalter nimmt ihn zurück")
     }
 }

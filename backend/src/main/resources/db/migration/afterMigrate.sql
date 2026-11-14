@@ -663,6 +663,9 @@ select e.id,
        e.cross_club_registration,
        e.notice_text,
        e.notice_severity,
+       -- Mit der letzten Fixierung gesetzt: Die Rundenanlage übernimmt die Meldungsnummer als
+       -- Startnummer (V202611141330, ADR-0111).
+       e.team_numbers_as_start_numbers,
        coalesce((select array_agg(distinct er.club)
                  from event_registration er
                  where er.event = e.id

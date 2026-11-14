@@ -149,6 +149,37 @@ object CompetitionExecutionService {
         !EventService.checkIsChallengeEvent(eventId)
             .onTrueFail { CompetitionExecutionChallengeError.NotAChallengeEvent }
 
+        // Mit "Meldungsnummern nach Bootsnummern vergeben" fixiert: jedes Boot startet in jedem Lauf
+        // unter seiner Meldungsnummer (ADR-0111). Ohne den Schalter bleibt es bei Setzposition bzw.
+        // Rang. Einmal je Aufruf gelesen - die Automatik ruft für mehrere Runden hintereinander.
+        val teamNumbersAsStartNumbers =
+            (!EventRepo.get(eventId).orDie())?.teamNumbersAsStartNumbers == true
+        val highestTeamNumber =
+            if (teamNumbersAsStartNumbers) !CompetitionRegistrationRepo.getHighestTeamNumber(competitionId).orDie() else null
+
+        /**
+         * Startnummern der eben gebauten Lauf-Teams mit Schalter auf die Meldungsnummer setzen, je
+         * Lauf eindeutig ([StartNumberAssignment]); ohne Schalter bleiben sie, wie gebaut.
+         * [teamNumberOf] liefert die Meldungsnummer zur Meldung des Lauf-Teams.
+         */
+        fun withTeamNumbersAsStartNumbers(
+            records: List<CompetitionMatchTeamRecord>,
+            teamNumberOf: (UUID) -> Int?,
+        ): List<CompetitionMatchTeamRecord> {
+            if (!teamNumbersAsStartNumbers) return records
+            records.groupBy { it.competitionMatch!! }.values.forEach { matchRecords ->
+                // In der Reihenfolge der bisherigen Startnummer (Setzliste bzw. Rang): bei doppelter
+                // Meldungsnummer behält das besser gesetzte Boot sie.
+                val ordered = matchRecords.sortedBy { it.startNumber }
+                val numbers = StartNumberAssignment.fromTeamNumbers(
+                    ordered.map { it.id!! to teamNumberOf(it.competitionRegistration!!) },
+                    highestTeamNumber,
+                )
+                ordered.forEach { it.startNumber = numbers.getValue(it.id!!) }
+            }
+            return records
+        }
+
         var createFollowingRound = true
         // Zeitstrahl: Setup-Match-Ids aller in diesem Aufruf erzeugten Läufe, über alle
         // Runden/Iterationen hinweg — Grundlage für den Slot-Write-Through nach der Schleife.
@@ -219,7 +250,8 @@ object CompetitionExecutionService {
                 val seedingList = getSeedingList(nextRoundSetupMatches.map { it.teams }, placedCount)
 
 
-                val newTeamRecords = sortedRegistrations.mapIndexed { index, reg ->
+                val teamNumberByRegistration = sortedRegistrations.associate { it.id!! to it.teamNumber }
+                val newTeamRecords = withTeamNumbersAsStartNumbers(sortedRegistrations.mapIndexed { index, reg ->
                     val matchIndex = seedingList.indexOfFirst { it.contains(index + 1) }
 
                     val automaticFirstPlace =
@@ -239,7 +271,7 @@ object CompetitionExecutionService {
                         updatedAt = LocalDateTime.now(),
                         updatedBy = userId,
                     )
-                }
+                }) { teamNumberByRegistration[it] }
                 !CompetitionMatchTeamRepo.create(newTeamRecords).orDie()
                 justPlacedCount = newTeamRecords.count { !it.out!! }
 
@@ -311,7 +343,9 @@ object CompetitionExecutionService {
                 }.filter { team -> team.second != null } // Filter teams that have not made it to next round
 
 
-                val newTeamRecords = currentTeamsToParticipantId.map { team ->
+                val teamNumberByRegistration =
+                    currentTeamsToParticipantId.associate { it.first.competitionRegistration to it.first.teamNumber }
+                val newTeamRecords = withTeamNumbersAsStartNumbers(currentTeamsToParticipantId.map { team ->
 
                     val prevTeam = team.first
                     val nextRoundTeam = team.second!!
@@ -336,13 +370,15 @@ object CompetitionExecutionService {
                         updatedAt = LocalDateTime.now(),
                         updatedBy = userId,
                     )
-                }
+                }) { teamNumberByRegistration[it] }
                 !CompetitionMatchTeamRepo.create(newTeamRecords).orDie()
                 justPlacedCount = newTeamRecords.count { !it.out!! }
 
                 // In einer Folgerunde ist die Setzung der `seed` des Setup-Platzes, den das Boot
                 // besetzt — genau die Zahl, die MatchByeRepo später über ranking == startNumber
                 // zurückliest ("Freilos 1" auf Karte und Chip meint dann dieselbe Zahl wie hier).
+                // Mit Startnummer = Meldungsnummer findet dieser Rückweg keinen Platz mehr; der Chip
+                // zeigt dann "Freilos" ohne Zahl, der hier materialisierte Name bleibt richtig.
                 racingSeedsByMatch = currentTeamsToParticipantId
                     .filter { (prevTeam, _) -> !prevTeam.deregistered && !prevTeam.out && !prevTeam.failed }
                     .groupBy({ it.second!!.competitionSetupMatch!! }, { it.second!!.seed })
@@ -1697,6 +1733,12 @@ object CompetitionExecutionService {
         rowByRegistration: Map<UUID, RaceClockerFeedRow>,
         userId: UUID,
     ): App<Nothing, Unit> = KIO.comprehension {
+        // Mit "Meldungsnummern nach Bootsnummern" fixiert ist die Startnummer die Bootsnummer, kein
+        // Bahnplatz: Sie reist mit dem Boot wie die Bib in RaceClocker. Ein Umsortieren dort ändert
+        // dann keine Startnummer - Listenpositionen hineinzuschreiben machte aus #7 wieder #1 und
+        // jedes Leihboot "abweichend" (ADR-0111). Zeiten, Zwischenzeiten und Start laufen weiter.
+        if (!EventRepo.teamNumbersAsStartNumbersForMatch(matchId).orDie()) return@comprehension KIO.unit
+
         val lanes = RaceClockerFeedRow.lanesByRow(rowByRegistration)
         if (lanes.isEmpty()) return@comprehension KIO.unit
 
