@@ -48,6 +48,15 @@ Die **Abmeldung** (`competitionDeregistration`) löscht keine Meldung; die Anfra
 `FOR KEY SHARE`, damit eine parallel gelöschte Meldung keine Waise hinterlässt (Test
 `MaterialOrphanRaceTest`, ohne Sperre rot).
 
+**2a. Das erneute Speichern der Meldung lässt bestehende Meldungen unverändert.** Der Speicherpfad
+(`upsertRegistrationForEvent`) löscht die nicht gesperrten Meldungen der Art und legt sie neu an. Vor dem Löschen
+macht er einen Schnappschuss (`ResaveCarryOver`); eine bestehen bleibende Meldung (gleiche ID, gleicher Wettkampf)
+behält `team_number`, `created_at` und `created_by`, und ihr Name bleibt, solange sich die Meldungsmenge des Wettkampfs
+nicht ändert (sonst Durchnummerierung „#n“ wie bisher). Ein neues Team bekommt seine Nummer erst bei der nächsten
+Fixierung, ein entferntes gibt sie frei. Der Fehler (Nummer und Name gingen beim Speichern verloren) bestand schon im
+Stand vor der Übernahme und betraf alle Veranstaltungen; die Regel gilt deshalb auch ohne Material. Test:
+`EventRegistrationResaveKeepsDataTest`.
+
 **3. Der Verursacher eines Schadens ist eine Momentaufnahme.** `material_damage` speichert
 `caused_by_registration` (ohne Fremdschlüssel) sowie Team-, Vereins- und Wettkampfname als Text. Die
 Akte ist historisch und verliert ihren Verursacher weder beim Neu-Speichern noch beim Löschen der
@@ -71,6 +80,8 @@ zurück). Das Dashboard sagt das im Notizdialog an.
 
 ## Verworfene Alternativen
 
+- **Meldungen beim Speichern neu anlegen und Nummer/Namen aus dem Formular ableiten (Altverhalten):** verlor die Fixierung
+  und benannte gesperrte Meldungen um (H3-F1).
 - **Fremdschlüssel mit `on delete cascade`:** Das Neu-Speichern der Meldungen löschte jede Anfrage samt
   Zuteilungen. Der Anbieter verlöre bestätigte Buchungen bei jedem Speichern der Veranstaltung.
 - **Fremdschlüssel mit `restrict`:** Der Speicherpfad der Meldung könnte nicht mehr löschen.
@@ -113,7 +124,7 @@ zurück). Das Dashboard sagt das im Notizdialog an.
 
 ## Quellen
 
-- Commits: `45a0abe3` (Härtung), `b90afce4` (Korrekturen aus dem Schlussreview: Freigabe durch die
+- Commits: `e9d466a1` (erneutes Speichern behält Nummer und Namen), `45a0abe3` (Härtung), `b90afce4` (Korrekturen aus dem Schlussreview: Freigabe durch die
   Meldung, Sperren, Sicht), `5f575b5e` (Übernahme), `62e6fb2a` (stabile Meldungs-IDs, Quellzweig)
 - Specs: `docs/superpowers/specs/2026-09-07-materialvermietung-design.md`,
   `docs/superpowers/specs/2026-11-13-materialvermietung-uebernahme-befund.md`

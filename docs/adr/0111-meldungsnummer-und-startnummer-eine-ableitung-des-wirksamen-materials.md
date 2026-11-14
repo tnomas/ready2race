@@ -33,6 +33,7 @@ Ableitung driften auseinander (Regel in `AGENTS.md`, Abschnitt 4).
   Übersicht liefert beide: `requests[].teamNumber` (Meldungsnummer) und `matches[].teams[].startNumber`
   (Startnummer je Meldung in diesem Lauf). `material_request_view.start_number` und `startNumber` der
   Anbieter-Übersicht sind reine Anzeige.
+- Die Meldungsnummer bleibt nach der Fixierung fest, auch wenn die Meldung erneut gespeichert wird (ADR-0109, Absatz 2a).
 - Die Fixierung stellt die Gleichheit nicht blind her: Eine Meldung mit bestätigter Grundzuteilung
   (BOAT, ohne Lauf, Stück mit Nummer; bei mehreren die kleinste) bekommt diese Nummer fest, die
   anderen gehen in die Verlosung, feste Nummern zählen für sie als vergeben. Kollidieren zwei
@@ -115,7 +116,7 @@ ein neues ADR den Absatz „Zwei Nummern, zwei Aufgaben“.
 
 ## Quellen
 
-- Commits: `5436a245` (Abweichung gegen die Startnummer im Lauf), `7a911dc6` (Änderungsmarker),
+- Commits: `e9d466a1` (Meldungsnummer bleibt beim erneuten Speichern), `5436a245` (Abweichung gegen die Startnummer im Lauf), `7a911dc6` (Änderungsmarker),
   `c6b3cb8b` (Sicht deterministisch und je Lauf-Team eingegrenzt), `b90afce4` (Fixierung mit
   Grundzuteilung, Backend-Korrekturen), `f31310bd` und `9e5afc58` (zwei Nummern im Dashboard),
   `40039622` (Lauf-Karte der Durchführung), `ad263d04` und `91f548a1` (Meldungsnummer in der

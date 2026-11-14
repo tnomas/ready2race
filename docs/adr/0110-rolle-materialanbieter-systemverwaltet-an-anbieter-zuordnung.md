@@ -39,6 +39,10 @@ umgangen.
   Das Löschen verlangt nur UPDATE MATERIAL GLOBAL; die Rolle soll aber nur über die Zuordnung mit den
   Vergaberegeln wandern, und `app_user.material_provider … on delete set null` ließe sonst die Rolle am
   Konto stehen.
+- **Einladen eines Anbieters zu einer Veranstaltung verlangt UPDATE EVENT GLOBAL und READ MATERIAL GLOBAL**
+  (`authenticateAll`, Route `PUT /event/{id}/materialProvider/{pid}`; ohne Letzteres 403); Ausladen bleibt UPDATE
+  EVENT GLOBAL. Die Oberfläche versteckt die Auswahl ohne das Leserecht. Ausladen mit vorhandenen Anfragen ist gesperrt
+  (409), stattdessen schließt der Anbieter die Vergabe.
 - Die Oberfläche (Nutzerseite) zeigt die Anbieter-Auswahl nur, wenn der Bearbeitende UPDATE STAFF,
   UPDATE USER, READ MATERIAL GLOBAL und UPDATE MATERIAL OWN trägt, und blendet systemverwaltete Rollen
   aus dem Rollenfeld aus.
@@ -73,7 +77,7 @@ umgangen.
 
 ## Quellen
 
-- Commits: `5f575b5e` (Merge: Rolle `…0040`, `ROLES_MANAGED_ELSEWHERE`, Zuordnung mit Vergaberegeln),
+- Commits: `53ab7d21` (Einladen braucht das Leserecht), `5f575b5e` (Merge: Rolle `…0040`, `ROLES_MANAGED_ELSEWHERE`, Zuordnung mit Vergaberegeln),
   `5440a5db` (`docs/rechte.md`), `efebf512` (Job nicht kopierbar), `45a0abe3` (Anbieter mit Konten
   nicht löschbar), `ea582e40` (Nutzerseite)
 - Docs: `docs/rechte.md`, `docs/superpowers/specs/2026-09-07-rechtekonzept-design.md`
