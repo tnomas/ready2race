@@ -6,8 +6,9 @@ import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteDocument, downloadDocument, getDocuments} from '@api/sdk.gen.ts'
 import {eventIndexRoute} from '@routes'
 import {Download} from '@mui/icons-material'
-import {useRef} from 'react'
-import {Box, Link} from '@mui/material'
+import {Box} from '@mui/material'
+import {downloadNamed} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
 
@@ -22,7 +23,6 @@ const DocumentTable = (props: BaseEntityTableProps<EventDocumentDto>) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
     const {eventId} = eventIndexRoute.useParams()
 
     const dataRequest = (signal: AbortSignal, paginationParameters: PaginationParameters) =>
@@ -59,22 +59,22 @@ const DocumentTable = (props: BaseEntityTableProps<EventDocumentDto>) => {
     ]
 
     const handleDownloadDocument = async (entity: EventDocumentDto) => {
-        const {data, error} = await downloadDocument({
-            path: {
-                eventId,
-                eventDocumentId: entity.id,
-            },
-        })
-        const anchor = downloadRef.current
+        // Dateiname ist hier immer der Name des Dokuments, nicht die Kopfzeile der Antwort.
+        const {data, error} = await runRequest(undefined, () =>
+            downloadDocument({
+                path: {
+                    eventId,
+                    eventDocumentId: entity.id,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = entity.name
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (!downloadNamed(data, entity.name)) {
+            feedback.error(t('event.document.download.error'))
         }
     }
 
@@ -89,7 +89,6 @@ const DocumentTable = (props: BaseEntityTableProps<EventDocumentDto>) => {
 
     return (
         <Box>
-            <Link ref={downloadRef} display={'none'}></Link>
             <EntityTable
                 {...props}
                 parentResource={'EVENT'}

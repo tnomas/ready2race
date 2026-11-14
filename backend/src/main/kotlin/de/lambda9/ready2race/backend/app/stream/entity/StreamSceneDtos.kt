@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.validate
 import de.lambda9.ready2race.backend.validation.validators.CollectionValidators.noDuplicates
 import de.lambda9.ready2race.backend.validation.validators.IntValidators
+import de.lambda9.ready2race.backend.validation.validators.Validator.Companion.collection
 import de.lambda9.ready2race.backend.validation.validators.StringValidators.notBlank
 import java.util.UUID
 
@@ -31,7 +32,10 @@ data class StreamSceneGraphicDto(
     val placement: StreamPlacement,
     val size: StreamGraphicSize,
     val settings: StreamGraphicSettings,
-)
+) : Validatable {
+
+    override fun validate(): ValidationResult = this::settings.validate()
+}
 
 /**
  * Abbild der `settings`-jsonb in `stream_scene_graphic` — je Grafiktyp sind nur die
@@ -43,9 +47,9 @@ data class StreamSceneGraphicDto(
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class StreamGraphicSettings(
-    /** LAPS (Default 8), RESULT (Default 20), STARTLIST (Default 15): Einblenddauer in Sekunden. */
+    /** LAPS (Default 8), RESULT (Default 20), STARTLIST (Default 15): Einblenddauer in Sekunden, 1..600. */
     val displaySeconds: Int? = null,
-    /** SCHEDULE: Anzahl gezeigter Zeilen, Default 8. */
+    /** SCHEDULE: Anzahl gezeigter Zeilen, Default 8, 1..50. */
     val listLength: Int? = null,
     /** COURSE_IMAGE: Referenz auf das hinterlegte Streckenbild. */
     val imageDocument: UUID? = null,
@@ -55,7 +59,24 @@ data class StreamGraphicSettings(
      * bereits gespeicherte Szenen gültig bleiben.
      */
     val showMaterial: Boolean? = null,
-)
+) : Validatable {
+
+    // Die Werte steuern von der Datenbank aus die Bühne: null Sekunden ließe eine Grafik nie
+    // erscheinen, Stunden nie verschwinden, eine negative Zeilenzahl riss den Szenenaufbau.
+    override fun validate(): ValidationResult = ValidationResult.allOf(
+        this::displaySeconds validate IntValidators.min(1),
+        this::displaySeconds validate IntValidators.max(MAX_DISPLAY_SECONDS),
+        this::listLength validate IntValidators.min(1),
+        this::listLength validate IntValidators.max(MAX_LIST_LENGTH),
+    )
+
+    companion object {
+        /** Zehn Minuten - länger steht keine Einblendung, die von selbst wieder gehen soll. */
+        const val MAX_DISPLAY_SECONDS = 600
+        /** Mehr Zeilen passen auf keine Bühne. */
+        const val MAX_LIST_LENGTH = 50
+    }
+}
 
 /** Regie-Eingriff aus dem Kontroll-Panel; `match`/`seconds` bleiben unbelegt, wenn nicht gesetzt. */
 data class StreamOverrideRequest(
@@ -91,7 +112,7 @@ data class StreamSceneRequest(
     override fun validate(): ValidationResult = ValidationResult.allOf(
         this::name validate notBlank,
         this::safeAreaPercent validate IntValidators.min(0),
-        this::safeAreaPercent validate IntValidators.max(100),
+        this::safeAreaPercent validate IntValidators.max(MAX_SAFE_AREA_PERCENT),
         chromaColorResult(),
     )
 
@@ -107,6 +128,9 @@ data class StreamSceneRequest(
     companion object {
         /** Hex-Farbe in Kurz- oder Langform, wie bei BoardRequest. */
         private val HEX_COLOR = Regex("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+        /** Ein Fünftel Rand je Seite lässt noch Bühne übrig - mehr ist kein Sicherheitsbereich mehr. */
+        const val MAX_SAFE_AREA_PERCENT = 20
 
         val example = StreamSceneRequest(
             name = "Zieleinlauf",
@@ -125,6 +149,7 @@ data class StreamSceneGraphicsRequest(
         // Zwei Zeilen für denselben Typ im selben Aufruf sind kein sinnvoller Auftrag - der
         // Dienst würde stillschweigend nur die letzte übernehmen.
         this::graphics validate noDuplicates(StreamSceneGraphicDto::type),
+        this::graphics validate collection,
     )
 
     companion object {

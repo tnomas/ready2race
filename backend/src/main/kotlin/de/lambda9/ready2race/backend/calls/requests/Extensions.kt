@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.pagination.Sortable
 import de.lambda9.ready2race.backend.calls.responses.ToApiError
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
+import de.lambda9.ready2race.backend.database.generated.tables.records.PrivilegeRecord
 import de.lambda9.ready2race.backend.parsing.Parser
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.int
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.json
@@ -44,7 +45,9 @@ suspend inline fun <reified V : Validatable> ApplicationCall.receiveNullableKIO(
             KIO.ok(payload)
         }
     } catch (ex: Exception) {
-        logger.error(ex) { "Error during receiving body" }
+        // Ein kaputter oder abgebrochener Body ist ein Client-Fehler (400), kein Serverfehler: ohne
+        // Stacktrace und ohne Body-Inhalt loggen.
+        logger.info { "Error during receiving body: ${ex::class.simpleName}: ${ex.message}" }
         KIO.fail(RequestError.Other(ex))
     }
 
@@ -56,6 +59,14 @@ fun AppUserWithPrivilegesRecord.hasPrivilege(privilege: Privilege): Boolean =
         it!!.action == privilege.action.name
             && it.resource == privilege.resource.name
             && Privilege.Scope.valueOf(it.scope).level >= privilege.scope.level
+    }
+
+/** Deckt der Nutzer diesen Privileg-Datensatz ab (gleiche Aktion und Ressource, Scope mindestens so hoch)? */
+fun AppUserWithPrivilegesRecord.covers(record: PrivilegeRecord): Boolean =
+    privileges!!.any {
+        it!!.action == record.action
+            && it.resource == record.resource
+            && Privilege.Scope.valueOf(it.scope).level >= Privilege.Scope.valueOf(record.scope).level
     }
 
 fun ApplicationCall.authenticate(

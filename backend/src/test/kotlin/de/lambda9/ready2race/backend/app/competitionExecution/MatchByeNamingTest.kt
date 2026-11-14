@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.app.competitionExecution.boundary.Competiti
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.competitionSetup.control.CompetitionSetupMatchRepo
 import de.lambda9.ready2race.backend.app.competitionSetup.entity.CompetitionSetupPlacesOption
+import de.lambda9.ready2race.backend.app.eventSchedule.boundary.EventScheduleService
 import de.lambda9.ready2race.backend.app.eventSchedule.control.EventScheduleRepo
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.database.delete
@@ -35,6 +36,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.testing.kio.TestComprehensionScope
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -291,5 +293,33 @@ class MatchByeNamingTest {
         val names = unplanned.map { it.get("match_name", String::class.java) }
         assertTrue("Freilos 1" in names && "VF1" in names, "erwartet Freilos 1 und VF1 in $names")
         assertTrue(names.count { it == "VF1" } == 1, "das Pseudo-VF1 der Vorlage darf nicht erscheinen: $names")
+    }
+
+    /**
+     * Ein nicht verplanter Lauf (meist ein Dauer-Freilos) kann ebenso strittig werden wie ein
+     * verplanter. Der Zeitplan liest die Klärung aus `matchClarificationSince` - bis 13.11.2026
+     * fehlte das Feld an der Unverplant-Liste, der Lauf stand dort als „Läuft"/„Anstehend".
+     */
+    @Test
+    fun unplannedMatchCarriesItsClarification() = testComprehension {
+        val seeded = seed()
+        deregister(seeded.registrationIds[5], seeded.roundId)
+        deregister(seeded.registrationIds[6], seeded.roundId)
+        deregister(seeded.registrationIds[7], seeded.roundId)
+        !CompetitionExecutionService.createNewRound(seeded.eventId, seeded.competitionId, SYSTEM_USER)
+
+        val byeMatchId = setupMatches(seeded.roundId).first { it.weighting == 1 }.id!!
+        val since = LocalDateTime.of(2026, 11, 13, 10, 30)
+        !Jooq.query {
+            update(COMPETITION_MATCH)
+                .set(COMPETITION_MATCH.CLARIFICATION_SINCE, since)
+                .set(COMPETITION_MATCH.CLARIFICATION_REASON, "Protest")
+                .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(byeMatchId))
+                .execute()
+        }
+
+        val unplanned = (!EventScheduleService.getSchedule(seeded.eventId)).dto.unplannedSetupMatches
+        assertEquals(since, unplanned.single { it.setupMatchId == byeMatchId }.matchClarificationSince)
+        assertTrue(unplanned.filter { it.setupMatchId != byeMatchId }.all { it.matchClarificationSince == null })
     }
 }

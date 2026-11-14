@@ -308,18 +308,21 @@ const BoardEditor = ({eventId, board, onSubmit, onCancel}: BoardEditorProps) => 
                 </TextField>
                 <Box sx={{flex: 1}} />
                 <IconButton
+                    aria-label={t('event.boards.moveUp')}
                     size="small"
                     disabled={elementIndex === 0}
                     onClick={() => moveElement(tileIndex, elementIndex, -1)}>
                     <ArrowUpwardIcon fontSize="small" />
                 </IconButton>
                 <IconButton
+                    aria-label={t('event.boards.moveDown')}
                     size="small"
                     disabled={elementIndex === config.tiles[tileIndex].elements.length - 1}
                     onClick={() => moveElement(tileIndex, elementIndex, 1)}>
                     <ArrowDownwardIcon fontSize="small" />
                 </IconButton>
                 <IconButton
+                    aria-label={t('common.remove')}
                     size="small"
                     disabled={config.tiles[tileIndex].elements.length === 1}
                     onClick={() => removeElement(tileIndex, elementIndex)}>
@@ -853,18 +856,21 @@ const BoardEditor = ({eventId, board, onSubmit, onCancel}: BoardEditorProps) => 
                                                 })}
                                             </Typography>
                                             <IconButton
+                                                aria-label={t('event.boards.moveUp')}
                                                 size="small"
                                                 disabled={tileIndex === 0}
                                                 onClick={() => moveTile(tileIndex, -1)}>
                                                 <ArrowUpwardIcon fontSize="small" />
                                             </IconButton>
                                             <IconButton
+                                                aria-label={t('event.boards.moveDown')}
                                                 size="small"
                                                 disabled={tileIndex === config.tiles.length - 1}
                                                 onClick={() => moveTile(tileIndex, 1)}>
                                                 <ArrowDownwardIcon fontSize="small" />
                                             </IconButton>
                                             <IconButton
+                                                aria-label={t('common.remove')}
                                                 size="small"
                                                 disabled={config.tiles.length === 1}
                                                 onClick={() => removeTile(tileIndex)}>

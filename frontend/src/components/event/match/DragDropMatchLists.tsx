@@ -1,4 +1,5 @@
 import {Box, Card, CardContent, Stack, Typography, TextField, InputAdornment} from '@mui/material'
+import type {DraggableSyntheticListeners} from '@dnd-kit/core'
 import {
     closestCenter,
     DndContext,
@@ -35,7 +36,7 @@ interface DragDropMatchListsProps {
 interface MatchCardProps {
     match: MatchForRunningStatusDto
     isDragging?: boolean
-    dragHandleProps?: any
+    dragHandleProps?: DraggableSyntheticListeners
     eventId: string
 }
 
@@ -67,7 +68,7 @@ const MatchCard = ({match, isDragging, dragHandleProps, eventId}: MatchCardProps
                         <Typography variant="body2" color="text.secondary">
                             {match.roundName} -{' '}
                             {match.matchName ||
-                                `${t('event.competition.execution.match.match' as any) as string} ${
+                                `${t('event.competition.execution.match.match')} ${
                                     match.matchNumber
                                 }`}
                         </Typography>
@@ -79,6 +80,7 @@ const MatchCard = ({match, isDragging, dragHandleProps, eventId}: MatchCardProps
                             competitionId: match.competitionId,
                         }}
                         search={{tab: 'execution'}}
+                        aria-label={t('event.schedule.goToExecution')}
                         className="cursor-pointer"
                         style={{
                             display: 'flex',
@@ -240,7 +242,7 @@ const DragDropMatchLists = ({
                     <TextField
                         fullWidth
                         size="small"
-                        placeholder={t('common.search' as any) as string}
+                        placeholder={t('common.search')}
                         value={runningSearchTerm}
                         onChange={e => setRunningSearchTerm(e.target.value)}
                         InputProps={{
@@ -264,7 +266,7 @@ const DragDropMatchLists = ({
                                     align="center"
                                     sx={{mt: 4}}>
                                     {runningSearchTerm
-                                        ? (t('common.noResults' as any) as string)
+                                        ? t('common.noResults')
                                         : t('event.competition.execution.match.noRunningMatches')}
                                 </Typography>
                             ) : (
@@ -288,7 +290,7 @@ const DragDropMatchLists = ({
                     <TextField
                         fullWidth
                         size="small"
-                        placeholder={t('common.search' as any) as string}
+                        placeholder={t('common.search')}
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         InputProps={{
@@ -312,7 +314,7 @@ const DragDropMatchLists = ({
                                     align="center"
                                     sx={{mt: 4}}>
                                     {searchTerm
-                                        ? (t('common.noResults' as any) as string)
+                                        ? t('common.noResults')
                                         : t('event.competition.execution.match.noAvailableMatches')}
                                 </Typography>
                             ) : (

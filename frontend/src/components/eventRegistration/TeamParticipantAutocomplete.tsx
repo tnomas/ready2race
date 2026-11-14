@@ -22,7 +22,11 @@ export const TeamParticipantAutocomplete = (props: {
     options: EventRegistrationParticipantUpsertDto[]
     transform?:
         | {
-              input?: ((value: any) => EventRegistrationParticipantUpsertDto[]) | undefined
+              input?:
+                  | ((
+                        value: CompetitionRegistrationNamedParticipantUpsertDto | undefined,
+                    ) => EventRegistrationParticipantUpsertDto[])
+                  | undefined
               output?:
                   | ((
                         event: SyntheticEvent,
@@ -31,7 +35,7 @@ export const TeamParticipantAutocomplete = (props: {
                         details?:
                             | AutocompleteChangeDetails<EventRegistrationParticipantUpsertDto>
                             | undefined,
-                    ) => any)
+                    ) => unknown)
                   | undefined
           }
         | undefined
@@ -95,13 +99,17 @@ export const TeamParticipantAutocomplete = (props: {
 
     // If @TeamParticipantAutocomplete is used in event registration, we can use this to make sure,
     // participants are only used once for a competition across all teams.
-    const competitionWatch: CompetitionRegistrationUpsertDto | undefined =
-        props.competitionPath && useWatch({name: props.competitionPath})
+    // Der Hook läuft immer (Hook-Reihenfolge); ohne Pfad wird ein ohnehin beobachtetes Feld gelesen.
+    const competitionWatched = useWatch({name: props.competitionPath ?? props.name})
+    const competitionWatch: CompetitionRegistrationUpsertDto | undefined = props.competitionPath
+        ? competitionWatched
+        : undefined
 
     // If @TeamParticipantAutocomplete is used in single competition registration, we can use this to make sure,
     // participants are only used once in a team across all named participants.
+    const namedParticipantsWatched = useWatch({name: props.namedParticipantsPath ?? props.name})
     const namedParticipantsWatch: CompetitionRegistrationNamedParticipantUpsertDto[] | undefined =
-        props.namedParticipantsPath && useWatch({name: props.namedParticipantsPath})
+        props.namedParticipantsPath ? namedParticipantsWatched : undefined
 
     const getOptionDisabled = useCallback(
         (option: EventRegistrationParticipantUpsertDto) => {

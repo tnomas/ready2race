@@ -9,6 +9,7 @@ import {resetPassword} from '@api/sdk.gen.ts'
 import {resetPasswordTokenRoute} from '@routes'
 import RequestStatusResponse from '@components/user/RequestStatusResponse.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = PasswordFormPart
 
@@ -29,15 +30,17 @@ const ResetPasswordPage = () => {
     const formContext = useForm<Form>({values: defaultValues})
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error} = await resetPassword({
-            path: {passwordResetToken: passwordResetToken},
-            body: {
-                password: formData.password,
-            },
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            resetPassword({
+                path: {passwordResetToken: passwordResetToken},
+                body: {
+                    password: formData.password,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             setRequestSuccessful(false)
             feedback.error(t('user.resetPassword.error.header'))
         } else {
@@ -49,13 +52,13 @@ const ResetPasswordPage = () => {
         <SimpleFormLayout maxWidth={450}>
             {(requestSuccessful === undefined && (
                 <>
-                    <Box sx={{mb: 4}}>
+                    <Box sx={{mb: 3}}>
                         <Typography variant="h1" textAlign="center">
                             {t('user.resetPassword.resetPassword')}
                         </Typography>
                     </Box>
                     <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                        <Stack spacing={4}>
+                        <Stack spacing={3}>
                             <NewPassword
                                 formContext={formContext}
                                 passwordFieldLabel={t('user.resetPassword.newPassword')}

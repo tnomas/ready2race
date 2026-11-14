@@ -39,6 +39,8 @@ data class StreamResolverInput(
     val preparingSince: LocalDateTime?,
     /** Laufender Lauf. */
     val running: AthleteBoardMatch?,
+    /** Lauf der gestarteten Startsequenz; schlägt für die Countdown-Uhr einen älteren laufenden Lauf. */
+    val sequenceMatch: AthleteBoardMatch?,
     /** Laufende Startsequenz, sonst null. */
     val sequenceStartedAt: LocalDateTime?,
     /** Zeitpunkt, an dem der Start dieser Sequenz fällt (Anker + Vorlauf), sonst null. */
@@ -270,7 +272,11 @@ fun resolveScene(input: StreamResolverInput): ResolvedScene {
 
         val match = if (candidate.unresolved) null else when (row.type) {
             StreamGraphicType.STARTLIST, StreamGraphicType.NEXT_UP -> overriddenMatch ?: input.preparing
-            StreamGraphicType.CLOCK -> overriddenMatch ?: (input.running ?: input.preparing)
+            StreamGraphicType.CLOCK -> overriddenMatch ?: if (input.sequenceStartedAt != null) {
+                input.sequenceMatch
+            } else {
+                input.running ?: input.preparing
+            }
             StreamGraphicType.LAPS -> overriddenMatch ?: input.running
             else -> null
         }

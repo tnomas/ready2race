@@ -42,7 +42,7 @@ const isNumericIndex = (header: string): boolean => {
 const getDisplayName = (
     header: string,
     hasHeader: boolean,
-    t: (key: string, params?: any) => string,
+    t: (key: string, params?: Record<string, unknown>) => string,
 ): string => {
     // Only show "Column X" if we're in no-header mode AND it's a numeric index
     if (!hasHeader && isNumericIndex(header)) {

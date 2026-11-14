@@ -30,12 +30,14 @@ import DownloadIcon from '@mui/icons-material/Download'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import AddIcon from '@mui/icons-material/Add'
 import BaseDialog from '@components/BaseDialog.tsx'
-import {useRef, useState} from 'react'
+import {useState} from 'react'
+import {downloadNamed} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import ChallengeResultDialog, {
     ResultInputTeamInfo,
 } from '@components/event/competition/registration/ChallengeResultDialog.tsx'
-import {Link} from '@tanstack/react-router'
 import {ArrowForward} from '@mui/icons-material'
+import {ButtonLink} from '@components/ui'
 
 const CompetitionCard = ({
     competition,
@@ -54,7 +56,7 @@ const CompetitionCard = ({
         currentlyInTimespan(competition.challengeStart, competition.challengeEnd)
 
     return (
-        <Card elevation={2}>
+        <Card>
             <CardContent>
                 <Stack spacing={2}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -130,7 +132,8 @@ const CompetitionCard = ({
                                                     competition.resultInfo!.proofDocumentId!,
                                                 )
                                             }
-                                            title={t('common.file.view')}>
+                                            title={t('common.file.view')}
+                                            aria-label={t('common.file.view')}>
                                             <VisibilityIcon fontSize="small" />
                                         </IconButton>
                                         <IconButton
@@ -141,7 +144,8 @@ const CompetitionCard = ({
                                                     competition.resultInfo!.proofDocumentId!,
                                                 )
                                             }
-                                            title={t('common.file.download')}>
+                                            title={t('common.file.download')}
+                                            aria-label={t('common.file.download')}>
                                             <DownloadIcon fontSize="small" />
                                         </IconButton>
                                     </Stack>
@@ -176,7 +180,6 @@ const ChallengePage = () => {
     const feedback = useFeedback()
 
     const {accessToken} = challengeRoute.useParams()
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const [viewDocumentDialogOpen, setViewDocumentDialogOpen] = useState(false)
     const [viewDocumentUrl, setViewDocumentUrl] = useState<string | null>(null)
@@ -210,24 +213,24 @@ const ChallengePage = () => {
 
     const handleDownloadDocument = async (competitionId: string, docId: string) => {
         if (!challengeData?.eventId) return
-        const {data, error} = await downloadMatchTeamResultDocumentByToken({
-            path: {
-                eventId: challengeData.eventId,
-                competitionId,
-                accessToken,
-                resultDocumentId: docId,
-            },
-        })
-        const anchor = downloadRef.current
+        const eventId = challengeData.eventId
+        const {data, error} = await runRequest(undefined, () =>
+            downloadMatchTeamResultDocumentByToken({
+                path: {
+                    eventId,
+                    competitionId,
+                    accessToken,
+                    resultDocumentId: docId,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.competition.execution.results.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = 'proof-document.jpg'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (!downloadNamed(data, 'proof-document.jpg')) {
+            feedback.error(t('event.competition.execution.results.document.download.error'))
         }
     }
 
@@ -288,13 +291,10 @@ const ChallengePage = () => {
 
     return (
         <>
-            <a ref={downloadRef} style={{display: 'none'}} />
             <Box sx={{display: 'flex', justifyContent: 'end'}}>
-                <Link to={'/results'}>
-                    <Button variant={'outlined'} endIcon={<ArrowForward />}>
-                        <Trans i18nKey={'landing.liveEventsLink'} />
-                    </Button>
-                </Link>
+                <ButtonLink to={'/results'} variant={'outlined'} endIcon={<ArrowForward />}>
+                    <Trans i18nKey={'landing.liveEventsLink'} />
+                </ButtonLink>
             </Box>
             {challengePending ? (
                 <Stack sx={{display: 'flex', flex: 1, justifyContent: 'center'}}>

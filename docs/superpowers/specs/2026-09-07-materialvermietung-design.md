@@ -67,7 +67,7 @@ oder ein Anbieter existieren als Datenobjekte nicht.
 
 ## 5. Datenmodell
 
-Neue Tabellen in einer Migration `V202609071000__material_rental.sql`:
+Neue Tabellen in einer Migration `V202611140800__material_rental.sql` (ursprünglich `V202609071000`, bei der Übernahme am 14.11.2026 umnummeriert, weil die Nummer belegt war):
 
 - `material_provider` (id, name, contact_name, contact_email, contact_phone, note, Audit-Spalten)
 - `material_type` (id, name, category text check in ('BOAT','OTHER'), description, Audit)

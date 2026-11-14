@@ -1,5 +1,7 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.boundary
 
+import de.lambda9.ready2race.backend.app.competition.boundary.CompetitionService
+
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
@@ -11,6 +13,7 @@ import de.lambda9.ready2race.backend.app.competition.entity.EventDataForCompetit
 import de.lambda9.ready2race.backend.app.competitionDeregistration.control.CompetitionDeregistrationRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.*
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
+import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationNamedParticipantRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo
 import de.lambda9.ready2race.backend.app.competitionSetup.boundary.CompetitionSetupService
 import de.lambda9.ready2race.backend.app.competitionSetup.control.*
@@ -70,6 +73,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.PARTIC
 import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.hr
 import de.lambda9.ready2race.backend.hrTime
+import de.lambda9.ready2race.backend.kio.onFalseFail
 import de.lambda9.ready2race.backend.kio.onNullDie
 import de.lambda9.ready2race.backend.kio.onTrueFail
 import de.lambda9.ready2race.backend.parsing.Parser
@@ -139,6 +143,7 @@ object CompetitionExecutionService {
         competitionId: UUID,
         userId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId)
             .onTrueFail { CompetitionExecutionChallengeError.NotAChallengeEvent }
 
@@ -146,6 +151,11 @@ object CompetitionExecutionService {
         // Zeitstrahl: Setup-Match-Ids aller in diesem Aufruf erzeugten Läufe, über alle
         // Runden/Iterationen hinweg — Grundlage für den Slot-Write-Through nach der Schleife.
         val createdSetupMatchIds = mutableListOf<UUID>()
+        // Ab dem zweiten Durchlauf ist schon eine Runde geschrieben. Scheitert die Prüfung der
+        // nächsten dann, endet die Schleife - statt mit einem Fehler, der die geschriebene Runde
+        // ohne Slot-Stempel, Bump und Zeitnahme-Push zurückließe, sobald ein Aufrufer ihn
+        // abfängt (die Folgerunden-Automatik tut das; ohne Savepoint bleibt die Runde stehen).
+        var firstPass = true
         while (createFollowingRound) {
             val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(competitionId)
 
@@ -199,14 +209,19 @@ object CompetitionExecutionService {
                 createdThisRound = matchRecords.map { it.competitionSetupMatch!! }
 
 
-                val seedingList = getSeedingList(nextRoundSetupMatches.map { it.teams }, registrations.size)
+                // Gesetzt werden nur die finalisierten Meldungen - Setzliste und Freilos-Erkennung
+                // müssen mit genau dieser Zahl rechnen. Mit allen Meldungen gerechnet bekam ein
+                // allein fahrendes Boot keinen automatischen Platz, galt aber als Freilos: keine
+                // Ergebniseingabe, keine Folgerunde.
+                val placedCount = sortedRegistrations.size
+                val seedingList = getSeedingList(nextRoundSetupMatches.map { it.teams }, placedCount)
 
 
                 val newTeamRecords = sortedRegistrations.mapIndexed { index, reg ->
                     val matchIndex = seedingList.indexOfFirst { it.contains(index + 1) }
 
                     val automaticFirstPlace =
-                        !nextRound.required && seedingList[matchIndex].filter { it <= registrations.size }.size == 1
+                        !nextRound.required && seedingList[matchIndex].filter { it <= placedCount }.size == 1
 
                     CompetitionMatchTeamRecord(
                         id = UUID.randomUUID(),
@@ -242,7 +257,11 @@ object CompetitionExecutionService {
             } else {
                 // Following Round
 
-                !checkRoundCreation(true, setupRounds, currentRound, nextRound, null)
+                if (firstPass) {
+                    !checkRoundCreation(true, setupRounds, currentRound, nextRound, null)
+                } else if ((!checkRoundCreation(false, setupRounds, currentRound, nextRound, null)).isNotEmpty()) {
+                    break
+                }
 
                 // --- Collect current round data
 
@@ -396,6 +415,8 @@ object CompetitionExecutionService {
                     !CompetitionSetupRoundRepo.markMaterialized(nextRound.setupRoundId, markedAt).orDie()
                 }
             }
+
+            firstPass = false
         }
 
         // Zeitstrahl: geplante Slot-Zeiten auf die soeben erzeugten Läufe stempeln …
@@ -595,10 +616,13 @@ object CompetitionExecutionService {
             if (registrations.isNullOrEmpty())
                 reasons.add(CompetitionExecutionCanNotCreateRoundReason.NO_REGISTRATIONS to CompetitionExecutionError.NoRegistrations)
             else {
+                // Platz brauchen nur die Meldungen, die gesetzt werden (mit Startnummer); vor der
+                // Finalisierung zählen alle, damit die Warnung nicht erst danach auftaucht.
+                val toPlace = registrations.count { it.teamNumber != null }.takeIf { it > 0 } ?: registrations.size
                 if (nextRoundSetupMatches != null) {
                     if (nextRoundSetupMatches.find { it.teams == null } == null && nextRoundSetupMatches.sumOf {
                             it.teams ?: 0
-                        } < registrations.size) {
+                        } < toPlace) {
                         reasons.add(CompetitionExecutionCanNotCreateRoundReason.NOT_ENOUGH_TEAM_SPACE to CompetitionExecutionError.NotEnoughTeamSpace)
 
                     }
@@ -829,6 +853,7 @@ object CompetitionExecutionService {
         userId: UUID,
         request: UpdateCompetitionMatchResultRequest,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         !checkUpdateMatchResult(competitionId, matchId)
@@ -838,11 +863,26 @@ object CompetitionExecutionService {
 
         val noPlaces = request.teamResults.filter { !it.failed }.any { it.place == null }
 
-        // Validate places are continuous when provided
+        // Validate places when provided
         if (!noPlaces) {
-            val places = request.teamResults.filter { !it.failed }.mapNotNull { it.place }.sorted()
-            places.forEachIndexed { index, place ->
-                val expected = index + 1
+            val placed = request.teamResults.filter { !it.failed }
+
+            // Ein geteilter Platz ist nur als totes Rennen erlaubt: alle Boote auf dem Platz
+            // tragen dieselbe Zeit (oder alle keine). Verschiedene Zeiten sind ein Tippfehler.
+            placed.groupBy { it.place!! }.forEach { (place, teams) ->
+                if (teams.size > 1) {
+                    val times = teams.map { team ->
+                        team.timeString?.let { (!Parser.timecode(it) { task -> task.orDie() }).millis }
+                    }.toSet()
+                    !KIO.failOn(times.size > 1) { CompetitionExecutionError.DuplicatePlaces(place = place) }
+                }
+            }
+
+            // Lückenlos im Sinne der Wettkampfwertung: Auf ein totes Rennen um Platz 1 folgt
+            // Platz 3. Jeder vergebene Platz muss also gleich der Anzahl der Boote vor ihm plus 1 sein.
+            val places = placed.map { it.place!! }.sorted()
+            places.distinct().forEach { place ->
+                val expected = places.count { it < place } + 1
                 !KIO.failOn(expected != place) {
                     CompetitionExecutionError.PlacesNotContinuous(expected = expected, actual = place)
                 }
@@ -1722,7 +1762,9 @@ object CompetitionExecutionService {
         userId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
-        !CompetitionMatchRepo.exists(matchId).orDie().onNullFail { CompetitionExecutionError.MatchNotFound }
+        !CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { CompetitionExecutionError.MatchNotFound }
+        // „Läuft" auf einem beendeten Lauf setzte activated_at und holte ihn als RUNNING zurück.
+        !CompetitionMatchGuards.requireMatchNotFinished(matchId) { CompetitionExecutionError.MatchAlreadyFinished }
 
         !CompetitionMatchRepo.update(matchId) {
             if (startedAt == null) {
@@ -1905,6 +1947,8 @@ object CompetitionExecutionService {
             activatedAt = null
             startedAt = null
             finishedAt = null
+            // Der Fehlstart gehört zum Start, der hier zurückgenommen wird.
+            falseStartAt = null
             // Ein zurückgesetzter Lauf muss wieder gefahren werden können - genau das ist der Fall
             // nach einem Einspruch (Streit → Reset → Wiederholung). Bliebe die Klärung stehen,
             // leitete der Lauf ohne finished_at dauerhaft CLARIFICATION ab, und `ScheduleChain`
@@ -1947,7 +1991,13 @@ object CompetitionExecutionService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
-        !CompetitionMatchRepo.exists(matchId).orDie().onNullFail { CompetitionExecutionError.MatchNotFound }
+        !CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { CompetitionExecutionError.MatchNotFound }
+        // Ein veralteter Zeitplan- oder Durchführungs-Tab genügte, um einen beendeten Lauf als
+        // „In Vorbereitung" zurückzuholen. Zurücknehmen bleibt erlaubt: es ändert an einem
+        // beendeten Lauf nichts Sichtbares.
+        if (request.activated) {
+            !CompetitionMatchGuards.requireMatchNotFinished(matchId) { CompetitionExecutionError.MatchAlreadyFinished }
+        }
 
         !setMatchActivation(matchId, request.activated, userId)
 
@@ -2000,6 +2050,8 @@ object CompetitionExecutionService {
                 } else {
                     activatedAt = null
                     startedAt = null
+                    // Ohne Start kein Fehlstart: der Stempel gehört zum zurückgenommenen Start.
+                    falseStartAt = null
                 }
                 updatedBy = userId
                 updatedAt = now
@@ -2021,6 +2073,7 @@ object CompetitionExecutionService {
         competitionId: UUID,
         eventId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        !CompetitionService.requireInEvent(eventId, competitionId)
         !EventService.checkIsChallengeEvent(eventId).onTrueFail { CompetitionExecutionError.IsChallengeEvent }
 
         val setupRounds = !CompetitionSetupService.getSetupRoundsWithMatches(competitionId)
@@ -2368,6 +2421,10 @@ object CompetitionExecutionService {
     ): App<ServiceError, ApiResponse.ListDto<CompetitionTeamPlaceDto>> = KIO.comprehension {
 
         !EventRepo.getScoped(eventId, scope).orDie().onNullFail { EventError.NotFound }
+        // Sichtbarkeit hängt an der Veranstaltung im Pfad - ohne Bindung des Wettkampfs an sie
+        // ließen sich Platzierungen einer unveröffentlichten Veranstaltung über eine
+        // veröffentlichte abrufen.
+        !CompetitionService.requireInEvent(eventId, competitionId)
 
         computeCompetitionPlaces(competitionId)
             .andThen { places ->
@@ -3713,11 +3770,16 @@ object CompetitionExecutionService {
 
         val participant = !ParticipantRepo.get(eventParticipant.participant).orDie().onNullDie("Referenced entity")
 
-        !KIO.failOn(participant.club != document.club) {
-            AuthError.PrivilegeMissing
-        }
-
-        // TODO: @Improve validation, only okay, if document is from team including this participant
+        // Nur Belege der eigenen Mannschaft in der Veranstaltung des Tokens - früher genügte der
+        // Verein, auch über Veranstaltungen hinweg.
+        val registrationId = !CompetitionRegistrationNamedParticipantRepo
+            .registrationOfMatchTeam(document.competitionMatchTeamId!!).orDie()
+            .onNullFail { CompetitionExecutionError.ResultDocumentNotFound }
+        !CompetitionRegistrationNamedParticipantRepo.isParticipantOfRegistrationInEvent(
+            participantId = participant.id,
+            registrationId = registrationId,
+            eventId = eventParticipant.event,
+        ).orDie().onFalseFail { AuthError.PrivilegeMissing }
 
         KIO.ok(
             ApiResponse.File(

@@ -8,7 +8,7 @@ import EntityDialog from '@components/EntityDialog.tsx'
 import FormInputDate from '@components/form/input/FormInputDate.tsx'
 import FormInputDateTime from '@components/form/input/FormInputDateTime.tsx'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
-import {eventIndexRoute} from '@routes'
+import {eventRoute} from '@routes'
 import {addEventDay, updateEventDay} from '@api/sdk.gen.ts'
 import {EventDayDto, EventDayRequest} from '@api/types.gen.ts'
 
@@ -26,7 +26,7 @@ type EventDayForm = {
 const EventDayDialog = (props: BaseEntityDialogProps<EventDayDto>) => {
     const {t} = useTranslation()
 
-    const {eventId} = eventIndexRoute.useParams()
+    const {eventId} = eventRoute.useParams()
 
     const addAction = (formData: EventDayForm) => {
         return addEventDay({

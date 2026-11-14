@@ -1,4 +1,5 @@
 import {TimeMarkDto, TimingMatchDto, TimingSequenceDto} from '@api/types.gen.ts'
+import {parseServerLocalDateTime} from '@utils/timing/serverTime.ts'
 
 /**
  * Reine Datenaufbereitung der Leitstand-Übersicht: welche Läufe sind "zuletzt aktiv", was ist der
@@ -24,6 +25,8 @@ export function recentlyActiveMatches(
     matches: TimingMatchDto[],
     marks: MarkLike[],
     limit: number,
+    /** Zonenversatz des Servers für die zonenlosen `startedAt`/`finishedAt`, siehe `serverTime.ts`. */
+    serverZoneOffsetMs: number | null = null,
 ): MatchActivity[] {
     const latestByTeam = new Map<string, number>()
     for (const mark of marks) {
@@ -41,7 +44,7 @@ export function recentlyActiveMatches(
             .filter((value): value is number => value !== undefined)
         const fallback = [match.finishedAt, match.startedAt]
             .filter((value): value is string => value !== undefined && value !== null)
-            .map(value => new Date(value).getTime())
+            .map(value => parseServerLocalDateTime(value, serverZoneOffsetMs))
             .filter(value => Number.isFinite(value))
         const all = [...markActivity, ...fallback]
         if (all.length === 0) continue

@@ -7,6 +7,7 @@ import {
     ChevronRight,
     Dashboard,
     Event,
+    Groups,
     Home,
     People,
     PhoneAndroid,
@@ -16,7 +17,8 @@ import {
     Work,
     Workspaces,
 } from '@mui/icons-material'
-import {Box, Divider, IconButton, Tooltip, Typography} from '@mui/material'
+import {Box, Divider, IconButton, ListSubheader, Tooltip, Typography} from '@mui/material'
+import EventSidebarSection from '@components/sidebar/EventSidebarSection.tsx'
 import {
     readAdministrationConfigGlobal,
     readClubGlobal,
@@ -24,9 +26,9 @@ import {
     readInvoiceGlobal,
     readMaterialGlobal,
     readMaterialOwn,
+    readRoleGlobal,
     readUserGlobal,
     updateEventGlobal,
-    updateUserGlobal,
 } from '@authorization/privileges.ts'
 import {useTranslation} from 'react-i18next'
 import {useUser} from '@contexts/user/UserContext.ts'
@@ -43,6 +45,17 @@ const SidebarContent = ({...props}: Props) => {
     const {t} = useTranslation()
     const user = useUser()
     const {themeConfig} = useThemeConfig()
+
+    // Überschrift „Verwaltung" nur, wenn mindestens ein Eintrag darunter sichtbar ist.
+    const showManagement =
+        user.loggedIn &&
+        [
+            readUserGlobal,
+            readRoleGlobal,
+            updateEventGlobal,
+            readMaterialGlobal,
+            readAdministrationConfigGlobal,
+        ].some(privilege => user.checkPrivilege(privilege))
 
     const showCustomLogo =
         themeConfig?.customLogo?.enabled === true &&
@@ -66,6 +79,12 @@ const SidebarContent = ({...props}: Props) => {
                         placement="right"
                         arrow>
                         <IconButton
+                            aria-label={t(
+                                props.drawerExpanded
+                                    ? 'navigation.sidebar.collapse'
+                                    : 'navigation.sidebar.expand',
+                            )}
+                            aria-expanded={props.drawerExpanded}
                             onClick={() => props.setDrawerExpanded(!props.drawerExpanded)}
                             sx={{
                                 width: '100%',
@@ -96,13 +115,20 @@ const SidebarContent = ({...props}: Props) => {
                 </>
             )}
             {!user.loggedIn && (
-                <SidebarItem text={t('navigation.titles.landing')} icon={<Home />} to={'/'} />
+                <SidebarItem text={t('navigation.titles.landing')} icon={<Home />} to={'/'} exact />
             )}
             <SidebarItem
                 text={t('navigation.titles.dashboard')}
                 icon={<Dashboard />}
                 authenticatedOnly
                 to={'/dashboard'}
+            />
+            {/* `exact`: innerhalb einer Veranstaltung ist ihr Bereich hervorgehoben, nicht die Liste. */}
+            <SidebarItem
+                text={t('navigation.titles.events')}
+                icon={<Event />}
+                to={'/event'}
+                exact
             />
             {user.loggedIn && user.clubId && (
                 <SidebarItem
@@ -115,41 +141,18 @@ const SidebarContent = ({...props}: Props) => {
             )}
             <SidebarItem
                 text={t('navigation.titles.clubs')}
-                icon={<Workspaces />}
+                icon={<Groups />}
                 privilege={readClubGlobal}
                 to={'/club'}
+                exact
             />
-            {/* Kein einzelnes Privileg, das `SidebarItem` prüfen könnte: READ MATERIAL reicht in
-                jedem Scope (OWN oder GLOBAL), von Hand wie die entsprechende Route. */}
-            {user.loggedIn &&
-                (user.checkPrivilege(readMaterialOwn) || user.checkPrivilege(readMaterialGlobal)) && (
-                    <SidebarItem
-                        text={t('navigation.titles.material')}
-                        icon={<Sailing />}
-                        authenticatedOnly
-                        to={'/material'}
-                    />
-                )}
-            <SidebarItem text={t('navigation.titles.events')} icon={<Event />} to={'/event'} />
+            {/* Arbeitsplatz der Materialvermietung: READ MATERIAL OWN (der eigene Anbieter); wer
+                GLOBAL trägt, wählt dort einen Anbieter. Die Stammdaten stehen unter Verwaltung. */}
             <SidebarItem
-                text={t('navigation.titles.users')}
-                icon={<People />}
-                privilege={readUserGlobal}
-                to={'/user'}
-            />
-            {/* Dasselbe Recht wie die Route selbst (rolesIndexRoute): wer nur lesen darf, wurde
-                hier bisher auf einen Eintrag geklickt, der ihn sofort wieder wegleitet. */}
-            <SidebarItem
-                text={t('navigation.titles.roles')}
-                icon={<Work />}
-                privilege={updateUserGlobal}
-                to={'/role'}
-            />
-            <SidebarItem
-                text={t('navigation.titles.config')}
-                icon={<Settings />}
-                privilege={updateEventGlobal}
-                to={'/config'}
+                text={t('navigation.titles.material')}
+                icon={<Sailing />}
+                privilege={readMaterialOwn}
+                to={'/material'}
             />
             <SidebarItem
                 text={t('navigation.titles.invoices')}
@@ -157,12 +160,59 @@ const SidebarContent = ({...props}: Props) => {
                 privilege={readInvoiceGlobal}
                 to={'/invoices'}
             />
-            <SidebarItem
-                text={t('navigation.titles.administration')}
-                icon={<AdminPanelSettings />}
-                privilege={readAdministrationConfigGlobal}
-                to={'/administration'}
-            />
+            {showManagement && (
+                <>
+                    {props.drawerExpanded ? (
+                        <ListSubheader
+                            disableSticky
+                            sx={{
+                                lineHeight: '32px',
+                                mt: 1,
+                                bgcolor: 'transparent',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                            }}>
+                            {t('nav.management')}
+                        </ListSubheader>
+                    ) : (
+                        <Divider component={'li'} sx={{my: 0.5, mx: 1}} />
+                    )}
+                    <SidebarItem
+                        text={t('navigation.titles.users')}
+                        icon={<People />}
+                        privilege={readUserGlobal}
+                        to={'/user'}
+                    />
+                    {/* Dasselbe Recht wie die Route (rolesIndexRoute). */}
+                    <SidebarItem
+                        text={t('navigation.titles.roles')}
+                        icon={<Work />}
+                        privilege={readRoleGlobal}
+                        to={'/role'}
+                    />
+                    <SidebarItem
+                        text={t('navigation.titles.config')}
+                        icon={<Settings />}
+                        privilege={updateEventGlobal}
+                        to={'/config'}
+                    />
+                    <SidebarItem
+                        text={t('navigation.titles.materialAdmin')}
+                        icon={<Sailing />}
+                        privilege={readMaterialGlobal}
+                        to={'/material/admin'}
+                    />
+                    <SidebarItem
+                        text={t('navigation.titles.administration')}
+                        icon={<AdminPanelSettings />}
+                        privilege={readAdministrationConfigGlobal}
+                        to={'/administration'}
+                    />
+                </>
+            )}
+            <EventSidebarSection />
             {props.isSmallScreen && (
                 <Box
                     sx={{

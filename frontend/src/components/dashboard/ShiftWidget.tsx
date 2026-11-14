@@ -1,7 +1,6 @@
 import React, {useMemo} from 'react'
 import {
     Box,
-    Button,
     Divider,
     List,
     ListItem,
@@ -12,14 +11,15 @@ import {
 } from '@mui/material'
 import {CalendarIcon, ClockIcon} from '@mui/x-date-pickers'
 import {useTranslation} from 'react-i18next'
+import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getWorkShiftsForUser} from '@api/sdk.gen.ts'
-import {Link} from '@tanstack/react-router'
 import {formatISO} from 'date-fns'
 import {WorkShiftWithAssignedUsersDto} from '@api/types.gen.ts'
 import {blue} from '@mui/material/colors'
 import {InfoOutlined, WorkOutline} from '@mui/icons-material'
+import {ButtonLink} from '@components/ui'
 
 type GroupedShiftWithFormatedTime = WorkShiftWithAssignedUsersDto & {
     timeFromFormated: string
@@ -122,16 +122,11 @@ export function ShiftWidget({userId}: {userId: string}) {
                 content={
                     <React.Fragment>
                         {groupedShifts.length === 0 ? (
-                            <Stack
-                                alignItems={'center'}
-                                justifyContent={'center'}
-                                spacing={2}
-                                py={2}>
-                                <WorkOutline sx={{fontSize: 48, color: 'text.secondary'}} />
-                                <Typography color={'text.secondary'} textAlign={'center'}>
-                                    {t('dashboard.shifts.empty')}
-                                </Typography>
-                            </Stack>
+                            <EmptyState
+                                dense
+                                icon={<WorkOutline />}
+                                title={t('dashboard.shifts.empty')}
+                            />
                         ) : (
                             <List
                                 subheader={<li />}
@@ -199,19 +194,17 @@ export function ShiftWidget({userId}: {userId: string}) {
                                                                     }}>
                                                                     <Typography>|</Typography>
                                                                 </Box>
-                                                                <Link
+                                                                <ButtonLink
                                                                     to={'/event/$eventId'}
                                                                     search={{
                                                                         tab: 'organization',
                                                                     }}
-                                                                    params={{eventId: shift.event}}>
-                                                                    <Button size={'small'}>
-                                                                        <Typography
-                                                                            color={'primary'}>
-                                                                            {shift.eventName}
-                                                                        </Typography>
-                                                                    </Button>
-                                                                </Link>
+                                                                    params={{eventId: shift.event}}
+                                                                    size={'small'}>
+                                                                    <Typography color={'primary'}>
+                                                                        {shift.eventName}
+                                                                    </Typography>
+                                                                </ButtonLink>
                                                                 <Stack
                                                                     direction={'row'}
                                                                     alignItems={'center'}

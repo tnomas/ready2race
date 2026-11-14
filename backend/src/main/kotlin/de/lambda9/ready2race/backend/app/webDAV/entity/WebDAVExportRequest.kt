@@ -21,6 +21,7 @@ data class WebDAVExportRequest(
         ValidationResult.allOf(
             this::name validate notBlank,
             this::name validate maxLength(255),
+            this::name validate noPathSegmentsOrDots,
             this::events validate collection,
             ValidationResult.anyOf(
                 this::selectedDatabaseExports validate notEmpty,

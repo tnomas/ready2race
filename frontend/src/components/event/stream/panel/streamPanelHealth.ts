@@ -1,10 +1,11 @@
 /**
  * Ab dieser Stille seit dem letzten Push warnt das Panel — bewusst EIGENSTÄNDIG neben
- * `STREAM_STALE_AFTER_MS` (15 s, die Bühnenschwelle aus Task 9, siehe `streamStale.ts`): Die
- * Bühne muss so früh wie möglich auf „veraltet" umschalten, um keine unbestätigte Einblendung
- * zu riskieren (`allowsNewlyVisible`). Das Panel dagegen ist ein Beobachtungswerkzeug für
- * Menschen — eine Warnung nach jedem 15-Sekunden-Ruckler wäre ein Fehlalarm. 30 s laut
- * Aufgabenbeschreibung.
+ * `STREAM_STALE_AFTER_MS` (45 s, die Bühnenschwelle, siehe `streamStale.ts`): Die Bühne
+ * sperrt ab ihrer Schwelle neue Einblendungen (`allowsNewlyVisible`) und darf deshalb erst
+ * zuschlagen, wenn zwei Server-Herzschläge ausgeblieben sind — ein Fehlalarm würde dort eine
+ * Grafik unterdrücken. Das Panel dagegen ist ein Beobachtungswerkzeug für Menschen: hier soll
+ * die Regie FRÜHER hinsehen, als die Bühne von sich aus reagiert, und ein Blick zu viel kostet
+ * nichts. 30 s laut Aufgabenbeschreibung.
  */
 export const STREAM_PANEL_STALE_WARNING_MS = 30_000
 

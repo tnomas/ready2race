@@ -4,8 +4,10 @@ import {RouterProvider} from '@tanstack/react-router'
 import {router} from '@routes'
 import {client} from './api'
 import Config from './Config'
-import {muiTheme} from './theme'
-import {ThemeProvider, CssBaseline, IconButton} from '@mui/material'
+import {muiTheme} from './theme/muiTheme.ts'
+import {ThemeProvider, CssBaseline, IconButton, useMediaQuery} from '@mui/material'
+import {useMemo} from 'react'
+import {useTranslation} from 'react-i18next'
 import {SnackbarProvider, closeSnackbar} from 'notistack'
 import {ConfirmationProvider} from './contexts/confirmation/ConfirmationProvider.tsx'
 import {LocalizationProvider} from '@mui/x-date-pickers'
@@ -13,6 +15,7 @@ import {AdapterDateFns} from '@mui/x-date-pickers/AdapterDateFnsV3'
 import i18next from 'i18next'
 import './i18n/config'
 import {isLanguage, locales} from './i18n/config.ts'
+import {feedbackSnackbarComponents} from '@utils/feedbackSnackbars.tsx'
 import CloseIcon from '@mui/icons-material/Close'
 import {installTimingDeviceTokenInterceptor} from '@utils/timing/deviceTokenInterceptor.ts'
 import {installBoardDeviceTokenInterceptor} from '@utils/board/deviceTokenInterceptor.ts'
@@ -22,16 +25,16 @@ client.setConfig({
     baseUrl: Config.api.baseUrl,
 })
 
-// Geteilte Zeitnahme-Geräte (Posten-Link mit ?token=…) authentifizieren sich ohne Sitzung über
+// Geteilte Zeitnahme-Geräte (Posten-Link mit #token=…) authentifizieren sich ohne Sitzung über
 // das abgelegte Geräte-Token - der Interceptor hängt es an alle Timing-Aufrufe der Veranstaltung.
 installTimingDeviceTokenInterceptor()
 
 // Dasselbe für die Kachel-Boards: Ein montierter Bildschirm oder eine OBS-Browserquelle kann sich
-// nicht anmelden und kommt über den geteilten Board-Link (?token=…) an seine Anzeige - der
+// nicht anmelden und kommt über den geteilten Board-Link (#token=…) an seine Anzeige - der
 // Interceptor hängt das dabei abgelegte Token an die beiden Board-Abrufe.
 installBoardDeviceTokenInterceptor()
 
-// Dasselbe für die Stream-Bühne: der geteilte Szenen-Link (?token=…) authentifiziert eine
+// Dasselbe für die Stream-Bühne: der geteilte Szenen-Link (#token=…) authentifiziert eine
 // OBS-/Wirecast-Quelle ohne Anmeldung am Szenen-Ansicht-Abruf.
 installStreamSceneDeviceTokenInterceptor()
 
@@ -44,8 +47,14 @@ const App = () => {
     const user = useUser()
     const {themeConfig} = useThemeConfig()
 
+    const {t} = useTranslation()
     const locale = locales[user.language]
-    const theme = muiTheme(locale, themeConfig)
+    // Memoisiert: eine neue Theme-Identität ließe jedes Kind mit useTheme/sx neu rechnen und
+    // würde das abgeleitete Verwaltungs-Theme (AdminThemeScope) bei jedem Render neu erzeugen.
+    const theme = useMemo(() => muiTheme(locale, themeConfig), [locale, themeConfig])
+    // Schmal: Meldungen unten mittig statt in der Ecke, wo sie den Daumen-Bereich verdecken.
+    // Rohe Medienabfrage, weil hier noch kein Theme-Kontext existiert (MUI-Breakpoint sm = 600 px).
+    const narrow = useMediaQuery('(max-width:599.95px)')
 
     return (
         <LocalizationProvider
@@ -55,10 +64,13 @@ const App = () => {
             <ThemeProvider theme={theme}>
                 <CssBaseline />
                 <SnackbarProvider
-                    maxSnack={1}
-                    anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
+                    Components={feedbackSnackbarComponents}
+                    maxSnack={3}
+                    anchorOrigin={{vertical: 'bottom', horizontal: narrow ? 'center' : 'right'}}
                     action={snackbarId => (
-                        <IconButton onClick={() => closeSnackbar(snackbarId)}>
+                        <IconButton
+                            aria-label={t('common.close')}
+                            onClick={() => closeSnackbar(snackbarId)}>
                             <CloseIcon />
                         </IconButton>
                     )}>

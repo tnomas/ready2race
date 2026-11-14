@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.database.parseJsonToRecords
 import de.lambda9.ready2race.backend.database.selectAsJson
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
+import java.util.UUID
 
 object PrivilegeRepo {
 
@@ -18,6 +19,12 @@ object PrivilegeRepo {
         with(PRIVILEGE) {
             selectFrom(this)
                 .fetch()
+        }
+    }
+
+    fun getByIds(ids: Collection<UUID>): JIO<List<PrivilegeRecord>> = Jooq.query {
+        with(PRIVILEGE) {
+            selectFrom(this).where(ID.`in`(ids)).fetch()
         }
     }
 

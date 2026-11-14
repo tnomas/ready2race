@@ -1,4 +1,4 @@
-import React, {PropsWithChildren, useEffect, useState} from 'react'
+import React, {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {AnonymousUser, AuthenticatedUser, User, UserContext} from './UserContext.ts'
 import {router} from '@routes'
 import {useFetch} from '@utils/hooks.ts'
@@ -8,6 +8,8 @@ import {checkUserLogin, client, userLogout} from '@api/sdk.gen.ts'
 import i18next from 'i18next'
 import {Language} from '@i18n/config.ts'
 import PanicPage from '../../pages/PanicPage.tsx'
+import Throbber from '@components/Throbber.tsx'
+import {Box} from '@mui/material'
 import {
     clearSessionToken,
     readSessionToken,
@@ -22,6 +24,13 @@ import {
     REQUIREMENT_COMPETITION_KEY,
     SCAN_MODE_KEY,
 } from '@components/qrApp/appMemory.ts'
+import {
+    classifyLoginCheck,
+    isDisplayPath,
+    isLoginPath,
+    isSessionRejection,
+    loginRetryDelayMs,
+} from './sessionPolicy.ts'
 
 type Session = {
     token: string
@@ -47,6 +56,14 @@ type UserData =
           authStatus: 'pending' | 'anonymous'
       }
     | {
+          // Anzeige-Route, Backend beim Start nicht erreichbar: Die Seite läuft anonym weiter,
+          // der Token bleibt für den nächsten Anmeldecheck (und als Header) aufbewahrt.
+          userInfo: undefined
+          token: string
+          isInApp: boolean
+          authStatus: 'anonymous'
+      }
+    | {
           userInfo: undefined
           token: string | null
           isInApp: boolean
@@ -62,15 +79,36 @@ const UserProvider = ({children}: PropsWithChildren) => {
         isInApp: initialIsInApp,
         authStatus: 'initial',
     })
-    const [error, setError] = useState<string | null>(null)
+    // Der Anmeldecheck beim Start hat das Backend nicht erreicht (Netzfehler, 5xx). Solange das so
+    // ist, wird mit wachsendem Abstand erneut gefragt; `attempt` zählt die Fehlschläge.
+    const [connection, setConnection] = useState<{attempt: number; detail: string} | null>(null)
+    const [slowStart, setSlowStart] = useState(false)
+
+    // Für Rückrufe, die einmal registriert werden (Interceptor) oder stabil bleiben sollen
+    // (Kontextwert): Sie lesen den Zustand über Refs statt aus der Closure ihres ersten Renders.
+    const userDataRef = useRef(userData)
+    userDataRef.current = userData
+    // Mehrere parallele Anfragen liefern beim Ablauf der Sitzung gleichzeitig 401.
+    const loggingOutRef = useRef(false)
+    // Navigiert wird nur bei einem An- oder Abmelden, das der Nutzer selbst ausgelöst hat. Ein
+    // vom System erkannter Wechsel (abgelaufene Sitzung, Backend wieder da) lässt die Seite
+    // stehen: Die Guards der Routen entscheiden beim Neuaufbau, ob sie zur Anmeldung muss —
+    // Board-, Stream-, Sprecher- und Zeitnahme-Anzeigen springen so nicht auf die Startseite.
+    const userInitiatedRef = useRef(false)
 
     const navigate = router.navigate
 
     useEffect(() => {
-        const f = async (res: Response) => {
-            if (res.status === 401 && userData.authStatus === 'authenticated') {
-                const isInApp = router.state.resolvedLocation.pathname.startsWith('/app')
-                await logout(isInApp)
+        const f = async (res: Response, req: Request) => {
+            // Der Zustand kommt aus der Ref: Die Closure dieses einmal registrierten Interceptors
+            // sah sonst für immer den Stand des ersten Renders ('initial'), und eine abgelaufene
+            // Sitzung wurde nie abgemeldet.
+            if (isSessionRejection(res.status, req.headers)) {
+                const current = userDataRef.current
+                if (current.authStatus === 'authenticated' && !loggingOutRef.current) {
+                    loggingOutRef.current = true
+                    void logoutRef.current(current.isInApp)
+                }
             } else if (res.ok) {
                 // Beide Sitzungen liegen inzwischen mit Gleitfrist in localStorage, also schiebt
                 // jede erfolgreiche Antwort beide Fristen nach vorn - auch die der jeweils
@@ -86,15 +124,26 @@ const UserProvider = ({children}: PropsWithChildren) => {
         return () => client.interceptors.response.eject(f)
     }, [])
 
+    useEffect(() => {
+        if (userData.authStatus !== 'authenticated') {
+            loggingOutRef.current = false
+        }
+    }, [userData.authStatus])
+
     const prevAuthStatus = React.useRef<'initial' | 'anonymous' | 'authenticated'>('initial')
 
     useEffect(() => {
         if (userData.authStatus !== 'initial') {
             if (userData.authStatus !== 'pending') {
                 const authenticated = userData.authStatus === 'authenticated'
+                const onLoginPage = isLoginPath(
+                    router.state.resolvedLocation.pathname,
+                    router.basepath,
+                )
                 if (
                     prevAuthStatus.current !== 'initial' &&
-                    (authenticated || prevAuthStatus.current === 'authenticated')
+                    (authenticated || prevAuthStatus.current === 'authenticated') &&
+                    (userInitiatedRef.current || (authenticated && onLoginPage))
                 ) {
                     if (userData.isInApp) {
                         navigate({to: authenticated ? '/app' : '/app/login'})
@@ -103,6 +152,7 @@ const UserProvider = ({children}: PropsWithChildren) => {
                         navigate({to: authenticated ? (redirect ? redirect : '/dashboard') : '/'})
                     }
                 }
+                userInitiatedRef.current = false
                 prevAuthStatus.current = userData.authStatus
             } else {
                 if (userData.userInfo && userData.token) {
@@ -133,48 +183,107 @@ const UserProvider = ({children}: PropsWithChildren) => {
         }
     }, [userData])
 
-    useFetch(signal => checkUserLogin({signal}), {
+    const connectionFailed = (detail: string) => {
+        setConnection(prev => ({attempt: prev === null ? 0 : prev.attempt + 1, detail}))
+        // Anzeige-Routen zeigen keine Panikseite (bei OBS stünde sie im Stream), sondern laufen
+        // anonym weiter; viele authentifizieren sich ohnehin per Geräte-Token. Kommt das Backend
+        // zurück, meldet der nächste Versuch die Sitzung wieder an.
+        if (isDisplayPath(router.state.resolvedLocation.pathname, router.basepath)) {
+            setUserData(prev =>
+                prev.authStatus === 'initial'
+                    ? prev.token === null
+                        ? {
+                              userInfo: undefined,
+                              token: null,
+                              isInApp: prev.isInApp,
+                              authStatus: 'anonymous',
+                          }
+                        : {
+                              userInfo: undefined,
+                              token: prev.token,
+                              isInApp: prev.isInApp,
+                              authStatus: 'anonymous',
+                          }
+                    : prev,
+            )
+        }
+    }
+
+    const loginCheck = useFetch(signal => checkUserLogin({signal}), {
         onResponse: ({data, response}) => {
-            if (response.status === 200 && data !== undefined) {
-                setAuth(data, undefined, userData.isInApp)
+            const outcome = classifyLoginCheck(response.status, data !== undefined)
+            if (outcome === 'authenticated' && data !== undefined) {
+                setConnection(null)
+                setAuth(data, undefined, userDataRef.current.isInApp)
+            } else if (outcome === 'anonymous') {
+                // Nur hier darf der Token vom Gerät: Der Server kennt die Sitzung nicht. Ein 502
+                // während eines Backend-Neustarts sagt darüber nichts (siehe `classifyLoginCheck`).
+                setConnection(null)
+                clearSessionToken(userDataRef.current.isInApp)
+                setUserData(prevState =>
+                    prevState.authStatus === 'anonymous'
+                        ? {
+                              userInfo: undefined,
+                              token: null,
+                              isInApp: prevState.isInApp,
+                              authStatus: 'anonymous',
+                          }
+                        : {
+                              userInfo: undefined,
+                              token: null,
+                              isInApp: prevState.isInApp,
+                              authStatus: 'pending',
+                          },
+                )
             } else {
-                clearSessionToken(userData.isInApp)
-                setUserData(prevState => ({
-                    userInfo: undefined,
-                    token: null,
-                    isInApp: prevState.isInApp,
-                    authStatus: 'pending',
-                }))
+                connectionFailed(`HTTP ${response.status}`)
             }
         },
         onPanic: error => {
             // Kaltstart ohne Netz: Der Aufruf wirft, bevor eine Antwort kommt. Mit gültigem
             // Token und abgelegten Nutzerangaben läuft die App aus dem Bestand weiter, statt
             // die Panikseite zu zeigen - am Steg ist das der Unterschied zwischen brauchbar und
-            // unbrauchbar. Außerhalb von /app bleibt es beim bisherigen Verhalten.
+            // unbrauchbar.
             //
             // Nur bei einem TypeError: So und nicht anders meldet fetch einen Fehlschlag auf
             // der Netzebene. Ein Server, der mit Status 200 etwas Kaputtes liefert, wirft einen
-            // SyntaxError, und ein Serverfehler kommt gar nicht hier an, sondern als Antwort mit
-            // Fehlerstatus. Beides soll weiterhin die Panikseite zeigen - sonst verdeckt der
-            // Bestand aus dem Gerät einen echten Defekt.
+            // SyntaxError; der soll nicht vom Bestand aus dem Gerät verdeckt werden. Alles, was
+            // hier nicht aus dem Bestand weiterläuft, versucht es mit wachsendem Abstand erneut
+            // (siehe `connectionFailed`), statt für immer auf der Panikseite zu stehen.
+            const current = userDataRef.current
             const offlineError = error instanceof TypeError
-            const offlineUser = offlineError && userData.isInApp ? readSessionUser(true) : null
-            if (offlineUser !== null && userData.token) {
+            const offlineUser = offlineError && current.isInApp ? readSessionUser(true) : null
+            if (offlineUser !== null && current.token) {
+                setConnection(null)
                 setUserData({
                     userInfo: offlineUser,
-                    token: userData.token,
+                    token: current.token,
                     isInApp: true,
                     authStatus: 'pending',
                 })
                 return
             }
-            setError(`${error}`)
+            connectionFailed(`${error}`)
         },
     })
 
-    const setAuth = (data: LoginDto, headers?: Headers, isInApp: boolean = false) => {
-        let token = userData.token
+    const reloadLoginCheck = loginCheck.reload
+    useEffect(() => {
+        if (connection === null) return
+        const timer = setTimeout(reloadLoginCheck, loginRetryDelayMs(connection.attempt))
+        return () => clearTimeout(timer)
+    }, [connection, reloadLoginCheck])
+
+    // Kurzer Start ohne Anzeige, langsamer Start mit Ladekreis statt weißer Fläche. Auf
+    // Anzeige-Routen bleibt es leer: Bei einer OBS-Quelle stünde der Kreis sonst im Bild.
+    useEffect(() => {
+        if (userData.authStatus !== 'initial') return
+        const timer = setTimeout(() => setSlowStart(true), 400)
+        return () => clearTimeout(timer)
+    }, [userData.authStatus])
+
+    const setAuth = useCallback((data: LoginDto, headers?: Headers, isInApp: boolean = false) => {
+        let token = userDataRef.current.token
 
         if (headers) {
             const sessionHeader = headers.get('X-Api-Session')
@@ -194,9 +303,9 @@ const UserProvider = ({children}: PropsWithChildren) => {
             isInApp,
             authStatus: 'pending',
         })
-    }
+    }, [])
 
-    const logout = async (isInApp: boolean = false) => {
+    const logout = useCallback(async (isInApp: boolean = false) => {
         // Erst das Gerät räumen, dann den Server benachrichtigen. Ohne Netz wirft `userLogout`,
         // und in der umgekehrten Reihenfolge bliebe auf einem geteilten Tablet alles liegen:
         // ein sechs Stunden gültiger Token, der ganze Privilegiensatz und bis zu zwölf Stunden
@@ -226,26 +335,48 @@ const UserProvider = ({children}: PropsWithChildren) => {
             token: null,
             authStatus: 'pending',
         })
-    }
+    }, [])
+    const logoutRef = useRef(logout)
+    logoutRef.current = logout
 
-    const changeLanguage = async (language: Language) => {
+    const changeLanguage = useCallback(async (language: Language) => {
         await i18next.changeLanguage(language)
         setLanguage(language)
-    }
+    }, [])
 
-    let userValue: User
-    if (userData.authStatus !== 'authenticated') {
-        userValue = {
-            language,
-            changeLanguage,
-            loggedIn: false,
-            login: setAuth,
-            checkPrivilege: () => false,
-            getPrivilegeScope: () => undefined,
-        } satisfies AnonymousUser
-    } else {
+    // Was Nutzer selbst auslösen, navigiert anschließend (Dashboard bzw. Startseite).
+    const userLogin = useCallback(
+        (data: LoginDto, headers?: Headers, isInApp: boolean = false) => {
+            userInitiatedRef.current = true
+            setAuth(data, headers, isInApp)
+        },
+        [setAuth],
+    )
+    const userLogoutAction = useCallback(
+        (isInApp: boolean = false) => {
+            userInitiatedRef.current = true
+            return logout(isInApp)
+        },
+        [logout],
+    )
+
+    // Ein neues Objekt nur, wenn sich wirklich etwas ändert: Jeder `useUser()`-Konsument und der
+    // Router-Kontext hängen daran.
+    const userValue = useMemo((): User => {
+        if (userData.authStatus !== 'authenticated') {
+            return {
+                language,
+                changeLanguage,
+                loggedIn: false,
+                login: userLogin,
+                checkPrivilege: () => false,
+                getPrivilegeScope: () => undefined,
+            } satisfies AnonymousUser
+        }
+        const privileges = userData.userInfo.privileges
+
         const checkPrivilege = (privilege: Privilege): boolean =>
-            userData.userInfo.privileges.some(
+            privileges.some(
                 p =>
                     p.action === privilege.action &&
                     p.resource === privilege.resource &&
@@ -253,7 +384,7 @@ const UserProvider = ({children}: PropsWithChildren) => {
             )
 
         const getPrivilegeScope = (action: Action, resource: Resource): Scope | undefined =>
-            userData.userInfo.privileges
+            privileges
                 .filter(p => p.action === action && p.resource === resource)
                 .reduce<Scope | undefined>((scope, privilege) => {
                     if (scope === undefined) {
@@ -265,29 +396,41 @@ const UserProvider = ({children}: PropsWithChildren) => {
                     }
                 }, undefined)
 
-        userValue = {
+        return {
             language,
             changeLanguage,
             loggedIn: true,
             id: userData.userInfo.id,
             clubId: userData.userInfo.clubId,
             materialProviderId: userData.userInfo.materialProviderId,
-            login: setAuth,
-            logout,
+            login: userLogin,
+            logout: userLogoutAction,
             checkPrivilege,
             getPrivilegeScope,
         } satisfies AuthenticatedUser
+    }, [userData, language, changeLanguage, userLogin, userLogoutAction])
+
+    const onDisplayRoute = isDisplayPath(router.state.resolvedLocation.pathname, router.basepath)
+
+    let content: React.ReactNode
+    if (connection !== null && userData.authStatus === 'initial') {
+        content = (
+            <PanicPage retrying onRetry={reloadLoginCheck} retryPending={loginCheck.pending} />
+        )
+    } else if (userData.authStatus === 'initial') {
+        content =
+            slowStart && !onDisplayRoute ? (
+                <Box sx={{height: '100vh'}}>
+                    <Throbber size={40} />
+                </Box>
+            ) : null
+    } else if (userData.authStatus === 'pending') {
+        content = null
+    } else {
+        content = children
     }
 
-    return (
-        <UserContext.Provider value={userValue}>
-            {error !== null ? (
-                <PanicPage />
-            ) : (
-                userData.authStatus !== 'pending' && userData.authStatus !== 'initial' && children
-            )}
-        </UserContext.Provider>
-    )
+    return <UserContext.Provider value={userValue}>{content}</UserContext.Provider>
 }
 
 export default UserProvider

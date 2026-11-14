@@ -1,5 +1,6 @@
 import {ClubDto, getCreateClubOnRegistrationAllowed, updateGlobalConfigurations} from '../../api'
-import {Box, Card, CardContent, CardHeader, Stack, Tab, Typography} from '@mui/material'
+import {Box, Card, CardContent, CardHeader, Stack, Tab} from '@mui/material'
+import {PageHeader} from '@components/ui'
 import {useNavigate} from '@tanstack/react-router'
 import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
@@ -17,6 +18,7 @@ import {useState} from 'react'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {readClubGlobal, updateAdministrationConfigGlobal} from '@authorization/privileges.ts'
 import {clubsIndexRoute} from '../../routes.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type GlobalConfigForm = {
     allowClubCreationOnRegistration: boolean
@@ -74,14 +76,16 @@ const ClubsPage = () => {
     })
 
     const onSubmit = async (data: GlobalConfigForm) => {
-        setSubmitting(true)
-        const {error} = await updateGlobalConfigurations({
-            body: {
-                allowClubCreationOnRegistration: data.allowClubCreationOnRegistration,
-            },
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            updateGlobalConfigurations({
+                body: {
+                    allowClubCreationOnRegistration: data.allowClubCreationOnRegistration,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('club.settings.saved'))
@@ -93,7 +97,7 @@ const ClubsPage = () => {
 
     return (
         <Box>
-            <Typography variant="h1">{t('club.clubs')}</Typography>
+            <PageHeader title={t('club.clubs')} />
             <TabSelectionContainer activeTab={activeTab} setActiveTab={switchTab}>
                 <Tab label={t('club.tabs.clubs')} {...tabProps('clubs')} />
                 {mayReadShortNames && (

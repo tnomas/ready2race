@@ -45,9 +45,12 @@ type ClockPhase = 'countdown' | 'running' | 'frozen'
  * Ein Neustart bei JEDER Match-Aktualisierung würde außerdem den Einfrier-Ref fälschlich
  * zurücksetzen.
  *
- * Einfrieren: `streamClockState` ist rein und kennt keine Historie — ihr `elapsedMs` liefe im
- * `frozen`-Fall bei fortschreitender Zeit weiter. Der erste eingefrorene Wert wird deshalb in
- * einem Ref festgehalten, bis ein neuer Lauf (neue `matchId`) den Ref zurücksetzt.
+ * Einfrieren: `streamClockState` ist rein und kennt keine Historie — ihr RÜCKFALL-Wert im
+ * `frozen`-Fall (keine parsebare Bootszeit, `anchored: false`) liefe bei fortschreitender Zeit
+ * weiter. Nur dieser wird in einem Ref festgehalten; der aus den Bootszeiten abgeleitete Wert
+ * (`anchored: true`) wird bei jedem Tick neu genommen, damit eine korrigierte Zielzeit
+ * (6:06.8 → 6:10.0) auch die Uhr erreicht. Verlässt die Uhr die Phase `frozen` (Wertung
+ * zurückgenommen, neuer Lauf), fällt der Ref weg.
  */
 const StreamClock = ({
     match,
@@ -102,6 +105,8 @@ const StreamClock = ({
                 sequencePausedAtRef.current,
             )
 
+            if (state.phase !== 'frozen') frozenElapsedMsRef.current = null
+
             let next: string | null
             let nextPhase: ClockPhase = 'running'
             switch (state.phase) {
@@ -113,8 +118,13 @@ const StreamClock = ({
                     next = formatElapsed(state.elapsedMs)
                     break
                 case 'frozen':
-                    frozenElapsedMsRef.current ??= state.elapsedMs
-                    next = formatElapsed(frozenElapsedMsRef.current)
+                    if (state.anchored) {
+                        frozenElapsedMsRef.current = null
+                        next = formatElapsed(state.elapsedMs)
+                    } else {
+                        frozenElapsedMsRef.current ??= state.elapsedMs
+                        next = formatElapsed(frozenElapsedMsRef.current)
+                    }
                     nextPhase = 'frozen'
                     break
                 default:

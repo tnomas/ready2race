@@ -32,6 +32,9 @@ sealed class Privilege(
         STREAM,
         ADMINISTRATION,
         MATERIAL,
+        ROLE,
+        STAFF,
+        SYSTEM,
     }
 
     enum class Scope(val level: Int) {
@@ -114,6 +117,20 @@ sealed class Privilege(
 
     data object UpdateAdministrationConfigGlobal : Privilege(Action.UPDATE, Resource.ADMINISTRATION, Scope.GLOBAL)
     data object ReadAdministrationConfigGlobal : Privilege(Action.READ, Resource.ADMINISTRATION, Scope.GLOBAL)
+
+    // Rollen verwalten: anlegen (als Kopie eines Jobs), ändern, löschen. Nur GLOBAL.
+    data object CreateRoleGlobal : Privilege(Action.CREATE, Resource.ROLE, Scope.GLOBAL)
+    data object ReadRoleGlobal : Privilege(Action.READ, Resource.ROLE, Scope.GLOBAL)
+    data object UpdateRoleGlobal : Privilege(Action.UPDATE, Resource.ROLE, Scope.GLOBAL)
+    data object DeleteRoleGlobal : Privilege(Action.DELETE, Resource.ROLE, Scope.GLOBAL)
+
+    // Rollen zuweisen und entziehen. Bekommt in Schritt 3 den Scope EVENT für Tagesteams.
+    data object ReadStaffGlobal : Privilege(Action.READ, Resource.STAFF, Scope.GLOBAL)
+    data object UpdateStaffGlobal : Privilege(Action.UPDATE, Resource.STAFF, Scope.GLOBAL)
+
+    // Die Sperre nach oben: nur der Superadmin trägt es. Wer es nicht hat, kann weder die
+    // Superadmin-Rolle vergeben (Teilmengenregel) noch Superadmin-Konten sehen.
+    data object UpdateSystemGlobal : Privilege(Action.UPDATE, Resource.SYSTEM, Scope.GLOBAL)
 
     // Materialvermietung (Spec 2026-09-07): OWN meint den Anbieter, dem der Nutzer über
     // app_user.material_provider zugeordnet ist - dieselbe Mechanik wie beim Verein.

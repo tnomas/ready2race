@@ -26,3 +26,26 @@ export const visibilityPhase = (
     if (visible) return elapsed < GRAPHIC_TRANSITION_MS ? 'entering' : 'shown'
     return elapsed < GRAPHIC_TRANSITION_MS ? 'leaving' : 'hidden'
 }
+
+/**
+ * Ob eine sichtbare Grafik in einer STÖRUNG (`stale`, kein Lebenszeichen des Kanals) von selbst
+ * ablaufen muss: Normalerweise pusht der Server das Ausblenden, sobald `visibleUntil` erreicht
+ * ist (`StreamSceneResolver.nextEvaluationAt`) — steht der Kanal, kommt dieser Push nicht, und
+ * eine „15 s Startliste" bliebe bis zum Reconnect im Bild. Deshalb zählt die Bühne in der Störung
+ * selbst mit, aber NUR dann; ohne Störung bleibt der Server die einzige Wahrheit.
+ *
+ * `clockOffsetMs` ist `clientNow − serverTime` (gemessen am letzten Rahmen, siehe
+ * `StreamScenePage`): das Fensterende der Serveruhr wird damit in die Geräteuhr umgerechnet.
+ * Grafiken ohne Fenster (Uhr, Ticker) und ein unlesbares Datum laufen nie ab.
+ */
+export const expiredWhileStale = (
+    stale: boolean,
+    visibleUntil: string | null | undefined,
+    clockOffsetMs: number,
+    nowMs: number,
+): boolean => {
+    if (!stale || visibleUntil == null) return false
+    const untilMs = Date.parse(visibleUntil)
+    if (Number.isNaN(untilMs)) return false
+    return untilMs + clockOffsetMs < nowMs
+}

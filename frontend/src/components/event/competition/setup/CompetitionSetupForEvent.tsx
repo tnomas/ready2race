@@ -10,6 +10,7 @@ import {
 } from '@components/event/competition/setup/common.ts'
 import CompetitionSetup from '@components/event/competition/setup/CompetitionSetup.tsx'
 import {useTranslation} from 'react-i18next'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 const CompetitionSetupForEvent = () => {
     const {t} = useTranslation()
@@ -44,14 +45,16 @@ const CompetitionSetupForEvent = () => {
     )
 
     const handleSubmit = async (formData: CompetitionSetupForm) => {
-        setSubmitting(true)
-        const {error} = await updateCompetitionSetup({
-            path: {eventId: eventId, competitionId: competitionId},
-            body: mapFormToCompetitionSetupDto(formData),
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            updateCompetitionSetup({
+                path: {eventId: eventId, competitionId: competitionId},
+                body: mapFormToCompetitionSetupDto(formData),
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.competition.setup.save.error'))
         } else {
             feedback.success(t('event.competition.setup.save.success'))

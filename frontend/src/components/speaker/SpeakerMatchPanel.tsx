@@ -20,6 +20,8 @@ import {materialLabel} from '@components/material/materialLabel.ts'
 import SequenceCountdown from '@components/timing/SequenceCountdown.tsx'
 import {splitRunningEntries} from '@utils/timing/sequenceDisplay.ts'
 import {
+    displayPlace,
+    isLiveOnWater,
     matchDisplayColor,
     medalEmoji,
     SpeakerBadges,
@@ -43,9 +45,12 @@ type Props = {
 const sortTeams = (teams: SpeakerTeam[], finished: boolean): SpeakerTeam[] =>
     [...teams].sort((a, b) => {
         if (finished) {
-            if (a.place != undefined && b.place != undefined) return a.place - b.place
-            if (a.place != undefined) return -1
-            if (b.place != undefined) return 1
+            // Gesamtplatz sortiert die Tabelle; der angezeigte Platz je Kategorie steht in der Zelle
+            const aPlace = a.place ?? displayPlace(a)
+            const bPlace = b.place ?? displayPlace(b)
+            if (aPlace != undefined && bPlace != undefined) return aPlace - bPlace
+            if (aPlace != undefined) return -1
+            if (bPlace != undefined) return 1
         }
         return (a.startNumber ?? Number.MAX_SAFE_INTEGER) - (b.startNumber ?? Number.MAX_SAFE_INTEGER)
     })
@@ -226,7 +231,9 @@ const SpeakerMatchPanel = ({
                                 ? t('speaker.status.CANCELLED')
                                 : match.clarification
                                   ? `⚖ ${t('speaker.status.CLARIFICATION')}`
-                                  : match.status === 'RUNNING'
+                                  : match.preparing
+                                    ? t('speaker.status.PREPARING')
+                                    : match.status === 'RUNNING'
                                     ? `● ${t('speaker.status.RUNNING')}`
                                     : match.status === 'FINISHED'
                                       ? `✓ ${t('speaker.status.FINISHED')}`
@@ -247,7 +254,7 @@ const SpeakerMatchPanel = ({
                     : '') +
                 // Bei Klärung keine weiterlaufende "läuft seit"-Uhr — die Zahl wäre eine
                 // Aussage über ein Rennen, dessen Zustand gerade strittig ist.
-                (match.status === 'RUNNING' && !match.clarification && match.elapsedMinutes != undefined
+                (isLiveOnWater(match) && match.elapsedMinutes != undefined
                     ? ` · ${t('speaker.match.elapsed', {minutes: match.elapsedMinutes})}`
                     : '')
             }
@@ -281,6 +288,7 @@ const SpeakerMatchPanel = ({
                     <IconButton
                         size={'small'}
                         onClick={() => timing.dismissFalseStart(match.matchId)}
+                        aria-label={t('common.close')}
                         sx={{color: colors.now}}>
                         <CloseIcon fontSize={'small'} />
                     </IconButton>
@@ -320,6 +328,7 @@ const SpeakerMatchPanel = ({
                             team.material,
                             settings.showMaterial ? 'always' : 'deviationsOnly',
                         )
+                        const place = displayPlace(team)
                         return (
                             <TableRow key={team.teamId} sx={{'&:last-child td': {border: 0}}}>
                                 <TableCell sx={{...bodyCellSx, whiteSpace: 'nowrap'}}>
@@ -334,10 +343,9 @@ const SpeakerMatchPanel = ({
                                             <Typography variant={'body2'} sx={{color: colors.now}}>
                                                 {team.failedReason || t('speaker.match.failed')}
                                             </Typography>
-                                        ) : team.place != undefined ? (
+                                        ) : place != undefined ? (
                                             <Typography fontWeight={'bold'}>
-                                                {team.place <= 3 ? medalEmoji(team.place) : ''}{' '}
-                                                {team.place}.
+                                                {place <= 3 ? medalEmoji(place) : ''} {place}.
                                             </Typography>
                                         ) : (
                                             '–'
@@ -356,6 +364,19 @@ const SpeakerMatchPanel = ({
                                             sx={{color: colors.textSecondary}}>
                                             {team.teamName}
                                         </Typography>
+                                    )}
+                                    {team.ratingCategory && (
+                                        <Chip
+                                            size={'small'}
+                                            label={team.ratingCategory}
+                                            variant={'outlined'}
+                                            sx={{
+                                                ml: team.teamName ? 1 : 0,
+                                                color: colors.textSecondary,
+                                                borderColor: colors.border,
+                                                height: 20,
+                                            }}
+                                        />
                                     )}
                                     {/* Das wirksame Materialstück - nur eine Abweichung von der
                                         Startnummer ist ohne die Einstellung der Rede wert,

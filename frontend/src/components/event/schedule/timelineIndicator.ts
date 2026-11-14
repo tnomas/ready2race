@@ -2,7 +2,7 @@ import {format} from 'date-fns'
 import {EventScheduleSlotDto, LiveDashboardMatchDto, PendingSlotDto} from '@api/types.gen.ts'
 import {competitionTag, slotLabel} from './common.ts'
 import {isLiveMatch, pendingSlotLabel} from '@components/event/liveDashboard/common.ts'
-import {ChipColor} from '@components/event/match/matchStatusChip.ts'
+import {ChipColor, slotMatchStatus} from '@components/event/match/matchStatusChip.ts'
 import {latestStartDelaySeconds} from '@utils/scheduleDelay.ts'
 
 /**
@@ -88,6 +88,11 @@ export const dayOf = (isoLikeTime: string): string => isoLikeTime.slice(0, 10)
  * (siehe dashboardMatchState).
  */
 export const scheduleSlotState = (slot: EventScheduleSlotDto): TimelineEntryState => {
+    // Die Klärung liest der Balken aus derselben Ableitung wie der Chip daneben, statt sie hier
+    // ein zweites Mal aus den Zeitstempeln zu bauen (vorher: Balken „läuft", Chip „Klärung").
+    if (slotMatchStatus(slot)?.state === 'CLARIFICATION') {
+        return 'clarification'
+    }
     if (slot.matchFinishedAt) {
         return 'finished'
     }

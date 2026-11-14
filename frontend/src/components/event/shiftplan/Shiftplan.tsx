@@ -323,7 +323,7 @@ export const Shiftplan = () => {
                             <Typography variant={'h6'}>{t('work.type.types')}</Typography>
                             <InlineLink
                                 to={'/config'}
-                                search={{tab: 'event-elements'}}
+                                search={{tab: 'organisation'}}
                                 hash={'worktypes'}>
                                 {t('common.manage')}
                             </InlineLink>

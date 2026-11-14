@@ -40,6 +40,14 @@ data class EventScheduleSlotDto(
      */
     val matchActivatedAt: LocalDateTime?,
     /**
+     * `competition_match.clarification_since` des verknüpften Laufs - gesetzt heißt "in Klärung".
+     * Der Zeitplan bildet die Zweig-Reihenfolge von `LiveDashboardLogic.deriveMatchState` im
+     * Frontend nach (`slotMatchStatus`); ohne dieses Feld stand ein strittiger Lauf dort als
+     * "Läuft", während Durchführung und Dashboard "Klärung" zeigten. Die Begründung bleibt
+     * bewusst draußen.
+     */
+    val matchClarificationSince: LocalDateTime? = null,
+    /**
      * Mannschaften des verknüpften Laufs, die im Rennen sind (ohne die aus der Vorrunde
      * mitgeführten OUT-Zeilen) - 0 ohne verknüpften Lauf.
      */
@@ -86,6 +94,8 @@ data class UnplannedSetupMatchDto(
     val matchActivatedAt: java.time.LocalDateTime? = null,
     val matchStartedAt: java.time.LocalDateTime? = null,
     val matchFinishedAt: java.time.LocalDateTime? = null,
+    /** Wie [EventScheduleSlotDto.matchClarificationSince]: gesetzt heißt „in Klärung". */
+    val matchClarificationSince: java.time.LocalDateTime? = null,
     val bye: de.lambda9.ready2race.backend.app.matchStatus.entity.MatchByeDto? = null,
 )
 

@@ -1,10 +1,12 @@
 import {useTranslation} from 'react-i18next'
-import {Alert, Box, Chip, Divider, Stack, Typography} from '@mui/material'
-import Throbber from '@components/Throbber.tsx'
+import {Alert, Box, Card, Chip, Divider, Stack, Typography} from '@mui/material'
+import {CalendarMonthOutlined} from '@mui/icons-material'
+import {EmptyState, LoadingState} from '@components/ui'
 import {BoardProgramEntry} from '@api/types.gen.ts'
 import {getPublicProgram} from '@api/sdk.gen.ts'
 import {usePolledFetch} from '@utils/usePolledFetch.ts'
 import {format} from 'date-fns'
+import {programStateChip} from './programStateChip.ts'
 
 type Props = {
     eventId: string
@@ -40,26 +42,18 @@ const ResultsProgram = ({eventId}: Props) => {
     )
 
     if (initialLoad) {
-        return (
-            <Stack sx={{alignItems: 'center', p: 2}}>
-                <Throbber />
-            </Stack>
-        )
+        return <LoadingState variant={'section'} />
     }
 
     if (data === null) {
-        return (
-            <Box sx={{p: 2}}>
-                <Alert severity={'warning'}>{t('results.program.loadFailed')}</Alert>
-            </Box>
-        )
+        return <Alert severity={'warning'}>{t('results.program.loadFailed')}</Alert>
     }
 
     if (data.length === 0) {
         return (
-            <Box sx={{p: 2}}>
-                <Alert severity={'info'}>{t('results.program.empty')}</Alert>
-            </Box>
+            <Card>
+                <EmptyState icon={<CalendarMonthOutlined />} title={t('results.program.empty')} />
+            </Card>
         )
     }
 
@@ -80,31 +74,20 @@ const ResultsProgram = ({eventId}: Props) => {
     )
 
     const stateChip = (entry: BoardProgramEntry) => {
-        // Programmpunkte (Pausen) tragen keinen Laufzustand — ein "Anstehend" an der
-        // Mittagspause wäre nur Rauschen.
-        if (entry.name != null && entry.state === 'UPCOMING') {
-            return null
-        }
-        switch (entry.state) {
-            case 'RUNNING':
-                return (
-                    <Chip size={'small'} color={'info'} label={t('results.program.running')} />
-                )
-            case 'FINISHED':
-                return <Chip size={'small'} label={t('results.program.finished')} />
-            default:
-                return (
-                    <Chip
-                        size={'small'}
-                        variant={'outlined'}
-                        label={t('results.program.upcoming')}
-                    />
-                )
-        }
+        const chip = programStateChip(entry.state, entry.name != null)
+        if (chip === null) return null
+        return (
+            <Chip
+                size={'small'}
+                color={chip.color}
+                variant={chip.variant}
+                label={t(chip.labelKey)}
+            />
+        )
     }
 
     return (
-        <Stack spacing={1} sx={{p: 2}}>
+        <Stack spacing={3}>
             {failed && lastUpdated && (
                 <Typography variant={'body2'} color={'text.secondary'}>
                     {t('results.liveMatches.stale', {
@@ -113,61 +96,67 @@ const ResultsProgram = ({eventId}: Props) => {
                 </Typography>
             )}
             {days.map((group, groupIndex) => (
-                <Stack key={group.day ?? `ohne-tag-${groupIndex}`} spacing={0}>
+                <Box component={'section'} key={group.day ?? `ohne-tag-${groupIndex}`}>
                     {group.day && (
-                        <Typography variant={'subtitle1'} fontWeight={'bold'} sx={{mt: 1}}>
+                        <Typography variant={'h2'} sx={{mb: 1.5}}>
                             {format(new Date(group.entries[0].startTime!), t('format.date'))}
                         </Typography>
                     )}
-                    {group.entries.map((entry, index) => (
-                        <Box key={index}>
-                            {index > 0 && <Divider />}
-                            <Box
-                                sx={{
-                                    display: 'flex',
-                                    alignItems: 'baseline',
-                                    columnGap: 1.5,
-                                    py: 0.75,
-                                }}>
-                                <Typography
+                    <Card>
+                        {group.entries.map((entry, index) => (
+                            <Box key={index}>
+                                {index > 0 && <Divider />}
+                                <Box
                                     sx={{
-                                        fontVariantNumeric: 'tabular-nums',
-                                        flexShrink: 0,
-                                        color: 'text.secondary',
+                                        display: 'flex',
+                                        alignItems: 'baseline',
+                                        columnGap: 2,
+                                        py: 1.25,
+                                        px: {xs: 2, sm: 2.5},
                                     }}>
-                                    {entry.startTime
-                                        ? format(new Date(entry.startTime), t('format.time'))
-                                        : '–'}
-                                </Typography>
-                                <Box sx={{minWidth: 0, flex: 1}}>
-                                    {entry.name != null ? (
-                                        // Programmpunkt (Pause o.ä.): nur der Name, kursiv.
-                                        <Typography fontStyle={'italic'}>{entry.name}</Typography>
-                                    ) : (
-                                        <>
-                                            <Typography sx={{overflowWrap: 'anywhere'}}>
-                                                {entry.competitionName}
+                                    <Typography
+                                        sx={{
+                                            fontVariantNumeric: 'tabular-nums',
+                                            flexShrink: 0,
+                                            width: '3rem',
+                                            fontWeight: 600,
+                                        }}>
+                                        {entry.startTime
+                                            ? format(new Date(entry.startTime), t('format.time'))
+                                            : '–'}
+                                    </Typography>
+                                    <Box sx={{minWidth: 0, flex: 1}}>
+                                        {entry.name != null ? (
+                                            // Programmpunkt (Pause o.ä.): nur der Name, kursiv.
+                                            <Typography fontStyle={'italic'}>
+                                                {entry.name}
                                             </Typography>
-                                            <Typography
-                                                variant={'body2'}
-                                                color={'text.secondary'}>
-                                                {[entry.roundName, entry.matchName]
-                                                    .filter(
-                                                        (part, i, parts) =>
-                                                            part && part !== parts[i - 1],
-                                                    )
-                                                    .join(' · ')}
-                                            </Typography>
-                                        </>
-                                    )}
-                                </Box>
-                                <Box sx={{flexShrink: 0, alignSelf: 'center'}}>
-                                    {stateChip(entry)}
+                                        ) : (
+                                            <>
+                                                <Typography sx={{overflowWrap: 'anywhere'}}>
+                                                    {entry.competitionName}
+                                                </Typography>
+                                                <Typography
+                                                    variant={'body2'}
+                                                    color={'text.secondary'}>
+                                                    {[entry.roundName, entry.matchName]
+                                                        .filter(
+                                                            (part, i, parts) =>
+                                                                part && part !== parts[i - 1],
+                                                        )
+                                                        .join(' · ')}
+                                                </Typography>
+                                            </>
+                                        )}
+                                    </Box>
+                                    <Box sx={{flexShrink: 0, alignSelf: 'center'}}>
+                                        {stateChip(entry)}
+                                    </Box>
                                 </Box>
                             </Box>
-                        </Box>
-                    ))}
-                </Stack>
+                        ))}
+                    </Card>
+                </Box>
             ))}
         </Stack>
     )

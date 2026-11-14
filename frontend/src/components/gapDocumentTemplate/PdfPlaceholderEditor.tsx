@@ -387,6 +387,7 @@ const PdfPlaceholderEditor = (props: Props) => {
                                         e.stopPropagation()
                                         handleDeletePlaceholder(placeholder.id)
                                     }}
+                                    aria-label={t('common.delete')}
                                     sx={{p: 0.5}}>
                                     <Delete fontSize="small" />
                                 </IconButton>
@@ -501,7 +502,6 @@ const PdfPlaceholderEditor = (props: Props) => {
                     {Array.from(new Array(visiblePages), (_, index) => (
                         <Paper
                             key={`page_${index + 1}`}
-                            elevation={3}
                             sx={{position: 'relative', display: 'inline-block'}}>
                             <Typography
                                 variant="caption"

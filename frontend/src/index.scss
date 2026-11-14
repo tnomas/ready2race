@@ -1,7 +1,10 @@
 #ready2race-root, .ready2race {
   font-family: Roboto, sans-serif;
 
-  a {
+  // Nackte Router-Links (Sidebar, Karten, Tabellenzellen) erben Farbe und Dekoration. MUI-Elemente,
+  // die selbst als <a> rendern (ButtonLink, IconButtonLink, TextLink …), bringen ihre Farbe mit –
+  // die Id-Regel hier würde sie sonst überstimmen.
+  a:not([class*='Mui']) {
     text-decoration: none;
     color: unset;
   }

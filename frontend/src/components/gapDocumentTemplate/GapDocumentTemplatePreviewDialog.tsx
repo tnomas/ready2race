@@ -17,35 +17,41 @@ const GapDocumentTemplatePreviewDialog = (props: Props) => {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
     useEffect(() => {
-        if (props.open && props.gapDocumentTemplateId) {
-            loadPreview()
+        if (!props.open || !props.gapDocumentTemplateId) {
+            return
         }
-        return () => {
-            if (previewUrl) {
-                URL.revokeObjectURL(previewUrl)
+        const templateId = props.gapDocumentTemplateId
+        let cancelled = false
+        let url: string | null = null
+
+        const loadPreview = async () => {
+            const {data, error} = await downloadGapDocumentTemplateSample({
+                path: {gapDocumentTemplateId: templateId},
+            })
+            if (cancelled) {
+                return
+            }
+            if (error) {
+                feedback.error(t('gap.document.template.preview.error'))
+            } else if (data !== undefined) {
+                url = URL.createObjectURL(data)
+                setPreviewUrl(url)
             }
         }
-    }, [props.open, props.gapDocumentTemplateId])
+        loadPreview()
 
-    const loadPreview = async () => {
-        const {data, error} = await downloadGapDocumentTemplateSample({
-            path: {gapDocumentTemplateId: props.gapDocumentTemplateId!},
-        })
-
-        if (error) {
-            feedback.error(t('gap.document.template.preview.error'))
-        } else if (data !== undefined) {
-            const url = URL.createObjectURL(data)
-            setPreviewUrl(url)
+        return () => {
+            cancelled = true
+            if (url) {
+                URL.revokeObjectURL(url)
+            }
+            setPreviewUrl(null)
         }
-    }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.open, props.gapDocumentTemplateId])
 
     const handleClose = () => {
         props.onClose()
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl)
-        }
-        setPreviewUrl(null)
     }
 
     return (

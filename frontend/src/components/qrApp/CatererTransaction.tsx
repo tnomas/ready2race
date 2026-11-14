@@ -1,40 +1,38 @@
-import { Box, Stack, Alert, TextField, Button } from "@mui/material";
-import { useTranslation } from "react-i18next";
-import { PriceAdjuster } from "@components/qrApp/PriceAdjuster.tsx";
-import { useState } from "react";
+import {Box, Stack, Alert, TextField, Button} from '@mui/material'
+import {useTranslation} from 'react-i18next'
+import {PriceAdjuster} from '@components/qrApp/PriceAdjuster.tsx'
+import {useState} from 'react'
 
 interface CatererTransactionProps {
-    onConfirm: (price: string) => void;
-    submitting: boolean;
+    onConfirm: (price: string) => void
+    submitting: boolean
 }
 
-export const CatererTransaction = ({ onConfirm, submitting }: CatererTransactionProps) => {
-    const { t } = useTranslation();
-    const [price, setPrice] = useState<string>('');
+export const CatererTransaction = ({onConfirm, submitting}: CatererTransactionProps) => {
+    const {t} = useTranslation()
+    const [price, setPrice] = useState<string>('')
 
     const handleConfirm = () => {
-        onConfirm(price);
-    };
+        onConfirm(price)
+    }
 
     return (
-        <Box sx={{ width: '100%' }}>
+        <Box sx={{width: '100%'}}>
             <Stack spacing={2}>
-                <Alert severity="success">
-                    {t('caterer.canReceiveFood')}
-                </Alert>
-                
+                <Alert severity="success">{t('caterer.canReceiveFood')}</Alert>
+
                 <TextField
                     label={t('caterer.price')}
                     value={price}
-                    onChange={(e) => setPrice(e.target.value)}
+                    onChange={e => setPrice(e.target.value)}
                     type="number"
-                    slotProps={{ htmlInput: { step: "0.01", min: "0" } }}
+                    slotProps={{htmlInput: {step: '0.01', min: '0'}}}
                     helperText={t('caterer.priceHelper')}
                     fullWidth
                 />
-                
+
                 <PriceAdjuster price={price} onPriceChange={setPrice} />
-                
+
                 <Button
                     variant="contained"
                     color="primary"
@@ -42,11 +40,10 @@ export const CatererTransaction = ({ onConfirm, submitting }: CatererTransaction
                     disabled={submitting}
                     size="large"
                     fullWidth
-                    sx={{ py: 1.5 }}
-                >
+                    sx={{py: 1.5}}>
                     {t('caterer.confirm')}
                 </Button>
             </Stack>
         </Box>
-    );
-};
+    )
+}

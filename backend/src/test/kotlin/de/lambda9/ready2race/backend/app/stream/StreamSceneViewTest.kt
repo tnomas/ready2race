@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceEntryRepo
 import de.lambda9.ready2race.backend.app.timing.control.TimingSequenceRepo
 import de.lambda9.ready2race.backend.app.timing.control.plannedStartMillis
 import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
+import de.lambda9.ready2race.backend.app.timing.createTestMatchFixture
 import de.lambda9.ready2race.backend.app.timing.createTestMatchTeam
 import de.lambda9.ready2race.backend.app.timing.createTestMatchTeams
 import de.lambda9.ready2race.backend.app.timing.entity.CreateSequenceRequest
@@ -17,6 +18,9 @@ import de.lambda9.ready2race.backend.app.timing.entity.TimingStationType
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneLogic
+import de.lambda9.ready2race.backend.app.stream.control.StreamSceneRepo
+import de.lambda9.ready2race.backend.app.stream.control.toJsonb
+import de.lambda9.ready2race.backend.database.generated.tables.records.StreamSceneGraphicRecord
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
 import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
 import de.lambda9.ready2race.backend.app.stream.entity.StreamGraphicSettings
@@ -27,7 +31,9 @@ import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneGraphicDto
 import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
 import de.lambda9.ready2race.backend.app.stream.entity.StreamTrialPhase
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH
+import de.lambda9.ready2race.backend.database.generated.tables.references.STREAM_SCENE
 import de.lambda9.ready2race.testing.testComprehension
+import de.lambda9.tailwind.core.extensions.kio.traverse
 import de.lambda9.tailwind.jooq.Jooq
 import java.time.LocalDateTime
 import java.util.UUID
@@ -75,6 +81,33 @@ class StreamSceneViewTest {
             .set(COMPETITION_MATCH.ACTIVATED_AT, at)
             .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId))
             .execute()
+    }
+
+    /**
+     * Ein Altbestand mit unsinniger Zeilenzahl (vor der Eingabeprüfung geschrieben) darf den
+     * Szenenaufbau nicht reißen - das Tagesprogramm bleibt dann schlicht leer, die übrigen
+     * Grafiken der Szene kommen weiter durch.
+     */
+    @Test
+    fun aNegativeScheduleLengthYieldsAnEmptyScheduleInsteadOfADefect() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest())).dto.id
+        // Am Dienst vorbei, wie eine Zeile aus der Zeit vor der Prüfung.
+        !StreamSceneRepo.upsertGraphic(
+            StreamSceneGraphicRecord(
+                id = UUID.randomUUID(),
+                scene = sceneId,
+                type = StreamGraphicType.SCHEDULE.name,
+                enabled = true,
+                placement = StreamPlacement.FULL_CENTER.name,
+                size = StreamGraphicSize.NORMAL.name,
+                settings = StreamGraphicSettings(listLength = -1).toJsonb(),
+            )
+        ).orDie()
+
+        val view = !StreamSceneLogic.buildView(fixture.eventId, sceneId)
+        val schedule = view.graphics.first { it.type == StreamGraphicType.SCHEDULE }
+        assertEquals(emptyList(), schedule.schedule)
     }
 
     @Test
@@ -169,6 +202,124 @@ class StreamSceneViewTest {
     }
 
     /**
+     * Läuft noch ein vorheriges Rennen, während die Startsequenz des nächsten beginnt, gehören
+     * Countdown und Beschriftung der Stream-Uhr zum NÄCHSTEN Lauf. Eine globale Auswahl
+     * `running ?: preparing` koppelt sonst den neuen Countdown an den alten Lauf auf der Strecke.
+     */
+    @Test
+    fun aStartedSequenceMakesItsOwnMatchTheClockContentWhileAnotherMatchIsRunning() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val previous = !createTestMatchFixture(eventId)
+        val next = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val now = LocalDateTime.now()
+
+        !Jooq.query {
+            update(COMPETITION_MATCH)
+                .set(COMPETITION_MATCH.ACTIVATED_AT, now.minusMinutes(2))
+                .set(COMPETITION_MATCH.STARTED_AT, now.minusMinutes(1))
+                .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(previous.setupMatchId))
+                .execute()
+        }
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, next.teamIds, 60000L),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+
+        assertTrue(clock.visible, "Die Uhr muss mit dem Sequenzstart sichtbar sein")
+        assertEquals(
+            next.setupMatchId,
+            clock.match?.matchId,
+            "Der Countdown muss den Lauf der gestarteten Sequenz zeigen, nicht den vorherigen laufenden Lauf",
+        )
+    }
+
+    @Test
+    fun aStartedSequenceFindsItsMatchOutsideTheLimitedRunningWindow() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val previous = !(1..5).toList().traverse { createTestMatchFixture(eventId) }
+        val next = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+        val now = LocalDateTime.now()
+
+        !Jooq.query {
+            previous.forEachIndexed { index, fixture ->
+                update(COMPETITION_MATCH)
+                    .set(COMPETITION_MATCH.START_TIME, now.minusMinutes((10L - index)))
+                    .set(COMPETITION_MATCH.ACTIVATED_AT, now.minusMinutes(2))
+                    .set(COMPETITION_MATCH.STARTED_AT, now.minusMinutes(1))
+                    .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(fixture.setupMatchId))
+                    .execute()
+            }
+        }
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(stationId, SequenceMode.MASS, null, next.teamIds, 60000L),
+            userId,
+            eventId,
+        )
+        !TimingSequenceService.startSequence((created as ApiResponse.Created).id, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+        assertEquals(next.setupMatchId, clock.match?.matchId)
+    }
+
+    @Test
+    fun anIntervalSequenceLabelsTheClockWithTheMatchOfItsNextPendingEntry() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val first = !createTestMatchFixture(eventId)
+        val second = !createTestMatchFixture(eventId)
+        val stationId = !addTestStation(eventId, userId, TimingStationType.START)
+
+        val created = !TimingSequenceService.createSequence(
+            CreateSequenceRequest(
+                stationId,
+                SequenceMode.INTERVAL,
+                60000L,
+                listOf(first.teamIds.single(), second.teamIds.single()),
+                60000L,
+            ),
+            userId,
+            eventId,
+        )
+        val sequenceId = (created as ApiResponse.Created).id
+        !TimingSequenceService.startSequence(sequenceId, userId, eventId)
+        val firstEntry = (!TimingSequenceEntryRepo.getBySequence(sequenceId).orDie())
+            .single { it.position == 0 }
+        !TimingSequenceService.skipEntry(firstEntry.id, userId, eventId)
+
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest())).dto.id
+        !StreamSceneService.updateGraphics(
+            eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.CLOCK, StreamPlacement.TOP_RIGHT)),
+        )
+
+        val clock = (!StreamSceneLogic.buildView(eventId, sceneId)).graphics.single()
+        assertEquals(second.setupMatchId, clock.match?.matchId)
+    }
+
+    /**
      * Der Countdown der Stream-Uhr zählt auf den ERSTEN NOCH ANSTEHENDEN Start - nicht stur auf
      * den Slot der Position 0: Wird das erste Boot übersprungen, fällt der echte erste Start
      * einen Startabstand später, und genau dorthin muss die Uhr zählen (sonst stünde sie auf
@@ -253,6 +404,45 @@ class StreamSceneViewTest {
         // Und kein echter Lauf der Veranstaltung darf durchschlagen.
         val matchIds = visible.mapNotNull { it.match?.matchId } + visible.mapNotNull { it.result?.matchId }
         assertFalse(matchIds.contains(fixture.ownMatchId), "Der Probemodus fasst die echten Daten nicht an")
+    }
+
+    /**
+     * Eine Szene aus der Zeit vor dem Phasenbeginn (`trial_phase_since` leer) darf ihren Anker
+     * nicht bei jedem Aufbau neu auf „jetzt" setzen: Dann stünde die Startliste des Demo-Laufs
+     * ewig im Bild, und der Szenen-Kanal rechnete alle 15 s neu, ohne dass sich je etwas
+     * änderte. Stattdessen gilt die letzte Änderung der Szene als Phasenbeginn.
+     */
+    @Test
+    fun aLegacyTrialSceneWithoutPhaseStartAnchorsOnItsLastChange() = testComprehension {
+        val fixture = !MyEventFixture.create()
+        val sceneId = (!StreamSceneService.createScene(fixture.eventId, sceneRequest("Probe"))).dto.id
+        !StreamSceneService.updateGraphics(
+            fixture.eventId,
+            sceneId,
+            listOf(graphic(StreamGraphicType.STARTLIST, StreamPlacement.BOTTOM_CENTER, displaySeconds = 15)),
+        )
+        !StreamSceneService.setTrialMode(fixture.eventId, sceneId, true)
+
+        // Die Altzeile nachstellen: kein Phasenbeginn, letzte Änderung vor einer Minute.
+        val now = LocalDateTime.now()
+        !Jooq.query {
+            update(STREAM_SCENE)
+                .setNull(STREAM_SCENE.TRIAL_PHASE_SINCE)
+                .set(STREAM_SCENE.UPDATED_AT, now.minusSeconds(60))
+                .where(STREAM_SCENE.ID.eq(sceneId))
+                .execute()
+        }
+
+        val resolved = !StreamSceneLogic.buildResolvedView(fixture.eventId, sceneId)
+        assertFalse(
+            resolved.view.graphics.first { it.type == StreamGraphicType.STARTLIST }.visible,
+            "Das Startlisten-Fenster ist seit 45 s zu",
+        )
+        val next = resolved.nextEvaluationAt
+        assertTrue(
+            next == null || next.isBefore(now) || next.isAfter(now.plusSeconds(16)),
+            "kein Umschaltpunkt in 15 s, der nur vom neu gesetzten Anker käme: $next",
+        )
     }
 
     /**

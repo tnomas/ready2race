@@ -6,6 +6,7 @@ import {
     TimingStartGrouping,
 } from '@api/types.gen.ts'
 import {BoardMark} from '@components/timing/useTimingBoardState.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 /**
  * Reine Logik der Partie-orientierten Posten-Boards (Start und Ziel), herausgezogen aus den
@@ -262,7 +263,10 @@ function localDayKey(date: Date): string {
 export function groupMatchesByDay(matches: TimingMatchDto[]): DayScheduleGroup[] {
     const groups = new Map<string, DayScheduleGroup>()
     for (const match of matches) {
-        const parsed = match.startTime != null ? new Date(match.startTime) : null
+        const parsed =
+            match.startTime != null
+                ? new Date(parseServerLocalDateTime(match.startTime, serverZoneOffsetMs()))
+                : null
         const date = parsed !== null && !Number.isNaN(parsed.getTime()) ? parsed : null
         const dayKey = date !== null ? localDayKey(date) : 'none'
         const existing = groups.get(dayKey)
@@ -278,4 +282,39 @@ export function groupMatchesByDay(matches: TimingMatchDto[]): DayScheduleGroup[]
     const ordered = [...groups.values()]
     if (withoutTime !== undefined) ordered.push(withoutTime)
     return ordered
+}
+
+/**
+ * Gehört die Sequenz zu einem anderen Lauf als dem, den der Startposten gerade fokussiert? Der
+ * Fokus rückt nach einem Start weiter; eine noch scharfe Sequenz („Sequenz starten") startet dann
+ * den VORIGEN Lauf. Die Leiste macht das sichtbar. Ohne eine der beiden Seiten gibt es nichts zu
+ * vergleichen.
+ */
+export function sequenceMatchDiffersFromFocus(
+    sequenceMatch: TimingMatchDto | undefined,
+    focusedMatch: TimingMatchDto | undefined,
+): boolean {
+    if (sequenceMatch === undefined || focusedMatch === undefined) return false
+    return sequenceMatch.competitionSetupMatch !== focusedMatch.competitionSetupMatch
+}
+
+export type SequenceControlHintKey =
+    | 'timing.matches.sequenceNeedsLogin'
+    | 'timing.matches.sequenceNeedsLoginNoCapture'
+
+/**
+ * Lässt sich die Startsequenz an diesem Gerät steuern? Die Sequenz-Routen
+ * (`/timing/sequences/**`) verlangen eine Sitzung; ein Gerät, das nur per Geräte-Token am Posten
+ * hängt, bekäme auf jeden Sequenz-Knopf einen 401. Statt der Knöpfe steht dann ein Hinweis - der
+ * eine Satz zeigt auf den Stempel, der andere sagt, dass er abgeschaltet ist (seine Vorgabe ist
+ * AUS, siehe `noStartSequenceNoCaptureHint`). Angemeldet: null, kein Hinweis.
+ */
+export function sequenceControlHint(
+    loggedIn: boolean,
+    manualCaptureVisible: boolean,
+): SequenceControlHintKey | null {
+    if (loggedIn) return null
+    return manualCaptureVisible
+        ? 'timing.matches.sequenceNeedsLogin'
+        : 'timing.matches.sequenceNeedsLoginNoCapture'
 }

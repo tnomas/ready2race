@@ -7,8 +7,8 @@ import de.lambda9.ready2race.backend.app.auth.boundary.AuthService
 import de.lambda9.ready2race.backend.app.captcha.boundary.CaptchaService
 import de.lambda9.ready2race.backend.app.certificate.boundary.CertificateService
 import de.lambda9.ready2race.backend.app.certificate.entity.CertificateJobError
+import de.lambda9.ready2race.backend.app.email.boundary.EmailJob
 import de.lambda9.ready2race.backend.app.email.boundary.EmailService
-import de.lambda9.ready2race.backend.app.email.entity.EmailError
 import de.lambda9.ready2race.backend.app.invoice.boundary.InvoiceService
 import de.lambda9.ready2race.backend.app.invoice.entity.ProduceInvoiceError
 import de.lambda9.ready2race.backend.app.raceclocker.boundary.RaceClockerPollService
@@ -19,9 +19,12 @@ import de.lambda9.ready2race.backend.app.webDAV.boundary.WebDAVImportService
 import de.lambda9.ready2race.backend.app.webDAV.entity.WebDAVError
 import de.lambda9.ready2race.backend.config.Config.Companion.parseConfig
 import de.lambda9.ready2race.backend.database.initializeDatabase
+import de.lambda9.ready2race.backend.database.migrateDatabase
 import de.lambda9.ready2race.backend.plugins.*
 import de.lambda9.ready2race.backend.schedule.DynamicIntervalJobState
 import de.lambda9.ready2race.backend.schedule.Scheduler
+import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import de.lambda9.tailwind.core.extensions.kio.recoverDefault
 import de.lambda9.tailwind.jooq.transact
 import io.github.cdimascio.dotenv.dotenv
@@ -30,7 +33,6 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.*
-import org.flywaydb.core.Flyway
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -41,16 +43,13 @@ fun main(args: Array<String>): Unit = runBlocking {
     val config = dotenv {
         filename = args.getOrNull(0) ?: ".env"
     }.parseConfig()
-    val (env, ds) = Env.create(config)
+    // Vor dem Verbindungspool: der Postgres-Treiber übernimmt die JVM-Zone als Sitzungszeitzone.
+    AppZone.install(config.timezone)
+    val (env, _) = Env.create(config)
 
     // Der issue/94-Merge bringt Migrationen mit älteren Versionsnummern als bereits angewendete —
     // ohne outOfOrder schlägt der Start auf bestehenden Datenbanken fehl.
-    Flyway(
-        Flyway.configure()
-            .dataSource(ds)
-            .schemas("ready2race")
-            .outOfOrder(true)
-    ).migrate()
+    migrateDatabase(config)
 
     initializeDatabase(env)
     scheduleJobs(env)
@@ -64,11 +63,23 @@ fun Application.module(env: JEnv) {
     configureHTTP(env.env.config.mode)
     configureSerialization()
     configureSessions()
-    configureRequests()
+    configureRequests(env.env.config.trustedProxyHops)
     configureResponses()
     configureSockets(env)
     configureRouting(env.env.config, env)
     configureStaticFiles(env.env.config.staticFilesPath)
+}
+
+/**
+ * Aufräumjobs laufen alle paar Minuten; eine INFO-Zeile „0 … deleted" je Lauf begräbt echte
+ * Meldungen. Gelöschtes kommt auf INFO, ein leerer Lauf nur auf DEBUG.
+ */
+private fun logDeleted(what: String, count: Int) {
+    if (count > 0) {
+        logger.info { "${what.count(count)} deleted" }
+    } else {
+        logger.debug { "${what.count(count)} deleted" }
+    }
 }
 
 private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
@@ -78,17 +89,8 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
 
             scheduleDynamic("Send next email", 10.seconds) {
                 EmailService.sendNext()
-                    .map { DynamicIntervalJobState.Processed }
-                    .recoverDefault { error ->
-                        when (error) {
-                            EmailError.SmtpConfigMissing -> DynamicIntervalJobState.Fatal("Smtp config missing")
-                            EmailError.NoEmailsToSend -> DynamicIntervalJobState.Empty
-                            is EmailError.SendingFailed -> {
-                                logger.warn(error.cause) { "Error sending email ${error.emailId}" }
-                                DynamicIntervalJobState.Processed
-                            }
-                        }
-                    }
+                    .map { EmailJob.sent() }
+                    .recoverDefault { error -> EmailJob.stateFor(error) }
             }
 
             scheduleDynamic("Produce next invoice", 5.minutes) {
@@ -124,11 +126,14 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
                     }
             }
 
-            /*scheduleFixed("Delete sent emails", 1.hours) {
+            // Versandte Mails tragen Tokens im Klartext (Reset-, Einladungs-, Zugangslinks) und bei
+            // Meldebestätigungen alle Ausschreibungs-PDFs als Anhang - sie bleiben nur ihre
+            // Haltefrist (keep_after_sending) lang liegen.
+            scheduleFixed("Delete sent emails", 1.hours) {
                 EmailService.deleteSent().map {
-                    logger.info { "${"sent email".count(it)} deleted" }
+                    logDeleted("sent email", it)
                 }
-            }*/
+            }
 
             scheduleDynamic("Export next file to WebDAV Server", 10.seconds) {
                 WebDAVExportService.exportNext(env)
@@ -174,9 +179,15 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
             // hang the broadcasts off. The scheduler runs outside `respondKIO`, so `AfterCommit` has
             // no buffer installed and would fire effects mid-transaction; broadcasting from `map` -
             // which only runs once `transact` committed - reproduces the after-commit guarantee.
-            scheduleDynamic("Fire due start sequence entries", 1.seconds) {
-                TimingSequenceService.fireDueEntries()
-                    .transact()
+            //
+            // defectDelay: Nach einem Defekt (etwa einer abgerissenen Datenbankverbindung) darf
+            // dieser Takt nicht die Vorgabe von einer Minute schweigen - in der Zeit stünden alle
+            // Countdowns am Start still, während die Boards weiterzählen. Zwei Sekunden geben dem
+            // Verbindungspool Luft und halten den nächsten Start trotzdem im Fenster.
+            scheduleDynamic("Fire due start sequence entries", 1.seconds, defectDelay = 2.seconds) {
+                // Je Sequenz eine eigene Transaktion: ein Defekt in einer Sequenz hält die
+                // Startsequenzen der übrigen Veranstaltungen nicht mehr an.
+                KIO.effect { TimingSequenceService.fireDueEntriesIsolated(env) }.orDie()
                     .map { result ->
                         TimingSequenceService.broadcastFireResult(result)
                         if (result.fired.isEmpty() && result.changedSequences.isEmpty()) {
@@ -201,31 +212,31 @@ private fun CoroutineScope.scheduleJobs(env: JEnv) = with(Scheduler(env)) {
 
             scheduleFixed("Delete expired session tokens", 5.minutes) {
                 AuthService.deleteExpiredTokens().map {
-                    logger.info { "${"expired session".count(it)} deleted" }
+                    logDeleted("expired session", it)
                 }
             }
 
             scheduleFixed("Delete expired user registrations", 1.hours) {
                 AppUserService.deleteExpiredRegistrations().map {
-                    logger.info { "${"expired registration".count(it)} deleted" }
+                    logDeleted("expired registration", it)
                 }
             }
 
             scheduleFixed("Delete expired user invitations", 1.hours) {
                 AppUserService.deleteExpiredInvitations().map {
-                    logger.info { "${"expired invitations".count(it)} deleted" }
+                    logDeleted("expired invitations", it)
                 }
             }
 
             scheduleFixed("Delete expired password resets", 1.hours) {
                 AppUserService.deleteExpiredPasswordResets().map {
-                    logger.info { "${"expired password resets".count(it)} deleted" }
+                    logDeleted("expired password resets", it)
                 }
             }
 
             scheduleFixed("Delete expired captchas", 5.minutes) {
                 CaptchaService.deleteExpired().map {
-                    logger.info { "${"expired captchas".count(it)} deleted" }
+                    logDeleted("expired captchas", it)
                 }
             }
 

@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserHa
 import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER_HAS_ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.references.ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.references.ROLE_HAS_PRIVILEGE
+import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
 import org.jooq.impl.DSL
 import java.util.*
@@ -21,19 +22,29 @@ object AppUserHasRoleRepo {
         )
     }
 
-    // todo: Implementation is prone to errors (ROLE.notIn) - Fix this
-    fun deleteExceptSystem(userId: UUID) = APP_USER_HAS_ROLE.delete {
-        DSL.and(
-            APP_USER.eq(userId),
-            ROLE.notIn(ADMIN_ROLE, USER_ROLE, CLUB_REPRESENTATIVE_ROLE)
-        )
-    }
-
-    fun deleteRole(userId: UUID, roleId: UUID) = APP_USER_HAS_ROLE.delete {
+    fun delete(userId: UUID, roleId: UUID) = APP_USER_HAS_ROLE.delete {
         DSL.and(
             APP_USER.eq(userId),
             ROLE.eq(roleId)
         )
+    }
+
+    /**
+     * Entfernt alle Rollen, die die Rollenverwaltung vergibt. Die Rollen aus
+     * [ROLES_MANAGED_ELSEWHERE] bleiben: USER trägt jedes Konto, CLUB_REPRESENTATIVE vergibt die
+     * Vereinsfreigabe, MATERIAL_PROVIDER folgt der Anbieter-Zuordnung.
+     */
+    fun deleteManaged(userId: UUID) = APP_USER_HAS_ROLE.delete {
+        DSL.and(
+            APP_USER.eq(userId),
+            ROLE.notIn(ROLES_MANAGED_ELSEWHERE)
+        )
+    }
+
+    fun getRoleIds(userId: UUID): JIO<List<UUID>> = Jooq.query {
+        with(APP_USER_HAS_ROLE) {
+            select(ROLE).from(this).where(APP_USER.eq(userId)).fetch { it.value1() }
+        }
     }
 
     fun getByUsersAsJson(userIds: List<UUID>) = APP_USER_HAS_ROLE.selectAsJson { APP_USER.`in`(userIds) }

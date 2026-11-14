@@ -3,12 +3,14 @@ import {useTranslation} from 'react-i18next'
 import {useState} from 'react'
 import {NewPassword, PasswordFormPart} from '@components/form/NewPassword.tsx'
 import {FormContainer, useForm} from 'react-hook-form-mui'
-import {Box, Button, Stack, Typography} from '@mui/material'
-import {Link} from '@tanstack/react-router'
+import {Box, Stack, Typography} from '@mui/material'
+import {ButtonLink} from '@components/ui'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {acceptUserInvitation} from '@api/sdk.gen.ts'
 import {invitationTokenRoute} from '@routes'
 import RequestStatusResponse from '@components/user/RequestStatusResponse.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {useFeedback} from '@utils/hooks.ts'
 
 type Form = PasswordFormPart
 
@@ -19,6 +21,7 @@ const defaultValues: Form = {
 
 const AcceptInvitationPage = () => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
 
     const {invitationToken} = invitationTokenRoute.useParams()
 
@@ -30,19 +33,20 @@ const AcceptInvitationPage = () => {
     >(null)
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-
-        const result = await acceptUserInvitation({
-            body: {
-                token: invitationToken,
-                password: formData.password,
-            },
-        })
-
-        setSubmitting(false)
+        const result = await runRequest(setSubmitting, () =>
+            acceptUserInvitation({
+                body: {
+                    token: invitationToken,
+                    password: formData.password,
+                },
+            }),
+        )
 
         if (result.error === undefined) {
             setRequestResult('Success')
+        } else if (isRequestNetworkError(result.error)) {
+            // Formular bleibt stehen, damit der Versuch wiederholt werden kann
+            feedback.error(t('common.error.network'))
         } else {
             setRequestResult(result.error.status.value === 404 ? 'NotFound' : 'Unexpected')
         }
@@ -52,14 +56,14 @@ const AcceptInvitationPage = () => {
         <SimpleFormLayout maxWidth={500}>
             {requestResult === null ? (
                 <>
-                    <Box sx={{mb: 4}}>
-                        <Typography variant="h1" textAlign="center" sx={{mb: 4}}>
+                    <Box sx={{mb: 3}}>
+                        <Typography variant="h1" textAlign="center" sx={{mb: 2}}>
                             {t('user.invitation.accept')}
                         </Typography>
                         <Typography>{t('user.invitation.hint')}</Typography>
                     </Box>
                     <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                        <Stack spacing={4}>
+                        <Stack spacing={3}>
                             <NewPassword formContext={formContext} />
                             <SubmitButton submitting={submitting}>
                                 {t('user.invitation.submitPassword')}
@@ -69,14 +73,12 @@ const AcceptInvitationPage = () => {
                 </>
             ) : requestResult === 'Success' ? (
                 <Box sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                    <Typography textAlign="center" sx={{mb: 4}}>
+                    <Typography textAlign="center" sx={{mb: 3}}>
                         {t('user.invitation.userCreated.text')}
                     </Typography>
-                    <Link to="/login">
-                        <Button variant="contained">
-                            {t('user.invitation.userCreated.toLogin')}
-                        </Button>
-                    </Link>
+                    <ButtonLink to="/login" variant="contained">
+                        {t('user.invitation.userCreated.toLogin')}
+                    </ButtonLink>
                 </Box>
             ) : (
                 <RequestStatusResponse

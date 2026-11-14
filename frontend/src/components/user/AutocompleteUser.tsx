@@ -45,7 +45,7 @@ export const AutocompleteUser = (props: {
                 limitTags: 5,
                 getOptionLabel: option => `${option?.firstname} ${option?.lastname}`,
             }}
-            // @ts-ignore
+            // @ts-expect-error `multiple` fehlt in den Prop-Typen des Wrappers
             multiple={true}
         />
     )

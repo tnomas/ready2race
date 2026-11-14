@@ -10,7 +10,8 @@ import {
 } from '@mui/material'
 import {Close} from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
-import {useFetch} from '@utils/hooks.ts'
+import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {runningErrorKey} from '@components/event/competition/excecution/executionError.ts'
 import {getEventMatches, updateMatchActivation} from '@api/sdk.gen.ts'
 import {MatchForRunningStatusDto} from '@api/types.gen.ts'
 import {useEffect, useState} from 'react'
@@ -25,6 +26,7 @@ interface ManageRunningMatchesDialogProps {
 
 const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatchesDialogProps) => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
     const [runningMatches, setRunningMatches] = useState<MatchForRunningStatusDto[]>([])
     const [availableMatches, setAvailableMatches] = useState<MatchForRunningStatusDto[]>([])
     const [saving, setSaving] = useState(false)
@@ -60,7 +62,7 @@ const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatch
             if (!match) return
 
             // Update the match activation
-            await updateMatchActivation({
+            const {error} = await updateMatchActivation({
                 path: {
                     eventId,
                     competitionId: match.competitionId,
@@ -70,6 +72,11 @@ const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatch
                     activated: toRunning,
                 },
             })
+            // Abgelehnt (z. B. inzwischen beendeter Lauf): die Listen bleiben, wie sie waren.
+            if (error) {
+                feedback.error(t(runningErrorKey(error)))
+                return
+            }
 
             // Update local state
             if (toRunning) {
@@ -90,6 +97,7 @@ const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatch
             }
         } catch (error) {
             console.error('Failed to update match activation:', error)
+            feedback.error(t('common.error.network'))
         } finally {
             setSaving(false)
         }
@@ -102,7 +110,7 @@ const ManageRunningMatchesDialog = ({open, onClose, eventId}: ManageRunningMatch
                     <Typography variant="h6">
                         {t('event.competition.execution.match.manageRunning')}
                     </Typography>
-                    <IconButton onClick={onClose} edge="end">
+                    <IconButton onClick={onClose} edge="end" aria-label={t('common.close')}>
                         <Close />
                     </IconButton>
                 </Box>

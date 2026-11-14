@@ -1,16 +1,15 @@
-import {useEffect} from 'react'
+import {ComponentType, lazy, useEffect} from 'react'
 import {
     createRootRouteWithContext,
     createRoute,
     createRouter,
+    lazyRouteComponent,
     ParsedLocation,
     redirect,
     SearchSchemaInput,
     useNavigate,
 } from '@tanstack/react-router'
 import {AuthenticatedUser, User} from './contexts/user/UserContext.ts'
-import RootLayout from './layouts/RootLayout.tsx'
-import LoginPage from './pages/user/LoginPage.tsx'
 import {Action, Privilege, Resource, Scope} from './api'
 import {
     readInvoiceGlobal,
@@ -18,78 +17,138 @@ import {
     readEventGlobal,
     readMaterialGlobal,
     readMaterialOwn,
+    readRoleGlobal,
     readUserGlobal,
     updateAppTimingGlobal,
     updateEventGlobal,
-    updateUserGlobal,
     readLiveDashboardGlobal,
     readStreamGlobal,
 } from './authorization/privileges.ts'
 import {
     deviceSessionForEvent,
     deviceSessionForStation,
+    readTokenFromLocation,
     writeDeviceSession,
 } from './utils/timing/deviceSession.ts'
 import {writeBoardDeviceToken} from './utils/board/deviceToken.ts'
 import {writeStreamSceneDeviceToken} from './utils/stream/sceneToken.ts'
-import UsersPage from './pages/user/UsersPage.tsx'
-import UserPage from './pages/user/UserPage.tsx'
-import RolesPage from './pages/user/RolesPage.tsx'
-import EventsPage from './pages/event/EventsPage.tsx'
-import EventPage, {EventTab} from './pages/event/EventPage.tsx'
-import CompetitionPage from './pages/event/CompetitionPage.tsx'
-import {CompetitionTab} from './components/event/competition/common.ts'
-import EventDayPage from './pages/event/EventDayPage.tsx'
-import EventInfoPage from './pages/event/EventInfoPage.tsx'
-import EventStreamScenesPage from './pages/event/EventStreamScenesPage.tsx'
-import AthleteBoardPage from './pages/event/AthleteBoardPage.tsx'
-import BoardDisplayPage from './pages/event/BoardDisplayPage.tsx'
-import StreamScenePage from './pages/event/StreamScenePage.tsx'
-import StreamDirectorPage from './pages/event/StreamDirectorPage.tsx'
-import LiveDashboardPage from './pages/event/LiveDashboardPage.tsx'
-import RegistrationPage from './pages/user/RegistrationPage.tsx'
-import ResetPasswordPage from './pages/user/resetPassword/ResetPasswordPage.tsx'
-import InitResetPasswordPage from './pages/user/resetPassword/InitResetPasswordPage.tsx'
-import VerifyRegistrationPage from './pages/user/VerifyRegistrationPage.tsx'
-import ClubsPage, {ClubTab} from './pages/club/ClubsPage.tsx'
-import ClubPage from './pages/club/ClubPage.tsx'
-import EventRegistrationCreatePage from './pages/eventRegistration/EventRegistrationCreatePage.tsx'
-import ConfigurationPage, {ConfigurationTab} from './pages/ConfigurationPage.tsx'
-import AcceptInvitationPage from './pages/user/AcceptInvitationPage.tsx'
-import Dashboard from './pages/Dashboard.tsx'
-import LandingPage from './pages/LandingPage.tsx'
-import AppLayout from './layouts/AppLayout.tsx'
-import AppLoginPage from './pages/app/AppLoginPage.tsx'
-import AppEntryPage from './pages/app/AppEntryPage.tsx'
-import EventChoicePage from './pages/app/EventChoicePage.tsx'
-import WorldsPage from './pages/app/WorldsPage.tsx'
-import ScanPage from './pages/app/ScanPage.tsx'
-import ScanResultPage from './pages/app/ScanResultPage.tsx'
-import SettingsPage from './pages/app/SettingsPage.tsx'
+import {
+    validateAdministrationSearch,
+    validateEventIndexSearch,
+} from './utils/navigation/searchParams.ts'
+import {validateCompetitionSearch} from './pages/event/competitionPageLogic.ts'
+import type {ClubTab} from './pages/club/ClubsPage.tsx'
+import type {MaterialTab} from './pages/material/MaterialDashboardPage.tsx'
+import {validateConfigurationSearch} from './pages/configurationPageLogic.ts'
 import {readRememberedEvent} from './components/qrApp/appMemory.ts'
 import {scanRightsOf} from './components/qrApp/appAccess.ts'
-import ForbiddenPage from './pages/app/ForbiddenPage.tsx'
-import AppDashboardPage from './pages/app/AppDashboardPage.tsx'
-import EventRegistrationPage from './pages/eventRegistration/EventRegistrationPage.tsx'
-import InvoicesPage from './pages/InvoicePage.tsx'
-import ResultsPage from './pages/results/ResultsPage.tsx'
 import {parseResultsTabSearch} from './pages/results/resultsTab.ts'
-import SelectResultsEventPage from './pages/results/SelectResultsEventPage.tsx'
-import ResultsQrCodePage from './pages/results/ResultsQrCodePage.tsx'
-import ResultsLayout from './layouts/ResultsLayout.tsx'
-import AdministrationPage from './pages/AdministrationPage.tsx'
-import ChallengePage from './pages/challenge/ChallengePage.tsx'
-import TimingStationSelectPage from './pages/app/TimingStationSelectPage.tsx'
-import TimingBoardPage from './pages/app/TimingBoardPage.tsx'
-import TimingLeitstandPage from './pages/app/TimingLeitstandPage.tsx'
-import TimingStartDisplayPage from './pages/app/TimingStartDisplayPage.tsx'
 import {Outlet} from '@tanstack/react-router'
-import SpeakerBoardPage from './pages/speaker/SpeakerBoardPage.tsx'
-import SelectSpeakerEventPage from './pages/speaker/SelectSpeakerEventPage.tsx'
-import SelectMaterialEventPage from './pages/material/SelectMaterialEventPage.tsx'
-import MaterialDashboardPage, {MaterialTab} from './pages/material/MaterialDashboardPage.tsx'
-import MaterialFleetPage from './pages/material/MaterialFleetPage.tsx'
-import MaterialAdminPage from './pages/material/MaterialAdminPage.tsx'
+import {i18nReady} from './i18n/config.ts'
+import {loadChunk} from './utils/chunkReload.ts'
+import NotFoundPage from './pages/NotFoundPage.tsx'
+import RouteErrorPage, {
+    DisplayRouteError,
+    RoutePending,
+    SilentRouteError,
+} from './pages/RouteErrorPage.tsx'
+
+// --- Code-Splitting ---------------------------------------------------------------------------
+//
+// Jede Seite und jedes Layout ist ein eigenes Stück, das erst geladen wird, wenn seine Route
+// gebraucht wird: Eine OBS-Quelle oder ein Board lädt so nicht die Verwaltung mit, und pdf.js,
+// Kalender, dnd-kit und QR-Scanner landen nur in den Stücken der Seiten, die sie verwenden. Der
+// Router lädt die Stücke aller getroffenen Routen parallel zu `beforeLoad`/`loader`; bis dahin
+// zeigt er `RoutePending`. Nach einem Deployment fehlende alte Stücke fängt `loadChunk` ab
+// (einmaliges Neuladen mit Schleifenschutz, siehe utils/chunkReload.ts).
+
+const lazyPage = <T extends {default: unknown}>(importer: () => Promise<T>) =>
+    lazyRouteComponent(() => loadChunk(importer))
+
+// Seiten, die eine Routen-Hülle mit Props versorgt (Parameter, Rückwege): React.lazy plus
+// `preload`. `withPreload` reicht das an die Hülle weiter, damit der Router das Stück trotzdem
+// schon während `beforeLoad` holt statt erst beim Rendern.
+type Preloadable = {preload: () => Promise<unknown>}
+
+const lazyWithPreload = <P extends object>(
+    importer: () => Promise<{default: ComponentType<P>}>,
+) => {
+    const load = () => loadChunk(importer)
+    return Object.assign(lazy(load), {preload: load})
+}
+
+const withPreload = <C extends object>(page: Preloadable, component: C) =>
+    Object.assign(component, {preload: () => page.preload().then(() => undefined)})
+
+// Die Konstanten unten sind Komponenten in einer Datei, die auch Routen exportiert. Fast Refresh
+// lädt routes.tsx deshalb ohnehin komplett neu; die Seiten selbst bleiben HMR-fähig.
+/* eslint-disable react-refresh/only-export-components */
+const RootLayout = lazyPage(() => import('./layouts/RootLayout.tsx'))
+const LoginPage = lazyPage(() => import('./pages/user/LoginPage.tsx'))
+const UsersPage = lazyPage(() => import('./pages/user/UsersPage.tsx'))
+const UserPage = lazyPage(() => import('./pages/user/UserPage.tsx'))
+const RolesPage = lazyPage(() => import('./pages/user/RolesPage.tsx'))
+const EventsPage = lazyPage(() => import('./pages/event/EventsPage.tsx'))
+const EventPage = lazyPage(() => import('./pages/event/EventPage.tsx'))
+const CompetitionPage = lazyPage(() => import('./pages/event/CompetitionPage.tsx'))
+const EventDayPage = lazyPage(() => import('./pages/event/EventDayPage.tsx'))
+const EventInfoPage = lazyPage(() => import('./pages/event/EventInfoPage.tsx'))
+const EventStreamScenesPage = lazyPage(() => import('./pages/event/EventStreamScenesPage.tsx'))
+const AthleteBoardPage = lazyPage(() => import('./pages/event/AthleteBoardPage.tsx'))
+const BoardDisplayPage = lazyPage(() => import('./pages/event/BoardDisplayPage.tsx'))
+const StreamScenePage = lazyPage(() => import('./pages/event/StreamScenePage.tsx'))
+const StreamDirectorPage = lazyWithPreload(() => import('./pages/event/StreamDirectorPage.tsx'))
+const LiveDashboardPage = lazyWithPreload(() => import('./pages/event/LiveDashboardPage.tsx'))
+const RegistrationPage = lazyPage(() => import('./pages/user/RegistrationPage.tsx'))
+const ResetPasswordPage = lazyPage(() => import('./pages/user/resetPassword/ResetPasswordPage.tsx'))
+const InitResetPasswordPage = lazyPage(
+    () => import('./pages/user/resetPassword/InitResetPasswordPage.tsx'),
+)
+const VerifyRegistrationPage = lazyPage(() => import('./pages/user/VerifyRegistrationPage.tsx'))
+const ClubsPage = lazyPage(() => import('./pages/club/ClubsPage.tsx'))
+const ClubPage = lazyPage(() => import('./pages/club/ClubPage.tsx'))
+const EventRegistrationCreatePage = lazyPage(
+    () => import('./pages/eventRegistration/EventRegistrationCreatePage.tsx'),
+)
+const ConfigurationPage = lazyPage(() => import('./pages/ConfigurationPage.tsx'))
+const AcceptInvitationPage = lazyPage(() => import('./pages/user/AcceptInvitationPage.tsx'))
+const Dashboard = lazyPage(() => import('./pages/Dashboard.tsx'))
+const LandingPage = lazyPage(() => import('./pages/LandingPage.tsx'))
+const AppLayout = lazyPage(() => import('./layouts/AppLayout.tsx'))
+const AppLoginPage = lazyPage(() => import('./pages/app/AppLoginPage.tsx'))
+const AppEntryPage = lazyPage(() => import('./pages/app/AppEntryPage.tsx'))
+const EventChoicePage = lazyPage(() => import('./pages/app/EventChoicePage.tsx'))
+const WorldsPage = lazyPage(() => import('./pages/app/WorldsPage.tsx'))
+const ScanPage = lazyPage(() => import('./pages/app/ScanPage.tsx'))
+const ScanResultPage = lazyPage(() => import('./pages/app/ScanResultPage.tsx'))
+const SettingsPage = lazyPage(() => import('./pages/app/SettingsPage.tsx'))
+const ForbiddenPage = lazyPage(() => import('./pages/app/ForbiddenPage.tsx'))
+const AppDashboardPage = lazyPage(() => import('./pages/app/AppDashboardPage.tsx'))
+const EventRegistrationPage = lazyPage(
+    () => import('./pages/eventRegistration/EventRegistrationPage.tsx'),
+)
+const InvoicesPage = lazyPage(() => import('./pages/InvoicePage.tsx'))
+const ResultsPage = lazyPage(() => import('./pages/results/ResultsPage.tsx'))
+const SelectResultsEventPage = lazyPage(() => import('./pages/results/SelectResultsEventPage.tsx'))
+const ResultsQrCodePage = lazyPage(() => import('./pages/results/ResultsQrCodePage.tsx'))
+const ResultsLayout = lazyPage(() => import('./layouts/ResultsLayout.tsx'))
+const AdministrationPage = lazyPage(() => import('./pages/AdministrationPage.tsx'))
+const ChallengePage = lazyPage(() => import('./pages/challenge/ChallengePage.tsx'))
+const TimingStationSelectPage = lazyPage(() => import('./pages/app/TimingStationSelectPage.tsx'))
+const TimingBoardPage = lazyWithPreload(() => import('./pages/app/TimingBoardPage.tsx'))
+const TimingLeitstandPage = lazyWithPreload(() => import('./pages/app/TimingLeitstandPage.tsx'))
+const TimingStartDisplayPage = lazyWithPreload(
+    () => import('./pages/app/TimingStartDisplayPage.tsx'),
+)
+const SpeakerBoardPage = lazyPage(() => import('./pages/speaker/SpeakerBoardPage.tsx'))
+const SelectSpeakerEventPage = lazyPage(() => import('./pages/speaker/SelectSpeakerEventPage.tsx'))
+const SelectMaterialEventPage = lazyPage(
+    () => import('./pages/material/SelectMaterialEventPage.tsx'),
+)
+const MaterialDashboardPage = lazyPage(() => import('./pages/material/MaterialDashboardPage.tsx'))
+const MaterialFleetPage = lazyPage(() => import('./pages/material/MaterialFleetPage.tsx'))
+const MaterialAdminPage = lazyPage(() => import('./pages/material/MaterialAdminPage.tsx'))
+/* eslint-enable react-refresh/only-export-components */
 
 const checkAuth = (context: User, location: ParsedLocation, privilege?: Privilege) => {
     if (!context.loggedIn) {
@@ -122,24 +181,38 @@ const checkAuthApp = (context: User) => {
     }
 }
 
-export const rootRoute = createRootRouteWithContext<User>()({})
+// Vollbild-Anzeigen ohne Bedienung (Boards, Stream-Bühne, Sprecher, Zeitnahme-Bildschirme):
+// `RoutePending` zeigt dort keinen Kreisel, Fehler laufen über `DisplayRouteError` bzw. auf der
+// Bühne über `SilentRouteError` - nie eine Fehlerbox im Bild, stattdessen ein stiller Neuversuch.
+const displayRoute = {
+    staticData: {quietDisplay: true},
+    errorComponent: DisplayRouteError,
+} as const
+
+export const rootRoute = createRootRouteWithContext<User>()({
+    // Die Startsprache kommt als eigenes Stück (siehe i18n/config.ts). Bis sie da ist, rendert
+    // keine Seite - sonst blitzte jede deutsche Sitzung kurz englisch auf. Die Seiten-Stücke lädt
+    // der Router währenddessen parallel.
+    loader: () => i18nReady.then(() => undefined),
+    staleTime: Infinity,
+})
 
 export const mainLayoutRoute = createRoute({
     getParentRoute: () => rootRoute,
     id: 'main-layout',
-    component: () => <RootLayout />,
+    component: RootLayout,
 })
 
 export const mobileRoute = createRoute({
     getParentRoute: () => rootRoute,
     id: 'mobile',
-    component: () => <ResultsLayout />,
+    component: ResultsLayout,
 })
 
 export const indexRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: '/',
-    component: () => <LandingPage />,
+    component: LandingPage,
     beforeLoad: ({context}) => {
         if (context.loggedIn) {
             throw redirect({to: '/dashboard'})
@@ -167,7 +240,7 @@ const validateTabSearch = <TabType extends string>(
 export const loginRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'login',
-    component: () => <LoginPage />,
+    component: LoginPage,
     validateSearch: ({redirect}: {redirect?: string} & SearchSchemaInput): LoginSearch => ({
         redirect,
     }),
@@ -176,7 +249,7 @@ export const loginRoute = createRoute({
 export const invitationTokenRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'invitation/$invitationToken',
-    component: () => <AcceptInvitationPage />,
+    component: AcceptInvitationPage,
 })
 
 export const registrationRoute = createRoute({
@@ -187,13 +260,13 @@ export const registrationRoute = createRoute({
 export const registrationIndexRoute = createRoute({
     getParentRoute: () => registrationRoute,
     path: '/',
-    component: () => <RegistrationPage />,
+    component: RegistrationPage,
 })
 
 export const registrationTokenRoute = createRoute({
     getParentRoute: () => registrationRoute,
     path: '$registrationToken',
-    component: () => <VerifyRegistrationPage />,
+    component: VerifyRegistrationPage,
 })
 
 export const resetPasswordRoute = createRoute({
@@ -204,19 +277,19 @@ export const resetPasswordRoute = createRoute({
 export const resetPasswordIndexRoute = createRoute({
     getParentRoute: () => resetPasswordRoute,
     path: '/',
-    component: () => <InitResetPasswordPage />,
+    component: InitResetPasswordPage,
 })
 
 export const resetPasswordTokenRoute = createRoute({
     getParentRoute: () => resetPasswordRoute,
     path: '$passwordResetToken',
-    component: () => <ResetPasswordPage />,
+    component: ResetPasswordPage,
 })
 
 export const dashboardRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'dashboard',
-    component: () => <Dashboard />,
+    component: Dashboard,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
     },
@@ -230,7 +303,7 @@ export const usersRoute = createRoute({
 export const usersIndexRoute = createRoute({
     getParentRoute: () => usersRoute,
     path: '/',
-    component: () => <UsersPage />,
+    component: UsersPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readUserGlobal)
     },
@@ -244,7 +317,7 @@ export const userRoute = createRoute({
 export const userIndexRoute = createRoute({
     getParentRoute: () => userRoute,
     path: '/',
-    component: () => <UserPage />,
+    component: UserPage,
     beforeLoad: ({context, location, params}) => {
         checkAuthWith(
             context,
@@ -264,9 +337,9 @@ export const rolesRoute = createRoute({
 export const rolesIndexRoute = createRoute({
     getParentRoute: () => rolesRoute,
     path: '/',
-    component: () => <RolesPage />,
+    component: RolesPage,
     beforeLoad: ({context, location}) => {
-        checkAuth(context, location, updateUserGlobal)
+        checkAuth(context, location, readRoleGlobal)
     },
 })
 
@@ -278,11 +351,11 @@ export const configurationRoute = createRoute({
 export const configurationIndexRoute = createRoute({
     getParentRoute: () => configurationRoute,
     path: '/',
-    component: () => <ConfigurationPage />,
+    component: ConfigurationPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, updateEventGlobal)
     },
-    validateSearch: validateTabSearch<ConfigurationTab>,
+    validateSearch: validateConfigurationSearch,
 })
 
 export const eventsRoute = createRoute({
@@ -293,7 +366,7 @@ export const eventsRoute = createRoute({
 export const eventsIndexRoute = createRoute({
     getParentRoute: () => eventsRoute,
     path: '/',
-    component: () => <EventsPage />,
+    component: EventsPage,
 })
 
 export const eventRoute = createRoute({
@@ -304,8 +377,10 @@ export const eventRoute = createRoute({
 export const eventIndexRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: '/',
-    component: () => <EventPage />,
-    validateSearch: validateTabSearch<EventTab>,
+    component: EventPage,
+    // Bereich (`tab`) und Zeitplan-Tag (`day`); unbekannte Werte fallen weg, ob ein Bereich
+    // sichtbar ist, entscheidet die Seite (`resolveEventTab`).
+    validateSearch: validateEventIndexSearch,
 })
 
 export const eventRegisterRoute = createRoute({
@@ -316,7 +391,7 @@ export const eventRegisterRoute = createRoute({
 export const eventRegisterIndexRoute = createRoute({
     getParentRoute: () => eventRegisterRoute,
     path: '/',
-    component: () => <EventRegistrationCreatePage />,
+    component: EventRegistrationCreatePage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
         if (context.loggedIn && context.clubId == undefined) {
@@ -328,13 +403,18 @@ export const eventRegisterIndexRoute = createRoute({
 export const eventRegistrationRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'registration/$eventRegistrationId',
-    component: () => <EventRegistrationPage />,
+    component: EventRegistrationPage,
+    // Die Meldung und ihre Rechnungen verlangen serverseitig eine Anmeldung. Ohne Wächter zeigte
+    // die Seite Abgemeldeten nur eine Fehlermeldung über einer leeren Fläche.
+    beforeLoad: ({context, location}) => {
+        checkAuth(context, location)
+    },
 })
 
 export const eventInfoRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'info',
-    component: () => <EventInfoPage />,
+    component: EventInfoPage,
 })
 
 // Die Szenen-VERWALTUNG des Livestreams — bis zum 31.08.2026 wohnte sie mit den Boards zusammen
@@ -345,9 +425,7 @@ export const eventInfoRoute = createRoute({
 export const eventStreamScenesRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'streamScenes',
-    component: function EventStreamScenes() {
-        return <EventStreamScenesPage />
-    },
+    component: EventStreamScenesPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
         if (!context.checkPrivilege(readStreamGlobal) && !context.checkPrivilege(readEventGlobal)) {
@@ -359,10 +437,20 @@ export const eventStreamScenesRoute = createRoute({
 export const eventLiveDashboardRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'liveDashboard',
-    component: function EventLiveDashboard() {
+    component: withPreload(LiveDashboardPage, function EventLiveDashboard() {
         const {eventId} = eventLiveDashboardRoute.useParams()
-        return <LiveDashboardPage eventId={eventId} />
-    },
+        const navigate = useNavigate()
+        // Zurück führt zum fachlichen Elternteil, dem Betrieb der Veranstaltung — wer das
+        // Dashboard sehen darf, sieht dort auch dessen Kachel.
+        return (
+            <LiveDashboardPage
+                eventId={eventId}
+                onBack={() =>
+                    navigate({to: '/event/$eventId', params: {eventId}, search: {tab: 'betrieb'}})
+                }
+            />
+        )
+    }),
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readLiveDashboardGlobal)
     },
@@ -380,10 +468,12 @@ export const eventLiveDashboardRoute = createRoute({
 export const eventStreamPanelRoute = createRoute({
     getParentRoute: () => eventRoute,
     path: 'streamPanel',
-    component: function EventStreamPanel() {
+    // Regie-Arbeitsplatz im Vollbild: dezenter Hinweis statt Fehlerbox, Kreisel beim Laden bleibt.
+    errorComponent: DisplayRouteError,
+    component: withPreload(StreamDirectorPage, function EventStreamPanel() {
         const {eventId} = eventRoute.useParams()
         return <StreamDirectorPage eventId={eventId} />
-    },
+    }),
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
         if (!context.checkPrivilege(readStreamGlobal) && !context.checkPrivilege(readEventGlobal)) {
@@ -406,10 +496,13 @@ export const eventStreamPanelRoute = createRoute({
 // sind route-unabhängig und werden von beiden Welten mit Props gemountet.
 //
 // Erfassung und Startbildschirm akzeptieren zusätzlich zur Nutzersitzung ein Geräte-Token aus
-// der URL (`?token=…`, ausgestellt und widerrufbar über den Leitstand-Geräte-Reiter): geteilte
-// Handys und Anzeige-Bildschirme am Posten haben keine Anmeldung. Das Token wird beim ersten
-// Aufruf clientseitig abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt,
-// damit es nicht in Verlauf oder Screenshots hängen bleibt.
+// der URL (ausgestellt und widerrufbar über den Leitstand-Geräte-Reiter): geteilte Handys und
+// Anzeige-Bildschirme am Posten haben keine Anmeldung. Das Token reist im Fragment (`#token=…`),
+// das der Browser nie mitschickt — es landet weder in Server- und Proxy-Protokollen noch im
+// Referer; ältere Links tragen es noch als `?token=` und bleiben gültig (`readTokenFromLocation`).
+// Beim ersten Aufruf wird es clientseitig abgelegt und per replace-Redirect aus der Adresszeile
+// entfernt, damit es nicht in Screenshots hängen bleibt. Aus dem Browserverlauf verschwindet es
+// dadurch nicht zuverlässig — deshalb sind Tokens widerrufbar und befristet.
 
 type TimingTokenSearch = {
     token?: string
@@ -429,7 +522,7 @@ export const eventTimingRoute = createRoute({
 export const eventTimingLeitstandRoute = createRoute({
     getParentRoute: () => eventTimingRoute,
     path: 'leitstand',
-    component: function EventTimingLeitstand() {
+    component: withPreload(TimingLeitstandPage, function EventTimingLeitstand() {
         const {eventId} = eventRoute.useParams()
         const navigate = useNavigate()
         return (
@@ -444,7 +537,7 @@ export const eventTimingLeitstandRoute = createRoute({
                 }
             />
         )
-    },
+    }),
     beforeLoad: ({context, location}) => {
         // Wie die Seite selbst: alles hier schreibt in die Ergebnisse der Veranstaltung.
         checkAuth(context, location, updateEventGlobal)
@@ -456,16 +549,18 @@ export const eventTimingLeitstandRoute = createRoute({
 export const eventTimingStartDisplayRoute = createRoute({
     getParentRoute: () => eventTimingRoute,
     path: '$stationId/anzeige',
+    ...displayRoute,
     validateSearch: validateTimingTokenSearch,
-    component: function EventTimingStartDisplay() {
+    component: withPreload(TimingStartDisplayPage, function EventTimingStartDisplay() {
         const {eventId} = eventRoute.useParams()
         const {stationId} = eventTimingStartDisplayRoute.useParams()
         return <TimingStartDisplayPage eventId={eventId} stationId={stationId} />
-    },
+    }),
     beforeLoad: ({context, location, params, search}) => {
-        if (search.token !== undefined) {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
             writeDeviceSession({
-                token: search.token,
+                token,
                 event: params.eventId,
                 station: params.stationId,
             })
@@ -473,6 +568,7 @@ export const eventTimingStartDisplayRoute = createRoute({
                 to: '/event/$eventId/timing/$stationId/anzeige',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -492,16 +588,18 @@ export const eventTimingStartDisplayRoute = createRoute({
 export const eventTimingStationRoute = createRoute({
     getParentRoute: () => eventTimingRoute,
     path: '$stationId',
+    ...displayRoute,
     validateSearch: validateTimingTokenSearch,
-    component: function EventTimingStation() {
+    component: withPreload(TimingBoardPage, function EventTimingStation() {
         const {eventId} = eventRoute.useParams()
         const {stationId} = eventTimingStationRoute.useParams()
         return <TimingBoardPage eventId={eventId} stationId={stationId} />
-    },
+    }),
     beforeLoad: ({context, location, params, search}) => {
-        if (search.token !== undefined) {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
             writeDeviceSession({
-                token: search.token,
+                token,
                 event: params.eventId,
                 station: params.stationId,
             })
@@ -509,6 +607,7 @@ export const eventTimingStationRoute = createRoute({
                 to: '/event/$eventId/timing/$stationId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -533,7 +632,7 @@ export const eventDayRoute = createRoute({
 export const eventDayIndexRoute = createRoute({
     getParentRoute: () => eventDayRoute,
     path: '/',
-    component: () => <EventDayPage />,
+    component: EventDayPage,
 })
 
 export const competitionRoute = createRoute({
@@ -544,8 +643,8 @@ export const competitionRoute = createRoute({
 export const competitionIndexRoute = createRoute({
     getParentRoute: () => competitionRoute,
     path: '/',
-    component: () => <CompetitionPage />,
-    validateSearch: validateTabSearch<CompetitionTab>,
+    component: CompetitionPage,
+    validateSearch: validateCompetitionSearch,
 })
 
 export const clubRoute = createRoute({
@@ -556,7 +655,7 @@ export const clubRoute = createRoute({
 export const clubIndexRoute = createRoute({
     getParentRoute: () => clubRoute,
     path: '/',
-    component: () => <ClubPage />,
+    component: ClubPage,
     beforeLoad: ({context, location, params}) => {
         checkAuthWith(
             context,
@@ -576,13 +675,12 @@ export const clubsRoute = createRoute({
 export const clubsIndexRoute = createRoute({
     getParentRoute: () => clubsRoute,
     path: '/',
-    component: () => <ClubsPage />,
+    component: ClubsPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
     },
     validateSearch: validateTabSearch<ClubTab>,
 })
-
 
 export const administrationRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
@@ -592,10 +690,11 @@ export const administrationRoute = createRoute({
 export const administrationIndexRoute = createRoute({
     getParentRoute: () => administrationRoute,
     path: '/',
-    component: () => <AdministrationPage />,
+    component: AdministrationPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readAdministrationConfigGlobal)
     },
+    validateSearch: validateAdministrationSearch,
 })
 
 // --- Helfer-App -------------------------------------------------------------------------------
@@ -621,39 +720,39 @@ const requireAppRight = (context: User, allowed: (user: AuthenticatedUser) => bo
 export const appRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'app',
-    component: () => <AppLayout />,
+    component: AppLayout,
 })
 
 export const appIndexRoute = createRoute({
     getParentRoute: () => appRoute,
     path: '/',
-    component: () => <AppEntryPage />,
+    component: AppEntryPage,
     beforeLoad: ({context}) => checkAuthApp(context),
 })
 
 export const appLoginRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'login',
-    component: () => <AppLoginPage />,
+    component: AppLoginPage,
 })
 
 export const appForbiddenRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'forbidden',
-    component: () => <ForbiddenPage />,
+    component: ForbiddenPage,
 })
 
 export const appEventChoiceRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'veranstaltung',
-    component: () => <EventChoicePage />,
+    component: EventChoicePage,
     beforeLoad: ({context}) => checkAuthApp(context),
 })
 
 export const appStartRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'start',
-    component: () => <WorldsPage />,
+    component: WorldsPage,
     beforeLoad: ({context}) => {
         checkAuthApp(context)
         requireAppEvent()
@@ -663,7 +762,7 @@ export const appStartRoute = createRoute({
 export const appScanRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'scan',
-    component: () => <ScanPage />,
+    component: ScanPage,
     beforeLoad: ({context}) => {
         requireAppRight(context, user => scanRightsOf(user.checkPrivilege).length > 0)
         requireAppEvent()
@@ -673,7 +772,7 @@ export const appScanRoute = createRoute({
 export const appScanResultRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'scan/$qrCodeId',
-    component: () => <ScanResultPage />,
+    component: ScanResultPage,
     beforeLoad: ({context}) => {
         requireAppRight(context, user => scanRightsOf(user.checkPrivilege).length > 0)
         requireAppEvent()
@@ -683,7 +782,7 @@ export const appScanResultRoute = createRoute({
 export const appSettingsRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'einstellungen',
-    component: () => <SettingsPage />,
+    component: SettingsPage,
     beforeLoad: ({context}) => {
         checkAuthApp(context)
         requireAppEvent()
@@ -693,7 +792,7 @@ export const appSettingsRoute = createRoute({
 export const appDashboardRoute = createRoute({
     getParentRoute: () => appRoute,
     path: 'dashboard',
-    component: () => <AppDashboardPage />,
+    component: AppDashboardPage,
     beforeLoad: ({context}) => {
         requireAppRight(context, user => user.checkPrivilege(readLiveDashboardGlobal))
         requireAppEvent()
@@ -708,7 +807,7 @@ export const appTimingRoute = createRoute({
 export const appTimingIndexRoute = createRoute({
     getParentRoute: () => appTimingRoute,
     path: '/',
-    component: () => <TimingStationSelectPage />,
+    component: TimingStationSelectPage,
     beforeLoad: ({context}) => {
         requireAppRight(context, user => user.checkPrivilege(updateAppTimingGlobal))
         requireAppEvent()
@@ -720,7 +819,7 @@ export const appTimingIndexRoute = createRoute({
 export const appTimingLeitstandRoute = createRoute({
     getParentRoute: () => appTimingRoute,
     path: 'leitstand',
-    component: function AppTimingLeitstand() {
+    component: withPreload(TimingLeitstandPage, function AppTimingLeitstand() {
         const navigate = useNavigate()
         const eventId = readRememberedEvent(localStorage)
         // `requireAppEvent` im `beforeLoad` sichert die gemerkte Veranstaltung beim Betreten der
@@ -739,7 +838,7 @@ export const appTimingLeitstandRoute = createRoute({
                 onBack={() => void navigate({to: '/app/timing'})}
             />
         )
-    },
+    }),
     beforeLoad: ({context}) => {
         // Der Leitstand schreibt in die Ergebnisse der Veranstaltung — strenger als die Posten.
         requireAppRight(context, user => user.checkPrivilege(updateEventGlobal))
@@ -750,7 +849,7 @@ export const appTimingLeitstandRoute = createRoute({
 export const appTimingStationRoute = createRoute({
     getParentRoute: () => appTimingRoute,
     path: '$stationId',
-    component: function AppTimingStation() {
+    component: withPreload(TimingBoardPage, function AppTimingStation() {
         const {stationId} = appTimingStationRoute.useParams()
         const navigate = useNavigate()
         const eventId = readRememberedEvent(localStorage)
@@ -773,7 +872,7 @@ export const appTimingStationRoute = createRoute({
                 onUnknownStation={() => void navigate({to: '/app/timing', replace: true})}
             />
         )
-    },
+    }),
     beforeLoad: ({context, location, params}) => {
         // Alte Adressen aus Verläufen installierter Apps (z. B. „…/timing/<eventId>/leitstand")
         // tragen nach der vermeintlichen Postenkennung noch weitere Segmente. TanStack Router
@@ -802,7 +901,7 @@ export const appCatchAllRoute = createRoute({
 export const invoicesRoute = createRoute({
     getParentRoute: () => mainLayoutRoute,
     path: 'invoices',
-    component: () => <InvoicesPage />,
+    component: InvoicesPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readInvoiceGlobal)
     },
@@ -818,7 +917,10 @@ export const materialRoute = createRoute({
     component: () => <Outlet />,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location)
-        if (!context.checkPrivilege(readMaterialOwn) && !context.checkPrivilege(readMaterialGlobal)) {
+        if (
+            !context.checkPrivilege(readMaterialOwn) &&
+            !context.checkPrivilege(readMaterialGlobal)
+        ) {
             throw redirect({to: '/dashboard'})
         }
     },
@@ -831,7 +933,7 @@ type MaterialIndexSearch = {
 export const materialIndexRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: '/',
-    component: () => <SelectMaterialEventPage />,
+    component: SelectMaterialEventPage,
     validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialIndexSearch => ({
         provider,
     }),
@@ -846,8 +948,11 @@ type MaterialEventSearch = TabSearch<MaterialTab> & {
 export const materialEventRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'event/$eventId',
-    component: () => <MaterialDashboardPage />,
-    validateSearch: ({tab, provider}: MaterialEventSearch & SearchSchemaInput): MaterialEventSearch => ({
+    component: MaterialDashboardPage,
+    validateSearch: ({
+        tab,
+        provider,
+    }: MaterialEventSearch & SearchSchemaInput): MaterialEventSearch => ({
         tab,
         provider,
     }),
@@ -860,7 +965,7 @@ type MaterialFleetSearch = {
 export const materialFleetRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'fleet',
-    component: () => <MaterialFleetPage />,
+    component: MaterialFleetPage,
     validateSearch: ({provider}: {provider?: string} & SearchSchemaInput): MaterialFleetSearch => ({
         provider,
     }),
@@ -869,7 +974,7 @@ export const materialFleetRoute = createRoute({
 export const materialAdminRoute = createRoute({
     getParentRoute: () => materialRoute,
     path: 'admin',
-    component: () => <MaterialAdminPage />,
+    component: MaterialAdminPage,
     beforeLoad: ({context, location}) => {
         checkAuth(context, location, readMaterialGlobal)
     },
@@ -878,19 +983,19 @@ export const materialAdminRoute = createRoute({
 export const resultsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'results',
-    component: () => <ResultsLayout />,
+    component: ResultsLayout,
 })
 
 export const resultsIndexRoute = createRoute({
     getParentRoute: () => resultsRoute,
     path: '/',
-    component: () => <SelectResultsEventPage />,
+    component: SelectResultsEventPage,
 })
 
 export const resultsEventRoute = createRoute({
     getParentRoute: () => resultsRoute,
     path: '/event/$eventId',
-    component: () => <ResultsPage />,
+    component: ResultsPage,
     // Direkteinstieg für QR-Aushänge: ?tab=live öffnet den Live-Reiter, ?tab=my-event wie
     // bisher „Mein Event", ?tab=results ist das ausgeschriebene Default-Ziel — alles andere
     // fällt auf den Default (siehe resultsTab.ts). ?competition=<id> springt auf dem
@@ -908,7 +1013,7 @@ export const resultsEventRoute = createRoute({
 export const resultsQRCodeRoute = createRoute({
     getParentRoute: () => resultsRoute,
     path: '$qrCode',
-    component: () => <ResultsQrCodePage />,
+    component: ResultsQrCodePage,
 })
 
 export const speakerRoute = createRoute({
@@ -920,19 +1025,20 @@ export const speakerRoute = createRoute({
 export const speakerIndexRoute = createRoute({
     getParentRoute: () => speakerRoute,
     path: '/',
-    component: () => <SelectSpeakerEventPage />,
+    component: SelectSpeakerEventPage,
 })
 
 export const speakerEventRoute = createRoute({
     getParentRoute: () => speakerRoute,
     path: 'event/$eventId',
-    component: () => <SpeakerBoardPage />,
+    ...displayRoute,
+    component: SpeakerBoardPage,
 })
 
 export const challengeRoute = createRoute({
     getParentRoute: () => mobileRoute,
     path: 'challenge/$accessToken',
-    component: () => <ChallengePage />,
+    component: ChallengePage,
 })
 
 // Route ohne App-Layout: fest montierte Athletenbildschirme und Athleten-Handys brauchen weder
@@ -942,33 +1048,38 @@ export const challengeRoute = createRoute({
 export const athleteBoardRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'board/$eventId',
-    component: () => <AthleteBoardPage />,
+    ...displayRoute,
+    component: AthleteBoardPage,
 })
 
 // Die Anzeige eines konkreten Boards, ebenfalls ohne App-Layout.
 //
 // Wie Erfassung und Startbildschirm der Zeitnahme nimmt sie zusätzlich zur Nutzersitzung ein
-// Geräte-Token aus der Adresse an (`?token=…`, erzeugt vom „Link teilen" der Board-Verwaltung):
-// ein montierter Bildschirm und eine OBS-Browserquelle können sich nicht anmelden. Das Token wird
-// beim ersten Aufruf abgelegt und per replace-Redirect sofort aus der Adresszeile entfernt, damit
-// es nicht in Verlauf oder Screenshots hängen bleibt. Anders als dort liegt es je Board (siehe
-// `utils/board/deviceToken.ts`): ein Anzeigegerät zeigt der Reihe nach mehrere Boards.
+// Geräte-Token aus der Adresse an (Fragment `#token=…`, ältere Links `?token=…`; erzeugt vom
+// „Link teilen" der Board-Verwaltung): ein montierter Bildschirm und eine OBS-Browserquelle
+// können sich nicht anmelden. Das Token wird beim ersten Aufruf abgelegt und per replace-Redirect
+// sofort aus der Adresszeile entfernt (Schutzwirkung und Grenzen: siehe den Kommentar über
+// `TimingTokenSearch`). Anders als dort liegt es je Board (siehe `utils/board/deviceToken.ts`):
+// ein Anzeigegerät zeigt der Reihe nach mehrere Boards.
 //
 // Es bleibt bei `validateTimingTokenSearch` — das Board-Token stammt aus derselben Tabelle und
-// reist im selben Query-Parameter; eine zweite, identische Prüffunktion wäre nur ein zweiter Ort,
-// an dem der leere Token-String vergessen werden kann.
+// reist im selben Fragment bzw. Query-Parameter; eine zweite, identische Prüffunktion wäre nur ein
+// zweiter Ort, an dem der leere Token-String vergessen werden kann.
 export const boardDisplayRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'board/$eventId/$boardId',
+    ...displayRoute,
     validateSearch: validateTimingTokenSearch,
-    component: () => <BoardDisplayPage />,
-    beforeLoad: ({params, search}) => {
-        if (search.token !== undefined) {
-            writeBoardDeviceToken(params.eventId, params.boardId, search.token)
+    component: BoardDisplayPage,
+    beforeLoad: ({location, params, search}) => {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
+            writeBoardDeviceToken(params.eventId, params.boardId, token)
             throw redirect({
                 to: '/board/$eventId/$boardId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -981,7 +1092,7 @@ export const boardDisplayRoute = createRoute({
 // Die Stream-Bühne einer Szene, ebenfalls ohne App-Layout — wortgetreue Kopie des Musters von
 // `boardDisplayRoute` (Geräte-Token aus der Adresse, replace-Redirect ohne Token in der
 // Adressleiste), aber unter dem vom Backend vorgegebenen Pfad: `StreamSceneShareLinkDto.path`
-// erzeugt genau diesen Link (`/event/{eventId}/stream/{sceneId}?token=…`), die Route MUSS also
+// erzeugt genau diesen Link (`/event/{eventId}/stream/{sceneId}#token=…`), die Route MUSS also
 // hier liegen, auch wenn `event/$eventId` sonst der angemeldeten Veranstaltungsverwaltung gehört
 // (`eventRoute`). Beide Zweige bleiben eindeutig unterscheidbar: Diese Route trägt selbst die
 // weiteren Segmente `stream/$sceneId`, die es unter `eventRoute` nicht gibt.
@@ -992,15 +1103,19 @@ export const boardDisplayRoute = createRoute({
 export const streamSceneRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: 'event/$eventId/stream/$sceneId',
+    staticData: {quietDisplay: true},
+    errorComponent: SilentRouteError,
     validateSearch: validateTimingTokenSearch,
-    component: () => <StreamScenePage />,
-    beforeLoad: ({params, search}) => {
-        if (search.token !== undefined) {
-            writeStreamSceneDeviceToken(params.eventId, params.sceneId, search.token)
+    component: StreamScenePage,
+    beforeLoad: ({location, params, search}) => {
+        const token = readTokenFromLocation(location.hash, search.token)
+        if (token !== null) {
+            writeStreamSceneDeviceToken(params.eventId, params.sceneId, token)
             throw redirect({
                 to: '/event/$eventId/stream/$sceneId',
                 params,
                 search: {},
+                hash: '',
                 replace: true,
             })
         }
@@ -1078,10 +1193,17 @@ export const router = createRouter({
     routeTree,
     context: undefined!,
     basepath,
+    defaultPendingComponent: RoutePending,
+    defaultErrorComponent: RouteErrorPage,
+    defaultNotFoundComponent: NotFoundPage,
 })
 
 declare module '@tanstack/react-router' {
     interface Register {
         router: typeof router
+    }
+    interface StaticDataRouteOption {
+        /** Vollbild-Anzeige ohne Bedienung: kein Lade-Kreisel (siehe `RoutePending`). */
+        quietDisplay?: boolean
     }
 }

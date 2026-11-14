@@ -1,5 +1,5 @@
 import {useTranslation} from 'react-i18next'
-import {Stack, Typography, Tabs, Tab, Box} from '@mui/material'
+import {Stack, Tabs, Tab, Box} from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
@@ -18,6 +18,15 @@ import {updateAdministrationConfigGlobal} from '@authorization/privileges.ts'
 import {FormInputRadioButtonGroup} from '@components/form/input/FormInputRadioButtonGroup.tsx'
 import {ThemeConfigForm} from '@components/administration/ThemeConfigForm.tsx'
 import {EmailTemplates} from '@components/administration/emailTemplates/EmailTemplates.tsx'
+import {PageHeader} from '@components/ui/PageHeader.tsx'
+import {useNavigate} from '@tanstack/react-router'
+import {administrationIndexRoute} from '@routes'
+import {
+    ADMINISTRATION_TABS,
+    AdministrationTab,
+    DEFAULT_ADMINISTRATION_TAB,
+} from '@utils/navigation/searchParams.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = SmtpConfigOverrideDto
 
@@ -36,7 +45,18 @@ const AdministrationPage = () => {
     const [submitting, setSubmitting] = useState(true)
     const [resetting, setResetting] = useState(true)
     const {confirmAction} = useConfirmation()
-    const [tabValue, setTabValue] = useState(0)
+    // Der Reiter steht in der Adresse (`?tab=smtp|theme|email-templates`): Neuladen, Zurück und
+    // geteilte Links behalten ihn. Unbekannte Werte verwirft schon die Route.
+    const {tab} = administrationIndexRoute.useSearch()
+    const tabValue: AdministrationTab = tab ?? DEFAULT_ADMINISTRATION_TAB
+    const navigate = useNavigate()
+    const switchTab = (next: AdministrationTab) =>
+        navigate({to: '/administration', search: {tab: next}})
+    const tabLabels: Record<AdministrationTab, string> = {
+        smtp: t('administration.tabs.smtp'),
+        theme: t('administration.tabs.theme'),
+        'email-templates': t('administration.tabs.emailTemplates'),
+    }
 
     const currentConfig = useFetch(signal => getSmtpConfig({signal}), {
         onResponse: response => {
@@ -65,22 +85,29 @@ const AdministrationPage = () => {
         setSubmitting(true)
         confirmAction(
             async () => {
-                const {data, error, response} = await setSmtpOverride({
-                    body: {
-                        host: formData.host,
-                        port: formData.port,
-                        username: formData.username,
-                        password: formData.password,
-                        smtpStrategy: formData.smtpStrategy,
-                        fromAddress: formData.fromAddress,
-                        fromName: takeIfNotEmpty(formData.fromName),
-                        localhost: takeIfNotEmpty(formData.localhost),
-                        replyTo: takeIfNotEmpty(formData.replyTo),
-                    },
+                const captured: {response?: Response} = {}
+                const {data, error} = await runRequest(undefined, async () => {
+                    const result = await setSmtpOverride({
+                        body: {
+                            host: formData.host,
+                            port: formData.port,
+                            username: formData.username,
+                            password: formData.password,
+                            smtpStrategy: formData.smtpStrategy,
+                            fromAddress: formData.fromAddress,
+                            fromName: takeIfNotEmpty(formData.fromName),
+                            localhost: takeIfNotEmpty(formData.localhost),
+                            replyTo: takeIfNotEmpty(formData.replyTo),
+                        },
+                    })
+                    captured.response = result.response
+                    return result
                 })
                 setSubmitting(false)
-                if (response.ok && data !== undefined) {
+                if (captured.response?.ok && data !== undefined) {
                     currentConfig.reload()
+                } else if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
                 } else if (error) {
                     if (error.status.value === 500) {
                         feedback.error(t('common.error.unexpected'))
@@ -103,11 +130,18 @@ const AdministrationPage = () => {
         setResetting(true)
         confirmAction(
             async () => {
-                const {error, response} = await deleteSmtpOverride()
+                const captured: {response?: Response} = {}
+                const {error} = await runRequest(undefined, async () => {
+                    const result = await deleteSmtpOverride()
+                    captured.response = result.response
+                    return result
+                })
                 setResetting(false)
 
-                if (response.ok) {
+                if (captured.response?.ok) {
                     currentConfig.reload()
+                } else if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
                 } else if (error) {
                     if (error.status.value === 500) {
                         feedback.error(t('common.error.unexpected'))
@@ -129,14 +163,18 @@ const AdministrationPage = () => {
     return (
         currentConfig.data && (
             <Stack spacing={4}>
-                <Typography variant={'h1'}>{t('administration.title')}</Typography>
-                <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-                    <Tab label={t('administration.tabs.smtp')} />
-                    <Tab label={t('administration.tabs.theme')} />
-                    <Tab label={t('administration.tabs.emailTemplates')} />
+                <PageHeader title={t('administration.title')} />
+                <Tabs
+                    value={tabValue}
+                    onChange={(_, next: AdministrationTab) => switchTab(next)}
+                    variant={'scrollable'}
+                    allowScrollButtonsMobile>
+                    {ADMINISTRATION_TABS.map(key => (
+                        <Tab key={key} value={key} label={tabLabels[key]} />
+                    ))}
                 </Tabs>
 
-                {tabValue === 0 && (
+                {tabValue === 'smtp' && (
                     <Box>
                         <FormContainer formContext={formContext} onSuccess={handleSubmit}>
                             <Stack spacing={4} maxWidth="70%">
@@ -212,13 +250,13 @@ const AdministrationPage = () => {
                     </Box>
                 )}
 
-                {tabValue === 1 && (
+                {tabValue === 'theme' && (
                     <Box>
                         <ThemeConfigForm />
                     </Box>
                 )}
 
-                {tabValue === 2 && (
+                {tabValue === 'email-templates' && (
                     <Box>
                         <EmailTemplates />
                     </Box>

@@ -1,6 +1,12 @@
 import {describe, expect, test} from 'vitest'
 import {Privilege} from '@api/types.gen.ts'
-import {visibleBetriebTiles} from './betriebTiles.ts'
+import {
+    BETRIEB_ACTION_TILE,
+    BETRIEB_TILE_ORDER,
+    orderBetriebTiles,
+    visibleBetriebActions,
+    visibleBetriebTiles,
+} from './betriebTiles.ts'
 
 const checkOf =
     (...granted: Privilege[]) =>
@@ -24,12 +30,9 @@ describe('visibleBetriebTiles', () => {
     })
 
     test('Veranstaltungsverwaltung (READ+UPDATE EVENT) sieht alle Kacheln', () => {
-        const check = checkOf(
-            p('READ', 'EVENT'),
-            p('UPDATE', 'EVENT'),
-            p('READ', 'LIVE_DASHBOARD'),
-        )
+        const check = checkOf(p('READ', 'EVENT'), p('UPDATE', 'EVENT'), p('READ', 'LIVE_DASHBOARD'))
         expect(visibleBetriebTiles(check)).toEqual([
+            'raceOffice',
             'referee',
             'speaker',
             'timing',
@@ -56,6 +59,147 @@ describe('visibleBetriebTiles', () => {
     test('Leserecht auf die Veranstaltung reicht nicht fuer die Zeitnahme-Kachel', () => {
         const tiles = visibleBetriebTiles(checkOf(p('READ', 'EVENT')))
         expect(tiles).not.toContain('timing')
-        expect(tiles).toEqual(['speaker', 'boards', 'livestream', 'helpers'])
+        expect(tiles).toEqual(['raceOffice', 'speaker', 'boards', 'livestream', 'helpers'])
+    })
+
+    test('Regattabüro braucht das Leserecht auf die Veranstaltung, Boards/Stream reichen nicht', () => {
+        expect(visibleBetriebTiles(checkOf(p('READ', 'BOARD')))).not.toContain('raceOffice')
+        expect(visibleBetriebTiles(checkOf(p('READ', 'STREAM')))).not.toContain('raceOffice')
+        expect(visibleBetriebTiles(checkOf(p('READ', 'LIVE_DASHBOARD')))).not.toContain(
+            'raceOffice',
+        )
+    })
+
+    test('die Regattabüro-Kachel macht den Reiter für niemanden neu sichtbar', () => {
+        // Wer das Regattabüro sieht, sah vorher schon die Sprecher-Kachel (gleiche Bedingung).
+        const roles = [
+            [],
+            [p('READ', 'EVENT')],
+            [p('READ', 'BOARD')],
+            [p('READ', 'STREAM')],
+            [p('READ', 'LIVE_DASHBOARD')],
+            [p('UPDATE', 'EVENT')],
+        ]
+        for (const granted of roles) {
+            const tiles = visibleBetriebTiles(checkOf(...granted))
+            if (tiles.includes('raceOffice')) expect(tiles).toContain('speaker')
+        }
+    })
+})
+
+describe('visibleBetriebActions', () => {
+    test('ohne Privilegien keine Zusatzknöpfe', () => {
+        expect(visibleBetriebActions(() => false)).toEqual([])
+    })
+
+    test('Veranstaltungsverwaltung mit Nutzer-Leserecht sieht alle Zusatzknöpfe', () => {
+        const check = checkOf(
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'USER'),
+        )
+        expect(visibleBetriebActions(check)).toEqual([
+            'manageRunningMatches',
+            'openSchedule',
+            'checkSeverity',
+            'openShifts',
+        ])
+    })
+
+    test('Prüfungen verwalten verlangt Schiedsrichter-Kachel UND UPDATE EVENT (wie bisher)', () => {
+        expect(visibleBetriebActions(checkOf(p('READ', 'LIVE_DASHBOARD')))).toEqual([])
+        // UPDATE EVENT ohne Schiedsrichter-Recht: keine Kachel, also auch kein Knopf
+        expect(visibleBetriebActions(checkOf(p('UPDATE', 'EVENT')))).not.toContain('checkSeverity')
+        expect(
+            visibleBetriebActions(checkOf(p('READ', 'LIVE_DASHBOARD'), p('UPDATE', 'EVENT'))),
+        ).toEqual(['checkSeverity'])
+    })
+
+    test('Laufende Läufe und Zeitplan-Sprung mit READ EVENT, Schichtplan erst mit READ USER', () => {
+        expect(visibleBetriebActions(checkOf(p('READ', 'EVENT')))).toEqual([
+            'manageRunningMatches',
+            'openSchedule',
+        ])
+        expect(visibleBetriebActions(checkOf(p('READ', 'EVENT'), p('READ', 'USER')))).toEqual([
+            'manageRunningMatches',
+            'openSchedule',
+            'openShifts',
+        ])
+    })
+
+    test('Challenge-Veranstaltung: ohne Laufende Läufe und ohne Prüfungen', () => {
+        const check = checkOf(
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'USER'),
+        )
+        expect(visibleBetriebActions(check, {challengeEvent: true})).toEqual([
+            'openSchedule',
+            'openShifts',
+        ])
+        expect(visibleBetriebActions(check, {challengeEvent: false})).toEqual([
+            'manageRunningMatches',
+            'openSchedule',
+            'checkSeverity',
+            'openShifts',
+        ])
+        // ohne Angabe wie bisher (keine Challenge)
+        expect(visibleBetriebActions(check)).toEqual(
+            visibleBetriebActions(check, {challengeEvent: false}),
+        )
+    })
+
+    test('jede sichtbare Aktion hat ihre Kachel sichtbar', () => {
+        const all: Privilege[] = [
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'USER'),
+            p('READ', 'BOARD'),
+            p('READ', 'STREAM'),
+        ]
+        // alle Teilmengen der Rechte durchprobieren
+        for (let mask = 0; mask < 1 << all.length; mask++) {
+            const check = checkOf(...all.filter((_, i) => mask & (1 << i)))
+            const tiles = visibleBetriebTiles(check)
+            for (const action of visibleBetriebActions(check)) {
+                expect(tiles).toContain(BETRIEB_ACTION_TILE[action])
+            }
+        }
+    })
+})
+
+describe('orderBetriebTiles', () => {
+    test('ordnet nach Häufigkeit am Renntag: Steg, Regattabüro, Zeitnahme zuerst', () => {
+        const check = checkOf(p('READ', 'EVENT'), p('UPDATE', 'EVENT'), p('READ', 'LIVE_DASHBOARD'))
+        expect(orderBetriebTiles(visibleBetriebTiles(check))).toEqual([
+            'referee',
+            'raceOffice',
+            'timing',
+            'speaker',
+            'livestream',
+            'boards',
+            'helpers',
+        ])
+    })
+
+    test('ändert nur die Reihenfolge, nie die Menge', () => {
+        const all: Privilege[] = [
+            p('READ', 'EVENT'),
+            p('UPDATE', 'EVENT'),
+            p('READ', 'LIVE_DASHBOARD'),
+            p('READ', 'BOARD'),
+            p('READ', 'STREAM'),
+        ]
+        for (let mask = 0; mask < 1 << all.length; mask++) {
+            const tiles = visibleBetriebTiles(checkOf(...all.filter((_, i) => mask & (1 << i))))
+            expect([...orderBetriebTiles(tiles)].sort()).toEqual([...tiles].sort())
+        }
+    })
+
+    test('jede Kachel hat einen Platz in der Reihenfolge', () => {
+        expect(new Set(BETRIEB_TILE_ORDER).size).toBe(7)
     })
 })

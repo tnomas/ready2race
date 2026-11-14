@@ -1,4 +1,8 @@
 import {Box} from '@mui/material'
+import {useTranslation} from 'react-i18next'
+import {PageHeader} from '@components/ui'
+import {buildEventTrail} from '@utils/navigation/breadcrumbs.ts'
+import {useEventName} from './useEventName.ts'
 import StreamScenesPanel from '@components/event/stream/StreamScenesPanel'
 import {eventStreamScenesRoute} from '@routes'
 
@@ -12,10 +16,22 @@ import {eventStreamScenesRoute} from '@routes'
  * READ STREAM oder READ EVENT durch — dieselbe Tür wie das Kontroll-Panel.
  */
 const EventStreamScenesPage = () => {
+    const {t} = useTranslation()
     const {eventId} = eventStreamScenesRoute.useParams()
+    const eventName = useEventName(eventId)
 
     return (
-        <Box sx={{p: 3}}>
+        <Box>
+            <PageHeader
+                title={t('event.betrieb.livestream.title')}
+                breadcrumbs={buildEventTrail({
+                    eventsLabel: t('navigation.titles.events'),
+                    eventId,
+                    eventName,
+                    section: {tab: 'betrieb', label: t('nav.event.sections.betrieb')},
+                    trail: [{label: t('event.betrieb.livestream.title')}],
+                })}
+            />
             <StreamScenesPanel eventId={eventId} />
         </Box>
     )

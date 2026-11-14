@@ -523,14 +523,31 @@ object WebDAVImportService {
         setErrorOnDependentDataImports(dataImport.id, errorMsg)
     }
 
+    /**
+     * Markiert alle transitiv abhängigen Importe als fehlerhaft. Früher stand hier
+     * `.map { records -> records.traverse { … } }`: der Rückgabetyp `App<Nothing, Unit>` zwang das
+     * Lambda auf `Unit`, das gebaute `traverse`-KIO wurde verworfen und nie ausgeführt - nur die
+     * direkten Abhängigen bekamen einen Fehler, tiefere standen für immer als offen da.
+     * [visited] schützt vor Endlosrekursion, falls die Abhängigkeiten je einen Kreis bilden.
+     */
+    internal fun setErrorOnDependentDataImports(
+        failedImportId: UUID,
+        errorMessage: String,
+    ): App<Nothing, Unit> = setErrorOnDependentDataImports(failedImportId, errorMessage, mutableSetOf(failedImportId))
+
     private fun setErrorOnDependentDataImports(
         failedImportId: UUID,
-        errorMessage: String
-    ): App<Nothing, Unit> = WebDAVImportDataRepo.updateByDependingOnId(failedImportId) {
-        errorAt = LocalDateTime.now()
-        error = "Dependency with id $failedImportId failed: $errorMessage"
-    }.orDie().map { records ->
-        records.traverse { setErrorOnDependentDataImports(it.id, errorMessage) }
+        errorMessage: String,
+        visited: MutableSet<UUID>,
+    ): App<Nothing, Unit> = KIO.comprehension {
+        val records = !WebDAVImportDataRepo.updateByDependingOnId(failedImportId) {
+            errorAt = LocalDateTime.now()
+            error = "Dependency with id $failedImportId failed: $errorMessage"
+        }.orDie()
+        records.filter { visited.add(it.id) }.forEach {
+            !setErrorOnDependentDataImports(it.id, errorMessage, visited)
+        }
+        unit
     }
 
     fun getImportStatus(): App<Nothing, ApiResponse.ListDto<WebDAVImportStatusDto>> = KIO.comprehension {

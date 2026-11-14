@@ -20,6 +20,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.server.testing.ClientProvider
 import io.ktor.websocket.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -27,6 +28,7 @@ import java.time.LocalDateTime
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -193,6 +195,8 @@ class StreamSceneSocketTest {
         val wsClient = createClient { install(WebSockets) }
         val session = wsClient.sceneSocketSession(eventId, sceneId, link.token)
         session.receiveText()
+        // Der Handler abonniert, BEVOR er den Stand schickt (Sockets.kt): Mit dem ersten Text steht
+        // das Abonnement schon - eine Änderung direkt nach dem Handshake geht nicht verloren.
         assertEquals(1, StreamSceneBroadcaster.subscriptionCount(sceneId))
         session.close()
 
@@ -207,6 +211,87 @@ class StreamSceneSocketTest {
         assertNull(remaining, "the scene channel (and its heartbeat) must vanish with its last subscriber")
     }
 
+    /**
+     * Der Widerruf wirkt sofort: Die Autorisierung fällt beim Handshake, danach hielte die
+     * Verbindung von selbst - eine Bühne mit einem soeben widerrufenen Token bliebe on air, bis
+     * sie irgendwann von sich aus neu verbindet. Stattdessen schließt der Server den Kanal mit
+     * VIOLATED_POLICY, genau wie er den Handshake mit diesem Token ablehnen würde.
+     */
+    @Test
+    fun revokingTheTokenClosesTheOpenChannel() = testApplicationComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+        val link = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, sceneId, userId)).dto
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.sceneSocketSession(eventId, sceneId, link.token)
+        session.receiveText()
+
+        !TimingDeviceTokenService.revoke(eventId, link.deviceTokenId)
+
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+        assertNotNull(closeReason, "the channel must be closed by the server after the revocation")
+        assertEquals(CloseReason.Codes.VIOLATED_POLICY.code, closeReason.code)
+    }
+
+    /** Der Widerruf trifft nur die Verbindungen SEINES Tokens - die Nachbarszene bleibt on air. */
+    @Test
+    fun revokingOneTokenLeavesOtherChannelsOpen() = testApplicationComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val revokedScene = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+        val otherScene = (!StreamSceneService.createScene(eventId, sceneRequest("Tagesprogramm"))).dto.id
+        val revokedLink = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, revokedScene, userId)).dto
+        val otherLink = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, otherScene, userId)).dto
+
+        val wsClient = createClient { install(WebSockets) }
+        val revokedSession = wsClient.sceneSocketSession(eventId, revokedScene, revokedLink.token)
+        val otherSession = wsClient.sceneSocketSession(eventId, otherScene, otherLink.token)
+        revokedSession.receiveText()
+        otherSession.receiveText()
+        try {
+            !TimingDeviceTokenService.revoke(eventId, revokedLink.deviceTokenId)
+
+            withTimeout(awaitTimeout) { revokedSession.closeReason.await() }
+            // Die andere Verbindung lebt: ein Regie-Eingriff an ihrer Szene kommt weiter an.
+            !StreamSceneService.setTrialMode(eventId, otherScene, true)
+            val pushed = otherSession.receiveText()
+            assertTrue(pushed.contains("\"trialMode\":true"), "the untouched channel must still push: $pushed")
+            assertFalse(otherSession.closeReason.isCompleted, "the untouched channel must stay open")
+        } finally {
+            otherSession.close()
+        }
+    }
+
+    /**
+     * Auch der Sitzungsweg prüft die Zugehörigkeit: eine Szene unter einer FREMDEN Veranstaltung
+     * im Pfad bekommt keinen Kanal. Spiegelt `requireOwnedScene` am HTTP-Zwilling.
+     */
+    @Test
+    fun aSessionMayNotOpenASceneUnderAnotherEvent() = testApplicationComprehension {
+        val (eventId, _) = !createTestEventWithAdmin()
+        val (otherEventId, _) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(eventId, sceneRequest("Rennen"))).dto.id
+        val sessionHeader = loginAsAdmin()
+
+        val wsClient = createClient { install(WebSockets) }
+        val session = wsClient.webSocketSession("/api/ws/event/$otherEventId/stream/$sceneId") {
+            header(SESSION_HEADER, sessionHeader)
+        }
+        val closeReason = withTimeout(awaitTimeout) { session.closeReason.await() }
+
+        assertNotNull(closeReason)
+        assertEquals(CloseReason.Codes.CANNOT_ACCEPT.code, closeReason.code)
+    }
+
+    private suspend fun ClientProvider.loginAsAdmin(): String {
+        val login = client.post("/api/login") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"email":"admin","password":"admin"}""")
+        }
+        assertEquals(HttpStatusCode.OK, login.status)
+        return login.headers[SESSION_HEADER] ?: error("login did not return a $SESSION_HEADER header")
+    }
+
     /** Spiegelt `new WebSocket(url, ["r2r", token])` im Browser. */
     private suspend fun HttpClient.sceneSocketSession(
         eventId: UUID,
@@ -219,4 +304,8 @@ class StreamSceneSocketTest {
 
     private suspend fun DefaultClientWebSocketSession.receiveText(): String =
         withTimeout(awaitTimeout) { (incoming.receive() as Frame.Text).readText() }
+
+    companion object {
+        private const val SESSION_HEADER = "X-Api-Session"
+    }
 }

@@ -2,6 +2,7 @@ import {Box, IconButton, Popover, Stack, Typography} from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import SettingsIcon from '@mui/icons-material/Settings'
 import {ReactNode, useRef, useState} from 'react'
+import {useTranslation} from 'react-i18next'
 import {useSpeakerColors} from './speakerSettings.ts'
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
  * bewusst keine Dialoge mehr.
  */
 const SpeakerPanel = ({title, subtitle, headerExtra, settings, onClose, children}: Props) => {
+    const {t} = useTranslation()
     const colors = useSpeakerColors()
     const gearRef = useRef<HTMLButtonElement | null>(null)
     const [settingsOpen, setSettingsOpen] = useState(false)
@@ -67,6 +69,7 @@ const SpeakerPanel = ({title, subtitle, headerExtra, settings, onClose, children
                             size={'small'}
                             ref={gearRef}
                             onClick={() => setSettingsOpen(true)}
+                            aria-label={t('common.settings')}
                             sx={{color: colors.textSecondary}}>
                             <SettingsIcon fontSize={'small'} />
                         </IconButton>
@@ -95,6 +98,7 @@ const SpeakerPanel = ({title, subtitle, headerExtra, settings, onClose, children
                     <IconButton
                         size={'small'}
                         onClick={onClose}
+                        aria-label={t('common.close')}
                         sx={{color: colors.textSecondary}}>
                         <CloseIcon fontSize={'small'} />
                     </IconButton>

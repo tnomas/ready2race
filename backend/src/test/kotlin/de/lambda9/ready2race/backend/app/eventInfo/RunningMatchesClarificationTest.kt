@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo
 
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventInfoService
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
 import de.lambda9.ready2race.backend.app.timing.createTestEventWithAdmin
 import de.lambda9.ready2race.backend.app.timing.createTestMatchFixture
 import de.lambda9.tailwind.core.extensions.kio.orDie
@@ -21,6 +22,7 @@ class RunningMatchesClarificationTest {
     @Test
     fun clarificationMatchesComeOnlyOnRequestAndFlagged() = testComprehension {
         val (eventId, _) = !createTestEventWithAdmin()
+        !publishEvent(eventId)
         val now = LocalDateTime.now()
 
         val disputed = !createTestMatchFixture(eventId, 1)
@@ -58,5 +60,22 @@ class RunningMatchesClarificationTest {
             false,
             speakerView.data.first { it.matchId == plain.setupMatchId }.clarification,
         )
+
+        // Der Zustand kommt aus der einen Ableitung: aktiviert ohne Ist-Start ist „In
+        // Vorbereitung", nicht „Live" (Befund Sprecher-Board, 13.11.2026); der strittige Lauf
+        // steht auf CLARIFICATION - aber nur dort, wo die Klärung bestellt ist.
+        assertEquals(MatchState.PREPARING, publicView.data.single().state)
+        assertEquals(
+            MatchState.CLARIFICATION,
+            speakerView.data.first { it.matchId == disputed.setupMatchId }.state,
+        )
+        assertEquals(
+            MatchState.PREPARING,
+            speakerView.data.first { it.matchId == plain.setupMatchId }.state,
+        )
+
+        !CompetitionMatchRepo.update(plain.setupMatchId) { startedAt = now }.orDie()
+        val started = !EventInfoService.getRunningMatches(eventId, 10)
+        assertEquals(MatchState.RUNNING, started.data.single().state)
     }
 }

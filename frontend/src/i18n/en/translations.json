@@ -1,8 +1,24 @@
 {
+  "notFound": {
+    "title": "Page not found",
+    "description": "This address does not exist (anymore). The link may be outdated or contain a typo.",
+    "home": "Go to start page",
+    "appHome": "Go to helper app"
+  },
+  "routeError": {
+    "title": "Something went wrong",
+    "description": "This page could not be displayed. Please try again.",
+    "chunkTitle": "New version available",
+    "chunkDescription": "The application has been updated. Please reload the page to use the current version.",
+    "reload": "Reload",
+    "home": "Go to start page",
+    "displayRetrying": "Reloading display …"
+  },
   "common": {
     "no": "No",
     "cancel": "Cancel",
     "close": "Close",
+    "reload": "Reload",
     "confirmation": {
       "title": "Confirmation required",
       "content": "Please confirm the execution of the selected action"
@@ -16,6 +32,7 @@
     "deselectAll": "Deselect all",
     "error": {
       "unexpected": "An unexpected error has occurred. Please try again later.",
+      "network": "No connection to the server. Please check your internet connection and try again.",
       "tooManyRequests": "Too many requests. Try again in {{val, relativetime(minute)}}.",
       "upload": {
         "unsupportedType": "This file type is not supported.",
@@ -136,6 +153,15 @@
     "add": "Add",
     "submit": "Submit",
     "for": "for"
+  },
+  "ui": {
+    "retry": "Try again",
+    "loading": "Loading…",
+    "loadError": "The data could not be loaded."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Breadcrumb",
+    "showPath": "Show full path"
   },
   "csv": {
     "wizard": {
@@ -353,7 +379,28 @@
     },
     "delete": {
       "success": "{{entity}} deleted",
-      "error": "An error has occurred when deleting {{entity}}"
+      "error": "An error has occurred when deleting {{entity}}",
+      "confirmTitle": "Delete {{entity}}?",
+      "confirmNamed": "“{{name}}” will be permanently deleted. This cannot be undone.",
+      "confirmGeneric": "The entry will be permanently deleted. This cannot be undone."
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "content": "Your entries have not been saved yet and will be lost when you close.",
+      "ok": "Discard",
+      "keep": "Keep editing"
+    },
+    "empty": {
+      "title": "No entries yet.",
+      "search": "No results for “{{query}}”.",
+      "resetSearch": "Reset search"
+    },
+    "search": {
+      "clear": "Clear search"
+    },
+    "card": {
+      "more": "More details ({{count}})",
+      "less": "Show less"
     },
     "description": "Description",
     "createdAt": "Created at",
@@ -372,20 +419,47 @@
     "remark": "Remark",
     "color": "Color"
   },
+  "nav": {
+    "mainLabel": "Main navigation",
+    "management": "Administration",
+    "event": {
+      "areasLabel": "Event sections",
+      "fallbackName": "Event",
+      "sectionSelect": "Section",
+      "groups": {
+        "preparation": "Preparation",
+        "registration": "Registration",
+        "raceDay": "Race day",
+        "followUp": "Follow-up"
+      },
+      "sections": {
+        "general": "Overview",
+        "competitions": "Competitions & days",
+        "settings": "Settings",
+        "registrations": "Registrations",
+        "participants": "Participants",
+        "invoices": "Invoices",
+        "schedule": "Schedule",
+        "betrieb": "Operations",
+        "organization": "Team & Helpers",
+        "results": "Results & certificates"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Home",
-      "dashboard": "Dashboard",
+      "dashboard": "Overview",
       "events": "Events",
-      "competitionConfig": "Competition Settings",
       "roles": "Roles",
       "users": "Users",
-      "config": "Configurations",
+      "config": "Templates & Master Data",
       "clubs": "Clubs",
       "myClub": "My Club",
       "invoices": "Invoices",
-      "administration": "Administration",
-      "material": "Equipment"
+      "administration": "System",
+      "material": "Equipment",
+      "materialAdmin": "Equipment rental"
     },
     "sidebar": {
       "expand": "Expand sidebar",
@@ -393,6 +467,18 @@
     }
   },
   "dashboard": {
+    "currentEvents": {
+      "title": "Current events",
+      "all": "All events",
+      "empty": "No events created yet",
+      "linksLabel": "Shortcuts for {{name}}",
+      "status": {
+        "running": "Running",
+        "upcoming": "Upcoming",
+        "past": "Past",
+        "undated": "No date"
+      }
+    },
     "registration": {
       "showMessage": "Show message"
     },
@@ -409,7 +495,23 @@
       "empty": "No open tasks"
     }
   },
+  "quickJump": {
+    "label": "Quick jump",
+    "placeholder": "Jump to …",
+    "open": "Open quick jump (key /)",
+    "close": "Close quick jump",
+    "groups": {
+      "sections": "Sections",
+      "competitions": "Competitions",
+      "events": "Events"
+    },
+    "loading": "Searching …",
+    "noResults": "No matches",
+    "typeMore": "Type at least two characters",
+    "error": "The search failed."
+  },
   "club": {
+    "editClub": "Edit club",
     "tabs": {
       "clubs": "Clubs",
       "shortNames": "Short names",
@@ -487,6 +589,7 @@
     "participants": "Members",
     "representative": {
       "representatives": "Representatives",
+      "noRepresentatives": "Nobody is registered for this club yet.",
       "pendingApprovals": "Pending Approvals",
       "approve": {
         "approve": "Approve",
@@ -666,6 +769,7 @@
     "name": "Name",
     "description": "Description",
     "registerNow": "To Registration",
+    "registerEdit": "View and change registration",
     "registerHere": {
       "1": " You can register for the whole event ",
       "2": "here",
@@ -719,6 +823,7 @@
       "shortLabels": "Short names instead of full competition names",
       "compact": "Compact view",
       "deviceHint": "All settings apply to this device only.",
+      "jumpTo": "Jump to",
       "execution": {
         "title": "Execution",
         "hint": "How matches are finished and following rounds are created on race day, and how often the execution page keeps itself up to date. Applies to the whole event, not just this device."
@@ -756,7 +861,7 @@
     },
     "eventDay": {
       "eventDay": "Day",
-      "eventDays": "Days",
+      "eventDays": "Event Days",
       "date": "Date",
       "name": "Name",
       "description": "Description",
@@ -772,6 +877,22 @@
         "filter": "Filter",
         "showShortNames": "Show short names",
         "showLongNames": "Show long names"
+      },
+      "page": {
+        "tabs": {
+          "general": "General",
+          "registrations": "Registrations",
+          "teams": "Teams",
+          "setup": "Round structure",
+          "timing": "Timing",
+          "execution": "Execution",
+          "places": "Results"
+        },
+        "notFound": "This competition does not exist or is not visible to you.",
+        "loadError": "The competition could not be loaded.",
+        "previous": "Previous competition",
+        "next": "Next competition",
+        "navigationLabel": "Switch between competitions"
       },
       "noCompetitionsAvailable": "No competitions available",
       "identifier": "Identifier",
@@ -929,7 +1050,7 @@
         }
       },
       "setup": {
-        "setup": "Competition Setup",
+        "setup": "Round Structure",
         "save": {
           "save": "Save",
           "error": "An error has occurred when saving the competition setup",
@@ -1041,6 +1162,20 @@
       "execution": {
         "tabTitle": "Live",
         "pairingsRecalculated": "Pairing recalculated",
+        "moreActions": {
+          "label": "More actions",
+          "roundLabel": "More round actions",
+          "resultsXls": "Import results from XLS file",
+          "resultsRaceClocker": "Fetch results from RaceClocker",
+          "resultsRaceClockerFile": "Import results from RaceClocker file",
+          "startListPdf": "Download start list (PDF)",
+          "startListCsv": "Download start list (CSV)",
+          "setClarification": "Put match under review"
+        },
+        "noRounds": {
+          "title": "No round created yet",
+          "description": "The first round is drawn from the competition setup via “Create next round”."
+        },
         "progress": {
           "error": "The matches of the competition could not be loaded."
         },
@@ -1082,8 +1217,9 @@
           "action": "Reset race",
           "confirmation": {
             "title": "Reset race?",
-            "warning": "Warning: This race will be reset to “never raced”. Irrevocably lost: the actual start, all finish and split times, all places, disqualifications and time penalties of this race.",
+            "warning": "Warning: This race will be reset to “never raced”. Deleted: the actual start, all finish and split times, all places, disqualifications and time penalties of this race. With external timing or manual entry they cannot be restored; for internal timing see below.",
             "keeps": "Kept: line-up, lanes and the boats' identifiers — the RaceClocker mapping stays valid and the race can be raced again right away.",
+            "marks": "Internal timing: the time marks captured at the stations are kept and stay assigned to this race; split times are recalculated from them. To restart the race at the stations, choose “Retract start and restart” in the race menu there – that discards the whole attempt including its marks.",
             "autoPull": "The automatic RaceClocker pull is paused for this race — otherwise the next pull would immediately re-import the deleted results. After cleaning up in RaceClocker, resume deliberately via “Resume automatic pull”.",
             "question": "Really reset this race?"
           },
@@ -1123,7 +1259,8 @@
           "place": "Place",
           "time": "Time",
           "placeAndTime": "Place/Time/Penalty",
-          "manageRunning": "Manage Running Matches",
+          "match": "Match",
+          "manageRunning": "Manage Running Races",
           "running": "Running",
           "roundAndMatch": "Round {{round}}, Match {{match}}",
           "activated": "At the start",
@@ -1142,6 +1279,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "The match is already finished. Use “Undo finish” or “Reset race” to reopen it.",
             "hasPlaces": "Cannot change running state for matches with results",
             "update": "Failed to update running state"
           },
@@ -1189,12 +1327,6 @@
             }
           },
           "upload": "Upload match results",
-          "type": {
-            "form": "into Form",
-            "XLS": "as XLS-File",
-            "RACECLOCKER": "from RaceClocker",
-            "RACECLOCKER_FILE": "from RaceClocker (file)"
-          },
           "error": {
             "notConfigured": "No result import preset is configured for this competition. Please set one up in the \"Timing\" tab.",
             "WRONG_TEAM_COUNT": "The team count is different from expected - actual: {{actual}}, expected: {{expected}}",
@@ -1299,11 +1431,6 @@
           }
         },
         "startList": {
-          "download": "Download start-list",
-          "type": {
-            "PDF": "as PDF",
-            "CSV": "as CSV"
-          },
           "error": {
             "missingStartTime": "The start time for this match is not set.",
             "notConfigured": "No start list preset is configured for this competition. Please set one up in the \"Timing\" tab."
@@ -1375,7 +1502,8 @@
           "warning": {
             "missingDistance": "At least one selected station has no metre.",
             "overDistance": "At least one station stands beyond the competition's total distance ({{distance}} m).",
-            "duplicateDistance": "Two stations stand at the same metre."
+            "duplicateDistance": "Two stations stand at the same metre.",
+            "orphaned": "An assignment at {{distance}} m points to a station that no longer exists or has since become a display station. It is no longer written when saving."
           }
         }
       },
@@ -1392,7 +1520,6 @@
       "info": "If no column to check for the requirement is provided, all matching participants from the file will be approved.",
       "approved": "Approved requirements",
       "checkUpload": "Check requirements",
-      "checkManually": "Manually check '{{name}}'",
       "file": "CSV-File",
       "charset": "Charset",
       "separator": "Separator",
@@ -1417,6 +1544,13 @@
         "ok": "Yes",
         "cancel": "No"
       },
+      "checkManuallyAction": "Check manually …",
+      "checkManuallyDialog": {
+        "title": "Check requirement manually",
+        "requirement": "Requirement",
+        "chooseFirst": "First choose the requirement to check.",
+        "noRequirements": "No requirements are active for this event."
+      },
       "openExportAction": "Export open requirements",
       "openExport": {
         "title": "Export open requirements",
@@ -1433,8 +1567,9 @@
       },
       "log": {
         "title": "Requirement log",
-        "action": "Log of all requirements",
-        "actionFor": "Log: {{name}}",
+        "openAction": "Log …",
+        "filter": "Requirement",
+        "allRequirements": "All requirements",
         "empty": "No changes logged yet.",
         "when": "When",
         "action_col": "What",
@@ -1475,13 +1610,13 @@
           "keep": "Keep set team numbers",
           "hint": "When keeping the start numbers, new teams/participants will receive new random start numbers. These will be higher than the currently highest of the competition. When not kept, all the start numbers will be reshuffled."
         },
+        "reshuffle": "This will reshuffle all start numbers",
+        "success": "Registrations finalized",
         "alignMaterialNumbers": "Assign start numbers based on boat numbers",
         "material": {
           "openRequestsHint_one": "{{count}} material request is not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
           "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance."
-        },
-        "reshuffle": "This will reshuffle all start numbers",
-        "success": "Registrations finalized"
+        }
       }
     },
     "assign": {
@@ -1545,7 +1680,7 @@
       },
       "registration": "Registration",
       "registrations": "Registrations",
-      "addParticipant": "Add Participant",
+      "addParticipant": "Add new person",
       "singleCompetition": "Single Competition",
       "teamCompetition": "Team Competition",
       "males": "Men",
@@ -1560,17 +1695,22 @@
         "split": "{{regular}} regular + {{late}} late"
       },
       "optionalFee": "Optional",
-      "totalFees": "Registration Fee",
-      "lateTotalFees": "Late Registration Fee",
+      "totalFees": "Entry fees",
+      "lateTotalFees": "Late entry fees",
       "acceptDocuments": "I accept the following:",
       "infoDocuments": "Additional info",
       "finish": "Submit registration",
       "success": {
-        "title": "Registration successful!",
-        "subtitle": "You will receive a confirmation by e-mail."
+        "title": "Registration saved",
+        "subtitle": "You will receive a confirmation by e-mail.",
+        "toEvent": "Back to the event",
+        "editRegistration": "View and edit registration",
+        "entries_one": "{{count}} entry has been received.",
+        "entries_other": "{{count}} entries have been received.",
+        "amount": "Entry fees of this submission: {{amount}}."
       },
       "error": {
-        "closed": "Registration for this event is closed",
+        "closed": "Registration closed: entries for this event are no longer possible.",
         "participantUpsertNotFound": "Participant from participant list not found",
         "teamParticipantNotFound": "Team participant could not be found",
         "competitionNotFound": "Competition not found",
@@ -1607,6 +1747,80 @@
           "invalidAddress": "Not a valid address: {{address}}",
           "recipientGone": "One registrant no longer has a user. Please reopen the dialog."
         }
+      },
+      "page": {
+        "title": "Registration"
+      },
+      "messageHint": "A note to the organiser, e.g. about boats or substitutes.",
+      "lockedHint": "Already registered bindingly – cannot be changed after the deadline.",
+      "noLateRegistration": "Late entries are not possible for this competition.",
+      "selectedCount_one": "{{count}} competition",
+      "selectedCount_other": "{{count}} competitions",
+      "selectAllSingles": "All persons to all competitions",
+      "deselectAllSingles": "Remove all single entries",
+      "teamNumber": "Team {{number}}",
+      "noTeamYet": "No team registered yet.",
+      "addTeam": "Register team",
+      "steps": {
+        "participants": {
+          "label": "Participants",
+          "hint": "All persons of your club. Check their details and add missing persons. You choose who starts where in the next steps.",
+          "empty": "Your club has no participants yet. Add the persons you want to register."
+        },
+        "single": {
+          "label": "Single competitions",
+          "hint": "Tick the competitions each person should start in. Extras and rating category appear once ticked.",
+          "empty": "There are no participants yet. Add persons in the first step."
+        },
+        "team": {
+          "label": "Team competitions",
+          "hint": "Register one or more teams per competition and choose the crew. Each person can only be registered once per competition."
+        },
+        "summary": {
+          "label": "Review & submit",
+          "hint": "Check who is registered where and what it costs. Nothing is saved until you press \"Submit registration\"."
+        },
+        "progress": "Step {{current}} of {{total}}: {{label}}",
+        "next": "Next: {{step}}"
+      },
+      "search": {
+        "placeholder": "Search person (name, year)",
+        "onlyRegistered": "Registered only",
+        "count": "{{shown}} of {{total}} persons",
+        "noMatch": "No person matches the search."
+      },
+      "phase": {
+        "late": "Late registration: new entries cost the late fee; existing entries are locked, and not every competition accepts late entries.",
+        "closed": "Registration closed: entries for this event can no longer be added or changed."
+      },
+      "errorSummary": {
+        "title_one": "Please check {{count}} entry",
+        "title_other": "Please check {{count}} entries",
+        "teamMembers": "Crew",
+        "confirmation": "Document confirmation",
+        "unknown": "Entry",
+        "goTo": "Go to \"{{step}}\"",
+        "more_one": "… and {{count}} more",
+        "more_other": "… and {{count}} more"
+      },
+      "review": {
+        "nothingSelected": "You have not registered anyone for a competition yet. You can still submit to save newly added persons.",
+        "entriesSingle_one": "{{count}} person",
+        "entriesSingle_other": "{{count}} persons",
+        "entriesTeam_one": "{{count}} team",
+        "entriesTeam_other": "{{count}} teams",
+        "noMembers": "(crew still empty)",
+        "locked": "binding",
+        "late": "late entry",
+        "lockedNotCounted": "Binding entries have already been charged and are not included here.",
+        "newParticipants_one": "{{count}} person will be added",
+        "newParticipants_other": "{{count}} persons will be added",
+        "changedParticipants_one": "{{count}} person will be changed",
+        "changedParticipants_other": "{{count}} persons will be changed"
+      },
+      "leave": {
+        "content": "Your registration has not been submitted yet. If you leave the page now, your input will be lost.",
+        "ok": "Leave"
       }
     },
     "participants": "Participants",
@@ -1614,8 +1828,7 @@
       "general": "General",
       "registrations": "Registrations",
       "settings": "Settings",
-      "actions": "Actions",
-      "organisation": "Organisation",
+      "organisation": "Team & Helpers",
       "invoices": "Invoices",
       "betrieb": "Operations"
     },
@@ -1758,10 +1971,10 @@
         },
         "intervalSeconds": "Start interval (seconds)",
         "intervalHelp": "Leave empty if every start is triggered by hand. With a value, starts follow automatically at this interval (time trial).",
-        "invalidInterval": "The interval must be at least 1 second — or stay empty for manual starts.",
+        "invalidInterval": "The interval must be a whole number of at least 1 second — or stay empty for manual starts.",
         "leadInSeconds": "Countdown lead-in (seconds)",
         "leadInHelp": "Countdown before the (first) start.",
-        "invalidLeadIn": "Please enter a number of seconds of 0 or more.",
+        "invalidLeadIn": "Please enter a whole number of seconds of 0 or more.",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manual start",
@@ -1881,10 +2094,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Public displays",
-      "pageDescription": "Compose boards for public screens: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
-      "manageInfoViews": "Manage boards",
-      "manageStreamScenes": "Manage livestream scenes",
       "pendingRound": "Race not yet set",
       "freeSlot": "Schedule item",
       "athleteBoard": {
@@ -1968,9 +2177,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Referee dashboard",
-      "pageDescription": "Live view for referees with running and upcoming matches, participant requirements, and invoice status.",
-      "open": "Open referee dashboard",
       "title": "Referee dashboard",
       "tabs": {
         "live": "Live",
@@ -2024,7 +2230,6 @@
         "notePreview": "Note preview on the boat row",
         "showCrew": "Show line-up",
         "showChecks": "Show checks",
-        "showMaterial": "Always show material",
         "readability": "Readability",
         "fontSize": {
           "label": "Font size",
@@ -2032,7 +2237,8 @@
           "large": "Large",
           "xlarge": "Extra large"
         },
-        "refresh": "Refresh"
+        "refresh": "Refresh",
+        "showMaterial": "Always show material"
       },
       "penaltyIncluded": "incl. {{seconds}} s",
       "resultsCompleteWaiting": "Results complete — waiting to finish",
@@ -2058,7 +2264,8 @@
         "error": "The race could not be changed.",
         "errorReason": {
           "finishReservedForOffice": "For this event the regatta office finishes runs via the schedule. The run stays active — please tell the regatta office that it has finished."
-        }
+        },
+        "moreActions": "More actions"
       },
       "clarification": {
         "sectionTitle": "Under review ({{n}})",
@@ -2068,7 +2275,10 @@
         "reasonLabel": "Reason",
         "reasonPlaceholder": "Objection, lane contact",
         "submit": "Mark under review",
-        "since": "since {{time}}"
+        "since": "since {{time}}",
+        "error": {
+          "alreadyFinished": "The race has already been finished."
+        }
       },
       "substitution": {
         "short": "Substitution",
@@ -2086,10 +2296,6 @@
         "startedAt": "started {{time}}",
         "startNumberLabel": "Bib {{number}}",
         "boatLabel": "Boat {{number}}"
-      },
-      "material": {
-        "own": "own boat",
-        "deviates": "deviating"
       },
       "requirement": {
         "checkedAt": "Fulfilled at {{time}}",
@@ -2142,6 +2348,15 @@
         },
         "saved": "Settings saved",
         "saveError": "Settings could not be saved."
+      },
+      "connection": {
+        "live": "Live connected",
+        "polling": "Polling every {{seconds}} s",
+        "offline": "No connection"
+      },
+      "material": {
+        "own": "own boat",
+        "deviates": "deviating"
       }
     },
     "schedule": {
@@ -2386,7 +2601,37 @@
     },
     "results": {
       "download": "Download previous results",
-      "downloadError": "Die datei konnte nicht heruntergeladen werden."
+      "downloadError": "Die datei konnte nicht heruntergeladen werden.",
+      "public": {
+        "title": "Public results",
+        "description": "The results page for participants and spectators, available without signing in."
+      },
+      "documents": {
+        "title": "Download results and certificates",
+        "description": "Result list, award ceremony sheet and winner certificates as documents for notice boards, the ceremony and the archive."
+      },
+      "participation": {
+        "title": "Certificates of participation",
+        "description": "Once the challenge has ended: send certificates to all participants or download those of your own club."
+      }
+    },
+    "overview": {
+      "loadError": "The event could not be loaded.",
+      "notFound": "This event does not exist or is not visible to you.",
+      "registration": {
+        "open": "Registration open",
+        "late": "Late registration",
+        "closed": "Registration closed"
+      },
+      "raceDay": {
+        "title": "Race day",
+        "description": "Race office, referee dashboard, speaker board, displays, livestream, timing and the helper app are all gathered under Operations.",
+        "open": "Go to Operations"
+      },
+      "results": {
+        "description": "Public results page, downloadable results and certificates.",
+        "open": "Go to Results & certificates"
+      }
     },
     "ratingCategory": {
       "title": "Rating categories",
@@ -2430,6 +2675,8 @@
       "open": "View",
       "copyUrl": "Copy URL",
       "urlCopied": "URL copied",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
       "name": "Name",
       "saveAndClose": "Save and close",
       "matchDetailFullscreen": "The announcer tile always fills the whole board — columns and spans have no effect here",
@@ -2517,15 +2764,11 @@
         "showBirthYears": "Show birth years",
         "showAdvancement": "Show advancement rule",
         "showRegisteringClub": "Show registering club",
-        "showMaterial": "Show boat material",
         "backgroundColor": "Tile color",
         "borderColor": "Border color",
         "colorRemove": "Remove color",
-        "backgroundColorHint": "Light color tones keep the content readable"
-      },
-      "material": {
-        "own": "own boat",
-        "deviates": "deviating"
+        "backgroundColorHint": "Light color tones keep the content readable",
+        "showMaterial": "Show boat material"
       },
       "columns": "Columns",
       "columnCount": "{{count}} columns",
@@ -2583,6 +2826,10 @@
           "title": "This display is not shared",
           "hint": "Request a link with a token, or log in. The link is available in the event’s board administration under “Share link”."
         }
+      },
+      "material": {
+        "own": "own boat",
+        "deviates": "deviating"
       }
     },
     "stream": {
@@ -2595,9 +2842,6 @@
       "courseImage": "Course map",
       "scheduleTitle": "Up next",
       "cancelled": "Cancelled",
-      "material": {
-        "own": "own boat"
-      },
       "clock": {
         "countdown": "Start in",
         "running": "Race time",
@@ -2669,14 +2913,15 @@
           },
           "displaySeconds": "Display duration (seconds)",
           "listLength": "Number of rows",
-          "showMaterial": "Always show material",
+          "numberRange": "Whole number between {{min}} and {{max}}",
           "image": "Image",
           "imageNone": "No image selected",
           "imageHint": "Images are uploaded through the event's documents.",
           "imageForbidden": "Selecting an image requires an event read privilege (READ EVENT) — with a stream-only role the picker stays empty. The graphic can still be enabled, it just shows no image for now.",
           "imageEmpty": "No documents uploaded yet — upload an image through the event's documents first.",
           "imageLoadError": "Documents could not be loaded.",
-          "saved": "Graphics saved"
+          "saved": "Graphics saved",
+          "showMaterial": "Always show material"
         },
         "type": {
           "STARTLIST": "Start list",
@@ -2712,6 +2957,7 @@
         "inactive": "Inactive graphics",
         "inactiveHint": "Enable them under “Configure graphics”",
         "forceHint": "Forcing on shows nothing without content.",
+        "sceneGone": "This scene no longer exists — it was deleted or belongs to another event.",
         "health": {
           "live": "Live",
           "connecting": "Connecting …",
@@ -2773,12 +3019,14 @@
               "label": "Idle",
               "hint": "Schedule and course image only"
             }
-          }
+          },
+          "confirmOn": "Switch on trial mode? This scene’s stage then shows a demo race instead of real data – including in the live stream.",
+          "confirmOk": "Switch on trial mode"
         }
       },
       "panel": {
         "title": "Control panel",
-        "open": "Open control panel",
+        "open": "Open director",
         "sceneSelect": "Scene",
         "noGraphics": "This scene has no enabled graphic yet.",
         "health": {
@@ -2811,43 +3059,51 @@
           "untilRevoked": "Until revoked",
           "seconds": "{{seconds}}s"
         }
+      },
+      "material": {
+        "own": "own boat"
       }
     },
     "betrieb": {
-      "intro": "Everything the regatta is run with on race day — one tile per role. Fullscreen views open in a new window.",
+      "intro": "The race-day workplaces, most used first. Fullscreen views open in a new window.",
+      "raceOffice": {
+        "title": "Race office",
+        "description": "Call races to the start or take them back and run the day from the schedule.",
+        "openSchedule": "Go to schedule"
+      },
       "referee": {
         "title": "Referee",
-        "description": "The live dashboard shows running and upcoming matches, checks and decisions for the referees.",
-        "open": "Open live dashboard"
+        "description": "On the pontoon: see the running and next race, check line-ups, start and finish races or put them under review.",
+        "open": "Open referee dashboard"
       },
       "speaker": {
         "title": "Speaker",
-        "description": "The speaker view bundles start lists, results and running matches for the commentary.",
-        "open": "Open speaker view"
+        "description": "For the commentary: current and next race, start list, results and live timing on one screen.",
+        "open": "Open speaker board"
       },
       "timing": {
         "title": "Timing",
-        "description": "Control desk for the timing lead on a laptop, below it the stations (start, split, finish) with direct links: open capture, start display for START stations, \"Share to device\" for phones and screens without a login.",
+        "description": "The control desk for the timing lead on a laptop; the stations on the course capture on phones.",
         "openLeitstand": "Open control desk",
-        "mobileHint": "For phones at a station there is also the mobile entry page:",
-        "mobileLink": "Open mobile capture"
+        "mobileLink": "Open mobile capture",
+        "stationsHint": "Create stations, open their capture or share them to a device by link."
       },
       "boards": {
         "title": "Public displays",
-        "description": "Boards for the screens on site: arrange matches, lists, clock and notices freely, reachable via a fixed URL.",
+        "description": "Screens on site: arrange races, results, clock and notices as boards.",
         "open": "Manage boards"
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream overlays for the video direction: transparent scenes for Wirecast/OBS, directed via the control panel.",
+        "description": "The livestream director: pick scenes, show graphics and rehearse in trial mode.",
         "open": "Manage livestream",
         "openDirector": "Open director"
       },
       "helpers": {
         "title": "Helpers",
-        "description": "The helper app for phones (QR scanning, check-in/out, tasks) and the event’s shift plan.",
+        "description": "The helper app for phones (scanning, check-in/out, stations) and the shift plan.",
         "openApp": "Open helper app",
-        "shifts": "Go to shift plan (organisation)"
+        "shifts": "Go to shift plan (team & helpers)"
       }
     },
     "material": {
@@ -2907,6 +3163,7 @@
     "namedParticipantAssignments": "Assignments",
     "qrCodeRequirement": "QR Code",
     "global": "Global",
+    "qrCodeRequired": "QR code required",
     "toggleQrCode": "Toggle QR code requirement",
     "assignTo": "Assign to {{name}}",
     "assignToWithQr": "Assign to {{name}} (with QR code)",
@@ -2962,8 +3219,6 @@
     },
     "firstname": "Firstname",
     "lastname": "Lastname",
-    "materialProvider": "Equipment provider",
-    "materialProviderNone": "No provider",
     "birthYear": "Birth Year",
     "password": {
       "password": "Password",
@@ -3106,7 +3361,9 @@
         },
         "invalid": "The form sent was invalid"
       }
-    }
+    },
+    "materialProvider": "Equipment provider",
+    "materialProviderNone": "No provider"
   },
   "role": {
     "role": "Role",
@@ -3115,18 +3372,150 @@
     "name": "Name",
     "description": "Description",
     "rights": "Rights",
+    "job": "Job",
+    "copyOf": "Copy of",
+    "noTemplate": "No template",
+    "static": "Predefined",
+    "level": {
+      "label": "Level",
+      "SELF": "Own account",
+      "CLUB": "Club",
+      "EVENT": "Event",
+      "ORGANIZER": "Organizer",
+      "GLOBAL": "Global"
+    },
+    "deviation": {
+      "added": "Added compared to the job",
+      "missing": "Missing compared to the job"
+    },
+    "notAssignable": "Roles containing privileges you do not have yourself are not offered here.",
     "error": {
-      "cannotAssign": "Role(s) could not be assigned to the user"
+      "cannotAssign": "Role(s) could not be assigned to the user",
+      "privilegesBeyondOwn": "You can only assign privileges you have yourself.",
+      "selfAssignment": "Nobody can change their own roles."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Runs the installation. The only role that can see and assign superadmin accounts."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Everything except superadmin accounts."
+    },
+    "USER": {
+      "name": "User",
+      "description": "Read and change own account. Held by every account."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Club representative",
+      "description": "Own club, own registrations, invoices and results."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Competition management",
+      "description": "Event, competitions, execution and day-of team."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Registration office",
+      "description": "Review registrations and rebook."
+    },
+    "FINANCE": {
+      "name": "Finance",
+      "description": "Invoices and bank accounts."
+    },
+    "JUDGE": {
+      "name": "Judge",
+      "description": "Penalties, clarification, judge dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Timekeeper",
+      "description": "Stations, sequences and timing connection."
+    },
+    "ANNOUNCER": {
+      "name": "Announcer",
+      "description": "Boards and announcer dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Stream director",
+      "description": "Livestream graphics and director board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Helper: requirements",
+      "description": "Check participant requirements."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Helper: access passes",
+      "description": "Issue wristbands and QR codes."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Helper: check-in",
+      "description": "Check-in, check-out and competition check."
+    },
+    "HELPER_CATERING": {
+      "name": "Helper: catering",
+      "description": "Serve catering."
+    },
+    "MATERIAL_PROVIDER": {
+      "name": "Equipment provider",
+      "description": "Own fleet, offers and requests of the assigned provider. Granted via the provider assignment on the user page."
+    }
+  },
+  "privilege": {
+    "action": {
+      "CREATE": "Create",
+      "READ": "Read",
+      "UPDATE": "Update",
+      "DELETE": "Delete"
+    },
+    "scope": {
+      "OWN": "Own",
+      "EVENT": "Event",
+      "GLOBAL": "All"
+    },
+    "resource": {
+      "USER": "Accounts",
+      "EVENT": "Events",
+      "CLUB": "Clubs",
+      "REGISTRATION": "Registrations",
+      "INVOICE": "Invoices",
+      "SUBSTITUTION": "Rebookings",
+      "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands",
+      "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering",
+      "APP_TIMING": "App: timing",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Results",
+      "LIVE_DASHBOARD": "Judge dashboard",
+      "BOARD": "Boards",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Configuration",
+      "ROLE": "Roles",
+      "STAFF": "Role assignment",
+      "SYSTEM": "Installation",
+      "MATERIAL": "Equipment rental"
     }
   },
   "configuration": {
-    "configuration": "Configuration",
+    "configuration": "Templates & Master Data",
     "tabs": {
       "competitionTemplates": "Competition templates",
-      "eventElements": "Event elements",
       "competitionElements": "Competition elements",
+      "listsTiming": "Start lists & timing",
+      "eventElements": "Documents & requirements",
+      "organisation": "Organisation",
       "globalSettings": "Global settings",
-      "exportData": "Export / Import"
+      "exportData": "Export / Import",
+      "description": {
+        "competitionTemplates": "Templates for competitions and round structures that can be reused in every event.",
+        "competitionElements": "Building blocks of competitions: categories, rating categories, participant types and fees.",
+        "listsTiming": "Formats for start list export and result import, and the references for pace figures.",
+        "eventElements": "Document types, document and certificate templates, and participant requirements.",
+        "organisation": "Work types for the shift plan, contact information and bank accounts for invoices.",
+        "globalSettings": "Defaults used by all events.",
+        "exportData": "Export and import data via WebDAV."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Rating category",
@@ -3346,7 +3735,7 @@
   "qrCode": {
     "qrCode": "QR Code",
     "value": "QR Code Value",
-    "appUsersWithQrCode": "Users with QR Codes",
+    "appUsersWithQrCode": "Helpers with QR Code",
     "edit": "Edit QR Code",
     "delete": "Delete QR Code",
     "show": "Show QR Code",
@@ -3401,7 +3790,8 @@
   "qrScanner": {
     "cameraError": "Camera could not be opened",
     "cameraErrorHint": "The camera may be in use by another app or access was denied.",
-    "cameraRetry": "Restart camera"
+    "cameraRetry": "Restart camera",
+    "camera": "Camera"
   },
   "qrEvents": {
     "operating": "In operation",
@@ -3457,6 +3847,12 @@
         "title": "Unknown wristband",
         "message": "This wristband is not assigned to anyone. Only the wristband desk may assign wristbands."
       }
+    },
+    "stations": {
+      "lastUsed": "Last used",
+      "loadError": "The stations could not be loaded.",
+      "empty": "No stations set up yet",
+      "emptyHint": "The timing lead sets up the stations in the event administration."
     },
     "header": {
       "settings": "Settings"
@@ -3594,6 +3990,8 @@
       "noModeHint": "No timing mode is assigned to this race — add one in the competition's timing settings, or set the sequence up manually.",
       "noStartSequenceHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The start time comes from the manual stamp, not from a sequence.",
       "noStartSequenceNoCaptureHint": "The timing mode “{{mode}}” is not started by the app: this race is sent off by hand, so there is no countdown window here. The manual capture button is hidden — this board cannot record a start time at all right now. Turn it on in the event's timing settings under \"Manual capture at the start station\"; the board follows immediately.",
+      "sequenceNeedsLogin": "The start sequence can only be controlled when signed in. This device is connected via the station link without signing in – the start time comes from the manual stamp here.",
+      "sequenceNeedsLoginNoCapture": "The start sequence can only be controlled when signed in. This device is connected via the station link without signing in, and the manual capture button is hidden – no start time can be recorded here right now. Sign in or turn on \"Manual capture at the start station\" in the event's timing settings.",
       "noTeamsLeft": "Every boat of this race has already started.",
       "allStarted": "All races have been started — nothing left open.",
       "start": "Start sequence",
@@ -3643,7 +4041,9 @@
       },
       "armed": {
         "title": "Sequence armed",
-        "start": "Start sequence"
+        "start": "Start sequence",
+        "match": "Race: {{match}}",
+        "otherMatch": "Not the race shown above"
       },
       "running": {
         "finishing": "Finishing…",
@@ -3722,6 +4122,9 @@
         "title": "Times not submitted",
         "description": "These times were rejected by the server. You can submit them again or discard them permanently.",
         "item": "Station {{station}} · status {{status}}",
+        "reason": {
+          "noCredential": "No credential for this event on this device – log in and try again."
+        },
         "requeue": "Try again",
         "discard": "Discard permanently",
         "discardConfirm": {
@@ -3747,6 +4150,12 @@
       },
       "markList": {
         "toggle": "Time list ({{count}})"
+      },
+      "leave": {
+        "title": "Leave station?",
+        "sequenceRunning": "The start sequence keeps running, but this device will no longer play the countdown sounds.",
+        "ok": "Leave station",
+        "stay": "Stay at station"
       },
       "audioHint": "Tap the screen once so the countdown sounds can play.",
       "mark": {
@@ -4012,21 +4421,68 @@
     "createdAt": "Time"
   },
   "landing": {
+    "hero": {
+      "overline": "Welcome",
+      "title": "Events, results and live status",
+      "subtitle": "Follow races as they happen, find your results or enter your club for upcoming events."
+    },
+    "sections": {
+      "running": "Happening now",
+      "upcoming": "Coming up"
+    },
+    "actions": {
+      "results": "Results & live",
+      "details": "Details",
+      "register": "Enter",
+      "login": "Log in"
+    },
+    "status": {
+      "live": "Live",
+      "registrationOpen": "Entries open",
+      "lateRegistrationOpen": "Late entries open"
+    },
+    "empty": {
+      "title": "No events at the moment",
+      "description": "Published events will appear here."
+    },
     "smallScreen": {
       "to": {
         "where": "What would you like to visit?",
         "app": "Helper App",
-        "results": "Live Events",
+        "results": "Results & Live",
         "desktop": "Desktop View"
       }
     },
-    "liveEventsLink": "Live Results"
+    "liveEventsLink": "Results & Live"
   },
   "panic": {
+    "retry": "Try again",
+    "retrying": "Reconnecting …",
     "title": "Error",
     "text": "The API server is currently unavailable. Please try again later. If this situation persists, please contact a site administrator. Thank you."
   },
   "results": {
+    "select": {
+      "subtitle": "Choose an event to see results, live status and schedule.",
+      "running": "Happening now",
+      "upcoming": "Coming up",
+      "past": "Past",
+      "undated": "No date",
+      "home": "To start page"
+    },
+    "page": {
+      "overline": "Results & live",
+      "views": "Views",
+      "allCompetitions": "All competitions",
+      "allEvents": "All events"
+    },
+    "ranking": {
+      "place": "Place",
+      "team": "Team",
+      "time": "Time",
+      "startNumber": "No.",
+      "crew": "Crew"
+    },
     "tabs": {
       "results": "Results",
       "live": "Live",
@@ -4035,6 +4491,7 @@
     "matchResults": {
       "matchResults": "Match Results",
       "noResults": "There are no results for this competition yet.",
+      "noResultsEvent": "There are no results for this event yet.",
       "latestSection": "Recently finished",
       "byCompetitionSection": "By competition"
     },
@@ -4170,7 +4627,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP Configuration",
       "theme": "Theme Customization",
@@ -4424,6 +4881,10 @@
     "selectEvent": "Select an event",
     "liveCount": "{{count}} live",
     "openBoard": "Open speaker board",
+    "error": {
+      "feed_one": "One of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying.",
+      "feed_other": "{{count}} of the three lists (program, running races, results) could not be loaded – the board is incomplete. It keeps retrying."
+    },
     "tabs": {
       "timeline": "Timeline",
       "program": "Program",
@@ -4436,7 +4897,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Cancelled",
       "CLARIFICATION": "Under review",
-      "clarificationShort": "Review"
+      "clarificationShort": "Review",
+      "PREPARING": "Preparing",
+      "preparingShort": "Prep."
     },
     "timeline": {
       "empty": "No races with a start time found.",
@@ -4466,10 +4929,6 @@
       "yearShort": "Born",
       "failed": "DNF",
       "deregistered": "Withdrawn"
-    },
-    "material": {
-      "own": "own boat",
-      "deviates": "deviating"
     },
     "results": {
       "empty": "No results yet.",
@@ -4502,8 +4961,8 @@
       },
       "resetColors": "Reset colors",
       "turnaround": "Turnaround warning",
-      "showMaterial": "Always show material",
-      "resetAll": "Reset everything"
+      "resetAll": "Reset everything",
+      "showMaterial": "Always show material"
     },
     "dashboard": {
       "detailsTitle": "Race details",
@@ -4539,6 +4998,15 @@
       "progress": "Live",
       "started": "started",
       "finished": "finished"
+    },
+    "nextUp": "Up next",
+    "connection": {
+      "live": "Live connected",
+      "polling": "Polling every 30 s"
+    },
+    "material": {
+      "own": "own boat",
+      "deviates": "deviating"
     }
   },
   "material": {

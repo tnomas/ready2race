@@ -63,6 +63,7 @@ const DeviceTokenIssueDialog = ({
         setStation(stations.length === 1 ? stations[0].id : '')
         setIssuedToken(null)
         setSubmitting(false)
+        // `stations` bewusst ausgelassen (Begründung oben): nur der Öffnen-Übergang darf zurücksetzen.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open])
 

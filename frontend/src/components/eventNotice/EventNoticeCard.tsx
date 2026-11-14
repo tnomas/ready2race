@@ -14,6 +14,7 @@ import {updateEventNotice} from '@api/sdk.gen.ts'
 import {EventNoticeDto, EventNoticeSeverity, UpdateEventNoticeRequest} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import EventNoticeBanner from './EventNoticeBanner.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     eventId: string
@@ -50,13 +51,15 @@ const EventNoticeCard = ({eventId, notice, onChanged}: Props) => {
     // Setzen schickt beide Felder, Entfernen einen leeren Rumpf — fehlende Felder sind für
     // den Server null, und beide null heißt "Banner weg" (UpdateEventNoticeRequest).
     const submit = async (body: UpdateEventNoticeRequest) => {
-        setSubmitting(true)
-        const {error} = await updateEventNotice({
-            path: {eventId},
-            body,
-        })
-        setSubmitting(false)
-        if (error) {
+        const {error} = await runRequest(setSubmitting, () =>
+            updateEventNotice({
+                path: {eventId},
+                body,
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.notice.saveError'))
         } else {
             feedback.success(

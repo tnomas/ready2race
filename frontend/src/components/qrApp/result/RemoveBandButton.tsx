@@ -4,6 +4,7 @@ import {useTranslation} from 'react-i18next'
 import {deleteQrCode} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {QrDeleteDialog} from '@components/qrApp/QrDeleteDialog'
+import {requestOutcomeKind, runRequest} from '@utils/request.ts'
 
 type Props = {
     qrCodeId: string
@@ -20,18 +21,27 @@ export const RemoveBandButton = ({qrCodeId, bandType, emphasis, onRemoved}: Prop
     const [submitting, setSubmitting] = useState(false)
 
     const handleDelete = async () => {
-        setSubmitting(true)
-        const {error} = await deleteQrCode({path: {qrCodeId}})
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () => deleteQrCode({path: {qrCodeId}}))
         setOpen(false)
-        if (error) {
-            feedback.error(
-                t(bandType === 'participant' ? 'qrParticipant.deleteError' : 'qrAppuser.deleteError'),
-            )
-            return
+        // Nur ohne jeden Fehler gilt das Bändchen als entfernt: Im Funkloch hängt es serverseitig
+        // weiter an der Person, eine Erfolgsmeldung samt Rücksprung wäre dann falsch.
+        switch (requestOutcomeKind(error)) {
+            case 'network':
+                feedback.error(t('common.error.network'))
+                return
+            case 'error':
+                feedback.error(
+                    t(
+                        bandType === 'participant'
+                            ? 'qrParticipant.deleteError'
+                            : 'qrAppuser.deleteError',
+                    ),
+                )
+                return
+            case 'ok':
+                feedback.success(t('qrAssign.deleteSuccess'))
+                onRemoved()
         }
-        feedback.success(t('qrAssign.deleteSuccess'))
-        onRemoved()
     }
 
     return (

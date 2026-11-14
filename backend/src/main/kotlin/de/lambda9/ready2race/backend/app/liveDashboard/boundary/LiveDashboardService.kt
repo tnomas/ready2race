@@ -10,6 +10,7 @@ import de.lambda9.ready2race.backend.app.club.boundary.ClubShortNameSettings
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionLogic
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionService
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionMatchGuards
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.ChainProgressionMode
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
@@ -553,6 +554,11 @@ object LiveDashboardService {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
 
+        // Ohne diese Prüfung "beendete" ein Lauf einer anderen Veranstaltung (oder eine unbekannte
+        // Kennung) still mit 204, und Kette und Folgerunden liefen mit einem Paar, das nicht
+        // zusammengehört.
+        !requireMatchOfEvent(eventId, matchId)
+
         val mode = !EventRepo.getChainProgressionMode(eventId).orDie()
         if (mode == ChainProgressionMode.REGATTABUERO) {
             return@comprehension KIO.fail(LiveDashboardError.FinishReservedForOffice)
@@ -661,6 +667,14 @@ object LiveDashboardService {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
 
+        !requireMatchOfEvent(eventId, matchId)
+        // Einen beendeten Lauf wieder an den Start zu rufen, holte ihn als PREPARING zurück
+        // (deriveMatchState prüft die Aktivierung vor finished_at) - ein veralteter Dashboard-Tab
+        // genügte. Wieder geöffnet wird ein Lauf über die Durchführungsseite (Zurücksetzen).
+        if (activated) {
+            !requireMatchNotFinished(matchId)
+        }
+
         !CompetitionExecutionService.setMatchActivation(matchId, activated, userId)
 
         // setMatchActivation selbst kennt die Veranstaltung nicht — beide Aufrufer (hier und
@@ -690,6 +704,10 @@ object LiveDashboardService {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
 
+        !requireMatchOfEvent(eventId, matchId)
+        // „Läuft" auf einem beendeten Lauf setzte activated_at und holte ihn als RUNNING zurück.
+        !requireMatchNotFinished(matchId)
+
         !CompetitionMatchRepo.update(matchId) {
             if (startedAt == null) {
                 startedAt = LocalDateTime.now()
@@ -708,6 +726,14 @@ object LiveDashboardService {
 
         noData
     }
+
+    /** Siehe [CompetitionMatchGuards.requireMatchOfEvent]. */
+    private fun requireMatchOfEvent(eventId: UUID, matchId: UUID): App<LiveDashboardError, Unit> =
+        CompetitionMatchGuards.requireMatchOfEvent(eventId, matchId) { LiveDashboardError.MatchNotFound(matchId) }
+
+    /** Siehe [CompetitionMatchGuards.requireMatchNotFinished]. */
+    private fun requireMatchNotFinished(matchId: UUID): App<LiveDashboardError, Unit> =
+        CompetitionMatchGuards.requireMatchNotFinished(matchId) { LiveDashboardError.MatchAlreadyFinished(matchId) }
 
     /**
      * Setzt einen Lauf in Klärung - der Weg für einen Einspruch, der noch nicht entschieden ist.
@@ -738,6 +764,7 @@ object LiveDashboardService {
         if (!exists) {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
+        !requireMatchOfEvent(eventId, matchId)
 
         val finished = !CompetitionMatchRepo.isFinished(matchId).orDie()
         if (finished) {
@@ -775,6 +802,7 @@ object LiveDashboardService {
         if (!exists) {
             return@comprehension KIO.fail(LiveDashboardError.EventNotFound(eventId))
         }
+        !requireMatchOfEvent(eventId, matchId)
 
         !CompetitionMatchRepo.update(matchId) {
             clarificationSince = null

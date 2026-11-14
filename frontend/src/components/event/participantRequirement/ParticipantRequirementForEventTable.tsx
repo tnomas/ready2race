@@ -365,7 +365,7 @@ const ParticipantRequirementForEventTable = (
                         namedParticipants={namedParticipants.data}
                         requirementName={currentRequirement.name}
                         assignedRequirements={
-                            currentRequirement.requirements?.filter((req: any) => req.id) || []
+                            currentRequirement.requirements?.filter(req => req.id) || []
                         }
                     />
                 )

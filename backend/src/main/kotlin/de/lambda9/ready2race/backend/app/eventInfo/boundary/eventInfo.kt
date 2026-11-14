@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
+import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
 import de.lambda9.ready2race.backend.app.timing.boundary.TIMING_DEVICE_TOKEN_HEADER
@@ -15,10 +16,34 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.boolean
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.recoverDefault
+import io.ktor.server.application.*
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import java.util.UUID
+
+/**
+ * Darf dieser Aufruf die strittigen Läufe bestellen? Ja mit einer Sitzung, die die Anzeigen
+ * lesen darf (READ BOARD oder READ EVENT), oder - ohne Sitzung - mit einem gültigen Board-Token
+ * dieser Veranstaltung. Ein fehlendes, fremdes oder widerrufenes Token ist hier kein Fehler,
+ * sondern schlicht „nein": der Endpunkt antwortet dann wie einem anonymen Aufruf.
+ */
+private fun ApplicationCall.mayIncludeClarification(eventId: UUID): App<Nothing, Boolean> =
+    KIO.comprehension {
+        val hasSession = sessions.get<UserSession>()?.token != null
+        val deviceToken = request.header(TIMING_DEVICE_TOKEN_HEADER)
+        if (!hasSession && deviceToken != null) {
+            TimingDeviceTokenService.validateBoardTokenForEvent(deviceToken, eventId)
+                .map { true }
+                .recoverDefault { false }
+        } else {
+            authenticateAny(Privilege.ReadBoardGlobal, Privilege.ReadEventGlobal)
+                .map { true }
+                .recoverDefault { false }
+        }
+    }
 
 fun Route.eventInfo() {
     // Alle Endpoints in diesem Block sind öffentlich (kein authenticate). Das Rate-Limit
@@ -30,7 +55,7 @@ fun Route.eventInfo() {
             get("/upcoming-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
 
                     EventInfoService.getUpcomingCompetitionMatches(eventId, limit)
                 }
@@ -41,7 +66,7 @@ fun Route.eventInfo() {
             get("/latest-match-results") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
                     val competitionId = !optionalQueryParam("competitionId", uuid)
                     val matchId = !optionalQueryParam("matchId", uuid)
 
@@ -52,11 +77,16 @@ fun Route.eventInfo() {
             // Get currently running matches. includeClarification=true (Sprecher-Board) liefert
             // auch die strittigen Läufe mit gesetztem clarification-Flag - der Standardweg lässt
             // sie weiter weg, damit Stream-Uhr und Anzeigen-Cursor nicht an ihnen hängen bleiben.
+            // Die Bestellung zählt nur mit Ausweis: einer Sitzung mit Board-Leserecht oder einem
+            // Board-Token dieser Veranstaltung (Header wie bei den Board-Endpunkten unten).
+            // Anonym bleibt der Parameter wirkungslos - der Endpunkt bleibt öffentlich, aber die
+            // strittigen Läufe sind genau das, was die Anzeigen zurückhalten.
             get("/running-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
-                    val includeClarification = !optionalQueryParam("includeClarification", boolean) ?: false
+                    val limit = !queryParam("limit", { publicListLimit(it) })
+                    val requested = !optionalQueryParam("includeClarification", boolean) ?: false
+                    val includeClarification = requested && !mayIncludeClarification(eventId)
 
                     EventInfoService.getRunningMatches(eventId, limit, includeClarification)
                 }
@@ -67,7 +97,7 @@ fun Route.eventInfo() {
             get("/live-matches") {
                 call.respondComprehension {
                     val eventId = !pathParam("eventId", uuid)
-                    val limit = !queryParam("limit", { it.toIntOrNull() ?: 10 })
+                    val limit = !queryParam("limit", { publicListLimit(it) })
 
                     EventInfoService.getLiveMatches(eventId, limit)
                 }
@@ -217,3 +247,20 @@ fun Route.eventInfo() {
         }
     }
 }
+
+/** Standardmenge der öffentlichen Laufliste, wenn `limit` fehlt oder unbrauchbar ist. */
+internal const val PUBLIC_LIST_DEFAULT_LIMIT = 10
+
+/**
+ * Obergrenze für `limit` auf den öffentlichen Laufliste-Endpunkten. Das Sprecher-Board holt mit
+ * 500 alles, was eine Regatta hat; mehr braucht keine Anzeige.
+ */
+internal const val PUBLIC_LIST_MAX_LIMIT = 500
+
+/**
+ * `limit` der öffentlichen Laufliste: negative Werte liefen als `LIMIT -1` in Postgres (500),
+ * riesige als N+1-Lawine über alle Läufe und je Wert als eigener Cache-Eintrag. Unbrauchbares
+ * und Nicht-Positives wird zur Standardmenge, Großes zur Obergrenze.
+ */
+internal fun publicListLimit(raw: String): Int =
+    raw.toIntOrNull()?.takeIf { it > 0 }?.coerceAtMost(PUBLIC_LIST_MAX_LIMIT) ?: PUBLIC_LIST_DEFAULT_LIMIT

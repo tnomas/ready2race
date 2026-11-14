@@ -1,6 +1,7 @@
 import {Box, Stack, Typography} from '@mui/material'
 import {FormContainer, useForm, useWatch} from 'react-hook-form-mui'
 import {useTranslation} from 'react-i18next'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {useState} from 'react'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {
@@ -66,7 +67,9 @@ const RoundProgressionSetting = (scope: CompetitionScopeProps) => {
 
     // useWatch() ohne `name` typisiert das Ergebnis als DeepPartialSkipArrayKey<RoundProgressionForm>;
     // tatsächlich ist jedes Feld belegt, weil defaultValues bereits alle Felder abdeckt.
-    const {choice} = useWatch<RoundProgressionForm>({control: formContext.control}) as RoundProgressionForm
+    const {choice} = useWatch<RoundProgressionForm>({
+        control: formContext.control,
+    }) as RoundProgressionForm
     const effective = effectiveFromChoice(choice, eventDefault)
 
     return (
@@ -74,14 +77,16 @@ const RoundProgressionSetting = (scope: CompetitionScopeProps) => {
             <FormContainer
                 formContext={formContext}
                 onSuccess={async (data: RoundProgressionForm) => {
-                    setSubmitting(true)
-                    const {error} = await updateRoundProgressionConfig({
-                        path: {eventId, competitionId},
-                        body: requestFromChoice(data.choice),
-                    })
-                    setSubmitting(false)
+                    const {error} = await runRequest(setSubmitting, () =>
+                        updateRoundProgressionConfig({
+                            path: {eventId, competitionId},
+                            body: requestFromChoice(data.choice),
+                        }),
+                    )
 
-                    if (error) {
+                    if (isRequestNetworkError(error)) {
+                        feedback.error(t('common.error.network'))
+                    } else if (error) {
                         feedback.error(t('common.error.unexpected'))
                     } else {
                         feedback.success(t('event.competition.execution.roundProgression.saved'))

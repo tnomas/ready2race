@@ -1,4 +1,12 @@
-import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from 'react'
+import {
+    PropsWithChildren,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import {
     Box,
     Button,
@@ -18,11 +26,12 @@ import {
     useTheme,
 } from '@mui/material'
 import {
-    ArrowBack,
     ChevronLeft,
     ChevronRight,
     Close,
     FormatListBulleted,
+    NavigateBefore,
+    NavigateNext,
     Search,
     ShortText,
     Subject,
@@ -34,13 +43,17 @@ import {getCompetitions} from '@api/sdk.gen.ts'
 import {competitionLabelName, CompetitionTab} from '@components/event/competition/common.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import Throbber from '@components/Throbber.tsx'
+import {IconButtonLink} from '@components/ui'
+import {
+    adjacentCompetitions,
+    competitionTabSearch,
+} from '../../../pages/event/competitionPageLogic.ts'
 
 /** Merkt sich pro Gerät, ob die Wettkampfliste zugeklappt ist - sonst steht sie bei jedem
  * Wettkampfwechsel wieder offen. Gleiches Muster wie live_dashboard_poll_interval. */
 const NAV_COLLAPSED_STORAGE_KEY = 'competition_nav_collapsed'
 
-const storedNavCollapsed = (): boolean =>
-    localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true'
+const storedNavCollapsed = (): boolean => localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true'
 
 /** Ebenso gemerkt: ob die Liste die Rennen mit Kurznamen ("CM 4x+") statt mit ihrem langen Namen
  * führt. Wer die Kürzel liest, liest sie den ganzen Regattatag über. */
@@ -84,17 +97,25 @@ const STICKY_TOP = 16
 
 type Props = PropsWithChildren<{
     eventId: string
-    eventName: string
     competitionId: string
     /** Wird beim Sprung ins nächste Rennen mitgenommen, damit man im Arbeitstab bleibt. */
     activeTab: CompetitionTab
+    /**
+     * Seitenkopf über Leiste und Inhalt. Bekommt die Bedienelemente der Wettkampf-Navigation
+     * (vorheriger Wettkampf, Liste ein/aus, nächster Wettkampf) und setzt sie in seine Aktionen –
+     * so belegen sie keine eigene Zeile. `null`, wenn es nichts zu navigieren gibt.
+     */
+    header: (navigation: ReactNode) => ReactNode
+    /** Ändert sich der Wert (z. B. nach dem Bearbeiten), lädt die Liste neu. */
+    listVersion?: number
 }>
 
 const CompetitionNavigation = ({
     eventId,
-    eventName,
     competitionId,
     activeTab,
+    header,
+    listVersion,
     children,
 }: Props) => {
     const {t} = useTranslation()
@@ -136,11 +157,12 @@ const CompetitionNavigation = ({
                     )
                 }
             },
-            deps: [eventId],
+            deps: [eventId, listVersion],
         },
     )
 
     const competitions = useMemo(() => data?.data ?? [], [data])
+    const {previous, next} = adjacentCompetitions(competitions, competitionId)
 
     const visible = useMemo(() => {
         const needle = filter.trim().toLowerCase()
@@ -305,11 +327,14 @@ const CompetitionNavigation = ({
                             key={c.id}
                             to={'/event/$eventId/competition/$competitionId'}
                             params={{eventId, competitionId: c.id}}
-                            search={{tab: activeTab === 'general' ? undefined : activeTab}}
+                            search={competitionTabSearch(activeTab)}
                             onClick={() => setDrawerOpen(false)}
                             // Lange Namen sind in der schmalen Leiste abgeschnitten; der Titel
                             // zeigt sie beim Überfahren und benennt den Link für Vorleseprogramme.
-                            title={competitionLabelName(c.properties.identifier, c.properties.name)}>
+                            title={competitionLabelName(
+                                c.properties.identifier,
+                                c.properties.name,
+                            )}>
                             <ListItem disablePadding data-competition-id={c.id}>
                                 <ListItemButton
                                     selected={isActive}
@@ -367,32 +392,84 @@ const CompetitionNavigation = ({
                 })}
                 {visible.length === 0 && (
                     <ListItem>
-                        <ListItemText
-                            secondary={pending ? <Throbber /> : t('common.noResults')}
-                        />
+                        <ListItemText secondary={pending ? <Throbber /> : t('common.noResults')} />
                     </ListItem>
                 )}
             </List>
         </>
     )
 
-    return (
-        <Stack spacing={2}>
-            <Stack direction={'row'} spacing={1} sx={{alignItems: 'center', flexWrap: 'wrap'}}>
-                {showList && (
-                    <Button size={'small'} startIcon={toggleIcon} onClick={toggleList}>
-                        {t('event.competition.competitions')}
-                    </Button>
-                )}
-                <Link to={'/event/$eventId'} params={{eventId}} search={{tab: 'competitions'}}>
-                    <Button
-                        size={'small'}
-                        startIcon={<ArrowBack />}
-                        title={t('event.competition.navigation.backToEvent')}>
-                        {eventName}
-                    </Button>
-                </Link>
+    // Vor/Zurück folgen der Reihenfolge der Liste (nach Kennung) und behalten den Reiter.
+    const stepButton = (
+        target: (typeof competitions)[number] | undefined,
+        label: string,
+        icon: ReactNode,
+    ) =>
+        target ? (
+            <IconButtonLink
+                to={'/event/$eventId/competition/$competitionId'}
+                params={{eventId, competitionId: target.id}}
+                search={competitionTabSearch(activeTab)}
+                aria-label={`${label}: ${competitionLabelName(target.properties.identifier, target.properties.name)}`}
+                title={`${label}: ${competitionLabelName(target.properties.identifier, target.properties.name)}`}
+                sx={{cursor: 'pointer'}}>
+                {icon}
+            </IconButtonLink>
+        ) : (
+            // Am Rand bleibt der Knopf stehen (deaktiviert), damit die Gruppe nicht springt.
+            <IconButton disabled aria-label={label}>
+                {icon}
+            </IconButton>
+        )
+
+    // Solange die Liste lädt, steht die Gruppe schon da (deaktiviert, gleiche Größe) - sonst
+    // springt der Seitenkopf, sobald sie eintrifft.
+    const navigationPlaceholder =
+        user.loggedIn && pending && competitions.length === 0 ? (
+            <Stack
+                direction={'row'}
+                spacing={0.5}
+                sx={{alignItems: 'center', justifyContent: {xs: 'space-between', sm: 'flex-start'}}}
+                role={'group'}
+                aria-busy={true}
+                aria-label={t('event.competition.page.navigationLabel')}>
+                <IconButton disabled aria-label={t('event.competition.page.previous')}>
+                    <NavigateBefore />
+                </IconButton>
+                <Button variant={'outlined'} startIcon={<ChevronLeft />} disabled>
+                    {t('event.competition.competitions')}
+                </Button>
+                <IconButton disabled aria-label={t('event.competition.page.next')}>
+                    <NavigateNext />
+                </IconButton>
             </Stack>
+        ) : null
+
+    const navigation = showList ? (
+        <Stack
+            direction={'row'}
+            spacing={0.5}
+            sx={{alignItems: 'center', justifyContent: {xs: 'space-between', sm: 'flex-start'}}}
+            role={'group'}
+            aria-label={t('event.competition.page.navigationLabel')}>
+            {stepButton(previous, t('event.competition.page.previous'), <NavigateBefore />)}
+            <Button
+                variant={'outlined'}
+                startIcon={toggleIcon}
+                onClick={toggleList}
+                aria-expanded={listOpen}
+                sx={{cursor: 'pointer'}}>
+                {t('event.competition.competitions')}
+            </Button>
+            {stepButton(next, t('event.competition.page.next'), <NavigateNext />)}
+        </Stack>
+    ) : (
+        navigationPlaceholder
+    )
+
+    return (
+        <Stack spacing={0}>
+            {header(navigation)}
             <Box sx={{display: 'flex', gap: 2, alignItems: 'flex-start'}}>
                 {showList && !isNarrow && listOpen && (
                     <Paper

@@ -14,6 +14,7 @@ import UndoIcon from '@mui/icons-material/Undo'
 import {useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {MatchResultStatus, matchResultStatuses} from '@utils/matchResultStatus.ts'
+import {TOUCH_TARGET_PX} from './cardActionPlan.ts'
 
 const UNDO_SECONDS = 5
 
@@ -23,6 +24,13 @@ type Props = {
     /** Anzahl der Boote ohne Ergebnis; nur dann fragt der Button nach. */
     openTeamCount: number
     disabled?: boolean
+    /**
+     * `primary` (Standard): gefüllt in dunklem Grün — die Hauptaktion der Karte. `secondary`:
+     * umrandet, wenn auf derselben Karte eine andere Handlung vorn steht (in Vorbereitung).
+     */
+    emphasis?: 'primary' | 'secondary'
+    /** Füllt die verfügbare Breite (Hauptknopf am Telefon). */
+    grow?: boolean
 }
 
 const statusLabelKeys = {
@@ -39,7 +47,13 @@ const statusLabelKeys = {
  * Fehlen noch Ergebnisse, wird vorher gefragt, was mit diesen Booten geschieht. Abmelden gehört
  * nicht dazu — das bleibt dem Regattabüro vorbehalten.
  */
-const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
+const FinishMatchButton = ({
+    onFinish,
+    openTeamCount,
+    disabled,
+    emphasis = 'primary',
+    grow = false,
+}: Props) => {
     const {t} = useTranslation()
     const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
     const [submitting, setSubmitting] = useState(false)
@@ -86,8 +100,11 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
 
     const submit = async () => {
         setSubmitting(true)
-        await onFinish(openResultsRef.current)
-        setSubmitting(false)
+        try {
+            await onFinish(openResultsRef.current)
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const cancel = () => {
@@ -100,9 +117,9 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
             <Button
                 variant="outlined"
                 color="warning"
-                size="small"
                 startIcon={<UndoIcon />}
-                onClick={cancel}>
+                onClick={cancel}
+                sx={{minHeight: TOUCH_TARGET_PX, flex: grow ? '1 1 auto' : undefined}}>
                 {`${t('event.liveDashboard.control.undo')} (${secondsLeft})`}
             </Button>
         )
@@ -111,12 +128,18 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
     return (
         <>
             <Button
-                variant="contained"
-                size="small"
+                variant={emphasis === 'primary' ? 'contained' : 'outlined'}
                 // dunkles Grün statt des hellen Theme-Tons: der Button muss auch bei Sonne stehen
                 sx={{
-                    backgroundColor: 'success.dark',
-                    '&:hover': {backgroundColor: 'success.dark'},
+                    minHeight: TOUCH_TARGET_PX,
+                    flex: grow ? '1 1 auto' : undefined,
+                    fontWeight: 700,
+                    ...(emphasis === 'primary'
+                        ? {
+                              backgroundColor: 'success.dark',
+                              '&:hover': {backgroundColor: 'success.dark'},
+                          }
+                        : {color: 'success.dark', borderColor: 'success.dark'}),
                 }}
                 disabled={disabled || submitting}
                 startIcon={
@@ -150,6 +173,7 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
                             <Button
                                 key={status}
                                 variant="outlined"
+                                sx={{minHeight: TOUCH_TARGET_PX}}
                                 onClick={() => chooseOpenResults(status)}>
                                 {`${status} — ${t(statusLabelKeys[status])}`}
                             </Button>
@@ -157,9 +181,7 @@ const FinishMatchButton = ({onFinish, openTeamCount, disabled}: Props) => {
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setAskOpenResults(false)}>
-                        {t('common.cancel')}
-                    </Button>
+                    <Button onClick={() => setAskOpenResults(false)}>{t('common.cancel')}</Button>
                     <Button onClick={() => chooseOpenResults(null)}>
                         {t('event.liveDashboard.control.openResults.keepOpen')}
                     </Button>

@@ -15,7 +15,7 @@ import {Trans, useTranslation} from 'react-i18next'
 import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
 import {ParticipantRequirementApproveManuallyForEventForm} from '@components/event/participantRequirement/ParticipantRequirementApproveManuallyForEventDialog.tsx'
 
-type RecordWithId = Record<string, any> & {id: string}
+type RecordWithId = Record<string, unknown> & {id: string}
 
 type TransferListProps<
     TFieldValues extends FieldValues = FieldValues,
@@ -111,7 +111,7 @@ export default function FormInputTransferList<
     const noteColumnWidth = {sm: 140, lg: 200}
 
     const customList = (title: React.ReactNode, items: TValue[], isRight: boolean) => (
-        <Card elevation={2} sx={{height: '100%', display: 'flex', flexDirection: 'column'}}>
+        <Card sx={{height: '100%', display: 'flex', flexDirection: 'column'}}>
             <Stack direction={'row'} justifyContent={'space-between'} alignItems={'end'}>
                 <CardHeader
                     sx={{px: 2, py: 1, minWidth: 0}}

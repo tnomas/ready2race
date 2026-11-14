@@ -35,7 +35,9 @@ const ATTACHMENT_WARNING_BYTES = 5 * 1024 * 1024
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 const formatSize = (bytes: number) =>
-    bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    bytes < 1024 * 1024
+        ? `${Math.round(bytes / 1024)} KB`
+        : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 const RegistrationMailDialog = ({open, onClose, eventId}: Props) => {
     const {t} = useTranslation()
@@ -204,7 +206,9 @@ const RegistrationMailDialog = ({open, onClose, eventId}: Props) => {
                                             <Checkbox
                                                 size={'small'}
                                                 disabled={!recipient.email}
-                                                checked={selected.includes(recipient.registrationId)}
+                                                checked={selected.includes(
+                                                    recipient.registrationId,
+                                                )}
                                                 onChange={() => toggle(recipient.registrationId)}
                                             />
                                             <Box>
@@ -214,9 +218,7 @@ const RegistrationMailDialog = ({open, onClose, eventId}: Props) => {
                                                 <Typography
                                                     variant={'caption'}
                                                     color={
-                                                        recipient.email
-                                                            ? 'text.secondary'
-                                                            : 'error'
+                                                        recipient.email ? 'text.secondary' : 'error'
                                                     }>
                                                     {recipient.email
                                                         ? `${recipient.name} · ${recipient.email}`
@@ -293,6 +295,7 @@ const RegistrationMailDialog = ({open, onClose, eventId}: Props) => {
                                         </Typography>
                                         <IconButton
                                             size={'small'}
+                                            aria-label={t('common.remove')}
                                             onClick={() =>
                                                 setFiles(prev => prev.filter((_, i) => i !== index))
                                             }>

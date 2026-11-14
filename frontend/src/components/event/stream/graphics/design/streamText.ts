@@ -18,17 +18,30 @@ const CHAIN_SEPARATOR = ' / '
 const TEAM_NAME_SEPARATOR = ' | '
 
 /**
+ * Namenspartikel (klein geschrieben): steht so ein Wort an der Stelle des Vornamens, gibt es
+ * keinen Vornamen zu kürzen — der ganze Name ist Nachname („van der Berg").
+ */
+const NAME_PARTICLES: ReadonlySet<string> = new Set([
+    'van', 'von', 'de', 'der', 'den', 'du', 'da', 'di', 'le', 'la', 'zu', 'af', 'av', 'ter', 'ten', 'op', 'het', "'t",
+])
+
+/**
  * „Anna Petersen" → „A. Petersen". Wörter mit Punkt am Ende gelten als Präfix (Steuerleute:
- * „St. Kim Lorenzen" → „St. K. Lorenzen") und bleiben stehen; der letzte Bestandteil ist der
- * Nachname und bleibt immer ganz.
+ * „St. Kim Lorenzen" → „St. K. Lorenzen") und bleiben stehen. Gekürzt wird NUR das erste Wort
+ * dahinter: alles Weitere kann zum Nachnamen gehören — Partikel („Jan van der Berg" →
+ * „J. van der Berg") ebenso wie Doppelnamen ohne Bindestrich („Anna Sørensen Lund" →
+ * „A. Sørensen Lund"); ein zweiter Vorname bleibt dafür ausgeschrieben, das ist der kleinere
+ * Schaden. Ist das erste Wort selbst ein Partikel, bleibt der Name unverändert.
  */
 export const abbreviateFirstNames = (names: readonly string[]): string[] =>
     names.map(name => {
         const words = name.trim().split(/\s+/)
         if (words.length < 2) return name
-        const last = words[words.length - 1]
-        const head = words.slice(0, -1).map(word => (word.endsWith('.') ? word : `${word.charAt(0)}.`))
-        return [...head, last].join(' ')
+        let firstNameIndex = 0
+        while (firstNameIndex < words.length - 1 && words[firstNameIndex].endsWith('.')) firstNameIndex++
+        const firstName = words[firstNameIndex]
+        if (firstNameIndex >= words.length - 1 || NAME_PARTICLES.has(firstName)) return name
+        return [...words.slice(0, firstNameIndex), `${firstName.charAt(0)}.`, ...words.slice(firstNameIndex + 1)].join(' ')
     })
 
 /**

@@ -22,9 +22,9 @@ const alsoRunning: EntryEvent = {
 
 describe('resolveEntry', () => {
     it('weist ohne Welt ab, bevor es um die Veranstaltung geht', () => {
-        expect(
-            resolveEntry({worlds: [], eventId: 'e-2026', events: [running], now}),
-        ).toEqual({kind: 'FORBIDDEN'})
+        expect(resolveEntry({worlds: [], eventId: 'e-2026', events: [running], now})).toEqual({
+            kind: 'FORBIDDEN',
+        })
     })
 
     it('wartet, solange nichts gemerkt ist und die Liste noch lädt', () => {
@@ -34,9 +34,9 @@ describe('resolveEntry', () => {
     })
 
     it('vertraut der gemerkten Veranstaltung, solange die Liste noch lädt (Offline-Start)', () => {
-        expect(
-            resolveEntry({worlds: ['SCAN'], eventId: 'e-2026', events: undefined, now}),
-        ).toEqual({kind: 'GO', to: '/app/scan'})
+        expect(resolveEntry({worlds: ['SCAN'], eventId: 'e-2026', events: undefined, now})).toEqual(
+            {kind: 'GO', to: '/app/scan'},
+        )
     })
 
     it('übernimmt die einzige laufende Veranstaltung ohne Nachfrage', () => {
@@ -60,12 +60,13 @@ describe('resolveEntry', () => {
     })
 
     it('verwirft eine gemerkte Veranstaltung, die es nicht mehr gibt', () => {
-        expect(
-            resolveEntry({worlds: ['SCAN'], eventId: 'e-weg', events: [lastYear], now}),
-        ).toEqual({kind: 'CHOOSE_EVENT'})
-        expect(
-            resolveEntry({worlds: ['SCAN'], eventId: 'e-weg', events: [running], now}),
-        ).toEqual({kind: 'ADOPT_EVENT', eventId: 'e-2026'})
+        expect(resolveEntry({worlds: ['SCAN'], eventId: 'e-weg', events: [lastYear], now})).toEqual(
+            {kind: 'CHOOSE_EVENT'},
+        )
+        expect(resolveEntry({worlds: ['SCAN'], eventId: 'e-weg', events: [running], now})).toEqual({
+            kind: 'ADOPT_EVENT',
+            eventId: 'e-2026',
+        })
     })
 
     it('geht mit einer Welt direkt dorthin', () => {

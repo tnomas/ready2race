@@ -10,6 +10,7 @@ import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {setEmailTemplate} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     open: boolean
@@ -32,26 +33,31 @@ export function EmailTemplateEditor({open, onClose, template, lng}: PropsWithChi
     }, [template])
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error, response} = await setEmailTemplate({
-            body: {
-                subject: formData.subject,
-                body: formData.body,
-                bodyIsHtml: false,
-            },
-            query: {
-                key: template.key,
-                language: lng as EmailLanguage,
-            },
+        const captured: {response?: Response} = {}
+        const {error} = await runRequest(setSubmitting, async () => {
+            const result = await setEmailTemplate({
+                body: {
+                    subject: formData.subject,
+                    body: formData.body,
+                    bodyIsHtml: false,
+                },
+                query: {
+                    key: template.key,
+                    language: lng as EmailLanguage,
+                },
+            })
+            captured.response = result.response
+            return result
         })
-        setSubmitting(false)
-        if (response.ok) {
+        if (captured.response?.ok) {
             feedback.success(
                 t('administration.emailTemplates.response.changeSuccessful', {
                     key: t(`administration.emailTemplates.templateKeys.${template.key}`),
                 }),
             )
             onClose()
+        } else if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
         } else if (error) {
             if (error.status.value === 500) {
                 feedback.error(t('common.error.unexpected'))

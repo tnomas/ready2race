@@ -25,7 +25,12 @@ export type SpeakerTeam = {
     clubName?: string | null
     /** full club names of the crew - a composite crew rows for more than one club */
     clubsFull?: string | null
+    /** Gesamtplatz im Lauf */
     place?: number
+    /** Name der Wertungskategorie des Boots; null, wenn es keine hat */
+    ratingCategory?: string | null
+    /** Platz innerhalb der Wertungskategorie - die Zahl, die die Ergebnisliste zeigt */
+    categoryPlace?: number | null
     timeString?: string | null
     failed?: boolean
     failedReason?: string | null
@@ -60,6 +65,12 @@ export type SpeakerMatch = {
      * Running-Feed mit; beendete strittige Läufe tragen das Flag im Ergebnis-Feed.
      */
     clarification?: boolean
+    /**
+     * Der Lauf ist an den Start gerufen, aber noch nicht unterwegs (`state === 'PREPARING'` aus
+     * der einen Zustandsableitung im Backend). Er kommt über den Running-Feed, ist aber nicht
+     * „● Live" - bis zum 13.11.2026 stand er genau so da.
+     */
+    preparing?: boolean
     teams: SpeakerTeam[]
 }
 
@@ -105,6 +116,7 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
     executionOrder: match.executionOrder,
     elapsedMinutes: match.elapsedMinutes,
     clarification: match.clarification ?? undefined,
+    preparing: match.state === 'PREPARING',
     teams: match.teams.map(team => ({
         teamId: team.teamId,
         teamName: team.teamName,
@@ -122,10 +134,12 @@ const fromRunning = (match: RunningMatchInfo): SpeakerMatch => ({
 const fromResultTeam = (team: MatchResultTeamInfo): SpeakerTeam => ({
     teamId: team.teamId,
     teamName: team.teamName,
-    startNumber: team.teamNumber,
+    startNumber: team.startNumber,
     clubName: team.clubName,
     clubsFull: team.clubsFull,
     place: team.place,
+    ratingCategory: team.ratingCategory?.name ?? null,
+    categoryPlace: team.categoryPlace ?? null,
     timeString: team.timeString,
     failed: team.failed,
     failedReason: team.failedReason,
@@ -169,6 +183,56 @@ export const compareByStartTime = (a: SpeakerMatch, b: SpeakerMatch): number => 
     return (a.executionOrder ?? 0) - (b.executionOrder ?? 0)
 }
 
+/** Wie lange ein überfälliger Lauf noch als „als Nächstes" gilt, bevor die Anzeige weiterspringt. */
+export const NEXT_UP_GRACE_MILLIS = 5 * 60 * 1000
+
+/**
+ * Der nächste anstehende Lauf: nicht abgesagt, mit Startzeit, höchstens fünf Minuten überfällig.
+ * Die Liste kommt nach Startzeit sortiert aus `mergeSpeakerMatches`. Eine Stelle für „Live
+ * folgen" (Rückfall, wenn nichts läuft) und den „Als Nächstes"-Sprung in der Kopfzeile.
+ */
+export const nextUpcomingSpeakerMatch = (
+    matches: SpeakerMatch[],
+    nowMillis: number,
+): SpeakerMatch | undefined =>
+    matches.find(
+        match =>
+            match.status === 'UPCOMING' &&
+            !match.cancelled &&
+            match.startTime !== undefined &&
+            match.startTime.getTime() >= nowMillis - NEXT_UP_GRACE_MILLIS,
+    )
+
+/**
+ * Fährt dieser Lauf gerade auf dem Wasser? Der Running-Feed bringt auch die nur an den Start
+ * gerufenen (PREPARING) und - für das Sprecher-Board bestellt - die strittigen Läufe mit; beide
+ * sind nicht „live".
+ */
+export const isLiveOnWater = (match: SpeakerMatch): boolean =>
+    match.status === 'RUNNING' && !match.clarification && !match.preparing
+
+/** Die Zahl in der Legende „● n live": nur Läufe auf dem Wasser ([isLiveOnWater]). */
+export const liveOnWaterCount = (matches: SpeakerMatch[]): number =>
+    matches.filter(isLiveOnWater).length
+
+/**
+ * Wohin „Live folgen" springt, wenn keine Startsequenz den Lauf vorgibt: der zuletzt gestartete
+ * fahrende Lauf, sonst der an den Start gerufene, sonst der nächste anstehende, sonst das jüngste
+ * Ergebnis. Ein strittiger Lauf ist nie das Ziel der Automatik.
+ */
+export const liveFollowCandidate = (matches: SpeakerMatch[], nowMillis: number): string | null => {
+    const live = matches.filter(isLiveOnWater)
+    if (live.length > 0) return live[live.length - 1].matchId
+    const preparing = matches.filter(
+        match => match.status === 'RUNNING' && match.preparing && !match.clarification,
+    )
+    if (preparing.length > 0) return preparing[0].matchId
+    const upcoming = nextUpcomingSpeakerMatch(matches, nowMillis)
+    if (upcoming) return upcoming.matchId
+    const finished = matches.filter(match => match.status === 'FINISHED')
+    return finished.length > 0 ? finished[finished.length - 1].matchId : null
+}
+
 export const matchLabel = (match: SpeakerMatch): string =>
     [
         match.competitionName,
@@ -178,6 +242,13 @@ export const matchLabel = (match: SpeakerMatch): string =>
     ]
         .filter(Boolean)
         .join(' ')
+
+/**
+ * Der Platz, den das Board zeigt: innerhalb der Wertungskategorie, wenn das Boot eine hat, sonst
+ * der Gesamtplatz - dieselbe Zahl wie in der Ergebnisliste.
+ */
+export const displayPlace = (team: SpeakerTeam): number | undefined =>
+    team.categoryPlace ?? team.place
 
 export type OtherStart = {
     matchId: string
@@ -213,14 +284,18 @@ export const computeSpeakerBadges = (matches: SpeakerMatch[]): SpeakerBadges => 
     matches.forEach(match => {
         match.teams.forEach(team => {
             if (team.deregistered) return
-            const isMedal = match.status === 'FINISHED' && team.place != undefined && team.place <= 3
+            const place = displayPlace(team)
+            const isMedal = match.status === 'FINISHED' && place != undefined && place <= 3
+            const medalLabel = team.ratingCategory
+                ? `${matchLabel(match)} (${team.ratingCategory})`
+                : matchLabel(match)
             team.participants.forEach(participant => {
                 const list = starts.get(participant.participantId) ?? []
                 list.push({match, team, participant})
                 starts.set(participant.participantId, list)
                 if (isMedal) {
                     const medalList = medals.get(participant.participantId) ?? []
-                    medalList.push({place: team.place!, label: matchLabel(match)})
+                    medalList.push({place: place!, label: medalLabel})
                     medals.set(participant.participantId, medalList)
                 }
             })
@@ -252,9 +327,7 @@ export const turnaroundMinutes = (
     next: ParticipantStart,
 ): number | undefined =>
     previous.match.startTime && next.match.startTime
-        ? Math.round(
-              (next.match.startTime.getTime() - previous.match.startTime.getTime()) / 60000,
-          )
+        ? Math.round((next.match.startTime.getTime() - previous.match.startTime.getTime()) / 60000)
         : undefined
 
 export const medalEmoji = (place: number): string =>
@@ -295,7 +368,7 @@ export type SpeakerColors = {
     gold: string
 }
 
-// LOTG-inspired dark board palette (default)
+// dunkle Standardpalette des Boards
 export const speakerColors: SpeakerColors = {
     background: '#0f172a',
     panel: '#1e293b',
@@ -322,4 +395,10 @@ export const statusColorOf = (colors: SpeakerColors, status: SpeakerStatus): str
  * (warnrot) - dieselbe Rangfolge, in der eine Sprecherin die Lage ansagen würde.
  */
 export const matchDisplayColor = (colors: SpeakerColors, match: SpeakerMatch): string =>
-    match.cancelled ? colors.now : match.clarification ? colors.gold : statusColorOf(colors, match.status)
+    match.cancelled
+        ? colors.now
+        : match.clarification
+          ? colors.gold
+          : match.preparing
+            ? colors.upcoming
+            : statusColorOf(colors, match.status)

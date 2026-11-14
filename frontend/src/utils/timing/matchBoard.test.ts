@@ -11,6 +11,8 @@ import {
     modeChipParts,
     pendingAssignmentMark,
     resolveStartSelection,
+    sequenceControlHint,
+    sequenceMatchDiffersFromFocus,
     sequenceRequestFromMode,
     startSelectionFor,
     startSequenceOffByMode,
@@ -382,5 +384,32 @@ describe('modeChipParts', () => {
 
     it('kennzeichnet einen Typ ohne Intervall als Handstart', () => {
         expect(modeChipParts(mode({intervalSeconds: null})).intervalSeconds).toBeNull()
+    })
+})
+
+describe('sequenceMatchDiffersFromFocus', () => {
+    it('meldet die Abweichung, wenn die scharfe Sequenz zu einem anderen Lauf gehört als der Fokus', () => {
+        // Befund 13.11.2026: „Sequenz scharf · Sequenz starten" unter dem schon vorgerückten
+        // Fokus - wer drückt, startet den vorigen Lauf.
+        expect(sequenceMatchDiffersFromFocus(match('a', 'OPEN'), match('b', 'OPEN'))).toBe(true)
+    })
+
+    it('schweigt bei demselben Lauf und wenn eine Seite unbekannt ist', () => {
+        expect(sequenceMatchDiffersFromFocus(match('a', 'OPEN'), match('a', 'OPEN'))).toBe(false)
+        expect(sequenceMatchDiffersFromFocus(undefined, match('a', 'OPEN'))).toBe(false)
+        expect(sequenceMatchDiffersFromFocus(match('a', 'OPEN'), undefined)).toBe(false)
+    })
+})
+
+describe('sequenceControlHint', () => {
+    it('angemeldet: kein Hinweis, die Sequenz ist bedienbar', () => {
+        expect(sequenceControlHint(true, true)).toBeNull()
+        expect(sequenceControlHint(true, false)).toBeNull()
+    })
+
+    it('nur mit Geräte-Token: Hinweis statt Knöpfen, je nachdem ob der Stempel da ist', () => {
+        // Die Sequenz-Routen verlangen eine Sitzung; ein Knopf liefe in einen 401.
+        expect(sequenceControlHint(false, true)).toBe('timing.matches.sequenceNeedsLogin')
+        expect(sequenceControlHint(false, false)).toBe('timing.matches.sequenceNeedsLoginNoCapture')
     })
 })

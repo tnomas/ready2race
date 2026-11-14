@@ -7,11 +7,10 @@ import {
     DialogContent,
     DialogTitle,
     FormControlLabel,
-    Link as MuiLink,
     Stack,
     Typography,
 } from '@mui/material'
-import {useEffect, useMemo, useRef, useState} from 'react'
+import {useEffect, useMemo, useState} from 'react'
 import {Trans, useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
@@ -19,7 +18,8 @@ import Throbber from '@components/Throbber.tsx'
 import {downloadAwardCeremonySheets, getAwardCeremonies} from '@api/sdk.gen.ts'
 import {AwardCeremonyChoiceDto} from '@api/types.gen.ts'
 import {useFetch} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 import {
     AwardCeremonyErrorKey,
     awardCeremonyErrorKey,
@@ -50,7 +50,6 @@ const AwardCeremonyDialog = ({open, onClose, eventId, competitionId}: Props) => 
     const [selected, setSelected] = useState<Set<string>>(new Set())
     const [submitting, setSubmitting] = useState(false)
     const [errorKey, setErrorKey] = useState<AwardCeremonyErrorKey | null>(null)
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const {data, pending} = useFetch(
         signal =>
@@ -129,32 +128,26 @@ const AwardCeremonyDialog = ({open, onClose, eventId, competitionId}: Props) => 
     }
 
     const handleSubmit = async () => {
-        setSubmitting(true)
         setErrorKey(null)
 
-        const {
-            data: pdf,
-            error,
-            response,
-        } = await downloadAwardCeremonySheets({
-            path: {eventId},
-            body: {selection},
-        })
-
-        setSubmitting(false)
+        const {downloaded, error} = await runDownload(
+            setSubmitting,
+            () =>
+                downloadAwardCeremonySheets({
+                    path: {eventId},
+                    body: {selection},
+                }),
+            'siegerehrungsbogen.pdf',
+        )
 
         if (error) {
-            setErrorKey(awardCeremonyErrorKey(error))
+            // Ein Netzfehler hat keinen ErrorCode und landet bei der allgemeinen Meldung.
+            setErrorKey(awardCeremonyErrorKey(isRequestNetworkError(error) ? {message: ''} : error))
             return
         }
-
-        const anchor = downloadRef.current
-        if (pdf !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(pdf)
-            anchor.download = getFilename(response) ?? 'siegerehrungsbogen.pdf'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        if (!downloaded) {
+            setErrorKey(awardCeremonyErrorKey({message: ''}))
+            return
         }
 
         handleClose()
@@ -182,7 +175,6 @@ const AwardCeremonyDialog = ({open, onClose, eventId, competitionId}: Props) => 
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
-            <MuiLink ref={downloadRef} display={'none'}></MuiLink>
             <DialogTitle>
                 <Trans i18nKey={'awardCeremony.download.title'} />
             </DialogTitle>

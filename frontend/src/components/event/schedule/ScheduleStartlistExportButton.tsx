@@ -1,4 +1,4 @@
-import {useRef, useState} from 'react'
+import {useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
     Alert,
@@ -32,7 +32,7 @@ import {
 } from '@api/sdk.gen.ts'
 import {EventStartlistPreviewMatchDto} from '@api/types.gen.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {
     initialSelection,
@@ -48,6 +48,7 @@ import {
     isPdfName,
     toggleBundleItem,
 } from '@components/event/document/exportBundle.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 
 type Props = {
     eventId: string
@@ -136,8 +137,6 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
     // Der Startzeit-Fehler des Downloads, als Liste im Dialog statt als Snackbar - die
     // betroffenen Läufe sollen lesbar dastehen, nicht in einer Zeile verschwinden.
     const [downloadBlocked, setDownloadBlocked] = useState<NoStartTimeMatch[] | null>(null)
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const fileType = pdfMode ? 'PDF' : dataFileType
 
@@ -232,35 +231,39 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
     const blockedRows = (preview ?? []).filter(row => !isExportable(row))
 
     const handleDownload = async () => {
-        setDownloading(true)
         setDownloadBlocked(null)
-        const {data, error, response} = await downloadEventStartlists({
-            path: {eventId},
-            query: {
-                fileType,
-                skipByes,
-                onlyMissingInRaceClocker: previewActive,
-                // Wirkt für Voll- UND Delta-Export; „Alle" lässt den Parameter weg.
-                raceclockerRaceId:
-                    isRaceClocker && raceFilter !== ALL_RACES ? raceFilter : undefined,
-                // Die Abwahl aus der Vorschau. Serverseitig nur Schnittmenge mit dem Plan -
-                // mitschicken kann die Auswahl also nur verkleinern, nie erweitern.
-                matchIds:
-                    previewActive && preview ? matchIdsParam(selected, preview) : undefined,
-                // PDF-Zweig: Amtspapier und Mappe. Serverseitig zählt die ABWAHL der
-                // Mappen-Einträge - neu hinzugekommene Dokumente fallen so nie still heraus.
-                withBackground: pdfMode ? withBackground : undefined,
-                includeBundleDocuments: pdfMode && bundleActive ? true : undefined,
-                excludedBundleItems:
-                    pdfMode && bundleActive && bundleItems
-                        ? excludedItemsParam(bundleItems, bundleSelected)
-                        : undefined,
-            },
-        })
-        setDownloading(false)
-        const anchor = downloadRef.current
+        const {downloaded, error} = await runDownload(
+            setDownloading,
+            () =>
+                downloadEventStartlists({
+                    path: {eventId},
+                    query: {
+                        fileType,
+                        skipByes,
+                        onlyMissingInRaceClocker: previewActive,
+                        // Wirkt für Voll- UND Delta-Export; „Alle" lässt den Parameter weg.
+                        raceclockerRaceId:
+                            isRaceClocker && raceFilter !== ALL_RACES ? raceFilter : undefined,
+                        // Die Abwahl aus der Vorschau. Serverseitig nur Schnittmenge mit dem Plan -
+                        // mitschicken kann die Auswahl also nur verkleinern, nie erweitern.
+                        matchIds:
+                            previewActive && preview ? matchIdsParam(selected, preview) : undefined,
+                        // PDF-Zweig: Amtspapier und Mappe. Serverseitig zählt die ABWAHL der
+                        // Mappen-Einträge - neu hinzugekommene Dokumente fallen so nie still heraus.
+                        withBackground: pdfMode ? withBackground : undefined,
+                        includeBundleDocuments: pdfMode && bundleActive ? true : undefined,
+                        excludedBundleItems:
+                            pdfMode && bundleActive && bundleItems
+                                ? excludedItemsParam(bundleItems, bundleSelected)
+                                : undefined,
+                    },
+                }),
+            `startLists.${fileType.toLowerCase()}`,
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             if (error.errorCode === 'STARTLIST_MATCHES_WITHOUT_START_TIME') {
                 // Im Dialog statt als Snackbar: Die Liste der Läufe ohne Startzeit soll lesbar
                 // dastehen - am Renntag muss erkennbar sein, WELCHER Lauf klemmt.
@@ -279,13 +282,10 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(new Blob([data]))
-            anchor.download = getFilename(response) ?? `startLists.${fileType.toLowerCase()}`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (downloaded) {
             setOpen(false)
+        } else {
+            feedback.error(t('common.error.unexpected'))
         }
     }
 
@@ -297,7 +297,6 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
             <Button variant={'outlined'} startIcon={<Download />} onClick={() => setOpen(true)}>
                 {t('event.schedule.startlistExport.button')}
             </Button>
-            <a ref={downloadRef} style={{display: 'none'}} />
             <Dialog open={open} onClose={() => setOpen(false)} maxWidth={'xs'} fullWidth>
                 <DialogTitle>{t('event.schedule.startlistExport.title')}</DialogTitle>
                 <DialogContent>
@@ -382,9 +381,7 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
                                                     }
                                                 />
                                             }
-                                            label={t(
-                                                'event.schedule.startlistExport.bundle.label',
-                                            )}
+                                            label={t('event.schedule.startlistExport.bundle.label')}
                                         />
                                     </span>
                                 </Tooltip>
@@ -432,9 +429,7 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
                                                         <Typography
                                                             variant={'body2'}
                                                             fontStyle={
-                                                                isPlaceholder
-                                                                    ? 'italic'
-                                                                    : undefined
+                                                                isPlaceholder ? 'italic' : undefined
                                                             }>
                                                             {isPlaceholder
                                                                 ? t(
@@ -648,8 +643,7 @@ const ScheduleStartlistExportButton = ({eventId}: Props) => {
                         // eine Mappe, in der ALLES abgewählt ist.
                         disabled={
                             (previewActive &&
-                                (previewPending ||
-                                    (preview !== null && selected.size === 0))) ||
+                                (previewPending || (preview !== null && selected.size === 0))) ||
                             (pdfMode && bundleActive && bundleSelected.size === 0)
                         }
                         onClick={handleDownload}>

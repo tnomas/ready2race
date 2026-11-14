@@ -4,11 +4,12 @@ import {ClockIcon} from '@mui/x-date-pickers'
 import {Assignment, Groups, Message, HowToReg} from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
 import {EventRegistrationMessageDialog} from '@components/dashboard/EventRegistrationMessageDialog.tsx'
+import {EmptyState} from '@components/ui'
 import {DashboardWidget} from '@components/dashboard/DashboardWidget.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getEventRegistrations} from '@api/sdk.gen.ts'
-import {Link} from '@tanstack/react-router'
 import {format} from 'date-fns'
+import {ButtonLink} from '@components/ui'
 
 export function EventRegistrationsWidget() {
     const [messageDialogOpen, setMessageDialogOpen] = useState(false)
@@ -51,16 +52,11 @@ export function EventRegistrationsWidget() {
                 content={
                     <React.Fragment>
                         {registrations?.data && registrations.data.length === 0 ? (
-                            <Stack
-                                alignItems={'center'}
-                                justifyContent={'center'}
-                                spacing={2}
-                                py={4}>
-                                <HowToReg sx={{fontSize: 48, color: 'text.secondary'}} />
-                                <Typography color={'text.secondary'} textAlign={'center'}>
-                                    {t('dashboard.registrations.empty')}
-                                </Typography>
-                            </Stack>
+                            <EmptyState
+                                dense
+                                icon={<HowToReg />}
+                                title={t('dashboard.registrations.empty')}
+                            />
                         ) : (
                             <List>
                                 {registrations?.data?.map((registration, index) => (
@@ -78,32 +74,30 @@ export function EventRegistrationsWidget() {
                                                         spacing={1}
                                                         alignItems="center"
                                                         flexWrap="wrap">
-                                                        <Link
+                                                        <ButtonLink
                                                             to={'/club/$clubId'}
-                                                            params={{clubId: registration.clubId}}>
-                                                            <Button size={'small'}>
-                                                                <Typography>
-                                                                    {registration.clubName}
-                                                                </Typography>
-                                                            </Button>
-                                                        </Link>
+                                                            params={{clubId: registration.clubId}}
+                                                            size={'small'}>
+                                                            <Typography>
+                                                                {registration.clubName}
+                                                            </Typography>
+                                                        </ButtonLink>
                                                         <Box
                                                             sx={{
                                                                 display: {xs: 'none', md: 'block'},
                                                             }}>
                                                             <Typography>|</Typography>
                                                         </Box>
-                                                        <Link
+                                                        <ButtonLink
                                                             to={'/event/$eventId'}
                                                             params={{
                                                                 eventId: registration.eventId,
-                                                            }}>
-                                                            <Button size={'small'}>
-                                                                <Typography color={'primary'}>
-                                                                    {registration.eventName}
-                                                                </Typography>
-                                                            </Button>
-                                                        </Link>
+                                                            }}
+                                                            size={'small'}>
+                                                            <Typography color={'primary'}>
+                                                                {registration.eventName}
+                                                            </Typography>
+                                                        </ButtonLink>
                                                     </Stack>
                                                     <Stack
                                                         direction="row"

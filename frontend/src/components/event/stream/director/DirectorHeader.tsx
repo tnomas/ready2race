@@ -24,7 +24,8 @@ interface DirectorHeaderProps {
  * Kopfzeile des Regie-Boards: Zurück, Titel, die Szenen als Reiter (eine Szene ist ein Shot in
  * Wirecast — die Regie springt zwischen ihnen wie zwischen Kameras), rechts der Kanalzustand
  * und der Vollbild-Schalter. Die Sendepause-Warnung nutzt die 30-s-Schwelle des Panels
- * (`streamPanelHealth.ts`), nicht die 15 s der Bühne — hier liest ein Mensch mit.
+ * (`streamPanelHealth.ts`), nicht die 45 s der Bühne — hier liest ein Mensch mit, der früher
+ * hinsehen soll, als die Bühne von sich aus Einblendungen sperrt.
  */
 const DirectorHeader = ({
     eventName,
@@ -69,11 +70,14 @@ const DirectorHeader = ({
                 backgroundColor: DIRECTOR_COLORS.paper,
                 flexShrink: 0,
             }}>
-            <IconButton size="small" onClick={onBack} aria-label={t('event.stream.director.back')}>
+            <IconButton
+                onClick={onBack}
+                aria-label={t('event.stream.director.back')}
+                sx={{width: 48, height: 48, cursor: 'pointer'}}>
                 <ArrowBackIcon />
             </IconButton>
             <Box sx={{minWidth: 0}}>
-                <Typography variant="subtitle1" sx={{fontWeight: 800, lineHeight: 1.1}}>
+                <Typography component="h1" variant="subtitle1" sx={{fontWeight: 800, lineHeight: 1.1}}>
                     {t('event.stream.director.title')}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap sx={{display: 'block'}}>
@@ -85,7 +89,7 @@ const DirectorHeader = ({
                 onChange={(_, value) => onSelectScene(value)}
                 variant="scrollable"
                 scrollButtons="auto"
-                sx={{flex: 1, minHeight: 40, '& .MuiTab-root': {minHeight: 40, fontWeight: 700}}}>
+                sx={{flex: 1, minHeight: 48, '& .MuiTab-root': {minHeight: 48, fontWeight: 700}}}>
                 {scenes.map(scene => (
                     <Tab
                         key={scene.id}
@@ -106,7 +110,11 @@ const DirectorHeader = ({
             )}
             {healthChip}
             <Tooltip title={t('event.stream.director.fullscreen')}>
-                <IconButton size="small" onClick={onToggleFullscreen}>
+                <IconButton
+                    onClick={onToggleFullscreen}
+                    aria-label={t('event.stream.director.fullscreen')}
+                    aria-pressed={fullscreen}
+                    sx={{width: 48, height: 48, cursor: 'pointer'}}>
                     {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                 </IconButton>
             </Tooltip>

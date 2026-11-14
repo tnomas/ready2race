@@ -135,11 +135,7 @@ export const RequirementsChecklist = ({
                 // keinen Lauf ab - das sieht an der Waage aus wie erledigt und ist es nicht.
                 const blocked = req.perCompetition && competitionId === null
                 return (
-                    <Stack
-                        key={req.id}
-                        direction={'row'}
-                        alignItems={'center'}
-                        spacing={3}>
+                    <Stack key={req.id} direction={'row'} alignItems={'center'} spacing={3}>
                         <Stack direction={'row'} spacing={2}>
                             {checked ? (
                                 <>
@@ -235,9 +231,7 @@ export const RequirementsChecklist = ({
                                         <Typography
                                             variant={'caption'}
                                             color={
-                                                entry.fulfilled
-                                                    ? 'success.main'
-                                                    : 'text.secondary'
+                                                entry.fulfilled ? 'success.main' : 'text.secondary'
                                             }
                                             sx={{
                                                 fontWeight:

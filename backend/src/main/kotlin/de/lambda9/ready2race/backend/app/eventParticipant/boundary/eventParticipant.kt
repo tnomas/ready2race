@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.eventParticipant.entity.ResendAccessTokenRequest
 import de.lambda9.ready2race.backend.calls.requests.authenticate
 import de.lambda9.ready2race.backend.calls.requests.pathParam
+import de.lambda9.ready2race.backend.calls.requests.checkCallbackUrl
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
@@ -20,6 +21,7 @@ fun Route.eventParticipant() {
             val eventId = !pathParam("eventId", uuid)
             val participantId = !pathParam("participantId", uuid)
             val body = !receiveKIO(ResendAccessTokenRequest.example)
+            !checkCallbackUrl(body.callbackUrl)
 
             EventParticipantService.resendAccessToken(body, eventId, participantId, user, scope)
         }

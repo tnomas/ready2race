@@ -4,14 +4,13 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Link as MuiLink,
     Stack,
     Typography,
 } from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Trans, useTranslation} from 'react-i18next'
 import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
 import FormInputSwitch from '@components/form/input/FormInputSwitch.tsx'
@@ -21,7 +20,8 @@ import {
     downloadAwardCertificatesForCompetition,
     downloadAwardCertificatesForEvent,
 } from '@api/sdk.gen.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 import InlineLink from '@components/InlineLink.tsx'
 import {
     CertificateErrorKey,
@@ -66,7 +66,6 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
     const formContext = useForm<AwardCertificateForm>()
     const [submitting, setSubmitting] = useState(false)
     const [errorKey, setErrorKey] = useState<CertificateErrorKey | null>(null)
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const isSingle = registrationId !== undefined
 
@@ -84,7 +83,6 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
     }
 
     const handleSubmit = async (formData: AwardCertificateForm) => {
-        setSubmitting(true)
         setErrorKey(null)
 
         const query = {
@@ -97,39 +95,37 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
             ...(isSingle ? {} : {maxPlace: Number(formData.maxPlace)}),
         }
 
-        const {data, error, response} =
-            registrationId !== undefined && competitionId !== undefined
-                ? await downloadAwardCertificate({
-                      path: {eventId, competitionId, registrationId},
-                      query,
-                  })
-                : competitionId !== undefined
-                  ? await downloadAwardCertificatesForCompetition({
-                        path: {eventId, competitionId},
-                        query,
-                    })
-                  : await downloadAwardCertificatesForEvent({path: {eventId}, query})
-
-        setSubmitting(false)
+        const {downloaded, error} = await runDownload(
+            setSubmitting,
+            () =>
+                registrationId !== undefined && competitionId !== undefined
+                    ? downloadAwardCertificate({
+                          path: {eventId, competitionId, registrationId},
+                          query,
+                      })
+                    : competitionId !== undefined
+                      ? downloadAwardCertificatesForCompetition({
+                            path: {eventId, competitionId},
+                            query,
+                        })
+                      : downloadAwardCertificatesForEvent({path: {eventId}, query}),
+            `award_certificate${isSingle ? '' : 's'}.${formData.format}`,
+        )
 
         if (error) {
             // Früher unterschied der Dialog nur nach HTTP-Status: 409 hieß pauschal "keine
             // nutzbare Vorlage" (fehlend ODER unlesbar), 400 pauschal "keine Platzierungen" -
             // auch dann, wenn es sich um ein Challenge-Event handelte, das grundsätzlich keine
             // Siegerurkunden kennt. Jetzt entscheidet der ErrorCode.
-            setErrorKey(awardCertificateErrorKey(error))
+            // Ein Netzfehler hat keinen ErrorCode und landet bei der allgemeinen Meldung.
+            setErrorKey(
+                awardCertificateErrorKey(isRequestNetworkError(error) ? {message: ''} : error),
+            )
             return
         }
-
-        const anchor = downloadRef.current
-        if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download =
-                getFilename(response) ??
-                `award_certificate${isSingle ? '' : 's'}.${formData.format}`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        if (!downloaded) {
+            setErrorKey(awardCertificateErrorKey({message: ''}))
+            return
         }
 
         handleClose()
@@ -137,7 +133,6 @@ const AwardCertificateDialog = ({open, onClose, eventId, competitionId, registra
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
-            <MuiLink ref={downloadRef} display={'none'}></MuiLink>
             <DialogTitle>
                 <Trans i18nKey={'awardCertificate.download.title'} />
             </DialogTitle>

@@ -37,11 +37,13 @@ object EventChangeMarker {
      * Meldet eine Änderung an der Veranstaltung — alle Cache-Einträge davor sind damit alt.
      *
      * Zusätzlich wird der neue Stand über den Veranstaltungs-Kanal an verbundene Anzeigen
-     * gepusht ([EventChangeBroadcaster]) — zentral hier statt an den ~30 Aufrufstellen. Der
-     * Push läuft über [AfterCommit]: die Clients laden auf den Fingerzeig hin sofort nach,
-     * und ein Push vor dem Commit ließe sie den alten Stand lesen und (mit dem neuen
-     * Markerstand versehen) bis zum TTL-Ablauf im Cache festhalten. Das Inkrement selbst
-     * bleibt bewusst sofort wirksam — ein zu früh entwerteter Cache kostet nur einen Abruf.
+     * gepusht ([EventChangeBroadcaster]) — zentral hier statt an den ~30 Aufrufstellen.
+     * Inkrement UND Push laufen zusammen über [AfterCommit]: die Clients laden auf den
+     * Fingerzeig hin sofort nach, und ein Push vor dem Commit ließe sie den alten Stand lesen.
+     * Dasselbe gilt für das Inkrement allein — ein Abruf zwischen Bump und Commit läse noch die
+     * alten Daten, legte sie aber unter dem NEUEN Stand ab, und der Cache hielte den alten
+     * Inhalt bis zum TTL-Ablauf für frisch. Erst nach dem Commit zählt der Marker hoch; ein
+     * Rollback zählt gar nicht. Außerhalb eines Requests (Jobs, Tests) wirkt beides sofort.
      *
      * Aus derselben Quelle speist sich der Board-Kanal ([BoardViewBroadcaster]), der die
      * fertige Ansicht schickt statt nur den Fingerzeig. Er hängt bewusst hier und nicht an
@@ -58,8 +60,8 @@ object EventChangeMarker {
      * die Board-Konfiguration über `broadcastBoard`.
      */
     fun bump(eventId: UUID) {
-        val stand = counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
         AfterCommit.register {
+            val stand = counters.computeIfAbsent(eventId) { AtomicLong(0) }.incrementAndGet()
             EventChangeBroadcaster.broadcast(eventId, stand)
             BoardViewBroadcaster.broadcast(eventId)
             StreamSceneBroadcaster.broadcast(eventId)

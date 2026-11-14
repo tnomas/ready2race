@@ -7,12 +7,13 @@ import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {RequestResult} from '@hey-api/client-fetch'
 import {Check, Close, CreditCardOff, Download, Payment} from '@mui/icons-material'
 import {downloadInvoice, setInvoicePaid} from '@api/sdk.gen.ts'
-import {ReactNode, useRef} from 'react'
+import {ReactNode} from 'react'
 import {Box, Link, Stack, Tooltip, Typography} from '@mui/material'
 import {useFeedback} from '@utils/hooks.ts'
 import {format} from 'date-fns'
 import {updateInvoiceGlobal} from '@authorization/privileges.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -32,8 +33,6 @@ type Props = BaseEntityTableProps<InvoiceDto> & {
 const InvoiceTable = (props: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const columns: ExtendedGridColDef<InvoiceDto>[] = [
         {
@@ -112,17 +111,16 @@ const InvoiceTable = (props: Props) => {
     ]
 
     const handleDownload = async (invoiceId: string) => {
-        const {data, error, response} = await downloadInvoice({path: {invoiceId}})
-        const anchor = downloadRef.current
+        const {downloaded, error} = await runDownload(
+            undefined,
+            () => downloadInvoice({path: {invoiceId}}),
+            'invoice.pdf',
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error || !downloaded) {
             feedback.error(t('invoice.downloadError'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? 'invoice.pdf'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
@@ -165,7 +163,6 @@ const InvoiceTable = (props: Props) => {
 
     return (
         <Box>
-            <Link ref={downloadRef} display={'none'}></Link>
             <EntityTable
                 {...props}
                 resource={'INVOICE'}

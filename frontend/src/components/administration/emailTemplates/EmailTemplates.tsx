@@ -24,6 +24,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import RestoreOutlinedIcon from '@mui/icons-material/RestoreOutlined'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 export function EmailTemplates() {
     const {t} = useTranslation()
@@ -61,19 +62,26 @@ export function EmailTemplates() {
         setResetting(true)
         confirmAction(
             async () => {
-                const {error, response} = await deleteEmailTemplate({
-                    query: {
-                        key: template.key,
-                        language: lng as EmailLanguage,
-                    },
+                const captured: {response?: Response} = {}
+                const {error} = await runRequest(undefined, async () => {
+                    const result = await deleteEmailTemplate({
+                        query: {
+                            key: template.key,
+                            language: lng as EmailLanguage,
+                        },
+                    })
+                    captured.response = result.response
+                    return result
                 })
                 setResetting(false)
-                if (response.status === 204) {
+                if (captured.response?.status === 204) {
                     feedback.success(
                         t('administration.emailTemplates.response.resetSuccessful', {
                             key: t(`administration.emailTemplates.templateKeys.${template.key}`),
                         }),
                     )
+                } else if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
                 } else if (error) {
                     if (error.status.value === 500) {
                         feedback.error(t('common.error.unexpected'))

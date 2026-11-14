@@ -34,6 +34,9 @@ fun Route.participantRequirementForEvent() {
         }
         post {
             call.respondComprehension {
+                // Anmeldung vor dem Lesen des Körpers (siehe receiveUploads).
+                val user = !authenticate(Privilege.UpdateEventGlobal)
+                val eventId = !pathParam("eventId", uuid)
 
                 val multiPartData = call.receiveMultipart()
 
@@ -72,9 +75,6 @@ fun Route.participantRequirementForEvent() {
                         part.dispose()
                     }
                 }
-
-                val user = !authenticate(Privilege.UpdateEventGlobal)
-                val eventId = !pathParam("eventId", uuid)
 
                 val file = !KIO.failOnNull(upload) { RequestError.File.Missing }
                 val req = !KIO.failOnNull(config) { RequestError.BodyMissing(ParticipantRequirementCheckForEventConfigDto.example) }

@@ -179,6 +179,10 @@ object TimingService {
 
         val hasMarks = !TimingTimeMarkRepo.existsByStation(stationId).orDie()
         !KIO.failOn(hasMarks) { TimingError.StationHasTimeMarks }
+        // Auch beendete Sequenzen halten den Posten (Fremdschlüssel `restrict`): ohne die Prüfung
+        // fiele der Klick in den Constraint-Fehler und damit in einen 500er.
+        val hasSequences = !TimingSequenceRepo.existsByStation(stationId).orDie()
+        !KIO.failOn(hasSequences) { TimingError.StationHasSequences }
         !TimingStationRepo.delete(stationId).orDie()
         broadcastAsync(station.event, TimingWsMessage.StationsChanged)
         noData
@@ -327,17 +331,23 @@ object TimingService {
         source: String,
         createdBy: UUID?,
     ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
-        val exists = !TimingTimeMarkRepo.exists(request.id).orDie()
+        // Zugehörigkeit und Postentyp ZUERST - auch für die Wiederholung eines Klicks. Stünde die
+        // Existenzprüfung davor, antwortete eine fremde Kennung mit 201 und verriete damit, dass
+        // es sie gibt; und ein ANZEIGE-Posten käme mit einer bekannten Kennung an der Sperre vorbei.
+        val station = !TimingStationRepo.get(request.station).orDie()
+            .onNullFail { TimingError.StationNotFound }
+        !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
+        // Eine Anzeige misst nichts: Marken auf einem ANZEIGE-Posten sind immer ein Fehler,
+        // egal ob per Sitzung oder Geräte-Token erfasst.
+        !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.StationNotCapturing }
+
+        // Idempotent nur im eigenen Zuschnitt: dieselbe Kennung an DIESEM Posten ist derselbe
+        // Klick (Offline-Warteschlange, Doppelklick, Wiederholung nach Netzabriss). Dieselbe
+        // Kennung an einem anderen Posten ist eine Kollision und keine Wiederholung.
+        val exists = !TimingTimeMarkRepo.existsForStation(request.id, request.station).orDie()
         if (exists) {
             KIO.ok(ApiResponse.Created(request.id))
         } else {
-            val station = !TimingStationRepo.get(request.station).orDie()
-                .onNullFail { TimingError.StationNotFound }
-            !KIO.failOn(station.event != eventId) { TimingError.EventMismatch }
-            // Eine Anzeige misst nichts: Marken auf einem ANZEIGE-Posten sind immer ein Fehler,
-            // egal ob per Sitzung oder Geräte-Token erfasst.
-            !KIO.failOn(station.type == TimingStationType.ANZEIGE.name) { TimingError.StationNotCapturing }
-
             val record = TimingTimeMarkRecord(
                 id = request.id,
                 event = eventId,
@@ -351,6 +361,13 @@ object TimingService {
             val inserted = !TimingTimeMarkRepo.createIfAbsent(record).orDie()
             if (inserted > 0) {
                 broadcastAsync(eventId, TimingWsMessage.TimeMarkCreated(timeMarkDto(record, null)))
+            } else {
+                // Der Einfügeversuch ist an der Kennung abgeprallt. Entweder hat ein gleichzeitiger
+                // Zwilling desselben Postens gewonnen (dann ist das die gewöhnliche Idempotenz und
+                // der Klick hat sein Ziel erreicht) oder die Kennung gehört einem anderen Posten -
+                // dann ist es dieselbe Kollision wie oben, nur einen Wimpernschlag später erkannt.
+                val ownTwin = !TimingTimeMarkRepo.existsForStation(request.id, request.station).orDie()
+                !KIO.failOn(!ownTwin) { TimingError.TimeMarkIdTaken }
             }
             KIO.ok(ApiResponse.Created(request.id))
         }
@@ -669,31 +686,26 @@ object TimingService {
                 .onNullFail { TimingError.TeamNotFound }
             !KIO.failOn(teamEvent != eventId) { TimingError.EventMismatch }
 
-            if (existing == null) {
-                !TimingAssignmentRepo.create(
-                    TimingAssignmentRecord(
-                        id = UUID.randomUUID(),
-                        timeMark = timeMarkId,
-                        competitionMatchTeam = team,
-                        createdAt = LocalDateTime.now(),
-                        createdBy = userId,
-                        createdByDevice = deviceId,
-                        updatedAt = LocalDateTime.now(),
-                        updatedBy = userId,
-                        updatedByDevice = deviceId,
-                    )
-                ).orDie()
-            } else {
-                !TimingAssignmentRepo.update(existing.id) {
-                    competitionMatchTeam = team
-                    updatedAt = LocalDateTime.now()
-                    // Genau EIN Akteur je Änderung: die jeweils andere Spalte wird geleert, damit
-                    // die Revisionsspur den letzten Handelnden eindeutig benennt (Nutzer ODER
-                    // Gerät), statt Reste des vorletzten stehen zu lassen.
-                    updatedBy = userId
-                    updatedByDevice = deviceId
-                }.orDie()
-            }
+            // Ein Upsert statt "anlegen oder aktualisieren" nach dem oben gelesenen Stand: zwei
+            // Zuordnungen, die sich kreuzen, sähen beide "noch keine" und die zweite liefe in
+            // den Unique-Defekt. Beim Umhängen bleibt die Zeile, `created_*` behält den ersten
+            // Handelnden, und `updated_*` benennt den letzten eindeutig - genau EIN Akteur je
+            // Änderung (Nutzer ODER Gerät), die jeweils andere Spalte wird geleert, statt Reste des
+            // vorletzten stehen zu lassen.
+            val now = LocalDateTime.now()
+            !TimingAssignmentRepo.create(
+                TimingAssignmentRecord(
+                    id = UUID.randomUUID(),
+                    timeMark = timeMarkId,
+                    competitionMatchTeam = team,
+                    createdAt = now,
+                    createdBy = userId,
+                    createdByDevice = deviceId,
+                    updatedAt = now,
+                    updatedBy = userId,
+                    updatedByDevice = deviceId,
+                )
+            ).orDie()
         }
         // Both ends of a move are affected: the team that loses the mark and the one that gains it.
         // A freshly created mark needs no hook of its own - it carries no assignment yet, so the

@@ -9,18 +9,18 @@ import {
     FormControl,
     FormControlLabel,
     FormLabel,
-    Link as MuiLink,
     Radio,
     RadioGroup,
     Stack,
     Typography,
 } from '@mui/material'
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {Trans, useTranslation} from 'react-i18next'
 import BaseDialog from '@components/BaseDialog.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {downloadResultList} from '@api/sdk.gen.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 import {ResultListErrorKey, resultListErrorKey} from '@components/awardCeremony/resultListError.ts'
 import {
     matchingPreset,
@@ -49,7 +49,6 @@ const ResultListDialog = ({open, onClose, eventId, competitionId}: Props) => {
     const [options, setOptions] = useState<ResultListOptions>(presetOptions.posting)
     const [submitting, setSubmitting] = useState(false)
     const [errorKey, setErrorKey] = useState<ResultListErrorKey | null>(null)
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     useEffect(() => {
         if (open) {
@@ -70,32 +69,26 @@ const ResultListDialog = ({open, onClose, eventId, competitionId}: Props) => {
     }
 
     const handleSubmit = async () => {
-        setSubmitting(true)
         setErrorKey(null)
 
-        const {
-            data: pdf,
-            error,
-            response,
-        } = await downloadResultList({
-            path: {eventId},
-            query: {competitionId, ...resultListQuery(options)},
-        })
-
-        setSubmitting(false)
+        const {downloaded, error} = await runDownload(
+            setSubmitting,
+            () =>
+                downloadResultList({
+                    path: {eventId},
+                    query: {competitionId, ...resultListQuery(options)},
+                }),
+            'ergebnisliste.pdf',
+        )
 
         if (error) {
-            setErrorKey(resultListErrorKey(error))
+            // Ein Netzfehler hat keinen ErrorCode und landet bei der allgemeinen Meldung.
+            setErrorKey(resultListErrorKey(isRequestNetworkError(error) ? {message: ''} : error))
             return
         }
-
-        const anchor = downloadRef.current
-        if (pdf !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(pdf)
-            anchor.download = getFilename(response) ?? 'ergebnisliste.pdf'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        if (!downloaded) {
+            setErrorKey(resultListErrorKey({message: ''}))
+            return
         }
 
         handleClose()
@@ -111,7 +104,6 @@ const ResultListDialog = ({open, onClose, eventId, competitionId}: Props) => {
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
-            <MuiLink ref={downloadRef} display={'none'}></MuiLink>
             <DialogTitle>
                 <Trans i18nKey={'resultList.download.title'} />
             </DialogTitle>

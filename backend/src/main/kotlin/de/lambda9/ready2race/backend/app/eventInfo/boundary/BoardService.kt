@@ -38,7 +38,15 @@ object BoardService {
     // [marker] ist der [EventChangeMarker]-Stand beim Bau: schreibt danach jemand an der
     // Veranstaltung (Ergebnis, Beenden, Hinweis, …), gilt der Eintrag sofort als alt —
     // die TTL deckelt nur noch den Nichts-passiert-Fall.
-    private data class CachedView(val builtAt: LocalDateTime, val marker: Long, val dto: BoardViewDto)
+    // [eventId] ist die Veranstaltung, unter der gebaut wurde: ein Abruf desselben Boards
+    // unter einer fremden Veranstaltung darf den Eintrag nicht treffen, sonst hebelte der
+    // Zwischenspeicher die Zugehörigkeitsprüfung aus, die erst hinter ihm kommt.
+    private data class CachedView(
+        val eventId: UUID,
+        val builtAt: LocalDateTime,
+        val marker: Long,
+        val dto: BoardViewDto,
+    )
 
     private val boardViewCache = ConcurrentHashMap<UUID, CachedView>()
 
@@ -61,10 +69,8 @@ object BoardService {
      */
     fun getProgram(eventId: UUID): App<EventInfoProblem, ApiResponse.ListDto<BoardProgramEntry>> =
         KIO.comprehension {
-            val exists = !EventRepo.exists(eventId).orDie()
-            if (!exists) {
-                !KIO.fail<EventInfoProblem>(EventInfoProblem.EventNotFound(eventId))
-            }
+            // Öffentlicher Weg: nur veröffentlichte Veranstaltungen (siehe EventInfoService.requirePublished).
+            !EventInfoService.requirePublished(eventId)
             val program = !buildProgram(eventId)
             KIO.ok(ApiResponse.ListDto(program))
         }
@@ -150,7 +156,7 @@ object BoardService {
             val marker = EventChangeMarker.current(eventId)
 
             val cached = boardViewCache[boardId]
-                ?.takeIf { BoardLogic.isCacheFresh(it.builtAt, now) && it.marker == marker }
+                ?.takeIf { it.eventId == eventId && BoardLogic.isCacheFresh(it.builtAt, now) && it.marker == marker }
             if (cached != null) {
                 KIO.ok(ApiResponse.Dto(cached.dto.copy(serverTime = now)))
             } else {
@@ -323,7 +329,7 @@ notice = notice,
                     sequence = sequence,
                 )
 
-                boardViewCache[boardId] = CachedView(now, marker, dto)
+                boardViewCache[boardId] = CachedView(eventId, now, marker, dto)
                 KIO.ok(ApiResponse.Dto(dto))
             }
         }
@@ -400,9 +406,6 @@ notice = notice,
                         skipped -> null
                         isFree && !showBreaks -> null
                         else -> {
-                            val finished = r.get("match_finished_at", LocalDateTime::class.java) != null
-                            val active = r.get("match_started_at", LocalDateTime::class.java) != null ||
-                                r[COMPETITION_MATCH.ACTIVATED_AT] != null
                             BoardProgramEntry(
                                 startTime = r[EVENT_SCHEDULE_SLOT.START_TIME],
                                 name = if (isFree) r[EVENT_SCHEDULE_SLOT.NAME] else null,
@@ -410,11 +413,17 @@ notice = notice,
                                 competitionShortName = r.get("competition_short_name", String::class.java),
                                 roundName = r.get("round_name", String::class.java),
                                 matchName = r.get("match_name", String::class.java),
-                                state = when {
-                                    finished -> BoardProgramState.FINISHED
-                                    active -> BoardProgramState.RUNNING
-                                    else -> BoardProgramState.UPCOMING
-                                },
+                                // Die eine Ableitung, nicht „gestartet oder aktiviert = läuft"
+                                // (zeigte „In Vorbereitung" und „Klärung" als „Läuft").
+                                state = BoardLogic.programState(
+                                    activatedAt = r[COMPETITION_MATCH.ACTIVATED_AT],
+                                    startedAt = r.get("match_started_at", LocalDateTime::class.java),
+                                    startTime = r[EVENT_SCHEDULE_SLOT.START_TIME],
+                                    finishedAt = r.get("match_finished_at", LocalDateTime::class.java),
+                                    teamsTotal = r.get("match_teams_total", Int::class.java) ?: 0,
+                                    teamsScored = r.get("match_teams_scored", Int::class.java) ?: 0,
+                                    clarificationSince = r[COMPETITION_MATCH.CLARIFICATION_SINCE],
+                                ),
                             )
                         }
                     }

@@ -157,6 +157,15 @@ describe('retainGraphicContent', () => {
         expect(result.visible).toBe(false)
     })
 
+    it('fällt NICHT zurück, wenn der Push die Grafik sichtbar schaltet, aber keinen Inhalt trägt', () => {
+        // Der Rückfall ist ausschließlich fürs Ausblenden gedacht: eine sichtbare Grafik ohne
+        // Inhalt darf nicht mit einem Inhalt von vorhin wieder auf Sendung gehen.
+        const previous = graphic({visible: true, match: baseMatch})
+        const current = graphic({visible: true, match: null})
+
+        expect(retainGraphicContent(current, previous)).toBe(current)
+    })
+
     it('übernimmt nichts von einem vorigen Stand eines ANDEREN Grafik-Typs', () => {
         const previous = graphic({type: 'LAPS', visible: true, match: baseMatch})
         const current = graphic({type: 'STARTLIST', visible: false, match: null})

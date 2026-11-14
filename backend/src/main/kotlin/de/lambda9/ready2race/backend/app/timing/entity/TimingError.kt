@@ -2,13 +2,29 @@ package de.lambda9.ready2race.backend.app.timing.entity
 
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.calls.responses.ApiError
+import de.lambda9.ready2race.backend.calls.responses.ErrorCode
 import io.ktor.http.*
 
 sealed interface TimingError : ServiceError {
     data object StationNotFound : TimingError
     data object StationHasTimeMarks : TimingError
+
+    /**
+     * Ein Posten mit Startsequenzen (auch beendeten) ist nicht löschbar - der Fremdschlüssel der
+     * Sequenzen steht auf `restrict`. Ohne diese Antwort liefe der Klick in den
+     * Constraint-Fehler und damit in einen 500er.
+     */
+    data object StationHasSequences : TimingError
     data object StationNameTaken : TimingError
     data object TimeMarkNotFound : TimingError
+
+    /**
+     * Die Kennung einer neuen Marke gehört schon einer Marke eines ANDEREN Postens. Die Idempotenz
+     * der Erfassung (gleiche Kennung, gleicher Posten = derselbe Klick) greift nur im eigenen
+     * Zuschnitt; alles andere ist eine Kollision und wird abgewiesen, statt mit 201 eine fremde
+     * Marke zu meinen.
+     */
+    data object TimeMarkIdTaken : TimingError
     data object TeamNotFound : TimingError
     data object EventMismatch : TimingError
     data object SequenceNotFound : TimingError
@@ -63,11 +79,21 @@ sealed interface TimingError : ServiceError {
             HttpStatusCode.Conflict,
             message = "Timing station has captured time marks and cannot be deleted"
         )
+        StationHasSequences -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "Timing station has start sequences and cannot be deleted",
+            errorCode = ErrorCode.TIMING_STATION_HAS_SEQUENCES,
+        )
         StationNameTaken -> ApiError(
             HttpStatusCode.Conflict,
             message = "A timing station with this name already exists for this event"
         )
         TimeMarkNotFound -> ApiError(HttpStatusCode.NotFound, message = "Time mark not found")
+        TimeMarkIdTaken -> ApiError(
+            HttpStatusCode.Conflict,
+            message = "A time mark with this id already exists on another station",
+            errorCode = ErrorCode.TIMING_TIME_MARK_ID_TAKEN,
+        )
         TeamNotFound -> ApiError(HttpStatusCode.NotFound, message = "Competition match team not found")
         EventMismatch -> ApiError(HttpStatusCode.BadRequest, message = "Resource does not belong to this event")
         SequenceNotFound -> ApiError(HttpStatusCode.NotFound, message = "Start sequence not found")

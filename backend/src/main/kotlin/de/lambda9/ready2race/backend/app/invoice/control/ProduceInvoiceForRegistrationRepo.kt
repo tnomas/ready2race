@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.invoice.control
 import de.lambda9.ready2race.backend.beforeNow
 import de.lambda9.ready2race.backend.database.generated.tables.records.ProduceInvoiceForRegistrationRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.PRODUCE_INVOICE_FOR_REGISTRATION
+import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
@@ -11,6 +12,8 @@ import kotlin.time.Duration
 object ProduceInvoiceForRegistrationRepo {
 
     fun create(records: List<ProduceInvoiceForRegistrationRecord>) = PRODUCE_INVOICE_FOR_REGISTRATION.insert(records)
+
+    fun delete(id: java.util.UUID) = PRODUCE_INVOICE_FOR_REGISTRATION.delete { ID.eq(id) }
 
     fun getAndLockNext(
         retryAfterError: Duration,

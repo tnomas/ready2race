@@ -93,8 +93,8 @@ const contentFor = (graphic: StreamGraphicViewDto, clockOffsetMs: number): React
  * `retainGraphicContent` daraus den tatsächlich gerenderten Stand bilden: Löscht ein Push
  * `visible` und den Inhalt im selben Schritt (siehe `contentFor`-KDoc), zeigt die Grafik
  * trotzdem noch ihren letzten echten Inhalt, während `GraphicFrame` anhand von `visible`
- * ausblendet. Ist die Ausblendanimation fertig (`phase === 'hidden'`), rendert `GraphicFrame`
- * von sich aus nichts mehr — der Ref muss dafür nie eigens geleert werden.
+ * ausblendet. Ist die Ausblendanimation fertig (`onHidden`), fällt der zurückgehaltene Inhalt
+ * weg: er war nur für die Animation da, und ein späterer Push soll ihn nicht wieder vorfinden.
  */
 const StreamGraphic = ({graphic, clockOffsetMs}: StreamGraphicProps) => {
     const lastWithContentRef = useRef<StreamGraphicViewDto | null>(null)
@@ -107,7 +107,11 @@ const StreamGraphic = ({graphic, clockOffsetMs}: StreamGraphicProps) => {
         <GraphicFrame
             visible={graphic.visible}
             visibleSince={graphic.visibleSince}
-            visibleUntil={graphic.visibleUntil}>
+            visibleUntil={graphic.visibleUntil}
+            clockOffsetMs={clockOffsetMs}
+            onHidden={() => {
+                lastWithContentRef.current = null
+            }}>
             {content}
         </GraphicFrame>
     )

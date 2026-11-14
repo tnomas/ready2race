@@ -1,5 +1,15 @@
 package de.lambda9.ready2race.backend.app.timing
 
+import de.lambda9.ready2race.backend.app.auth.entity.AuthError
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardService
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardConfig
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardElement
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardElementType
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardRequest
+import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardTile
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
+import de.lambda9.ready2race.backend.app.stream.entity.StreamBackground
+import de.lambda9.ready2race.backend.app.stream.entity.StreamSceneRequest
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingService
 import de.lambda9.ready2race.backend.app.timing.control.TimingDeviceTokenRepo
@@ -233,5 +243,122 @@ class TimingDeviceTokenServiceTest {
         assertEquals("HARDWARE", mark.source)
         assertEquals("ACTIVE", mark.status)
         assertNull(mark.createdBy)
+    }
+    // --- Widerruf mit UPDATE BOARD statt UPDATE EVENT ------------------------------------------
+    //
+    // Die Board-Verwaltung hat ihr eigenes Recht (UPDATE BOARD); der Teilen-Dialog eines Boards
+    // bietet den Widerruf also auch jemandem an, der weder UPDATE EVENT noch UPDATE STREAM hat.
+    // Die Route (`authenticateAny(UpdateEventGlobal, UpdateStreamGlobal, UpdateBoardGlobal)`)
+    // reicht die drei Flags durch; der Zuschnitt ist derselbe wie bei der Stream-Rolle: das
+    // eigene Board-Token ja, ein Posten- oder Szenen-Token nie.
+
+    private fun boardRequest(name: String) = BoardRequest(
+        name = name,
+        config = BoardConfig(
+            columns = 1,
+            tiles = listOf(BoardTile(elements = listOf(BoardElement(type = BoardElementType.CLOCK)))),
+        ),
+    )
+
+    @Test
+    fun aBoardOnlyPrivilegeMayRevokeABoardToken() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val board = (!TimingDeviceTokenService.shareLinkForBoard(eventId, boardId, userId)).dto
+
+        !TimingDeviceTokenService.revoke(
+            eventId,
+            board.deviceTokenId,
+            hasEventPrivilege = false,
+            hasStreamPrivilege = false,
+            hasBoardPrivilege = true,
+        )
+
+        assertKIOFails(TimingError.DeviceTokenInvalid) {
+            TimingDeviceTokenService.validateForBoard(board.token, eventId, boardId)
+        }
+    }
+
+    @Test
+    fun aBoardOnlyPrivilegeMayNotRevokeAStationToken() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val stationId = !addTestStation(eventId, userId)
+        val station = (!TimingDeviceTokenService.shareLink(eventId, stationId, userId)).dto
+
+        assertKIOFails(AuthError.PrivilegeMissing) {
+            TimingDeviceTokenService.revoke(
+                eventId,
+                station.deviceToken.id,
+                hasEventPrivilege = false,
+                hasStreamPrivilege = false,
+                hasBoardPrivilege = true,
+            )
+        }
+        // Unverändert gültig - der abgelehnte Versuch darf das Token nicht angekratzt haben.
+        assertKIOSucceeds {
+            TimingDeviceTokenService.validate(station.token, eventId, stationId)
+        }
+    }
+
+    @Test
+    fun aBoardOnlyPrivilegeMayNotRevokeASceneToken() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val sceneId = (!StreamSceneService.createScene(
+            eventId,
+            StreamSceneRequest(name = "Rennen", background = StreamBackground.TRANSPARENT),
+        )).dto.id
+        val scene = (!TimingDeviceTokenService.shareLinkForStreamScene(eventId, sceneId, userId)).dto
+
+        assertKIOFails(AuthError.PrivilegeMissing) {
+            TimingDeviceTokenService.revoke(
+                eventId,
+                scene.deviceTokenId,
+                hasEventPrivilege = false,
+                hasStreamPrivilege = false,
+                hasBoardPrivilege = true,
+            )
+        }
+        assertKIOSucceeds {
+            TimingDeviceTokenService.validateForStreamScene(scene.token, eventId, sceneId)
+        }
+    }
+
+    @Test
+    fun aStreamOnlyPrivilegeMayNotRevokeABoardToken() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val board = (!TimingDeviceTokenService.shareLinkForBoard(eventId, boardId, userId)).dto
+
+        assertKIOFails(AuthError.PrivilegeMissing) {
+            TimingDeviceTokenService.revoke(
+                eventId,
+                board.deviceTokenId,
+                hasEventPrivilege = false,
+                hasStreamPrivilege = true,
+                hasBoardPrivilege = false,
+            )
+        }
+        assertKIOSucceeds {
+            TimingDeviceTokenService.validateForBoard(board.token, eventId, boardId)
+        }
+    }
+
+    @Test
+    fun updateEventStillRevokesEveryKindOfToken() = testComprehension {
+        val (eventId, userId) = !createTestEventWithAdmin()
+        val boardId = (!BoardService.createBoard(eventId, boardRequest("Anzeige Steg"))).dto.id
+        val board = (!TimingDeviceTokenService.shareLinkForBoard(eventId, boardId, userId)).dto
+
+        !TimingDeviceTokenService.revoke(
+            eventId,
+            board.deviceTokenId,
+            hasEventPrivilege = true,
+            hasStreamPrivilege = false,
+            hasBoardPrivilege = false,
+        )
+
+        assertKIOFails(TimingError.DeviceTokenInvalid) {
+            TimingDeviceTokenService.validateForBoard(board.token, eventId, boardId)
+        }
     }
 }

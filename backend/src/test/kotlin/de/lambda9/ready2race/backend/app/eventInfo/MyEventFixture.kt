@@ -114,7 +114,9 @@ object MyEventFixture {
             .execute()
 
         val eventId = UUID.randomUUID()
-        insertInto(EVENT).set(EventRecord(id = eventId, name = "Regatta $tag", createdAt = now, updatedAt = now))
+        // Veröffentlicht, weil "Mein Event" ein öffentlicher Weg ist - unveröffentlichte
+        // Veranstaltungen antworten dort mit 404.
+        insertInto(EVENT).set(EventRecord(id = eventId, name = "Regatta $tag", published = true, createdAt = now, updatedAt = now))
             .execute()
 
         // Wettkampf 1: hier ist die Testperson einem Lauf zugeordnet.

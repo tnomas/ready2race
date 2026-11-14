@@ -7,6 +7,7 @@ import {LiveDashboardMatchDto} from '@api/types.gen.ts'
 import {LiveDashboardActions} from './LiveDashboardColumns.tsx'
 import {openResultTeams} from './common.ts'
 import FinishMatchButton from './FinishMatchButton.tsx'
+import {TOUCH_TARGET_PX} from './cardActionPlan.ts'
 
 /**
  * Läufe, gegen die ein Einspruch läuft — bewusst als Sammelzeile statt als Karten.
@@ -28,7 +29,7 @@ const ClarificationSection = ({
     // Lokale Bindung statt Property-Zugriff im JSX unten: nur so bleibt onFinish innerhalb der
     // Closures des Klick-Handlers als "gesetzt" erkennbar (dasselbe Muster wie in
     // LiveDashboardMatchCard, das seine Props ebenfalls destrukturiert entgegennimmt).
-    const {onFinish, onResolveClarification} = actions
+    const {onFinish, onResolveClarification, busyMatchIds} = actions
 
     if (matches.length === 0) return null
 
@@ -36,13 +37,14 @@ const ClarificationSection = ({
         <Paper variant="outlined" sx={{p: 1}}>
             <Button
                 fullWidth
+                aria-expanded={open}
                 onClick={() => setOpen(o => !o)}
                 endIcon={
                     <ExpandMoreIcon
                         sx={{transform: open ? 'rotate(180deg)' : 'none', transition: '0.2s'}}
                     />
                 }
-                sx={{justifyContent: 'space-between'}}>
+                sx={{justifyContent: 'space-between', minHeight: TOUCH_TARGET_PX}}>
                 {t('event.liveDashboard.clarification.sectionTitle', {n: matches.length})}
             </Button>
             <Collapse in={open}>
@@ -57,7 +59,10 @@ const ClarificationSection = ({
                                 flexWrap: 'wrap',
                             }}>
                             <Typography variant="body2" sx={{fontWeight: 600}}>
-                                {[match.matchName, match.competitionShortName ?? match.competitionName]
+                                {[
+                                    match.matchName,
+                                    match.competitionShortName ?? match.competitionName,
+                                ]
                                     .filter(Boolean)
                                     .join(' · ')}
                             </Typography>
@@ -83,15 +88,16 @@ const ClarificationSection = ({
                             */}
                             {onFinish && (
                                 <FinishMatchButton
+                                    disabled={busyMatchIds?.has(match.matchId)}
                                     openTeamCount={openResultTeams(match).length}
-                                    onFinish={openResults =>
-                                        onFinish(match.matchId, openResults)
-                                    }
+                                    onFinish={openResults => onFinish(match.matchId, openResults)}
                                 />
                             )}
                             {onResolveClarification && (
                                 <Button
-                                    size="small"
+                                    variant="outlined"
+                                    disabled={busyMatchIds?.has(match.matchId)}
+                                    sx={{minHeight: TOUCH_TARGET_PX}}
                                     onClick={() => onResolveClarification(match.matchId)}>
                                     {t('event.liveDashboard.clarification.resolve')}
                                 </Button>

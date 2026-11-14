@@ -34,7 +34,7 @@ fun EmailContentTemplate.toDto(): EmailTemplateDto =
                 body = template.body,
                 bodyIsHtml = template.bodyIsHtml,
                 key = EmailTemplateKey.valueOf(template.key),
-                language = EmailLanguage.valueOf(template.language),
+                language = EmailLanguage.fromStored(template.language),
                 requiredPlaceholders = emailPlaceholders?.required ?: emptyList(),
                 optionalPlaceholders = emailPlaceholders?.optional ?: emptyList(),
             )

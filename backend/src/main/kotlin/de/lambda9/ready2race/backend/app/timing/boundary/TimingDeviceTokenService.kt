@@ -1,8 +1,10 @@
 package de.lambda9.ready2race.backend.app.timing.boundary
 
+import de.lambda9.ready2race.backend.calls.responses.AfterCommit
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
+import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
 import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
 import de.lambda9.ready2race.backend.app.eventInfo.entity.BoardShareLinkDto
 import de.lambda9.ready2race.backend.app.eventInfo.entity.EventInfoProblem
@@ -62,6 +64,21 @@ object TimingDeviceTokenService {
     private const val TOKEN_LENGTH = 48
 
     /**
+     * Link-Tokens laufen ab (Migration V202609071000): ein geteilter Link ist Bearer-Material,
+     * und ein Foto der Anzeige-Adresse vom Regattatag soll die Anzeige nicht ein Jahr später
+     * noch öffnen. Der Ablauf liegt am Ende des Tages NACH dem letzten Veranstaltungstag - der
+     * Folgetag ist komplett drin (Nachträge, Siegerehrung am Morgen danach), danach ist der Link
+     * tot. Ohne Veranstaltungstage, oder wenn die Regatta beim Teilen schon vorbei ist, gelten
+     * [LINK_FALLBACK_TTL_DAYS] ab jetzt: ein Link, der beim Ausstellen bereits abgelaufen wäre,
+     * nützt niemandem (Ergebnisanzeige in der Woche danach).
+     *
+     * Manuell ausgestellte Hardware-Tokens ([issue]) laufen bewusst nicht ab: sie liegen in
+     * Gerätekonfigurationen, die niemand nach jeder Regatta neu einspielt.
+     */
+    private const val LINK_GRACE_DAYS = 1L
+    private const val LINK_FALLBACK_TTL_DAYS = 30L
+
+    /**
      * Issues a new token for a station of [eventId] and returns the plaintext exactly once.
      */
     fun issue(
@@ -94,7 +111,7 @@ object TimingDeviceTokenService {
      * Geräte-Reiter.
      *
      * Wiederverwendung statt Inflation: existiert für den Posten schon ein automatisch
-     * ausgestelltes, nicht widerrufenes Token, kommt DASSELBE zurück (deshalb speichert die
+     * ausgestelltes, nicht widerrufenes und nicht abgelaufenes Token, kommt DASSELBE zurück (deshalb speichert die
      * Migration V202608211420 für diese Tokens den Klartext - der Link ist das Credential und
      * muss wieder anzeigbar sein; für manuell ausgestellte Hardware-Tokens bleibt es beim
      * Nur-Hash-Modell). Nach einem Widerruf stellt der nächste Klick ein frisches Token aus.
@@ -110,6 +127,7 @@ object TimingDeviceTokenService {
         val existing = !TimingDeviceTokenRepo.getActiveShareLinkByStation(stationId).orDie()
         val record = existing ?: run {
             val plain = RandomUtilities.alphanumerical(TOKEN_LENGTH)
+            val expiresAt = !linkExpiry(eventId)
             val created = TimingDeviceTokenRecord(
                 id = UUID.randomUUID(),
                 event = eventId,
@@ -122,6 +140,7 @@ object TimingDeviceTokenService {
                 shareLinkToken = plain,
                 createdAt = LocalDateTime.now(),
                 createdBy = userId,
+                expiresAt = expiresAt,
             )
             !TimingDeviceTokenRepo.create(created).orDie()
             created
@@ -133,14 +152,13 @@ object TimingDeviceTokenService {
         // der Browser.
         val basePath = "/event/$eventId/timing/$stationId"
         val path = if (station.type == TimingStationType.ANZEIGE.name) "$basePath/anzeige" else basePath
-        val encoded = URLEncoder.encode(plain, Charsets.UTF_8)
 
         KIO.ok(
             ApiResponse.Dto(
                 TimingShareLinkDto(
                     deviceToken = record.toDto(),
                     token = plain,
-                    path = "$path?token=$encoded",
+                    path = withTokenFragment(path, plain),
                 )
             )
         )
@@ -171,6 +189,7 @@ object TimingDeviceTokenService {
         val existing = !TimingDeviceTokenRepo.getActiveShareLinkByBoard(boardId).orDie()
         val record = existing ?: run {
             val plain = RandomUtilities.alphanumerical(TOKEN_LENGTH)
+            val expiresAt = !linkExpiry(eventId)
             val created = TimingDeviceTokenRecord(
                 id = UUID.randomUUID(),
                 event = eventId,
@@ -186,6 +205,7 @@ object TimingDeviceTokenService {
                 shareLinkToken = plain,
                 createdAt = LocalDateTime.now(),
                 createdBy = userId,
+                expiresAt = expiresAt,
             )
             !TimingDeviceTokenRepo.create(created).orDie()
             created
@@ -194,15 +214,13 @@ object TimingDeviceTokenService {
         val plain = record.shareLinkToken!!
         // Dieselbe Adressbildung wie die Board-Links der Oberfläche: die Anzeige-Route des
         // Boards. Wurzelrelativ - den Origin kennt nur der Browser.
-        val encoded = URLEncoder.encode(plain, Charsets.UTF_8)
-
         KIO.ok(
             ApiResponse.Dto(
                 BoardShareLinkDto(
                     deviceTokenId = record.id,
                     board = boardId,
                     token = plain,
-                    path = "/board/$eventId/$boardId?token=$encoded",
+                    path = withTokenFragment("/board/$eventId/$boardId", plain),
                 )
             )
         )
@@ -230,6 +248,7 @@ object TimingDeviceTokenService {
         val existing = !TimingDeviceTokenRepo.getActiveShareLinkByStreamScene(sceneId).orDie()
         val record = existing ?: run {
             val plain = RandomUtilities.alphanumerical(TOKEN_LENGTH)
+            val expiresAt = !linkExpiry(eventId)
             val created = TimingDeviceTokenRecord(
                 id = UUID.randomUUID(),
                 event = eventId,
@@ -245,6 +264,7 @@ object TimingDeviceTokenService {
                 shareLinkToken = plain,
                 createdAt = LocalDateTime.now(),
                 createdBy = userId,
+                expiresAt = expiresAt,
             )
             !TimingDeviceTokenRepo.create(created).orDie()
             created
@@ -253,15 +273,13 @@ object TimingDeviceTokenService {
         val plain = record.shareLinkToken!!
         // Dieselbe Adressbildung wie beim Board-Link: die Bühnen-Route der Szene,
         // wurzelrelativ - den Origin kennt nur der Browser.
-        val encoded = URLEncoder.encode(plain, Charsets.UTF_8)
-
         KIO.ok(
             ApiResponse.Dto(
                 StreamSceneShareLinkDto(
                     deviceTokenId = record.id,
                     scene = sceneId,
                     token = plain,
-                    path = "/event/$eventId/stream/$sceneId?token=$encoded",
+                    path = withTokenFragment("/event/$eventId/stream/$sceneId", plain),
                 )
             )
         )
@@ -285,23 +303,31 @@ object TimingDeviceTokenService {
      * Revokes a token. Kept as a flag rather than a delete so the Leitstand can still show that a
      * device once existed (and which marks it produced).
      *
-     * [hasEventPrivilege] unterscheidet die beiden Rollen, die diese Route erreichen dürfen
-     * (`authenticateAny(UpdateEventGlobal, UpdateStreamGlobal)` im Boundary): UPDATE EVENT
-     * widerruft jedes Token der Veranstaltung, wie schon immer. Eine reine Stream-Rolle (UPDATE
-     * STREAM ohne UPDATE EVENT) - der Fall, den `StreamSceneShareDialog` bedient - darf dagegen
-     * NUR Szenen-Tokens widerrufen. Ohne diese Grenze öffnete UPDATE STREAM nebenbei den Widerruf
-     * von Posten- und Board-Tokens, die mit Livestreaming nichts zu tun haben.
+     * Die drei Flags bilden die Rollen ab, die diese Route erreichen dürfen
+     * (`authenticateAny(UpdateEventGlobal, UpdateStreamGlobal, UpdateBoardGlobal)` im Boundary):
+     * UPDATE EVENT widerruft jedes Token der Veranstaltung, wie schon immer. Eine reine
+     * Stream-Rolle (UPDATE STREAM ohne UPDATE EVENT) - der Fall, den `StreamSceneShareDialog`
+     * bedient - darf dagegen NUR Szenen-Tokens widerrufen, eine reine Board-Rolle (UPDATE BOARD,
+     * der Teilen-Dialog der Board-Verwaltung) NUR Board-Tokens. Ohne diese Grenzen öffnete jedes
+     * der beiden Rechte nebenbei den Widerruf von Posten-Tokens, die es nichts angehen.
      */
     fun revoke(
         eventId: UUID,
         tokenId: UUID,
-        // Default deckt die bisherigen Aufrufer (Tests, die direkt widerrufen statt über die
-        // Route) ab: vor dieser Prüfung durfte ohnehin nur UPDATE EVENT die Route erreichen.
+        // Defaults decken die bisherigen Aufrufer (Tests, die direkt widerrufen statt über die
+        // Route) ab: ohne Angabe gilt UPDATE EVENT. Bevor es die Board-Rolle gab, kannte die
+        // Signatur nur dieses eine Flag, und `hasEventPrivilege = false` hieß „reine
+        // Stream-Rolle" - der Default von [hasStreamPrivilege] hält diese Bedeutung fest.
         hasEventPrivilege: Boolean = true,
+        hasStreamPrivilege: Boolean = !hasEventPrivilege,
+        hasBoardPrivilege: Boolean = false,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         val record = !TimingDeviceTokenRepo.get(tokenId).orDie().onNullFail { TimingError.DeviceTokenNotFound }
         !KIO.failOn(record.event != eventId) { TimingError.EventMismatch }
-        !KIO.failOn(!hasEventPrivilege && record.streamScene == null) { AuthError.PrivilegeMissing }
+        val allowed = hasEventPrivilege
+            || (hasStreamPrivilege && record.streamScene != null)
+            || (hasBoardPrivilege && record.board != null)
+        !KIO.failOn(!allowed) { AuthError.PrivilegeMissing }
 
         !TimingDeviceTokenRepo.update(tokenId) {
             revoked = true
@@ -310,6 +336,9 @@ object TimingDeviceTokenService {
             // Link-Token des Postens" (der nächste Klick stellt ein frisches aus).
             shareLinkToken = null
         }.orDie().onNullFail { TimingError.DeviceTokenNotFound }
+        // Offene Push-Kanäle dieses Tokens schließen - erst nach dem Commit, damit ein
+        // zurückgerollter Widerruf keine Verbindung kappt.
+        AfterCommit.register { DeviceTokenRevocation.notify(tokenId) }
         noData
     }
 
@@ -336,7 +365,7 @@ object TimingDeviceTokenService {
             // record.station ist seit V202608250900 nullbar (Board-Tokens haben keinen Posten).
             // Der Vergleich mit dem nicht-nullbaren [stationId] schließt sie damit von selbst
             // aus: null ist nie gleich einer Posten-Kennung.
-        ) && record.revoked != true && record.event == eventId && record.station == stationId
+        ) && record.isLive() && record.event == eventId && record.station == stationId
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)
@@ -373,7 +402,7 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
-        ) && record.revoked != true && record.event == eventId && record.station != null
+        ) && record.isLive() && record.event == eventId && record.station != null
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)
@@ -402,7 +431,7 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
-        ) && record.revoked != true && record.event == eventId && record.board == boardId
+        ) && record.isLive() && record.event == eventId && record.board == boardId
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)
@@ -430,7 +459,7 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
-        ) && record.revoked != true && record.event == eventId && record.streamScene == sceneId
+        ) && record.isLive() && record.event == eventId && record.streamScene == sceneId
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)
@@ -457,11 +486,38 @@ object TimingDeviceTokenService {
         val valid = MessageDigest.isEqual(
             record.tokenHash.toByteArray(Charsets.UTF_8),
             expected.toByteArray(Charsets.UTF_8),
-        ) && record.revoked != true && record.event == eventId && record.board != null
+        ) && record.isLive() && record.event == eventId && record.board != null
 
         !KIO.failOn(!valid) { TimingError.DeviceTokenInvalid }
         KIO.ok(record)
     }
+
+    /**
+     * Ablauf eines Link-Tokens für [eventId] - siehe [LINK_GRACE_DAYS]. Zieht den letzten
+     * Veranstaltungstag aus `event_day`; ohne Tage oder nach der Regatta gilt der Rückfall.
+     */
+    private fun linkExpiry(eventId: UUID): App<Nothing, LocalDateTime> =
+        EventDayRepo.getByEvent(eventId).orDie().map { days ->
+            val now = LocalDateTime.now()
+            days.mapNotNull { it.date }.maxOrNull()
+                ?.plusDays(1 + LINK_GRACE_DAYS)
+                ?.atStartOfDay()
+                ?.takeIf { it.isAfter(now) }
+                ?: now.plusDays(LINK_FALLBACK_TTL_DAYS)
+        }
+
+    /** Nicht widerrufen und (falls befristet) noch nicht abgelaufen. */
+    private fun TimingDeviceTokenRecord.isLive(): Boolean =
+        revoked != true && (expiresAt == null || expiresAt!!.isAfter(LocalDateTime.now()))
+
+    /**
+     * Der Link trägt sein Token im Fragment (`#token=`), nicht in der Query: das Fragment
+     * verlässt den Browser nie - es steht in keinem Server-Log, keinem Proxy-Protokoll und
+     * keinem Referer -, während `?token=` bei jedem Aufruf mitgeschickt und mitgeschrieben
+     * würde. Die Oberfläche liest es beim ersten Aufruf aus und räumt die Adresse auf.
+     */
+    private fun withTokenFragment(path: String, plain: String): String =
+        "$path#token=${URLEncoder.encode(plain, Charsets.UTF_8)}"
 
     /**
      * SHA-256, hex encoded.

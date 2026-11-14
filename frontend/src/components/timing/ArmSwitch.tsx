@@ -1,4 +1,12 @@
-import {Box, ButtonBase, CircularProgress, Stack, Typography} from '@mui/material'
+import {
+    Box,
+    ButtonBase,
+    CircularProgress,
+    Stack,
+    Typography,
+    useMediaQuery,
+    useTheme,
+} from '@mui/material'
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew'
 import {useCallback, useEffect, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
@@ -38,6 +46,8 @@ export type ArmSwitchProps = {
 const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
+    const theme = useTheme()
+    const isPhone = useMediaQuery(theme.breakpoints.down('sm'))
 
     const [progress, setProgress] = useState(0)
     const [busy, setBusy] = useState(false)
@@ -125,9 +135,15 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                 color: armed ? 'text.primary' : 'warning.contrastText',
             }}>
             <Stack sx={{flexGrow: 1, minWidth: 0}}>
+                {/* Auf dem Telefon eine Stufe kleiner, damit Zustand und Knopf je auf eine Zeile
+                    passen und unter dem Schalter noch die Boote zu sehen sind. */}
                 <Typography
                     variant="h5"
-                    sx={{fontWeight: 800, lineHeight: 1.2}}
+                    sx={{
+                        fontWeight: 800,
+                        lineHeight: 1.2,
+                        fontSize: {xs: '1.125rem', sm: '1.5rem'},
+                    }}
                     color={armed ? 'success.main' : 'inherit'}>
                     {armed
                         ? t('timing.board.armed.stateArmed')
@@ -165,9 +181,10 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                 focusRipple
                 sx={{
                     borderRadius: 2,
-                    px: 2,
+                    px: {xs: 1.5, sm: 2},
                     py: 1,
                     minHeight: 72,
+                    flexShrink: 0,
                     border: 2,
                     borderColor: 'divider',
                     userSelect: 'none',
@@ -184,7 +201,7 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                         <CircularProgress
                             variant={busy ? 'indeterminate' : 'determinate'}
                             value={progress}
-                            size={52}
+                            size={isPhone ? 40 : 52}
                             thickness={5}
                             sx={{
                                 color: armed ? 'warning.main' : 'success.main',
@@ -207,7 +224,13 @@ const ArmSwitch = ({eventId, stationId, armed, onSwitched}: ArmSwitchProps) => {
                             <PowerSettingsNewIcon />
                         </Box>
                     </Box>
-                    <Typography variant="h6" sx={{fontWeight: 700}}>
+                    <Typography
+                        variant="h6"
+                        sx={{
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                            fontSize: {xs: '1rem', sm: '1.25rem'},
+                        }}>
                         {armed ? t('timing.board.armed.disarm') : t('timing.board.armed.arm')}
                     </Typography>
                 </Stack>

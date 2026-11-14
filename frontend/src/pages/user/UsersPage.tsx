@@ -6,6 +6,7 @@ import {useTranslation} from 'react-i18next'
 import UserInvitationTable from '@components/user/UserInvitationTable.tsx'
 import UserRegistrationTable from '@components/user/UserRegistrationTable.tsx'
 import UserInvitationDialog from '@components/user/UserInvitationDialog.tsx'
+import {PageHeader} from '@components/ui'
 
 const UsersPage = () => {
     const {t} = useTranslation()
@@ -29,7 +30,9 @@ const UsersPage = () => {
 
     return (
         <Stack spacing={2}>
-            <UserTable {...userAdministrationProps.table} title={t('user.users')} />
+            <PageHeader title={t('user.users')} />
+            {/* Ohne Tabellentitel: der Seitenkopf trägt ihn bereits. */}
+            <UserTable {...userAdministrationProps.table} />
             <UserInvitationTable
                 {...invitationAdministrationProps.table}
                 title={t('user.invitation.pendingInvitations')}

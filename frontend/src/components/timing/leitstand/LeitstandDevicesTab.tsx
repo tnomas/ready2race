@@ -25,6 +25,7 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import DeviceTokenIssueDialog from '@components/timing/leitstand/DeviceTokenIssueDialog.tsx'
 import StationBoardLink from '@components/timing/StationBoardLink.tsx'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 export type LeitstandDevicesTabProps = {
     eventId: string
@@ -163,7 +164,15 @@ const LeitstandDevicesTab = ({eventId, stations}: LeitstandDevicesTabProps) => {
                                     )}
                                 </TableCell>
                                 <TableCell>
-                                    {format(new Date(token.createdAt), t('format.datetime'))}
+                                    {format(
+                                        new Date(
+                                            parseServerLocalDateTime(
+                                                token.createdAt,
+                                                serverZoneOffsetMs(),
+                                            ),
+                                        ),
+                                        t('format.datetime'),
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <Chip

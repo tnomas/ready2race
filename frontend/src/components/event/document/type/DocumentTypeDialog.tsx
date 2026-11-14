@@ -22,8 +22,12 @@ const defaultValues: Form = {
 const mapFormToRequest = (formData: Form): EventDocumentTypeRequest => formData
 
 const mapEntityToForm = (dto: EventDocumentTypeDto): Form => {
-    const {id, ...rest} = dto
-    return {...rest, description: takeIfNotEmpty(rest.description)}
+    return {
+        name: dto.name,
+        description: takeIfNotEmpty(dto.description),
+        required: dto.required,
+        confirmationRequired: dto.confirmationRequired,
+    }
 }
 
 const addAction = (formData: Form) =>

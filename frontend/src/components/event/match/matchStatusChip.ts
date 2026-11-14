@@ -355,16 +355,21 @@ export const unplannedMatchStatus = (match: UnplannedSetupMatchDto): MatchStatus
     const hasMatchState =
         match.matchActivatedAt != null ||
         match.matchStartedAt != null ||
-        match.matchFinishedAt != null
+        match.matchFinishedAt != null ||
+        match.matchClarificationSince != null
     if (!hasMatchState && !match.bye) return null
 
-    const state = match.matchActivatedAt
-        ? match.matchStartedAt
-            ? 'RUNNING'
-            : 'PREPARING'
-        : match.matchFinishedAt
-          ? 'FINISHED'
-          : 'UNSCHEDULED'
+    // Klärung ganz vorn, aber nicht vor „beendet" - wie slotMatchStatus und deriveMatchState.
+    const state =
+        match.matchClarificationSince && !match.matchFinishedAt
+            ? 'CLARIFICATION'
+            : match.matchActivatedAt
+              ? match.matchStartedAt
+                  ? 'RUNNING'
+                  : 'PREPARING'
+              : match.matchFinishedAt
+                ? 'FINISHED'
+                : 'UNSCHEDULED'
 
     return {
         state,
@@ -380,17 +385,21 @@ export const unplannedMatchStatus = (match: UnplannedSetupMatchDto): MatchStatus
 export const slotMatchStatus = (slot: EventScheduleSlotDto): MatchStatusDto | null => {
     if (!slot.matchId) return null
 
-    const state = slot.matchActivatedAt
-        ? slot.matchStartedAt
-            ? 'RUNNING'
-            : 'PREPARING'
-        : slot.matchFinishedAt
-          ? 'FINISHED'
-          : slot.state === 'SKIPPED'
-            ? 'SKIPPED'
-            : slot.matchTeamsTotal > 0 && slot.matchTeamsScored >= slot.matchTeamsTotal
-              ? 'AWAITING_FINISH'
-              : 'UPCOMING'
+    // Klärung ganz vorn, aber nicht vor „beendet" - dieselbe Reihenfolge wie deriveMatchState.
+    const state =
+        slot.matchClarificationSince && !slot.matchFinishedAt
+            ? 'CLARIFICATION'
+            : slot.matchActivatedAt
+              ? slot.matchStartedAt
+                  ? 'RUNNING'
+                  : 'PREPARING'
+              : slot.matchFinishedAt
+                ? 'FINISHED'
+                : slot.state === 'SKIPPED'
+                  ? 'SKIPPED'
+                  : slot.matchTeamsTotal > 0 && slot.matchTeamsScored >= slot.matchTeamsTotal
+                    ? 'AWAITING_FINISH'
+                    : 'UPCOMING'
 
     return {
         state,

@@ -11,7 +11,7 @@ import {
     importGapDocumentTemplate,
 } from '@api/sdk.gen.ts'
 import {FileDownload, Preview} from '@mui/icons-material'
-import {useRef, useState} from 'react'
+import {useState} from 'react'
 import {
     Button,
     Dialog,
@@ -20,7 +20,6 @@ import {
     DialogTitle,
     FormControl,
     InputLabel,
-    Link,
     MenuItem,
     Select,
     Stack,
@@ -29,7 +28,8 @@ import {
 import GapDocumentTemplatePreviewDialog from '@components/gapDocumentTemplate/GapDocumentTemplatePreviewDialog.tsx'
 import SelectFileButton from '@components/SelectFileButton.tsx'
 import {useFeedback} from '@utils/hooks.ts'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 import {documentTemplateErrorKey} from '@components/certificate/certificateError.ts'
 
 const initialPagination: GridPaginationModel = {
@@ -53,26 +53,22 @@ const GapDocumentTemplateTable = (props: BaseEntityTableProps<GapDocumentTemplat
     const feedback = useFeedback()
     const [previewId, setPreviewId] = useState<string | null>(null)
     const showPreview = previewId !== null
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const handleClosePreview = () => {
         setPreviewId(null)
     }
 
     const handleExport = async (entity: GapDocumentTemplateDto) => {
-        const {data, error, response} = await exportGapDocumentTemplate({
-            path: {gapDocumentTemplateId: entity.id},
-        })
-        const anchor = downloadRef.current
+        const {downloaded, error} = await runDownload(
+            undefined,
+            () => exportGapDocumentTemplate({path: {gapDocumentTemplateId: entity.id}}),
+            `${entity.name.replace(/\.pdf$/i, '')}.r2rtpl.zip`,
+        )
 
-        if (error || !data) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error || !downloaded) {
             feedback.error(t('common.error.unexpected'))
-        } else if (anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? `${entity.name.replace(/\.pdf$/i, '')}.r2rtpl.zip`
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
@@ -136,7 +132,6 @@ const GapDocumentTemplateTable = (props: BaseEntityTableProps<GapDocumentTemplat
 
     return (
         <>
-            <Link ref={downloadRef} display={'none'}></Link>
             <EntityTable
                 {...props}
                 parentResource={'EVENT'}

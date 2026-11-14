@@ -1,19 +1,10 @@
-import {
-    Box,
-    Button,
-    Divider,
-    ListItem,
-    ListItemText,
-    Stack,
-    Typography,
-    useTheme,
-} from '@mui/material'
-import {Link} from '@tanstack/react-router'
+import {Box, Divider, ListItem, ListItemText, Stack, Typography, useTheme} from '@mui/material'
 import {Event, Forward, LocationOn} from '@mui/icons-material'
 import {ClockIcon} from '@mui/x-date-pickers'
 import {getRegistrationPeriods, getRegistrationState} from '@utils/helpers.ts'
 import {useTranslation} from 'react-i18next'
 import {EventPublicDto} from '@api/types.gen.ts'
+import {ButtonLink} from '@components/ui'
 
 type Props = {
     event: EventPublicDto
@@ -51,13 +42,14 @@ const UpcomingEventEntry = ({event, hideRegistration}: Props) => {
                                     gap: {xs: 1, md: 1.5},
                                     alignItems: 'center',
                                 }}>
-                                <Link to={'/event/$eventId'} params={{eventId: event.id}}>
-                                    <Button size={'medium'}>
-                                        <Typography color={'primary'} variant={'h6'}>
-                                            {event.name}
-                                        </Typography>
-                                    </Button>
-                                </Link>
+                                <ButtonLink
+                                    to={'/event/$eventId'}
+                                    params={{eventId: event.id}}
+                                    size={'medium'}>
+                                    <Typography color={'primary'} variant={'h6'}>
+                                        {event.name}
+                                    </Typography>
+                                </ButtonLink>
                                 {event.eventFrom != null && (
                                     <Stack direction="row" spacing={0.75} alignItems={'center'}>
                                         <Event
@@ -70,7 +62,7 @@ const UpcomingEventEntry = ({event, hideRegistration}: Props) => {
                                             {new Date(event.eventFrom).toLocaleDateString()}
                                             {event.eventTo !== event.eventFrom &&
                                                 ` - ${new Date(
-                                                    event.eventTo!!,
+                                                    event.eventTo!,
                                                 ).toLocaleDateString()}`}
                                         </Typography>
                                     </Stack>
@@ -143,14 +135,14 @@ const UpcomingEventEntry = ({event, hideRegistration}: Props) => {
                 />
                 {!hideRegistration && registrationState !== 'CLOSED' && (
                     <Box sx={{alignSelf: 'center', mt: {xs: 2, md: 0}}}>
-                        <Link
+                        <ButtonLink
                             to={`/event/$eventId/register`}
                             params={{eventId: event.id}}
-                            search={event.challengeEvent ? {tab: 'competitions'} : undefined}>
-                            <Button endIcon={<Forward />} variant={'contained'}>
-                                {t('event.registerNow')}
-                            </Button>
-                        </Link>
+                            search={event.challengeEvent ? {tab: 'competitions'} : undefined}
+                            endIcon={<Forward />}
+                            variant={'contained'}>
+                            {t('event.registerNow')}
+                        </ButtonLink>
                     </Box>
                 )}
             </Box>

@@ -4,6 +4,7 @@ import EventTable from '@components/event/EventTable.tsx'
 import EventDialog from '@components/event/EventDialog.tsx'
 import {useTranslation} from 'react-i18next'
 import {EventDto} from '@api/types.gen.ts'
+import {PageHeader} from '@components/ui'
 
 const EventsPage = () => {
     const {t} = useTranslation()
@@ -12,7 +13,9 @@ const EventsPage = () => {
 
     return (
         <Box>
-            <EventTable {...administrationProps.table} title={t('event.events')} />
+            <PageHeader title={t('event.events')} />
+            {/* Ohne Tabellentitel: der Seitenkopf trägt ihn bereits. */}
+            <EventTable {...administrationProps.table} />
             <EventDialog {...administrationProps.dialog} />
         </Box>
     )

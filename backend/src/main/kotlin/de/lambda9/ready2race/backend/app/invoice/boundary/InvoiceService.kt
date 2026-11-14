@@ -233,6 +233,16 @@ object InvoiceService {
         val contact =
             !ContactInformationRepo.get(contactUsage.contactInformation).orDie().onNullDie("foreign key constraint")
 
+        // Erst den Schalter atomar setzen, dann die Jobs anlegen: zwei gleichzeitige Aufrufe
+        // (Doppelklick, zwei Admins) bestehen sonst beide die Prüfung oben und legen je Meldung
+        // zwei Jobs an. Scheitert danach etwas, rollt die Transaktion den Schalter mit zurück.
+        val marked = !EventRepo.markInvoicesProduced(
+            eventId,
+            late = type == RegistrationInvoiceType.LATE,
+            at = LocalDateTime.now(),
+        ).orDie()
+        !KIO.failOn(marked == 0) { InvoiceError.Registration.AlreadyProduced }
+
         val registrations = !EventRegistrationRepo.getIdsForInvoicing(eventId, type).orDie()
 
         !ProduceInvoiceForRegistrationRepo.create(
@@ -256,20 +266,32 @@ object InvoiceService {
             }
         ).orDie()
 
-        when (type) {
-            RegistrationInvoiceType.REGULAR -> event.invoicesProduced = LocalDateTime.now()
-            RegistrationInvoiceType.LATE -> event.lateInvoicesProduced = LocalDateTime.now()
-        }
-
-        event.update()
-
         noData
     }
 
+    /**
+     * Der Rechnungsjob - Holen, Erzeugen und Löschen in EINER Transaktion.
+     *
+     * Bis Ende 2026 rief der Scheduler diese Funktion ohne umgebende Transaktion: die Sperre aus
+     * `FOR UPDATE SKIP LOCKED` fiel mit dem Autocommit sofort wieder (eine zweite Instanz bekam
+     * denselben Job, also eine zweite Rechnung), und `job.delete()` lief auf einem Datensatz, der an
+     * der nicht-transaktionalen Konfiguration hing - die Löschung committete unabhängig von der
+     * Rechnung. Belegt in InvoiceJobLockTest.
+     *
+     * Die fachlichen Ausgänge (keine Positionen, kein Empfänger) sind Ergebnisse der Transaktion,
+     * keine Fehler darin: sonst rollte das Scheitern auch das Löschen bzw. die Fehlermarkierung
+     * zurück, und der Job käme sofort wieder (Processed heißt: ohne Pause weiter).
+     */
     fun produceNextRegistrationInvoice(): App<ProduceInvoiceError, Unit> = KIO.comprehension {
+        val outcome = !processNextRegistrationInvoiceJob().transact()
+        if (outcome != null) KIO.fail(outcome) else unit
+    }
+
+    /** null: Rechnung erzeugt. Sonst der fachliche Ausgang, nachdem sein Schreiben feststeht. */
+    internal fun processNextRegistrationInvoiceJob(): App<Nothing, ProduceInvoiceError?> = KIO.comprehension {
 
         val job = !ProduceInvoiceForRegistrationRepo.getAndLockNext(retryAfterError).orDie()
-            .onNullFail { ProduceInvoiceError.NoOpenJobs }
+            ?: return@comprehension KIO.ok(ProduceInvoiceError.NoOpenJobs)
 
         val registration =
             !EventRegistrationForInvoiceRepo.get(job.eventRegistration).orDie().onNullDie("foreign key constraint")
@@ -285,9 +307,9 @@ object InvoiceService {
 
         when {
             invoiceCompetitions.all { it!!.appliedFees!!.isEmpty() } -> {
-                job.delete()
+                !ProduceInvoiceForRegistrationRepo.delete(job.id!!).orDie()
 
-                KIO.fail(ProduceInvoiceError.NoPositions)
+                KIO.ok(ProduceInvoiceError.NoPositions)
             }
 
             recipients.isEmpty() -> {
@@ -295,7 +317,7 @@ object InvoiceService {
                 job.lastError = "missing recipient"
                 job.update()
 
-                KIO.fail(ProduceInvoiceError.MissingRecipient(registration.id!!))
+                KIO.ok(ProduceInvoiceError.MissingRecipient(registration.id!!))
             }
 
             else -> {
@@ -375,7 +397,7 @@ object InvoiceService {
                         KIO.comprehension {
                             val content = !EmailService.getTemplate(
                                 EmailTemplateKey.EVENT_REGISTRATION_INVOICE,
-                                EmailLanguage.valueOf(recipient.language)
+                                EmailLanguage.fromStored(recipient.language)
                             ).map { mailTemplate ->
                                 mailTemplate.toContent(
                                     EmailTemplatePlaceholder.EVENT to event.name,
@@ -394,10 +416,10 @@ object InvoiceService {
                         }
                     }
 
-                    job.delete()
+                    !ProduceInvoiceForRegistrationRepo.delete(job.id!!).orDie()
 
-                    unit
-                }.transact()
+                    KIO.ok(null)
+                }
             }
         }
     }

@@ -162,12 +162,12 @@ const QrNimiqScanner = (props: {callback: (qrCodeContent: string) => void}) => {
             {devices.length > 1 && (
                 <FormControl fullWidth sx={{mt: 2}}>
                     <InputLabel id="camera-select-label" sx={{fontSize: '1.2rem'}}>
-                        Kamera
+                        {t('qrScanner.camera')}
                     </InputLabel>
                     <Select
                         labelId="camera-select-label"
                         value={cameraId ?? activeCameraId ?? ''}
-                        label="Kamera"
+                        label={t('qrScanner.camera')}
                         onChange={e => setCameraId(e.target.value)}
                         fullWidth
                         sx={{
@@ -182,12 +182,12 @@ const QrNimiqScanner = (props: {callback: (qrCodeContent: string) => void}) => {
                                 },
                             },
                         }}>
-                        {devices.map(device => (
+                        {devices.map((device, index) => (
                             <MenuItem
                                 key={device.id}
                                 value={device.id}
                                 sx={{fontSize: '1.2rem', minHeight: 48}}>
-                                {device.label || `Kamera ${device.id}`}
+                                {device.label || `${t('qrScanner.camera')} ${index + 1}`}
                             </MenuItem>
                         ))}
                     </Select>

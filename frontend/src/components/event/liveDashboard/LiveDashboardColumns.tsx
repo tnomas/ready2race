@@ -35,6 +35,8 @@ export type LiveDashboardActions = {
      * Muster wie `onTeamClick` für die Team-Details.
      */
     onClarifyClick?: (matchId: string) => void
+    /** Läufe, für die gerade eine Handlung unterwegs ist — deren Karte sperrt ihre Knöpfe. */
+    busyMatchIds?: ReadonlySet<string>
 }
 
 /**
@@ -70,6 +72,7 @@ const TimelineEntryCard = ({
                 detail={detail}
                 onClarifyClick={actions.onClarifyClick}
                 onResolveClarification={actions.onResolveClarification}
+                busy={actions.busyMatchIds?.has(entry.match.matchId) ?? false}
             />
         </Box>
     ) : (

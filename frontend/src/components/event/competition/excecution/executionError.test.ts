@@ -4,6 +4,7 @@ import {
     challengeErrorKey,
     matchErrorText,
     raceClockerErrorText,
+    runningErrorKey,
     substitutionErrorKey,
 } from './executionError.ts'
 import deTranslations from '@i18n/de/translations.json'
@@ -16,7 +17,9 @@ const error = (partial: Partial<ExecutionApiError>): ExecutionApiError => ({
 })
 
 const lookup = (translations: object, key: string): unknown =>
-    key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)?.[part], translations)
+    key
+        .split('.')
+        .reduce<unknown>((node, part) => (node as Record<string, unknown>)?.[part], translations)
 
 describe('substitutionErrorKey', () => {
     it.each([
@@ -34,10 +37,11 @@ describe('substitutionErrorKey', () => {
     })
 
     it('trennt den auszutauschenden Teilnehmer vom Ersatz', () => {
-        expect(substitutionErrorKey(error({errorCode: 'SUBSTITUTION_PARTICIPANT_OUT_NOT_AVAILABLE'})))
-            .not.toBe(
-                substitutionErrorKey(error({errorCode: 'SUBSTITUTION_PARTICIPANT_IN_NOT_AVAILABLE'})),
-            )
+        expect(
+            substitutionErrorKey(error({errorCode: 'SUBSTITUTION_PARTICIPANT_OUT_NOT_AVAILABLE'})),
+        ).not.toBe(
+            substitutionErrorKey(error({errorCode: 'SUBSTITUTION_PARTICIPANT_IN_NOT_AVAILABLE'})),
+        )
     })
 
     it('überlässt Unbekanntes der Sammelmeldung der Aktion', () => {
@@ -103,9 +107,11 @@ describe('matchErrorText', () => {
         // Beide heißen "nicht mehr in der aktuellen Runde", verlangen aber Verschiedenes: Die
         // Ergebniseingabe sagt "nur die aktuelle Runde", der Reset sagt "erst die Folgerunde
         // löschen". Ein gemeinsamer Text würde die Abhilfe verschweigen.
-        expect(matchErrorText(error({errorCode: 'EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND'}))).toEqual({
-            key: 'event.competition.execution.error.resetBlockedByNextRound',
-        })
+        expect(matchErrorText(error({errorCode: 'EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND'}))).toEqual(
+            {
+                key: 'event.competition.execution.error.resetBlockedByNextRound',
+            },
+        )
         expect(
             matchErrorText(error({errorCode: 'EXECUTION_RESET_BLOCKED_BY_NEXT_ROUND'})),
         ).not.toEqual(matchErrorText(error({errorCode: 'EXECUTION_MATCH_RESULTS_LOCKED'})))
@@ -156,9 +162,7 @@ describe('raceClockerErrorText', () => {
     it('bleibt bei MatchNotInFeed ohne Rennennamen benutzbar', () => {
         // Ein älterer Server schickt die Namen nicht mit; dann steht dort eben nichts, statt dass
         // die Meldung ganz ausfällt.
-        expect(
-            raceClockerErrorText(error({errorCode: 'RACECLOCKER_MATCH_NOT_IN_FEED'})),
-        ).toEqual({
+        expect(raceClockerErrorText(error({errorCode: 'RACECLOCKER_MATCH_NOT_IN_FEED'}))).toEqual({
             key: 'event.competition.execution.results.raceclocker.error.matchNotInFeed',
             values: {races: ''},
         })
@@ -245,5 +249,19 @@ describe('Übersetzungen', () => {
     it.each(keys)('hat auch einen englischen und dänischen Text für %s', key => {
         expect(typeof lookup(enTranslations, key)).toBe('string')
         expect(typeof lookup(daTranslations, key)).toBe('string')
+    })
+})
+
+describe('runningErrorKey', () => {
+    it('ein beendeter Lauf bekommt eine eigene Meldung in allen Sprachen', () => {
+        const key = runningErrorKey(error({errorCode: 'LIVE_DASHBOARD_MATCH_ALREADY_FINISHED'}))
+        expect(key).toBe('event.competition.execution.running.error.alreadyFinished')
+        for (const translations of [deTranslations, enTranslations, daTranslations]) {
+            expect(typeof lookup(translations, key)).toBe('string')
+        }
+    })
+
+    it('alles andere bleibt bei der Sammelmeldung', () => {
+        expect(runningErrorKey(error({}))).toBe('event.competition.execution.running.error.update')
     })
 })

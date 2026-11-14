@@ -8,13 +8,11 @@ import de.lambda9.ready2race.backend.app.auth.control.PrivilegeRepo
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.email.boundary.EmailService
 import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
-import de.lambda9.ready2race.backend.app.role.control.RoleHasPrivilegeRepo
-import de.lambda9.ready2race.backend.app.role.control.RoleRepo
+import de.lambda9.ready2race.backend.app.role.boundary.JobSeeder
 import de.lambda9.ready2race.backend.app.sequence.control.SequenceRepo
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
 import de.lambda9.ready2race.backend.security.PasswordUtilities
 import de.lambda9.tailwind.core.KIO
-import de.lambda9.tailwind.core.KIO.Companion.unit
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.getOrThrow
 import de.lambda9.tailwind.jooq.transact
@@ -47,12 +45,8 @@ fun initializeDatabase(env: JEnv) {
                 )
             }
         !PrivilegeRepo.create(records)
-        val allPrivileges = !PrivilegeRepo.all()
-
-        // Add admin
 
         val adminUserExisting = !AppUserRepo.exists(SYSTEM_USER)
-        val adminRoleExisting = !RoleRepo.exists(ADMIN_ROLE)
 
         val admin = env.env.config.admin
 
@@ -61,7 +55,6 @@ fun initializeDatabase(env: JEnv) {
         val now = LocalDateTime.now()
 
         if (!adminUserExisting) {
-
             !AppUserRepo.create(
                 AppUserRecord(
                     id = SYSTEM_USER,
@@ -77,7 +70,6 @@ fun initializeDatabase(env: JEnv) {
                 )
             )
         } else {
-
             !AppUserRepo.update(SYSTEM_USER) {
                 email = admin.email
                 password = hashedPw
@@ -86,71 +78,17 @@ fun initializeDatabase(env: JEnv) {
             }
         }
 
-        if (!adminRoleExisting) {
-            !RoleRepo.create(
-                RoleRecord(
-                    id = ADMIN_ROLE,
-                    name = "Admin",
-                    description = "Global admin role",
-                    static = true,
-                    createdAt = now,
-                    createdBy = SYSTEM_USER,
-                    updatedAt = now,
-                    updatedBy = SYSTEM_USER,
-                )
-            )
+        // Jobs als statische Rollen säen und synchronisieren
+        !JobSeeder.sync(now)
+
+        // Der Systemnutzer trägt die Superadmin-Rolle - und nur sie: eine aus der Zeit vor dem
+        // Rechtekonzept mitgeschleppte Admin-Zuweisung fällt weg, damit eine hochgezogene
+        // Installation genauso aussieht wie eine frisch angelegte.
+        val systemIsSuperadmin = !AppUserHasRoleRepo.exists(SYSTEM_USER, SUPERADMIN_ROLE)
+        if (!systemIsSuperadmin) {
+            !AppUserHasRoleRepo.create(AppUserHasRoleRecord(appUser = SYSTEM_USER, role = SUPERADMIN_ROLE))
         }
-
-        if (!adminUserExisting || !adminRoleExisting) {
-            !AppUserHasRoleRepo.create(
-                AppUserHasRoleRecord(
-                    appUser = SYSTEM_USER,
-                    role = ADMIN_ROLE,
-                )
-            )
-        }
-
-        val currentAdminPrivileges = !RoleHasPrivilegeRepo.getPrivilegesByRole(ADMIN_ROLE)
-        !RoleHasPrivilegeRepo.create(
-            allPrivileges.filter {
-                currentAdminPrivileges.none { id -> id == it.id }
-            }.map {
-                RoleHasPrivilegeRecord(
-                    role = ADMIN_ROLE,
-                    privilege = it.id,
-                )
-            }
-        )
-
-        // Add default user role & privileges
-        !persistRole(
-            now, allPrivileges, USER_ROLE, "User", "Global user role", listOf(
-                Privilege.ReadUserOwn,
-                Privilege.UpdateUserOwn
-            )
-        )
-
-        !persistRole(
-            now, allPrivileges, CLUB_REPRESENTATIVE_ROLE, "Club representative", "Club representative role", listOf(
-                Privilege.ReadClubOwn,
-                Privilege.UpdateClubOwn,
-                Privilege.ReadEventOwn,
-                Privilege.ReadRegistrationOwn,
-                Privilege.CreateRegistrationOwn,
-                Privilege.UpdateRegistrationOwn,
-                Privilege.DeleteRegistrationOwn,
-                Privilege.ReadInvoiceOwn,
-                Privilege.UpdateResultOwn,
-                Privilege.ReadResultOwn
-            )
-        )
-
-        // Nicht statisch, damit der Admin sie in der Nutzerverwaltung vergeben kann - statische
-        // Rollen filtert role_with_privileges heraus und RoleService.checkAssignable weist sie ab.
-        !persistRole(
-            now, allPrivileges, MATERIAL_PROVIDER_ROLE, "Materialanbieter", "Verleiht Boote und Material",
-            listOf(Privilege.ReadMaterialOwn, Privilege.UpdateMaterialOwn), static = false
-        )
+        !AppUserHasRoleRepo.delete(SYSTEM_USER, ADMIN_ROLE)
 
         // Add missing sequences
 
@@ -161,51 +99,4 @@ fun initializeDatabase(env: JEnv) {
         .transact()
         .unsafeRunSync(env)
         .getOrThrow()
-}
-
-private fun persistRole(
-    now: LocalDateTime,
-    allPrivileges: List<PrivilegeRecord>,
-    roleId: UUID,
-    name: String,
-    description: String,
-    privileges: List<Privilege>,
-    static: Boolean = true
-) = KIO.comprehension {
-
-    val userRoleExisting = !RoleRepo.exists(roleId)
-
-    if (!userRoleExisting) {
-        !RoleRepo.create(
-            RoleRecord(
-                id = roleId,
-                name = name,
-                description = description,
-                static = static,
-                createdAt = now,
-                createdBy = SYSTEM_USER,
-                updatedAt = now,
-                updatedBy = SYSTEM_USER,
-            )
-        )
-    }
-
-    val currentPrivileges = !RoleHasPrivilegeRepo.getPrivilegesByRole(roleId)
-
-    !RoleHasPrivilegeRepo.create(
-        allPrivileges.filter {
-            currentPrivileges.none { id ->
-                id == it.id
-            } && privileges.any { p ->
-                p.action.name == it.action && p.resource.name == it.resource && p.scope.name == it.scope
-            }
-        }.map {
-            RoleHasPrivilegeRecord(
-                role = roleId,
-                privilege = it.id
-            )
-        }
-    )
-
-    unit
 }

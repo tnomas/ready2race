@@ -19,10 +19,16 @@ import de.lambda9.tailwind.core.extensions.kio.andThenNotNull
 import de.lambda9.tailwind.core.extensions.kio.mapNotNull
 import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.tailwind.core.extensions.kio.recover
+import de.lambda9.ready2race.backend.calls.requests.CallbackUrls
+import de.lambda9.ready2race.backend.security.PasswordUtilities
 import io.github.cdimascio.dotenv.Dotenv
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.simplejavamail.api.mailer.Mailer
 import org.simplejavamail.api.mailer.config.TransportStrategy
 import org.simplejavamail.mailer.MailerBuilder
+import java.time.ZoneId
+
+private val logger = KotlinLogging.logger {}
 
 data class Config(
     val mode: Mode,
@@ -33,7 +39,24 @@ data class Config(
     val security: Security,
     val admin: Admin,
     val staticFilesPath: String,
-    val webDAV: WebDAV?
+    val webDAV: WebDAV?,
+    /**
+     * Normalisierte Origins (`schema://host:port`), auf die Links in Mails zeigen dürfen
+     * (`FRONTEND_ORIGINS`). `null` heißt: nicht gesetzt, Rückfallregel in
+     * [de.lambda9.ready2race.backend.calls.requests.CallbackUrls].
+     */
+    val frontendOrigins: List<String>? = null,
+    /**
+     * Zeitzone der App (`APP_TIMEZONE`, z. B. `Europe/Berlin`). `null` heißt: nicht gesetzt,
+     * dann gilt [de.lambda9.ready2race.backend.AppZone.DEFAULT_ID] - ausdrücklich NICHT die Zone
+     * des Hosts.
+     */
+    val timezone: ZoneId? = null,
+    /**
+     * Anzahl vertrauenswürdiger Reverse-Proxys vor dem Backend (`TRUSTED_PROXY_HOPS`). `0` heißt:
+     * `X-Forwarded-For` wird ignoriert. Siehe [de.lambda9.ready2race.backend.plugins.clientAddress].
+     */
+    val trustedProxyHops: Int = 0,
 ) {
 
     enum class Mode {
@@ -55,7 +78,17 @@ data class Config(
         /**
          * A mode, when tests run.
          */
-        TEST,
+        TEST;
+
+        /**
+         * Entwicklerwerkzeuge wie die Mailansicht `/api/dev/emails` geben Reset- und Einladungslinks
+         * ohne Anmeldung heraus. Sie gibt es deshalb nur lokal, nie auf einem erreichbaren Server
+         * (auch nicht STAGING).
+         */
+        val devRoutesEnabled: Boolean get() = this == DEV
+
+        /** Stacktraces in 500er-Antworten nur dort, wo kein Fremder mitliest. */
+        val exposesDefectDetails: Boolean get() = this == DEV || this == TEST
     }
 
     data class Http(
@@ -68,7 +101,19 @@ data class Config(
         val user: String,
         val password: String,
         val logQueries: Boolean,
-    )
+        /** Größe des Verbindungspools (`DATABASE_POOL_SIZE`). */
+        val poolSize: Int = DEFAULT_POOL_SIZE,
+        /**
+         * Obergrenze je SQL-Anweisung in Millisekunden (`DATABASE_STATEMENT_TIMEOUT_MS`), `0` = ohne
+         * Grenze. Gilt nicht für Flyway-Migrationen beim Start.
+         */
+        val statementTimeoutMs: Long = DEFAULT_STATEMENT_TIMEOUT_MS,
+    ) {
+        companion object {
+            const val DEFAULT_POOL_SIZE = 10
+            const val DEFAULT_STATEMENT_TIMEOUT_MS = 120_000L
+        }
+    }
 
     data class Smtp(
         val host: String,
@@ -99,7 +144,17 @@ data class Config(
     }
 
     data class Security(
-        val pepper: String
+        val pepper: String,
+        /**
+         * Speicherbedarf neuer Argon2id-Hashes in KiB (`SECURITY_ARGON2_MEMORY_KIB`). Ältere Hashes
+         * werden mit ihren eigenen Parametern geprüft und beim nächsten Login neu berechnet.
+         */
+        val argon2MemoryKiB: Int = PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB,
+        /**
+         * Höchstzahl gleichzeitiger Argon2-Rechnungen (Login, Passwort setzen). Vorgabe: Kernzahl.
+         * Jede Rechnung belegt [argon2MemoryKiB] Heap.
+         */
+        val argon2MaxConcurrent: Int = PasswordUtilities.defaultArgon2MaxConcurrent(),
     )
 
     data class Admin(
@@ -170,8 +225,25 @@ data class Config(
                 val user = !required("DATABASE_USER")
                 val password = !required("DATABASE_PASSWORD")
                 val logQueries = !optional("DATABASE_LOG_QUERIES", boolean) ?: false
+                val poolSize = !optional("DATABASE_POOL_SIZE", int) ?: Database.DEFAULT_POOL_SIZE
+                val statementTimeoutMs = (!optional("DATABASE_STATEMENT_TIMEOUT_MS", int))?.toLong()
+                    ?: Database.DEFAULT_STATEMENT_TIMEOUT_MS
 
-                Database(url = url, user = user, password = password, logQueries = logQueries)
+                if (poolSize < 1) {
+                    !KIO.fail(ParseEnvError.UnparsableValue("DATABASE_POOL_SIZE", poolSize.toString(), Int::class))
+                }
+                if (statementTimeoutMs < 0) {
+                    !KIO.fail(ParseEnvError.UnparsableValue("DATABASE_STATEMENT_TIMEOUT_MS", statementTimeoutMs.toString(), Int::class))
+                }
+
+                Database(
+                    url = url,
+                    user = user,
+                    password = password,
+                    logQueries = logQueries,
+                    poolSize = poolSize,
+                    statementTimeoutMs = statementTimeoutMs,
+                )
             }
 
             val smtp = run {
@@ -208,8 +280,41 @@ data class Config(
 
             val security = run {
                 val pepper = !required("SECURITY_PEPPER")
+                val argon2MemoryKiB = !optional("SECURITY_ARGON2_MEMORY_KIB", int)
+                    ?: PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB
 
-                Security(pepper = pepper)
+                if (argon2MemoryKiB < PasswordUtilities.MIN_ARGON2_MEMORY_KIB) {
+                    !KIO.fail(
+                        ParseEnvError.UnparsableValue(
+                            "SECURITY_ARGON2_MEMORY_KIB",
+                            argon2MemoryKiB.toString(),
+                            Int::class
+                        )
+                    )
+                }
+                if (argon2MemoryKiB < PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB && (mode == Mode.PROD || mode == Mode.STAGING)) {
+                    logger.warn {
+                        "SECURITY_ARGON2_MEMORY_KIB=$argon2MemoryKiB is below the recommended ${PasswordUtilities.DEFAULT_ARGON2_MEMORY_KIB} KiB"
+                    }
+                }
+
+                val argon2MaxConcurrent = !optional("SECURITY_ARGON2_MAX_CONCURRENT", int)
+                    ?: PasswordUtilities.defaultArgon2MaxConcurrent()
+                if (argon2MaxConcurrent < 1) {
+                    !KIO.fail(
+                        ParseEnvError.UnparsableValue(
+                            "SECURITY_ARGON2_MAX_CONCURRENT",
+                            argon2MaxConcurrent.toString(),
+                            Int::class
+                        )
+                    )
+                }
+
+                Security(
+                    pepper = pepper,
+                    argon2MemoryKiB = argon2MemoryKiB,
+                    argon2MaxConcurrent = argon2MaxConcurrent,
+                )
             }
 
             val admin = run {
@@ -265,6 +370,15 @@ data class Config(
                 }
             }
 
+            val frontendOrigins = !optional("FRONTEND_ORIGINS") { CallbackUrls.parseOrigins(it) }
+            // Bewusst nicht `TZ`: Basis-Images setzen das gern auf UTC, und dann folgte die App wieder
+            // still der Zone des Containers.
+            val timezone = !optional("APP_TIMEZONE") { ZoneId.of(it.trim()) }
+            val trustedProxyHops = !optional("TRUSTED_PROXY_HOPS", int) ?: 0
+            if (trustedProxyHops < 0) {
+                !KIO.fail(ParseEnvError.UnparsableValue("TRUSTED_PROXY_HOPS", trustedProxyHops.toString(), Int::class))
+            }
+
             val config = Config(
                 mode = mode,
                 http = http,
@@ -274,8 +388,18 @@ data class Config(
                 security = security,
                 admin = admin,
                 staticFilesPath = staticFilesPath,
-                webDAV = webDAV
+                webDAV = webDAV,
+                frontendOrigins = frontendOrigins,
+                timezone = timezone,
+                trustedProxyHops = trustedProxyHops,
             )
+
+            if (frontendOrigins == null && (mode == Mode.PROD || mode == Mode.STAGING)) {
+                logger.warn {
+                    "FRONTEND_ORIGINS is not set: links in e-mails are only checked against the request's Host header. " +
+                        "Set FRONTEND_ORIGINS to the origin(s) the frontend is served from, e.g. https://regatta.example.org"
+                }
+            }
 
             KIO.ok(config)
         }

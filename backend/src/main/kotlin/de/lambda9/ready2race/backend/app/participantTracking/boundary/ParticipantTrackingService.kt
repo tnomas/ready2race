@@ -19,6 +19,7 @@ import de.lambda9.ready2race.backend.app.substitution.boundary.SubstitutionServi
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
+import de.lambda9.ready2race.backend.database.AdvisoryLock
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.ParticipantTrackingChangeRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.ParticipantTrackingRecord
@@ -33,6 +34,17 @@ import java.util.*
 
 object ParticipantTrackingService {
 
+    /**
+     * Sperre je Person und Veranstaltung für alles, was die Kette liest, prüft und dann anhängt
+     * oder ändert: Scan am Steg, Handeintrag, Korrektur. Ohne sie sahen zwei gleichzeitige Scans
+     * (Doppel-Tap in der PWA, zwei Helfer) beide "nicht eingecheckt" und schrieben beide ENTRY -
+     * eine Kette, an der danach jeder Handeintrag mit SequenceConflict scheiterte. Die Sperre
+     * liegt in der Datenbank (mehrere Instanzen) und gilt nur je Person; der Steg-Durchsatz
+     * leidet nicht.
+     */
+    private fun lockChain(participantId: UUID, eventId: UUID) =
+        AdvisoryLock.lock("participant-tracking:$eventId", participantId).orDie()
+
     fun participantCheckInOut(
         participantId: UUID,
         eventId: UUID,
@@ -41,6 +53,7 @@ object ParticipantTrackingService {
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
         !ParticipantRepo.exists(participantId).orDie().onFalseFail { ParticipantError.ParticipantNotFound }
 
+        !lockChain(participantId, eventId)
         val currentStatus = !ParticipantTrackingRepo
             .get(participantId, eventId)
             .orDie()
@@ -109,6 +122,7 @@ object ParticipantTrackingService {
         !ParticipantRepo.exists(participantId).orDie().onFalseFail { ParticipantError.ParticipantNotFound }
 
         val trackingId = UUID.randomUUID()
+        !lockChain(participantId, eventId)
         val existing = !ParticipantTrackingRepo.get(participantId, eventId).orDie()
 
         !checkSequence(
@@ -174,6 +188,7 @@ object ParticipantTrackingService {
             record == null || record.participant != participantId || record.event != eventId
         ) { ParticipantTrackingError.TrackingEntryNotFound }
 
+        !lockChain(participantId, eventId)
         val existing = !ParticipantTrackingRepo.get(participantId, eventId).orDie()
 
         !checkSequence(

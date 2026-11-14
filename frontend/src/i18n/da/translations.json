@@ -1,8 +1,24 @@
 {
+  "notFound": {
+    "title": "Siden blev ikke fundet",
+    "description": "Denne adresse findes ikke (længere). Linket er måske forældet eller indeholder en tastefejl.",
+    "home": "Til startsiden",
+    "appHome": "Til hjælper-appen"
+  },
+  "routeError": {
+    "title": "Noget gik galt",
+    "description": "Denne side kunne ikke vises. Prøv venligst igen.",
+    "chunkTitle": "Ny version tilgængelig",
+    "chunkDescription": "Programmet er blevet opdateret. Genindlæs venligst siden for at bruge den aktuelle version.",
+    "reload": "Genindlæs",
+    "home": "Til startsiden",
+    "displayRetrying": "Visningen genindlæses …"
+  },
   "common": {
     "no": "Nej",
     "cancel": "Annuller",
     "close": "Luk",
+    "reload": "Genindlæs",
     "confirmation": {
       "title": "Bekræftelse påkrævet",
       "content": "Bekræft venligst udførelsen af den valgte handling"
@@ -16,6 +32,7 @@
     "deselectAll": "Fravælg alle",
     "error": {
       "unexpected": "Der opstod en uventet fejl. Prøv venligst igen senere.",
+      "network": "Ingen forbindelse til serveren. Kontroller internetforbindelsen, og prøv igen.",
       "tooManyRequests": "For mange forsøg. Prøv igen om {{val, relativetime(minute)}}.",
       "upload": {
         "unsupportedType": "Denne filtype understøttes ikke.",
@@ -136,6 +153,15 @@
     "add": "Tilføj",
     "submit": "Indsend",
     "for": "for"
+  },
+  "ui": {
+    "retry": "Prøv igen",
+    "loading": "Indlæser …",
+    "loadError": "Dataene kunne ikke indlæses."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Brødkrummesti",
+    "showPath": "Vis hele stien"
   },
   "csv": {
     "wizard": {
@@ -353,7 +379,28 @@
     },
     "delete": {
       "success": "{{entity}} slettet",
-      "error": "Der opstod en fejl - {{entity}} blev ikke slettet"
+      "error": "Der opstod en fejl - {{entity}} blev ikke slettet",
+      "confirmTitle": "Slet {{entity}}?",
+      "confirmNamed": "„{{name}}“ slettes permanent. Det kan ikke fortrydes.",
+      "confirmGeneric": "Posten slettes permanent. Det kan ikke fortrydes."
+    },
+    "discard": {
+      "title": "Kassér ændringer?",
+      "content": "Dine indtastninger er endnu ikke gemt og går tabt, når du lukker.",
+      "ok": "Kassér",
+      "keep": "Fortsæt redigering"
+    },
+    "empty": {
+      "title": "Ingen poster endnu.",
+      "search": "Ingen resultater for „{{query}}“.",
+      "resetSearch": "Nulstil søgning"
+    },
+    "search": {
+      "clear": "Ryd søgning"
+    },
+    "card": {
+      "more": "Flere oplysninger ({{count}})",
+      "less": "Vis mindre"
     },
     "description": "Beskrivelse",
     "createdAt": "Oprettet den",
@@ -372,20 +419,47 @@
     "remark": "Bemærkning",
     "color": "Farve"
   },
+  "nav": {
+    "mainLabel": "Hovednavigation",
+    "management": "Administration",
+    "event": {
+      "areasLabel": "Arrangementets områder",
+      "fallbackName": "Arrangement",
+      "sectionSelect": "Område",
+      "groups": {
+        "preparation": "Forberedelse",
+        "registration": "Tilmelding",
+        "raceDay": "Løbsdag",
+        "followUp": "Opfølgning"
+      },
+      "sections": {
+        "general": "Oversigt",
+        "competitions": "Konkurrencer og dage",
+        "settings": "Indstillinger",
+        "registrations": "Tilmeldinger",
+        "participants": "Deltagere",
+        "invoices": "Fakturaer",
+        "schedule": "Tidsplan",
+        "betrieb": "Drift",
+        "organization": "Team og hjælpere",
+        "results": "Resultater og diplomer"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Start",
-      "dashboard": "Dashboard",
+      "dashboard": "Overblik",
       "events": "Arrangementer",
-      "competitionConfig": "Konkurrenceindstillinger",
       "roles": "Roller",
       "users": "Brugere",
-      "config": "Konfigurationer",
+      "config": "Skabeloner og stamdata",
       "clubs": "Klubber",
       "myClub": "Min klub",
       "invoices": "Fakturaer",
-      "administration": "Administration",
-      "material": "Materiel"
+      "administration": "System",
+      "material": "Materiel",
+      "materialAdmin": "Materieludlejning"
     },
     "sidebar": {
       "expand": "Udvid sidebjælke",
@@ -393,6 +467,18 @@
     }
   },
   "dashboard": {
+    "currentEvents": {
+      "title": "Aktuelle arrangementer",
+      "all": "Alle arrangementer",
+      "empty": "Endnu ingen arrangementer oprettet",
+      "linksLabel": "Genveje til {{name}}",
+      "status": {
+        "running": "I gang",
+        "upcoming": "Kommende",
+        "past": "Afsluttet",
+        "undated": "Uden dato"
+      }
+    },
     "registration": {
       "showMessage": "Vis besked"
     },
@@ -409,7 +495,23 @@
       "empty": "Ingen åbne opgaver"
     }
   },
+  "quickJump": {
+    "label": "Hurtigspring",
+    "placeholder": "Spring til …",
+    "open": "Åbn hurtigspring (tast /)",
+    "close": "Luk hurtigspring",
+    "groups": {
+      "sections": "Områder",
+      "competitions": "Konkurrencer",
+      "events": "Arrangementer"
+    },
+    "loading": "Søger …",
+    "noResults": "Ingen resultater",
+    "typeMore": "Skriv mindst to tegn",
+    "error": "Søgningen mislykkedes."
+  },
   "club": {
+    "editClub": "Rediger klub",
     "tabs": {
       "clubs": "Klubber",
       "shortNames": "Korte navne",
@@ -487,6 +589,7 @@
     "participants": "Medlemmer",
     "representative": {
       "representatives": "Administration",
+      "noRepresentatives": "Ingen er endnu registreret for denne klub.",
       "pendingApprovals": "Afventer godkendelser",
       "approve": {
         "approve": "Godkend",
@@ -666,6 +769,7 @@
     "name": "Navn",
     "description": "Beskrivelse",
     "registerNow": "Til tilmelding",
+    "registerEdit": "Se og ændr tilmelding",
     "registerHere": {
       "1": " ",
       "2": "Her",
@@ -719,6 +823,7 @@
       "shortLabels": "Korte navne i stedet for fulde konkurrencenavne",
       "compact": "Kompakt visning",
       "deviceHint": "Alle indstillinger gælder kun for denne enhed.",
+      "jumpTo": "Gå til",
       "execution": {
         "title": "Gennemførelse",
         "hint": "Hvordan løb afsluttes og følgende runder oprettes på løbsdagen, og hvor ofte gennemførelsessiden holder sig opdateret. Gælder for hele arrangementet, ikke kun denne enhed."
@@ -756,7 +861,7 @@
     },
     "eventDay": {
       "eventDay": "Dag",
-      "eventDays": "Dage",
+      "eventDays": "Arrangementsdage",
       "date": "Dato",
       "name": "Navn",
       "description": "Beskrivelse",
@@ -772,6 +877,22 @@
         "filter": "Filtrér",
         "showShortNames": "Vis korte navne",
         "showLongNames": "Vis lange navne"
+      },
+      "page": {
+        "tabs": {
+          "general": "Generelt",
+          "registrations": "Tilmeldinger",
+          "teams": "Hold",
+          "setup": "Rundestruktur",
+          "timing": "Tidtagning",
+          "execution": "Afvikling",
+          "places": "Placeringer"
+        },
+        "notFound": "Denne konkurrence findes ikke eller er ikke synlig for dig.",
+        "loadError": "Konkurrencen kunne ikke indlæses.",
+        "previous": "Forrige konkurrence",
+        "next": "Næste konkurrence",
+        "navigationLabel": "Skift mellem konkurrencer"
       },
       "noCompetitionsAvailable": "Ingen konkurrencer tilgængelige",
       "identifier": "Identifikator",
@@ -929,7 +1050,7 @@
         }
       },
       "setup": {
-        "setup": "Konkurrenceforløb",
+        "setup": "Rundestruktur",
         "save": {
           "save": "Gem",
           "error": "Der opstod en fejl - konkurrenceforløbet kunne ikke gemmes",
@@ -1041,6 +1162,20 @@
       "execution": {
         "tabTitle": "Afvikling",
         "pairingsRecalculated": "Parring genberegnet",
+        "moreActions": {
+          "label": "Flere handlinger",
+          "roundLabel": "Flere handlinger for runden",
+          "resultsXls": "Importér resultat fra XLS-fil",
+          "resultsRaceClocker": "Hent resultat fra RaceClocker",
+          "resultsRaceClockerFile": "Importér resultat fra RaceClocker-fil",
+          "startListPdf": "Download startliste (PDF)",
+          "startListCsv": "Download startliste (CSV)",
+          "setClarification": "Sæt løb under afklaring"
+        },
+        "noRounds": {
+          "title": "Der er endnu ikke oprettet nogen runde",
+          "description": "Den første runde trækkes fra konkurrenceforløbet via „Opret næste runde“."
+        },
         "progress": {
           "error": "Kampene i konkurrencen kunne ikke indlæses."
         },
@@ -1082,8 +1217,9 @@
           "action": "Nulstil løb",
           "confirmation": {
             "title": "Nulstil løb?",
-            "warning": "Advarsel: Dette løb nulstilles til ”aldrig kørt”. Uigenkaldeligt mistes: den faktiske start, alle mål- og mellemtider, alle placeringer, diskvalifikationer og tidsstraffe for dette løb.",
+            "warning": "Advarsel: Dette løb nulstilles til ”aldrig kørt”. Slettes: den faktiske start, alle mål- og mellemtider, alle placeringer, diskvalifikationer og tidsstraffe for dette løb. Ved ekstern tidtagning eller manuel indtastning kan de ikke gendannes; ved intern tidtagning se nedenfor.",
             "keeps": "Bevares: opstilling, baner og bådenes id'er — RaceClocker-tilknytningen forbliver gyldig, og løbet kan køres igen med det samme.",
+            "marks": "Intern tidtagning: De tidsmarkeringer, der er registreret ved posterne, bevares og forbliver knyttet til dette løb; mellemtider beregnes igen ud fra dem. Skal løbet startes igen ved posterne, vælg „Fortryd start og start igen“ i løbets menu dér – det kasserer hele forsøget inklusive markeringerne.",
             "autoPull": "Den automatiske RaceClocker-hentning sættes på pause for dette løb — ellers ville næste hentning straks genindlæse de slettede resultater. Efter oprydning i RaceClocker genoptages bevidst via ”Genoptag automatisk hentning”.",
             "question": "Vil du virkelig nulstille løbet?"
           },
@@ -1123,7 +1259,8 @@
           "place": "Placering",
           "time": "Tid",
           "placeAndTime": "Placering/Tid/Straf",
-          "manageRunning": "Administrer igangværende kampe",
+          "match": "Kamp",
+          "manageRunning": "Administrer igangværende løb",
           "running": "Kører",
           "roundAndMatch": "Runde {{round}}, kamp {{match}}",
           "activated": "Ved start",
@@ -1142,6 +1279,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "Løbet er allerede afsluttet. Det kan genåbnes med „Fortryd afslutning“ eller „Nulstil løb“.",
             "hasPlaces": "Kørselstatus kan ikke ændres for kampe med resultater",
             "update": "Fejl ved opdatering af kørselstatus"
           },
@@ -1189,12 +1327,6 @@
             }
           },
           "upload": "Upload resultater",
-          "type": {
-            "form": "med indtastningsformular",
-            "XLS": "som XLS-fil",
-            "RACECLOCKER": "hent fra RaceClocker",
-            "RACECLOCKER_FILE": "fra RaceClocker (fil)"
-          },
           "error": {
             "notConfigured": "Der er ikke registreret et resultatimportpreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\".",
             "WRONG_TEAM_COUNT": "Antallet af hold stemmer ikke - læst: {{actual}}, forventet: {{expected}}",
@@ -1299,11 +1431,6 @@
           }
         },
         "startList": {
-          "download": "Download startliste",
-          "type": {
-            "PDF": "som PDF",
-            "CSV": "som CSV"
-          },
           "error": {
             "missingStartTime": "Der er endnu ikke sat en starttid for denne kamp.",
             "notConfigured": "Der er ikke registreret et startlistepreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\"."
@@ -1375,7 +1502,8 @@
           "warning": {
             "missingDistance": "Mindst én valgt post mangler meteren.",
             "overDistance": "Mindst én post står længere ude end konkurrencens samlede distance ({{distance}} m).",
-            "duplicateDistance": "To poster står ved samme meter."
+            "duplicateDistance": "To poster står ved samme meter.",
+            "orphaned": "En tildeling ved {{distance}} m peger på en post, der ikke længere findes eller siden er blevet en tavlepost. Den skrives ikke længere med, når der gemmes."
           }
         }
       },
@@ -1392,7 +1520,6 @@
       "info": "Hvis der ikke angives en eksplicit kolonne til kontrol af deltagelsesbetingelsen, godkendes alle matchende deltagere i filen.",
       "approved": "Kontrollerede betingelser",
       "checkUpload": "Sammenlign betingelser",
-      "checkManually": "Kontrollér \"{{name}}\"",
       "file": "CSV-fil",
       "charset": "Tegnsæt",
       "separator": "Separator",
@@ -1417,6 +1544,13 @@
         "ok": "Ja",
         "cancel": "Nej"
       },
+      "checkManuallyAction": "Kontrollér manuelt …",
+      "checkManuallyDialog": {
+        "title": "Kontrollér betingelse manuelt",
+        "requirement": "Betingelse",
+        "chooseFirst": "Vælg først den betingelse, der skal kontrolleres.",
+        "noRequirements": "Der er ingen aktive betingelser for dette arrangement."
+      },
       "openExportAction": "Eksportér manglende betingelser",
       "openExport": {
         "title": "Eksportér manglende betingelser",
@@ -1433,8 +1567,9 @@
       },
       "log": {
         "title": "Log over krav",
-        "action": "Log over alle krav",
-        "actionFor": "Log: {{name}}",
+        "openAction": "Log …",
+        "filter": "Betingelse",
+        "allRequirements": "Alle betingelser",
         "empty": "Ingen ændringer logget endnu.",
         "when": "Hvornår",
         "action_col": "Hvad",
@@ -1475,13 +1610,13 @@
           "keep": "Behold tildelte startnumre",
           "hint": "Hvis startnumrene beholdes, får kun de nye hold/deltagere tilfældige startnumre. Disse vil være højere end den nuværende højeste i konkurrencen. Hvis de ikke beholdes, blandes alle startnumre på ny."
         },
+        "reshuffle": "Dette blander alle startnumre på ny",
+        "success": "Tilmeldinger afsluttet",
         "alignMaterialNumbers": "Tildel startnumre efter bådnumre",
         "material": {
           "openRequestsHint_one": "{{count}} materialeanmodning er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
           "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt."
-        },
-        "reshuffle": "Dette blander alle startnumre på ny",
-        "success": "Tilmeldinger afsluttet"
+        }
       }
     },
     "assign": {
@@ -1545,7 +1680,7 @@
       },
       "registration": "Tilmelding",
       "registrations": "Tilmeldinger",
-      "addParticipant": "Tilføj medlem",
+      "addParticipant": "Opret ny person",
       "singleCompetition": "Individuel konkurrence",
       "teamCompetition": "Holdkonkurrence",
       "males": "Mænd",
@@ -1561,16 +1696,21 @@
       },
       "optionalFee": "Valgfrit",
       "totalFees": "Tilmeldingsgebyr",
-      "lateTotalFees": "Eftertilmeldingsgebyr",
+      "lateTotalFees": "Gebyr for eftertilmelding",
       "acceptDocuments": "Jeg accepterer følgende:",
       "infoDocuments": "Yderligere information",
-      "finish": "Indsend tilmelding",
+      "finish": "Send tilmelding",
       "success": {
-        "title": "Tilmeldt!",
-        "subtitle": "Du modtager en bekræftelse via e-mail."
+        "title": "Tilmelding gemt",
+        "subtitle": "Du modtager en bekræftelse via e-mail.",
+        "toEvent": "Til arrangementet",
+        "editRegistration": "Se og redigér tilmelding",
+        "entries_one": "{{count}} tilmelding er modtaget.",
+        "entries_other": "{{count}} tilmeldinger er modtaget.",
+        "amount": "Tilmeldingsgebyr for denne indsendelse: {{amount}}."
       },
       "error": {
-        "closed": "Tilmeldingen til dette arrangement er lukket",
+        "closed": "Tilmeldingsfristen er udløbet: der kan ikke længere tilmeldes til denne begivenhed.",
         "participantUpsertNotFound": "Deltager ikke fundet i deltagerlisten",
         "teamParticipantNotFound": "Hold-deltager kunne ikke findes",
         "competitionNotFound": "Konkurrence ikke fundet",
@@ -1607,6 +1747,80 @@
           "invalidAddress": "Ikke en gyldig adresse: {{address}}",
           "recipientGone": "En tilmelder har ikke længere en bruger. Åbn dialogen igen."
         }
+      },
+      "page": {
+        "title": "Tilmelding"
+      },
+      "messageHint": "En besked til arrangøren, f.eks. om både eller reserver.",
+      "lockedHint": "Allerede bindende tilmeldt – kan ikke ændres efter tilmeldingsfristen.",
+      "noLateRegistration": "Eftertilmelding er ikke mulig til denne konkurrence.",
+      "selectedCount_one": "{{count}} konkurrence",
+      "selectedCount_other": "{{count}} konkurrencer",
+      "selectAllSingles": "Alle personer til alle konkurrencer",
+      "deselectAllSingles": "Fjern alle enkelttilmeldinger",
+      "teamNumber": "Hold {{number}}",
+      "noTeamYet": "Intet hold tilmeldt endnu.",
+      "addTeam": "Tilmeld hold",
+      "steps": {
+        "participants": {
+          "label": "Deltagere",
+          "hint": "Alle personer i din klub. Kontroller oplysningerne og opret manglende personer. Hvem der starter hvor, vælger du i de næste trin.",
+          "empty": "Din klub har endnu ingen deltagere. Opret de personer, du vil tilmelde."
+        },
+        "single": {
+          "label": "Enkeltkonkurrencer",
+          "hint": "Sæt flueben ved de konkurrencer, hver person skal starte i. Tilvalg og vurderingskategori vises efter afkrydsning.",
+          "empty": "Der er endnu ingen deltagere. Opret personer i første trin."
+        },
+        "team": {
+          "label": "Holdkonkurrencer",
+          "hint": "Tilmeld et eller flere hold pr. konkurrence og vælg besætningen. Hver person kan kun tilmeldes én gang pr. konkurrence."
+        },
+        "summary": {
+          "label": "Kontroller & send",
+          "hint": "Kontroller, hvem der er tilmeldt hvor, og hvad det koster. Der gemmes først, når du trykker på \"Send tilmelding\"."
+        },
+        "progress": "Trin {{current}} af {{total}}: {{label}}",
+        "next": "Videre: {{step}}"
+      },
+      "search": {
+        "placeholder": "Søg person (navn, årgang)",
+        "onlyRegistered": "Kun tilmeldte",
+        "count": "{{shown}} af {{total}} personer",
+        "noMatch": "Ingen person passer til søgningen."
+      },
+      "phase": {
+        "late": "Eftertilmelding: nye tilmeldinger koster eftertilmeldingsgebyret; eksisterende tilmeldinger er låst, og ikke alle konkurrencer tager imod eftertilmeldinger.",
+        "closed": "Tilmeldingsfristen er udløbet: der kan ikke længere tilmeldes eller ændres."
+      },
+      "errorSummary": {
+        "title_one": "Kontroller {{count}} oplysning",
+        "title_other": "Kontroller {{count}} oplysninger",
+        "teamMembers": "Besætning",
+        "confirmation": "Bekræftelse af dokumenter",
+        "unknown": "Oplysning",
+        "goTo": "Til \"{{step}}\"",
+        "more_one": "… og {{count}} mere",
+        "more_other": "… og {{count}} flere"
+      },
+      "review": {
+        "nothingSelected": "Du har endnu ikke tilmeldt nogen til en konkurrence. Du kan stadig sende for at gemme nyoprettede personer.",
+        "entriesSingle_one": "{{count}} person",
+        "entriesSingle_other": "{{count}} personer",
+        "entriesTeam_one": "{{count}} hold",
+        "entriesTeam_other": "{{count}} hold",
+        "noMembers": "(besætning endnu tom)",
+        "locked": "bindende",
+        "late": "eftertilmelding",
+        "lockedNotCounted": "Bindende tilmeldinger er allerede afregnet og ikke medregnet her.",
+        "newParticipants_one": "{{count}} person oprettes",
+        "newParticipants_other": "{{count}} personer oprettes",
+        "changedParticipants_one": "{{count}} person ændres",
+        "changedParticipants_other": "{{count}} personer ændres"
+      },
+      "leave": {
+        "content": "Din tilmelding er endnu ikke sendt. Hvis du forlader siden nu, går dine indtastninger tabt.",
+        "ok": "Forlad"
       }
     },
     "participants": "Deltagere",
@@ -1614,8 +1828,7 @@
       "general": "Generelt",
       "registrations": "Tilmeldinger",
       "settings": "Indstillinger",
-      "actions": "Handlinger",
-      "organisation": "Organisation",
+      "organisation": "Team og hjælpere",
       "invoices": "Fakturaer",
       "betrieb": "Drift"
     },
@@ -1758,10 +1971,10 @@
         },
         "intervalSeconds": "Startinterval (sekunder)",
         "intervalHelp": "Lad feltet stå tomt, hvis hver start udløses manuelt. Med en værdi følger starterne automatisk med dette interval (enkeltstart mod uret).",
-        "invalidInterval": "Intervallet skal være mindst 1 sekund — eller stå tomt for manuel start.",
+        "invalidInterval": "Intervallet skal være et helt tal på mindst 1 sekund — eller stå tomt for manuel start.",
         "leadInSeconds": "Nedtælling før start (sekunder)",
         "leadInHelp": "Nedtælling før den (første) start.",
-        "invalidLeadIn": "Angiv venligst et antal sekunder på 0 eller mere.",
+        "invalidLeadIn": "Angiv venligst et helt antal sekunder på 0 eller mere.",
         "describe": {
           "interval": "interval {{seconds}} s",
           "manualStart": "manuel start",
@@ -1881,10 +2094,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Offentlige visninger",
-      "pageDescription": "Sammensæt boards til offentlige skærme: løb, lister, ur og infotekster frit arrangeret, tilgængelige via en fast URL.",
-      "manageInfoViews": "Administrér boards",
-      "manageStreamScenes": "Administrér livestream-scener",
       "pendingRound": "Løb endnu ikke fastsat",
       "freeSlot": "Programpunkt",
       "athleteBoard": {
@@ -1937,6 +2146,8 @@
         "runningPlain": "I gang",
         "partiallyScored": "Delvist bedømt {{scored}}/{{total}}",
         "awaitingFinish": "Afventer afslutning",
+        "clarification": "Afklaring",
+        "provisional": "foreløbigt · under afklaring",
         "finished": "Afsluttet",
         "cancelled": "Aflyst",
         "unscheduled": "Ikke planlagt",
@@ -1951,6 +2162,7 @@
         "counter": {
           "preparing": "{{n}} forbereder",
           "running": "{{n}} i gang",
+          "clarification": "{{n}} under afklaring",
           "open": "{{n}} åbne",
           "finished": "{{n}} afsluttet",
           "cancelled": "{{n}} aflyst"
@@ -1965,9 +2177,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Dommer-dashboard",
-      "pageDescription": "Live-visning for dommere med igangværende og kommende løb, deltagerkrav og fakturastatus.",
-      "open": "Åbn dommer-dashboard",
       "title": "Dommer-dashboard",
       "tabs": {
         "live": "Live",
@@ -2021,7 +2230,6 @@
         "notePreview": "Notat-forhåndsvisning ved bådlinjen",
         "showCrew": "Vis opstilling",
         "showChecks": "Vis kontroller",
-        "showMaterial": "Vis altid materiel",
         "readability": "Læsbarhed",
         "fontSize": {
           "label": "Skriftstørrelse",
@@ -2029,7 +2237,8 @@
           "large": "Stor",
           "xlarge": "Meget stor"
         },
-        "refresh": "Opdatering"
+        "refresh": "Opdatering",
+        "showMaterial": "Vis altid materiel"
       },
       "penaltyIncluded": "inkl. {{seconds}} s",
       "resultsCompleteWaiting": "Resultater komplette — venter på afslutning",
@@ -2055,6 +2264,20 @@
         "error": "Løbet kunne ikke ændres.",
         "errorReason": {
           "finishReservedForOffice": "Ved dette stævne afslutter regattakontoret løbene via tidsplanen. Løbet forbliver aktivt — meld til regattakontoret, at det er i mål."
+        },
+        "moreActions": "Flere handlinger"
+      },
+      "clarification": {
+        "sectionTitle": "Afklaring ({{n}})",
+        "set": "Under afklaring",
+        "resolve": "Ophæv afklaring",
+        "dialogTitle": "Sæt løbet under afklaring",
+        "reasonLabel": "Begrundelse",
+        "reasonPlaceholder": "Protest fra RK Hansa, baneberøring",
+        "submit": "Sæt under afklaring",
+        "since": "siden {{time}}",
+        "error": {
+          "alreadyFinished": "Løbet er allerede afsluttet."
         }
       },
       "substitution": {
@@ -2073,10 +2296,6 @@
         "startedAt": "startet {{time}}",
         "startNumberLabel": "Startnummer {{number}}",
         "boatLabel": "Båd {{number}}"
-      },
-      "material": {
-        "own": "egen båd",
-        "deviates": "afvigende"
       },
       "requirement": {
         "checkedAt": "Opfyldt {{time}}",
@@ -2129,6 +2348,15 @@
         },
         "saved": "Indstillinger gemt",
         "saveError": "Indstillingerne kunne ikke gemmes."
+      },
+      "connection": {
+        "live": "Live forbundet",
+        "polling": "Henter hvert {{seconds}}. s",
+        "offline": "Ingen forbindelse"
+      },
+      "material": {
+        "own": "egen båd",
+        "deviates": "afvigende"
       }
     },
     "schedule": {
@@ -2252,6 +2480,9 @@
       "importDialog": {
         "title": "Excel-import",
         "choose": "Vælg fil",
+        "templateHint": "Ved du ikke, hvordan filen skal være opbygget?",
+        "template": "Download eksempelfil",
+        "templateError": "Eksempelfilen kunne ikke downloades.",
         "replacesAll": "Importen erstatter alle eksisterende slots.",
         "runningWarning": "Den aktuelle tidsplan indeholder allerede påbegyndte eller afsluttede løb. Disse bliver også erstattet af importen.",
         "row": "Række",
@@ -2259,6 +2490,9 @@
         "text": "Tekst",
         "rowLinked": "Forbundet: {{target}}",
         "rowFree": "Fri slot",
+        "rowCompetitionNotFound": "Konkurrence ikke fundet — importeres som ledig plads",
+        "rowMatchNotFound": "Løb ikke fundet — konkurrencen har: {{available}}",
+        "rowMatchNotFoundEmpty": "Konkurrencen har ingen løb — importeres som ledig plads",
         "rowAmbiguous": "Ikke entydig — importeres som en fri slot",
         "rowDuplicate": "Duplikeret i filen — import blokeret",
         "summary_one": "{{count}} række i filen: {{linked}} forbundet, {{free}} planlagt som fri slot.",
@@ -2341,6 +2575,7 @@
           "preparing": "Forbereder",
           "running": "Kører",
           "awaitingFinish": "Venter på afslutning",
+          "clarification": "Afklaring",
           "linked": "Tilknyttet",
           "waiting": "Løb ikke sat endnu",
           "free": "Programpunkt",
@@ -2366,7 +2601,37 @@
     },
     "results": {
       "download": "Download tidligere resultater",
-      "downloadError": "Filen kunne ikke downloades."
+      "downloadError": "Filen kunne ikke downloades.",
+      "public": {
+        "title": "Offentlige resultater",
+        "description": "Resultatsiden for deltagere og publikum, tilgængelig uden login."
+      },
+      "documents": {
+        "title": "Download resultater og diplomer",
+        "description": "Resultatliste, ark til præmieoverrækkelse og vinderdiplomer som dokumenter til opslag, præmieoverrækkelse og arkiv."
+      },
+      "participation": {
+        "title": "Deltagerdiplomer",
+        "description": "Når challengen er slut: send diplomer til alle deltagere eller download dem for din egen klub."
+      }
+    },
+    "overview": {
+      "loadError": "Arrangementet kunne ikke indlæses.",
+      "notFound": "Dette arrangement findes ikke eller er ikke synligt for dig.",
+      "registration": {
+        "open": "Tilmelding åben",
+        "late": "Eftertilmelding",
+        "closed": "Tilmelding lukket"
+      },
+      "raceDay": {
+        "title": "Løbsdag",
+        "description": "Regattakontor, dommer-dashboard, speaker-board, skærme, livestream, tidtagning og hjælper-app er samlet under Drift.",
+        "open": "Til Drift"
+      },
+      "results": {
+        "description": "Offentlig resultatside, resultater til download og diplomer.",
+        "open": "Til Resultater og diplomer"
+      }
     },
     "ratingCategory": {
       "title": "Rangeringskategorier",
@@ -2410,6 +2675,8 @@
       "open": "Vis",
       "copyUrl": "Kopiér URL",
       "urlCopied": "URL kopieret",
+      "moveUp": "Flyt op",
+      "moveDown": "Flyt ned",
       "name": "Navn",
       "saveAndClose": "Gem og luk",
       "matchDetailFullscreen": "Speaker-feltet fylder altid hele boardet — kolonner og spænd har ingen virkning her",
@@ -2497,15 +2764,11 @@
         "showBirthYears": "Vis årgange",
         "showAdvancement": "Vis oprykningsregel",
         "showRegisteringClub": "Vis tilmeldende klub",
-        "showMaterial": "Vis bådmateriale",
         "backgroundColor": "Flisefarve",
         "borderColor": "Kantfarve",
         "colorRemove": "Fjern farve",
-        "backgroundColorHint": "Lyse farvetoner holder indholdet læseligt"
-      },
-      "material": {
-        "own": "egen båd",
-        "deviates": "afvigende"
+        "backgroundColorHint": "Lyse farvetoner holder indholdet læseligt",
+        "showMaterial": "Vis bådmateriale"
       },
       "columns": "Kolonner",
       "columnCount": "{{count}} kolonner",
@@ -2563,52 +2826,284 @@
           "title": "Denne visning er ikke frigivet",
           "hint": "Bed om et link med token, eller log ind. Linket findes i stævnets board-administration under “Del link”."
         }
+      },
+      "material": {
+        "own": "egen båd",
+        "deviates": "afvigende"
       }
     },
     "stream": {
-      "material": {
-        "own": "egen båd"
+      "startlist": "Startliste",
+      "nextUp": "Næste",
+      "laps": "Mellemtider",
+      "result": "Resultat",
+      "finishTicker": "Målgang",
+      "schedule": "Dagsprogram",
+      "courseImage": "Banebillede",
+      "scheduleTitle": "Næste løb",
+      "cancelled": "Aflyst",
+      "clock": {
+        "countdown": "Start om",
+        "running": "Løbstid",
+        "paused": "Pause"
       },
       "scenes": {
+        "title": "Scener",
+        "none": "Endnu ingen scener oprettet",
+        "create": "Opret scene",
+        "edit": "Rediger scene",
+        "saved": "Scene gemt",
+        "deleted": "Scene slettet",
+        "confirmDelete": "Vil du virkelig slette scenen „{{name}}“? Scenevisningen og et eventuelt delt link viser derefter intet mere.",
+        "open": "Vis",
+        "copyUrl": "Kopiér URL",
+        "urlCopied": "URL kopieret",
+        "name": "Navn",
+        "background": {
+          "label": "Baggrund",
+          "TRANSPARENT": "Transparent",
+          "CHROMA": "Chroma key"
+        },
+        "chromaColor": "Chroma-farve",
+        "safeAreaPercent": "Sikkerhedsmargen (%)",
+        "safeAreaPercentHint": "Kant hele vejen rundt, som ingen grafik overskrider — til sendeteknikkens billedudsnit.",
+        "validation": {
+          "name": "Navnet må ikke være tomt",
+          "safeAreaPercent": "Skal ligge mellem 0 og 100",
+          "chromaColor": "Hex-farve påkrævet (f.eks. #00FF00), så længe baggrunden er chroma key"
+        },
+        "graphicsCount": "{{enabled}}/{{total}} grafikker aktive",
+        "configureGraphics": "Konfigurer grafikker",
+        "trialMode": {
+          "label": "Prøvetilstand",
+          "active": "Prøvetilstand aktiv",
+          "hint": "Fodrer scenen med et simuleret demoløb uden at røre rigtige data.",
+          "on": "Prøvetilstand slået til",
+          "off": "Prøvetilstand slået fra",
+          "error": "Prøvetilstanden kunne ikke skiftes."
+        },
+        "share": {
+          "action": "Del link",
+          "title": "Del scenen „{{name}}“",
+          "description": "Linket bærer denne scenes enhedsadgang: En Wirecast-/OBS-kilde behøver ingen login. Samme scene giver altid samme link — indtil det trækkes tilbage her.",
+          "copy": "Kopiér link",
+          "copied": "Link kopieret",
+          "revokeHint": "Linket kan altid hentes her igen. Det gælder kun for denne ene scene — en anden scene skal have sit eget link.",
+          "error": "Linket kunne ikke oprettes.",
+          "again": "Opret nyt link",
+          "revoke": {
+            "action": "Træk link tilbage",
+            "success": "Link trukket tilbage",
+            "error": "Linket kunne ikke trækkes tilbage.",
+            "done": "Linket er trukket tilbage og ugyldigt. „Opret nyt link“ udsteder et nyt — allerede uddelte kilder viser derefter intet mere.",
+            "confirm": {
+              "title": "Træk linket tilbage?",
+              "content": "Det delte link til „{{name}}“ bliver straks ugyldigt; en kilde, der har indlæst det, viser intet ved næste hentning. Deles der igen, oprettes et NYT link."
+            }
+          }
+        },
         "graphicDialog": {
+          "title": "Grafikker – {{name}}",
+          "enabled": "Aktiv",
+          "placement": "Placering",
+          "size": {
+            "label": "Størrelse",
+            "COMPACT": "Kompakt",
+            "NORMAL": "Normal"
+          },
+          "displaySeconds": "Visningstid (sekunder)",
+          "listLength": "Antal rækker",
+          "numberRange": "Helt tal mellem {{min}} og {{max}}",
+          "image": "Billede",
+          "imageNone": "Intet billede valgt",
+          "imageHint": "Billeder uploades via stævnets dokumenter.",
+          "imageForbidden": "For at vælge et billede kræves læseret til stævnet (READ EVENT) — med ren stream-ret forbliver valget tomt. Grafikken kan alligevel aktiveres; den viser så foreløbig intet billede.",
+          "imageEmpty": "Endnu ingen dokumenter — upload først et billede via stævnets dokumenter.",
+          "imageLoadError": "Dokumenterne kunne ikke indlæses.",
+          "saved": "Grafikker gemt",
           "showMaterial": "Vis altid materiel"
+        },
+        "type": {
+          "STARTLIST": "Startliste",
+          "CLOCK": "Ur",
+          "LAPS": "Mellemtider",
+          "RESULT": "Resultat",
+          "FINISH_TICKER": "Målgangs-ticker",
+          "NEXT_UP": "Næste",
+          "SCHEDULE": "Dagsprogram",
+          "COURSE_IMAGE": "Banebillede"
+        },
+        "placement": {
+          "BOTTOM_CENTER": "Nederst i midten",
+          "BOTTOM_LEFT": "Nederst til venstre",
+          "BOTTOM_RIGHT": "Nederst til højre",
+          "TOP_LEFT": "Øverst til venstre",
+          "TOP_RIGHT": "Øverst til højre",
+          "SIDE_LEFT": "I siden til venstre",
+          "SIDE_RIGHT": "I siden til højre",
+          "FULL_CENTER": "Fuld skærm i midten"
         }
+      },
+      "director": {
+        "title": "Regi",
+        "back": "Tilbage til driften",
+        "fullscreen": "Fuld skærm",
+        "program": "Program",
+        "programHint": "Det, scenen sender lige nu",
+        "nothingOnAir": "Ingen grafik på skærmen lige nu.",
+        "scene": "Scene",
+        "shareLink": "Link til Wirecast",
+        "manageScenes": "Administrér scener",
+        "inactive": "Ikke aktive grafikker",
+        "inactiveHint": "Slå til under „Konfigurer grafikker“",
+        "forceHint": "Uden indhold viser tvunget visning intet.",
+        "sceneGone": "Denne scene findes ikke længere — den er slettet eller hører til et andet stævne.",
+        "health": {
+          "live": "Live",
+          "connecting": "Forbinder …",
+          "stale": "Ingen data i {{seconds}} s"
+        },
+        "feed": {
+          "onAir": "On air",
+          "ready": "Klar",
+          "off": "Fra",
+          "noFeed": "Intet indhold"
+        },
+        "reason": {
+          "noPreparing": "Intet løb under forberedelse.",
+          "noRunning": "Intet løb på vandet.",
+          "noSplit": "Endnu ingen mellemtid modtaget.",
+          "noResult": "Endnu intet afsluttet løb med resultat.",
+          "noFinish": "Endnu ingen båd i mål.",
+          "noSchedule": "Ingen kommende løb i programmet.",
+          "noImage": "Intet banebillede gemt.",
+          "unresolved": "Det valgte løb har intet indhold her."
+        },
+        "trial": {
+          "title": "Prøvetilstand",
+          "chip": "Prøvetilstand",
+          "off": "Fra – scenen viser rigtige data.",
+          "on": "Til – scenen viser et demoløb, ingen rigtige data.",
+          "retrigger": "Udløs fasen igen",
+          "retriggerHint": "Et klik på den aktive fase starter dens visninger forfra.",
+          "phase": {
+            "PREPARING": {
+              "label": "Ved broen",
+              "hint": "Startliste og „Næste“"
+            },
+            "COUNTDOWN": {
+              "label": "Startsekvens",
+              "hint": "Uret tæller 90 s ned"
+            },
+            "RUNNING": {
+              "label": "I løbet",
+              "hint": "Løbsur, endnu ingen markering"
+            },
+            "SPLIT": {
+              "label": "Mellemtid",
+              "hint": "Mellemtidsbånd i 8 s"
+            },
+            "FINISH": {
+              "label": "Målgang",
+              "hint": "To af fire i mål"
+            },
+            "FINISHED": {
+              "label": "Alle i mål",
+              "hint": "Ur fastfrosset, målgang fuld"
+            },
+            "RESULT": {
+              "label": "Resultat",
+              "hint": "Foreløbigt resultat i 20 s"
+            },
+            "IDLE": {
+              "label": "Tomgang",
+              "hint": "Kun dagsprogram og banebillede"
+            }
+          },
+          "confirmOn": "Slå prøvetilstand til? Scenens scene viser så et demoløb i stedet for rigtige data – også i den igangværende stream.",
+          "confirmOk": "Slå prøvetilstand til"
+        }
+      },
+      "panel": {
+        "title": "Kontrolpanel",
+        "open": "Åbn regi",
+        "sceneSelect": "Scene",
+        "noGraphics": "Denne scene har endnu ingen aktiveret grafik.",
+        "health": {
+          "stale": "Scenen „{{name}}“ har ikke haft data i {{seconds}} s"
+        },
+        "trialMode": {
+          "activeWarning": "Prøvetilstand aktiv — denne scene viser et simuleret demoløb, ingen rigtige data."
+        },
+        "status": {
+          "onAir": "On air",
+          "ready": "Klar",
+          "off": "Fra"
+        },
+        "overrideState": {
+          "AUTO": "Automatik",
+          "FORCED_ON": "Tvunget til",
+          "FORCED_OFF": "Tvunget fra"
+        },
+        "overrideAction": {
+          "AUTO": "Auto",
+          "FORCED_ON": "Til",
+          "FORCED_OFF": "Fra"
+        },
+        "matchPicker": {
+          "label": "Løb",
+          "current": "Aktuelt indhold"
+        },
+        "duration": {
+          "label": "Varighed",
+          "untilRevoked": "Indtil det trækkes tilbage",
+          "seconds": "{{seconds}} s"
+        }
+      },
+      "material": {
+        "own": "egen båd"
       }
     },
     "betrieb": {
-      "intro": "Alt det, regattaen køres med på løbsdagen — én brik pr. rolle. Fuldskærmsvisninger åbner i et nyt vindue.",
+      "intro": "Løbsdagens arbejdspladser, de mest brugte først. Fuldskærmsvisninger åbner i et nyt vindue.",
+      "raceOffice": {
+        "title": "Regattakontor",
+        "description": "Kald løb til start eller tag dem tilbage, og styr dagens forløb fra tidsplanen.",
+        "openSchedule": "Til tidsplanen"
+      },
       "referee": {
         "title": "Dommer",
-        "description": "Live-dashboardet viser igangværende og kommende løb, kontroller og afgørelser for dommerne.",
-        "open": "Åbn live-dashboard"
+        "description": "Ved broen: se igangværende og næste løb, tjek opstillingen, start og afslut løb eller sæt dem til afklaring.",
+        "open": "Åbn dommer-dashboard"
       },
       "speaker": {
         "title": "Speaker",
-        "description": "Speaker-visningen samler startlister, resultater og igangværende løb til speakeren.",
-        "open": "Åbn speaker-visning"
+        "description": "Til speakeren: aktuelt og næste løb, startliste, resultater og live-tidtagning på én skærm.",
+        "open": "Åbn speaker-board"
       },
       "timing": {
         "title": "Tidtagning",
-        "description": "Kontrolpult til tidtagningslederen på en bærbar, derunder posterne (start, mellemtid, mål) med direkte links: åbn registrering, startskærm for START-poster, \"Del til enhed\" for telefoner og skærme uden login.",
+        "description": "Kontrolpulten til tidtagningslederen på en bærbar; posterne på banen registrerer på telefonen.",
         "openLeitstand": "Åbn kontrolpult",
-        "mobileHint": "Til telefoner ved en post findes desuden den mobile indgangsside:",
-        "mobileLink": "Åbn mobil registrering"
+        "mobileLink": "Åbn mobil registrering",
+        "stationsHint": "Opret poster, åbn deres registrering eller del dem til en enhed via link."
       },
       "boards": {
         "title": "Offentlige visninger",
-        "description": "Boards til skærmene på stedet: løb, lister, ur og infotekster frit arrangeret, tilgængelige via en fast URL.",
+        "description": "Skærme på stedet: arrangér løb, resultater, ur og infotekster som boards.",
         "open": "Administrér boards"
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream-overlays til billedproduktionen: transparente scener til Wirecast/OBS, styret via kontrolpanelet.",
-        "open": "Administrér livestream"
+        "description": "Livestreamens regi: vælg scener, vis grafik og øv i prøvetilstand.",
+        "open": "Administrér livestream",
+        "openDirector": "Åbn regi"
       },
       "helpers": {
         "title": "Hjælpere",
-        "description": "Hjælper-appen til telefonen (QR-scanning, check-in/-ud, opgaver) og stævnets vagtplan.",
+        "description": "Hjælper-appen til telefonen (scanning, check-in/-ud, poster) og vagtplanen.",
         "openApp": "Åbn hjælper-app",
-        "shifts": "Til vagtplanen (organisation)"
+        "shifts": "Til vagtplanen (team og hjælpere)"
       }
     },
     "material": {
@@ -2668,6 +3163,7 @@
     "namedParticipantAssignments": "Tildelinger",
     "qrCodeRequirement": "QR-kode",
     "global": "Global",
+    "qrCodeRequired": "QR-kode påkrævet",
     "toggleQrCode": "Slå QR-kode-krav til/fra",
     "assignTo": "Tildel til {{name}}",
     "assignToWithQr": "Tildel til {{name}} (med QR-kode)",
@@ -2723,8 +3219,6 @@
     },
     "firstname": "Fornavn",
     "lastname": "Efternavn",
-    "materialProvider": "Materieludlejer",
-    "materialProviderNone": "Ingen udlejer",
     "birthYear": "Fødselsår",
     "password": {
       "password": "Adgangskode",
@@ -2765,6 +3259,13 @@
       "invitation": "Invitation",
       "pendingInvitations": "Afventende invitationer",
       "accept": "Accepter invitation",
+      "expiresAt": "Udløber den",
+      "withdraw": "Træk invitation tilbage",
+      "withdrawConfirm": "Træk invitationen til {{email}} tilbage? Det allerede sendte link bliver dermed ugyldigt. Personen kan derefter inviteres igen.",
+      "withdrawSuccess": "Invitation trukket tilbage",
+      "resend": "Send invitation igen",
+      "resendConfirm": "Send invitationen til {{email}} igen? Personen får et nyt link med syv dages frist, og linket fra den første mail bliver ugyldigt.",
+      "resendSuccess": "Invitation sendt igen",
       "hint": "Angiv venligst en adgangskode for den konto, der skal oprettes.",
       "submitPassword": "Accepter invitation",
       "userCreated": {
@@ -2860,7 +3361,9 @@
         },
         "invalid": "Den sendte formular var ugyldig"
       }
-    }
+    },
+    "materialProvider": "Materieludlejer",
+    "materialProviderNone": "Ingen udlejer"
   },
   "role": {
     "role": "Rolle",
@@ -2869,18 +3372,150 @@
     "name": "Navn",
     "description": "Beskrivelse",
     "rights": "Rettigheder",
+    "job": "Job",
+    "copyOf": "Kopi af",
+    "noTemplate": "Uden skabelon",
+    "static": "Foruddefineret",
+    "level": {
+      "label": "Niveau",
+      "SELF": "Egen konto",
+      "CLUB": "Klub",
+      "EVENT": "Arrangement",
+      "ORGANIZER": "Organisator",
+      "GLOBAL": "Alle"
+    },
+    "deviation": {
+      "added": "Tilføjet i forhold til jobbet",
+      "missing": "Mangler i forhold til jobbet"
+    },
+    "notAssignable": "Roller med rettigheder, du ikke selv har, kan ikke vælges her.",
     "error": {
-      "cannotAssign": "Rolle(r) kunne ikke tildeles brugeren"
+      "cannotAssign": "Rolle(r) kunne ikke tildeles brugeren",
+      "privilegesBeyondOwn": "Du kan kun tildele rettigheder, du selv har.",
+      "selfAssignment": "Ingen kan ændre sine egne roller."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Runs the installation. The only role that can see and assign superadmin accounts."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Everything except superadmin accounts."
+    },
+    "USER": {
+      "name": "Bruger",
+      "description": "Read and change own account. Held by every account."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Klubrepræsentant",
+      "description": "Own club, own registrations, invoices and results."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Konkurrenceledelse",
+      "description": "Event, competitions, execution and day-of team."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Tilmeldingskontor",
+      "description": "Review registrations and rebook."
+    },
+    "FINANCE": {
+      "name": "Kasse",
+      "description": "Invoices and bank accounts."
+    },
+    "JUDGE": {
+      "name": "Dommer",
+      "description": "Penalties, clarification, judge dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Tidtagning",
+      "description": "Stations, sequences and timing connection."
+    },
+    "ANNOUNCER": {
+      "name": "Speaker",
+      "description": "Boards and announcer dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Regi",
+      "description": "Livestream graphics and director board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Hjælper: betingelser",
+      "description": "Check participant requirements."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Hjælper: udlevering",
+      "description": "Issue wristbands and QR codes."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Hjælper: check-in",
+      "description": "Check-in, check-out and competition check."
+    },
+    "HELPER_CATERING": {
+      "name": "Hjælper: forplejning",
+      "description": "Serve catering."
+    },
+    "MATERIAL_PROVIDER": {
+      "name": "Materieludlejer",
+      "description": "Egen flåde, tilbud og forespørgsler for den tildelte udlejer. Tildeles via udlejertilknytningen på brugersiden."
+    }
+  },
+  "privilege": {
+    "action": {
+      "CREATE": "Opret",
+      "READ": "Læs",
+      "UPDATE": "Opdater",
+      "DELETE": "Slet"
+    },
+    "scope": {
+      "OWN": "Egen",
+      "EVENT": "Arrangement",
+      "GLOBAL": "Alle"
+    },
+    "resource": {
+      "USER": "Konti",
+      "EVENT": "Arrangementer",
+      "CLUB": "Klubber",
+      "REGISTRATION": "Tilmeldinger",
+      "INVOICE": "Fakturaer",
+      "SUBSTITUTION": "Rebookings",
+      "APP_EVENT_REQUIREMENT": "App: requirements",
+      "APP_QR_MANAGEMENT": "App: wristbands",
+      "APP_COMPETITION_CHECK": "App: competition check",
+      "APP_CATERER": "App: catering",
+      "APP_TIMING": "App: timing",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Resultater",
+      "LIVE_DASHBOARD": "Judge dashboard",
+      "BOARD": "Tavler",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Konfiguration",
+      "ROLE": "Roller",
+      "STAFF": "Rolletildeling",
+      "SYSTEM": "Installation",
+      "MATERIAL": "Materieludlejning"
     }
   },
   "configuration": {
-    "configuration": "Konfigurationer",
+    "configuration": "Skabeloner og stamdata",
     "tabs": {
-      "competitionTemplates": "Skabeloner konkurrence",
-      "eventElements": "Komponenter arrangement",
-      "competitionElements": "Komponenter konkurrence",
+      "competitionTemplates": "Konkurrenceskabeloner",
+      "competitionElements": "Konkurrenceelementer",
+      "listsTiming": "Startlister og tidtagning",
+      "eventElements": "Dokumenter og krav",
+      "organisation": "Organisation",
       "globalSettings": "Globale indstillinger",
-      "exportData": "Eksport / Import"
+      "exportData": "Eksport / Import",
+      "description": {
+        "competitionTemplates": "Skabeloner for konkurrencer og rundestrukturer, som kan genbruges i alle arrangementer.",
+        "competitionElements": "Byggesten til konkurrencer: kategorier, rangeringskategorier, deltagertyper og gebyrer.",
+        "listsTiming": "Formater til eksport af startlister og import af resultater samt referencer for tempoangivelser.",
+        "eventElements": "Dokumenttyper, dokument- og diplomskabeloner samt deltagerkrav.",
+        "organisation": "Arbejdstyper til vagtplanen, kontaktinformationer og bankforbindelser til fakturaer.",
+        "globalSettings": "Standardværdier, som alle arrangementer bruger.",
+        "exportData": "Eksportér og importér data via WebDAV."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Rangeringskategori",
@@ -3100,7 +3735,7 @@
   "qrCode": {
     "qrCode": "QR-kode",
     "value": "QR-kodeværdi",
-    "appUsersWithQrCode": "Brugere med QR-koder",
+    "appUsersWithQrCode": "Hjælpere med QR-kode",
     "edit": "Rediger QR-kode",
     "delete": "Slet QR-kode",
     "show": "Vis QR-kode",
@@ -3155,7 +3790,8 @@
   "qrScanner": {
     "cameraError": "Kameraet kunne ikke åbnes",
     "cameraErrorHint": "Kameraet bruges muligvis af en anden app, eller adgangen blev nægtet.",
-    "cameraRetry": "Genstart kameraet"
+    "cameraRetry": "Genstart kameraet",
+    "camera": "Kamera"
   },
   "qrEvents": {
     "operating": "I drift",
@@ -3211,6 +3847,12 @@
         "title": "Ukendt armbånd",
         "message": "Dette armbånd er ikke tildelt nogen. Kun armbåndsudleveringen må tildele armbånd."
       }
+    },
+    "stations": {
+      "lastUsed": "Senest brugt",
+      "loadError": "Posterne kunne ikke indlæses.",
+      "empty": "Endnu ingen poster oprettet",
+      "emptyHint": "Tidtagningsledelsen opretter posterne i arrangementets administration."
     },
     "header": {
       "settings": "Indstillinger"
@@ -3348,6 +3990,8 @@
       "noModeHint": "Der er ikke tildelt en tidtagningstype til dette løb — tilføj en i konkurrencens tidtagningsindstillinger, eller opsæt sekvensen manuelt.",
       "noStartSequenceHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Starttidspunktet kommer fra det manuelle stempel, ikke fra en sekvens.",
       "noStartSequenceNoCaptureHint": "Tidtagningstypen „{{mode}}“ startes ikke af appen: Dette løb sendes manuelt afsted, derfor er der intet nedtællingsvindue her. Den manuelle registreringsknap er skjult — dette board kan slet ikke registrere et starttidspunkt lige nu. Slå den til i stævnets tidtagningsindstillinger under „Manuel registrering ved startposten“; boardet følger med det samme.",
+      "sequenceNeedsLogin": "Startsekvensen kan kun styres, når man er logget ind. Denne enhed er forbundet via postlinket uden login – starttidspunktet kommer her fra det manuelle stempel.",
+      "sequenceNeedsLoginNoCapture": "Startsekvensen kan kun styres, når man er logget ind. Denne enhed er forbundet via postlinket uden login, og den manuelle registreringsknap er skjult – her kan der lige nu ikke registreres et starttidspunkt. Log ind, eller slå „Manuel registrering ved startposten“ til i stævnets tidtagningsindstillinger.",
       "noTeamsLeft": "Alle både i dette løb er allerede startet.",
       "allStarted": "Alle løb er startet — intet står åbent.",
       "start": "Start startsekvens",
@@ -3397,7 +4041,9 @@
       },
       "armed": {
         "title": "Sekvens klargjort",
-        "start": "Start sekvens"
+        "start": "Start sekvens",
+        "match": "Løb: {{match}}",
+        "otherMatch": "Ikke det løb, der vises ovenfor"
       },
       "running": {
         "finishing": "Afsluttes…",
@@ -3476,6 +4122,9 @@
         "title": "Ikke overførte tider",
         "description": "Disse tider blev afvist af serveren. Du kan overføre dem igen eller forkaste dem endeligt.",
         "item": "Post {{station}} · status {{status}}",
+        "reason": {
+          "noCredential": "Ingen adgang til dette stævne på denne enhed – log ind og prøv igen."
+        },
         "requeue": "Prøv igen",
         "discard": "Forkast endeligt",
         "discardConfirm": {
@@ -3501,6 +4150,12 @@
       },
       "markList": {
         "toggle": "Tidsliste ({{count}})"
+      },
+      "leave": {
+        "title": "Forlad posten?",
+        "sequenceRunning": "Startsekvensen fortsætter, men denne enhed afspiller så ikke længere nedtællingslydene.",
+        "ok": "Forlad posten",
+        "stay": "Bliv ved posten"
       },
       "audioHint": "Tryk én gang på skærmen, så nedtællingslydene kan afspilles.",
       "mark": {
@@ -3766,21 +4421,68 @@
     "createdAt": "Tidspunkt"
   },
   "landing": {
+    "hero": {
+      "overline": "Velkommen",
+      "title": "Arrangementer, resultater og live-status",
+      "subtitle": "Følg igangværende løb, find dine resultater eller tilmeld din klub til kommende arrangementer."
+    },
+    "sections": {
+      "running": "I gang nu",
+      "upcoming": "Kommende"
+    },
+    "actions": {
+      "results": "Resultater og live",
+      "details": "Detaljer",
+      "register": "Tilmeld",
+      "login": "Log ind"
+    },
+    "status": {
+      "live": "Live",
+      "registrationOpen": "Tilmelding åben",
+      "lateRegistrationOpen": "Eftertilmelding åben"
+    },
+    "empty": {
+      "title": "Ingen arrangementer lige nu",
+      "description": "Offentliggjorte arrangementer vises her."
+    },
     "smallScreen": {
       "to": {
         "where": "Hvad vil du se?",
         "app": "Hjælper-app",
-        "results": "Live-arrangementer",
+        "results": "Resultater og live",
         "desktop": "Desktopvisning"
       }
     },
-    "liveEventsLink": "Igangværende resultater"
+    "liveEventsLink": "Resultater og live"
   },
   "panic": {
+    "retry": "Prøv igen",
+    "retrying": "Genopretter forbindelsen …",
     "title": "Fejl",
     "text": "API-serveren kan ikke nås i øjeblikket. Prøv venligst igen senere. Hvis dette ikke ændrer sig, kontakt venligst en ansvarlig. Mange tak."
   },
   "results": {
+    "select": {
+      "subtitle": "Vælg et arrangement for at se resultater, live-status og tidsplan.",
+      "running": "I gang nu",
+      "upcoming": "Kommende",
+      "past": "Afsluttede",
+      "undated": "Uden dato",
+      "home": "Til forsiden"
+    },
+    "page": {
+      "overline": "Resultater og live",
+      "views": "Visninger",
+      "allCompetitions": "Alle konkurrencer",
+      "allEvents": "Alle arrangementer"
+    },
+    "ranking": {
+      "place": "Plads",
+      "team": "Hold",
+      "time": "Tid",
+      "startNumber": "Startnr.",
+      "crew": "Besætning"
+    },
     "tabs": {
       "results": "Resultater",
       "live": "Live",
@@ -3789,6 +4491,7 @@
     "matchResults": {
       "matchResults": "Resultater",
       "noResults": "Der findes endnu ingen resultater for denne konkurrence.",
+      "noResultsEvent": "Der er endnu ingen resultater for dette stævne.",
       "latestSection": "Senest afsluttet",
       "byCompetitionSection": "Efter konkurrence"
     },
@@ -3924,7 +4627,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP-konfiguration",
       "theme": "Tema-tilpasning",
@@ -4178,6 +4881,10 @@
     "selectEvent": "Vælg et stævne",
     "liveCount": "{{count}} live",
     "openBoard": "Åbn speaker-board",
+    "error": {
+      "feed_one": "En af de tre lister (program, igangværende løb, resultater) kunne ikke indlæses – tavlen er ufuldstændig. Den prøver videre.",
+      "feed_other": "{{count}} af de tre lister (program, igangværende løb, resultater) kunne ikke indlæses – tavlen er ufuldstændig. Den prøver videre."
+    },
     "tabs": {
       "timeline": "Tidslinje",
       "program": "Program",
@@ -4190,7 +4897,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Aflyst",
       "CLARIFICATION": "Under afklaring",
-      "clarificationShort": "Afklaring"
+      "clarificationShort": "Afklaring",
+      "PREPARING": "Forbereder",
+      "preparingShort": "Forb."
     },
     "timeline": {
       "empty": "Ingen løb med starttid fundet.",
@@ -4220,10 +4929,6 @@
       "yearShort": "Årg.",
       "failed": "DNF",
       "deregistered": "Afmeldt"
-    },
-    "material": {
-      "own": "egen båd",
-      "deviates": "afvigende"
     },
     "results": {
       "empty": "Ingen resultater endnu.",
@@ -4256,8 +4961,8 @@
       },
       "resetColors": "Nulstil farver",
       "turnaround": "Skiftetids-advarsel",
-      "showMaterial": "Vis altid materiel",
-      "resetAll": "Nulstil alt"
+      "resetAll": "Nulstil alt",
+      "showMaterial": "Vis altid materiel"
     },
     "dashboard": {
       "detailsTitle": "Løbsdetaljer",
@@ -4293,6 +4998,15 @@
       "progress": "Live",
       "started": "startet",
       "finished": "i mål"
+    },
+    "nextUp": "Næste",
+    "connection": {
+      "live": "Live forbundet",
+      "polling": "Henter hvert 30. s"
+    },
+    "material": {
+      "own": "egen båd",
+      "deviates": "afvigende"
     }
   },
   "material": {

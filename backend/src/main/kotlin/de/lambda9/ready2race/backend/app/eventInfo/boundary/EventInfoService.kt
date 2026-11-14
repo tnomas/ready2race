@@ -1,6 +1,8 @@
 package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchStatusLogic
+import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchStatusTeam
 import de.lambda9.ready2race.backend.app.club.boundary.ClubComposition
 import de.lambda9.ready2race.backend.app.club.boundary.ClubShortNameSettings
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
@@ -52,6 +54,20 @@ object EventInfoService {
 
     private val liveMatchesCache = ConcurrentHashMap<Pair<UUID, Int>, CachedLiveMatches>()
 
+    /**
+     * Die Tür der öffentlichen Info-Endpunkte: nur eine veröffentlichte Veranstaltung ist
+     * bekannt. Eine unveröffentlichte antwortet wie eine, die es nicht gibt
+     * ([EventInfoProblem.EventNotFound]) - die Anzeigen dürfen nicht verraten, was noch nicht
+     * angekündigt ist. Die inneren Überladungen (Board-Ansicht, Stream-Szene) prüfen das
+     * bewusst NICHT: dort steht eine Sitzung oder ein Geräte-Token davor, und eine Anzeige
+     * wird vor der Veröffentlichung eingerichtet und angesehen.
+     */
+    internal fun requirePublished(eventId: UUID): App<EventInfoProblem, Unit> = KIO.comprehension {
+        val published = !EventRepo.getPublished(eventId).orDie()
+        !KIO.failOn(published != true) { EventInfoProblem.EventNotFound(eventId) }
+        KIO.unit
+    }
+
     // Data Fetching Methods
 
 
@@ -73,7 +89,8 @@ object EventInfoService {
         // Sichtbarkeitsregel: ein Lauf, den die Ergebnisseite nicht zeigt, kommt auch hier
         // als leere Liste zurück.
         matchId: UUID? = null,
-    ): App<Nothing, ApiResponse.ListDto<LatestMatchResultInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<LatestMatchResultInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getLatestMatchResults(eventId, limit, competitionId, !clubShortNames(), matchId)
     }
 
@@ -129,7 +146,8 @@ object EventInfoService {
     fun getUpcomingCompetitionMatches(
         eventId: UUID,
         limit: Int = 10,
-    ): App<Nothing, ApiResponse.ListDto<UpcomingCompetitionMatchInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<UpcomingCompetitionMatchInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getUpcomingCompetitionMatches(eventId, limit, !clubShortNames())
     }
 
@@ -335,7 +353,8 @@ object EventInfoService {
         eventId: UUID,
         limit: Int = 10,
         includeClarification: Boolean = false,
-    ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
+        !requirePublished(eventId)
         getRunningMatches(eventId, limit, !clubShortNames(), includeClarification)
     }
 
@@ -344,9 +363,12 @@ object EventInfoService {
         limit: Int,
         clubShortNames: ClubShortNameSettings,
         includeClarification: Boolean = false,
+        matchIds: Collection<UUID>? = null,
     ): App<Nothing, ApiResponse.ListDto<RunningMatchInfo>> = KIO.comprehension {
 
-        val matches = !CompetitionMatchRepo.getRunningMatches(eventId, limit, includeClarification).orDie()
+        val matches = !CompetitionMatchRepo
+            .getRunningMatches(eventId, limit, includeClarification, matchIds)
+            .orDie()
 
         val result = matches.map { match ->
             val matchId = match[COMPETITION_MATCH.COMPETITION_SETUP_MATCH]!!
@@ -356,6 +378,10 @@ object EventInfoService {
                 java.time.Duration.between(it, LocalDateTime.now()).toMinutes()
             }
             val teams = !getRunningMatchTeams(matchId, clubShortNames)
+            // Die Klärung geht nur ein, wo sie bestellt ist - der öffentliche Weg liefert
+            // strittige Läufe gar nicht erst und soll auch über den Zustand nichts verraten.
+            val clarificationSince =
+                if (includeClarification) match[COMPETITION_MATCH.CLARIFICATION_SINCE] else null
 
             RunningMatchInfo(
                 matchId = matchId,
@@ -371,6 +397,17 @@ object EventInfoService {
                 clarification = if (includeClarification)
                     match[COMPETITION_MATCH.CLARIFICATION_SINCE] != null
                 else null,
+                state = MatchStatusLogic.matchStatus(
+                    activatedAt = match[COMPETITION_MATCH.ACTIVATED_AT],
+                    startTime = startTime,
+                    startedAt = startedAt,
+                    finishedAt = null,
+                    skipped = false,
+                    teams = teams.map {
+                        MatchStatusTeam(place = it.currentPosition, failed = it.failed, deregistered = it.deregistered)
+                    },
+                    clarificationSince = clarificationSince,
+                ).state,
                 placeName = null,
                 roundNumber = null,
                 roundName = match.get("round_name", String::class.java),
@@ -452,7 +489,8 @@ object EventInfoService {
     fun getLiveMatches(
         eventId: UUID,
         limit: Int,
-    ): App<Nothing, ApiResponse.Dto<LiveMatchesDto>> = KIO.comprehension {
+    ): App<EventInfoProblem, ApiResponse.Dto<LiveMatchesDto>> = KIO.comprehension {
+        !requirePublished(eventId)
         val now = LocalDateTime.now()
         val key = eventId to limit
 
@@ -492,6 +530,9 @@ object EventInfoService {
 
             // Laufen mehrere Abrufe gleichzeitig in dieses Fenster, rechnen sie doppelt und der
             // letzte gewinnt - bei Millisekunden Rechenzeit je Eintrag kein Grund für ein Lock.
+            // Abgelaufene Einträge fliegen beim Schreiben raus - der Schlüssel enthält das
+            // limit, ohne Aufräumen wüchse die Map mit jedem neuen Wert für immer.
+            liveMatchesCache.entries.removeIf { !AthleteBoardLogic.isCacheFresh(it.value.builtAt, now) }
             liveMatchesCache[key] = CachedLiveMatches(now, marker, dto)
 
             KIO.ok(dto)
@@ -686,7 +727,6 @@ object EventInfoService {
                                 lastName = record[PARTICIPANT.LASTNAME] ?: "",
                                 namedRole = record.get("named_role", String::class.java),
                                 year = record[PARTICIPANT.YEAR],
-                                gender = record[PARTICIPANT.GENDER]?.name,
                                 externalClubName = record[PARTICIPANT.EXTERNAL_CLUB_NAME],
                                 wornClubName = ClubComposition.clubWorn(
                                     external = record[PARTICIPANT.EXTERNAL],
@@ -741,7 +781,6 @@ object EventInfoService {
                                 lastName = record[PARTICIPANT.LASTNAME] ?: "",
                                 namedRole = record.get("named_role", String::class.java),
                                 year = record[PARTICIPANT.YEAR],
-                                gender = record[PARTICIPANT.GENDER]?.name,
                                 externalClubName = record[PARTICIPANT.EXTERNAL_CLUB_NAME],
                                 wornClubName = ClubComposition.clubWorn(
                                     external = record[PARTICIPANT.EXTERNAL],

@@ -11,7 +11,7 @@ import {
 import BaseDialog from '@components/BaseDialog.tsx'
 import {Trans, useTranslation} from 'react-i18next'
 import {DocumentType} from '@api/types.gen.ts'
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 import {downloadDocumentTemplateSample} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import FormInputLabel from '@components/form/input/FormInputLabel.tsx'
@@ -28,6 +28,12 @@ const DocumentTemplatePreviewDialog = (props: Props) => {
 
     const [selectedType, setSelectedType] = useState<DocumentType | ''>('')
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+    // Gibt die Blob-URL frei, sobald eine neue Vorschau sie ersetzt oder der Dialog zugeht.
+    useEffect(() => {
+        if (previewUrl === null) return
+        return () => URL.revokeObjectURL(previewUrl)
+    }, [previewUrl])
 
     const handleClose = () => {
         props.onClose()

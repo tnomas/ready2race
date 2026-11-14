@@ -8,15 +8,18 @@ import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.sessions.UserSession
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.routing.*
+import de.lambda9.ready2race.backend.plugins.rateLimitWithBodyKey
 import io.ktor.server.sessions.*
 
 fun Route.auth() {
     route("/login") {
-        rateLimit(RateLimitName("login")) {
+        rateLimitWithBodyKey(RateLimitName("login")) {
             post {
                 call.respondComprehension {
                     val body = !receiveKIO(LoginRequest.example)
-                    AuthService.login(body) { token ->
+                    // Passwortprüfung vor der Transaktion: Argon2 hält so keine Poolverbindung.
+                    val verified = !AuthService.verifyCredentials(body)
+                    AuthService.startSession(verified) { token ->
                         sessions.set(UserSession(token))
                     }
                 }
@@ -42,7 +45,7 @@ fun Route.auth() {
 
     get("/privileges") {
         call.respondComprehension {
-            !authenticate(Privilege.ReadUserGlobal)
+            !authenticate(Privilege.ReadRoleGlobal)
             AuthService.getAllPrivileges()
         }
     }

@@ -1,6 +1,6 @@
-import {Box, Button, Stack, Typography} from '@mui/material'
+import {Box, Stack, Typography} from '@mui/material'
 import {CheckCircleOutline, ErrorOutline} from '@mui/icons-material'
-import {Link} from '@tanstack/react-router'
+import {ButtonLink} from '@components/ui'
 import {PropsWithChildren} from 'react'
 import {useTranslation} from 'react-i18next'
 
@@ -13,21 +13,22 @@ type Props = {
 const RequestStatusResponse = ({children, ...props}: PropsWithChildren<Props>) => {
     const {t} = useTranslation()
     return (
-        <Stack spacing={4}>
+        <Stack spacing={3}>
             <Box sx={{display: 'flex', justifyContent: 'center'}}>
                 {(props.success && (
-                    <CheckCircleOutline color="success" sx={{height: 100, width: 100}} />
-                )) || <ErrorOutline color="error" sx={{height: 100, width: 100}} />}
+                    <CheckCircleOutline color="success" sx={{height: 64, width: 64}} />
+                )) || <ErrorOutline color="error" sx={{height: 64, width: 64}} />}
             </Box>
-            <Typography variant="h2" textAlign="center">
+            {/* Diese Seiten haben außer dem Ergebnis keinen anderen Titel: h1 mit h2-Größe. */}
+            <Typography variant="h2" component="h1" textAlign="center">
                 {props.header}
             </Typography>
             {children}
             {props.showLoginNavigation && (
                 <Box sx={{display: 'flex', justifyContent: 'center'}}>
-                    <Link to="/login">
-                        <Button variant="contained">{t('user.login.login')}</Button>
-                    </Link>
+                    <ButtonLink to="/login" variant="contained">
+                        {t('user.login.login')}
+                    </ButtonLink>
                 </Box>
             )}
         </Stack>

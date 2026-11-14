@@ -37,7 +37,8 @@ import {
 } from '@mui/icons-material'
 import {format} from 'date-fns'
 import {Link} from '@tanstack/react-router'
-import {eventRoute} from '@routes'
+import {eventIndexRoute, eventRoute} from '@routes'
+import {resolveScheduleDay, ScheduleDay} from '@utils/navigation/scheduleDay.ts'
 import {
     activateScheduleSlot,
     deleteScheduleSlot,
@@ -185,35 +186,60 @@ const EventSchedule = ({event}: Props) => {
     // der Server Änderungen sofort (entprellt); der Takt darunter bleibt als Sicherheitsnetz —
     // gestreckt, solange der Kanal steht, sonst wie bisher 30 Sekunden. Ein verdeckter Tab lädt
     // weiterhin nicht (der Kanal merkt sich Pushes und feuert beim Zurückkehren einmal).
-    const {connected: pushConnected} = useEventChangeSocket(eventId, () =>
-        setLastRequested(Date.now()),
-    )
+    //
+    // Solange ein Dialog offen ist (Slot bearbeiten, Verschieben, Vorziehen, Import), lädt die
+    // Automatik nicht nach: Der Dialog hält die Eingaben seines Nutzers und bekäme sonst unter
+    // den Händen neue Listen (Slots, ungeplante Läufe). Ein verpasster Abruf wird beim Schließen
+    // einmal nachgeholt. Eigene Aktionen (`reload`) laden weiterhin sofort.
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [shiftDialogOpen, setShiftDialogOpen] = useState(false)
+    // Der eben entfallene Slot, solange das Vorziehen angeboten wird - undefined heißt "kein
+    // offenes Angebot".
+    const [advanceSlot, setAdvanceSlot] = useState<EventScheduleSlotDto | undefined>(undefined)
+    const [importDialogOpen, setImportDialogOpen] = useState(false)
+    const anyDialogOpen =
+        dialogOpen || shiftDialogOpen || advanceSlot !== undefined || importDialogOpen
+    const anyDialogOpenRef = useRef(anyDialogOpen)
+    anyDialogOpenRef.current = anyDialogOpen
+    const missedAutoReloadRef = useRef(false)
+    const autoReload = () => {
+        if (anyDialogOpenRef.current) {
+            missedAutoReloadRef.current = true
+        } else {
+            setLastRequested(Date.now())
+        }
+    }
+    useEffect(() => {
+        if (!anyDialogOpen && missedAutoReloadRef.current) {
+            missedAutoReloadRef.current = false
+            setLastRequested(Date.now())
+        }
+    }, [anyDialogOpen])
+
+    const {connected: pushConnected} = useEventChangeSocket(eventId, autoReload)
     const safetyPollMs = stretchedPollMs(30_000, pushConnected)
     useEffect(() => {
         const id = window.setInterval(() => {
             if (document.visibilityState === 'visible') {
-                setLastRequested(Date.now())
+                autoReload()
             }
         }, safetyPollMs)
         return () => window.clearInterval(id)
     }, [safetyPollMs])
 
-    // Tages-Auswahl: null heißt "noch keine Wahl getroffen" - dann gewinnt der heutige Tag, wenn
-    // die Veranstaltung heute läuft, sonst alle Tage. Erst ein Klick legt die Wahl fest.
-    const [selectedDay, setSelectedDay] = useState<string | null>(null)
+    // Tages-Auswahl in der Adresse (`?day=all|YYYY-MM-DD`), damit Neuladen und Zurück den Tag
+    // behalten. Fehlt sie, gewinnt der heutige Tag, wenn die Veranstaltung heute läuft, sonst
+    // alle Tage (resolveScheduleDay). Erst ein Klick legt die Wahl fest; er ersetzt den
+    // Verlaufseintrag, statt für jeden Tageswechsel einen neuen anzulegen.
+    const {day: selectedDay} = eventIndexRoute.useSearch()
+    const navigate = eventIndexRoute.useNavigate()
+    const setSelectedDay = (day: ScheduleDay) =>
+        navigate({search: prev => ({...prev, day}), replace: true})
 
-    const [dialogOpen, setDialogOpen] = useState(false)
     const [editingSlot, setEditingSlot] = useState<EventScheduleSlotDto | undefined>(undefined)
     const [presetMatch, setPresetMatch] = useState<UnplannedSetupMatchDto | undefined>(undefined)
 
-    const [shiftDialogOpen, setShiftDialogOpen] = useState(false)
     const [shiftDaySlots, setShiftDaySlots] = useState<EventScheduleSlotDto[]>([])
-
-    // Der eben entfallene Slot, solange das Vorziehen angeboten wird - undefined heißt "kein
-    // offenes Angebot".
-    const [advanceSlot, setAdvanceSlot] = useState<EventScheduleSlotDto | undefined>(undefined)
-
-    const [importDialogOpen, setImportDialogOpen] = useState(false)
 
     // Geteilt mit dem Schiedsrichter-Board (siehe shortLabels.ts). Seit dem 11.08.2026 startet
     // auch der Zeitplan in der Kurzform - die vollen Wettkampfnamen sprengten jede Zeile, und wer
@@ -559,8 +585,11 @@ const EventSchedule = ({event}: Props) => {
     // 'all' oder ein Datum (YYYY-MM-DD). Die Vorauswahl spart den täglichen Klick: Wer den
     // Zeitplan am Renntag öffnet, will fast immer den heutigen Tag sehen.
     const today = format(new Date(), 'yyyy-MM-dd')
-    const effectiveDay =
-        selectedDay ?? (daySections.some(section => section.date === today) ? today : 'all')
+    const effectiveDay = resolveScheduleDay(
+        selectedDay,
+        daySections.map(section => section.date),
+        today,
+    )
     const visibleSections =
         effectiveDay === 'all'
             ? daySections
@@ -640,6 +669,7 @@ const EventSchedule = ({event}: Props) => {
                             gerade dann, warum sich der Modus hier nicht einschalten lässt. */}
                         <Box component={'span'}>
                             <IconButton
+                                aria-label={eventMode ? t('event.schedule.eventMode.disable') : t('event.schedule.eventMode.enable')}
                                 disabled={!wideEnoughForEventMode}
                                 color={eventMode ? 'primary' : 'default'}
                                 onClick={() => setEventModeStored(!eventModeStored)}>

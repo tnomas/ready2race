@@ -4,6 +4,8 @@ import {competitionRoute, eventRoute} from '@routes'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {useMemo, useRef, useState} from 'react'
+import {downloadNamed} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import EntityTable from '@components/EntityTable.tsx'
 import {
     Box,
@@ -16,7 +18,6 @@ import {
     DialogTitle,
     Divider,
     IconButton,
-    Link,
     Stack,
     Switch,
     Table,
@@ -87,8 +88,6 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
 
     const {eventId} = eventRoute.useParams()
     const {competitionId} = competitionRoute.useParams()
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const showChallengeError = (error: ExecutionApiError) => {
         feedback.error(
@@ -172,6 +171,22 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
             },
         )
     }
+
+    // Die Spalten hängen nur an Daten, die ihre Darstellung ändern (Sprache, Veranstaltung,
+    // Wettkampf, Rechte). Die Handler lesen sie über diesen Verweis zum Klickzeitpunkt, damit
+    // sich die Spalten nicht bei jedem Render neu aufbauen (Spaltenbreiten blieben sonst nicht
+    // erhalten) und trotzdem nie mit veralteten Handlern arbeiten.
+    const actions = useRef<{
+        openViewDocumentDialog: (
+            docId: string,
+            docName: string,
+            team: CompetitionRegistrationTeamDto,
+        ) => Promise<void>
+        handleDownloadResultDocument: (docId: string, docName: string) => Promise<void>
+        handleVerification: (id: string) => void
+        handleResultDelete: (id: string) => void
+        openResultsDialog: (entity: CompetitionRegistrationTeamDto) => void
+    } | null>(null)
 
     const columns: GridColDef<CompetitionRegistrationTeamDto>[] = useMemo(
         () => [
@@ -699,7 +714,7 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                                                                       docId
                                                                   ]
                                                               if (!docName) return
-                                                              void openViewDocumentDialog(
+                                                              void actions.current?.openViewDocumentDialog(
                                                                   docId,
                                                                   docName,
                                                                   row,
@@ -716,14 +731,18 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                                                                       docId
                                                                   ]
                                                               if (!docName) return
-                                                              void handleDownloadResultDocument(
+                                                              void actions.current?.handleDownloadResultDocument(
                                                                   docId,
                                                                   docName,
                                                               )
                                                           } else if (itemId === 'verify') {
-                                                              handleVerification(row.id)
+                                                              actions.current?.handleVerification(
+                                                                  row.id,
+                                                              )
                                                           } else if (itemId === 'delete') {
-                                                              handleResultDelete(row.id)
+                                                              actions.current?.handleResultDelete(
+                                                                  row.id,
+                                                              )
                                                           }
                                                       }}
                                                       items={[
@@ -814,7 +833,12 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                                                       </Typography>
                                                   }>
                                                   <IconButton
-                                                      onClick={() => openResultsDialog(row)}>
+                                                      aria-label={t(
+                                                          'event.competition.execution.results.challenge.submitResults',
+                                                      )}
+                                                      onClick={() =>
+                                                          actions.current?.openResultsDialog(row)
+                                                      }>
                                                       <Add />
                                                   </IconButton>
                                               </HtmlTooltip>
@@ -829,27 +853,27 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
                   ]
                 : []),
         ],
-        [isMobile],
+        [isMobile, t, eventData, competitionData, resultSubmissionAllowed, challengeResultTypeUnit],
     )
 
     const handleDownloadResultDocument = async (docId: string, docName: string) => {
-        const {data, error} = await downloadMatchTeamResultDocument({
-            path: {
-                eventId,
-                competitionId,
-                resultDocumentId: docId,
-            },
-        })
-        const anchor = downloadRef.current
+        // Dateiname ist hier der Name des Dokuments, nicht die Kopfzeile der Antwort.
+        const {data, error} = await runRequest(undefined, () =>
+            downloadMatchTeamResultDocument({
+                path: {
+                    eventId,
+                    competitionId,
+                    resultDocumentId: docId,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.competition.execution.results.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = docName
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (!downloadNamed(data, docName)) {
+            feedback.error(t('event.competition.execution.results.document.download.error'))
         }
     }
 
@@ -904,9 +928,16 @@ const CompetitionRegistrationTeamTable = ({eventData, competitionData, ...props}
         setViewDocumentTeam(null)
     }
 
+    actions.current = {
+        openViewDocumentDialog,
+        handleDownloadResultDocument,
+        handleVerification,
+        handleResultDelete,
+        openResultsDialog,
+    }
+
     return (
         <>
-            <Link ref={downloadRef} display={'none'}></Link>
             <EntityTable
                 {...props}
                 parentResource={'REGISTRATION'}

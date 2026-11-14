@@ -22,11 +22,14 @@ export interface StreamClockDisplay {
  * [streamClockState], Einfrieren beim ersten „alle Boote gewertet/ausgeschieden",
  * danach 5 s halten und ausfaden — erst danach verschwindet die Uhr ganz aus dem DOM.
  *
- * Der eingefrorene Wert wird EINMAL übernommen und danach nie wieder aus
- * `streamClockState` gelesen: die Funktion ist rein und kennt keine Historie — ein
- * weiterer Aufruf mit fortschreitender Zeit würde den „eingefrorenen" Wert einfach
- * weiterlaufen lassen (siehe deren KDoc). Deshalb stoppt der 100-ms-Ticker selbst,
- * sobald ein Freeze-Wert feststeht.
+ * Der Moment des Einfrierens wird EINMAL festgehalten (`frozenElapsedMs`) — er treibt
+ * Haltezeit und Fade-out, und der 100-ms-Ticker stoppt, sobald er feststeht. Angezeigt
+ * wird aber, solange die Bootszeiten den Wert tragen (`anchored`), der jeweils AKTUELL
+ * abgeleitete Wert: eine nachträglich korrigierte Zielzeit (6:06.8 → 6:10.0) erreicht so auch
+ * die Uhr. Nur der Rückfallwert ohne parsebare Bootszeit bleibt am festgehaltenen Moment —
+ * `streamClockState` ist rein und kennt keine Historie, dieser Wert liefe sonst weiter (siehe
+ * deren KDoc). Verlässt der Lauf die Phase `frozen` wieder (Wertung zurückgenommen), fällt der
+ * festgehaltene Moment weg und der Ticker läuft erneut.
  *
  * Ruhezustände (zwischen denen ausschließlich die Effekte unten wandern):
  * - UNMOUNTED  mounted=false, visible=false — kein Start gestempelt, oder ein
@@ -119,6 +122,8 @@ const useStreamClockDisplay = (
     useEffect(() => {
         if (liveState?.phase === 'frozen' && frozenElapsedMs === null) {
             setFrozenElapsedMs(liveState.elapsedMs)
+        } else if (liveState?.phase === 'running' && frozenElapsedMs !== null) {
+            setFrozenElapsedMs(null)
         }
     }, [liveState, frozenElapsedMs])
 
@@ -177,6 +182,9 @@ const useStreamClockDisplay = (
     if (!mounted) return {mounted: false, visible: false, text: null}
     if (liveState?.phase === 'countdown' && frozenElapsedMs === null) {
         return {mounted: true, visible, text: formatCountdown(liveState.remainingMs)}
+    }
+    if (liveState?.phase === 'frozen' && liveState.anchored) {
+        return {mounted: true, visible, text: formatElapsed(liveState.elapsedMs)}
     }
     const liveElapsedMs =
         liveState && (liveState.phase === 'running' || liveState.phase === 'frozen') ? liveState.elapsedMs : null

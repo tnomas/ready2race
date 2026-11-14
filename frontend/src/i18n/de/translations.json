@@ -1,8 +1,24 @@
 {
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Diese Adresse gibt es nicht (mehr). Vielleicht ist der Link veraltet oder enthält einen Tippfehler.",
+    "home": "Zur Startseite",
+    "appHome": "Zur Helfer-App"
+  },
+  "routeError": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Diese Seite konnte nicht angezeigt werden. Bitte versuchen Sie es erneut.",
+    "chunkTitle": "Neue Version verfügbar",
+    "chunkDescription": "Die Anwendung wurde aktualisiert. Bitte laden Sie die Seite neu, um die aktuelle Version zu verwenden.",
+    "reload": "Neu laden",
+    "home": "Zur Startseite",
+    "displayRetrying": "Anzeige wird neu geladen …"
+  },
   "common": {
     "no": "Nein",
     "cancel": "Abbrechen",
     "close": "Schließen",
+    "reload": "Neu laden",
     "confirmation": {
       "title": "Bestätigung erforderlich",
       "content": "Bitte bestätigen Sie das Ausführen der gewählten Aktion"
@@ -16,6 +32,7 @@
     "deselectAll": "Alle abwählen",
     "error": {
       "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+      "network": "Keine Verbindung zum Server. Bitte prüfen Sie die Internetverbindung und versuchen Sie es erneut.",
       "tooManyRequests": "Zu viele Versuche. Versuchen Sie es in {{val, relativetime(minute)}} erneut.",
       "upload": {
         "unsupportedType": "Dieser Dateityp wird nicht unterstützt.",
@@ -136,6 +153,15 @@
     "add": "Hinzufügen",
     "submit": "Absenden",
     "for": "für"
+  },
+  "ui": {
+    "retry": "Erneut versuchen",
+    "loading": "Wird geladen …",
+    "loadError": "Die Daten konnten nicht geladen werden."
+  },
+  "pageHeader": {
+    "breadcrumbs": "Seitenpfad",
+    "showPath": "Ganzen Pfad anzeigen"
   },
   "csv": {
     "wizard": {
@@ -353,7 +379,28 @@
     },
     "delete": {
       "success": "{{entity}} gelöscht",
-      "error": "Ein Fehler ist aufgetreten - {{entity}} nicht gelöscht"
+      "error": "Ein Fehler ist aufgetreten - {{entity}} nicht gelöscht",
+      "confirmTitle": "{{entity}} löschen?",
+      "confirmNamed": "„{{name}}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "confirmGeneric": "Der Eintrag wird endgültig gelöscht. Das lässt sich nicht rückgängig machen."
+    },
+    "discard": {
+      "title": "Änderungen verwerfen?",
+      "content": "Ihre Eingaben sind noch nicht gespeichert und gehen beim Schließen verloren.",
+      "ok": "Verwerfen",
+      "keep": "Weiter bearbeiten"
+    },
+    "empty": {
+      "title": "Noch keine Einträge vorhanden.",
+      "search": "Keine Treffer für „{{query}}“.",
+      "resetSearch": "Suche zurücksetzen"
+    },
+    "search": {
+      "clear": "Suche leeren"
+    },
+    "card": {
+      "more": "Weitere Angaben ({{count}})",
+      "less": "Weniger anzeigen"
     },
     "description": "Beschreibung",
     "createdAt": "Erstellt am",
@@ -372,20 +419,47 @@
     "remark": "Anmerkung",
     "color": "Farbe"
   },
+  "nav": {
+    "mainLabel": "Hauptnavigation",
+    "management": "Verwaltung",
+    "event": {
+      "areasLabel": "Bereiche der Veranstaltung",
+      "fallbackName": "Veranstaltung",
+      "sectionSelect": "Bereich",
+      "groups": {
+        "preparation": "Vorbereitung",
+        "registration": "Meldung",
+        "raceDay": "Renntag",
+        "followUp": "Nachbereitung"
+      },
+      "sections": {
+        "general": "Übersicht",
+        "competitions": "Wettkämpfe & Tage",
+        "settings": "Einstellungen",
+        "registrations": "Meldungen",
+        "participants": "Teilnehmende",
+        "invoices": "Rechnungen",
+        "schedule": "Zeitplan",
+        "betrieb": "Betrieb",
+        "organization": "Team & Helfer",
+        "results": "Ergebnisse & Urkunden"
+      }
+    }
+  },
   "navigation": {
     "titles": {
       "landing": "Start",
-      "dashboard": "Dashboard",
+      "dashboard": "Übersicht",
       "events": "Veranstaltungen",
-      "competitionConfig": "Wettkampf Einstellungen",
       "roles": "Rollen",
       "users": "Benutzer:innen",
-      "config": "Konfigurationen",
+      "config": "Vorlagen & Stammdaten",
       "clubs": "Vereine",
       "myClub": "Mein Verein",
       "invoices": "Rechnungen",
-      "administration": "Administration",
-      "material": "Material"
+      "administration": "System",
+      "material": "Material",
+      "materialAdmin": "Materialvermietung"
     },
     "sidebar": {
       "expand": "Seitenleiste ausklappen",
@@ -393,6 +467,18 @@
     }
   },
   "dashboard": {
+    "currentEvents": {
+      "title": "Aktuelle Veranstaltungen",
+      "all": "Alle Veranstaltungen",
+      "empty": "Noch keine Veranstaltungen angelegt",
+      "linksLabel": "Direktlinks zu {{name}}",
+      "status": {
+        "running": "Läuft",
+        "upcoming": "Kommend",
+        "past": "Vergangen",
+        "undated": "Ohne Termin"
+      }
+    },
     "registration": {
       "showMessage": "Nachricht anzeigen"
     },
@@ -409,7 +495,23 @@
       "empty": "Keine offenen Aufgaben"
     }
   },
+  "quickJump": {
+    "label": "Schnellsprung",
+    "placeholder": "Springen zu …",
+    "open": "Schnellsprung öffnen (Taste /)",
+    "close": "Schnellsprung schließen",
+    "groups": {
+      "sections": "Bereiche",
+      "competitions": "Wettkämpfe",
+      "events": "Veranstaltungen"
+    },
+    "loading": "Suche läuft …",
+    "noResults": "Keine Treffer",
+    "typeMore": "Mindestens zwei Zeichen eingeben",
+    "error": "Die Suche ist fehlgeschlagen."
+  },
   "club": {
+    "editClub": "Verein bearbeiten",
     "tabs": {
       "clubs": "Vereine",
       "shortNames": "Kurzformen",
@@ -487,6 +589,7 @@
     "participants": "Mitglieder",
     "representative": {
       "representatives": "Verwaltung",
+      "noRepresentatives": "Noch niemand für diesen Verein hinterlegt.",
       "pendingApprovals": "Ausstehende Genehmigungen",
       "approve": {
         "approve": "Bestätigen",
@@ -666,6 +769,7 @@
     "name": "Name",
     "description": "Beschreibung",
     "registerNow": "Zur Meldung",
+    "registerEdit": "Meldung ansehen und ändern",
     "registerHere": {
       "1": " ",
       "2": "Hier",
@@ -719,6 +823,7 @@
       "shortLabels": "Kurznamen statt ausgeschriebener Wettkampfnamen",
       "compact": "Kompakte Darstellung",
       "deviceHint": "Alle Einstellungen gelten nur für dieses Gerät.",
+      "jumpTo": "Springen zu",
       "execution": {
         "title": "Durchführung",
         "hint": "Wie Läufe am Renntag beendet und Folgerunden erzeugt werden und in welchem Takt sich die Durchführungsseite selbst aktualisiert. Gilt für die ganze Veranstaltung, nicht nur für dieses Gerät."
@@ -756,7 +861,7 @@
     },
     "eventDay": {
       "eventDay": "Tag",
-      "eventDays": "Tage",
+      "eventDays": "Veranstaltungstage",
       "date": "Datum",
       "name": "Name",
       "description": "Beschreibung",
@@ -772,6 +877,22 @@
         "filter": "Filtern",
         "showShortNames": "Kurznamen zeigen",
         "showLongNames": "Lange Namen zeigen"
+      },
+      "page": {
+        "tabs": {
+          "general": "Allgemein",
+          "registrations": "Meldungen",
+          "teams": "Teams",
+          "setup": "Rundenstruktur",
+          "timing": "Zeitnahme",
+          "execution": "Durchführung",
+          "places": "Platzierungen"
+        },
+        "notFound": "Diesen Wettkampf gibt es nicht, oder er ist für dich nicht sichtbar.",
+        "loadError": "Der Wettkampf konnte nicht geladen werden.",
+        "previous": "Vorheriger Wettkampf",
+        "next": "Nächster Wettkampf",
+        "navigationLabel": "Zwischen Wettkämpfen wechseln"
       },
       "noCompetitionsAvailable": "Keine Wettkämpfe verfügbar",
       "identifier": "Kennung",
@@ -929,7 +1050,7 @@
         }
       },
       "setup": {
-        "setup": "Wettbewerbsablauf",
+        "setup": "Rundenstruktur",
         "save": {
           "save": "Speichern",
           "error": "Ein Fehler ist aufgetreten - Der Wettbewerbsablauf konnte nicht gespeichert werden",
@@ -1041,6 +1162,20 @@
       "execution": {
         "tabTitle": "Durchführung",
         "pairingsRecalculated": "Paarung neu berechnet",
+        "moreActions": {
+          "label": "Weitere Aktionen",
+          "roundLabel": "Weitere Aktionen zur Runde",
+          "resultsXls": "Ergebnis aus XLS-Datei importieren",
+          "resultsRaceClocker": "Ergebnis von RaceClocker holen",
+          "resultsRaceClockerFile": "Ergebnis aus RaceClocker-Datei importieren",
+          "startListPdf": "Startliste herunterladen (PDF)",
+          "startListCsv": "Startliste herunterladen (CSV)",
+          "setClarification": "Lauf in Klärung setzen"
+        },
+        "noRounds": {
+          "title": "Noch keine Runde erstellt",
+          "description": "Die erste Runde entsteht aus dem Wettbewerbsablauf über „Erstelle nächste Runde“."
+        },
         "progress": {
           "error": "Die Partien des Wettbewerbs konnten nicht geladen werden."
         },
@@ -1082,8 +1217,9 @@
           "action": "Lauf zurücksetzen",
           "confirmation": {
             "title": "Lauf zurücksetzen?",
-            "warning": "Achtung: Dieser Lauf wird auf „nie gefahren“ zurückgesetzt. Unwiderruflich verloren gehen: der Ist-Start, alle Ziel- und Zwischenzeiten, alle Plätze, Ausscheidungen und Zeitstrafen dieses Laufs.",
+            "warning": "Achtung: Dieser Lauf wird auf „nie gefahren“ zurückgesetzt. Gelöscht werden der Ist-Start, alle Ziel- und Zwischenzeiten, alle Plätze, Ausscheidungen und Zeitstrafen dieses Laufs. Bei externer Zeitnahme oder Handeingabe lassen sie sich nicht wiederherstellen; bei interner Zeitnahme siehe unten.",
             "keeps": "Erhalten bleiben: Aufstellung, Bahnen und die Kennungen der Boote — die RaceClocker-Zuordnung bleibt gültig, der Lauf kann direkt neu gefahren werden.",
+            "marks": "Interne Zeitnahme: Die an den Posten erfassten Zeitmarken bleiben erhalten und diesem Lauf zugeordnet; Zwischenzeiten rechnet die Zeitnahme daraus wieder ein. Soll der Lauf an den Posten neu gestartet werden, dort im Menü des Laufs „Start zurücknehmen und neu starten“ wählen – das verwirft den ganzen Versuch samt Marken.",
             "autoPull": "Der automatische RaceClocker-Abruf wird für diesen Lauf pausiert — sonst spielte der nächste Abruf die gelöschten Ergebnisse sofort wieder ein. Nach dem Aufräumen in RaceClocker über „Automatik wieder aufnehmen“ bewusst fortsetzen.",
             "question": "Lauf wirklich zurücksetzen?"
           },
@@ -1123,7 +1259,8 @@
           "place": "Platz",
           "time": "Zeit",
           "placeAndTime": "Platz/Zeit/Strafe",
-          "manageRunning": "Laufende Partien verwalten",
+          "match": "Partie",
+          "manageRunning": "Laufende Läufe verwalten",
           "running": "Läuft",
           "roundAndMatch": "Runde {{round}}, Partie {{match}}",
           "activated": "Am Start",
@@ -1142,6 +1279,7 @@
         },
         "running": {
           "error": {
+            "alreadyFinished": "Der Lauf ist bereits beendet. Wieder öffnen lässt er sich über „Beenden zurücknehmen“ oder „Lauf zurücksetzen“.",
             "hasPlaces": "Der Laufstatus kann nicht für Spiele mit Ergebnissen geändert werden",
             "update": "Fehler beim Aktualisieren des Laufstatus"
           },
@@ -1189,12 +1327,6 @@
             }
           },
           "upload": "Ergebnisse hochladen",
-          "type": {
-            "form": "mit Eingabeformular",
-            "XLS": "als XLS-Datei",
-            "RACECLOCKER": "von RaceClocker holen",
-            "RACECLOCKER_FILE": "von RaceClocker (Datei)"
-          },
           "error": {
             "notConfigured": "Für diesen Wettkampf ist kein Ergebnis-Import-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen.",
             "WRONG_TEAM_COUNT": "Die Anzahl der Teams stimmt nicht überein - gelesen: {{actual}}, erwartet: {{expected}}",
@@ -1299,11 +1431,6 @@
           }
         },
         "startList": {
-          "download": "Startliste herunterladen",
-          "type": {
-            "PDF": "als PDF",
-            "CSV": "als CSV"
-          },
           "error": {
             "missingStartTime": "Für diese Partie wurde noch keine Startzeit gesetzt.",
             "notConfigured": "Für diesen Wettkampf ist kein Startlisten-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
@@ -1375,7 +1502,8 @@
           "warning": {
             "missingDistance": "Für mindestens einen angehakten Posten fehlt der Meter.",
             "overDistance": "Mindestens ein Posten steht weiter als die Gesamtdistanz des Wettkampfs ({{distance}} m).",
-            "duplicateDistance": "Zwei Posten stehen beim selben Meter."
+            "duplicateDistance": "Zwei Posten stehen beim selben Meter.",
+            "orphaned": "Eine Zuordnung bei {{distance}} m zeigt auf einen Posten, den es nicht mehr gibt oder der inzwischen ein Anzeige-Posten ist. Sie wird beim Speichern nicht mehr mitgeschrieben."
           }
         }
       },
@@ -1392,7 +1520,6 @@
       "info": "Wird keine explizite Spalte für die Prüfung der Teilnahmebedingung angegeben, werden alle übereinstimmenden Teilnehmer der Datei genehmigt.",
       "approved": "Überprüfte Bedingungen",
       "checkUpload": "Bedingungen abgleichen",
-      "checkManually": "\"{{name}}\" überprüfen",
       "file": "CSV-Datei",
       "charset": "Charset",
       "separator": "Trennzeichen",
@@ -1417,6 +1544,13 @@
         "ok": "Ja",
         "cancel": "Nein"
       },
+      "checkManuallyAction": "Manuell prüfen …",
+      "checkManuallyDialog": {
+        "title": "Bedingung manuell prüfen",
+        "requirement": "Bedingung",
+        "chooseFirst": "Zuerst die Bedingung wählen, die geprüft werden soll.",
+        "noRequirements": "Für diese Veranstaltung sind keine Bedingungen aktiv."
+      },
       "openExportAction": "Offene Bedingungen exportieren",
       "openExport": {
         "title": "Offene Bedingungen exportieren",
@@ -1433,8 +1567,9 @@
       },
       "log": {
         "title": "Protokoll der Bedingungen",
-        "action": "Protokoll aller Bedingungen",
-        "actionFor": "Protokoll: {{name}}",
+        "openAction": "Protokoll …",
+        "filter": "Bedingung",
+        "allRequirements": "Alle Bedingungen",
         "empty": "Noch keine Änderungen protokolliert.",
         "when": "Wann",
         "action_col": "Was",
@@ -1475,13 +1610,13 @@
           "keep": "Gesetzte Startnummern beibehalten",
           "hint": "Bei Beibehaltung der Startnummern erhalten nur die neuen Teams/Teilnehmer zufällige Startnummern. Diese werden höher sein als die derzeit höchste des Wettbewerbs. Wenn sie nicht beibehalten werden, werden alle Startnummern neu gemischt."
         },
+        "reshuffle": "Dies würfelt alle Startnummern neu aus",
+        "success": "Meldungen finalisiert",
         "alignMaterialNumbers": "Startnummern nach Bootsnummern vergeben",
         "material": {
           "openRequestsHint_one": "{{count}} Materialanfrage ist noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
           "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig."
-        },
-        "reshuffle": "Dies würfelt alle Startnummern neu aus",
-        "success": "Meldungen finalisiert"
+        }
       }
     },
     "assign": {
@@ -1544,8 +1679,8 @@
         }
       },
       "registration": "Anmeldung",
-      "registrations": "Anmeldungen",
-      "addParticipant": "Mitglied hinzufügen",
+      "registrations": "Meldungen",
+      "addParticipant": "Person neu anlegen",
       "singleCompetition": "Einzelwettkampf",
       "teamCompetition": "Teamwettkampf",
       "males": "Männer",
@@ -1560,17 +1695,22 @@
         "split": "{{regular}} regulär + {{late}} nachgemeldet"
       },
       "optionalFee": "Optional",
-      "totalFees": "Meldegebühr",
-      "lateTotalFees": "Nachmeldegebühr",
+      "totalFees": "Meldegeld",
+      "lateTotalFees": "Nachmeldegeld",
       "acceptDocuments": "Ich akzeptiere Folgendes:",
       "infoDocuments": "Weitere Informationen",
-      "finish": "Anmeldung abschicken",
+      "finish": "Meldung abschicken",
       "success": {
-        "title": "Erfolgreich angemeldet!",
-        "subtitle": "Sie bekommen eine Bestätigung per Mail."
+        "title": "Meldung gespeichert",
+        "subtitle": "Sie bekommen eine Bestätigung per Mail.",
+        "toEvent": "Zur Veranstaltung",
+        "editRegistration": "Meldung ansehen und bearbeiten",
+        "entries_one": "{{count}} Meldung ist eingegangen.",
+        "entries_other": "{{count}} Meldungen sind eingegangen.",
+        "amount": "Meldegeld dieser Übertragung: {{amount}}."
       },
       "error": {
-        "closed": "Die Anmeldung für diese Veranstaltung ist geschlossen",
+        "closed": "Meldeschluss: Für diese Veranstaltung kann nicht mehr gemeldet werden.",
         "participantUpsertNotFound": "Teilnehmer aus der Teilnehmerliste nicht gefunden",
         "teamParticipantNotFound": "Team-Teilnehmer konnte nicht gefunden werden",
         "competitionNotFound": "Wettkampf nicht gefunden",
@@ -1607,6 +1747,80 @@
           "invalidAddress": "Keine gültige Adresse: {{address}}",
           "recipientGone": "Ein Melder hat inzwischen keinen Benutzer mehr. Bitte den Dialog neu öffnen."
         }
+      },
+      "page": {
+        "title": "Meldung"
+      },
+      "messageHint": "Hinweis an die Veranstaltung, z. B. zu Bootsplätzen oder Ersatzleuten.",
+      "lockedHint": "Bereits verbindlich gemeldet – nach Meldeschluss nicht mehr änderbar.",
+      "noLateRegistration": "Für diesen Wettkampf ist keine Nachmeldung möglich.",
+      "selectedCount_one": "{{count}} Wettkampf",
+      "selectedCount_other": "{{count}} Wettkämpfe",
+      "selectAllSingles": "Alle Personen zu allen Wettkämpfen",
+      "deselectAllSingles": "Alle Einzelmeldungen entfernen",
+      "teamNumber": "Team {{number}}",
+      "noTeamYet": "Noch kein Team gemeldet.",
+      "addTeam": "Team melden",
+      "steps": {
+        "participants": {
+          "label": "Teilnehmende",
+          "hint": "Alle Personen Ihres Vereins. Prüfen Sie die Angaben und legen Sie fehlende Personen neu an. Wer wo startet, wählen Sie in den nächsten Schritten.",
+          "empty": "Ihr Verein hat noch keine Teilnehmenden. Legen Sie die Personen an, die Sie melden möchten."
+        },
+        "single": {
+          "label": "Einzelwettkämpfe",
+          "hint": "Haken Sie je Person die Wettkämpfe an, in denen sie starten soll. Zusatzleistungen und Wertungskategorie erscheinen nach dem Anhaken.",
+          "empty": "Es gibt noch keine Teilnehmenden. Legen Sie im ersten Schritt Personen an."
+        },
+        "team": {
+          "label": "Teamwettkämpfe",
+          "hint": "Melden Sie je Wettkampf ein oder mehrere Teams und wählen Sie die Besetzung. Jede Person kann pro Wettkampf nur einmal gemeldet werden."
+        },
+        "summary": {
+          "label": "Prüfen & absenden",
+          "hint": "Prüfen Sie, wer wo gemeldet ist und was es kostet. Erst mit „Meldung abschicken“ wird gespeichert."
+        },
+        "progress": "Schritt {{current}} von {{total}}: {{label}}",
+        "next": "Weiter: {{step}}"
+      },
+      "search": {
+        "placeholder": "Person suchen (Name, Jahrgang)",
+        "onlyRegistered": "Nur Gemeldete",
+        "count": "{{shown}} von {{total}} Personen",
+        "noMatch": "Keine Person passt zur Suche."
+      },
+      "phase": {
+        "late": "Nachmeldephase: Neue Meldungen kosten das Nachmeldegeld; bereits gemeldete Einträge sind gesperrt, und nicht jeder Wettkampf nimmt Nachmeldungen an.",
+        "closed": "Meldeschluss: Für diese Veranstaltung kann nicht mehr gemeldet oder geändert werden."
+      },
+      "errorSummary": {
+        "title_one": "Bitte {{count}} Angabe prüfen",
+        "title_other": "Bitte {{count}} Angaben prüfen",
+        "teamMembers": "Besetzung",
+        "confirmation": "Bestätigung der Dokumente",
+        "unknown": "Angabe",
+        "goTo": "Zu „{{step}}“",
+        "more_one": "… und {{count}} weitere",
+        "more_other": "… und {{count}} weitere"
+      },
+      "review": {
+        "nothingSelected": "Sie haben noch niemanden zu einem Wettkampf gemeldet. Sie können trotzdem absenden, um neu angelegte Personen zu speichern.",
+        "entriesSingle_one": "{{count}} Person",
+        "entriesSingle_other": "{{count}} Personen",
+        "entriesTeam_one": "{{count}} Team",
+        "entriesTeam_other": "{{count}} Teams",
+        "noMembers": "(Besetzung noch leer)",
+        "locked": "verbindlich",
+        "late": "Nachmeldung",
+        "lockedNotCounted": "Verbindlich gemeldete Einträge sind bereits abgerechnet und hier nicht enthalten.",
+        "newParticipants_one": "{{count}} Person wird neu angelegt",
+        "newParticipants_other": "{{count}} Personen werden neu angelegt",
+        "changedParticipants_one": "{{count}} Person wird geändert",
+        "changedParticipants_other": "{{count}} Personen werden geändert"
+      },
+      "leave": {
+        "content": "Ihre Meldung ist noch nicht abgeschickt. Wenn Sie die Seite jetzt verlassen, gehen die Eingaben verloren.",
+        "ok": "Verlassen"
       }
     },
     "participants": "Teilnehmende",
@@ -1614,8 +1828,7 @@
       "general": "Allgemein",
       "registrations": "Meldungen",
       "settings": "Einstellungen",
-      "actions": "Aktionen",
-      "organisation": "Organisation",
+      "organisation": "Team & Helfer",
       "invoices": "Rechnungen",
       "betrieb": "Betrieb"
     },
@@ -1758,10 +1971,10 @@
         },
         "intervalSeconds": "Startintervall (Sekunden)",
         "intervalHelp": "Leer lassen, wenn jeder Start von Hand ausgelöst wird. Mit Wert folgen die Starts automatisch in diesem Abstand (Zeitfahren).",
-        "invalidInterval": "Das Intervall muss mindestens 1 Sekunde betragen — oder leer bleiben für Start von Hand.",
+        "invalidInterval": "Das Intervall muss eine ganze Zahl ab 1 Sekunde sein — oder leer bleiben für Start von Hand.",
         "leadInSeconds": "Countdown-Vorlauf (Sekunden)",
         "leadInHelp": "Countdown vor dem (ersten) Start.",
-        "invalidLeadIn": "Bitte eine Anzahl Sekunden ab 0 angeben.",
+        "invalidLeadIn": "Bitte eine ganze Anzahl Sekunden ab 0 angeben.",
         "describe": {
           "interval": "Intervall {{seconds}} s",
           "manualStart": "Start von Hand",
@@ -1881,10 +2094,6 @@
       }
     },
     "info": {
-      "sectionTitle": "Öffentliche Anzeigen",
-      "pageDescription": "Boards für öffentliche Bildschirme zusammenstellen: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
-      "manageInfoViews": "Boards verwalten",
-      "manageStreamScenes": "Livestream-Szenen verwalten",
       "pendingRound": "Lauf noch nicht gesetzt",
       "freeSlot": "Programmpunkt",
       "athleteBoard": {
@@ -1968,9 +2177,6 @@
       }
     },
     "liveDashboard": {
-      "sectionTitle": "Schiedsrichter-Dashboard",
-      "pageDescription": "Live-Ansicht für Schiedsrichter mit laufenden und anstehenden Läufen, Teilnahmebedingungen und Rechnungsstatus.",
-      "open": "Schiedsrichter-Dashboard öffnen",
       "title": "Schiedsrichter-Dashboard",
       "tabs": {
         "live": "Live",
@@ -2024,7 +2230,6 @@
         "notePreview": "Notiz-Vorschau an der Bootszeile",
         "showCrew": "Aufstellung anzeigen",
         "showChecks": "Prüfungen anzeigen",
-        "showMaterial": "Material immer zeigen",
         "readability": "Lesbarkeit",
         "fontSize": {
           "label": "Schriftgröße",
@@ -2032,7 +2237,8 @@
           "large": "Groß",
           "xlarge": "Sehr groß"
         },
-        "refresh": "Aktualisierung"
+        "refresh": "Aktualisierung",
+        "showMaterial": "Material immer zeigen"
       },
       "penaltyIncluded": "inkl. {{seconds}} s",
       "resultsCompleteWaiting": "Ergebnisse vollständig — wartet auf Beenden",
@@ -2058,7 +2264,8 @@
         "error": "Der Lauf konnte nicht geändert werden.",
         "errorReason": {
           "finishReservedForOffice": "Für diese Veranstaltung beendet das Regattabüro die Läufe über den Zeitplan. Der Lauf bleibt aktiv — bitte dem Regattabüro melden, dass er im Ziel ist."
-        }
+        },
+        "moreActions": "Weitere Aktionen"
       },
       "clarification": {
         "sectionTitle": "Klärung ({{n}})",
@@ -2068,7 +2275,10 @@
         "reasonLabel": "Grund",
         "reasonPlaceholder": "Einspruch RV Hansa, Bahnberührung",
         "submit": "In Klärung setzen",
-        "since": "seit {{time}}"
+        "since": "seit {{time}}",
+        "error": {
+          "alreadyFinished": "Der Lauf ist bereits beendet."
+        }
       },
       "substitution": {
         "short": "Ummeldung",
@@ -2086,10 +2296,6 @@
         "startedAt": "gestartet {{time}}",
         "startNumberLabel": "Startnummer {{number}}",
         "boatLabel": "Boot {{number}}"
-      },
-      "material": {
-        "own": "eigenes Boot",
-        "deviates": "abweichend"
       },
       "requirement": {
         "checkedAt": "Erfüllt am {{time}}",
@@ -2142,6 +2348,15 @@
         },
         "saved": "Einstellungen gespeichert",
         "saveError": "Einstellungen konnten nicht gespeichert werden."
+      },
+      "connection": {
+        "live": "Live verbunden",
+        "polling": "Abruf alle {{seconds}} s",
+        "offline": "Keine Verbindung"
+      },
+      "material": {
+        "own": "eigenes Boot",
+        "deviates": "abweichend"
       }
     },
     "schedule": {
@@ -2386,7 +2601,37 @@
     },
     "results": {
       "download": "Bisherige Ergebnisse herunterladen",
-      "downloadError": "Die datei konnte nicht heruntergeladen werden."
+      "downloadError": "Die datei konnte nicht heruntergeladen werden.",
+      "public": {
+        "title": "Öffentliche Ergebnisse",
+        "description": "Die Ergebnisseite für Teilnehmende und Publikum, ohne Anmeldung erreichbar."
+      },
+      "documents": {
+        "title": "Ergebnisse und Urkunden herunterladen",
+        "description": "Ergebnisliste, Siegerehrungsbogen und Siegerurkunden als Dokumente für Aushang, Siegerehrung und Archiv."
+      },
+      "participation": {
+        "title": "Teilnahmeurkunden",
+        "description": "Nach dem Ende der Challenge: Urkunden an alle Teilnehmenden versenden bzw. die des eigenen Vereins herunterladen."
+      }
+    },
+    "overview": {
+      "loadError": "Die Veranstaltung konnte nicht geladen werden.",
+      "notFound": "Diese Veranstaltung gibt es nicht, oder sie ist für dich nicht sichtbar.",
+      "registration": {
+        "open": "Meldung offen",
+        "late": "Nachmeldung",
+        "closed": "Meldung geschlossen"
+      },
+      "raceDay": {
+        "title": "Renntag",
+        "description": "Regattabüro, Schiedsrichter-Dashboard, Sprecher-Board, Anzeigen, Livestream, Zeitnahme und Helfer-App stehen gesammelt im Betrieb.",
+        "open": "Zum Betrieb"
+      },
+      "results": {
+        "description": "Öffentliche Ergebnisseite, Ergebnisse zum Herunterladen und Urkunden.",
+        "open": "Zu Ergebnissen & Urkunden"
+      }
     },
     "ratingCategory": {
       "title": "Wertungskategorien",
@@ -2430,6 +2675,8 @@
       "open": "Anzeigen",
       "copyUrl": "URL kopieren",
       "urlCopied": "URL kopiert",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
       "name": "Name",
       "saveAndClose": "Speichern und Beenden",
       "matchDetailFullscreen": "Die Sprecher-Kachel füllt immer das ganze Board — Spalten und Spannweiten wirken hier nicht",
@@ -2517,15 +2764,11 @@
         "showBirthYears": "Jahrgänge zeigen",
         "showAdvancement": "Weiterkommens-Regel zeigen",
         "showRegisteringClub": "Meldenden Verein zeigen",
-        "showMaterial": "Boot-Material zeigen",
         "backgroundColor": "Kachelfarbe",
         "borderColor": "Randfarbe",
         "colorRemove": "Farbe entfernen",
-        "backgroundColorHint": "Helle Farbtöne halten den Inhalt lesbar"
-      },
-      "material": {
-        "own": "eigenes Boot",
-        "deviates": "abweichend"
+        "backgroundColorHint": "Helle Farbtöne halten den Inhalt lesbar",
+        "showMaterial": "Boot-Material zeigen"
       },
       "columns": "Spalten",
       "columnCount": "{{count}} Spalten",
@@ -2583,6 +2826,10 @@
           "title": "Diese Anzeige ist nicht freigegeben",
           "hint": "Link mit Token anfordern oder anmelden. Den Link gibt es in der Board-Verwaltung der Veranstaltung unter „Link teilen“."
         }
+      },
+      "material": {
+        "own": "eigenes Boot",
+        "deviates": "abweichend"
       }
     },
     "stream": {
@@ -2595,9 +2842,6 @@
       "courseImage": "Streckenbild",
       "scheduleTitle": "Nächste Läufe",
       "cancelled": "Fällt aus",
-      "material": {
-        "own": "eigenes Boot"
-      },
       "clock": {
         "countdown": "Start in",
         "running": "Rennzeit",
@@ -2669,14 +2913,15 @@
           },
           "displaySeconds": "Einblenddauer (Sekunden)",
           "listLength": "Anzahl Zeilen",
-          "showMaterial": "Material immer zeigen",
+          "numberRange": "Ganze Zahl zwischen {{min}} und {{max}}",
           "image": "Bild",
           "imageNone": "Kein Bild ausgewählt",
           "imageHint": "Bilder werden über die Dokumente der Veranstaltung hochgeladen.",
           "imageForbidden": "Zum Auswählen eines Bildes wird ein Veranstaltungs-Leserecht (READ EVENT) benötigt — mit reinem Stream-Recht bleibt die Auswahl leer. Aktivieren lässt sich die Grafik trotzdem, sie zeigt dann vorerst kein Bild.",
           "imageEmpty": "Noch keine Dokumente hinterlegt — zuerst ein Bild über die Dokumente der Veranstaltung hochladen.",
           "imageLoadError": "Dokumente konnten nicht geladen werden.",
-          "saved": "Grafiken gespeichert"
+          "saved": "Grafiken gespeichert",
+          "showMaterial": "Material immer zeigen"
         },
         "type": {
           "STARTLIST": "Startliste",
@@ -2712,6 +2957,7 @@
         "inactive": "Nicht aktive Grafiken",
         "inactiveHint": "Über „Grafiken konfigurieren“ einschalten",
         "forceHint": "Ohne Inhalt blendet Erzwingen nichts ein.",
+        "sceneGone": "Diese Szene gibt es nicht mehr — sie wurde gelöscht oder gehört zu einer anderen Veranstaltung.",
         "health": {
           "live": "Live",
           "connecting": "Verbinde …",
@@ -2773,12 +3019,14 @@
               "label": "Leerlauf",
               "hint": "Nur Tagesprogramm und Streckenbild"
             }
-          }
+          },
+          "confirmOn": "Testmodus einschalten? Die Bühne dieser Szene zeigt dann einen Demo-Lauf statt echter Daten – auch im laufenden Stream.",
+          "confirmOk": "Testmodus einschalten"
         }
       },
       "panel": {
         "title": "Kontroll-Panel",
-        "open": "Kontroll-Panel öffnen",
+        "open": "Regie öffnen",
         "sceneSelect": "Szene",
         "noGraphics": "Diese Szene hat noch keine aktivierte Grafik.",
         "health": {
@@ -2811,43 +3059,51 @@
           "untilRevoked": "Bis auf Widerruf",
           "seconds": "{{seconds}} s"
         }
+      },
+      "material": {
+        "own": "eigenes Boot"
       }
     },
     "betrieb": {
-      "intro": "Alles, womit die Regatta am Renntag gefahren wird — je Rolle eine Kachel. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "intro": "Die Arbeitsplätze des Renntags, die häufigsten zuerst. Vollbild-Ansichten öffnen in einem neuen Fenster.",
+      "raceOffice": {
+        "title": "Regattabüro",
+        "description": "Läufe an den Start rufen oder zurücknehmen und den Tagesablauf im Zeitplan führen.",
+        "openSchedule": "Zum Zeitplan"
+      },
       "referee": {
         "title": "Schiedsrichter:in",
-        "description": "Das Live-Dashboard zeigt laufende und anstehende Läufe, Prüfungen und Entscheidungen für die Schiedsrichter:innen.",
-        "open": "Live-Dashboard öffnen"
+        "description": "Am Steg: laufenden und nächsten Lauf sehen, Aufstellung prüfen, Läufe starten, beenden oder in Klärung setzen.",
+        "open": "Schiedsrichter-Dashboard öffnen"
       },
       "speaker": {
         "title": "Sprecher:in",
-        "description": "Die Sprecher-Ansicht bündelt Startlisten, Ergebnisse und laufende Läufe für die Moderation.",
-        "open": "Sprecher-Ansicht öffnen"
+        "description": "Für die Moderation: aktueller und nächster Lauf, Startliste, Ergebnisse und Zeitnahme live auf einem Bildschirm.",
+        "open": "Sprecher-Board öffnen"
       },
       "timing": {
         "title": "Zeitnahme",
-        "description": "Leitstand für die Zeitnahme-Leitung am Laptop, darunter die Posten (Start, Zwischenzeit, Ziel) mit direkten Links: Erfassung öffnen, Startbildschirm für START-Posten, „Auf Gerät teilen\" für Handys und Bildschirme ohne Anmeldung.",
+        "description": "Der Leitstand für die Zeitnahme-Leitung am Laptop; die Posten am Kurs erfassen am Handy.",
         "openLeitstand": "Leitstand öffnen",
-        "mobileHint": "Für Handys am Posten gibt es zusätzlich die mobile Einstiegsseite:",
-        "mobileLink": "Mobile Erfassung öffnen"
+        "mobileLink": "Mobile Erfassung öffnen",
+        "stationsHint": "Posten anlegen, ihre Erfassung öffnen oder per Link auf ein Gerät teilen."
       },
       "boards": {
         "title": "Öffentliche Anzeigen",
-        "description": "Boards für die Bildschirme am Gelände: Läufe, Listen, Uhr und Hinweise frei anordnen, abrufbar über eine feste URL.",
+        "description": "Bildschirme am Gelände: Läufe, Ergebnisse, Uhr und Hinweise als Boards anordnen.",
         "open": "Boards verwalten"
       },
       "livestream": {
         "title": "Livestream",
-        "description": "Stream-Overlays für die Bildregie: transparente Szenen für Wirecast/OBS, Regie über das Kontroll-Panel.",
+        "description": "Die Regie des Livestreams: Szenen wählen, Grafiken einblenden und im Testmodus proben.",
         "open": "Livestream verwalten",
         "openDirector": "Regie öffnen"
       },
       "helpers": {
         "title": "Helfer:innen",
-        "description": "Die Helfer-App fürs Handy (QR-Scannen, Check-in/-out, Aufgaben) und der Schichtplan der Veranstaltung.",
+        "description": "Die Helfer-App fürs Handy (Scannen, Check-in/-out, Posten) und der Schichtplan.",
         "openApp": "Helfer-App öffnen",
-        "shifts": "Zum Schichtplan (Organisation)"
+        "shifts": "Zum Schichtplan (Team & Helfer)"
       }
     },
     "material": {
@@ -2907,6 +3163,7 @@
     "namedParticipantAssignments": "Zuordnungen",
     "qrCodeRequirement": "QR-Code",
     "global": "Global",
+    "qrCodeRequired": "QR-Code erforderlich",
     "toggleQrCode": "QR-Code-Pflicht umschalten",
     "assignTo": "Zu {{name}} zuweisen",
     "assignToWithQr": "Zu {{name}} zuweisen (mit QR-Code)",
@@ -2962,8 +3219,6 @@
     },
     "firstname": "Vorname",
     "lastname": "Nachname",
-    "materialProvider": "Materialanbieter",
-    "materialProviderNone": "Kein Anbieter",
     "birthYear": "Geburtsjahr",
     "password": {
       "password": "Passwort",
@@ -3106,7 +3361,9 @@
         },
         "invalid": "Das versendete Formular war fehlerhaft"
       }
-    }
+    },
+    "materialProvider": "Materialanbieter",
+    "materialProviderNone": "Kein Anbieter"
   },
   "role": {
     "role": "Rolle",
@@ -3115,18 +3372,150 @@
     "name": "Name",
     "description": "Beschreibung",
     "rights": "Rechte",
+    "job": "Job",
+    "copyOf": "Kopie von",
+    "noTemplate": "Ohne Vorlage",
+    "static": "Vordefiniert",
+    "level": {
+      "label": "Ebene",
+      "SELF": "Eigenes Konto",
+      "CLUB": "Verein",
+      "EVENT": "Veranstaltung",
+      "ORGANIZER": "Veranstalter",
+      "GLOBAL": "Gesamt"
+    },
+    "deviation": {
+      "added": "Zusätzlich zum Job",
+      "missing": "Fehlt gegenüber dem Job"
+    },
+    "notAssignable": "Rollen mit Rechten, die Sie selbst nicht haben, stehen hier nicht zur Auswahl.",
     "error": {
-      "cannotAssign": "Rolle(n) konnte(n) dem Benutzer nicht zugewiesen werden"
+      "cannotAssign": "Rolle(n) konnte(n) dem Benutzer nicht zugewiesen werden",
+      "privilegesBeyondOwn": "Sie können nur Rechte vergeben, die Sie selbst haben.",
+      "selfAssignment": "Die eigenen Rollen kann niemand selbst ändern."
+    }
+  },
+  "job": {
+    "SUPERADMIN": {
+      "name": "Superadmin",
+      "description": "Betreibt die Installation. Einzige Rolle, die Superadmin-Konten sieht und vergibt."
+    },
+    "ADMIN": {
+      "name": "Admin",
+      "description": "Alles außer Superadmin-Konten."
+    },
+    "USER": {
+      "name": "Nutzer",
+      "description": "Eigenes Konto lesen und ändern. Trägt jedes Konto."
+    },
+    "CLUB_REPRESENTATIVE": {
+      "name": "Vereinsvertreter",
+      "description": "Eigenen Verein, eigene Meldungen, Rechnungen und Ergebnisse."
+    },
+    "COMPETITION_MANAGEMENT": {
+      "name": "Wettkampfleitung",
+      "description": "Veranstaltung, Wettkämpfe, Durchführung und Tagesteam."
+    },
+    "REGISTRATION_OFFICE": {
+      "name": "Meldestelle",
+      "description": "Meldungen prüfen und ummelden."
+    },
+    "FINANCE": {
+      "name": "Kasse",
+      "description": "Rechnungen und Bankkonten."
+    },
+    "JUDGE": {
+      "name": "Schiedsrichter",
+      "description": "Strafen, Klärung, Schiedsrichter-Dashboard."
+    },
+    "TIMEKEEPER": {
+      "name": "Zeitnahme",
+      "description": "Posten, Sequenzen und Zeitnahme-Anbindung."
+    },
+    "ANNOUNCER": {
+      "name": "Sprecher",
+      "description": "Anzeigetafeln und Sprecher-Dashboard."
+    },
+    "STREAM_DIRECTOR": {
+      "name": "Regie",
+      "description": "Livestream-Grafiken und Regie-Board."
+    },
+    "HELPER_REQUIREMENTS": {
+      "name": "Helfer: Bedingungen",
+      "description": "Bedingungen der Teilnehmenden prüfen."
+    },
+    "HELPER_ACCESS_PASS": {
+      "name": "Helfer: Ausgabe",
+      "description": "Bänder und QR-Codes ausgeben."
+    },
+    "HELPER_CHECK_IN": {
+      "name": "Helfer: Check-in",
+      "description": "Check-in, Check-out und Wettkampf-Check."
+    },
+    "HELPER_CATERING": {
+      "name": "Helfer: Verpflegung",
+      "description": "Verpflegung ausgeben."
+    },
+    "MATERIAL_PROVIDER": {
+      "name": "Materialanbieter",
+      "description": "Eigene Flotte, Angebote und Anfragen des zugeordneten Anbieters. Wird über die Anbieter-Zuordnung auf der Nutzerseite vergeben."
+    }
+  },
+  "privilege": {
+    "action": {
+      "CREATE": "Anlegen",
+      "READ": "Lesen",
+      "UPDATE": "Ändern",
+      "DELETE": "Löschen"
+    },
+    "scope": {
+      "OWN": "Eigene",
+      "EVENT": "Veranstaltung",
+      "GLOBAL": "Alle"
+    },
+    "resource": {
+      "USER": "Konten",
+      "EVENT": "Veranstaltungen",
+      "CLUB": "Vereine",
+      "REGISTRATION": "Meldungen",
+      "INVOICE": "Rechnungen",
+      "SUBSTITUTION": "Ummeldungen",
+      "APP_EVENT_REQUIREMENT": "App: Bedingungen",
+      "APP_QR_MANAGEMENT": "App: Bänder",
+      "APP_COMPETITION_CHECK": "App: Wettkampf-Check",
+      "APP_CATERER": "App: Verpflegung",
+      "APP_TIMING": "App: Zeitnahme",
+      "WEB_DAV": "WebDAV",
+      "RESULT": "Ergebnisse",
+      "LIVE_DASHBOARD": "Schiedsrichter-Dashboard",
+      "BOARD": "Anzeigetafeln",
+      "STREAM": "Livestream",
+      "ADMINISTRATION": "Konfiguration",
+      "ROLE": "Rollen",
+      "STAFF": "Rollenvergabe",
+      "SYSTEM": "Installation",
+      "MATERIAL": "Materialvermietung"
     }
   },
   "configuration": {
-    "configuration": "Konfigurationen",
+    "configuration": "Vorlagen & Stammdaten",
     "tabs": {
-      "competitionTemplates": "Vorlagen Wettkampf",
-      "eventElements": "Komponenten Veranstaltung",
-      "competitionElements": "Komponenten Wettkampf",
+      "competitionTemplates": "Wettkampf-Vorlagen",
+      "competitionElements": "Wettkampf-Bausteine",
+      "listsTiming": "Startlisten & Zeitnahme",
+      "eventElements": "Dokumente & Bedingungen",
+      "organisation": "Organisation",
       "globalSettings": "Globale Einstellungen",
-      "exportData": "Export / Import"
+      "exportData": "Export / Import",
+      "description": {
+        "competitionTemplates": "Vorlagen für Wettkämpfe und Rundenstrukturen, die in jeder Veranstaltung wiederverwendet werden.",
+        "competitionElements": "Bausteine, aus denen Wettkämpfe bestehen: Kategorien, Wertungskategorien, Teilnehmertypen und Gebühren.",
+        "listsTiming": "Formate für den Startlisten-Export und den Ergebnisimport sowie die Bezugsgrößen für Tempo-Angaben.",
+        "eventElements": "Dokumenttypen, Dokument- und Urkundenvorlagen sowie Teilnahmebedingungen.",
+        "organisation": "Arbeitsarten für den Schichtplan, Kontaktinformationen und Bankverbindungen für Rechnungen.",
+        "globalSettings": "Standardwerte, die alle Veranstaltungen verwenden.",
+        "exportData": "Daten per WebDAV exportieren und importieren."
+      }
     },
     "ratingCategory": {
       "ratingCategory": "Wertungskategorie",
@@ -3346,7 +3735,7 @@
   "qrCode": {
     "qrCode": "QR-Code",
     "value": "QR-Code-Wert",
-    "appUsersWithQrCode": "Benutzer mit QR-Codes",
+    "appUsersWithQrCode": "Helfer:innen mit QR-Code",
     "edit": "QR-Code bearbeiten",
     "delete": "QR-Code löschen",
     "show": "QR-Code anzeigen",
@@ -3401,7 +3790,8 @@
   "qrScanner": {
     "cameraError": "Kamera konnte nicht geöffnet werden",
     "cameraErrorHint": "Möglicherweise wird die Kamera gerade von einer anderen App verwendet oder der Zugriff wurde verweigert.",
-    "cameraRetry": "Kamera erneut starten"
+    "cameraRetry": "Kamera erneut starten",
+    "camera": "Kamera"
   },
   "qrEvents": {
     "operating": "Im Betrieb",
@@ -3457,6 +3847,12 @@
         "title": "Unbekanntes Band",
         "message": "Dieses Band ist niemandem zugeordnet. Bänder zuweisen darf nur die Bandausgabe."
       }
+    },
+    "stations": {
+      "lastUsed": "Zuletzt hier",
+      "loadError": "Die Posten konnten nicht geladen werden.",
+      "empty": "Noch keine Posten angelegt",
+      "emptyHint": "Die Zeitnahme-Leitung legt die Posten in der Verwaltung der Veranstaltung an."
     },
     "header": {
       "settings": "Einstellungen"
@@ -3594,6 +3990,8 @@
       "noModeHint": "Für diese Partie ist kein Zeitnahmetyp zugeordnet — bitte in den Zeitnahme-Einstellungen des Wettkampfs nachtragen oder die Sequenz von Hand einrichten.",
       "noStartSequenceHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Die Startzeit kommt über den Stempel, nicht über eine Sequenz.",
       "noStartSequenceNoCaptureHint": "Der Zeitnahmetyp „{{mode}}“ startet nicht über die App: Diese Partie wird von Hand losgeschickt, deshalb gibt es hier kein Countdown-Fenster. Der manuelle Stempel ist ausgeblendet — dieses Board kann gerade gar keine Startzeit erfassen. Einschalten in den Zeitnahme-Einstellungen der Veranstaltung unter „Manueller Stempel am Startposten“; das Board folgt sofort.",
+      "sequenceNeedsLogin": "Die Startsequenz lässt sich nur angemeldet steuern. Dieses Gerät ist über den Posten-Link ohne Anmeldung verbunden – die Startzeit kommt hier über den Stempel.",
+      "sequenceNeedsLoginNoCapture": "Die Startsequenz lässt sich nur angemeldet steuern. Dieses Gerät ist über den Posten-Link ohne Anmeldung verbunden, und der manuelle Stempel ist ausgeblendet – hier lässt sich gerade keine Startzeit erfassen. Anmelden oder den Stempel in den Zeitnahme-Einstellungen unter „Manueller Stempel am Startposten“ einschalten.",
       "noTeamsLeft": "Alle Boote dieser Partie sind bereits gestartet.",
       "allStarted": "Alle Partien sind gestartet — nichts mehr offen.",
       "start": "Startsequenz starten",
@@ -3643,7 +4041,9 @@
       },
       "armed": {
         "title": "Sequenz scharf",
-        "start": "Sequenz starten"
+        "start": "Sequenz starten",
+        "match": "Lauf: {{match}}",
+        "otherMatch": "Nicht der oben angezeigte Lauf"
       },
       "running": {
         "finishing": "Wird abgeschlossen…",
@@ -3722,6 +4122,9 @@
         "title": "Nicht übertragene Zeiten",
         "description": "Diese Zeiten wurden vom Server abgelehnt. Sie können erneut übertragen oder endgültig verworfen werden.",
         "item": "Posten {{station}} · Status {{status}}",
+        "reason": {
+          "noCredential": "Keine Berechtigung für diese Veranstaltung auf diesem Gerät – nach einer Anmeldung erneut versuchen."
+        },
         "requeue": "Erneut versuchen",
         "discard": "Endgültig verwerfen",
         "discardConfirm": {
@@ -3747,6 +4150,12 @@
       },
       "markList": {
         "toggle": "Zeitenliste ({{count}})"
+      },
+      "leave": {
+        "title": "Posten verlassen?",
+        "sequenceRunning": "Die Startsequenz läuft weiter, aber dieses Gerät spielt dann keine Countdown-Töne mehr ab.",
+        "ok": "Posten verlassen",
+        "stay": "Am Posten bleiben"
       },
       "audioHint": "Einmal auf den Bildschirm tippen, damit die Countdown-Töne abgespielt werden können.",
       "mark": {
@@ -4012,21 +4421,68 @@
     "createdAt": "Zeitpunkt"
   },
   "landing": {
+    "hero": {
+      "overline": "Willkommen",
+      "title": "Veranstaltungen, Ergebnisse und Live-Stand",
+      "subtitle": "Verfolgen Sie laufende Rennen, finden Sie Ihre Ergebnisse oder melden Sie Ihren Verein zu kommenden Veranstaltungen."
+    },
+    "sections": {
+      "running": "Läuft gerade",
+      "upcoming": "Demnächst"
+    },
+    "actions": {
+      "results": "Ergebnisse & Live",
+      "details": "Details",
+      "register": "Melden",
+      "login": "Anmelden"
+    },
+    "status": {
+      "live": "Live",
+      "registrationOpen": "Meldung offen",
+      "lateRegistrationOpen": "Nachmeldung offen"
+    },
+    "empty": {
+      "title": "Zurzeit keine Veranstaltungen",
+      "description": "Sobald eine Veranstaltung veröffentlicht ist, erscheint sie hier."
+    },
     "smallScreen": {
       "to": {
         "where": "Was möchten Sie sehen?",
-        "app": "Helfer App",
-        "results": "Live Events",
+        "app": "Helfer-App",
+        "results": "Ergebnisse & Live",
         "desktop": "Desktopansicht"
       }
     },
-    "liveEventsLink": "Laufende Ergebnisse"
+    "liveEventsLink": "Ergebnisse & Live"
   },
   "panic": {
+    "retry": "Erneut versuchen",
+    "retrying": "Verbindung wird wiederhergestellt …",
     "title": "Fehler",
     "text": "Der API-Server ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut. Sollte dieser Zustand sich nicht ändern, wenden Sie sich bitte an einen Verantwortlichen. Vielen Dank."
   },
   "results": {
+    "select": {
+      "subtitle": "Wählen Sie eine Veranstaltung, um Ergebnisse, Live-Stand und Zeitplan zu sehen.",
+      "running": "Läuft gerade",
+      "upcoming": "Demnächst",
+      "past": "Vergangen",
+      "undated": "Ohne Termin",
+      "home": "Zur Startseite"
+    },
+    "page": {
+      "overline": "Ergebnisse & Live",
+      "views": "Ansichten",
+      "allCompetitions": "Alle Wettkämpfe",
+      "allEvents": "Alle Veranstaltungen"
+    },
+    "ranking": {
+      "place": "Platz",
+      "team": "Mannschaft",
+      "time": "Zeit",
+      "startNumber": "Startnr.",
+      "crew": "Besatzung"
+    },
     "tabs": {
       "results": "Ergebnisse",
       "live": "Live",
@@ -4035,6 +4491,7 @@
     "matchResults": {
       "matchResults": "Ergebnisse",
       "noResults": "Es existieren noch keine Ergebnisse für diesen Wettkampf.",
+      "noResultsEvent": "Für diese Veranstaltung gibt es noch keine Ergebnisse.",
       "latestSection": "Zuletzt beendet",
       "byCompetitionSection": "Nach Wettkampf"
     },
@@ -4170,7 +4627,7 @@
     }
   },
   "administration": {
-    "title": "Administration",
+    "title": "System",
     "tabs": {
       "smtp": "SMTP-Konfiguration",
       "theme": "Theme-Anpassung",
@@ -4424,6 +4881,10 @@
     "selectEvent": "Veranstaltung auswählen",
     "liveCount": "{{count}} live",
     "openBoard": "Sprecher-Board öffnen",
+    "error": {
+      "feed_one": "Eine der drei Listen (Programm, laufende Läufe, Ergebnisse) konnte nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter.",
+      "feed_other": "{{count}} der drei Listen (Programm, laufende Läufe, Ergebnisse) konnten nicht geladen werden – die Anzeige ist unvollständig. Das Board versucht es weiter."
+    },
     "tabs": {
       "timeline": "Zeitstrahl",
       "program": "Programm",
@@ -4436,7 +4897,9 @@
       "liveShort": "LIVE",
       "CANCELLED": "Abgesagt",
       "CLARIFICATION": "In Klärung",
-      "clarificationShort": "Klärung"
+      "clarificationShort": "Klärung",
+      "PREPARING": "In Vorbereitung",
+      "preparingShort": "Vorb."
     },
     "timeline": {
       "empty": "Keine Rennen mit Startzeit gefunden.",
@@ -4466,10 +4929,6 @@
       "yearShort": "Jg.",
       "failed": "DNF",
       "deregistered": "Abgemeldet"
-    },
-    "material": {
-      "own": "eigenes Boot",
-      "deviates": "abweichend"
     },
     "results": {
       "empty": "Noch keine Ergebnisse vorhanden.",
@@ -4502,8 +4961,8 @@
       },
       "resetColors": "Farben zurücksetzen",
       "turnaround": "Wechselzeit-Warnung",
-      "showMaterial": "Material immer zeigen",
-      "resetAll": "Alles zurücksetzen"
+      "resetAll": "Alles zurücksetzen",
+      "showMaterial": "Material immer zeigen"
     },
     "dashboard": {
       "detailsTitle": "Laufdetails",
@@ -4539,6 +4998,15 @@
       "progress": "Live",
       "started": "gestartet",
       "finished": "im Ziel"
+    },
+    "nextUp": "Als Nächstes",
+    "connection": {
+      "live": "Live verbunden",
+      "polling": "Abruf alle 30 s"
+    },
+    "material": {
+      "own": "eigenes Boot",
+      "deviates": "abweichend"
     }
   },
   "material": {

@@ -38,7 +38,9 @@ const SubstitutionSelectParticipantIn = ({
             preCondition: () => selectedParticipantOut != null,
             onResponse: ({error}) => {
                 if (error) {
-                    feedback.error(t('event.competition.execution.substitution.substituteFor.load.error'))
+                    feedback.error(
+                        t('event.competition.execution.substitution.substituteFor.load.error'),
+                    )
                 }
             },
             deps: [eventId, competitionId, setupRoundId, selectedParticipantOut],
@@ -56,7 +58,9 @@ const SubstitutionSelectParticipantIn = ({
                   : -1,
         ) ?? []
 
-    const currentlyParticipating = Array.from(groupBy(subInsData?.currentlyParticipating ?? [], val => val.registrationName))
+    const currentlyParticipating = Array.from(
+        groupBy(subInsData?.currentlyParticipating ?? [], val => val.registrationName),
+    )
         .map(([key, participants]) => ({
             teamName: key,
             participants: participants
@@ -107,14 +111,16 @@ const SubstitutionSelectParticipantIn = ({
                                 {p.firstName + ' ' + p.lastName}
                             </MenuItem>
                         ))}
-                        <ListSubheader >
+                        <ListSubheader>
                             {t(
                                 'event.competition.execution.substitution.substituteFor.currentlyParticipating',
                             )}
                         </ListSubheader>
                         {currentlyParticipating.flatMap(optGroup => [
                             <ListSubheader sx={{pl: 4}} key={`header-${optGroup.teamName}`}>
-                                {t('event.competition.execution.substitution.substituteFor.team') + ": " + optGroup.teamName}
+                                {t('event.competition.execution.substitution.substituteFor.team') +
+                                    ': ' +
+                                    optGroup.teamName}
                             </ListSubheader>,
                             ...optGroup.participants.map(p => (
                                 <MenuItem key={`ps-${p.id}`} value={p.id}>

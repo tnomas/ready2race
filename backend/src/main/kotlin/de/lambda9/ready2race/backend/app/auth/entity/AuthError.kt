@@ -8,8 +8,7 @@ enum class AuthError : ServiceError {
 
     CredentialsIncorrect,
     TokenInvalid,
-    PrivilegeMissing,
-    SystemUserOnly;
+    PrivilegeMissing;
 
     override fun respond(): ApiError = when (this) {
         CredentialsIncorrect -> ApiError(status = HttpStatusCode.Unauthorized, message = "Incorrect credentials")
@@ -17,10 +16,6 @@ enum class AuthError : ServiceError {
         PrivilegeMissing -> ApiError(
             status = HttpStatusCode.Forbidden,
             message = "Missing privilege",
-        )
-        SystemUserOnly -> ApiError(
-            status = HttpStatusCode.Forbidden,
-            message = "System admin only",
         )
     }
 }

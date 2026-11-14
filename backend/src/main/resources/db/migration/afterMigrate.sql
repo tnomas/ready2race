@@ -94,20 +94,13 @@ select r.id,
        r.name,
        r.description,
        r.static,
+       r.job,
+       r.level,
        coalesce(array_agg(p) filter ( where p.id is not null ), '{}') as privileges
 from role r
          left join role_has_privilege rhp on r.id = rhp.role
          left join privilege p on rhp.privilege = p.id
 group by r.id;
-
--- refactor this and similar views to use where-clause in API instead
-create view role_with_privileges as
-select r.id,
-       r.name,
-       r.description,
-       r.privileges
-from every_role_with_privileges r
-where r.static is false;
 
 create view every_app_user_with_roles as
 select au.id,
@@ -126,7 +119,7 @@ select au.id,
        mp.name                                                            as material_provider_name
 from app_user au
          left join app_user_has_role auhr on au.id = auhr.app_user
-         left join role_with_privileges rwp on auhr.role = rwp.id
+         left join every_role_with_privileges rwp on auhr.role = rwp.id
          left join material_provider mp on mp.id = au.material_provider
 group by au.id, mp.name;
 
@@ -144,10 +137,11 @@ select au.id,
 from every_app_user_with_roles au
 where not exists(select *
                  from app_user_has_role auhr2
-                 where auhr2.role = '00000000-0000-0000-0000-000000000000'
+                 where auhr2.role = '00000000-0000-0000-0000-000000000003'
                    and auhr2.app_user = au.id)
 ;
 
+-- Regel 3: Superadmin-Konten erscheinen in keiner Liste, die nicht UPDATE SYSTEM verlangt.
 create view app_user_with_qr_code_for_event as
 select au.id,
        au.firstname,
@@ -159,17 +153,18 @@ select au.id,
        qc.event as event_id,
        qc.created_at,
        qc.created_by
-from every_app_user_with_roles au
+from app_user_with_roles au
          left join qr_codes qc on qc.app_user = au.id
 ;
 
+-- Rechte kommen nur noch über role_has_privilege; die Jobs werden beim Start synchronisiert.
 create view app_user_with_privileges as
 select au.*,
        coalesce(array_agg(distinct p) filter ( where p.id is not null ), '{}') as privileges
 from app_user au
          left join app_user_has_role auhr on au.id = auhr.app_user
          left join role_has_privilege rhp on auhr.role = rhp.role
-         left join privilege p on rhp.privilege = p.id or auhr.role = '00000000-0000-0000-0000-000000000000'
+         left join privilege p on rhp.privilege = p.id
 group by au.id;
 
 create view named_participant_for_competition_properties as
@@ -631,6 +626,10 @@ having max(ed.date) is null
 ;
 
 create view event_view as
+-- Jede Kennzahl als eigene Unterabfrage statt eines gemeinsamen Verbunds: Wettkämpfe, Renntage und
+-- Vereinsmeldungen hängen unabhängig voneinander an der Veranstaltung, im Verbund multiplizierten
+-- sie sich (60 Wettkämpfe x 3 Tage x 120 Meldungen = 21 600 Zwischenzeilen je Veranstaltung) - und
+-- die View wird für jede Seite der Veranstaltungsliste gelesen, auch unangemeldet.
 select e.id,
        e.name,
        e.description,
@@ -664,27 +663,28 @@ select e.id,
        e.cross_club_registration,
        e.notice_text,
        e.notice_severity,
-       coalesce(array_agg(distinct er.club) filter ( where er.club is not null ), '{}') as registered_clubs,
-       max(cpcc.end_at)                                                                 as challenge_end,
-       err.event is not null                                                            as registrations_finalized,
+       coalesce((select array_agg(distinct er.club)
+                 from event_registration er
+                 where er.event = e.id
+                   and er.club is not null), '{}')                                      as registered_clubs,
+       (select max(cpcc.end_at)
+        from competition c
+                 join competition_properties cp on c.id = cp.competition
+                 join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
+        where c.event = e.id)                                                           as challenge_end,
+       exists (select 1 from event_registration_report err where err.event = e.id)      as registrations_finalized,
        -- Das Betriebsfenster fuer die Helfer-App: ab wann vor Ort gearbeitet wird und wann der
        -- letzte Renntag ist. Ist an einem Tag nichts gepflegt, zaehlt er ab 00:00 -- ohne diesen
        -- Rueckfall waere die Auswahl nach der Migration ueberall leer.
-       --
-       -- Der Verbund auf event_day steht schon fuer die Gruppierung; min/max stoert die
-       -- Zeilenvervielfachung durch die uebrigen Verbunde nicht.
-       min(coalesce(ed.operations_start, ed.date::timestamp))                           as operations_start,
-       min(ed.date)                                                                     as first_event_day,
-       max(ed.date)                                                                     as last_event_day
+       ed.operations_start,
+       ed.first_event_day,
+       ed.last_event_day
 from event e
-         left join competition c on e.id = c.event
-         left join competition_properties cp on c.id = cp.competition
-         left join competition_properties_challenge_config cpcc on cp.id = cpcc.competition_properties
-         left join event_day ed on e.id = ed.event
-         left join event_registration er on e.id = er.event
-         left join event_registration_report err on e.id = err.event
-group by e.id, e.name, e.description, e.location, e.registration_available_from, e.registration_available_to,
-         e.created_at, err.event;
+         left join lateral (select min(coalesce(d.operations_start, d.date::timestamp)) as operations_start,
+                                   min(d.date)                                          as first_event_day,
+                                   max(d.date)                                          as last_event_day
+                            from event_day d
+                            where d.event = e.id) ed on true;
 
 -- Die gewaehlten Optionalgebuehren werden per exists geprueft, nicht per join: ein Join auf
 -- competition_registration_optional_fee kreuzt sich mit den Gebuehren der Ausschreibung, wodurch
@@ -1444,9 +1444,13 @@ from app_user au
          cross join event e
          left join qr_codes qc on qc.app_user = au.id and qc.event = e.id
 -- TODO: maybe want to allow q-codes also for admins
+-- Regel 3: Superadmin-Konten erscheinen in keiner Liste, die nicht UPDATE SYSTEM verlangt.
+-- Seit Schritt 1 trägt das Systemkonto die Superadmin- statt der Admin-Rolle; ohne die zweite
+-- Zeile stünde es wieder in dieser Liste.
 where not exists(select *
                  from app_user_has_role auhr2
-                 where auhr2.role = '00000000-0000-0000-0000-000000000000'
+                 where auhr2.role in ('00000000-0000-0000-0000-000000000000',
+                                      '00000000-0000-0000-0000-000000000003')
                    and auhr2.app_user = au.id)
 ;
 
@@ -1733,7 +1737,7 @@ from material_assignment ma
 
 -- Schadensakte mit Stück, Materialart und Melder aufgelöst (Task 5.1). Bewusst ohne Join auf die
 -- Meldung: der Verursacher ist im Schaden selbst als Momentaufnahme hinterlegt (siehe Migration
--- V202609071000), damit die Akte weder beim Neu-Speichern noch beim endgültigen Löschen einer
+-- V202611140800), damit die Akte weder beim Neu-Speichern noch beim endgültigen Löschen einer
 -- Meldung ihren Verursacher verliert - `caused_by_team`/`_club`/`_competition` kommen direkt aus
 -- `material_damage`, nicht aus einem Join.
 create view material_damage_view as

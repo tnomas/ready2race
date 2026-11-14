@@ -32,7 +32,7 @@ import {
     updateEventGlobal,
     updateStreamGlobal,
 } from '@authorization/privileges.ts'
-import {Link} from '@tanstack/react-router'
+import {ButtonLink} from '@components/ui'
 import {deleteStreamScene, getStreamScenes, setStreamSceneTrialMode} from '@api/sdk.gen'
 import {StreamSceneDto} from '@api/types.gen'
 import {STREAM_GRAPHIC_TYPES} from './streamGraphicCatalog'
@@ -136,11 +136,13 @@ const StreamScenesPanel = ({eventId}: StreamScenesPanelProps) => {
                 <Typography variant="h5">{t('event.stream.scenes.title')}</Typography>
                 <Stack direction="row" spacing={1}>
                     {canOpenPanel && (
-                        <Link to={'/event/$eventId/streamPanel'} params={{eventId}}>
-                            <Button variant="outlined" startIcon={<LiveTvOutlinedIcon />}>
-                                {t('event.stream.panel.open')}
-                            </Button>
-                        </Link>
+                        <ButtonLink
+                            to={'/event/$eventId/streamPanel'}
+                            params={{eventId}}
+                            variant="outlined"
+                            startIcon={<LiveTvOutlinedIcon />}>
+                            {t('event.stream.panel.open')}
+                        </ButtonLink>
                     )}
                     {canEdit && (
                         <Button
@@ -249,10 +251,14 @@ const StreamScenesPanel = ({eventId}: StreamScenesPanelProps) => {
                             <Box sx={{flex: 1}} />
                             {canEdit && (
                                 <>
-                                    <IconButton size="small" onClick={() => setEditingScene(scene)}>
+                                    <IconButton
+                                        aria-label={t('common.edit')}
+                                        size="small" onClick={() => setEditingScene(scene)}>
                                         <EditIcon fontSize="small" />
                                     </IconButton>
-                                    <IconButton size="small" onClick={() => handleDelete(scene)}>
+                                    <IconButton
+                                        aria-label={t('common.delete')}
+                                        size="small" onClick={() => handleDelete(scene)}>
                                         <DeleteIcon fontSize="small" />
                                     </IconButton>
                                 </>

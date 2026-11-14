@@ -31,6 +31,8 @@ import {
 import {useEventRegistration} from '@contexts/eventRegistration/EventRegistrationContext.ts'
 import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
 import {EventRegistrationMaterialSection} from '@components/eventRegistration/EventRegistrationMaterialSection.tsx'
+import {RegistrationParticipantSearch} from '@components/eventRegistration/RegistrationParticipantSearch.tsx'
+import {participantMatchesQuery} from './eventRegistrationLogic.ts'
 
 /**
  * Check if a rating category's age restriction is valid for a participant
@@ -87,7 +89,7 @@ const EventSingleCompetitionField = (props: {
     })
 
     useEffect(() => {
-        let index = singleCompetitions?.findIndex(r => r.competitionId === props.option.id) ?? -1
+        const index = singleCompetitions?.findIndex(r => r.competitionId === props.option.id) ?? -1
         setCompetitionIndex(index !== -1 ? index : undefined)
         setActive(index !== -1)
     }, [singleCompetitions])
@@ -187,6 +189,16 @@ const EventSingleCompetitionField = (props: {
                 }
             />
 
+            {props.locked && (
+                <Typography variant={'caption'} color={'text.secondary'} sx={{ml: {xs: 4, sm: 1}}}>
+                    {t('event.registration.lockedHint')}
+                </Typography>
+            )}
+            {!props.locked && !active && props.isLate && !props.option.lateRegistrationAllowed && (
+                <Typography variant={'caption'} color={'text.secondary'} sx={{ml: {xs: 4, sm: 1}}}>
+                    {t('event.registration.noLateRegistration')}
+                </Typography>
+            )}
             {active && (props.option.fees?.length ?? 0) > 0 && (
                 <Box sx={{display: 'flex', gap: 4, flexWrap: 'wrap'}}>
                     {/* Fee Display */}
@@ -278,6 +290,8 @@ export const EventRegistrationSingleCompetitionForm = () => {
 
     const {t} = useTranslation()
     const [category, setCategory] = React.useState<string>(ALL_CATEGORIES)
+    const [query, setQuery] = React.useState('')
+    const [onlyRegistered, setOnlyRegistered] = React.useState(false)
     const formContext = useFormContext<EventRegistrationFormData>()
     const {info, ratingCategories} = useEventRegistration()
 
@@ -310,7 +324,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
         name: `participants`,
     })
 
-    const handleChange = (_: any, newCategory: string | null) => {
+    const handleChange = (_: unknown, newCategory: string | null) => {
         if (newCategory !== null) {
             setCategory(newCategory)
         }
@@ -324,7 +338,7 @@ export const EventRegistrationSingleCompetitionForm = () => {
         )
         if (allCategories.size > 1) {
             return (
-                <Alert icon={<FilterAlt />} color={'info'} sx={{mB: 2}}>
+                <Alert icon={<FilterAlt />} color={'info'} sx={{mb: 2}}>
                     <Stack direction={{xs: 'column', sm: 'row'}} spacing={1} alignItems={'center'}>
                         <Typography>{t('event.competition.category.category')}</Typography>
                         <ToggleButtonGroup
@@ -476,16 +490,16 @@ export const EventRegistrationSingleCompetitionForm = () => {
         switch (selectionState) {
             case 'all':
                 icon = <CheckBox />
-                label = t('common.deselectAll')
+                label = t('event.registration.deselectAllSingles')
                 break
             case 'partial':
                 icon = <IndeterminateCheckBox />
-                label = t('common.selectAll')
+                label = t('event.registration.selectAllSingles')
                 break
             case 'none':
             default:
                 icon = <CheckBoxOutlineBlank />
-                label = t('common.selectAll')
+                label = t('event.registration.selectAllSingles')
                 break
         }
 
@@ -500,19 +514,67 @@ export const EventRegistrationSingleCompetitionForm = () => {
         )
     }
 
+    // Ausgeblendete Personen bleiben im Formular (Prüfung, Gebühren), nur die Anzeige filtert.
+    const visible = participantList.map(
+        p =>
+            participantMatchesQuery(p, query) &&
+            (!onlyRegistered || (p.competitionsSingle?.length ?? 0) > 0),
+    )
+    const shown = visible.filter(Boolean).length
+
     return (
         <Stack spacing={2}>
             {getToggleButtons()}
-            {participantList.length > 0 && <Box>{getSelectAllButton()}</Box>}
+            {participantList.length > 0 && (
+                <Stack
+                    direction={{xs: 'column', md: 'row'}}
+                    spacing={1}
+                    justifyContent={'space-between'}
+                    alignItems={{xs: 'stretch', md: 'center'}}>
+                    <RegistrationParticipantSearch
+                        query={query}
+                        onQueryChange={setQuery}
+                        shown={shown}
+                        total={participantList.length}
+                        onlyRegistered={onlyRegistered}
+                        onOnlyRegisteredChange={setOnlyRegistered}
+                    />
+                    <Box>{getSelectAllButton()}</Box>
+                </Stack>
+            )}
+            {participantList.length === 0 && (
+                <Alert severity={'info'}>{t('event.registration.steps.single.empty')}</Alert>
+            )}
+            {participantList.length > 0 && shown === 0 && (
+                <Alert severity={'info'}>{t('event.registration.search.noMatch')}</Alert>
+            )}
             {participantList.map((participant, index) => (
-                <Paper sx={{p: {xs: 1, sm: 2}}} elevation={2} key={participant.id}>
+                <Paper sx={{p: {xs: 1, sm: 2}}} key={participant.id} hidden={!visible[index]}>
                     <Stack direction="row" spacing={1}>
-                        <Stack spacing={2} flex={1}>
-                            <Stack direction="row" alignItems={'end'} spacing={1}>
+                        <Stack spacing={1} flex={1}>
+                            <Stack
+                                direction="row"
+                                alignItems={'center'}
+                                spacing={1}
+                                flexWrap={'wrap'}
+                                useFlexGap>
                                 <Person />
-                                <Typography alignItems={'center'}>
+                                <Typography fontWeight={600}>
                                     {`${participant.firstname} ${participant.lastname}`}
                                 </Typography>
+                                <Typography variant={'body2'} color={'text.secondary'}>
+                                    {participant.gender} · {participant.year}
+                                </Typography>
+                                {(participant.competitionsSingle?.length ?? 0) > 0 && (
+                                    <Chip
+                                        size={'small'}
+                                        color={'primary'}
+                                        variant={'outlined'}
+                                        label={t('event.registration.selectedCount', {
+                                            count: participant.competitionsSingle?.length ?? 0,
+                                        })}
+                                    />
+                                )}
                             </Stack>
                             <Stack flex={1}>
                                 {competitionsSingle.get(participant.gender ?? 'O')?.map(option => (

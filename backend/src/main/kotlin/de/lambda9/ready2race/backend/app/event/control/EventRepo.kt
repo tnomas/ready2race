@@ -23,6 +23,21 @@ import java.util.*
 
 object EventRepo {
 
+    /**
+     * Setzt den Schalter "Rechnungen erzeugt" atomar, aber nur, wenn er noch nicht gesetzt ist.
+     * Liefert die Zahl der geänderten Zeilen: 0 heißt, ein anderer Aufruf war schneller (oder
+     * die Veranstaltung gibt es nicht). Die Zeilensperre des Updates serialisiert gleichzeitige
+     * Aufrufe; der zweite sieht nach dem Warten den gesetzten Schalter.
+     */
+    fun markInvoicesProduced(eventId: UUID, late: Boolean, at: LocalDateTime): JIO<Int> = Jooq.query {
+        val column = if (late) EVENT.LATE_INVOICES_PRODUCED else EVENT.INVOICES_PRODUCED
+        update(EVENT)
+            .set(column, at)
+            .where(EVENT.ID.eq(eventId))
+            .and(column.isNull)
+            .execute()
+    }
+
     /** Nie null: die Spalte ist not-null mit Default, ein fehlendes Event fällt sicher auf DEAKTIVIERT zurück. */
     fun getChainProgressionMode(eventId: UUID) = Jooq.query {
         select(EVENT.CHAIN_PROGRESSION_MODE)

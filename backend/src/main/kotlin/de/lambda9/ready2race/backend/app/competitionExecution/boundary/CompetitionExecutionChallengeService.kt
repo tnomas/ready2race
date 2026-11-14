@@ -13,6 +13,7 @@ import de.lambda9.ready2race.backend.app.competitionExecution.entity.Competition
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.CompetitionExecutionChallengeError
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.CompetitionExecutionChallengeError.SelfSubmissionNotAllowed
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.CompetitionExecutionError
+import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationNamedParticipantRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.control.CompetitionRegistrationRepo
 import de.lambda9.ready2race.backend.app.competitionRegistration.entity.CompetitionRegistrationError
 import de.lambda9.ready2race.backend.app.competitionSetup.control.CompetitionSetupMatchRepo
@@ -196,6 +197,12 @@ object CompetitionExecutionChallengeService {
         ApiResponse.noData
     }
 
+    /** Gibt es diesen Challenge-Zugangstoken? Für Routen, die vor dem Lesen des Körpers prüfen. */
+    fun requireAccessToken(accessToken: String): App<ServiceError, Unit> =
+        EventParticipantRepo.getByToken(accessToken).orDie()
+            .onNullFail { EventParticipantError.TokenNotFound }
+            .map { }
+
     fun saveChallengeResult(
         accessToken: String,
         competitionId: UUID,
@@ -243,9 +250,15 @@ object CompetitionExecutionChallengeService {
             !CompetitionRegistrationRepo.findByIdAndCompetitionId(competitionRegistrationId, competitionId).orDie()
                 .onNullFail { CompetitionRegistrationError.NotFound }
 
-        // Check if user is allowed to submit results
-        !KIO.failOn(competitionRegistrationRecord.club != participant.club) { CompetitionRegistrationError.NotFound }
-        // TODO: @Improve validation "from team including this participant"
+        // Der Zugangstoken gilt für eine Person in einer Veranstaltung: einreichen darf sie nur für
+        // eine Meldung, in der sie selbst steht, und nur in dieser Veranstaltung. Früher reichte
+        // derselbe Verein - damit ließ sich für jede Mannschaft des Vereins ein Ergebnis setzen.
+        !KIO.failOn(eventParticipant.event != competition.event) { CompetitionRegistrationError.NotFound }
+        !CompetitionRegistrationNamedParticipantRepo.isParticipantOfRegistrationInEvent(
+            participantId = participant.id,
+            registrationId = competitionRegistrationRecord.id,
+            eventId = eventParticipant.event,
+        ).orDie().onFalseFail { CompetitionRegistrationError.NotFound }
 
         // Results can only be submitted once // todo: allow this for admins? #17913
         !CompetitionMatchTeamRepo.existsByMatchAndRegistrationId(

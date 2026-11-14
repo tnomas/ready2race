@@ -30,6 +30,15 @@ object AppUserRepo {
 
     fun updateByRecord(record: AppUserRecord, f: AppUserRecord.() -> Unit) = APP_USER.update(record, f)
 
+    /** Ersetzt den Passwort-Hash nur, wenn noch [expected] gespeichert ist (Neu-Hashen beim Login). */
+    fun replacePasswordIfUnchanged(id: UUID, expected: String, replacement: String): JIO<Int> = Jooq.query {
+        update(APP_USER)
+            .set(APP_USER.PASSWORD, replacement)
+            .where(APP_USER.ID.eq(id))
+            .and(APP_USER.PASSWORD.eq(expected))
+            .execute()
+    }
+
     fun get(id: UUID) = APP_USER.selectOne { ID.eq(id) }
 
     fun getByEmail(
@@ -52,7 +61,7 @@ object AppUserRepo {
         }
     }
 
-    fun getWithRolesIncludingAllAdmins(
+    fun getWithRolesIncludingSuperadmins(
         id: UUID,
     ): JIO<EveryAppUserWithRolesRecord?> = Jooq.query {
         with(EVERY_APP_USER_WITH_ROLES) {
@@ -142,7 +151,7 @@ object AppUserRepo {
         }
     }
 
-    fun countWithRolesIncludingAdmins(
+    fun countWithRolesIncludingSuperadmins(
         search: String?,
         noClub: Boolean?
     ): JIO<Int> = Jooq.query {
@@ -156,7 +165,7 @@ object AppUserRepo {
         }
     }
 
-    fun pageWithRolesIncludingAdmins(
+    fun pageWithRolesIncludingSuperadmins(
         params: PaginationParameters<EveryAppUserWithRolesSort>,
         noClub: Boolean?
     ): JIO<List<EveryAppUserWithRolesRecord>> = Jooq.query {

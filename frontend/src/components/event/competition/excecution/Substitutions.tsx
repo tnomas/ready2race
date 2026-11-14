@@ -28,6 +28,7 @@ import {Controller, FormContainer, useForm} from 'react-hook-form-mui'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useTranslation} from 'react-i18next'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import SubstitutionSelectParticipantIn from '@components/event/competition/excecution/SubstitutionSelectParticipantIn.tsx'
 import SouthIcon from '@mui/icons-material/South'
 import NorthIcon from '@mui/icons-material/North'
@@ -171,21 +172,23 @@ const Substitutions = ({reloadRoundDto, roundDto, roundIndex, ...scope}: Props) 
         .sort((a, b) => (a.teamName > b.teamName ? 1 : -1))
 
     const onSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error} = await addSubstitution({
-            path: {
-                eventId: eventId,
-                competitionId: competitionId,
-            },
-            body: {
-                participantOut: formData.participantOut ?? '',
-                participantIn: formData.participantIn ?? '',
-                reason: takeIfNotEmpty(formData.reason),
-            },
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            addSubstitution({
+                path: {
+                    eventId: eventId,
+                    competitionId: competitionId,
+                },
+                body: {
+                    participantOut: formData.participantOut ?? '',
+                    participantIn: formData.participantIn ?? '',
+                    reason: takeIfNotEmpty(formData.reason),
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             // Vorher: t('…substitution.add.error') als String, obwohl de/da dort ein Objekt haben -
             // in der Oberfläche stand deshalb der rohe Schlüssel.
             showSubstitutionError(error, 'event.competition.execution.substitution.add.error')
@@ -213,17 +216,19 @@ const Substitutions = ({reloadRoundDto, roundDto, roundIndex, ...scope}: Props) 
     const handleDeleteSubstitution = async (substitutionId: string) => {
         confirmAction(
             async () => {
-                setSubmitting(true)
-                const {error} = await deleteSubstitution({
-                    path: {
-                        eventId: eventId,
-                        competitionId: competitionId,
-                        substitutionId: substitutionId,
-                    },
-                })
-                setSubmitting(false)
+                const {error} = await runRequest(setSubmitting, () =>
+                    deleteSubstitution({
+                        path: {
+                            eventId: eventId,
+                            competitionId: competitionId,
+                            substitutionId: substitutionId,
+                        },
+                    }),
+                )
 
-                if (error) {
+                if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
+                } else if (error) {
                     // Vorher: delete.error.conflict / .unexpected, obwohl delete.error ein String
                     // ist - auch hier stand der rohe Schlüssel in der Oberfläche. Und "409" war
                     // nur ein Stellvertreter für "eine spätere Ummeldung hängt daran"; der

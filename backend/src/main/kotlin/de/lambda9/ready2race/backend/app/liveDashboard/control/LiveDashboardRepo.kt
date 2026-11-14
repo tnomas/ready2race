@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.liveDashboard.control
 
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.database.generated.tables.references.*
+import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.selectOne
@@ -220,6 +221,23 @@ object LiveDashboardRepo {
                 )
             )
             .execute()
+    }
+
+    /**
+     * Die Veranstaltung, zu der ein Lauf gehört - über Setup-Partie, Runde, Wettkampf-Eigenschaften
+     * und Wettkampf; `null` für einen unbekannten Lauf. Für die Zugehörigkeitsprüfung der
+     * lauf-adressierten Schreibwege (Klärung): der Pfad nennt die Veranstaltung, der Lauf muss
+     * ihr gehören.
+     */
+    fun getMatchEventId(matchId: UUID): JIO<UUID?> = Jooq.query {
+        select(COMPETITION.EVENT)
+            .from(COMPETITION_MATCH)
+            .join(COMPETITION_SETUP_MATCH).on(COMPETITION_SETUP_MATCH.ID.eq(COMPETITION_MATCH.COMPETITION_SETUP_MATCH))
+            .join(COMPETITION_SETUP_ROUND).on(COMPETITION_SETUP_ROUND.ID.eq(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND))
+            .join(COMPETITION_PROPERTIES).on(COMPETITION_PROPERTIES.ID.eq(COMPETITION_SETUP_ROUND.COMPETITION_SETUP))
+            .join(COMPETITION).on(COMPETITION.ID.eq(COMPETITION_PROPERTIES.COMPETITION))
+            .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(matchId))
+            .fetchOne(COMPETITION.EVENT)
     }
 
     fun getMatchStartTime(matchId: UUID) = Jooq.query {

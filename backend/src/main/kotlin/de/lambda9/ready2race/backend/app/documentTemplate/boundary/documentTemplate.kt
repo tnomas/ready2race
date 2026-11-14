@@ -19,6 +19,7 @@ import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.ready2race.backend.pdf.checkValidPdf
 import de.lambda9.tailwind.core.KIO
+import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
@@ -242,53 +243,16 @@ fun Route.documentTemplate() {
             }
         }
 
-        // todo: see upload in eventDocument
         post {
-            val multipartData = call.receiveMultipart()
-
-            val uploads = mutableListOf<File>()
-            var templateRequest: DocumentTemplateRequest? = null
-
-            var done = false
-            while(!done) {
-                val part = multipartData.readPart()
-                if (part == null) {
-                    done = true
-                } else {
-                    when (part) {
-                        is PartData.FileItem -> {
-                            uploads.add(
-                                File(
-                                    part.originalFileName!!,
-                                    part.provider().toByteArray()
-                                )
-                            )
-                        }
-
-                        is PartData.FormItem -> {
-                            if (part.name == "request") {
-                                templateRequest = jsonMapper.readValue<DocumentTemplateRequest>(part.value)
-                            }
-                        }
-
-                        else -> {}
-                    }
-                    part.dispose()
-                }
-            }
-
             call.respondComprehension {
+                // Anmeldung vor dem Lesen des Körpers, siehe receiveUploads.
                 !authenticate(Privilege.UpdateEventGlobal)
-                !KIO.failOn(uploads.size != 1) {
-                    if (uploads.isEmpty()) {
-                        RequestError.File.Missing
-                    } else {
-                        RequestError.File.Multiple
-                    }
-                }
-                !KIO.failOn(!checkValidPdf(uploads.first().bytes)) { RequestError.File.UnsupportedType }
-                val req = !KIO.failOnNull(templateRequest) { RequestError.BodyMissing(DocumentTemplateRequest.example) }
-                DocumentTemplateService.addTemplate(uploads.first(), req)
+                val upload = !receiveUploads(maxFiles = 1)
+                val file = !KIO.failOnNull(upload.files.firstOrNull()) { RequestError.File.Missing }
+                !KIO.failOn(!checkValidPdf(file.bytes)) { RequestError.File.UnsupportedType }
+                val req = !upload.jsonField("request", DocumentTemplateRequest.example)
+                    .onNullFail { RequestError.BodyMissing(DocumentTemplateRequest.example) }
+                DocumentTemplateService.addTemplate(file, req)
             }
         }
 

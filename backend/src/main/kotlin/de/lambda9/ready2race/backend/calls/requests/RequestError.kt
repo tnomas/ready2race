@@ -17,6 +17,7 @@ sealed interface RequestError : ToApiError {
     data class BodyValidationFailed(val reason: ValidationResult.Invalid) : RequestError
     data class InvalidPagination(val result: ValidationResult.Invalid) : RequestError
     data class TooManyRequests(val retryAfter: String?) : RequestError
+    data object CallbackUrlNotAllowed : RequestError
 
     sealed interface File : RequestError {
         data object Missing : File
@@ -89,6 +90,12 @@ sealed interface RequestError : ToApiError {
                 details = mapOf("retryAfter" to retryAfter)
             )
 
+        CallbackUrlNotAllowed ->
+            ApiError(
+                status = HttpStatusCode.UnprocessableEntity,
+                message = "callbackUrl does not point to an allowed frontend origin",
+            )
+
         File.Missing ->
             ApiError(
                 status = HttpStatusCode.BadRequest,
@@ -107,10 +114,12 @@ sealed interface RequestError : ToApiError {
                 message = "Unsupported file type"
             )
 
+        // Nur der Text, nicht der Klassenname der Ausnahme: Der stand bisher auch in PROD in der
+        // Antwort (z. B. „io.ktor…Exception: …").
         is Other ->
             ApiError(
                 status = HttpStatusCode.BadRequest,
-                message = cause.toString()
+                message = cause.message ?: HttpStatusCode.BadRequest.description
             )
     }
 }

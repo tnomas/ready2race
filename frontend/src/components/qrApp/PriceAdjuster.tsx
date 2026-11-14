@@ -1,24 +1,28 @@
-import {Box, Button} from "@mui/material";
+import {Box, Button} from '@mui/material'
 
-export const PriceAdjuster = ({price, onPriceChange}: {
-    price: string;
-    onPriceChange: (price: string) => void;
+export const PriceAdjuster = ({
+    price,
+    onPriceChange,
+}: {
+    price: string
+    onPriceChange: (price: string) => void
 }) => {
     const adjustPrice = (amount: number) => {
-        const currentPrice = parseFloat(price || '0');
-        const newPrice = Math.max(0, currentPrice + amount);
-        onPriceChange(newPrice.toFixed(2));
-    };
+        const currentPrice = parseFloat(price || '0')
+        const newPrice = Math.max(0, currentPrice + amount)
+        onPriceChange(newPrice.toFixed(2))
+    }
 
     return (
-        <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-            gap: 0.5,
-            width: '100%',
-            maxWidth: 300,
-            margin: '0 auto'
-        }}>
+        <Box
+            sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                gap: 0.5,
+                width: '100%',
+                maxWidth: 300,
+                margin: '0 auto',
+            }}>
             <Button
                 variant="outlined"
                 onClick={() => onPriceChange('0')}
@@ -29,8 +33,7 @@ export const PriceAdjuster = ({price, onPriceChange}: {
                     minWidth: 0,
                 }}
                 color="secondary"
-                size="small"
-            >
+                size="small">
                 C
             </Button>
             <Button
@@ -42,8 +45,7 @@ export const PriceAdjuster = ({price, onPriceChange}: {
                     px: 1,
                     minWidth: 0,
                 }}
-                size="small"
-            >
+                size="small">
                 +0.1
             </Button>
             <Button
@@ -55,8 +57,7 @@ export const PriceAdjuster = ({price, onPriceChange}: {
                     px: 1,
                     minWidth: 0,
                 }}
-                size="small"
-            >
+                size="small">
                 +0.2
             </Button>
             <Button
@@ -68,8 +69,7 @@ export const PriceAdjuster = ({price, onPriceChange}: {
                     px: 1,
                     minWidth: 0,
                 }}
-                size="small"
-            >
+                size="small">
                 +0.5
             </Button>
             <Button
@@ -81,10 +81,9 @@ export const PriceAdjuster = ({price, onPriceChange}: {
                     px: 1,
                     minWidth: 0,
                 }}
-                size="small"
-            >
+                size="small">
                 +1
             </Button>
         </Box>
-    );
-};
+    )
+}

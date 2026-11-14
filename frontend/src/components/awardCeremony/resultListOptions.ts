@@ -27,7 +27,13 @@ export const presetOptions: Record<ResultListPreset, ResultListOptions> = {
     // Der Aushang: alles drauf, alle Plätze, groß gesetzt.
     posting: {crew: true, times: true, podiumOnly: false, byRatingCategory: true, largePrint: true},
     // Die Siegerehrung: dieselben Bestandteile wie der klassische Bogen — Podium, Pult-Schriftgrad.
-    ceremony: {crew: true, times: true, podiumOnly: true, byRatingCategory: true, largePrint: false},
+    ceremony: {
+        crew: true,
+        times: true,
+        podiumOnly: true,
+        byRatingCategory: true,
+        largePrint: false,
+    },
 }
 
 /**

@@ -81,8 +81,12 @@ select '5eed0009-0002-0000-0000-000000000001', 'material@test.de',
        now(), null, now(), null
 where not exists (select 1 from app_user where id = '5eed0009-0002-0000-0000-000000000001');
 
+-- Rollen: USER wie jedes Konto, dazu die systemverwaltete Rolle Materialanbieter (…0040, sät
+-- der Backend-Start über den JobSeeder - das Backend muss also vor dem Seed einmal gelaufen sein).
+-- Früher stand hier …0003; das ist die Superadmin-Rolle und darf hier nie wieder auftauchen.
 insert into app_user_has_role (app_user, role)
-values ('5eed0009-0002-0000-0000-000000000001', '00000000-0000-0000-0000-000000000003')
+values ('5eed0009-0002-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001'),
+       ('5eed0009-0002-0000-0000-000000000001', '00000000-0000-0000-0000-000000000040')
 on conflict do nothing;
 
 insert into material_type (id, name, category, description, created_at, created_by, updated_at, updated_by)

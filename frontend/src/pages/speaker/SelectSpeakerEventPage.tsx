@@ -1,10 +1,10 @@
-import {Box, Button, Stack, Typography} from '@mui/material'
+import {Box, Stack, Typography} from '@mui/material'
 import {getEvents} from '@api/sdk.gen.ts'
 import Throbber from '@components/Throbber.tsx'
 import {speakerColors} from '@components/speaker/speakerData.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {Link} from '@tanstack/react-router'
 import {useTranslation} from 'react-i18next'
+import {ButtonLink} from '@components/ui'
 
 const SelectSpeakerEventPage = () => {
     const {t} = useTranslation()
@@ -39,26 +39,24 @@ const SelectSpeakerEventPage = () => {
                     data?.data
                         .sort((a, b) => (a.name > b.name ? 1 : -1))
                         .map(event => (
-                            <Link
+                            <ButtonLink
                                 key={event.id}
                                 to={'/speaker/event/$eventId'}
                                 params={{eventId: event.id}}
-                                style={{width: '100%'}}>
-                                <Button
-                                    variant={'outlined'}
-                                    fullWidth
-                                    sx={{
-                                        color: speakerColors.text,
-                                        borderColor: speakerColors.border,
-                                        py: 1.5,
-                                        '&:hover': {
-                                            borderColor: speakerColors.upcoming,
-                                            bgcolor: speakerColors.panel,
-                                        },
-                                    }}>
-                                    {event.name}
-                                </Button>
-                            </Link>
+                                style={{width: '100%'}}
+                                variant={'outlined'}
+                                fullWidth
+                                sx={{
+                                    color: speakerColors.text,
+                                    borderColor: speakerColors.border,
+                                    py: 1.5,
+                                    '&:hover': {
+                                        borderColor: speakerColors.upcoming,
+                                        bgcolor: speakerColors.panel,
+                                    },
+                                }}>
+                                {event.name}
+                            </ButtonLink>
                         ))
                 ) : (
                     <Typography sx={{textAlign: 'center', color: speakerColors.textSecondary}}>

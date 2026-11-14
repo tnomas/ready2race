@@ -16,8 +16,10 @@ import java.util.UUID
  * scharfgestellte Sequenz hat weder Anker noch Feuerzeitpunkt. [pausedAt] ist nur während der
  * laufenden Pause belegt.
  *
- * [matchIds] sind die Setup-Läufe aller Boote der Sequenz: daran erkennt eine Kachel, ob IHR
- * Lauf gerade in dieser Sequenz steckt.
+ * [currentMatchId] gehört zu demselben nächsten anstehenden Eintrag wie [firesAt]. Gibt es keinen
+ * anstehenden Eintrag mehr, zeigt sie deterministisch auf den zuletzt gestarteten beziehungsweise
+ * ersten Sequenzeintrag. [matchIds] sind die Setup-Läufe aller Boote der Sequenz: daran erkennt
+ * eine Kachel, ob IHR Lauf gerade in dieser Sequenz steckt.
  */
 data class ActiveSequenceTiming(
     val sequenceId: UUID,
@@ -25,5 +27,6 @@ data class ActiveSequenceTiming(
     val startedAt: LocalDateTime?,
     val firesAt: LocalDateTime?,
     val pausedAt: LocalDateTime?,
+    val currentMatchId: UUID?,
     val matchIds: List<UUID>,
 )

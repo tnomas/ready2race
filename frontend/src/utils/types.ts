@@ -32,3 +32,10 @@ export type BaseEntityDialogProps<E> = {
 }
 
 export type AutocompleteOption = {id: string; label: string} | null
+
+/**
+ * Darstellung einer Tabellenspalte auf der mobilen Karte (`EntityCard`): `'title'` als
+ * Kartentitel, `'show'` immer sichtbar, `'hide'` nie. Ohne Angabe: erste Spalte Titel, die
+ * nächsten vier sichtbar, der Rest hinter „Weitere Angaben".
+ */
+export type MobileColumnMode = 'title' | 'show' | 'hide'

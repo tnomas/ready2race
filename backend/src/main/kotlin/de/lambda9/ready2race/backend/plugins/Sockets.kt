@@ -2,16 +2,22 @@ package de.lambda9.ready2race.backend.plugins
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.BoardViewBroadcaster
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.DeviceTokenLookup
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeBroadcaster
 import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
+import de.lambda9.ready2race.backend.app.eventInfo.control.BoardRepo
 import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneBroadcaster
+import de.lambda9.ready2race.backend.app.stream.boundary.StreamSceneService
+import de.lambda9.ready2race.backend.app.timing.boundary.DeviceTokenRevocation
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingBroadcaster
 import de.lambda9.ready2race.backend.app.timing.boundary.TimingDeviceTokenService
 import de.lambda9.ready2race.backend.calls.requests.authenticateAnyWithToken
 import de.lambda9.ready2race.backend.sessions.UserSession
 import de.lambda9.tailwind.core.KIO.Companion.unsafeRunSync
 import de.lambda9.tailwind.core.extensions.exit.fold
+import de.lambda9.tailwind.core.extensions.kio.orDie
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -20,7 +26,10 @@ import io.ktor.server.sessions.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
 private val logger = KotlinLogging.logger {}
@@ -46,11 +55,25 @@ private const val BOARD_VIEW_WS_PATH = "/api/ws/event/{eventId}/board/{boardId}"
 
 private const val STREAM_SCENE_WS_PATH = "/api/ws/event/{eventId}/stream/{sceneId}"
 
+/** Größter eingehender Rahmen in Bytes. Clients senden nur Pongs und Close (wenige Bytes). */
+internal const val WEBSOCKET_MAX_FRAME_SIZE: Long = 4 * 1024
+
+/**
+ * Ohne `maxFrameSize` setzt Ktor eingehende Rahmen bis `Long.MAX_VALUE` zusammen, auch auf dem
+ * unangemeldeten Kanal `/info` - jeder könnte dort den Heap füllen. Alle Handler ignorieren
+ * eingehende Rahmen; ein zu großer schließt die Verbindung mit TOO_BIG.
+ */
+internal val webSocketOptions: WebSockets.WebSocketOptions.() -> Unit = {
+    pingPeriod = 15.seconds
+    timeout = 30.seconds
+    maxFrameSize = WEBSOCKET_MAX_FRAME_SIZE
+}
+
 fun Application.configureSockets(env: JEnv) {
-    install(WebSockets) {
-        pingPeriod = 15.seconds
-        timeout = 30.seconds
-    }
+    install(WebSockets, webSocketOptions)
+
+    // Ein Widerruf schließt die offenen Kanäle seines Tokens sofort (siehe DeviceTokenBoundSockets).
+    DeviceTokenBoundSockets.listenForRevocations()
 
     routing {
         webSocket(TIMING_WS_PATH, protocol = TIMING_WS_SUBPROTOCOL) {
@@ -70,7 +93,7 @@ fun Application.configureSockets(env: JEnv) {
         // ohne Anmeldung, also verbinden sie sich auch ohne. Preisgegeben wird nur „es hat sich
         // etwas geändert" samt Zählerstand, nie Nutzdaten.
         webSocket(EVENT_CHANGE_WS_PATH) {
-            eventChangeSocket()
+            eventChangeSocket(env)
         }
 
         // Der Board-Kanal: schickt die FERTIGE Ansicht (BoardViewDto), nicht bloß einen
@@ -103,7 +126,7 @@ fun Application.configureSockets(env: JEnv) {
     }
 }
 
-private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
+private suspend fun DefaultWebSocketServerSession.eventChangeSocket(env: JEnv) {
     val rawEventId = call.parameters["eventId"]
     val eventId = rawEventId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
     if (eventId == null) {
@@ -115,14 +138,25 @@ private suspend fun DefaultWebSocketServerSession.eventChangeSocket() {
         return
     }
 
-    // Der aktuelle Stand sofort beim Verbinden: ein Client, der nach einem Funkloch neu
-    // verbindet, sieht daran (und am Reconnect selbst), dass er nachladen muss.
-    send(Frame.Text(EventChangeBroadcaster.message(EventChangeMarker.current(eventId))))
+    // Nur für Veranstaltungen, die es gibt: sonst legte jede beliebige Kennung serverseitig
+    // einen Zähler und eine Abonnentenliste an, die nie wieder verschwinden. Veröffentlicht
+    // sein muss sie nicht - der Kanal trägt keine Nutzdaten, nur "es hat sich etwas geändert".
+    if (!eventExists(env, eventId)) {
+        logger.info { "Rejecting event-change ws handshake: unknown event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown event"))
+        return
+    }
 
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = EventChangeBroadcaster.subscribe(eventId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der aktuelle Stand sofort beim Verbinden: ein Client, der nach einem Funkloch neu
+        // verbindet, sieht daran (und am Reconnect selbst), dass er nachladen muss.
+        send(Frame.Text(EventChangeBroadcaster.message(EventChangeMarker.current(eventId))))
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }
@@ -198,22 +232,40 @@ private suspend fun DefaultWebSocketServerSession.boardViewSocket(env: JEnv) {
         return
     }
 
-    // Der volle Stand sofort beim Verbinden: damit ist ein Client nach einem Funkloch allein durch
-    // den Reconnect wieder aktuell und braucht keinen HTTP-Nachschlag. Lässt sich die Ansicht
-    // gerade nicht bauen (unbekanntes Board, Datenbank hakt), bleibt die Verbindung trotzdem
-    // stehen - die Anzeige hat ihren Sicherheitstakt, und der beantwortet ein unbekanntes Board
-    // ohnehin sauberer (404) als ein geschlossener Socket.
-    BoardViewBroadcaster.currentView(env, eventId, boardId)?.let { send(Frame.Text(it)) }
+    // Der Sitzungsweg prüft die Zugehörigkeit selbst (der Token-Weg hat sie in validateForBoard
+    // schon): ein Board unter einer fremden Veranstaltung im Pfad bekommt keinen Kanal. Sonst
+    // hinge die Verbindung stumm am fremden Schlüssel und bekäme mit dem nächsten Ereignis doch
+    // noch dessen Stand - der HTTP-Zwilling antwortet hier 404.
+    if (sessionAuthorized && !boardBelongsToEvent(env, eventId, boardId)) {
+        logger.info { "Rejecting board ws handshake for board $boardId: not part of event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown board"))
+        return
+    }
 
+    // Über den Token-Zweig hereingekommen: an das Token binden, damit ein Widerruf diese
+    // Verbindung sofort schließt und nicht erst der nächste Handshake das Token ablehnt.
+    val tokenBinding = if (sessionAuthorized) null
+    else deviceTokenId(env, token)?.let { DeviceTokenBoundSockets.bind(it, this) }
+
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = BoardViewBroadcaster.subscribe(env, eventId, boardId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der volle Stand sofort beim Verbinden: damit ist ein Client nach einem Funkloch allein durch
+        // den Reconnect wieder aktuell und braucht keinen HTTP-Nachschlag. Lässt sich die Ansicht
+        // gerade nicht bauen (unbekanntes Board, Datenbank hakt), bleibt die Verbindung trotzdem
+        // stehen - die Anzeige hat ihren Sicherheitstakt, und der beantwortet ein unbekanntes Board
+        // ohnehin sauberer (404) als ein geschlossener Socket.
+        BoardViewBroadcaster.currentView(env, eventId, boardId)?.let { send(Frame.Text(it)) }
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }
     } finally {
         BoardViewBroadcaster.unsubscribe(subscription)
+        tokenBinding?.release()
     }
 }
 
@@ -284,21 +336,36 @@ private suspend fun DefaultWebSocketServerSession.streamSceneSocket(env: JEnv) {
         return
     }
 
-    // Der volle Stand sofort beim Verbinden: eine Bühne ist nach einem Funkloch allein durch den
-    // Reconnect wieder aktuell. Lässt sich der Stand gerade nicht bauen (unbekannte Szene,
-    // Datenbank hakt), bleibt die Verbindung trotzdem stehen - die Szene behält ihren letzten
-    // Stand, statt schwarz zu werden.
-    StreamSceneBroadcaster.currentView(env, eventId, sceneId)?.let { send(Frame.Text(it)) }
+    // Wie beim Board-Kanal prüft der Sitzungsweg die Zugehörigkeit selbst - dieselbe Regel wie
+    // `requireOwnedScene` am HTTP-Zwilling; der Token-Weg hat sie in validateForStreamScene schon.
+    if (sessionAuthorized && !sceneBelongsToEvent(env, eventId, sceneId)) {
+        logger.info { "Rejecting stream ws handshake for scene $sceneId: not part of event $eventId" }
+        close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Unknown scene"))
+        return
+    }
 
+    // Wie beim Board-Kanal: eine Token-Verbindung hängt am Token, der Widerruf schließt sie sofort.
+    val tokenBinding = if (sessionAuthorized) null
+    else deviceTokenId(env, token)?.let { DeviceTokenBoundSockets.bind(it, this) }
+
+    // Erst abonnieren, dann den Stand schicken: andersherum ging eine Änderung zwischen beidem
+    // für diesen Client verloren (Stand davor, Push davor). Doppelte Stände sind harmlos.
     val subscription = StreamSceneBroadcaster.subscribe(env, eventId, sceneId) { json ->
         send(Frame.Text(json))
     }
     try {
+        // Der volle Stand sofort beim Verbinden: eine Bühne ist nach einem Funkloch allein durch den
+        // Reconnect wieder aktuell. Lässt sich der Stand gerade nicht bauen (unbekannte Szene,
+        // Datenbank hakt), bleibt die Verbindung trotzdem stehen - die Szene behält ihren letzten
+        // Stand, statt schwarz zu werden.
+        StreamSceneBroadcaster.currentView(env, eventId, sceneId)?.let { send(Frame.Text(it)) }
+
         // Clients hören nur zu; eingehende Frames werden ignoriert (Keepalive machen die
         // Ktor-Pings aus configureSockets).
         incoming.consumeEach { }
     } finally {
         StreamSceneBroadcaster.unsubscribe(subscription)
+        tokenBinding?.release()
     }
 }
 
@@ -356,6 +423,11 @@ private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
         return
     }
 
+    // Geräte-Token statt Sitzung: an das Token binden, der Widerruf im Leitstand schließt den
+    // Kanal sofort - dieselbe Regel wie für Board- und Szenen-Kanal.
+    val tokenBinding = if (sessionAuthorized) null
+    else deviceTokenId(env, token)?.let { DeviceTokenBoundSockets.bind(it, this) }
+
     val subscription = TimingBroadcaster.subscribe(eventId) { json ->
         send(Frame.Text(json))
     }
@@ -364,6 +436,7 @@ private suspend fun DefaultWebSocketServerSession.timingSocket(env: JEnv) {
         incoming.consumeEach { }
     } finally {
         TimingBroadcaster.unsubscribe(subscription)
+        tokenBinding?.release()
     }
 }
 
@@ -379,3 +452,118 @@ private fun ApplicationCall.subprotocolToken(): String? {
 
     return offered.takeIf { it.size == 2 && it.first() == TIMING_WS_SUBPROTOCOL }?.get(1)
 }
+
+/**
+ * Die offenen Verbindungen je Geräte-Token - für den Widerruf.
+ *
+ * Die Autorisierung eines Kanals fällt beim Handshake; danach hält die Verbindung von sich aus.
+ * Ohne dieses Register bliebe eine Bühne oder Anzeige mit einem soeben widerrufenen Token so
+ * lange versorgt, bis sie von selbst neu verbindet. Jeder Kanal, der über den Token-Zweig
+ * hereinkam (nicht über eine Sitzung), bindet sich deshalb hier an seine Token-Kennung; meldet
+ * [DeviceTokenRevocation] den Widerruf (nach dem Commit), schließt das Register alle
+ * Verbindungen dieses Tokens mit demselben Code, mit dem der Handshake das Token ablehnen würde.
+ *
+ * EIN Register für alle drei Kanäle (Zeitnahme, Board, Szene) statt je einer Zuhörerliste in den
+ * Broadcastern: die Verbindung gehört dem Socket-Handler, nicht dem Verteiler - und der Zeitnahme-
+ * Verteiler kennt seine Abonnenten ohnehin nicht nach Token.
+ */
+internal object DeviceTokenBoundSockets {
+
+    private val sessions = ConcurrentHashMap<UUID, MutableSet<DefaultWebSocketServerSession>>()
+
+    // Einmal je JVM, nicht je Anwendungsstart: Tests fahren das Modul mehrfach hoch, und ein
+    // zweiter Zuhörer schlösse dieselben Verbindungen nur noch einmal.
+    private val listening = AtomicBoolean(false)
+
+    fun listenForRevocations() {
+        if (listening.compareAndSet(false, true)) {
+            DeviceTokenRevocation.register { tokenId -> closeAll(tokenId) }
+        }
+    }
+
+    /** Bindet [session] an [tokenId]; der Aufrufer gibt die Bindung am Sitzungsende an [Binding.release]. */
+    fun bind(tokenId: UUID, session: DefaultWebSocketServerSession): Binding {
+        sessions.compute(tokenId) { _, current ->
+            (current ?: ConcurrentHashMap.newKeySet()).apply { add(session) }
+        }
+        return Binding(tokenId, session)
+    }
+
+    /** Für Tests sichtbar: offene Verbindungen dieses Tokens. */
+    internal fun boundCount(tokenId: UUID): Int = sessions[tokenId]?.size ?: 0
+
+    /**
+     * Schließt alle Verbindungen von [tokenId]. Läuft auf dem Thread des Widerrufs; das Schließen
+     * selbst wird in die Coroutine der jeweiligen Sitzung gegeben, damit hier nichts blockiert und
+     * eine hängende Verbindung die anderen nicht aufhält. Mit dem Schließen enden die
+     * `incoming`-Schleifen der Handler, deren `finally` räumt Abonnement und Bindung ab.
+     */
+    fun closeAll(tokenId: UUID) {
+        val bound = sessions.remove(tokenId) ?: return
+        logger.info { "Closing ${bound.size} websocket(s) of revoked device token $tokenId" }
+        bound.forEach { session ->
+            session.launch {
+                session.close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Device token revoked"))
+            }
+        }
+    }
+
+    class Binding internal constructor(
+        private val tokenId: UUID,
+        private val session: DefaultWebSocketServerSession,
+    ) {
+        fun release() {
+            sessions.compute(tokenId) { _, current ->
+                current?.apply { remove(session) }?.takeIf { it.isNotEmpty() }
+            }
+        }
+    }
+}
+
+/** Gehört [boardId] zu [eventId]? Ein Lesefehler zählt als "nein" - im Zweifel kein Kanal. */
+/** Gibt es [eventId]? Für den Veranstaltungs-Kanal, der sonst keine Tür hat. */
+private fun eventExists(env: JEnv, eventId: UUID): Boolean =
+    EventRepo.exists(eventId).orDie().unsafeRunSync(env).fold(
+        onSuccess = { it },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check event $eventId for the event-change channel" }
+            false
+        },
+    )
+
+private fun boardBelongsToEvent(env: JEnv, eventId: UUID, boardId: UUID): Boolean =
+    BoardRepo.findById(boardId).orDie().unsafeRunSync(env).fold(
+        onSuccess = { it?.eventId == eventId },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check board $boardId against event $eventId" }
+            false
+        },
+    )
+
+/** Gehört [sceneId] zu [eventId]? Dieselbe Prüfung wie `requireOwnedScene` am HTTP-Zwilling. */
+private fun sceneBelongsToEvent(env: JEnv, eventId: UUID, sceneId: UUID): Boolean =
+    StreamSceneService.requireOwnedScene(eventId, sceneId).unsafeRunSync(env).fold(
+        onSuccess = { true },
+        onError = { false },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not check scene $sceneId against event $eventId" }
+            false
+        },
+    )
+
+/**
+ * Die Token-Kennung zu einem Klartext-Token, das der Token-Zweig eben erfolgreich geprüft hat -
+ * für [DeviceTokenBoundSockets.bind]. `null`, wenn sich die Zeile nicht lesen lässt (dann bleibt
+ * die Verbindung ungebunden und ein Widerruf trifft sie erst beim nächsten Handshake).
+ */
+private fun deviceTokenId(env: JEnv, plainToken: String): UUID? =
+    DeviceTokenLookup.tokenId(plainToken).unsafeRunSync(env).fold(
+        onSuccess = { it },
+        onError = { null },
+        onDefect = { defect ->
+            logger.warn(defect) { "Could not resolve device token id for revocation binding" }
+            null
+        },
+    )

@@ -8,6 +8,7 @@ import {ScanMode} from '@components/qrApp/appAccess.ts'
 import {CatererTransaction} from '@components/qrApp/CatererTransaction'
 import {BandInfo} from './BandInfo'
 import {RemoveBandButton} from './RemoveBandButton'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     eventId: string
@@ -25,12 +26,17 @@ export const UserActions = ({eventId, qrCodeId, response, mode, canRemove, onDon
     const [submitting, setSubmitting] = useState(false)
 
     const handleCateringTransaction = async (price: string) => {
-        if (!response.id) return
-        setSubmitting(true)
-        const {error} = await createCateringTransaction({
-            body: {appUserId: response.id, eventId, price: price === '' ? '0' : price},
-        })
-        setSubmitting(false)
+        const appUserId = response.id
+        if (!appUserId) return
+        const {error} = await runRequest(setSubmitting, () =>
+            createCateringTransaction({
+                body: {appUserId, eventId, price: price === '' ? '0' : price},
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
         if (error) {
             feedback.error(t('caterer.transactionError'))
             return

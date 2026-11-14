@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.eventRegistration.boundary
 import com.fasterxml.jackson.module.kotlin.readValue
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.email.entity.EmailAttachment
+import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationUpsertDto
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationViewSort
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.ParticipantRegisterRequest
@@ -27,10 +28,10 @@ fun Route.eventRegistration() {
     route("/eventRegistration") {
         get {
             call.respondComprehension {
-                !authenticate(Privilege.ReadRegistrationGlobal)
+                val (user, scope) = !authenticate(Privilege.Action.READ, Privilege.Resource.REGISTRATION)
                 val eventId = !pathParam("eventId", uuid)
                 val params = !pagination<EventRegistrationViewSort>()
-                EventRegistrationService.pageForEvent(eventId, params)
+                EventRegistrationService.pageForEvent(eventId, params, user, scope)
             }
         }
 
@@ -139,7 +140,9 @@ fun Route.eventRegistration() {
         call.respondComprehension {
             val user = !authenticate()
             val eventId = !pathParam("eventId", uuid)
-            EventRegistrationService.getEventRegistrationTemplate(eventId, user.club!!)
+            // Konten ohne Verein (z.B. Admin) bekommen einen sprechenden Fehler statt 500.
+            val clubId = !KIO.failOnNull(user.club) { EventRegistrationError.OnlyAvailableForClubUsers }
+            EventRegistrationService.getEventRegistrationTemplate(eventId, clubId)
         }
     }
 
@@ -148,6 +151,7 @@ fun Route.eventRegistration() {
             val user = !authenticate(Privilege.CreateRegistrationOwn)
             val eventId = !pathParam("eventId", uuid)
             val payload = !receiveKIO(EventRegistrationUpsertDto.example)
+            !checkCallbackUrl(payload.callbackUrl)
 
             EventRegistrationService.upsertRegistrationForEvent(eventId, payload, user)
         }
@@ -184,6 +188,7 @@ fun Route.eventRegistration() {
             !checkCaptcha()
             val eventId = !pathParam("eventId", uuid)
             val payload = !receiveKIO(ParticipantRegisterRequest.example)
+            !checkCallbackUrl(payload.callbackUrl)
 
             EventRegistrationService.participantSelfRegister(eventId, payload)
         }

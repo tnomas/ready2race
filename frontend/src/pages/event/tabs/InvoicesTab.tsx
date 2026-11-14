@@ -146,7 +146,7 @@ const InvoicesTab = ({event, reloadEvent}: Props) => {
                               t('invoice.tableHint.1'),
                               <>
                                   {t('invoice.tableHint.2')}
-                                  <InlineLink to={'/config'} search={{tab: 'event-elements'}}>
+                                  <InlineLink to={'/config'} search={{tab: 'organisation'}}>
                                       {t('invoice.tableHint.3')}
                                   </InlineLink>
                                   {t('invoice.tableHint.4')}

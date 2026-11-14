@@ -126,7 +126,7 @@ const editAction = (formData: Form, entity: GapDocumentTemplateDto) =>
 const DOCUMENT_TYPES: GapDocumentType[] = ['CERTIFICATE_OF_PARTICIPATION', 'AWARD_CERTIFICATE']
 
 const GapDocumentTemplateDialog = (props: BaseEntityDialogProps<GapDocumentTemplateDto>) => {
-    const formContext = useForm<Form>()
+    const formContext = useForm<Form>({defaultValues})
     const {t} = useTranslation()
     const feedback = useFeedback()
 

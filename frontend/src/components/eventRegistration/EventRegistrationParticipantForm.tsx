@@ -47,7 +47,7 @@ export const EventRegistrationParticipantForm = (props: {
         const isNewParticipant = formContext.getValues(`participants.${props.index}.isNew`)
         if (!isNewParticipant) {
             setIsNew(false)
-            let changed = formContext.getValues(`participants.${props.index}.hasChanged`)
+            const changed = formContext.getValues(`participants.${props.index}.hasChanged`)
             if (changed !== true) {
                 setIsEditable(false)
                 setExistingParticipantValues(formContext.getValues(`participants.${props.index}`))
@@ -67,7 +67,7 @@ export const EventRegistrationParticipantForm = (props: {
     }, [isExternal])
 
     return (
-        <Paper sx={{p: {xs: 0.5, sm: 1}, pl: {xs: 1, sm: 2}, pr: {xs: 1, sm: 2}}} elevation={2}>
+        <Paper sx={{p: {xs: 0.5, sm: 1}, pl: {xs: 1, sm: 2}, pr: {xs: 1, sm: 2}}}>
             <Stack direction={'row'} alignItems={'center'} spacing={1}>
                 {isEditable ? (
                     <>
@@ -166,7 +166,10 @@ export const EventRegistrationParticipantForm = (props: {
                             </Stack>
                         </Stack>
                         {isNew && (
-                            <IconButton onClick={props.removeParticipant} sx={{cursor: 'pointer'}}>
+                            <IconButton
+                                onClick={props.removeParticipant}
+                                aria-label={t('common.remove')}
+                                sx={{cursor: 'pointer'}}>
                                 <DeleteIcon />
                             </IconButton>
                         )}
@@ -193,7 +196,10 @@ export const EventRegistrationParticipantForm = (props: {
                                 {existingParticipantValues?.externalClubName}
                             </Typography>
                         </Stack>
-                        <IconButton onClick={() => setIsEditable(true)} sx={{cursor: 'pointer'}}>
+                        <IconButton
+                            onClick={() => setIsEditable(true)}
+                            aria-label={t('common.edit')}
+                            sx={{cursor: 'pointer'}}>
                             <Edit />
                         </IconButton>
                     </Stack>

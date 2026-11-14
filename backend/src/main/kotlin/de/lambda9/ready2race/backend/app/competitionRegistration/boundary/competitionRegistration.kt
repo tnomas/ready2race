@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.app.competitionRegistration.entity.Competit
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.CompetitionRegistrationTeamUpsertDto
 import de.lambda9.ready2race.backend.app.invoice.entity.RegistrationInvoiceType
 import de.lambda9.ready2race.backend.calls.requests.authenticate
+import de.lambda9.ready2race.backend.calls.requests.checkCallbackUrl
 import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
 import de.lambda9.ready2race.backend.calls.requests.pagination
 import de.lambda9.ready2race.backend.calls.requests.pathParam
@@ -38,6 +39,7 @@ fun Route.competitionRegistration() {
                 val competitionId = !pathParam("competitionId", uuid)
                 val eventId = !pathParam("eventId", uuid)
                 val body = !receiveKIO(CompetitionRegistrationTeamUpsertDto.example)
+                !checkCallbackUrl(body.callbackUrl)
 
                 val requestProperties = when (scope) {
                     Privilege.Scope.OWN -> CompetitionRegistrationRequestProperties.None
@@ -62,6 +64,7 @@ fun Route.competitionRegistration() {
                     val competitionId = !pathParam("competitionId", uuid)
                     val competitionRegistrationId = !pathParam("competitionRegistrationId", uuid)
                     val body = !receiveKIO(CompetitionRegistrationTeamUpsertDto.example)
+                    !checkCallbackUrl(body.callbackUrl)
 
                     val requestProperties = when (scope) {
                         Privilege.Scope.OWN -> CompetitionRegistrationRequestProperties.None

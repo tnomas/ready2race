@@ -6,7 +6,6 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Link as MuiLink,
     Stack,
     Table,
     TableBody,
@@ -22,7 +21,7 @@ import {
     getRegistrationResult,
     getRegistrationsWithoutTeamNumber,
 } from '@api/sdk.gen.ts'
-import {useRef, useState} from 'react'
+import {useState} from 'react'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {eventRoute} from '@routes'
 import * as React from 'react'
@@ -34,7 +33,8 @@ import DownloadIcon from '@mui/icons-material/Download'
 import {HtmlTooltip} from '@components/HtmlTooltip.tsx'
 import {Info} from '@mui/icons-material'
 import BaseDialog from '@components/BaseDialog.tsx'
-import {getFilename} from '@utils/helpers.ts'
+import {runDownload} from '@utils/download.ts'
+import {isRequestNetworkError} from '@utils/request.ts'
 
 type Props = {
     registrationsFinalized: boolean
@@ -44,8 +44,6 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     const feedback = useFeedback()
 
     const {eventId} = eventRoute.useParams()
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
 
     const [finalized, setFinalized] = useState<false | number>(
         registrationsFinalized ? Date.now() : false,
@@ -69,22 +67,22 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     }
 
     const handleReportDownload = async () => {
-        const {data, error, response} = await getRegistrationResult({
-            path: {eventId},
-            query: {
-                remake: true,
-            },
-        })
-        const anchor = downloadRef.current
+        const {downloaded, error} = await runDownload(
+            undefined,
+            () =>
+                getRegistrationResult({
+                    path: {eventId},
+                    query: {
+                        remake: true,
+                    },
+                }),
+            'registration-result.pdf',
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error || !downloaded) {
             feedback.error(t('event.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? 'registration-result.pdf'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
         }
     }
 
@@ -159,7 +157,6 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
 
     return (
         <Box>
-            <MuiLink ref={downloadRef} display={'none'}></MuiLink>
             <Stack spacing={4}>
                 {registrationsWithoutTeamNumber !== null ? (
                     finalized === false ? (

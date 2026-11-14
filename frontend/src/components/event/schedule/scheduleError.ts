@@ -141,7 +141,10 @@ export const shiftErrorText = (
             return newStartTime === undefined
                 ? {key: shiftKeys.leavesRaceDayPlain}
                 : {
-                      key: slot === undefined ? shiftKeys.leavesRaceDayNoSlot : shiftKeys.leavesRaceDay,
+                      key:
+                          slot === undefined
+                              ? shiftKeys.leavesRaceDayNoSlot
+                              : shiftKeys.leavesRaceDay,
                       values: {slot: slot ?? '', time: ctx.formatTime(newStartTime)},
                   }
         }
@@ -255,11 +258,16 @@ export const importErrorText = (error: ScheduleApiError): ScheduleErrorText => {
 
         case 'SCHEDULE_IMPORT_DUPLICATE_ROWS': {
             const rows = Array.isArray(details.rowNumbers)
-                ? (details.rowNumbers as unknown[]).filter((r): r is number => typeof r === 'number')
+                ? (details.rowNumbers as unknown[]).filter(
+                      (r): r is number => typeof r === 'number',
+                  )
                 : []
             return rows.length === 0
                 ? {key: importKeys.unexpected}
-                : {key: importKeys.duplicateRows, values: {rows: rows.join(', '), count: rows.length}}
+                : {
+                      key: importKeys.duplicateRows,
+                      values: {rows: rows.join(', '), count: rows.length},
+                  }
         }
     }
 

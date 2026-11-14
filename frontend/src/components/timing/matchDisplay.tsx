@@ -2,6 +2,7 @@ import {Chip} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {TimingMatchDto, TimingModeDto} from '@api/types.gen.ts'
 import {modeChipParts} from '@utils/timing/matchBoard.ts'
+import {parseServerLocalDateTime, serverZoneOffsetMs} from '@utils/timing/serverTime.ts'
 
 /**
  * Gemeinsame Anzeige-Bausteine der Partie-Boards (Startposten-Startliste und Zielposten-Ansicht):
@@ -13,7 +14,9 @@ import {modeChipParts} from '@utils/timing/matchBoard.ts'
 export function matchTitle(match: TimingMatchDto): string {
     const time =
         match.startTime != null
-            ? new Date(match.startTime).toLocaleTimeString([], {
+            ? new Date(
+                  parseServerLocalDateTime(match.startTime, serverZoneOffsetMs()),
+              ).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
               })

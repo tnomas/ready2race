@@ -76,12 +76,24 @@ object EventRegistrationService {
         }
     }
 
+    /**
+     * Die Meldungen einer Veranstaltung. Mit Leserecht im Umfang OWN sieht ein Verein nur seine
+     * eigene Meldung (auch in der Zählung); ein Nutzer ohne Verein hat dann nichts zu sehen und
+     * bekommt den Rechtefehler - dieselbe Regel wie bei der Einzelansicht [getRegistration].
+     */
     fun pageForEvent(
         eventId: UUID,
         params: PaginationParameters<EventRegistrationViewSort>,
-    ): App<Nothing, ApiResponse.Page<EventRegistrationViewDto, EventRegistrationViewSort>> = KIO.comprehension {
-        val total = !EventRegistrationRepo.countForEvent(eventId, params.search).orDie()
-        val page = !EventRegistrationRepo.pageForEvent(eventId, params).orDie()
+        user: AppUserWithPrivilegesRecord,
+        scope: Privilege.Scope,
+    ): App<ServiceError, ApiResponse.Page<EventRegistrationViewDto, EventRegistrationViewSort>> = KIO.comprehension {
+        val clubId = if (scope == Privilege.Scope.OWN) {
+            !KIO.ok(user.club).onNullFail { AuthError.PrivilegeMissing }
+        } else {
+            null
+        }
+        val total = !EventRegistrationRepo.countForEvent(eventId, params.search, clubId).orDie()
+        val page = !EventRegistrationRepo.pageForEvent(eventId, params, clubId).orDie()
 
         page.traverse { it.toDto() }.map {
             ApiResponse.Page(
@@ -197,7 +209,10 @@ object EventRegistrationService {
 
             !CompetitionRegistrationRepo.deleteForEventRegistrationUpdate(persistedRegistrationId, type).orDie()
 
-            val clubRegistrations = !CompetitionRegistrationRepo.getByClub(clubId).orDie()
+            // Nur die Meldungen DIESER Veranstaltung neu durchnummerieren - früher liefen hier die
+            // Meldungen des Vereins aus allen Jahren mit, und historische Mannschaftsnamen auf
+            // Ergebnissen und Urkunden änderten sich bei jeder neuen Meldung.
+            val clubRegistrations = !CompetitionRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
             val grouped = clubRegistrations.groupBy { it.competition }
 
             val compIdsWithNewRegistrations = registrationDto.participants.flatMap {
@@ -208,13 +223,19 @@ object EventRegistrationService {
                 .forEach { regs ->
                     if (regs.size == 1) {
                         regs.first().let {
-                            it.name = if (compIdsWithNewRegistrations.contains(regs.first().competition)) "#1" else null
-                            it.update()
+                            val name = if (compIdsWithNewRegistrations.contains(regs.first().competition)) "#1" else null
+                            if (it.name != name) {
+                                it.name = name
+                                it.update()
+                            }
                         }
                     } else {
                         regs.sortedWith(lexiNumberComp { it.name }).forEachIndexed { idx, rec ->
-                            rec.name = "#${idx + 1}"
-                            rec.update()
+                            val name = "#${idx + 1}"
+                            if (rec.name != name) {
+                                rec.name = name
+                                rec.update()
+                            }
                         }
                     }
                 }
@@ -305,7 +326,7 @@ object EventRegistrationService {
         val registeredParticipants = participants.filter { registeredParticipantIds.contains(it.id) }
 
         val summaryParticipants = if (registeredParticipants.isEmpty()) {
-            when (EmailLanguage.valueOf(user.language!!)) {
+            when (EmailLanguage.fromStored(user.language)) {
                 EmailLanguage.DE -> "    Es sind noch keine Teilnehmer gemeldet."
                 EmailLanguage.EN -> "    No participants have been registered yet."
                 EmailLanguage.DA -> "    Der er endnu ikke tilmeldt nogen deltagere."
@@ -317,7 +338,7 @@ object EventRegistrationService {
         }.trimMargin()
 
         val summaryCompetitions = if (competitions.isEmpty()) {
-            when (EmailLanguage.valueOf(user.language!!)) {
+            when (EmailLanguage.fromStored(user.language)) {
                 EmailLanguage.DE -> "    Es sind noch keine Anmeldungen für Wettkämpfe erfolgt."
                 EmailLanguage.EN -> "    No competition registrations have been made yet."
                 EmailLanguage.DA -> "    Der er endnu ikke foretaget nogen tilmeldinger til konkurrencer."
@@ -347,7 +368,7 @@ object EventRegistrationService {
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.EVENT_REGISTRATION_CONFIRMATION,
-            EmailLanguage.valueOf(user.language!!)
+            EmailLanguage.fromStored(user.language)
         ).map { mailTemplate ->
             mailTemplate.toContent(
                 EmailTemplatePlaceholder.RECIPIENT to user.firstname + " " + user.lastname,
@@ -739,8 +760,9 @@ object EventRegistrationService {
         val overflowNonBinary = (counts[Gender.D] ?: 0) - requirements.countNonBinary
 
 
-        val maleFemaleSlotsAvailableForNonBinary =
-            if (overflowMales < 0) overflowMales * -1 else 0 + if (overflowFemales < 0) overflowFemales * -1 else 0
+        // Klammern sind nötig: `if (a) x else 0 + if (b) y else 0` liest Kotlin als
+        // `if (a) x else (0 + …)` - mit einem freien Männerplatz fielen die freien Frauenplätze weg.
+        val maleFemaleSlotsAvailableForNonBinary = maxOf(0, -overflowMales) + maxOf(0, -overflowFemales)
 
         val enoughMixedSlots = ((if (overflowMales > 0) overflowMales else 0) +
             (if (overflowFemales > 0) overflowFemales else 0) +
@@ -778,25 +800,13 @@ object EventRegistrationService {
         val competitions =
             !CompetitionRepo.getByIds(request.registerToSingleCompetitions.map { it.competitionId }).orDie()
 
-        // Validate competitions exist and belong to event
-        !CompetitionRegistrationValidation.validateCompetitionConsistency(
+        val openForRegistrationType = !CompetitionRegistrationValidation.validateSelfRegistration(
+            eventId = eventId,
             expectedCount = request.registerToSingleCompetitions.size,
-            actualCompetitions = competitions,
-            eventId = eventId
+            competitions = competitions,
         )
 
-        // Validate single competitions
-        !CompetitionRegistrationValidation.validateSingleCompetitions(competitions)
-
         val event = !EventRepo.get(eventId).orDie().onNullDie("Competition should reference the event")
-
-        !KIO.failOn(event.participantSelfRegistration == false) {
-            EventRegistrationError.SelfRegistrationNotAllowed
-        }
-
-        val openForRegistrationType = !EventService.getOpenForRegistrationType(eventId).failIf({
-            it == OpenForRegistrationType.CLOSED
-        }) { EventRegistrationError.RegistrationClosed }
 
         // Get rating category restrictions
         val (ratingCategoryAgeRestrictions, ratingCategoryExistsForEvent) =

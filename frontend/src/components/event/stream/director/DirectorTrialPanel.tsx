@@ -44,7 +44,6 @@ const DirectorTrialPanel = ({trialMode, trialPhase, canEdit, busy, onToggle, onP
                     {t('event.stream.director.trial.title')}
                 </Typography>
                 <Switch
-                    size="small"
                     checked={trialMode}
                     disabled={!canEdit || busy}
                     onChange={(_, checked) => onToggle(checked)}
@@ -71,6 +70,8 @@ const DirectorTrialPanel = ({trialMode, trialPhase, canEdit, busy, onToggle, onP
                                 textAlign: 'left',
                                 px: 1.25,
                                 py: 0.75,
+                                minHeight: 48,
+                                cursor: 'pointer',
                                 borderRadius: 1,
                                 border: `1px solid ${active ? DIRECTOR_COLORS.noFeed : DIRECTOR_COLORS.border}`,
                                 backgroundColor: active ? 'rgba(245, 179, 66, 0.12)' : DIRECTOR_COLORS.raised,

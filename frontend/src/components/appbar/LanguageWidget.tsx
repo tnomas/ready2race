@@ -23,7 +23,7 @@ const LanguageWidget = () => {
     return (
         <>
             <Tooltip title={t('common.language.menu')}>
-                <IconButton onClick={handleClick}>
+                <IconButton onClick={handleClick} aria-label={t('common.language.menu')}>
                     <Language />
                 </IconButton>
             </Tooltip>

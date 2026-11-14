@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'vitest'
 import {TokenStores, WebStorageLike} from '@contexts/user/sessionToken.ts'
-import {socketTokens, timingSocketTokens} from './socketTokens.ts'
+import {socketTokens, timingSocketTokens, tokenRoundInProgress} from './socketTokens.ts'
 
 const memoryStorage = (): WebStorageLike => {
     const map = new Map<string, string>()
@@ -26,6 +26,32 @@ const stores = (entries: {app?: string; admin?: string; device?: unknown}): Toke
     }
     return {local, session: memoryStorage()}
 }
+
+describe('tokenRoundInProgress', () => {
+    test('solange ein Token dieser Runde abgewiesen wurde, laeuft die Runde', () => {
+        // Ein Netzfehler mitten in einer Token-Runde darf das Warten auf die stabile Verbindung
+        // nicht aufheben — der nächste Versuch trägt womöglich wieder einen Token, der mit 1008
+        // zurückkommt, und ein vorzeitiges „verbunden" würde das rote Banner flackern lassen.
+        expect(tokenRoundInProgress(new Set(['abgewiesen']))).toBe(true)
+    })
+
+    test('ohne abgewiesene Tokens ist keine Runde offen', () => {
+        expect(tokenRoundInProgress(new Set())).toBe(false)
+    })
+})
+
+describe('timingSocketTokens: Lesen ohne Nebenwirkung', () => {
+    test('ein alter Tab-gebundener Token wird angeboten, aber nicht in die Verwaltungsablage kopiert', () => {
+        // Die HTTP-Seite (UserProvider) übernimmt den alten `sessionStorage['session']` einmalig in
+        // `session.admin`. Der Live-Kanal liest nur — er darf diese Übernahme nicht nebenbei
+        // auslösen und dabei die Tab-gebundene Ablage leeren.
+        const s = stores({})
+        s.session.setItem('session', 'alt-tab')
+        expect(timingSocketTokens('event-1', false, now, s)).toEqual(['alt-tab'])
+        expect(s.session.getItem('session')).toBe('alt-tab')
+        expect(s.local.getItem('session.admin')).toBeNull()
+    })
+})
 
 describe('timingSocketTokens', () => {
     test('Verwaltungsoberfläche: der Verwaltungstoken zuerst', () => {

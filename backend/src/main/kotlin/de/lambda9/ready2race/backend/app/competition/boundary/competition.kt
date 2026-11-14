@@ -14,6 +14,7 @@ import de.lambda9.ready2race.backend.app.timing.boundary.competitionTimingStatio
 import de.lambda9.ready2race.backend.calls.requests.*
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.database.generated.enums.Gender
+import de.lambda9.ready2race.backend.parsing.Parser.Companion.enum
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.int
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import io.ktor.server.routing.*
@@ -60,12 +61,13 @@ fun Route.competition() {
             call.respondComprehension {
                 val eventId = !pathParam("eventId", uuid)
                 val birthYear = !queryParam("birthYear", int)
-                val gender = !queryParam("gender")
+                // Öffentlich: ein unbekanntes Geschlecht ist 400, nicht 500 (Gender.valueOf warf).
+                val gender = !queryParam("gender", enum<Gender>())
 
                 CompetitionService.getForRegistration(
                     eventId,
                     birthYear,
-                    gender = Gender.valueOf(gender)
+                    gender = gender
                 )
             }
         }

@@ -31,13 +31,16 @@ data class CreateSequenceRequest(
     )
 
     // Cross-field: only INTERVAL sequences have a cadence, and anything below a second would make
-    // the countdown (and its beeps) meaningless.
+    // the countdown (and its beeps) meaningless. Nach oben eine Stunde: ein größerer Abstand
+    // plante Starts in eine Zukunft, die kein Board mehr sinnvoll herunterzählt, und käme in der
+    // Praxis nur aus einem Tippfehler (Millisekunden statt Sekunden).
     private val intervalForMode: Validator<Long?>
         get() = Validator { value ->
             when (mode) {
                 SequenceMode.INTERVAL -> when {
                     value == null -> ValidationResult.Invalid.Message { "is required for mode INTERVAL" }
                     value < MIN_INTERVAL_MILLIS -> ValidationResult.Invalid.Message { "is less than $MIN_INTERVAL_MILLIS" }
+                    value > MAX_INTERVAL_MILLIS -> ValidationResult.Invalid.Message { "is greater than $MAX_INTERVAL_MILLIS" }
                     else -> ValidationResult.Valid
                 }
 
@@ -59,6 +62,7 @@ data class CreateSequenceRequest(
 
     companion object {
         const val MIN_INTERVAL_MILLIS = 1000L
+        const val MAX_INTERVAL_MILLIS = 3_600_000L
         const val MIN_LEAD_IN_MILLIS = 3000L
         const val MAX_LEAD_IN_MILLIS = 600000L
         const val DEFAULT_MASS_LEAD_IN_MILLIS = 10000L

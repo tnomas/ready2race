@@ -76,7 +76,7 @@ const FileSelection = () => {
                     justifyContent={'space-between'}
                     key={field.fieldId}>
                     <Typography>{field.file.name}</Typography>
-                    <IconButton onClick={() => remove(index)}>
+                    <IconButton aria-label={t('common.remove')} onClick={() => remove(index)}>
                         <Delete />
                     </IconButton>
                 </Stack>

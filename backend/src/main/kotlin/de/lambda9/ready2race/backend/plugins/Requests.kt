@@ -11,25 +11,23 @@ import io.ktor.server.plugins.*
 import io.ktor.server.plugins.doublereceive.*
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.request.*
+import io.ktor.server.routing.*
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Rate-Limit, dessen Schlüssel aus dem Request-Body kommt (Login, Passwort-Reset): Der Limiter liest
+ * den Body schon im `requestKey`, der Handler danach noch einmal. Dafür puffert DoubleReceive den
+ * Body - aber nur auf diesen Routen. Global installiert lag jeder Multipart-Upload (bis 50 MB)
+ * zusätzlich vollständig im Heap.
+ */
+fun Route.rateLimitWithBodyKey(name: RateLimitName, build: Route.() -> Unit): Route {
+    install(DoubleReceive)
+    return rateLimit(name, build)
+}
+
 // todo: @refactor: remove as middleware and implement own version
-fun Application.configureRequests() {
-    install(DoubleReceive) {
-        // A websocket handshake hands the raw request channel to the upgraded session. Caching it
-        // (and discarding the remainder once the call completes) races with the session's reads and
-        // kills the connection right after the handshake. Upgrade requests never receive a body
-        // twice, so they are excluded from the cache.
-        //
-        // The `Upgrade` header alone is client-controlled, so any request (e.g. POST /api/login)
-        // could set it to dodge caching and trigger a 500 on double body receive. Requiring the
-        // websocket path prefix too means only our actual websocket routes are excluded.
-        excludeFromCache { call, _ ->
-            call.request.path().startsWith("/api/ws/") &&
-                call.request.headers[HttpHeaders.Upgrade]?.equals("websocket", ignoreCase = true) == true
-        }
-    }
+fun Application.configureRequests(trustedProxyHops: Int = 0) {
     install(RateLimit) {
         register(RateLimitName("login")) {
             rateLimiter(limit = 10, refillPeriod = 5.minutes)
@@ -53,7 +51,40 @@ fun Application.configureRequests() {
         // der Zwischenspeicher in EventInfoService.
         register(RateLimitName("publicInfo")) {
             rateLimiter(limit = 500, refillPeriod = 5.seconds)
-            requestKey { call -> call.request.origin.remoteHost }
+            requestKey { call -> call.clientAddress(trustedProxyHops) }
         }
     }
+}
+
+/**
+ * Die Adresse des Clients für Rate-Limits. Hinter einem Reverse-Proxy ist `origin.remoteHost` für
+ * alle Zuschauer die Adresse des Proxys; die echte steht dann in `X-Forwarded-For`.
+ *
+ * Dem Kopf wird nur so weit getraut, wie Proxys davor stehen ([trustedProxyHops], aus
+ * `TRUSTED_PROXY_HOPS`): Jeder Proxy hängt die Adresse, von der er die Anfrage bekam, HINTEN an.
+ * Bei einem Proxy (nginx mit `$proxy_add_x_forwarded_for`) ist also der letzte Eintrag die echte
+ * Client-Adresse; alles links davon kann der Client selbst geschrieben haben. Ohne gesetzte Hops
+ * (Vorgabe 0) bleibt der Kopf unbeachtet - sonst könnte jeder Client sich beliebige Schlüssel
+ * ausdenken.
+ */
+fun ApplicationCall.clientAddress(trustedProxyHops: Int): String =
+    forwardedClientAddress(
+        forwardedFor = request.headers.getAll(HttpHeaders.XForwardedFor),
+        remoteHost = request.origin.remoteHost,
+        trustedProxyHops = trustedProxyHops,
+    )
+
+internal fun forwardedClientAddress(
+    forwardedFor: List<String>?,
+    remoteHost: String,
+    trustedProxyHops: Int,
+): String {
+    if (trustedProxyHops <= 0) return remoteHost
+    val chain = forwardedFor.orEmpty()
+        .flatMap { it.split(',') }
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    val index = chain.size - trustedProxyHops
+    // Kürzer als erwartet: der Kopf stammt nicht von den konfigurierten Proxys - nicht trauen.
+    return if (index >= 0) chain[index] else remoteHost
 }

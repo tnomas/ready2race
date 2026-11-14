@@ -29,12 +29,25 @@ const DEFAULT_THEME: ThemeConfigDto = {
     },
 }
 
+/**
+ * So lange wartet der erste Paint höchstens auf theme.json. Kommt die Datei schneller, rendert
+ * die App gleich in den Mandantenfarben; sonst mit DEFAULT_THEME, das beim Eintreffen ersetzt
+ * wird. Verhindert den Blitz in MUI-Blau vor dem Laden.
+ */
+const FIRST_PAINT_TIMEOUT_MS = 400
+
 interface ThemeProviderProps {
     children: React.ReactNode
 }
 
 export function ThemeProvider({children}: ThemeProviderProps) {
     const [themeConfig, setThemeConfig] = useState<ThemeConfigDto | null>(null)
+    const [waitedLongEnough, setWaitedLongEnough] = useState(false)
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => setWaitedLongEnough(true), FIRST_PAINT_TIMEOUT_MS)
+        return () => window.clearTimeout(timer)
+    }, [])
 
     const loadTheme = useCallback(async () => {
         try {
@@ -87,13 +100,19 @@ export function ThemeProvider({children}: ThemeProviderProps) {
         void loadTheme()
     }, [loadTheme])
 
+    const effectiveConfig = themeConfig ?? (waitedLongEnough ? DEFAULT_THEME : null)
+
     const contextValue = useMemo(
         () => ({
-            themeConfig,
+            themeConfig: effectiveConfig,
             reloadTheme: loadTheme,
         }),
-        [themeConfig, loadTheme],
+        [effectiveConfig, loadTheme],
     )
 
-    return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>
+    return (
+        <ThemeContext.Provider value={contextValue}>
+            {effectiveConfig ? children : null}
+        </ThemeContext.Provider>
+    )
 }

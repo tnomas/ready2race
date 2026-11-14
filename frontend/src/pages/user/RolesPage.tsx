@@ -4,6 +4,7 @@ import {Box} from '@mui/material'
 import RoleTable from '@components/role/RoleTable.tsx'
 import RoleDialog from '@components/role/RoleDialog.tsx'
 import {useTranslation} from 'react-i18next'
+import {PageHeader} from '@components/ui'
 
 const RolesPage = () => {
     const {t} = useTranslation()
@@ -11,7 +12,8 @@ const RolesPage = () => {
 
     return (
         <Box>
-            <RoleTable {...administrationProps.table} title={t('role.userRoles')} />
+            <PageHeader title={t('role.userRoles')} />
+            <RoleTable {...administrationProps.table} />
             <RoleDialog {...administrationProps.dialog} />
         </Box>
     )

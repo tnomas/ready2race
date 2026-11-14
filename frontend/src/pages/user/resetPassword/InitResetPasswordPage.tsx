@@ -11,6 +11,7 @@ import FormInputCaptcha from '@components/form/input/FormInputCaptcha.tsx'
 import {i18nLanguage, languageMapping} from '@utils/helpers.ts'
 import {CaptchaDto, TooManyRequestsError} from '@api/types.gen.ts'
 import FormInputEmail from '@components/form/input/FormInputEmail.tsx'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Form = {
     email: string
@@ -28,7 +29,7 @@ const InitResetPasswordPage = () => {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            tooManyRequestsTimer > 0 ? setTooManyRequestsTimer(prevTime => prevTime - 1) : null
+            if (tooManyRequestsTimer > 0) setTooManyRequestsTimer(prevTime => prevTime - 1)
         }, 1000)
         return () => clearInterval(interval)
     }, [tooManyRequestsTimer])
@@ -47,25 +48,25 @@ const InitResetPasswordPage = () => {
     const {captcha, onReloadCaptcha} = useCaptcha(setCaptchaStart)
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-
-        const result = await initPasswordReset({
-            query: {
-                challenge: captcha.data!.id,
-                input: formData.captcha,
-            },
-            body: {
-                email: formData.email,
-                language: languageMapping[i18nLanguage()],
-                callbackUrl: location.origin + location.pathname + '/',
-            },
-        })
-
-        setSubmitting(false)
+        const result = await runRequest(setSubmitting, () =>
+            initPasswordReset({
+                query: {
+                    challenge: captcha.data!.id,
+                    input: formData.captcha,
+                },
+                body: {
+                    email: formData.email,
+                    language: languageMapping[i18nLanguage()],
+                    callbackUrl: location.origin + location.pathname + '/',
+                },
+            }),
+        )
         onReloadCaptcha()
         formContext.resetField('captcha')
 
-        if (result.error) {
+        if (isRequestNetworkError(result.error)) {
+            feedback.error(t('common.error.network'))
+        } else if (result.error) {
             if (result.error.status.value === 404) {
                 feedback.error(t('captcha.error.notFound'))
             } else if (result.error.status.value === 409) {
@@ -82,7 +83,9 @@ const InitResetPasswordPage = () => {
                         }),
                     )
                     setTooManyRequestsTimer(tooManyRequestsError.details.retryAfter)
-                } catch (e) {}
+                } catch {
+                    // Antwort ohne `details.retryAfter`: weder Meldung noch Zähler (wie bisher)
+                }
             } else {
                 feedback.error(t('common.error.unexpected'))
             }
@@ -95,13 +98,13 @@ const InitResetPasswordPage = () => {
         <SimpleFormLayout maxWidth={450}>
             {!requested ? (
                 <>
-                    <Typography variant="h2" textAlign="center">
+                    <Typography variant="h1" textAlign="center">
                         {t('user.resetPassword.forgotPassword')}
                     </Typography>
-                    <Divider sx={{my: 4}} />
-                    <Typography sx={{mb: 4}}>{t('user.resetPassword.init.instruction')}</Typography>
+                    <Divider sx={{my: 3}} />
+                    <Typography sx={{mb: 3}}>{t('user.resetPassword.init.instruction')}</Typography>
                     <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                        <Stack spacing={4}>
+                        <Stack spacing={3}>
                             <FormInputEmail name={'email'} label={t('user.email.email')} required />
                             {tooManyRequestsTimer <= 0 ? (
                                 <FormInputCaptcha captchaProps={captcha} />

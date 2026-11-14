@@ -26,7 +26,13 @@ data class BoardListDto(
     val program: List<BoardProgramEntry> = emptyList(),
 )
 
-enum class BoardProgramState { FINISHED, RUNNING, UPCOMING }
+/**
+ * Zustand einer Programmzeile - eine Abbildung von
+ * [de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState] (siehe
+ * `BoardLogic.programState`). Abgesagte Slots stehen gar nicht im Programm; SKIPPED und
+ * UNSCHEDULED gibt es deshalb hier nicht.
+ */
+enum class BoardProgramState { FINISHED, RUNNING, PREPARING, CLARIFICATION, AWAITING_FINISH, UPCOMING }
 
 /**
  * Eine Zeile des Tagesprogramms: ein Zeitplan-Slot mit seinem Zustand. [name] trägt

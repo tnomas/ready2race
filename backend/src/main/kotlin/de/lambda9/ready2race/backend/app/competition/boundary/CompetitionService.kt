@@ -18,6 +18,7 @@ import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.app.event.entity.EventError
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayHasCompetitionRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.eventDay.control.EventDayRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
@@ -38,6 +39,16 @@ import java.time.LocalDateTime
 import java.util.*
 
 object CompetitionService {
+
+    /**
+     * Routen unter `/event/{eventId}/competition/{competitionId}` tragen beide IDs. Wer nur mit
+     * der Wettkampf-ID weiterrechnet, aber Rechte oder Sichtbarkeit an der Veranstaltung prüft,
+     * lässt Zugriffe über eine fremde Veranstaltung zu - deshalb vor dem Arbeiten die Bindung.
+     */
+    fun requireInEvent(eventId: UUID, competitionId: UUID): App<CompetitionError, Unit> =
+        CompetitionRepo.existsInEvent(competitionId, eventId).orDie()
+            .failIf({ !it }) { CompetitionError.CompetitionNotFound }
+            .map { }
 
     fun addCompetition(
         request: CompetitionPropertiesRequest,
@@ -168,6 +179,8 @@ object CompetitionService {
         eventId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
+        !requireInEvent(eventId, competitionId)
+
         val isChallengeEvent = !EventService.checkIsChallengeEvent(eventId)
         !KIO.failOn(isChallengeEvent && request.challengeConfig == null) {
             CompetitionError.ChallengeConfigNotProvided
@@ -198,6 +211,10 @@ object CompetitionService {
             materialTypes = request.materialTypes.map { it.toRecord(competitionPropertiesId) },
             request.challengeConfig
         )
+
+        // Kennung, Name und Kurzname stehen auf Boards und im Stream.
+        EventChangeMarker.bump(eventId)
+
         noData
     }
 

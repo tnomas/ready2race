@@ -3,9 +3,12 @@ package de.lambda9.ready2race.backend.app.appuser.boundary
 import de.lambda9.ready2race.backend.afterNow
 import de.lambda9.ready2race.backend.app.App
 import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.tailwind.core.extensions.kio.recoverDefault
+import io.github.oshai.kotlinlogging.KotlinLogging
 import de.lambda9.ready2race.backend.app.appuser.control.*
 import de.lambda9.ready2race.backend.app.appuser.entity.*
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
+import de.lambda9.ready2race.backend.app.auth.control.AppUserSessionRepo
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.club.control.ClubRepo
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
@@ -30,11 +33,14 @@ import de.lambda9.ready2race.backend.app.material.control.MaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.participant.control.ParticipantRepo
 import de.lambda9.ready2race.backend.app.role.boundary.RoleService
+import de.lambda9.ready2race.backend.app.role.entity.RoleError
+import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
-import de.lambda9.ready2race.backend.database.ADMIN_ROLE
 import de.lambda9.ready2race.backend.database.CLUB_REPRESENTATIVE_ROLE
 import de.lambda9.ready2race.backend.database.MATERIAL_PROVIDER_ROLE
+import de.lambda9.ready2race.backend.database.ROLES_MANAGED_ELSEWHERE
+import de.lambda9.ready2race.backend.database.SUPERADMIN_ROLE
 import de.lambda9.ready2race.backend.database.SYSTEM_USER
 import de.lambda9.ready2race.backend.database.USER_ROLE
 import de.lambda9.ready2race.backend.database.generated.tables.records.*
@@ -55,6 +61,9 @@ import kotlin.time.Duration.Companion.days
 
 object AppUserService {
 
+    private val logger = KotlinLogging.logger {}
+
+
     fun AppUserRecord.fullName(): String = "$firstname $lastname"
 
     private val registrationLifeTime = 1.days
@@ -70,10 +79,10 @@ object AppUserService {
         }
     }
 
-    fun getIncludingAllAdmins(
+    fun getIncludingSuperadmins(
         id: UUID,
     ): App<AppUserError, ApiResponse.Dto<AppUserDto>> = KIO.comprehension {
-        val record = !AppUserRepo.getWithRolesIncludingAllAdmins(id).orDie().onNullFail { AppUserError.NotFound }
+        val record = !AppUserRepo.getWithRolesIncludingSuperadmins(id).orDie().onNullFail { AppUserError.NotFound }
         record.appUserDto().map {
             ApiResponse.Dto(it)
         }
@@ -106,12 +115,12 @@ object AppUserService {
         }
     }
 
-    fun pageIncludingAdmins(
+    fun pageIncludingSuperadmins(
         params: PaginationParameters<EveryAppUserWithRolesSort>,
         noClub: Boolean?
     ): App<Nothing, ApiResponse.Page<AppUserDto, EveryAppUserWithRolesSort>> = KIO.comprehension {
-        val total = !AppUserRepo.countWithRolesIncludingAdmins(params.search, noClub).orDie()
-        val page = !AppUserRepo.pageWithRolesIncludingAdmins(params, noClub).orDie()
+        val total = !AppUserRepo.countWithRolesIncludingSuperadmins(params.search, noClub).orDie()
+        val page = !AppUserRepo.pageWithRolesIncludingSuperadmins(params, noClub).orDie()
 
         page.traverse { it.appUserDto() }.map {
             ApiResponse.Page(
@@ -124,18 +133,18 @@ object AppUserService {
     fun update(
         request: UpdateAppUserRequest,
         scope: Privilege.Scope,
-        requestingUserId: UUID,
+        requester: AppUserWithPrivilegesRecord,
         targetUserId: UUID,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
 
-        val targetIsAdmin = !AppUserHasRoleRepo.exists(targetUserId, ADMIN_ROLE).orDie()
+        val requestingUserId = requester.id!!
+        val targetIsSuperadmin = !AppUserHasRoleRepo.exists(targetUserId, SUPERADMIN_ROLE).orDie()
 
+        // Regel 3: ein Superadmin-Konto fasst nur an, wer selbst UPDATE SYSTEM trägt.
         !KIO.failOn(
-            scope == Privilege.Scope.OWN
-                && (requestingUserId != targetUserId || request.roles.isNotEmpty())
-                || targetIsAdmin && requestingUserId != targetUserId && requestingUserId != SYSTEM_USER
+            scope == Privilege.Scope.OWN && requestingUserId != targetUserId
+                || targetIsSuperadmin && requestingUserId != targetUserId && !requester.hasPrivilege(Privilege.UpdateSystemGlobal)
         ) { AuthError.PrivilegeMissing }
-
 
         !AppUserRepo.update(targetUserId) {
             firstname = request.firstname
@@ -146,24 +155,48 @@ object AppUserService {
             .onNullFail { AppUserError.NotFound }
             .map { ApiResponse.NoData }
 
-        if (scope == Privilege.Scope.GLOBAL) {
-            !RoleService.checkAssignable(request.roles)
+        // roles == null heißt: Rollen bleiben, wie sie sind (Formulare ohne Rollenauswahl,
+        // z.B. das eigene Profil ohne STAFF-Recht). Dann greift der ganze Block hier nicht -
+        // insbesondere nicht die STAFF-Wache, die sonst das bloße Ändern des eigenen Namens
+        // verhindern würde.
+        val requestedRoles = request.roles
+        if (requestedRoles != null) {
+            // Rollen nur anfassen, wenn sich die verwalteten Rollen ändern; sonst griffe Regel 2
+            // schon beim Ändern des eigenen Namens.
+            // Systemverwaltete Rollen (USER, Vereinsvertreter, Materialanbieter) zählen weder
+            // zum Ist- noch zum Soll-Stand: sie vergeben andere Abläufe, und deleteManaged lässt sie stehen.
+            val current = (!AppUserHasRoleRepo.getRoleIds(targetUserId).orDie())
+                .filter { it !in ROLES_MANAGED_ELSEWHERE }
+                .toSet()
+            val wanted = requestedRoles.filter { it !in ROLES_MANAGED_ELSEWHERE }.toSet()
 
-            !AppUserHasRoleRepo.deleteExceptSystem(targetUserId).orDie()
-            !AppUserHasRoleRepo.create(
-                request.roles.map {
-                    AppUserHasRoleRecord(
-                        appUser = targetUserId,
-                        role = it
-                    )
-                }
-            ).orDie()
+            if (wanted != current) {
+                // Die Rollen des Systemkontos sind per API nicht änderbar - sonst könnte ein
+                // Fehlgriff der Anlage den letzten Superadmin nehmen.
+                !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
 
-            // Die Rolle Materialanbieter wird ausschließlich von der Anbieter-Zuordnung abgeleitet,
-            // damit Rolle und `app_user.material_provider` nicht auseinanderlaufen können - egal
-            // was die Rollenliste in diesem Request enthielt.
-            val targetUser = !AppUserRepo.get(targetUserId).orDie().onNullFail { AppUserError.NotFound }
-            !ensureMaterialProviderRole(targetUserId, targetUser.materialProvider != null)
+                // `checkAssignable` kurzschließt bei leerer Rollenliste (das trägt die rollenlose
+                // Einladung), das darf beim Entziehen aber nicht der einzige Wächter sein - sonst
+                // schickt ein Konto mit bloßem UPDATE USER GLOBAL `roles: []` an ein fremdes Konto
+                // und entzieht ohne STAFF-Recht alle verwalteten Rollen. Deshalb hier unabhängig
+                // von der übergebenen Liste geprüft.
+                !KIO.failOn(!requester.hasPrivilege(Privilege.UpdateStaffGlobal)) { AuthError.PrivilegeMissing }
+                !KIO.failOn(targetUserId == requestingUserId) { RoleError.SelfAssignment }
+
+                // Regel 1 gilt für Vergeben und Entziehen: geprüft wird die Vereinigung aus alter
+                // und neuer Menge, damit auch das Entziehen einer Rolle nicht über die eigenen
+                // Privilegien hinausgeht.
+                !RoleService.checkAssignable(requester, (wanted + current).toList(), targetUserId)
+                !AppUserHasRoleRepo.deleteManaged(targetUserId).orDie()
+                !AppUserHasRoleRepo.create(
+                    wanted.map {
+                        AppUserHasRoleRecord(
+                            appUser = targetUserId,
+                            role = it
+                        )
+                    }
+                ).orDie()
+            }
         }
 
         noData
@@ -172,12 +205,20 @@ object AppUserService {
     /**
      * Ordnet den Nutzer einem Materialanbieter zu (oder löst die Zuordnung mit `providerId = null`).
      * Nur die Nutzerseite - die Einladung bekommt bewusst keinen Anbieter, siehe Task 1.6.
+     *
+     * Die Zuordnung vergibt bzw. entzieht die systemverwaltete Rolle Materialanbieter und
+     * unterliegt deshalb denselben drei Vergaberegeln wie jede Rollenvergabe (UPDATE STAFF,
+     * Teilmenge, nicht an sich selbst, Superadmin-Konten nur mit UPDATE SYSTEM).
      */
     fun setMaterialProvider(
         targetUserId: UUID,
         providerId: UUID?,
-        requestingUserId: UUID,
+        requester: AppUserWithPrivilegesRecord,
     ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+
+        // Wie beim Nutzer-Update: die Rollen des Systemkontos sind per API nicht änderbar.
+        !KIO.failOn(targetUserId == SYSTEM_USER) { AuthError.PrivilegeMissing }
+        !RoleService.checkSystemManagedAssignable(requester, MATERIAL_PROVIDER_ROLE, targetUserId)
 
         if (providerId != null) {
             !MaterialProviderRepo.get(providerId).orDie().onNullFail { MaterialError.ProviderNotFound }
@@ -186,7 +227,7 @@ object AppUserService {
         !AppUserRepo.update(targetUserId) {
             materialProvider = providerId
             updatedAt = LocalDateTime.now()
-            updatedBy = requestingUserId
+            updatedBy = requester.id!!
         }.orDie().onNullFail { AppUserError.NotFound }
 
         !ensureMaterialProviderRole(targetUserId, providerId != null)
@@ -196,8 +237,8 @@ object AppUserService {
 
     /**
      * Sorgt dafür, dass die Rolle Materialanbieter genau dann gesetzt ist, wenn `shouldHaveRole`
-     * es verlangt - gemeinsam genutzt von `update` und `setMaterialProvider`, damit die Rolle immer
-     * der Anbieter-Zuordnung folgt und nirgendwo eigenständig gepflegt wird.
+     * es verlangt, damit die Rolle immer der Anbieter-Zuordnung folgt. Das Nutzer-Update fasst
+     * sie nicht an (ROLES_MANAGED_ELSEWHERE, deleteManaged).
      */
     private fun ensureMaterialProviderRole(
         targetUserId: UUID,
@@ -214,7 +255,7 @@ object AppUserService {
                 ).orDie()
             }
         } else {
-            !AppUserHasRoleRepo.deleteRole(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
+            !AppUserHasRoleRepo.delete(targetUserId, MATERIAL_PROVIDER_ROLE).orDie()
         }
 
         unit
@@ -259,28 +300,17 @@ object AppUserService {
         val record = !request.toRecord(inviter.id!!, invitationLifeTime)
         val id = !AppUserInvitationRepo.create(record).orDie()
 
-        if (request.admin == true) {
-            if (inviter.id == SYSTEM_USER) {
-                !AppUserInvitationHasRoleRepo.create(
-                    AppUserInvitationHasRoleRecord(
-                        appUserInvitation = id,
-                        role = ADMIN_ROLE,
-                    )
-                ).orDie()
-            } else {
-                return@comprehension KIO.fail(AuthError.SystemUserOnly)
+        // Die Vergaberegeln greifen hier; die Einladung trägt danach nur noch, was der
+        // Einladende auch selbst vergeben darf.
+        !RoleService.checkAssignable(inviter, request.roles, null)
+        !AppUserInvitationHasRoleRepo.create(
+            request.roles.map {
+                AppUserInvitationHasRoleRecord(
+                    appUserInvitation = id,
+                    role = it
+                )
             }
-        } else {
-            !RoleService.checkAssignable(request.roles)
-            !AppUserInvitationHasRoleRepo.create(
-                request.roles.map {
-                    AppUserInvitationHasRoleRecord(
-                        appUserInvitation = id,
-                        role = it
-                    )
-                }
-            ).orDie()
-        }
+        ).orDie()
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.USER_INVITATION,
@@ -341,7 +371,7 @@ object AppUserService {
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.USER_INVITATION,
-            EmailLanguage.valueOf(invitation.language),
+            EmailLanguage.fromStored(invitation.language),
         ).map { template ->
             template.toContent(
                 EmailTemplatePlaceholder.RECIPIENT to invitation.firstname + " " + invitation.lastname,
@@ -378,9 +408,11 @@ object AppUserService {
 
         val roles = invitation.roles!!.map { it!!.id!! }
 
-        if (invitation.createdBy?.id != SYSTEM_USER) {
-            !RoleService.checkAssignable(roles)
-        }
+        // Die Rollen wurden beim Einladen geprüft und werden hier unverändert zugewiesen.
+        // Ist das einladende Konto inzwischen weg, gilt die Einladung nicht mehr - lieber eine
+        // neue verschicken, als eine Vergabe ohne Absender auszuführen.
+        !KIO.failOn(invitation.createdBy?.id == null) { AppUserError.InvitationNotFound }
+
         !AppUserHasRoleRepo.create(
             roles.map {
                 AppUserHasRoleRecord(
@@ -426,12 +458,15 @@ object AppUserService {
             }
             val eventId = competitions.first().event!!
 
-            // Validate single competitions
-            !CompetitionRegistrationValidation.validateSingleCompetitions(competitions)
-
-            !EventService.getOpenForRegistrationType(eventId).failIf({
-                it == OpenForRegistrationType.CLOSED
-            }) { EventRegistrationError.RegistrationClosed }
+            // Dieselben Bedingungen wie bei der Teilnehmer-Selbstmeldung: alle Wettkämpfe aus
+            // DIESER Veranstaltung, Einer, Selbstmeldung erlaubt, veröffentlicht und offen.
+            // Vorher ließ sich ein Wettkampf einer geschlossenen oder unveröffentlichten
+            // Veranstaltung an die Meldung einer offenen hängen.
+            !CompetitionRegistrationValidation.validateSelfRegistration(
+                eventId = eventId,
+                expectedCount = request.registerToSingleCompetitions.size,
+                competitions = competitions,
+            )
 
             // Get rating category restrictions
             val (ratingCategoryAgeRestrictions, ratingCategoryExistsForEvent) =
@@ -629,8 +664,31 @@ object AppUserService {
             val participantId = !ParticipantRepo.create(participantRecord).orDie()
 
             // Handle competition registrations if present
-            if (competitionRegistrations.isNotEmpty()) {
-                val competitions = !CompetitionRepo.getByIds(competitionRegistrations.map { it.competitionId }).orDie()
+            val competitions = if (competitionRegistrations.isEmpty()) emptyList()
+            else !CompetitionRepo.getByIds(competitionRegistrations.map { it.competitionId }).orDie()
+
+            // Zwischen Registrierung und Bestätigung kann die Veranstaltung schließen, die
+            // Selbstmeldung abschalten oder ein Wettkampf verschwinden - deshalb hier noch einmal
+            // alles. Scheitert die Prüfung, entfällt nur die Wettkampfmeldung: Konto, Verein und
+            // Teilnehmer entstehen trotzdem. Früher scheiterte die ganze Bestätigung, und weil
+            // sich am Grund nichts mehr ändert, kam die Person nie zu ihrem Konto. Melden kann sie
+            // sich danach regulär über ihren Verein (Nachmeldung), soweit die Veranstaltung das zulässt.
+            val openForRegistrationType: OpenForRegistrationType? =
+                if (competitions.isEmpty()) null
+                else !CompetitionRegistrationValidation.validateSelfRegistration(
+                    eventId = competitions.first().event!!,
+                    expectedCount = competitionRegistrations.size,
+                    competitions = competitions,
+                ).recoverDefault { null }
+
+            if (competitionRegistrations.isNotEmpty() && openForRegistrationType == null) {
+                logger.info {
+                    "Registration of app user $userId confirmed without its ${competitionRegistrations.size} " +
+                        "competition registration(s): self registration no longer possible"
+                }
+            }
+
+            if (openForRegistrationType != null) {
                 val eventId = competitions.first().event!!
 
                 val eventRegistration = !EventRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
@@ -650,11 +708,6 @@ object AppUserService {
                         )
                     ).orDie()
                 } else eventRegistration.id!!
-
-
-                val openForRegistrationType = !EventService.getOpenForRegistrationType(eventId).failIf({
-                    it == OpenForRegistrationType.CLOSED
-                }) { EventRegistrationError.RegistrationClosed }
 
                 val event = !EventRepo.get(eventId).orDie()
                     .onNullDie("Event must be provided")
@@ -790,6 +843,10 @@ object AppUserService {
         val newPassword = !PasswordUtilities.hash(request.password)
         !AppUserRepo.update(passwordReset.appUser) { password = newPassword }.orDie()
 
+        // Wer das Konto übernommen hatte, behielte mit einer laufenden Sitzung den Zugriff (6 h
+        // gleitend, bei Aktivität also unbegrenzt). Nach dem Reset meldet man sich neu an.
+        !AppUserSessionRepo.deleteByUser(passwordReset.appUser).orDie()
+
         noData
     }
 
@@ -911,7 +968,7 @@ object AppUserService {
             KIO.comprehension {
                 val content = !EmailService.getTemplate(
                     EmailTemplateKey.CLUB_REPRESENTATIVE_APPROVAL_REQUESTED,
-                    EmailLanguage.valueOf(representative.language),
+                    EmailLanguage.fromStored(representative.language),
                 ).map { template ->
                     template.toContent(
                         EmailTemplatePlaceholder.RECIPIENT to representative.fullName(),

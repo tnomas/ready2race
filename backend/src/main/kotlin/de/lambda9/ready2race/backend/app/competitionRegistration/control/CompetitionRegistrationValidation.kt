@@ -1,6 +1,12 @@
 package de.lambda9.ready2race.backend.app.competitionRegistration.control
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.ServiceError
+import de.lambda9.ready2race.backend.app.event.boundary.EventService
+import de.lambda9.ready2race.backend.app.event.control.EventRepo
+import de.lambda9.ready2race.backend.app.eventRegistration.entity.OpenForRegistrationType
+import de.lambda9.tailwind.core.extensions.kio.failIf
+import de.lambda9.tailwind.core.extensions.kio.onNullFail
 import de.lambda9.ready2race.backend.app.competition.entity.CompetitionError
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.EventRegistrationError
 import de.lambda9.ready2race.backend.app.ratingcategory.control.EventRatingCategoryViewRepo
@@ -213,5 +219,29 @@ object CompetitionRegistrationValidation {
             CompetitionError.CompetitionNotFound
         }
         KIO.unit
+    }
+
+    /**
+     * Die gemeinsamen Bedingungen einer Selbstmeldung (Teilnehmer-Selbstmeldung, Registrierung
+     * mit Wettkampfmeldung und deren Bestätigung): alle Wettkämpfe existieren und gehören zu
+     * [eventId], sind Einer, die Veranstaltung erlaubt Selbstmeldung, und sie ist (veröffentlicht
+     * und) offen. Liefert die Meldeart für `is_late`.
+     */
+    fun validateSelfRegistration(
+        eventId: UUID,
+        expectedCount: Int,
+        competitions: List<CompetitionViewRecord>,
+    ): App<ServiceError, OpenForRegistrationType> = KIO.comprehension {
+        !validateCompetitionConsistency(expectedCount, competitions, eventId)
+        !validateSingleCompetitions(competitions)
+
+        val event = !EventRepo.get(eventId).orDie().onNullFail { CompetitionError.CompetitionNotFound }
+        !KIO.failOn(event.participantSelfRegistration != true) {
+            EventRegistrationError.SelfRegistrationNotAllowed
+        }
+
+        EventService.getOpenForRegistrationType(eventId).failIf({
+            it == OpenForRegistrationType.CLOSED
+        }) { EventRegistrationError.RegistrationClosed }
     }
 }

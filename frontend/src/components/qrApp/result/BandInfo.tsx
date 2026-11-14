@@ -15,7 +15,7 @@ export const BandInfo = ({response, showCompetitions}: Props) => {
         response.type !== 'User' && 'competitions' in response ? (response.competitions ?? []) : []
 
     return (
-        <Paper elevation={2} sx={{p: 2, width: '100%'}}>
+        <Paper sx={{p: 2, width: '100%'}}>
             <Stack spacing={1.5}>
                 <Typography variant="h6" color="primary">
                     {response.type === 'User'
@@ -25,7 +25,8 @@ export const BandInfo = ({response, showCompetitions}: Props) => {
                 <Stack direction="row" spacing={1} alignItems="center">
                     <Person color="action" />
                     <Typography sx={{overflowWrap: 'anywhere'}}>
-                        <strong>{t('common.name')}:</strong> {response.firstname} {response.lastname}
+                        <strong>{t('common.name')}:</strong> {response.firstname}{' '}
+                        {response.lastname}
                     </Typography>
                 </Stack>
                 {response.clubName && (

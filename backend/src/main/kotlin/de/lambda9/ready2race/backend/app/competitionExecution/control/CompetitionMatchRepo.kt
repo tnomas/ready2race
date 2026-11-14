@@ -340,6 +340,7 @@ object CompetitionMatchRepo {
         eventId: UUID,
         limit: Int,
         includeClarification: Boolean = false,
+        matchIds: Collection<UUID>? = null,
     ) = Jooq.query {
         select(
             COMPETITION_MATCH.COMPETITION_SETUP_MATCH,
@@ -377,6 +378,10 @@ object CompetitionMatchRepo {
             // kommt er mit, markiert über clarification_since; der Cursor der öffentlichen
             // Anzeigen fragt nie mit includeClarification an.
             .let { if (includeClarification) it else it.and(COMPETITION_MATCH.CLARIFICATION_SINCE.isNull) }
+            .let { query ->
+                if (matchIds == null) query
+                else query.and(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.`in`(matchIds))
+            }
             .orderBy(
                 COMPETITION_MATCH.START_TIME.asc(),
                 COMPETITION_SETUP_MATCH.EXECUTION_ORDER.asc()

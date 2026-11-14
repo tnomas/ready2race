@@ -1,26 +1,49 @@
 import {useFeedback, useFetch} from '@utils/hooks.ts'
-import {getMaterialProviders, getRoles, getUser, setUserMaterialProvider, updateUser} from '@api/sdk.gen.ts'
+import {
+    getMaterialProviders,
+    getRoles,
+    getUser,
+    setUserMaterialProvider,
+    updateUser,
+} from '@api/sdk.gen.ts'
 import {userRoute} from '@routes'
 import {useTranslation} from 'react-i18next'
-import {Box, FormControl, InputLabel, MenuItem, Paper, Select, Stack, Typography} from '@mui/material'
+import {
+    Box,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Stack,
+    Typography,
+} from '@mui/material'
 import {FormContainer, useForm} from 'react-hook-form-mui'
 import {useState} from 'react'
-import Throbber from '@components/Throbber.tsx'
+import {ErrorState, LoadingState, PageHeader} from '@components/ui'
+import {buildUserTrail} from '@utils/navigation/breadcrumbs.ts'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {MATERIAL_PROVIDER_ROLE_ID, updateUserGlobal} from '@authorization/privileges.ts'
+import {
+    readMaterialGlobal,
+    updateMaterialOwn,
+    updateStaffGlobal,
+    updateUserGlobal,
+} from '@authorization/privileges.ts'
 import RolesSelect from '@components/user/RolesSelect.tsx'
 import {UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
+import {roleLabel} from '@authorization/roleLabels.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+
+const NO_PROVIDER = ''
 
 type Form = {
     firstname: string
     lastname: string
     roles: string[]
 }
-
-const NO_PROVIDER = ''
 
 const UserPage = () => {
     const {t} = useTranslation()
@@ -46,83 +69,120 @@ const UserPage = () => {
     const [materialProviderId, setMaterialProviderId] = useState<string>(NO_PROVIDER)
     const [savedMaterialProviderId, setSavedMaterialProviderId] = useState<string>(NO_PROVIDER)
 
-    const {data: userData, pending} = useFetch(
-        signal => getUser({signal, path: {userId: userId}}),
-        {
-            onResponse: ({data, error}) => {
-                if (error) {
-                    feedback.error(t('user.page.error.load'))
-                } else {
-                    formContext.reset({
-                        firstname: data.firstname,
-                        lastname: data.lastname,
-                        roles: data.roles.map(r => r.id),
-                    })
-                    setMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
-                    setSavedMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
-                }
-            },
-            deps: [userId, reloadUserData],
+    const {
+        data: userData,
+        error: userError,
+        reload: reloadUser,
+    } = useFetch(signal => getUser({signal, path: {userId: userId}}), {
+        onResponse: ({data, error}) => {
+            if (error) {
+                feedback.error(t('user.page.error.load'))
+            } else {
+                formContext.reset({
+                    firstname: data.firstname,
+                    lastname: data.lastname,
+                    roles: data.roles.map(r => r.id),
+                })
+                setMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
+                setSavedMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
+            }
         },
-    )
+        deps: [userId, reloadUserData],
+    })
+
+    // Die Rollenauswahl hilft nur, wenn das Speichern auch durchgeht: PUT /user/{id} hängt an
+    // UPDATE USER, die Rollenvergabe zusätzlich an UPDATE STAFF. Wer nur eines von beiden trägt
+    // (z.B. der Job Wettkampfleitung), bekommt die Auswahl gar nicht erst zu sehen.
+    const mayEditRoles =
+        user.checkPrivilege(updateStaffGlobal) && user.checkPrivilege(updateUserGlobal)
+
+    // Die Anbieter-Zuordnung vergibt die systemverwaltete Rolle Materialanbieter und folgt deshalb
+    // denselben Vergaberegeln: STAFF wie oben, dazu die Material-Rechte der Rolle selbst
+    // (Teilmenge); die Anbieterliste verlangt READ MATERIAL GLOBAL.
+    const mayAssignProvider =
+        mayEditRoles &&
+        user.checkPrivilege(readMaterialGlobal) &&
+        user.checkPrivilege(updateMaterialOwn)
 
     const {data: materialProviders} = useFetch(
         signal => getMaterialProviders({signal, query: {limit: 200}}),
         {
-            preCondition: () => user.checkPrivilege(updateUserGlobal),
+            preCondition: () => mayAssignProvider,
         },
     )
 
     const handleSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error} = await updateUser({
-            path: {userId: userId},
-            body: mapFormToRequest(formData, user.checkPrivilege(updateUserGlobal)),
-        })
-
-        let providerError = false
-        if (
-            !error &&
-            user.checkPrivilege(updateUserGlobal) &&
-            materialProviderId !== savedMaterialProviderId
-        ) {
-            const {error: providerErrorResult} = await setUserMaterialProvider({
+        const {error} = await runRequest(setSubmitting, () =>
+            updateUser({
                 path: {userId: userId},
-                body: {materialProviderId: materialProviderId || undefined},
-            })
-            providerError = !!providerErrorResult
-        }
-        setSubmitting(false)
+                body: mapFormToRequest(formData, mayEditRoles),
+            }),
+        )
 
-        // Auch wenn nur der zweite Aufruf (Anbieter) fehlschlägt, ist der erste (Name/Rollen)
-        // bereits gespeichert - neu laden, damit die Seite den persistierten Stand zeigt.
-        if (!error) {
-            setReloadUserData(!reloadUserData)
-        }
+        const providerChanged = mayAssignProvider && materialProviderId !== savedMaterialProviderId
+        const providerResult =
+            !error && providerChanged
+                ? await runRequest(setSubmitting, () =>
+                      setUserMaterialProvider({
+                          path: {userId: userId},
+                          body: {materialProviderId: materialProviderId || undefined},
+                      }),
+                  )
+                : undefined
 
-        if (error || providerError) {
+        if (isRequestNetworkError(error) || isRequestNetworkError(providerResult?.error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
+            if (error.status.value === 403 && 'errorCode' in error) {
+                if (error.errorCode === 'SELF_ASSIGNMENT') {
+                    feedback.error(t('role.error.selfAssignment'))
+                } else if (error.errorCode === 'PRIVILEGES_BEYOND_OWN') {
+                    feedback.error(t('role.error.privilegesBeyondOwn'))
+                } else {
+                    feedback.error(t('user.update.error'))
+                }
+            } else if (
+                error.status.value === 409 &&
+                'errorCode' in error &&
+                error.errorCode === 'CANNOT_ASSIGN_ROLES'
+            ) {
+                feedback.error(t('role.error.cannotAssign'))
+            } else {
+                feedback.error(t('user.update.error'))
+            }
+        } else if (providerResult?.error) {
+            // Name und Rollen sind gespeichert, nur die Anbieter-Zuordnung nicht.
             feedback.error(t('user.update.error'))
+            setReloadUserData(!reloadUserData)
         } else {
             feedback.success(t('user.update.success'))
+            setReloadUserData(!reloadUserData)
         }
     }
 
     const {data} = useFetch(signal => getRoles({signal}), {
-        preCondition: () => user.checkPrivilege(updateUserGlobal), // The backend checks for the privilege READUserGlobal
+        preCondition: () => mayEditRoles, // The backend checks for the privilege READRoleGlobal
     })
 
-    // Materialanbieter wird über den eigenen Select oben gepflegt, nicht über RolesSelect -
-    // sonst könnten Rolle und Anbieter-Zuordnung auseinanderlaufen.
-    const assignableRoles = data?.data.filter(r => r.id !== MATERIAL_PROVIDER_ROLE_ID)
+    const fullName = userData ? `${userData.firstname} ${userData.lastname}`.trim() : undefined
 
     return (
-        <Box sx={{maxWidth: 600}}>
-            <Stack spacing={2}>
+        <Box>
+            <PageHeader
+                title={fullName || t('user.user')}
+                subtitle={userData?.email}
+                breadcrumbs={buildUserTrail({
+                    usersLabel: t('navigation.titles.users'),
+                    userId,
+                    userName: fullName,
+                })}
+            />
+            <Stack spacing={2} sx={{maxWidth: 600}}>
                 {user.loggedIn && user.id === userId && <PendingClubRepresentativeAlert />}
-                <Paper sx={{padding: 4}}>
-                    {(userData && (
+                {userData ? (
+                    <Paper sx={{p: {xs: 2, sm: 3}}}>
                         <FormContainer formContext={formContext} onSuccess={handleSubmit}>
-                            <Stack spacing={4}>
+                            <Stack spacing={3}>
                                 <FormInputText
                                     name={'firstname'}
                                     label={t('user.firstname')}
@@ -133,20 +193,23 @@ const UserPage = () => {
                                     label={t('user.lastname')}
                                     required
                                 />
-                                <Typography>{userData.email}</Typography>
-                                {user.checkPrivilege(updateUserGlobal)
-                                    ? (assignableRoles?.length ?? 0) > 0 && (
-                                          <RolesSelect availableRoles={assignableRoles} />
+                                {mayEditRoles
+                                    ? (data?.data.length ?? 0) > 0 && (
+                                          <RolesSelect availableRoles={data?.data} />
                                       )
                                     : userData.roles.length > 0 && (
                                           <Box>
-                                              <Typography>{t('role.roles')}</Typography>
+                                              <Typography variant={'subtitle2'}>
+                                                  {t('role.roles')}
+                                              </Typography>
                                               <Typography>
-                                                  {userData.roles.map(r => r.name).join(', ')}
+                                                  {userData.roles
+                                                      .map(r => roleLabel(r, t))
+                                                      .join(', ')}
                                               </Typography>
                                           </Box>
                                       )}
-                                {user.checkPrivilege(updateUserGlobal) && (
+                                {mayAssignProvider && (
                                     <FormControl fullWidth>
                                         <InputLabel id={'material-provider-label'}>
                                             {t('user.materialProvider')}
@@ -169,19 +232,24 @@ const UserPage = () => {
                                         </Select>
                                     </FormControl>
                                 )}
-                                <SubmitButton
-                                    submitting={submitting}
-                                    disabled={
-                                        !formContext.formState.isDirty &&
-                                        materialProviderId === savedMaterialProviderId
-                                    }>
-                                    {t('common.save')}
-                                </SubmitButton>
+                                <Box>
+                                    <SubmitButton
+                                        submitting={submitting}
+                                        disabled={
+                                            !formContext.formState.isDirty &&
+                                            materialProviderId === savedMaterialProviderId
+                                        }>
+                                        {t('common.save')}
+                                    </SubmitButton>
+                                </Box>
                             </Stack>
                         </FormContainer>
-                    )) ||
-                        (pending && <Throbber />)}
-                </Paper>
+                    </Paper>
+                ) : userError ? (
+                    <ErrorState message={t('user.page.error.load')} onRetry={reloadUser} />
+                ) : (
+                    <LoadingState />
+                )}
             </Stack>
         </Box>
     )
@@ -193,8 +261,6 @@ function mapFormToRequest(formData: Form, editRoles: boolean): UpdateAppUserRequ
     return {
         firstname: formData.firstname,
         lastname: formData.lastname,
-        // Materialanbieter-Rolle nie mitsenden - das Backend leitet sie allein aus der
-        // Anbieter-Zuordnung ab (siehe AppUserService.update).
-        roles: editRoles ? formData.roles.filter(id => id !== MATERIAL_PROVIDER_ROLE_ID) : [],
+        roles: editRoles ? formData.roles : undefined,
     }
 }

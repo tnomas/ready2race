@@ -82,7 +82,7 @@ object EventParticipantService {
 
         val content = !EmailService.getTemplate(
             EmailTemplateKey.PARTICIPANT_CHALLENGE_REGISTERED,
-            EmailLanguage.valueOf(user.language!!),
+            EmailLanguage.fromStored(user.language),
         ).map { template ->
             template.toContent(
                 EmailTemplatePlaceholder.RECIPIENT to participant.firstname + " " + participant.lastname,

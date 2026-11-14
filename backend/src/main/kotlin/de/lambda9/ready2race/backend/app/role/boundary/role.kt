@@ -15,18 +15,18 @@ fun Route.role() {
     route("/role") {
         post {
             call.respondComprehension {
-                val user = !authenticate(Privilege.UpdateUserGlobal)
+                val user = !authenticate(Privilege.CreateRoleGlobal)
 
                 val body = !receiveKIO(RoleRequest.example)
-                RoleService.addRole(body, user.id!!)
+                RoleService.addRole(body, user)
             }
         }
 
         get {
             call.respondComprehension {
-                !authenticate(Privilege.ReadUserGlobal)
+                val user = !authenticate(Privilege.ReadRoleGlobal)
                 val params = !pagination<RoleWithPrivilegesSort>()
-                RoleService.page(params)
+                RoleService.page(params, user)
             }
         }
 
@@ -34,20 +34,29 @@ fun Route.role() {
 
             put {
                 call.respondComprehension {
-                    val user = !authenticate(Privilege.UpdateUserGlobal)
+                    val user = !authenticate(Privilege.UpdateRoleGlobal)
                     val id = !pathParam("roleId", uuid)
 
                     val body = !receiveKIO(RoleRequest.example)
-                    RoleService.updateRole(id, body, user.id!!)
+                    RoleService.updateRole(id, body, user)
                 }
             }
 
             delete {
                 call.respondComprehension {
-                    !authenticate(Privilege.UpdateUserGlobal)
+                    val user = !authenticate(Privilege.DeleteRoleGlobal)
                     val id = !pathParam("roleId", uuid)
-                    RoleService.deleteRole(id)
+                    RoleService.deleteRole(id, user)
                 }
+            }
+        }
+    }
+
+    route("/job") {
+        get {
+            call.respondComprehension {
+                !authenticate(Privilege.ReadRoleGlobal)
+                RoleService.jobs()
             }
         }
     }

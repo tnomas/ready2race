@@ -50,6 +50,7 @@ import de.lambda9.tailwind.core.extensions.kio.traverse
 import de.lambda9.tailwind.jooq.transact
 import org.apache.pdfbox.Loader
 import java.io.ByteArrayOutputStream
+import de.lambda9.ready2race.backend.database.generated.tables.records.CompetitionViewRecord
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -140,7 +141,7 @@ object CertificateService {
             .failIf({ it.challengeEvent != true }) { CertificateError.NotAChallengeEvent }
 
         !CompetitionRepo.getByEvent(eventId).orDie()
-            .failIf({it.any { c -> c.challengeEndAt!! > LocalDateTime.now() }}) { CertificateError.ChallengeStillInProgress }
+            .failIf({ challengeStillRunning(it) }) { CertificateError.ChallengeStillInProgress }
 
         val results = !ChallengeResultParticipantViewRepo.getByEventIdAndClubId(
             eventId = eventId,
@@ -224,7 +225,7 @@ object CertificateService {
             .failIf({ it.challengeEvent != true }) { CertificateError.NotAChallengeEvent }
 
         !CompetitionRepo.getByEvent(eventId).orDie()
-            .failIf({it.any { c -> c.challengeEndAt!! > LocalDateTime.now() }}) { CertificateError.ChallengeStillInProgress }
+            .failIf({ challengeStillRunning(it) }) { CertificateError.ChallengeStillInProgress }
 
         // Die Abfrage liefert eine Liste, nie null - `onNullFail` lief hier deshalb immer ins Leere
         // und eine Person ohne (oder ohne bestätigtes) Ergebnis bekam eine Urkunde über "0 m",
@@ -270,7 +271,7 @@ object CertificateService {
         !EventService.checkIsChallengeEvent(eventId).onFalseFail { CertificateError.NotAChallengeEvent }
 
         !CompetitionRepo.getByEvent(eventId).orDie()
-            .failIf({it.any { c -> c.challengeEndAt!! > LocalDateTime.now() }}) { CertificateError.ChallengeStillInProgress }
+            .failIf({ challengeStillRunning(it) }) { CertificateError.ChallengeStillInProgress }
 
         val participantIds = !ChallengeResultParticipantViewRepo.getForCertificates(eventId).orDie()
 
@@ -349,4 +350,14 @@ object CertificateService {
 
         unit
     }.transact()
+
+    /**
+     * Läuft in einem der Wettkämpfe die Challenge noch? Ein Wettkampf ohne Challenge-Konfiguration
+     * (etwa nach einem Import, der die Konfiguration nicht mitbringt) hat kein Ende und hält die
+     * Urkunden nicht auf - vorher brach `challengeEndAt!!` hier mit 500 ab.
+     */
+    internal fun challengeStillRunning(
+        competitions: List<CompetitionViewRecord>,
+        now: LocalDateTime = LocalDateTime.now(),
+    ): Boolean = competitions.any { c -> c.challengeEndAt?.isAfter(now) == true }
 }

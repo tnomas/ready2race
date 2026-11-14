@@ -11,6 +11,7 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {RequirementsChecklist} from '@components/qrApp/RequirementsChecklist'
 import {competitionLabel, preselectCompetition} from '@components/qrApp/requirementScope.ts'
 import {REQUIREMENT_COMPETITION_KEY} from '@components/qrApp/appMemory.ts'
+import {runRequest} from '@utils/request.ts'
 
 /**
  * Der zuletzt an dieser Station gewählte Wettkampf. Er überlebt den einzelnen Scan bewusst:
@@ -28,7 +29,9 @@ type Props = {
 export const ParticipantRequirements = ({eventId, participantId}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
-    const [checkedRequirements, setCheckedRequirements] = useState<CheckedParticipantRequirement[]>([])
+    const [checkedRequirements, setCheckedRequirements] = useState<CheckedParticipantRequirement[]>(
+        [],
+    )
     const [participantRoles, setParticipantRoles] = useState<string[]>([])
     const [pending, setPending] = useState(false)
     const [competitions, setCompetitions] = useState<ParticipantScanCompetitionDto[]>([])
@@ -103,7 +106,10 @@ export const ParticipantRequirements = ({eventId, participantId}: Props) => {
             // Bewusst nicht über selectCompetition: eine Vorbelegung ist keine Wahl und
             // darf den gemerkten Wettkampf der Station nicht überschreiben.
             setCompetitionId(
-                preselectCompetition(localStorage.getItem(COMPETITION_STORAGE_KEY), data.competitions),
+                preselectCompetition(
+                    localStorage.getItem(COMPETITION_STORAGE_KEY),
+                    data.competitions,
+                ),
             )
         },
         deps: [eventId, participantId],
@@ -118,19 +124,25 @@ export const ParticipantRequirements = ({eventId, participantId}: Props) => {
         // Der Wettkampf gehört nur an eine Bedingung, die je Wettkampf gilt. Bei allen anderen
         // bliebe er sonst als Einschränkung in der Zeile stehen, die niemand gewollt hat.
         const requirement = (requirements ?? []).find(r => r.id === requirementId)
-        const {error} = await approveParticipantRequirementForParticipant({
-            path: {eventId},
-            // Bewusst der additive Einzel-Endpunkt: der Ersetzen-Endpunkt (approve) erwartet den
-            // kompletten Zustand und würde alle nicht mitgeschickten Bestätigungen löschen.
-            body: {
-                requirementId,
-                participantId,
-                approved: checked !== false,
-                note: typeof checked === 'string' ? checked : undefined,
-                namedParticipantId,
-                competitionId: requirement?.perCompetition ? (competitionId ?? undefined) : undefined,
-            },
-        })
+        // Die Sperre (pending) bleibt über das Nachladen unten gesetzt; runRequest fängt nur den
+        // Netzfehler ab, der sonst an dieser Stelle die Waage dauerhaft sperrte.
+        const {error} = await runRequest(undefined, () =>
+            approveParticipantRequirementForParticipant({
+                path: {eventId},
+                // Bewusst der additive Einzel-Endpunkt: der Ersetzen-Endpunkt (approve) erwartet den
+                // kompletten Zustand und würde alle nicht mitgeschickten Bestätigungen löschen.
+                body: {
+                    requirementId,
+                    participantId,
+                    approved: checked !== false,
+                    note: typeof checked === 'string' ? checked : undefined,
+                    namedParticipantId,
+                    competitionId: requirement?.perCompetition
+                        ? (competitionId ?? undefined)
+                        : undefined,
+                },
+            }),
+        )
         // Die Antwort wurde bis hierher gar nicht ausgewertet: Ein abgelehnter Aufruf sah an der
         // Waage genauso aus wie ein angenommener - der Knopf blieb einfach stehen. Die
         // Rückmeldung nennt deshalb auch den Rahmen, für den gerade abgehakt wurde; an einer

@@ -1,11 +1,4 @@
-import {
-    Alert,
-    ButtonBase,
-    CircularProgress,
-    IconButton,
-    Stack,
-    Typography,
-} from '@mui/material'
+import {Alert, ButtonBase, CircularProgress, IconButton, Stack, Typography} from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import {MouseEvent, useCallback, useMemo} from 'react'
@@ -13,8 +6,13 @@ import {useTranslation} from 'react-i18next'
 import {TimingMatchDto, TimingTeamDto} from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {UseSequenceResult} from '@utils/timing/useSequence.ts'
-import {sequenceRequestFromMode, startSequenceOffByMode} from '@utils/timing/matchBoard.ts'
-import {tonePlanForSequence} from '@utils/timing/tonePlan.ts'
+import {
+    sequenceControlHint,
+    sequenceMatchDiffersFromFocus,
+    sequenceRequestFromMode,
+    startSequenceOffByMode,
+} from '@utils/timing/matchBoard.ts'
+import {matchOfSequence, tonePlanForSequence} from '@utils/timing/tonePlan.ts'
 import {teamLabel} from '@utils/timing/teamLabel.ts'
 import {ModeChip, ProgressChip, matchTitle} from '@components/timing/matchDisplay.tsx'
 import SequenceStatusBar from '@components/timing/SequenceStatusBar.tsx'
@@ -42,6 +40,11 @@ export type StartBoardPanelProps = {
      * den Stempel zeigt, zeigte dann auf eine leere Fläche.
      */
     manualCaptureVisible: boolean
+    /**
+     * Ob an diesem Gerät eine Sitzung besteht. Die Sequenz-Routen verlangen eine; ein Gerät, das
+     * nur per Geräte-Token am Posten hängt, bekommt statt des Startknopfs einen Hinweis.
+     */
+    sequenceControlAvailable: boolean
     onPause: () => void
     onResume: () => void
     onRewind: () => void
@@ -70,6 +73,7 @@ const StartBoardPanel = ({
     onOpenMenu,
     menuAvailable,
     manualCaptureVisible,
+    sequenceControlAvailable,
     onPause,
     onResume,
     onRewind,
@@ -122,15 +126,20 @@ const StartBoardPanel = ({
     // weiter, also darf der große Startknopf auch währenddessen keine zweite Partie loslassen.
     const sequenceLive =
         sequence !== undefined &&
-        (sequence.state === 'ARMED' ||
-            sequence.state === 'RUNNING' ||
-            sequence.state === 'PAUSED')
+        (sequence.state === 'ARMED' || sequence.state === 'RUNNING' || sequence.state === 'PAUSED')
     // Startet die App Läufe dieses Typs überhaupt? Dieselbe Regel, die auch die Anfrage-Ableitung
     // anwendet (siehe `startSequenceOffByMode`) — hier für den gesperrten Knopf und den Hinweis.
     // Der manuelle Stempel bleibt der Weg; er hängt an `showManualCapture` und nicht an dieser
     // Sperre — und dessen Vorgabe ist AUS. Deshalb nimmt der Hinweis unten `manualCaptureVisible`
     // dazu, statt den Stempel als gegeben anzunehmen.
     const sequenceOffByMode = startSequenceOffByMode(focusedMatch?.timingMode)
+    // Ohne Sitzung kein Sequenz-Knopf (er liefe in einen 401), sondern der Hinweis. Ist die
+    // Sequenz am Typ ohnehin abgeschaltet, sagt das der Hinweis darüber schon.
+    const controlHint = sequenceOffByMode
+        ? null
+        : sequenceControlHint(sequenceControlAvailable, manualCaptureVisible)
+    // Der Lauf der Sequenz - nicht der fokussierte: der Fokus rückt nach einem Start weiter.
+    const sequenceMatch = matchOfSequence(matches, sequence)
     const startDisabled =
         busy ||
         sequenceLive ||
@@ -145,7 +154,12 @@ const StartBoardPanel = ({
 
             {focusedMatch !== undefined ? (
                 <Stack spacing={0.75} sx={{flexShrink: 0}}>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        flexWrap="wrap"
+                        useFlexGap>
                         <Typography variant="h6" sx={{fontWeight: 700, minWidth: 0}}>
                             {matchTitle(focusedMatch)}
                         </Typography>
@@ -197,9 +211,7 @@ const StartBoardPanel = ({
                 die niemand gebrauchen kann. Deshalb sagt der zweite Satz stattdessen, wo man den
                 Stempel einschaltet. */}
             {sequenceOffByMode && focusedMatch?.timingMode != null && (
-                <Alert
-                    severity={manualCaptureVisible ? 'info' : 'warning'}
-                    sx={{flexShrink: 0}}>
+                <Alert severity={manualCaptureVisible ? 'info' : 'warning'} sx={{flexShrink: 0}}>
                     {t(
                         manualCaptureVisible
                             ? 'timing.matches.noStartSequenceHint'
@@ -217,10 +229,18 @@ const StartBoardPanel = ({
                     </Alert>
                 )}
 
+            {controlHint !== null && focusedMatch !== undefined && (
+                <Alert severity={manualCaptureVisible ? 'info' : 'warning'} sx={{flexShrink: 0}}>
+                    {t(controlHint)}
+                </Alert>
+            )}
+
             {sequence !== undefined && (
                 <SequenceStatusBar
                     sequence={sequence}
                     label={label}
+                    matchLabel={sequenceMatch !== undefined ? matchTitle(sequenceMatch) : undefined}
+                    otherMatch={sequenceMatchDiffersFromFocus(sequenceMatch, focusedMatch)}
                     now={now}
                     // Der Plan der Partie, zu der die SEQUENZ gehört — nicht der fokussierten:
                     // der Fokus rückt nach dem Start weiter, die Töne laufen aber noch für den
@@ -247,34 +267,37 @@ const StartBoardPanel = ({
             {/* Der EINE Startknopf: groß genug für den Daumen am Wasser, beschriftet mit der
                 Partie, die er startet. Während einer laufenden Sequenz ist er gesperrt — erst
                 abschließen (oder abbrechen), dann die nächste Partie. */}
-            <ButtonBase
-                onClick={handleStart}
-                disabled={startDisabled}
-                focusRipple
-                data-sequence-panel=""
-                sx={{
-                    flexGrow: 1,
-                    width: 1,
-                    minHeight: 120,
-                    borderRadius: 2,
-                    bgcolor: startDisabled ? 'action.disabledBackground' : 'primary.main',
-                    color: startDisabled ? 'text.disabled' : 'primary.contrastText',
-                    transition: 'background-color 0.1s',
-                    '&:active': startDisabled ? undefined : {bgcolor: 'primary.dark'},
-                }}>
-                <Stack alignItems="center" spacing={1} sx={{px: 2, minWidth: 0}}>
-                    <PlayArrowIcon sx={{fontSize: {xs: 48, sm: 72}}} />
-                    <Typography
-                        variant="h5"
-                        component="span"
-                        textAlign="center"
-                        sx={{wordBreak: 'break-word'}}>
-                        {focusedMatch !== undefined
-                            ? t('timing.matches.startFocused', {match: matchTitle(focusedMatch)})
-                            : t('timing.matches.start')}
-                    </Typography>
-                </Stack>
-            </ButtonBase>
+            {controlHint === null && (
+                <ButtonBase
+                    onClick={handleStart}
+                    disabled={startDisabled}
+                    focusRipple
+                    sx={{
+                        flexGrow: 1,
+                        width: 1,
+                        minHeight: 120,
+                        borderRadius: 2,
+                        bgcolor: startDisabled ? 'action.disabledBackground' : 'primary.main',
+                        color: startDisabled ? 'text.disabled' : 'primary.contrastText',
+                        transition: 'background-color 0.1s',
+                        '&:active': startDisabled ? undefined : {bgcolor: 'primary.dark'},
+                    }}>
+                    <Stack alignItems="center" spacing={1} sx={{px: 2, minWidth: 0}}>
+                        <PlayArrowIcon sx={{fontSize: {xs: 48, sm: 72}}} />
+                        <Typography
+                            variant="h5"
+                            component="span"
+                            textAlign="center"
+                            sx={{wordBreak: 'break-word'}}>
+                            {focusedMatch !== undefined
+                                ? t('timing.matches.startFocused', {
+                                      match: matchTitle(focusedMatch),
+                                  })
+                                : t('timing.matches.start')}
+                        </Typography>
+                    </Stack>
+                </ButtonBase>
+            )}
         </Stack>
     )
 }

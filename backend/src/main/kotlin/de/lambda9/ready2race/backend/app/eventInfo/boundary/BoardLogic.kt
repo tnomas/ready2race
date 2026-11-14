@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.eventInfo.boundary
 
 import de.lambda9.ready2race.backend.app.awardCeremony.entity.AwardCeremonyKeyRequest
 import de.lambda9.ready2race.backend.app.eventInfo.entity.*
+import de.lambda9.ready2race.backend.app.liveDashboard.boundary.LiveDashboardLogic
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchState
 
 /**
@@ -186,6 +187,49 @@ object BoardLogic {
     ): Boolean =
         latestProgressStartTime != null && slotStartTime != null &&
             !slotStartTime.isAfter(latestProgressStartTime)
+
+    /**
+     * Der Zustand eines Laufs im Tagesprogramm (öffentlicher Zeitplan-Reiter, SCHEDULE-Kacheln).
+     *
+     * Er kommt aus [LiveDashboardLogic.deriveMatchState] - derselben Ableitung wie Live-Reiter,
+     * Durchführung und Schiedsrichter-Dashboard. Bis zum 13.11.2026 rechnete das Programm selbst
+     * („gestartet oder aktiviert" = RUNNING) und zeigte einen Lauf „In Vorbereitung" als „Läuft",
+     * einen Lauf in Klärung als „Läuft" und einen zurückgenommenen Lauf mit Ist-Start ebenfalls.
+     *
+     * Abgesagte Slots erreichen diese Funktion nicht (das Programm lässt sie weg); SKIPPED und
+     * UNSCHEDULED fallen deshalb mit UPCOMING zusammen. Das `when` ist erschöpfend: ein neuer
+     * Laufzustand muss hier bewusst einsortiert werden.
+     */
+    fun programState(
+        activatedAt: java.time.LocalDateTime?,
+        startedAt: java.time.LocalDateTime?,
+        startTime: java.time.LocalDateTime?,
+        finishedAt: java.time.LocalDateTime?,
+        teamsTotal: Int,
+        teamsScored: Int,
+        clarificationSince: java.time.LocalDateTime?,
+    ): BoardProgramState {
+        val state = LiveDashboardLogic.deriveMatchState(
+            activatedAt = activatedAt,
+            startedAt = startedAt,
+            startTime = startTime,
+            finishedAt = finishedAt,
+            // Die Slot-Abfrage liefert nur Zähler („erledigt" wie teamIsSettled); für die
+            // Ableitung zählt allein, ob alle erledigt sind - die Reihenfolge ist egal.
+            teamResults = List(teamsTotal) { it < teamsScored },
+            clarificationSince = clarificationSince,
+        )
+        return when (state) {
+            MatchState.FINISHED -> BoardProgramState.FINISHED
+            MatchState.RUNNING -> BoardProgramState.RUNNING
+            MatchState.PREPARING -> BoardProgramState.PREPARING
+            MatchState.CLARIFICATION -> BoardProgramState.CLARIFICATION
+            MatchState.AWAITING_FINISH -> BoardProgramState.AWAITING_FINISH
+            MatchState.SKIPPED,
+            MatchState.UNSCHEDULED,
+            MatchState.UPCOMING -> BoardProgramState.UPCOMING
+        }
+    }
 
     /**
      * Dieselbe Regel im Tagesprogramm: überholte Programmpunkte werden als FINISHED markiert,

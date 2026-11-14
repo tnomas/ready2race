@@ -1,8 +1,11 @@
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {getCompetitionsHavingResults, getLatestMatchResults} from '@api/sdk.gen.ts'
-import {Alert, Box, Card, CardActionArea, CardContent, Chip, Stack, Typography} from '@mui/material'
+import {Box, Button, Card, CardActionArea, Chip, Divider, Stack, Typography} from '@mui/material'
+import {alpha} from '@mui/material/styles'
+import {ArrowBack, ChevronRight, EmojiEventsOutlined} from '@mui/icons-material'
+import {EmptyState, LoadingState, SectionHeader} from '@components/ui'
+import {primaryTextColor} from '../../theme/themeColors.ts'
 import {useTranslation} from 'react-i18next'
-import Throbber from '@components/Throbber.tsx'
 import {useEffect, useState} from 'react'
 import {CompetitionChoiceDto, EventNoticeDto, LatestMatchResultInfo} from '@api/types.gen.ts'
 import ResultsMatchDialog from '@components/results/ResultsMatchDialog.tsx'
@@ -134,115 +137,127 @@ const MatchResults = ({
 
     return (
         <>
-            <Stack spacing={2} sx={{p: 2}}>
+            <Stack spacing={2}>
                 <EventNoticeBanner notice={notice} />
                 {competitionsPending || (competitionSelected && matchResultsPending) ? (
-                    <Throbber />
+                    <LoadingState variant={'section'} />
                 ) : !competitionSelected ? (
                     competitionsData?.data.length === 0 ? (
-                        <Alert severity={'info'}>{t('results.matchResults.noResults')}</Alert>
+                        <Card>
+                            <EmptyState
+                                icon={<EmojiEventsOutlined />}
+                                title={t('results.matchResults.noResultsEvent')}
+                            />
+                        </Card>
                     ) : (
-                        <>
+                        <Stack spacing={4}>
                             {(latestData?.length ?? 0) > 0 && (
-                                <>
-                                    <Typography variant={'h6'}>
-                                        {t('results.matchResults.latestSection')}
-                                    </Typography>
-                                    {latestData
-                                        ?.slice()
-                                        .sort((a, b) =>
-                                            (a.startTime ?? '') > (b.startTime ?? '') ? -1 : 1,
-                                        )
-                                        .map(match => (
-                                            <ResultsMatchCard
-                                                match={match}
-                                                selectMatch={onClickMatch}
-                                                key={match.matchId}
-                                                competition={{
-                                                    competitionName: match.competitionName,
-                                                    competitionCategory:
-                                                        match.categoryName ?? undefined,
-                                                }}
-                                            />
-                                        ))}
-                                    <Typography variant={'h6'} sx={{pt: 1}}>
-                                        {t('results.matchResults.byCompetitionSection')}
-                                    </Typography>
-                                </>
+                                <Box component={'section'}>
+                                    <SectionHeader
+                                        title={t('results.matchResults.latestSection')}
+                                    />
+                                    <Stack spacing={1.5}>
+                                        {latestData
+                                            ?.slice()
+                                            .sort((a, b) =>
+                                                (a.startTime ?? '') > (b.startTime ?? '') ? -1 : 1,
+                                            )
+                                            .map(match => (
+                                                <ResultsMatchCard
+                                                    match={match}
+                                                    selectMatch={onClickMatch}
+                                                    key={match.matchId}
+                                                    competition={{
+                                                        competitionName: match.competitionName,
+                                                        competitionCategory:
+                                                            match.categoryName ?? undefined,
+                                                    }}
+                                                />
+                                            ))}
+                                    </Stack>
+                                </Box>
                             )}
-                            {competitionsData?.data.map(competition => (
-                                <Card sx={{flex: 1, width: 1}} key={competition.id}>
-                                    <CardActionArea onClick={() => onClickCompetition(competition)}>
-                                        <CardContent>
-                                            {/* Umbrechende Zeile statt Name-links/Chip-rechts: der
-                                            Chip drückte auf schmalen Bildschirmen den Namen in
-                                            eine Ein-Wort-Spalte und lief selbst aus der Karte. */}
-                                            <Box
-                                                sx={{
-                                                    display: 'flex',
-                                                    columnGap: 1,
-                                                    rowGap: 0.5,
-                                                    flexWrap: 'wrap',
-                                                    alignItems: 'center',
-                                                }}>
-                                                <Typography variant={'h6'} sx={{minWidth: 0}}>
-                                                    {competition.identifier} | {competition.name}
-                                                </Typography>
-                                                {competition.category && (
-                                                    <Chip
-                                                        label={competition.category}
-                                                        color="primary"
-                                                        variant="outlined"
-                                                        size="small"
-                                                    />
-                                                )}
-                                            </Box>
-                                        </CardContent>
-                                    </CardActionArea>
+                            <Box component={'section'}>
+                                <SectionHeader
+                                    title={t('results.matchResults.byCompetitionSection')}
+                                />
+                                {/* Eine Karte mit Zeilen statt einer Karte je Wettkampf: die
+                                    Liste lässt sich wie ein Aushang überfliegen, die Kennung
+                                    steht als feste Spalte vorn. */}
+                                <Card>
+                                    {competitionsData?.data.map((competition, index) => (
+                                        <Box key={competition.id}>
+                                            {index > 0 && <Divider />}
+                                            <CardActionArea
+                                                onClick={() => onClickCompetition(competition)}
+                                                sx={{cursor: 'pointer'}}>
+                                                <CompetitionLine competition={competition} />
+                                            </CardActionArea>
+                                        </Box>
+                                    ))}
                                 </Card>
-                            ))}
-                        </>
+                            </Box>
+                        </Stack>
                     )
-                ) : matchResultsData?.length === 0 ? (
-                    <Alert severity={'info'}>{t('results.matchResults.noResults')}</Alert>
                 ) : (
                     <>
-                        {/* Überschrift des gewählten Wettkampfs: vorher ein Chip, der auf dem
-                            Telefon nicht umbrach und lange Namen abschnitt. */}
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                columnGap: 1,
-                                rowGap: 0.5,
-                                flexWrap: 'wrap',
-                                alignItems: 'center',
-                                mb: 1,
-                            }}>
-                            <Typography
-                                fontWeight={'bold'}
-                                color={'primary'}
-                                sx={{minWidth: 0, overflowWrap: 'anywhere'}}>
-                                {competitionSelected.identifier} | {competitionSelected.name}
-                            </Typography>
-                            {competitionSelected.category && (
-                                <Chip
-                                    label={competitionSelected.category}
-                                    color="primary"
-                                    variant="outlined"
-                                    size="small"
-                                />
-                            )}
+                        <Box>
+                            <Button
+                                size={'small'}
+                                startIcon={<ArrowBack />}
+                                onClick={() => setCompetitionSelected(null)}
+                                sx={{ml: -1, mb: 1}}>
+                                {t('results.page.allCompetitions')}
+                            </Button>
+                            {/* Überschrift des gewählten Wettkampfs: vorher ein Chip, der auf dem
+                                Telefon nicht umbrach und lange Namen abschnitt. */}
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    columnGap: 1.5,
+                                    rowGap: 0.5,
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                }}>
+                                <IdentifierBadge identifier={competitionSelected.identifier} />
+                                <Typography
+                                    variant={'h2'}
+                                    sx={{minWidth: 0, overflowWrap: 'anywhere'}}>
+                                    {competitionSelected.name}
+                                </Typography>
+                                {competitionSelected.category && (
+                                    <Chip
+                                        label={competitionSelected.category}
+                                        color="primary"
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                )}
+                            </Box>
                         </Box>
-                        {matchResultsData
-                            ?.sort((a, b) => ((a.startTime ?? '') > (b.startTime ?? '') ? -1 : 1))
-                            .map(match => (
-                                <ResultsMatchCard
-                                    match={match}
-                                    selectMatch={onClickMatch}
-                                    key={match.matchId}
+                        {matchResultsData?.length === 0 ? (
+                            <Card>
+                                <EmptyState
+                                    icon={<EmojiEventsOutlined />}
+                                    title={t('results.matchResults.noResults')}
                                 />
-                            ))}
-                        <TimingProviderAttribution matches={matchResultsData ?? []} />
+                            </Card>
+                        ) : (
+                            <>
+                                {matchResultsData
+                                    ?.sort((a, b) =>
+                                        (a.startTime ?? '') > (b.startTime ?? '') ? -1 : 1,
+                                    )
+                                    .map(match => (
+                                        <ResultsMatchCard
+                                            match={match}
+                                            selectMatch={onClickMatch}
+                                            key={match.matchId}
+                                        />
+                                    ))}
+                                <TimingProviderAttribution matches={matchResultsData ?? []} />
+                            </>
+                        )}
                     </>
                 )}
             </Stack>
@@ -254,5 +269,56 @@ const MatchResults = ({
         </>
     )
 }
+
+/** Die Kennung (Rennnummer) als feste, gleich breite Marke vor dem Namen. */
+const IdentifierBadge = ({identifier}: {identifier: string}) => (
+    <Box
+        component={'span'}
+        sx={theme => ({
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: '2.5rem',
+            height: '1.75rem',
+            px: 1,
+            borderRadius: 1,
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            color: primaryTextColor(theme),
+            fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums',
+            flexShrink: 0,
+        })}>
+        {identifier}
+    </Box>
+)
+
+const CompetitionLine = ({competition}: {competition: CompetitionChoiceDto}) => (
+    <Box sx={{display: 'flex', alignItems: 'center', gap: 1.5, px: {xs: 2, sm: 2.5}, py: 1.75}}>
+        <IdentifierBadge identifier={competition.identifier} />
+        <Box
+            sx={{
+                flex: 1,
+                minWidth: 0,
+                display: 'flex',
+                columnGap: 1,
+                rowGap: 0.5,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+            }}>
+            <Typography sx={{fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere'}}>
+                {competition.name}
+            </Typography>
+            {competition.category && (
+                <Chip
+                    label={competition.category}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                />
+            )}
+        </Box>
+        <ChevronRight aria-hidden sx={{color: 'text.secondary', flexShrink: 0}} />
+    </Box>
+)
 
 export default MatchResults

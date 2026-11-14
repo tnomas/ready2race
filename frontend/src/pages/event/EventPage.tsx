@@ -1,674 +1,325 @@
-import {
-    Box,
-    Button,
-    Card,
-    List,
-    ListItem,
-    Stack,
-    Tab,
-    Typography,
-    ListItemIcon,
-    ListItemText,
-    Link as MuiLink,
-} from '@mui/material'
-import {useEntityAdministration, useFeedback, useFetch} from '@utils/hooks.ts'
+import {lazy, ReactNode, Suspense, useMemo} from 'react'
+import {Box, Button, Chip, ListItemIcon, ListSubheader, MenuItem, TextField} from '@mui/material'
+import CheckCircleOutline from '@mui/icons-material/CheckCircleOutline'
+import EditOutlined from '@mui/icons-material/EditOutlined'
+import Forward from '@mui/icons-material/Forward'
+import {format, parseISO} from 'date-fns'
+import {useTranslation} from 'react-i18next'
+import {useNavigate} from '@tanstack/react-router'
 import {eventIndexRoute, eventRoute} from '@routes'
-import {Trans, useTranslation} from 'react-i18next'
-import Throbber from '@components/Throbber.tsx'
-import {
-    downloadCertificatesOfParticipation,
-    downloadEventResults,
-    getEvent,
-    sendCertificatesToParticipants,
-} from '@api/sdk.gen.ts'
-import {
-    EventDocumentDto,
-    ParticipantForEventDto,
-    ParticipantRequirementForEventDto,
-    ParticipantTrackingDto,
-    TaskDto,
-} from '@api/types.gen.ts'
-import DocumentTable from '@components/event/document/DocumentTable.tsx'
-import DocumentDialog from '@components/event/document/DocumentDialog.tsx'
-import ExportBundleCard from '@components/event/document/ExportBundleCard.tsx'
-import {
-    CampaignOutlined,
-    Forward,
-    InfoOutlined,
-    LiveTvOutlined,
-    VideoSettingsOutlined,
-    PlayCircleOutlined,
-    SportsScoreOutlined,
-    TuneOutlined,
-} from '@mui/icons-material'
-import {Link, useNavigate} from '@tanstack/react-router'
-import {useMemo, useRef, useState} from 'react'
-import TabPanel from '@components/tab/TabPanel.tsx'
-import ParticipantRequirementForEventTable
-    from '@components/event/participantRequirement/ParticipantRequirementForEventTable.tsx'
-import ParticipantForEventTable from '@components/participant/ParticipantForEventTable.tsx'
+import {getEvent, getEventDays, getRegistrationsForEvent} from '@api/sdk.gen.ts'
+import {EventDto} from '@api/types.gen.ts'
+import {readEventGlobal} from '@authorization/privileges.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
-import {
-    createInvoiceGlobal,
-    readBoardGlobal,
-    readClubOwn,
-    readEventGlobal,
-    readLiveDashboardGlobal,
-    readRegistrationGlobal,
-    readRegistrationOwn,
-    readStreamGlobal,
-    readUserGlobal,
-    updateEventGlobal,
-} from '@authorization/privileges.ts'
-import TabSelectionContainer from '@components/tab/TabSelectionContainer.tsx'
-import InlineLink from '@components/InlineLink.tsx'
-import TaskTable from '@components/event/task/TaskTable.tsx'
-import TaskDialog from '@components/event/task/TaskDialog.tsx'
-import {Shiftplan} from '@components/event/shiftplan/Shiftplan.tsx'
-import EventSchedule from '@components/event/schedule/EventSchedule.tsx'
-import {
-    a11yProps,
-    getFilename,
-    getRegistrationPeriods,
-    getRegistrationState,
-} from '@utils/helpers.ts'
-import PlaceIcon from '@mui/icons-material/Place'
-import CompetitionsAndEventDays from '@components/event/CompetitionsAndEventDays.tsx'
-import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
-import {format} from 'date-fns'
-import AppUserWithQrCodeTable from '@components/event/appUser/AppUserWithQrCodeTable.tsx'
-import InvoicesTab from './tabs/InvoicesTab.tsx'
-import BetriebTab from './tabs/BetriebTab.tsx'
-import {visibleBetriebTiles} from './tabs/betriebTiles.ts'
-import {AppUserWithQrCodeDto} from '@api/types.gen.ts'
-import ParticipantTrackingLogTable from '@components/event/participantTracking/ParticipantTrackingLogTable.tsx'
-import EventRegistrations from '@components/event/competition/registration/EventRegistrations.tsx'
-import ManageRunningMatchesDialog from '@components/event/match/ManageRunningMatchesDialog.tsx'
-import RatingCategoriesForEvent from '@components/ratingCategory/RatingCategoriesForEvent.tsx'
-import EventTimingConfig from '@components/event/timing/EventTimingConfig.tsx'
-import EventExecutionSettings from '@components/event/EventExecutionSettings.tsx'
-import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
-import AwardCertificateDialog from '@components/awardCertificate/AwardCertificateDialog.tsx'
-import CheckSeverityDialog from '@components/event/liveDashboard/CheckSeverityDialog.tsx'
-import EventNoticeCard from '@components/eventNotice/EventNoticeCard.tsx'
-import EventMaterialProvidersCard from '@components/event/material/EventMaterialProvidersCard.tsx'
-import WorkspacePremium from '@mui/icons-material/WorkspacePremium'
-import SplitButton from '@components/SplitButton.tsx'
+import {useEntityAdministration, useFetch} from '@utils/hooks.ts'
+import {getRegistrationState} from '@utils/helpers.ts'
 import {useDocumentTitle} from '@utils/useDocumentTitle.ts'
+import {loadChunk} from '@utils/chunkReload.ts'
+import {primaryTextColor, statusTextColor} from '../../theme/themeColors.ts'
+import {buildEventTrail} from '@utils/navigation/breadcrumbs.ts'
+import {ButtonLink, ErrorState, LoadingState, PageHeader} from '@components/ui'
+import EventDialog from '@components/event/EventDialog.tsx'
+import CompetitionsAndEventDays from '@components/event/CompetitionsAndEventDays.tsx'
+import {
+    EventSection,
+    EventSectionKey,
+    groupEventSections,
+    isEventSectionKey,
+    resolveEventTab,
+    showEventSectionGroupHeadings,
+    visibleEventSections,
+} from './eventSections.ts'
+import {canEditEvent, eventDateRange} from './eventPageLogic.ts'
+import OverviewTab from './tabs/OverviewTab.tsx'
 
-const EVENT_TABS = [
-    'general',
-    'competitions',
-    'participants',
-    'registrations',
-    'organization',
-    'schedule',
-    'betrieb',
-    'settings',
-    'invoices',
-] as const
-export type EventTab = (typeof EVENT_TABS)[number]
+// Bereiche mit schweren Abhängigkeiten (Zeitplan mit Drag-and-drop, Schichtplan-Kalender,
+// Betrieb mit „Laufende Läufe verwalten", PDF-Dialoge, Rechnungen) laden erst, wenn sie gezeigt
+// werden. `loadChunk` lädt nach einem Deployment einmal neu, statt an einem alten Stück zu hängen.
+const EventSchedule = lazy(() =>
+    loadChunk(() => import('@components/event/schedule/EventSchedule.tsx')),
+)
+const EventRegistrations = lazy(() =>
+    loadChunk(() => import('@components/event/competition/registration/EventRegistrations.tsx')),
+)
+const ParticipantsTab = lazy(() => loadChunk(() => import('./tabs/ParticipantsTab.tsx')))
+const OrganizationTab = lazy(() => loadChunk(() => import('./tabs/OrganizationTab.tsx')))
+const BetriebTab = lazy(() => loadChunk(() => import('./tabs/BetriebTab.tsx')))
+const SettingsTab = lazy(() => loadChunk(() => import('./tabs/SettingsTab.tsx')))
+const InvoicesTab = lazy(() => loadChunk(() => import('./tabs/InvoicesTab.tsx')))
+const ResultsTab = lazy(() => loadChunk(() => import('./tabs/ResultsTab.tsx')))
 
-const EventPage = () => {
+/**
+ * Kompakte Bereichsauswahl unter `md`. Ab `md` navigiert die Seitenleiste (Bereichsmodell aus
+ * `eventSections.ts`); darunter ist die Seitenleiste ein eingeklappter Drawer, deshalb steht hier
+ * eine Auswahl mit denselben Bereichen und Gruppen.
+ */
+const EventSectionSelect = ({
+    visible,
+    active,
+    onChange,
+}: {
+    visible: EventSection[]
+    active: EventSectionKey
+    onChange: (key: EventSectionKey) => void
+}) => {
     const {t} = useTranslation()
-    const feedback = useFeedback()
-    const user = useUser()
-    const {confirmAction} = useConfirmation()
-
-    const downloadRef = useRef<HTMLAnchorElement>(null)
-
-    const {tab} = eventIndexRoute.useSearch()
-    const activeTab = tab ?? 'general'
-
-    const navigate = useNavigate()
-    const switchTab = (tab: EventTab) => {
-        navigate({from: eventIndexRoute.fullPath, search: {tab}}).then()
-    }
-
-    const {eventId} = eventRoute.useParams()
-
-    const [lastRequested, setLastRequested] = useState(Date.now())
-    const reload = () => setLastRequested(Date.now())
-
-    const [manageRunningMatchesOpen, setManageRunningMatchesOpen] = useState(false)
-    const [awardCertificateDialogOpen, setAwardCertificateDialogOpen] = useState(false)
-    const [checkSeverityOpen, setCheckSeverityOpen] = useState(false)
-    const {data, pending} = useFetch(signal => getEvent({signal, path: {eventId: eventId}}), {
-        onResponse: ({error}) => {
-            if (error) {
-                feedback.error(t('common.load.error.single', {entity: t('event.event')}))
-            }
-        },
-
-        deps: [eventId, lastRequested],
-    })
-
-    useDocumentTitle(data?.name)
-
-    const documentAdministrationProps = useEntityAdministration<EventDocumentDto>(
-        t('event.document.document'),
-    )
-    const participantRequirementAdministrationProps =
-        useEntityAdministration<ParticipantRequirementForEventDto>(
-            t('participantRequirement.participantRequirements'),
-            {entityCreate: false, entityUpdate: false},
-        )
-
-    const participantForEventProps = useEntityAdministration<ParticipantForEventDto>(
-        t('club.participant.title'),
-        {entityCreate: false, entityUpdate: false},
-    )
-
-    const participantTrackingProps = useEntityAdministration<ParticipantTrackingDto>(
-        t('club.participant.tracking.entry'),
-        {entityCreate: false, entityUpdate: false},
-    )
-
-    const taskProps = useEntityAdministration<TaskDto>(t('task.task'))
-
-    const appUserWithQrCodeProps = useEntityAdministration<AppUserWithQrCodeDto>(
-        t('qrCode.appUsersWithQrCode'),
-        {entityCreate: false, entityUpdate: false},
-    )
-
-    const tabProps = (tab: EventTab) => a11yProps('event', tab)
-
-    const registrationState = getRegistrationState(data ?? {})
-
-    const canRegister = useMemo(
-        () => user.loggedIn && user.clubId && registrationState !== 'CLOSED',
-        [data, user],
-    )
-
-    const {registrationPeriod, lateRegistrationPeriod} = getRegistrationPeriods(data ?? {}, t)
-
-    const handleResultsDownload = async () => {
-        const {data, error, response} = await downloadEventResults({
-            path: {eventId},
-        })
-        const anchor = downloadRef.current
-
-        if (error) {
-            feedback.error(t('event.results.downloadError'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? 'event-results.pdf'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+    const headings = showEventSectionGroupHeadings(visible)
+    const items: ReactNode[] = []
+    for (const block of groupEventSections(visible)) {
+        if (headings && block.labelKey) {
+            items.push(
+                <ListSubheader key={`group-${block.group}`}>{t(block.labelKey)}</ListSubheader>,
+            )
+        }
+        for (const s of block.sections) {
+            const Icon = s.icon
+            items.push(
+                <MenuItem key={s.key} value={s.key} sx={{cursor: 'pointer'}}>
+                    <ListItemIcon>
+                        <Icon fontSize={'small'} />
+                    </ListItemIcon>
+                    {t(s.labelKey)}
+                </MenuItem>,
+            )
         }
     }
-
-    const handleCertificateSending = async () => {
-        const {error} = await sendCertificatesToParticipants({
-            path: {eventId},
-        })
-
-        if (error) {
-            feedback.error(t('common.error.unexpected'))
-        } else {
-            feedback.success(t('event.action.sendCertificatesSucceeded'))
-        }
-    }
-
-    const handleClubCertificatesDownload = async (format: 'pdf' | 'docx' = 'pdf') => {
-        const {data, error, response} = await downloadCertificatesOfParticipation({
-            path: {eventId},
-            query: {format},
-        })
-
-        const anchor = downloadRef.current
-
-        if (error) {
-            feedback.error(t('common.error.unexpected'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = getFilename(response) ?? 'certificates_of_participation.zip'
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
-        }
+    const labelOf = (key: unknown) => {
+        const s = visible.find(v => v.key === key)
+        return s ? t(s.labelKey) : ''
     }
 
     return (
-        <Box>
-            <MuiLink ref={downloadRef} display={'none'}></MuiLink>
-            <Box sx={{display: 'flex', flexDirection: 'column'}}>
-                {data ? (
-                    <Stack spacing={4}>
-                        <Stack
-                            direction={'row'}
-                            justifyContent={'space-between'}
-                            alignItems={'center'}>
-                            <Typography variant="h1">{data.name}</Typography>
-                            <Link
-                                to={'/event/$eventId/register'}
-                                params={{eventId}}
-                                hidden={!canRegister}>
-                                <Button endIcon={<Forward/>} variant={'contained'}>
-                                    {t('event.registerNow')}
-                                </Button>
-                            </Link>
-                        </Stack>
-                        <TabSelectionContainer activeTab={activeTab} setActiveTab={switchTab}>
-                            <Tab label={t('event.tabs.general')} {...tabProps('general')} />
-                            <Tab
-                                label={t('event.competition.competitions')}
-                                {...tabProps('competitions')}
-                            />
-                            {(user.checkPrivilege(readRegistrationGlobal) ||
-                                user.checkPrivilege(readRegistrationOwn)) && (
-                                <Tab
-                                    label={t('event.participants')}
-                                    {...tabProps('participants')}
-                                />
-                            )}
-                            {user.checkPrivilege(readEventGlobal) && (
-                                <Tab
-                                    label={t('event.tabs.registrations')}
-                                    {...tabProps('registrations')}
-                                />
-                            )}
-                            {user.checkPrivilege(readEventGlobal) &&
-                                user.checkPrivilege(readUserGlobal) && (
-                                    <Tab
-                                        label={t('event.tabs.organisation')}
-                                        {...tabProps('organization')}
-                                    />
-                                )}
-                            {user.checkPrivilege(readEventGlobal) && (
-                                <Tab label={t('event.schedule.tab')} {...tabProps('schedule')} />
-                            )}
-                            {/* Betrieb: alles, womit die Regatta am Renntag gefahren wird. Der
-                                Reiter erscheint nur, wenn mindestens eine Kachel sichtbar wäre -
-                                die Regeln dazu liegen (getestet) in betriebTiles.ts. */}
-                            {visibleBetriebTiles(user.checkPrivilege).length > 0 && (
-                                <Tab label={t('event.tabs.betrieb')} {...tabProps('betrieb')} />
-                            )}
-                            {user.checkPrivilege(readEventGlobal) && (
-                                <Tab label={t('event.tabs.settings')} {...tabProps('settings')} />
-                            )}
-                            {((user.getPrivilegeScope('READ', 'INVOICE') && true) ||
-                                user.checkPrivilege(createInvoiceGlobal)) && (
-                                <Tab label={t('event.tabs.invoices')} {...tabProps('invoices')} />
-                            )}
-                        </TabSelectionContainer>
-                        <TabPanel index={'general'} activeTab={activeTab}>
-                            <Stack spacing={4}>
-                                <Card
-                                    sx={{
-                                        p: 2,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: 2,
-                                    }}>
-                                    {user.checkPrivilege(readEventGlobal) && (
-                                        <Typography variant={'overline'}>
-                                            {data.published
-                                                ? t('event.published.published')
-                                                : t('event.published.not')}
-                                        </Typography>
-                                    )}
-                                    {data.description && (
-                                        <Typography>{data.description}</Typography>
-                                    )}
-                                    <Box>
-                                        <List>
-                                            {data.location && (
-                                                <ListItem>
-                                                    <ListItemIcon>
-                                                        <PlaceIcon/>
-                                                    </ListItemIcon>
-                                                    <ListItemText primary={data.location}/>
-                                                </ListItem>
-                                            )}
-                                            {(data.registrationAvailableFrom ||
-                                                data.registrationAvailableTo) && (
-                                                <ListItem>
-                                                    <ListItemIcon>
-                                                        <AccessTimeIcon/>
-                                                    </ListItemIcon>
-                                                    <ListItemText
-                                                        primary={
-                                                            t(
-                                                                'event.registrationAvailable.timespan',
-                                                            ) +
-                                                            ': ' +
-                                                            registrationPeriod
-                                                        }
-                                                        secondary={
-                                                            lateRegistrationPeriod &&
-                                                            t(
-                                                                'event.registrationAvailable.lateTimespan',
-                                                            ) +
-                                                            ': ' +
-                                                            lateRegistrationPeriod
-                                                        }
-                                                    />
-                                                </ListItem>
-                                            )}
-                                            {data.paymentDueBy && (
-                                                <ListItem>
-                                                    <ListItemIcon>
-                                                        <HourglassEmptyIcon/>
-                                                    </ListItemIcon>
-                                                    <ListItemText
-                                                        primary={
-                                                            t('event.invoice.paymentDueBy') +
-                                                            ': ' +
-                                                            format(
-                                                                new Date(data.paymentDueBy),
-                                                                t('format.datetime'),
-                                                            )
-                                                        }
-                                                    />
-                                                </ListItem>
-                                            )}
-                                        </List>
-                                    </Box>
-                                </Card>
-                                <Card sx={{p: 2, display: 'flex', gap: 2, flexWrap: 'wrap'}}>
-                                    <Link
-                                        to={'/results/event/$eventId'}
-                                        params={{eventId: data.id}}>
-                                        <Button variant={'outlined'}>
-                                            <Trans i18nKey={'event.toResults'}/>
-                                        </Button>
-                                    </Link>
-                                    {(user.checkPrivilege(readEventGlobal) || data.published) &&
-                                        !data.challengeEvent && (
-                                            <Button
-                                                variant={'outlined'}
-                                                onClick={handleResultsDownload}>
-                                                <Trans i18nKey={'event.results.download'}/>
-                                            </Button>
-                                        )}
-                                    {user.checkPrivilege(readEventGlobal) &&
-                                        !data.challengeEvent && (
-                                            <Button
-                                                variant={'outlined'}
-                                                startIcon={<WorkspacePremium/>}
-                                                onClick={() => setAwardCertificateDialogOpen(true)}>
-                                                <Trans i18nKey={'event.action.downloadAwardCertificates'}/>
-                                            </Button>
-                                        )}
-                                    {user.checkPrivilege(updateEventGlobal) &&
-                                        data.challengeEvent &&
-                                        data.challengesFinished && (
-                                            <Button
-                                                variant={'outlined'}
-                                                onClick={() =>
-                                                    confirmAction(handleCertificateSending)
-                                                }>
-                                                <Trans i18nKey={'event.action.sendCertificates'}/>
-                                            </Button>
-                                        )}
-                                    {user.checkPrivilege(readClubOwn) &&
-                                        user.loggedIn &&
-                                        user.clubId &&
-                                        data.challengeEvent &&
-                                        data.challengesFinished && (
-                                            <SplitButton
-                                                main={{
-                                                    label: t('event.action.downloadCertificates'),
-                                                    onClick: () =>
-                                                        handleClubCertificatesDownload('pdf'),
-                                                }}
-                                                options={[
-                                                    {
-                                                        label: t(
-                                                            'event.action.downloadCertificatesWord',
-                                                        ),
-                                                        onClick: () =>
-                                                            handleClubCertificatesDownload('docx'),
-                                                    },
-                                                ]}
-                                            />
-                                        )}
-                                </Card>
-                                {(user.checkPrivilege(readEventGlobal) ||
-                                    user.checkPrivilege(readBoardGlobal) ||
-                                    user.checkPrivilege(readStreamGlobal)) &&
-                                    !data.challengeEvent && (
-                                    <Card sx={{p: 2}}>
-                                        <Typography variant="h6" sx={{mb: 1}}>
-                                            {t('event.info.sectionTitle')}
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{mb: 2}}>
-                                            {t('event.info.pageDescription')}
-                                        </Typography>
-                                        <Link to={'/event/$eventId/info'} params={{eventId}}>
-                                            <Button
-                                                startIcon={<InfoOutlined/>}
-                                                variant="outlined"
-                                                fullWidth>
-                                                {t('event.info.manageInfoViews')}
-                                            </Button>
-                                        </Link>
-                                        <Link to={'/speaker/event/$eventId'} params={{eventId}}>
-                                            <Button
-                                                startIcon={<CampaignOutlined />}
-                                                variant="outlined"
-                                                fullWidth
-                                                sx={{mt: 1}}>
-                                                {t('speaker.openBoard')}
-                                            </Button>
-                                        </Link>
-                                        {/* Die Szenen-Verwaltung des Livestreams — seit dem
-                                            31.08.2026 eine eigene Seite neben den Boards
-                                            (getrennte Aufgaben, getrennte Türen); dieselbe
-                                            Rechte-Alternative wie das Kontroll-Panel darunter. */}
-                                        {(user.checkPrivilege(readStreamGlobal) ||
-                                            user.checkPrivilege(readEventGlobal)) && (
-                                            <Link
-                                                to={'/event/$eventId/streamScenes'}
-                                                params={{eventId}}>
-                                                <Button
-                                                    startIcon={<VideoSettingsOutlined />}
-                                                    variant="outlined"
-                                                    fullWidth
-                                                    sx={{mt: 1}}>
-                                                    {t('event.info.manageStreamScenes')}
-                                                </Button>
-                                            </Link>
-                                        )}
-                                        {/* Sonst ist das Kontroll-Panel nirgends verlinkt - dieselbe
-                                            Rechte-Alternative wie oben (READ STREAM ODER READ EVENT),
-                                            eine reine Streamer-Rolle ohne READ EVENT muss ihn hier finden. */}
-                                        {(user.checkPrivilege(readStreamGlobal) ||
-                                            user.checkPrivilege(readEventGlobal)) && (
-                                            <Link to={'/event/$eventId/streamPanel'} params={{eventId}}>
-                                                <Button
-                                                    startIcon={<LiveTvOutlined />}
-                                                    variant="outlined"
-                                                    fullWidth
-                                                    sx={{mt: 1}}>
-                                                    {t('event.stream.panel.open')}
-                                                </Button>
-                                            </Link>
-                                        )}
-                                        {/* Die laufenden Läufe sind Sache der Veranstaltung, nicht
-                                            der Anzeigen - eine reine Board-Rolle sieht sie nicht. */}
-                                        {user.checkPrivilege(readEventGlobal) && (
-                                            <Button
-                                                startIcon={<PlayCircleOutlined/>}
-                                                variant="outlined"
-                                                fullWidth
-                                                sx={{mt: 1}}
-                                                onClick={() => setManageRunningMatchesOpen(true)}>
-                                                {t('event.competition.execution.match.manageRunning')}
-                                            </Button>
-                                        )}
-                                    </Card>
-                                )}
-                                {user.checkPrivilege(readLiveDashboardGlobal) && !data.challengeEvent && (
-                                    <Card sx={{p: 2}}>
-                                        <Typography variant="h6" sx={{mb: 1}}>
-                                            {t('event.liveDashboard.sectionTitle')}
-                                        </Typography>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                            sx={{mb: 2}}>
-                                            {t('event.liveDashboard.pageDescription')}
-                                        </Typography>
-                                        <Link to={'/event/$eventId/liveDashboard'} params={{eventId}}>
-                                            <Button
-                                                startIcon={<SportsScoreOutlined/>}
-                                                variant="outlined"
-                                                fullWidth>
-                                                {t('event.liveDashboard.open')}
-                                            </Button>
-                                        </Link>
-                                        {user.checkPrivilege(updateEventGlobal) && (
-                                            <Button
-                                                startIcon={<TuneOutlined />}
-                                                variant="outlined"
-                                                fullWidth
-                                                sx={{mt: 1}}
-                                                onClick={() => setCheckSeverityOpen(true)}>
-                                                {t('event.liveDashboard.checkSeverity.manage')}
-                                            </Button>
-                                        )}
-                                    </Card>
-                                )}
-                                {/* Globaler Hinweis (z.B. Wetterwarnung): erscheint auf allen
-                                    öffentlichen Anzeigen und im Schiedsrichter-Dashboard. */}
-                                {user.checkPrivilege(updateEventGlobal) && (
-                                    <EventNoticeCard
-                                        eventId={eventId}
-                                        notice={data.notice}
-                                        onChanged={reload}
-                                    />
-                                )}
-                            </Stack>
-                        </TabPanel>
-                        <TabPanel index={'competitions'} activeTab={activeTab}>
-                            <CompetitionsAndEventDays isChallengeEvent={data.challengeEvent}/>
-                        </TabPanel>
-                        <TabPanel index={'registrations'} activeTab={activeTab}>
-                            <EventRegistrations
-                                registrationsFinalized={data.registrationsFinalized}
-                                eventDto={data}
-                            />
-                        </TabPanel>
-                        <TabPanel index={'participants'} activeTab={activeTab}>
-                            <Stack spacing={2}>
-                                <ParticipantForEventTable
-                                    eventData={data}
-                                    {...participantForEventProps.table}
-                                    title={t('event.participants')}
-                                />
-                                {user.checkPrivilege(readRegistrationGlobal) && (
-                                    <ParticipantTrackingLogTable
-                                        {...participantTrackingProps.table}
-                                        title={t('club.participant.tracking.log')}
-                                    />)}
-                            </Stack>
-                        </TabPanel>
-                        <TabPanel index={'organization'} activeTab={activeTab}>
-                            <Stack spacing={2}>
-                                <AppUserWithQrCodeTable
-                                    {...appUserWithQrCodeProps.table}
-                                    title={t('qrCode.appUsersWithQrCode')}
-                                />
-                                <TaskTable {...taskProps.table} title={t('task.tasks')}/>
-                                <TaskDialog {...taskProps.dialog} eventId={eventId}/>
-                                <Shiftplan/>
-                                <EventMaterialProvidersCard eventId={eventId}/>
-                            </Stack>
-                        </TabPanel>
-                        <TabPanel index={'schedule'} activeTab={activeTab}>
-                            <EventSchedule event={data}/>
-                        </TabPanel>
-                        <TabPanel index={'betrieb'} activeTab={activeTab}>
-                            <BetriebTab eventId={eventId} switchTab={switchTab}/>
-                        </TabPanel>
-                        <TabPanel index={'settings'} activeTab={activeTab}>
-                            <Stack spacing={4}>
-                                <RatingCategoriesForEvent/>
-                                {/* Wie Läufe am Renntag beendet und Folgerunden erzeugt werden -
-                                    aus dem Zeitplan-Popover hierher gezogen (12.08.2026), weil es
-                                    die Veranstaltung ändert und kein Geräte-Schalter ist. */}
-                                <EventExecutionSettings event={data} reloadEvent={reload}/>
-                                <EventTimingConfig />
-                                <DocumentTable
-                                    {...documentAdministrationProps.table}
-                                    title={t('event.document.documents')}
-                                    hints={[
-                                        <>{t('event.document.tableHint.description')}</>,
-                                        <>
-                                            {t('event.document.tableHint.part1')}
-                                            <InlineLink
-                                                to={'/config'}
-                                                search={{
-                                                    tab: 'event-elements',
-                                                }}>
-                                                {t('event.document.tableHint.part2Link')}
-                                            </InlineLink>
-                                            {t('event.document.tableHint.part3')}
-                                        </>,
-                                    ]}
-                                />
-                                <DocumentDialog {...documentAdministrationProps.dialog} />
-                                {/* Die Export-Mappe direkt beim Dokumente-Bereich: sie sortiert
-                                    genau diese Dokumente. lastRequested nimmt Uploads und
-                                    Löschungen der Tabelle mit - ein gelöschtes Dokument fällt
-                                    serverseitig auch aus der Mappe (on delete cascade). */}
-                                <ExportBundleCard
-                                    eventId={eventId}
-                                    lastRequested={documentAdministrationProps.table.lastRequested}
-                                />
-                                <ParticipantRequirementForEventTable
-                                    {...participantRequirementAdministrationProps.table}
-                                    title={t('participantRequirement.participantRequirements')}
-                                    hints={[
-                                        <>
-                                            {t('event.participantRequirement.tableHint.part1')}
-                                            <InlineLink
-                                                to={'/config'}
-                                                search={{tab: 'event-elements'}}>
-                                                {t(
-                                                    'event.participantRequirement.tableHint.part2Link',
-                                                )}
-                                            </InlineLink>
-                                            {t('event.participantRequirement.tableHint.part3')}
-                                        </>,
-                                    ]}
-                                />
-                            </Stack>
-                        </TabPanel>
-                        <TabPanel index={'invoices'} activeTab={activeTab}>
-                            <InvoicesTab event={data} reloadEvent={reload}/>
-                        </TabPanel>
-                    </Stack>
-                ) : (
-                    pending && <Throbber/>
+        <TextField
+            select
+            fullWidth
+            size={'small'}
+            label={t('nav.event.sectionSelect')}
+            value={active}
+            onChange={e => {
+                if (isEventSectionKey(e.target.value)) onChange(e.target.value)
+            }}
+            slotProps={{select: {renderValue: labelOf}}}
+            sx={{display: {xs: 'flex', md: 'none'}, mb: 3}}>
+            {items}
+        </TextField>
+    )
+}
+
+const EventPage = () => {
+    const {t} = useTranslation()
+    const user = useUser()
+    const navigate = useNavigate()
+
+    const {eventId} = eventRoute.useParams()
+    const {tab} = eventIndexRoute.useSearch()
+
+    // Sichtbarkeit und Rückfall kommen aus dem Bereichsmodell: ein unbekannter oder nicht
+    // erlaubter `?tab=` landet auf der Übersicht statt auf einem leeren Panel.
+    const visible = useMemo(() => visibleEventSections(user), [user])
+    const activeTab = resolveEventTab(tab, visible)
+    const activeSection = visible.find(s => s.key === activeTab)
+
+    const switchTab = (next: EventSectionKey) => {
+        navigate({to: '/event/$eventId', params: {eventId}, search: {tab: next}}).then()
+    }
+
+    const {data, error, reload} = useFetch(signal => getEvent({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
+
+    // Zeitraum für den Kopf aus den Tagen; ohne Tage oder bei Fehler bleibt er einfach weg.
+    const {data: eventDays} = useFetch(
+        signal => getEventDays({signal, path: {eventId}, query: {limit: 100}}),
+        {deps: [eventId]},
+    )
+
+    // Hat der eigene Verein schon gemeldet? Verlässlich nur mit Leserecht im Umfang OWN: dann
+    // liefert die Meldungsliste genau die Meldung(en) des eigenen Vereins. Mit GLOBAL (etwa
+    // Administration mit Verein) wäre es eine Seite fremder Meldungen - dort bleibt der Knopf
+    // beim neutralen „Zur Meldung".
+    const ownRegistrationScope =
+        user.loggedIn &&
+        Boolean(user.clubId) &&
+        user.getPrivilegeScope('READ', 'REGISTRATION') === 'OWN'
+    const {data: ownRegistrations} = useFetch(
+        signal => getRegistrationsForEvent({signal, path: {eventId}, query: {limit: 1}}),
+        {preCondition: () => ownRegistrationScope, deps: [eventId, ownRegistrationScope]},
+    )
+    const hasOwnRegistration = ownRegistrationScope && (ownRegistrations?.pagination.total ?? 0) > 0
+
+    useDocumentTitle(data?.name)
+
+    const eventAdministration = useEntityAdministration<EventDto>(t('event.event'))
+
+    const breadcrumbs = buildEventTrail({
+        eventsLabel: t('navigation.titles.events'),
+        eventId,
+        eventName: data?.name,
+        section:
+            activeSection && activeSection.group !== null
+                ? {tab: activeSection.key, label: t(activeSection.labelKey)}
+                : undefined,
+    })
+
+    if (!data) {
+        if (error) {
+            return (
+                <Box>
+                    <PageHeader title={t('event.event')} breadcrumbs={breadcrumbs} />
+                    <ErrorState
+                        message={
+                            error.status === 404 || error.status === 403
+                                ? t('event.overview.notFound')
+                                : t('event.overview.loadError')
+                        }
+                        onRetry={reload}
+                    />
+                </Box>
+            )
+        }
+        return <LoadingState variant={'page'} />
+    }
+
+    const registrationState = getRegistrationState(data)
+    const hasRegistrationPeriod = Boolean(
+        data.registrationAvailableFrom || data.registrationAvailableTo,
+    )
+    const canRegister = user.loggedIn && Boolean(user.clubId) && registrationState !== 'CLOSED'
+
+    const range = eventDateRange(eventDays?.data.map(d => d.date) ?? [])
+    const formatDay = (date: string) => format(parseISO(date), t('format.date'))
+    const subtitleParts = [
+        range &&
+            (range.from === range.to
+                ? formatDay(range.from)
+                : `${formatDay(range.from)} – ${formatDay(range.to)}`),
+        data.location,
+    ].filter((part): part is string => Boolean(part))
+
+    const meta = (
+        <>
+            {user.checkPrivilege(readEventGlobal) && (
+                <Chip
+                    size={'small'}
+                    variant={'outlined'}
+                    icon={data.published ? <CheckCircleOutline /> : undefined}
+                    sx={
+                        data.published
+                            ? {
+                                  color: theme => statusTextColor(theme, 'success'),
+                                  borderColor: 'currentColor',
+                                  '& .MuiChip-icon': {color: 'inherit'},
+                              }
+                            : undefined
+                    }
+                    label={
+                        data.published ? t('event.published.published') : t('event.published.not')
+                    }
+                />
+            )}
+            {hasRegistrationPeriod && (
+                <Chip
+                    size={'small'}
+                    variant={'outlined'}
+                    sx={
+                        registrationState === 'CLOSED'
+                            ? undefined
+                            : {color: theme => primaryTextColor(theme), borderColor: 'currentColor'}
+                    }
+                    label={
+                        registrationState === 'REGULAR'
+                            ? t('event.overview.registration.open')
+                            : registrationState === 'LATE'
+                              ? t('event.overview.registration.late')
+                              : t('event.overview.registration.closed')
+                    }
+                />
+            )}
+        </>
+    )
+
+    const actions =
+        canRegister || canEditEvent(user.checkPrivilege) ? (
+            <>
+                {canEditEvent(user.checkPrivilege) && (
+                    <Button
+                        variant={'outlined'}
+                        startIcon={<EditOutlined />}
+                        onClick={() => eventAdministration.table.openDialog(data)}>
+                        {t('common.edit')}
+                    </Button>
                 )}
-            </Box>
-            {manageRunningMatchesOpen && (
-                <ManageRunningMatchesDialog
-                    open={manageRunningMatchesOpen}
-                    onClose={() => setManageRunningMatchesOpen(false)}
-                    eventId={eventId}
-                />
-            )}
-            {checkSeverityOpen && (
-                <CheckSeverityDialog
-                    open={checkSeverityOpen}
-                    onClose={() => setCheckSeverityOpen(false)}
-                    eventId={eventId}
-                />
-            )}
-            <AwardCertificateDialog
-                open={awardCertificateDialogOpen}
-                onClose={() => setAwardCertificateDialogOpen(false)}
-                eventId={eventId}
+                {canRegister && (
+                    <ButtonLink
+                        to={'/event/$eventId/register'}
+                        params={{eventId}}
+                        variant={'contained'}
+                        endIcon={<Forward />}>
+                        {hasOwnRegistration ? t('event.registerEdit') : t('event.registerNow')}
+                    </ButtonLink>
+                )}
+            </>
+        ) : undefined
+
+    const panel = (() => {
+        switch (activeTab) {
+            case 'general':
+                return (
+                    <OverviewTab
+                        event={data}
+                        reloadEvent={reload}
+                        showRaceDay={visible.some(s => s.key === 'betrieb')}
+                        showResults={visible.some(s => s.key === 'results')}
+                    />
+                )
+            case 'competitions':
+                return <CompetitionsAndEventDays isChallengeEvent={data.challengeEvent} />
+            case 'settings':
+                return <SettingsTab event={data} reloadEvent={reload} />
+            case 'registrations':
+                return (
+                    <EventRegistrations
+                        registrationsFinalized={data.registrationsFinalized}
+                        eventDto={data}
+                    />
+                )
+            case 'participants':
+                return <ParticipantsTab event={data} />
+            case 'invoices':
+                return <InvoicesTab event={data} reloadEvent={reload} />
+            case 'schedule':
+                return <EventSchedule event={data} />
+            case 'betrieb':
+                return (
+                    <BetriebTab
+                        eventId={eventId}
+                        switchTab={switchTab}
+                        challengeEvent={data.challengeEvent}
+                    />
+                )
+            case 'organization':
+                return <OrganizationTab eventId={eventId} />
+            case 'results':
+                return <ResultsTab event={data} />
+        }
+    })()
+
+    return (
+        <Box>
+            <PageHeader
+                title={data.name}
+                subtitle={subtitleParts.length > 0 ? subtitleParts.join(' · ') : undefined}
+                meta={meta}
+                actions={actions}
+                breadcrumbs={breadcrumbs}
             />
+            <EventSectionSelect visible={visible} active={activeTab} onChange={switchTab} />
+            <Box
+                component={'section'}
+                aria-label={activeSection ? t(activeSection.labelKey) : undefined}>
+                <Suspense fallback={<LoadingState />}>{panel}</Suspense>
+            </Box>
+            <EventDialog {...eventAdministration.dialog} reloadData={reload} />
         </Box>
     )
 }

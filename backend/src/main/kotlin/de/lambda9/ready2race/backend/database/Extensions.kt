@@ -8,6 +8,7 @@ import de.lambda9.tailwind.jooq.JIO
 import de.lambda9.tailwind.jooq.Jooq
 import org.jooq.*
 import org.jooq.impl.DSL
+import org.jooq.impl.QOM
 import org.jooq.impl.TableImpl
 
 fun Collection<Condition>.and() = DSL.and(*this.toTypedArray())
@@ -22,6 +23,41 @@ fun String?.metaSearch(fields: List<Field<*>>, splitRegex: Regex = Regex("\\s"))
         ?.and()
         ?: DSL.trueCondition()
 
+/**
+ * Sortierung einer Seite: die vom Client gewählten Felder, dahinter immer ein eindeutiger
+ * Schlüssel. Ohne ihn ist die Reihenfolge gleicher Werte (Name, Verein) in Postgres nicht stabil,
+ * und mit limit/offset erscheinen Zeilen doppelt auf zwei Seiten oder gar nicht.
+ */
+internal fun <S : Sortable> paginationOrder(
+    params: PaginationParameters<S>,
+    tieBreaker: List<Field<*>>,
+): List<SortField<*>> {
+    val chosen = params.sort.orEmpty().flatMap { order ->
+        order.field.toFields().map { field -> field to order.direction }
+    }
+    val chosenFields = chosen.map { it.first }
+    val tail = tieBreaker.filter { it !in chosenFields }.map { it to Direction.ASC }
+    return (chosen + tail).map { (field, direction) ->
+        when (direction) {
+            Direction.DESC -> field.desc()
+            Direction.ASC -> field.asc()
+        }
+    }
+}
+
+/**
+ * Eindeutiger Schlüssel der (ersten) Tabelle im FROM: ihr Primärschlüssel, bei Views ohne
+ * Primärschlüssel die Spalte `id`. Bei einem Verbund zählt die linke Tabelle.
+ */
+internal fun tieBreakerOf(select: Select<*>): List<Field<*>> = runCatching {
+    var table: Table<*> = select.`$from`().firstOrNull() ?: return emptyList()
+    while (table is QOM.JoinTable<*, *>) {
+        table = table.`$table1`()
+    }
+    table.primaryKey?.fields?.takeIf { it.isNotEmpty() }
+        ?: listOfNotNull(table.field("id"))
+}.getOrDefault(emptyList())
+
 @Deprecated("Use the page() extension function on Table instead", level = DeprecationLevel.WARNING)
 fun <R : Record, S : Sortable> SelectWhereStep<R>.page(
     paginationParameter: PaginationParameters<S>,
@@ -31,14 +67,7 @@ fun <R : Record, S : Sortable> SelectWhereStep<R>.page(
     this
         .where(where())
         .and(paginationParameter.search.metaSearch(searchFields))
-        .orderBy(paginationParameter.sort?.flatMap { order ->
-            order.field.toFields().map {
-                when (order.direction) {
-                    Direction.DESC -> it.desc()
-                    Direction.ASC -> it.asc()
-                }
-            }
-        })
+        .orderBy(paginationOrder(paginationParameter, tieBreakerOf(this)))
         .limit(paginationParameter.limit)
         .offset(paginationParameter.offset)
 

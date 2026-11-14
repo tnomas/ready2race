@@ -1,5 +1,4 @@
 import EntityDialog from '@components/EntityDialog.tsx'
-import {BaseEntityDialogProps} from '@utils/types.ts'
 import {ParticipantForEventDto, ParticipantScanCompetitionDto} from '@api/types.gen.ts'
 import {Alert, MenuItem, Stack, TextField} from '@mui/material'
 import {
@@ -8,13 +7,18 @@ import {
     getParticipantsForEventInApp,
 } from '@api/sdk.gen.ts'
 import {useForm} from 'react-hook-form-mui'
-import {useCallback, useMemo, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {competitionLabel, covers} from '@components/qrApp/requirementScope.ts'
 import {eventRoute} from '@routes'
 import FormInputTransferList from '@components/form/input/FormInputTransferList.tsx'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {useTranslation} from 'react-i18next'
 import Throbber from '@components/Throbber.tsx'
+import {
+    RequirementCheckTarget,
+    requirementCheckTargetLabel,
+    resolveSelectedTarget,
+} from './requirementCheckTargets.ts'
 
 export type ParticipantRequirementApproveManuallyForEventForm = {
     requirementId: string
@@ -32,18 +36,47 @@ export type ParticipantRequirementApproveManuallyForEventForm = {
     approvedParticipants: Array<ParticipantForEventDto & {note?: string}>
 }
 
-const ParticipantRequirementApproveManuallyForEventDialog = (
-    props: BaseEntityDialogProps<ParticipantRequirementApproveManuallyForEventForm>,
-) => {
+type Props = {
+    entityName: string
+    dialogIsOpen: boolean
+    closeDialog: () => void
+    reloadData: () => void
+    /**
+     * Die wählbaren Bedingungen (bei Rollenbindung je Rolle), siehe `requirementCheckTargets`.
+     * Die Bedingung wird im Dialog als erstes Feld gewählt; gibt es nur eine, ist sie gesetzt.
+     */
+    targets: RequirementCheckTarget[]
+}
+
+const ParticipantRequirementApproveManuallyForEventDialog = ({targets, ...props}: Props) => {
     const {eventId} = eventRoute.useParams()
     const feedback = useFeedback()
     const {t} = useTranslation()
+    const [selectedKey, setSelectedKey] = useState<string | null>(null)
     const [competitionId, setCompetitionId] = useState<string | null>(null)
     const [competitions, setCompetitions] = useState<ParticipantScanCompetitionDto[]>([])
     const [todayEventDayId, setTodayEventDayId] = useState<string | null>(null)
 
-    const perCompetition = props.entity?.perCompetition === true
-    const perEventDay = props.entity?.perEventDay === true
+    // Jedes Öffnen beginnt ohne Wahl: Bedingung und Wettkampf vom letzten Mal wären eine stille
+    // Vorbelegung, die beim Abgleich niemand mehr bemerkt.
+    useEffect(() => {
+        if (props.dialogIsOpen) {
+            setSelectedKey(null)
+            setCompetitionId(null)
+        }
+    }, [props.dialogIsOpen])
+
+    const target = resolveSelectedTarget(targets, selectedKey)
+
+    // Der Datensatz des Dialogs ist das gewählte Ziel. Stabil je Ziel, damit der Dialog das
+    // Formular nur bei einem Wechsel neu befüllt.
+    const entity: ParticipantRequirementApproveManuallyForEventForm | undefined = useMemo(
+        () => (target ? {...target, approvedParticipants: []} : undefined),
+        [target],
+    )
+
+    const perCompetition = entity?.perCompetition === true
+    const perEventDay = entity?.perEventDay === true
 
     // Der Rahmen kommt vom Server: den heutigen Wettkampftag bestimmt dieselbe Regel, die ihn
     // beim Speichern einträgt - eine zweite Quelle für "heute" wäre eine zu viel.
@@ -60,8 +93,8 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
             setCompetitions(data.competitions)
             setTodayEventDayId(data.todayEventDayId ?? null)
         },
-        preCondition: () => props.entity?.requirementId != null,
-        deps: [eventId, props.entity],
+        preCondition: () => props.dialogIsOpen,
+        deps: [eventId, props.dialogIsOpen],
     })
 
     const editAction = (formData: ParticipantRequirementApproveManuallyForEventForm) => {
@@ -92,7 +125,7 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
                 },
             }),
         {
-            preCondition: () => props.entity?.requirementId != null || false,
+            preCondition: () => props.dialogIsOpen,
             onResponse: ({error}) => {
                 if (error) {
                     feedback.error(
@@ -102,7 +135,7 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
                     )
                 }
             },
-            deps: [props.entity],
+            deps: [eventId, props.dialogIsOpen],
         },
     )
 
@@ -112,46 +145,49 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
 
         return participantsData.data.filter(p => {
             // If it's a named participant requirement, only show participants with matching namedParticipantId
-            if (!props.entity?.isGlobal && props.entity?.namedParticipantId) {
-                return p.namedParticipantIds?.includes(props.entity.namedParticipantId) ?? false
+            if (!entity?.isGlobal && entity?.namedParticipantId) {
+                return p.namedParticipantIds?.includes(entity.namedParticipantId) ?? false
             }
             // For global requirements, show all participants
             return true
         })
-    }, [participantsData?.data, props.entity?.isGlobal, props.entity?.namedParticipantId])
+    }, [participantsData?.data, entity?.isGlobal, entity?.namedParticipantId])
 
     const formContext = useForm<ParticipantRequirementApproveManuallyForEventForm>()
 
-    const options = filteredParticipants.map(p => ({
-        ...p,
-        note: p.participantRequirementsChecked?.find(r => r.id === props.entity?.requirementId)
-            ?.note,
-    }))
+    const options = useMemo(
+        () =>
+            filteredParticipants.map(p => ({
+                ...p,
+                note: p.participantRequirementsChecked?.find(r => r.id === entity?.requirementId)
+                    ?.note,
+            })),
+        [filteredParticipants, entity?.requirementId],
+    )
 
     // Angehakt ist, wessen Bestätigung DIESEN Rahmen abdeckt - dieselbe Regel wie an der Waage
     // und vor dem Start. Ohne sie stünde jemand, der für einen anderen Wettkampf gewogen wurde,
     // hier als erledigt, und das Speichern schriebe seine Bestätigung nie für den gewählten.
-    const scanContext = {todayEventDayId, competitionId}
     const isApproved = useCallback(
         (p: ParticipantForEventDto) =>
             (p.participantRequirementsChecked ?? []).some(
                 r =>
-                    r.id === props.entity?.requirementId &&
-                    covers({perEventDay, perCompetition}, r, scanContext),
+                    r.id === entity?.requirementId &&
+                    covers({perEventDay, perCompetition}, r, {todayEventDayId, competitionId}),
             ),
-        [props.entity, perEventDay, perCompetition, todayEventDayId, competitionId],
+        [entity?.requirementId, perEventDay, perCompetition, todayEventDayId, competitionId],
     )
 
     const onOpen = useCallback(() => {
         formContext.reset(
-            props.entity
+            entity
                 ? {
-                      ...props.entity,
+                      ...entity,
                       approvedParticipants: options.filter(isApproved),
                   }
                 : {},
         )
-    }, [props.entity, filteredParticipants, isApproved])
+    }, [entity, options, isApproved, formContext])
 
     // Ein Wettkampfwechsel ist ein anderer Zustand: die Liste muss neu vorbelegt werden, sonst
     // trüge der Abgleich die Häkchen des vorigen Wettkampfs in den neuen.
@@ -162,7 +198,7 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
             options.filter(p =>
                 (p.participantRequirementsChecked ?? []).some(
                     r =>
-                        r.id === props.entity?.requirementId &&
+                        r.id === entity?.requirementId &&
                         covers({perEventDay, perCompetition}, r, {
                             todayEventDayId,
                             competitionId: id,
@@ -172,20 +208,49 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
         )
     }
 
+    // Eine andere Bedingung hat einen anderen Rahmen: der Wettkampf wird neu gewählt.
+    const onTargetChange = (key: string) => {
+        setSelectedKey(key)
+        setCompetitionId(null)
+    }
+
     return (
         <EntityDialog
             {...props}
+            entity={entity}
             formContext={formContext}
             onOpen={onOpen}
             editAction={editAction}
+            disableSave={entity === undefined || (perCompetition && competitionId === null)}
             maxWidth={'xl'}
             fullWidth={true}
-            title={`${props.entity?.requirementName}${
-                props.entity && !props.entity.isGlobal && props.entity.namedParticipantName
-                    ? ` (${props.entity.namedParticipantName})`
-                    : ''
-            }`}>
+            title={t('event.participantRequirement.checkManuallyDialog.title')}>
             <Stack spacing={2}>
+                {targets.length === 0 ? (
+                    <Alert severity="info">
+                        {t('event.participantRequirement.checkManuallyDialog.noRequirements')}
+                    </Alert>
+                ) : (
+                    <TextField
+                        select
+                        fullWidth
+                        required
+                        label={t('event.participantRequirement.checkManuallyDialog.requirement')}
+                        helperText={
+                            entity === undefined
+                                ? t('event.participantRequirement.checkManuallyDialog.chooseFirst')
+                                : undefined
+                        }
+                        value={target?.key ?? ''}
+                        onChange={e => onTargetChange(e.target.value)}>
+                        {targets.map(option => (
+                            <MenuItem key={option.key} value={option.key}>
+                                {requirementCheckTargetLabel(option)}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                )}
+
                 {perCompetition && (
                     <TextField
                         select
@@ -216,7 +281,7 @@ const ParticipantRequirementApproveManuallyForEventDialog = (
                     </Alert>
                 )}
 
-                {participantsPending ? (
+                {entity === undefined ? null : participantsPending ? (
                     <Throbber />
                 ) : perCompetition && competitionId === null ? null : (
                     <FormInputTransferList

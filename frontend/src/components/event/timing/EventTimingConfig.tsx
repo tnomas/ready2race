@@ -31,6 +31,7 @@ import {
     mapDtoToEventTimingForm,
     mapEventTimingFormToRequest,
 } from './eventTimingConfigForm.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 /**
  * Die Zeitnahme-Einstellungen einer Veranstaltung: Zeitnahme-System, Startlisten-Export und
@@ -149,14 +150,16 @@ const EventTimingConfig = () => {
             <FormContainer
                 formContext={formContext}
                 onSuccess={async (data: EventTimingForm) => {
-                    setSubmitting(true)
-                    const {error} = await updateEventTimingConfig({
-                        path: {eventId},
-                        body: mapEventTimingFormToRequest(data),
-                    })
-                    setSubmitting(false)
+                    const {error} = await runRequest(setSubmitting, () =>
+                        updateEventTimingConfig({
+                            path: {eventId},
+                            body: mapEventTimingFormToRequest(data),
+                        }),
+                    )
 
-                    if (error) {
+                    if (isRequestNetworkError(error)) {
+                        feedback.error(t('common.error.network'))
+                    } else if (error) {
                         feedback.error(
                             error.status.value === 422
                                 ? t('event.timing.invalid')
@@ -435,7 +438,7 @@ const EventTimingConfig = () => {
                                 <Trans i18nKey={'event.timing.formatsHint.1'} />
                                 <InlineLink
                                     to={'/config'}
-                                    search={{tab: 'competition-elements'}}
+                                    search={{tab: 'lists-timing'}}
                                     hash={'startlists'}>
                                     <Trans i18nKey={'event.timing.formatsHint.2'} />
                                 </InlineLink>

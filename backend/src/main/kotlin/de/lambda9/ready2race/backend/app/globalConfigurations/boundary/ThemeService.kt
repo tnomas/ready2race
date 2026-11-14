@@ -32,30 +32,36 @@ object ThemeService {
             }.mapError { ThemeError.ThemeFileMalformed }
         } else null
 
+        // Erst beide Uploads prüfen, dann schreiben, dann theme.json, ZULETZT die alten Dateien
+        // löschen. Früher wurde die alte Datei vor der Prüfung gelöscht: eine ungültige neue Datei
+        // (Endung, Größe) ließ den Aufruf scheitern, die alte war aber schon weg und theme.json
+        // zeigte weiter auf sie. Dateisystem-Schritte kennen keinen Rollback.
+        if (uploadedFontFile != null && request.enableCustomFont) {
+            val extension = uploadedFontFile.name.substringAfterLast('.', "").lowercase()
+            !KIO.failOn(extension !in ALLOWED_FONT_EXTENSIONS) { ThemeError.FontFileInvalid }
+            !KIO.failOn(uploadedFontFile.bytes.size > MAX_FONT_SIZE_BYTES) { ThemeError.FontFileTooLarge }
+        }
+        if (uploadedLogoFile != null && request.enableCustomLogo) {
+            val extension = uploadedLogoFile.name.substringAfterLast('.', "").lowercase()
+            !KIO.failOn(extension !in ALLOWED_LOGO_EXTENSIONS) { ThemeError.LogoFileInvalid }
+            !KIO.failOn(uploadedLogoFile.bytes.size > MAX_LOGO_SIZE_BYTES) { ThemeError.LogoFileTooLarge }
+        }
+        val obsoleteFonts = mutableListOf<String>()
+        val obsoleteLogos = mutableListOf<String>()
+
         // Handle font file upload
         val newCustomFont = when {
             uploadedFontFile != null && request.enableCustomFont -> {
-                // Delete old font if it exists
-                currentTheme?.customFont?.filename?.let { oldFilename ->
-                    !deleteFontFile(config.staticFilesPath, oldFilename)
-                }
-
-                // Save new font
-                val extension = uploadedFontFile.name.substringAfterLast('.', "").lowercase()
-
-                !KIO.failOn(extension !in ALLOWED_FONT_EXTENSIONS) { ThemeError.FontFileInvalid }
-
-                !KIO.failOn(uploadedFontFile.bytes.size > MAX_FONT_SIZE_BYTES) { ThemeError.FontFileTooLarge }
-
-
                 val fontsDir = File(config.staticFilesPath, "fonts")
                 fontsDir.mkdirs()
 
                 val sanitizedFilename = uploadedFontFile.name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
                 val fontFile = File(fontsDir, sanitizedFilename)
                 fontFile.writeBytes(uploadedFontFile.bytes)
+                currentTheme?.customFont?.filename
+                    ?.takeIf { it != sanitizedFilename }
+                    ?.let { obsoleteFonts += it }
 
-                KIO.ok(sanitizedFilename)
                 ThemeConfigDto.CustomFontDto(enabled = true, filename = sanitizedFilename)
             }
 
@@ -65,10 +71,8 @@ object ThemeService {
             }
 
             !request.enableCustomFont -> {
-                // Delete font if disabling
-                currentTheme?.customFont?.filename?.let { oldFilename ->
-                    !deleteFontFile(config.staticFilesPath, oldFilename)
-                }
+                // Delete font if disabling (nach dem Schreiben von theme.json)
+                currentTheme?.customFont?.filename?.let { obsoleteFonts += it }
                 ThemeConfigDto.CustomFontDto.default
             }
 
@@ -78,26 +82,16 @@ object ThemeService {
         // Handle logo file upload
         val newCustomLogo = when {
             uploadedLogoFile != null && request.enableCustomLogo -> {
-                // Delete old logo if it exists
-                currentTheme?.customLogo?.filename?.let { oldFilename ->
-                    !deleteLogoFile(config.staticFilesPath, oldFilename)
-                }
-
-                // Save new logo
-                val extension = uploadedLogoFile.name.substringAfterLast('.', "").lowercase()
-
-                !KIO.failOn(extension !in ALLOWED_LOGO_EXTENSIONS) { ThemeError.LogoFileInvalid }
-
-                !KIO.failOn(uploadedLogoFile.bytes.size > MAX_LOGO_SIZE_BYTES) { ThemeError.LogoFileTooLarge }
-
                 val logosDir = File(config.staticFilesPath, "logos")
                 logosDir.mkdirs()
 
                 val sanitizedFilename = uploadedLogoFile.name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
                 val logoFile = File(logosDir, sanitizedFilename)
                 logoFile.writeBytes(uploadedLogoFile.bytes)
+                currentTheme?.customLogo?.filename
+                    ?.takeIf { it != sanitizedFilename }
+                    ?.let { obsoleteLogos += it }
 
-                KIO.ok(sanitizedFilename)
                 ThemeConfigDto.CustomLogoDto(enabled = true, filename = sanitizedFilename)
             }
 
@@ -107,10 +101,8 @@ object ThemeService {
             }
 
             !request.enableCustomLogo -> {
-                // Delete logo if disabling
-                currentTheme?.customLogo?.filename?.let { oldFilename ->
-                    !deleteLogoFile(config.staticFilesPath, oldFilename)
-                }
+                // Delete logo if disabling (nach dem Schreiben von theme.json)
+                currentTheme?.customLogo?.filename?.let { obsoleteLogos += it }
                 ThemeConfigDto.CustomLogoDto.default
             }
 
@@ -139,6 +131,9 @@ object ThemeService {
         )
 
         !updateTheme(config.staticFilesPath, updatedTheme)
+
+        obsoleteFonts.forEach { !deleteFontFile(config.staticFilesPath, it) }
+        obsoleteLogos.forEach { !deleteLogoFile(config.staticFilesPath, it) }
 
         ApiResponse.noData
     }

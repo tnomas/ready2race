@@ -39,6 +39,7 @@ import {useFeedback, useFetch} from '@utils/hooks.ts'
 import Throbber from '@components/Throbber.tsx'
 import LoadingButton from '@components/form/LoadingButton.tsx'
 import {participantTrackingErrorKey} from '@components/event/liveDashboard/liveDashboardError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     open: boolean
@@ -120,7 +121,6 @@ const ParticipantTrackingDialog = ({
     const submit = async () => {
         if (scannedAt === null || reason.trim() === '') return
 
-        setSubmitting(true)
         const body = {
             scanType,
             // Dasselbe Format wie FormInputDateTime: der Server erwartet eine lokale Zeit ohne Zone.
@@ -128,19 +128,22 @@ const ParticipantTrackingDialog = ({
             reason: reason.trim(),
         }
 
-        const {error: writeError} =
+        const {error: writeError} = await runRequest(setSubmitting, () =>
             editing !== null
-                ? await correctParticipantTracking({
+                ? correctParticipantTracking({
                       path: {eventId, participantId, trackingId: editing.id},
                       body,
                   })
-                : await addManualParticipantTracking({
+                : addManualParticipantTracking({
                       path: {eventId, participantId},
                       body,
-                  })
+                  }),
+        )
 
-        setSubmitting(false)
-
+        if (isRequestNetworkError(writeError)) {
+            feedback.error(t('common.error.network'))
+            return
+        }
         if (writeError) {
             const key = participantTrackingErrorKey(writeError)
             feedback.error(
@@ -199,7 +202,10 @@ const ParticipantTrackingDialog = ({
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
             <DialogTitle sx={{pr: 6}}>
                 {t('club.participant.tracking.manual.title', {name: participantName})}
-                <IconButton onClick={onClose} sx={{position: 'absolute', right: 8, top: 8}}>
+                <IconButton
+                    aria-label={t('common.close')}
+                    onClick={onClose}
+                    sx={{position: 'absolute', right: 8, top: 8}}>
                     <Close />
                 </IconButton>
             </DialogTitle>

@@ -10,6 +10,7 @@ import {competitionRoute, eventRoute} from '@routes'
 import {FormInputText} from '@components/form/input/FormInputText.tsx'
 import {SubmitButton} from '@components/form/SubmitButton.tsx'
 import {deregistrationErrorKey} from './deregistrationError.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     open: boolean
@@ -40,20 +41,22 @@ const CompetitionDeregistrationDialog = (props: Props) => {
     const [submitting, setSubmitting] = useState(false)
 
     const onSubmit = async (formData: Form) => {
-        setSubmitting(true)
-        const {error} = await deregisterCompetitionRegistration({
-            path: {
-                eventId: eventId,
-                competitionId: competitionId,
-                competitionRegistrationId: props.competitionRegistration!.id,
-            },
-            body: {
-                reason: takeIfNotEmpty(formData.reason),
-            },
-        })
-        setSubmitting(false)
+        const {error} = await runRequest(setSubmitting, () =>
+            deregisterCompetitionRegistration({
+                path: {
+                    eventId: eventId,
+                    competitionId: competitionId,
+                    competitionRegistrationId: props.competitionRegistration!.id,
+                },
+                body: {
+                    reason: takeIfNotEmpty(formData.reason),
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t(deregistrationErrorKey(error)))
         } else {
             feedback.success(t('event.competition.registration.deregister.success'))

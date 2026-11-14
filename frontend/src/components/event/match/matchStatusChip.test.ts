@@ -1,10 +1,16 @@
 import {describe, expect, it} from 'vitest'
-import {EventScheduleSlotDto, MatchByeDto, MatchStatusDto} from '@api/types.gen.ts'
+import {
+    EventScheduleSlotDto,
+    MatchByeDto,
+    MatchStatusDto,
+    UnplannedSetupMatchDto,
+} from '@api/types.gen.ts'
 import {
     OVERDUE_GRACE_MINUTES,
     matchStatusChip,
     roundCounterChips,
     slotMatchStatus,
+    unplannedMatchStatus,
     arenaChip,
     deregisteredChip,
 } from './matchStatusChip.ts'
@@ -382,9 +388,9 @@ describe('deregisteredChip', () => {
      * ausdrücklich NEBEN dem normalen Zustand und ersetzt ihn nicht.
      */
     it('weist eine Abmeldung als zweiten, leisen Chip aus', () => {
-        expect(deregisteredChip(status({teamsTotal: 5, teamsScored: 1, teamsDeregistered: 1}))).toEqual(
-            {labelKey: 'event.match.status.deregistered', values: {n: 1}, color: 'default'},
-        )
+        expect(
+            deregisteredChip(status({teamsTotal: 5, teamsScored: 1, teamsDeregistered: 1})),
+        ).toEqual({labelKey: 'event.match.status.deregistered', values: {n: 1}, color: 'default'})
     })
 
     it('zählt mehrere Abmeldungen zusammen', () => {
@@ -418,6 +424,24 @@ const slot = (overrides: Partial<EventScheduleSlotDto>): EventScheduleSlotDto =>
 })
 
 describe('slotMatchStatus', () => {
+    it('liest einen strittigen Lauf als CLARIFICATION - vor der Aktivierung, nach dem Beenden', () => {
+        // Befund 13.11.2026: der Zeitplan zeigte „Läuft", Durchführung und Dashboard „Klärung".
+        expect(
+            slotMatchStatus(
+                slot({
+                    matchActivatedAt: minutesAgo(9),
+                    matchStartedAt: minutesAgo(8),
+                    matchClarificationSince: minutesAgo(1),
+                }),
+            )?.state,
+        ).toBe('CLARIFICATION')
+        expect(
+            slotMatchStatus(
+                slot({matchFinishedAt: minutesAgo(1), matchClarificationSince: minutesAgo(2)}),
+            )?.state,
+        ).toBe('FINISHED')
+    })
+
     it('lässt einen Slot ohne verknüpften Lauf bei seinem eigenen Chip', () => {
         expect(slotMatchStatus(slot({matchId: null, state: 'FREE'}))).toBeNull()
         expect(slotMatchStatus(slot({matchId: undefined, state: 'WAITING'}))).toBeNull()
@@ -425,7 +449,11 @@ describe('slotMatchStatus', () => {
 
     it('liest den aktiven Lauf als RUNNING, auch wenn der Slot abgesagt ist', () => {
         const status = slotMatchStatus(
-            slot({state: 'SKIPPED', matchActivatedAt: minutesAgo(4), matchStartedAt: minutesAgo(3)}),
+            slot({
+                state: 'SKIPPED',
+                matchActivatedAt: minutesAgo(4),
+                matchStartedAt: minutesAgo(3),
+            }),
         )
         expect(status?.state).toBe('RUNNING')
         expect(status?.startedAt).toBe(minutesAgo(3))
@@ -651,5 +679,37 @@ describe('matchStatusChip beim Freilos', () => {
                 status({state: 'UPCOMING', teamsTotal: 1, teamsInArena: 0, bye: structuralBye}),
             ),
         ).toBeNull()
+    })
+})
+
+describe('unplannedMatchStatus', () => {
+    const unplanned = (overrides: Partial<UnplannedSetupMatchDto>): UnplannedSetupMatchDto => ({
+        setupMatchId: 'u1',
+        competitionId: 'c1',
+        competitionName: 'CM 1x',
+        roundName: 'Finale',
+        ...overrides,
+    })
+
+    it('liest einen strittigen nicht verplanten Lauf als CLARIFICATION, beendet schlägt Klärung', () => {
+        // Befund 13.11.2026: die Unverplant-Liste kannte die Klärung nicht.
+        expect(
+            unplannedMatchStatus(
+                unplanned({
+                    matchActivatedAt: minutesAgo(9),
+                    matchStartedAt: minutesAgo(8),
+                    matchClarificationSince: minutesAgo(1),
+                }),
+            )?.state,
+        ).toBe('CLARIFICATION')
+        expect(
+            unplannedMatchStatus(
+                unplanned({matchFinishedAt: minutesAgo(1), matchClarificationSince: minutesAgo(2)}),
+            )?.state,
+        ).toBe('FINISHED')
+    })
+
+    it('bleibt ohne Laufzustand und ohne Freilos leer', () => {
+        expect(unplannedMatchStatus(unplanned({}))).toBeNull()
     })
 })

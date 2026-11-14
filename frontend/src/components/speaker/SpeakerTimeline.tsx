@@ -1,8 +1,9 @@
 import {Box, Button, Stack, Typography} from '@mui/material'
 import {format} from 'date-fns'
-import {useEffect, useMemo, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {useTranslation} from 'react-i18next'
 import {
+    isLiveOnWater,
     matchBadgeSummary,
     matchDisplayColor,
     SpeakerBadges,
@@ -48,8 +49,11 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
         return {start, end}
     }, [timed, now])
 
-    const toX = (date: Date): number =>
-        window_ ? ((date.getTime() - window_.start.getTime()) / 60000) * pxPerMinute : 0
+    const toX = useCallback(
+        (date: Date): number =>
+            window_ ? ((date.getTime() - window_.start.getTime()) / 60000) * pxPerMinute : 0,
+        [window_, pxPerMinute],
+    )
 
     // greedy row assignment so overlapping blocks stack instead of colliding
     const positioned = useMemo(() => {
@@ -64,8 +68,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
             rowEnds[row] = x + BLOCK_WIDTH
             return {match, x, row}
         })
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [timed, pxPerMinute, window_])
+    }, [timed, toX])
 
     const rowCount = Math.max(1, ...positioned.map(position => position.row + 1))
     const totalWidth = window_
@@ -94,6 +97,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
         }
     }
 
+    // Einmaliger Start-Scroll auf „jetzt“, sobald es ein Zeitfenster gibt. Die Ref sorgt dafür,
+    // dass spätere Läufe (Uhrtick, Zoom) nichts mehr tun — der Streifen springt der Sprecherin
+    // nicht unter der Hand weg.
     const initialScrollDone = useRef(false)
     useEffect(() => {
         if (!initialScrollDone.current && window_ && scrollRef.current) {
@@ -101,8 +107,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
             const container = scrollRef.current
             container.scrollLeft = Math.max(0, toX(now) - container.clientWidth / 2)
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [window_])
+    }, [window_, now, toX])
 
     if (!window_) {
         return (
@@ -232,7 +237,7 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                     zIndex: 1,
                                     transition: 'background-color 0.15s',
                                     '&:hover': {bgcolor: colors.panelHover},
-                                    ...(match.status === 'RUNNING' && {
+                                    ...(isLiveOnWater(match) && {
                                         boxShadow: `0 0 8px ${colors.running}55`,
                                     }),
                                     ...(match.cancelled && {
@@ -253,7 +258,9 @@ const SpeakerTimeline = ({matches, badges, now, onSelectMatch}: Props) => {
                                             ? ` · ${t('speaker.status.CANCELLED')}`
                                             : match.clarification
                                               ? ` · ⚖ ${t('speaker.status.clarificationShort')}`
-                                              : match.status === 'RUNNING'
+                                              : match.preparing
+                                                ? ` · ${t('speaker.status.preparingShort')}`
+                                                : match.status === 'RUNNING'
                                                 ? ` · ${t('speaker.status.liveShort')}`
                                                 : match.status === 'FINISHED'
                                                   ? ' · ✓'

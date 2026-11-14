@@ -1,8 +1,7 @@
 import {useState} from 'react'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {checkQrCode} from '@api/sdk.gen.ts'
-import {Link} from '@tanstack/react-router'
-import {Box, Button, Stack, Typography} from '@mui/material'
+import {Box, Stack, Typography} from '@mui/material'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import {useTranslation} from 'react-i18next'
@@ -10,6 +9,7 @@ import {resultsQRCodeRoute, router} from '@routes'
 import Throbber from '@components/Throbber.tsx'
 import {rememberMyEventCode} from '@utils/myEventStorage.ts'
 import {qrScanOutcome} from './qrScanOutcome.ts'
+import {ButtonLink} from '@components/ui'
 
 /**
  * Die einladende Hinweisansicht für ein noch unverknüpftes Band: Wer vor dem Check-in
@@ -48,9 +48,9 @@ const UnlinkedQrHint = () => {
                 ))}
             </Stack>
             <Typography color="text.secondary">{t('qrCode.unlinked.rescan')}</Typography>
-            <Link to={'/results'}>
-                <Button variant={'contained'}>{t('common.back')}</Button>
-            </Link>
+            <ButtonLink to={'/results'} variant={'contained'}>
+                {t('common.back')}
+            </ButtonLink>
         </Stack>
     )
 }
@@ -118,9 +118,9 @@ const ResultsQrCodePage = () => {
             {pending ? (
                 <Throbber />
             ) : (
-                <Link to={'/results'}>
-                    <Button variant={'contained'}>{t('common.back')}</Button>
-                </Link>
+                <ButtonLink to={'/results'} variant={'contained'}>
+                    {t('common.back')}
+                </ButtonLink>
             )}
         </Box>
     )

@@ -39,6 +39,13 @@ sealed interface CompetitionExecutionError : ServiceError {
     data object MatchNotFinished : CompetitionExecutionError
 
     /**
+     * An den Start rufen oder „Läuft" auf einem beendeten Lauf. Wieder geöffnet wird er über
+     * „Beenden zurücknehmen" oder „Zurücksetzen". Der Fehlercode ist derselbe wie beim
+     * Schiedsrichter-Dashboard, weil es dieselbe Regel ist (siehe CompetitionMatchGuards).
+     */
+    data object MatchAlreadyFinished : CompetitionExecutionError
+
+    /**
      * Ein Lauf lässt sich nur zurücksetzen, solange seine Folgerunde noch keine erzeugten Läufe
      * hat - dieselbe Stromrichtung wie beim Löschen der aktuellen Runde: Sobald aus den Ergebnissen
      * die nächste Runde gesät ist, würde der Reset einen Stand leeren, auf dem die Setzung der
@@ -85,6 +92,12 @@ sealed interface CompetitionExecutionError : ServiceError {
      * Nutzer die Liste selbst durchzählen, um die Lücke zu finden.
      */
     data class PlacesNotContinuous(val expected: Int, val actual: Int) : CompetitionExecutionError
+
+    /**
+     * Mehrere Boote tragen denselben Platz, ohne dieselbe Zeit zu haben. Ein geteilter Platz ist
+     * nur als totes Rennen erlaubt - alles andere ist ein Tippfehler, der benannt werden muss.
+     */
+    data class DuplicatePlaces(val place: Int) : CompetitionExecutionError
     data object StartTimeManagedBySchedule : CompetitionExecutionError
 
     sealed interface ResultUploadError : CompetitionExecutionError {
@@ -119,6 +132,12 @@ sealed interface CompetitionExecutionError : ServiceError {
         MatchNotFound -> ApiError(
             status = HttpStatusCode.NotFound,
             message = "Competition match not found",
+        )
+
+        MatchAlreadyFinished -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Match is already finished and cannot be called to the start again",
+            errorCode = ErrorCode.LIVE_DASHBOARD_MATCH_ALREADY_FINISHED,
         )
 
         MatchTeamNotFound -> ApiError(
@@ -281,6 +300,13 @@ sealed interface CompetitionExecutionError : ServiceError {
             message = "The places are not continuous: expected $expected, got $actual.",
             errorCode = ErrorCode.EXECUTION_PLACES_NOT_CONTINUOUS,
             details = mapOf("expected" to expected, "actual" to actual),
+        )
+
+        is DuplicatePlaces -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "Place $place is given to several teams with different times. A shared place needs equal times.",
+            errorCode = ErrorCode.COMPETITION_EXECUTION_DUPLICATE_PLACES,
+            details = mapOf("place" to place),
         )
 
         StartTimeManagedBySchedule -> ApiError(

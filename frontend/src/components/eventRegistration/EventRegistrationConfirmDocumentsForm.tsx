@@ -1,9 +1,11 @@
-import {Box, Button, Divider, Link, Stack, Typography} from '@mui/material'
+import {Box, Button, Divider, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {EventRegistrationDocumentTypeDto} from '@api/types.gen.ts'
-import {useMemo, useRef} from 'react'
+import {useMemo} from 'react'
 import {FormInputCheckbox} from '@components/form/input/FormInputCheckbox.tsx'
 import {useFeedback} from '@utils/hooks.ts'
+import {downloadNamed} from '@utils/download.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {downloadDocument} from '@api/sdk.gen.ts'
 import {FileDownload} from '@mui/icons-material'
 
@@ -24,31 +26,27 @@ export const EventRegistrationConfirmDocumentsForm = (props: {
         [props.documentTypes],
     )
 
-    const downloadRef = useRef<HTMLAnchorElement>(null)
-
     const download = async (documentId: string, name: string) => {
-        const {data, error} = await downloadDocument({
-            path: {
-                eventId: props.eventId,
-                eventDocumentId: documentId,
-            },
-        })
-        const anchor = downloadRef.current
+        const {data, error} = await runRequest(undefined, () =>
+            downloadDocument({
+                path: {
+                    eventId: props.eventId,
+                    eventDocumentId: documentId,
+                },
+            }),
+        )
 
-        if (error) {
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('event.document.download.error'))
-        } else if (data !== undefined && anchor) {
-            anchor.href = URL.createObjectURL(data)
-            anchor.download = name
-            anchor.click()
-            anchor.href = ''
-            anchor.download = ''
+        } else if (!downloadNamed(data, name)) {
+            feedback.error(t('event.document.download.error'))
         }
     }
 
     return (
         <Box pt={2} pb={2}>
-            <Link ref={downloadRef} display={'none'}></Link>
             {requiredDocs.length > 0 && (
                 <Stack spacing={2}>
                     <Typography variant={'h6'}>
