@@ -2,7 +2,7 @@
 
 Dieser Ordner ist das Entscheidungsgedächtnis von ready2race. Jede Entscheidung mit Dauerwirkung bekommt ein ADR nach [`template.md`](template.md) mit fortlaufender Nummer. ADRs werden nicht umgeschrieben, sondern durch neue ersetzt; der Status verweist dann auf den Nachfolger. Verworfene Alternativen und wieder ausgebaute Features gehören ausdrücklich hinein.
 
-ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12-19), den Specs und Plänen unter `docs/superpowers/` und Arbeitsnotizen rekonstruiert und sind entsprechend gekennzeichnet. Die Nummern folgen dem Datum der Entscheidung, nicht dem Thema. Wie der Ordner gepflegt wird, steht in [ADR-0102](0102-ki-faehiges-repository.md) und in `AGENTS.md`, Abschnitt 11. ADR-0103 bis ADR-0108 (2026-11-13) wurden mit der Umsetzung des Review-Zweigs geschrieben und nicht rekonstruiert.
+ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12-19), den Specs und Plänen unter `docs/superpowers/` und Arbeitsnotizen rekonstruiert und sind entsprechend gekennzeichnet. Die Nummern folgen dem Datum der Entscheidung, nicht dem Thema. Wie der Ordner gepflegt wird, steht in [ADR-0102](0102-ki-faehiges-repository.md) und in `AGENTS.md`, Abschnitt 11. ADR-0103 bis ADR-0108 (2026-11-13) wurden mit der Umsetzung des Review-Zweigs, ADR-0109 bis ADR-0111 (2026-11-14) mit der Übernahme der Materialvermietung geschrieben und nicht rekonstruiert.
 
 ## Nach Thema
 
@@ -36,6 +36,7 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0035](0035-nutzer-onboarding-einladung-ohne-delete-privileg.md) Nutzer-Onboarding: Selbstregistrierung mit Verifikation, Einladung mit Rollen, Passwort-Reset; Einladungen zurückziehen ohne DELETE-Privileg
 - [ADR-0088](0088-timing-websocket-und-geraete-token.md) Timing-WebSocket mit Auth per Subprotokoll und Broadcast nach Commit; Geräte-Token als eine Infrastruktur für Posten, Boards und Szenen; Zeitnahme-Routen unter der Veranstaltung
 - [ADR-0106](0106-rueckruf-adressen-in-mails-gegen-frontend-origins-pruefen.md) Rückruf-Adressen in Mails werden gegen `FRONTEND_ORIGINS` bzw. den Host der Anfrage geprüft
+- [ADR-0110](0110-rolle-materialanbieter-systemverwaltet-an-anbieter-zuordnung.md) Die Rolle „Materialanbieter“ ist systemverwaltet (Kennung `…0040`), folgt der Anbieter-Zuordnung am Konto und ist nicht kopierbar
 
 ### API und Fehlerbehandlung
 
@@ -92,6 +93,12 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 - [ADR-0041](0041-checkin-checkout-ereignisprotokoll-arena.md) Check-in/-out als Ereignisprotokoll auf Teilnehmerebene, ohne Kopplung an die Rennlogik; „Arena" statt „Wasser"; ein Scan genügt
 - [ADR-0071](0071-vereinskette-statt-renngemeinschaft.md) Vereinskette statt „Renngemeinschaft"; Vereinskürzel und Kürzungsregeln als Daten, Sportwissen nicht im Produktkern
 - [ADR-0075](0075-manueller-checkin-mit-begruendung-und-spur.md) Manueller Check-in/-out mit Pflichtbegründung und Änderungsspur, kein Löschen, kein neues Privileg
+
+### Domäne: Materialvermietung
+
+- [ADR-0109](0109-materialvermietung-eigene-domaene-anfragen-ohne-fremdschluessel.md) Materialvermietung als eigene Domäne: Anfragen ohne Fremdschlüssel, Freigabe durch die Meldung, Verursacher als Momentaufnahme, Ausfall nur über die Ausnahme je Lauf
+- [ADR-0110](0110-rolle-materialanbieter-systemverwaltet-an-anbieter-zuordnung.md) Die Rolle „Materialanbieter“ ist systemverwaltet (Kennung `…0040`), folgt der Anbieter-Zuordnung am Konto und ist nicht kopierbar
+- [ADR-0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker; offen: Startnummer aus der Meldungsnummer
 
 ### Dokumente, Rechnungen, Exporte
 
@@ -274,3 +281,6 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 | [0106](0106-rueckruf-adressen-in-mails-gegen-frontend-origins-pruefen.md) | 2026-11-13 | Rückruf-Adressen in Mails werden gegen `FRONTEND_ORIGINS` bzw. den Host der Anfrage geprüft | angenommen |
 | [0107](0107-backend-laufzeit-io-dispatcher-pool-argon2-zeitzone-health.md) | 2026-11-13 | Backend-Laufzeit: IO-Dispatcher, Pool mit Statement-Timeout, Sitzungsverlängerung, Argon2-Parameter, `AppZone`, Healthcheck, Proxy-Annahme | angenommen |
 | [0108](0108-backend-tests-template-datenbank-committing-concurrent.md) | 2026-11-13 | Backend-Tests: Template-Datenbank statt Neumigration, `testCommittingComprehension` und `ConcurrentTx` | angenommen |
+| [0109](0109-materialvermietung-eigene-domaene-anfragen-ohne-fremdschluessel.md) | 2026-11-14 | Materialvermietung als eigene Domäne: Anfragen ohne Fremdschlüssel, Freigabe durch die Meldung, Verursacher als Momentaufnahme, Ausfall nur über die Ausnahme je Lauf | angenommen |
+| [0110](0110-rolle-materialanbieter-systemverwaltet-an-anbieter-zuordnung.md) | 2026-11-14 | Die Rolle „Materialanbieter“ ist systemverwaltet (Kennung `…0040`), folgt der Anbieter-Zuordnung am Konto und ist nicht kopierbar | angenommen |
+| [0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) | 2026-11-14 | Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker | angenommen (Teilfrage offen) |
