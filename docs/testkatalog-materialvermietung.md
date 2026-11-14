@@ -18,6 +18,11 @@ danach `docs/seeds/seed-material.sql`".
   Boot 6 (Totalschaden), im Vorlauf 2 Ersatz Boot 8 als Ausnahme; MT 4: eigenes Boot, offene
   Anfrage beim zweiten Anbieter. Dazu das Board „Materialtest-Board", die Stream-Szene
   „Materialtest" und Mein Event unter `/event/<eventId>/my-event/MATERIAL-MEINEVENT-1`.
+- **Block A läuft auf „M2 Frauen-Doppelzweier Anmeldetest" (CF 2x AT)**, angemeldet als
+  `verein@material.test`: die DM-Wettkämpfe 1-3 haben keine Teilnehmer-Plätze und erscheinen nicht im
+  Meldeformular. Bedarf C2x (Angebot Bootshaus Nord, geplant 5) und Skull-Paar (OTHER); Boot #1 hat
+  eine bestätigte C2x-Anfrage (Rückzug → Mail, A6), Boot #2 eine offene (A4). Die Fall-Beschreibungen
+  unten nennen noch die DM-Wettkämpfe - dort sinngemäß M2 lesen.
 - **Abweichung** heißt seit dem 14.11.2026: Bootsnummer ≠ Startnummer **im jeweiligen Lauf**
   (`competition_match_team.start_number`), nicht die Meldungsnummer aus der Fixierung.
 - **Anbieter:** Bootshaus Nord, eingeladen, Vergabe offen (`requests_closed = false`).

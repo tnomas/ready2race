@@ -24,6 +24,9 @@
 --     MT 4 (Verein 4): eigenes Boot; offene Anfrage beim zweiten Anbieter (fuer F1).
 --   Ein Board (zwei Listen, Material immer zeigen), eine Stream-Szene (Startliste/Naechstes Rennen
 --   mit Material) und ein QR-Code "MATERIAL-MEINEVENT-1" fuer Mein Event (Person in MT 1).
+-- - Ein Wettkampf "M2 Anmeldetest" (CF 2x AT, Bedarf C2x und Skull-Paar) ohne Laeufe, mit zwei
+--   Booten des DM-Vereins 1 (#1 bestaetigt, #2 angefragt) - das ist der Wettkampf fuer Block A:
+--   die DM-Wettkaempfe 1-3 haben keine Teilnehmer-Plaetze und erscheinen nicht im Meldeformular.
 -- - Ein Vereinsvertreter-Konto des DM-Vereins 1; die Meldefrist der DM-Veranstaltung wird dafuer
 --   offen gestellt (gestern bis in 14 Tagen) - Anfrage/Rueckzug im Meldeformular (Block A).
 --   ACHTUNG: das veraendert eine Zeile des DM-Seeds (event.registration_available_*); der Cleanup
@@ -181,7 +184,7 @@ insert into material_offer (id, event, material_provider, material_type, price_t
                              planned_count, changeover_minutes, created_at, created_by, updated_at, updated_by)
 values
     ('5eed0009-0005-0000-0000-000000000001', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000001', '35 € pro Tag', 2, 30, now(), null, now(), null),
-    ('5eed0009-0005-0000-0000-000000000002', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000002', '55 € pro Tag', 3, 30, now(), null, now(), null),
+    ('5eed0009-0005-0000-0000-000000000002', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000002', '55 € pro Tag', 5, 30, now(), null, now(), null),
     ('5eed0009-0005-0000-0000-000000000003', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000003', '95 € pro Tag', 3, 30, now(), null, now(), null),
     ('5eed0009-0005-0000-0000-000000000004', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000004', '15 € pro Tag', 4, 30, now(), null, now(), null)
 on conflict (event, material_provider, material_type) do nothing;
@@ -432,6 +435,64 @@ values
     -- ... und Ersatz Boot 8 als Ausnahme für Vorlauf 2 (Ersatzwahl nach dem Schaden).
     ('5eed0009-0007-0000-0000-000000000014', '5eed0009-0006-0000-0000-000000000013', '5eed0009-0004-0000-0000-000000000008', '5eed0009-0014-0000-0000-000000000002', now(), null, now(), null)
 on conflict (material_request, material_item, competition_match) do nothing;
+
+-- =========================================================================================
+-- Wettkampf "M2 Anmeldetest" für Block A: offen im Meldeformular des DM-Vereins 1 (die
+-- DM-Wettkämpfe haben keine Teilnehmer-Plätze und erscheinen deshalb nicht im Formular).
+-- Bedarf C2x (Boot) und Skull-Paar (OTHER). Zwei Boote ohne Lauf, also bearbeitbar:
+--   #1: C2x bei Bootshaus Nord BESTÄTIGT (Rückzug im Formular -> Mail an den Anbieter, A6)
+--   #2: C2x ANGEFRAGT (A4: erneutes Speichern ändert nichts)
+-- =========================================================================================
+
+insert into competition (id, event, created_at, created_by, updated_at, updated_by)
+values ('5eed0009-0010-0000-0000-000000000002', '5eed0001-0000-0000-0000-000000000001', now(), null, now(), null);
+
+insert into event_day_has_competition (event_day, competition, created_at, created_by)
+values ('5eed0001-0001-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000002', now(), null);
+
+insert into competition_properties (id, competition, competition_template, identifier, name, short_name,
+                                     description, competition_category)
+values ('5eed0009-0011-0000-0000-000000000002', '5eed0009-0010-0000-0000-000000000002', null,
+        'M2', 'Frauen-Doppelzweier Anmeldetest', 'CF 2x AT', 'Seed der Materialvermietung (Meldeformular)', null);
+
+insert into competition_properties_has_named_participant (competition_properties, named_participant,
+                                                           count_males, count_females, count_non_binary, count_mixed)
+values ('5eed0009-0011-0000-0000-000000000002', '5eed0009-0012-0000-0000-000000000001', 0, 0, 0, 2);
+
+insert into competition_properties_has_material_type (competition_properties, material_type, count)
+values ('5eed0009-0011-0000-0000-000000000002', '5eed0009-0003-0000-0000-000000000002', 1),
+       ('5eed0009-0011-0000-0000-000000000002', '5eed0009-0003-0000-0000-000000000004', 2);
+
+insert into participant (id, club, firstname, lastname, year, gender, external, external_club_name,
+                          created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0030-0000-0000-000000000009', '5eed0002-0000-0000-0000-000000000001', 'Ida', 'Lorenzen', 1997, 'F', false, null, now(), null, now(), null),
+    ('5eed0009-0030-0000-0000-00000000000a', '5eed0002-0000-0000-0000-000000000001', 'Wiebke', 'Paulsen', 1996, 'F', false, null, now(), null, now(), null),
+    ('5eed0009-0030-0000-0000-00000000000b', '5eed0002-0000-0000-0000-000000000001', 'Frauke', 'Ketelsen', 1999, 'F', false, null, now(), null, now(), null),
+    ('5eed0009-0030-0000-0000-00000000000c', '5eed0002-0000-0000-0000-000000000001', 'Svenja', 'Matthiesen', 1995, 'F', false, null, now(), null, now(), null);
+
+insert into competition_registration (id, event_registration, competition, club, name, team_number,
+                                       created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0020-0000-0000-000000000005', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000002',
+     '5eed0002-0000-0000-0000-000000000001', '#1', null, now(), null, now(), null),
+    ('5eed0009-0020-0000-0000-000000000006', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000002',
+     '5eed0002-0000-0000-0000-000000000001', '#2', null, now(), null, now(), null);
+
+insert into competition_registration_named_participant (competition_registration, named_participant, participant)
+values ('5eed0009-0020-0000-0000-000000000005', '5eed0009-0012-0000-0000-000000000001', '5eed0009-0030-0000-0000-000000000009'),
+       ('5eed0009-0020-0000-0000-000000000005', '5eed0009-0012-0000-0000-000000000001', '5eed0009-0030-0000-0000-00000000000a'),
+       ('5eed0009-0020-0000-0000-000000000006', '5eed0009-0012-0000-0000-000000000001', '5eed0009-0030-0000-0000-00000000000b'),
+       ('5eed0009-0020-0000-0000-000000000006', '5eed0009-0012-0000-0000-000000000001', '5eed0009-0030-0000-0000-00000000000c');
+
+insert into material_request (id, competition_registration, material_offer, count, status,
+                               decision_note, requested_at, decided_at, created_at, created_by, updated_at, updated_by)
+values
+    ('5eed0009-0006-0000-0000-000000000015', '5eed0009-0020-0000-0000-000000000005', '5eed0009-0005-0000-0000-000000000002', 1, 'CONFIRMED',
+     null, now() - interval '6 days', now() - interval '5 days', now(), null, now(), null),
+    ('5eed0009-0006-0000-0000-000000000016', '5eed0009-0020-0000-0000-000000000006', '5eed0009-0005-0000-0000-000000000002', 1, 'REQUESTED',
+     null, now() - interval '2 days', null, now(), null, now(), null)
+on conflict (competition_registration, material_offer) do nothing;
 
 -- =========================================================================================
 -- Anzeigen: Board, Stream-Szene, Mein-Event-Zugang
