@@ -30,6 +30,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSeverity
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialError
@@ -1136,7 +1137,37 @@ object MaterialService {
         val bytes = buildDamagesCsv(damages)
         val fileNameDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
 
-        KIO.ok(ApiResponse.File(name = "${fileNameDate}-Schaeden-${event?.name ?: eventId}.csv", bytes = bytes))
+        KIO.ok(ApiResponse.File(name = damagesCsvFileName(fileNameDate, event?.name, eventId), bytes = bytes))
+    }
+
+    /**
+     * Dateiname wie die übrigen Exporte (`<Zeitstempel>-<Art>-<Name>.csv`), aber ohne Leerzeichen
+     * und ohne Zeichen, die Dateisysteme oder der `Content-Disposition`-Kopf schlecht vertragen.
+     */
+    fun damagesCsvFileName(timestamp: String, eventName: String?, eventId: UUID): String {
+        val name = eventName
+            ?.replace(Regex("\\s+"), "_")
+            ?.replace(Regex("[^\\p{L}\\p{N}._-]"), "")
+            ?.replace(Regex("_+"), "_")
+            ?.trim('_')
+            ?.takeIf { it.isNotBlank() }
+            ?: eventId.toString()
+        return "$timestamp-Schaeden-$name.csv"
+    }
+
+    /** Lesbare Werte für die CSV (Sprache wie die Spaltenköpfe). */
+    private fun severityLabel(value: String?): String = when (value?.let { runCatching { MaterialDamageSeverity.valueOf(it) }.getOrNull() }) {
+        MaterialDamageSeverity.MINOR -> "leicht"
+        MaterialDamageSeverity.MAJOR -> "schwer"
+        MaterialDamageSeverity.TOTAL -> "Totalschaden"
+        MaterialDamageSeverity.OUTAGE_ONLY -> "nur Ausfall"
+        null -> value ?: ""
+    }
+
+    private fun damageStatusLabel(value: String?): String = when (value?.let { runCatching { MaterialDamageStatus.valueOf(it) }.getOrNull() }) {
+        MaterialDamageStatus.REPORTED -> "gemeldet"
+        MaterialDamageStatus.REPAIRED -> "repariert"
+        null -> value ?: ""
     }
 
     private fun buildDamagesCsv(
@@ -1144,13 +1175,13 @@ object MaterialService {
     ): ByteArray {
         val dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
         val out = ByteArrayOutputStream()
-        CSV.write(out, damages) {
+        CSV.write(out, damages, withBom = true) {
             column("Stück") { itemLabel ?: "" }
             column("Nummer") { itemNumber?.toString() ?: "" }
             column("Materialart") { materialTypeName ?: "" }
             column("Gemeldet am") { reportedAt?.format(dateTimeFormatter) ?: "" }
-            column("Schwere") { severity ?: "" }
-            column("Status") { status ?: "" }
+            column("Schwere") { severityLabel(severity) }
+            column("Status") { damageStatusLabel(status) }
             column("Beschreibung") { description ?: "" }
             column("Verursacher Team") { causedByTeam ?: "" }
             column("Verein") { causedByClub ?: "" }

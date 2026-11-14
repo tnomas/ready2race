@@ -25,11 +25,17 @@ object CSV {
          * then mapped by position on the receiving side.
          */
         writeHeader: Boolean = true,
+        /**
+         * UTF-8-Kennung (BOM) voranstellen. Excel liest eine UTF-8-Datei ohne sie als Windows-1252
+         * und zeigt Umlaute falsch; Importformate für Zeitnahme-Werkzeuge bleiben ohne.
+         */
+        withBom: Boolean = false,
         builder: ColumnBuilder<A>.() -> Unit,
     ) {
         val columns = ColumnBuilder<A>().apply(builder).columns
 
-        OutputStreamWriter(out).use { writer ->
+        OutputStreamWriter(out, Charsets.UTF_8).use { writer ->
+            if (withBom) writer.write("\uFEFF")
             val csvWriter = CSVWriter(writer)
 
             if (writeHeader) {

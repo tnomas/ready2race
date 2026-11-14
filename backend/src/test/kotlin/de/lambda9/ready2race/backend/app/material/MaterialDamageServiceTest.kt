@@ -15,6 +15,9 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
+import de.lambda9.ready2race.backend.database.generated.tables.records.EventDayRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_DAY
+import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.pagination.PaginationParameters
 import de.lambda9.ready2race.backend.validation.ValidationResult
@@ -342,9 +345,80 @@ class MaterialDamageServiceTest {
         !MaterialService.addDamage(s.providerId, damageRequest(s, causedByRegistration = teamId), s.userId)
 
         val file = !MaterialService.damagesCsv(seeded.eventId, s.providerId) as ApiResponse.File
-        val text = file.bytes.toString(Charsets.UTF_8)
+        // UTF-8 mit BOM, damit Excel „Stück“ und „Schäden“ richtig liest.
+        assertEquals(listOf(0xEF, 0xBB, 0xBF), file.bytes.take(3).map { it.toInt() and 0xFF })
+        val text = file.bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
+        assertTrue(text.startsWith("\"Stück\","), text)
         assertTrue(text.contains("Boot 3"))
         assertTrue(text.contains("1 Vierer ohne"))
+        // Lesbare Werte statt Enum-Rohwerten.
+        assertTrue(text.contains("\"schwer\",\"gemeldet\""), text)
+        assertTrue(!text.contains("MAJOR") && !text.contains("REPORTED"), text)
+        // Dateiname ohne Leerzeichen.
+        assertTrue(!file.name.contains(' '), file.name)
+        assertTrue(file.name.endsWith(".csv"), file.name)
+    }
+
+    @Test
+    fun damagesCsvFileNameHasNoSpaces() {
+        val id = UUID.randomUUID()
+        assertEquals(
+            "2026-11-14_10-45-04-Schaeden-DM_Coastal_Rowing_2026.csv",
+            MaterialService.damagesCsvFileName("2026-11-14_10-45-04", "DM Coastal Rowing 2026", id),
+        )
+        assertEquals(
+            "t-Schaeden-Förde_Race.csv",
+            MaterialService.damagesCsvFileName("t", "Förde / Race", id),
+        )
+        assertEquals("t-Schaeden-$id.csv", MaterialService.damagesCsvFileName("t", "  ", id))
+    }
+
+    /**
+     * H2-F1: Die Liste einer Veranstaltung zeigt offene Schäden immer, erledigte nur, wenn sie an
+     * einem Veranstaltungstag gemeldet wurden oder ihr Ausfallfenster die Tage berührt.
+     */
+    @Test
+    fun eventListKeepsOpenDamagesAndOutagesTouchingTheEvent() = testComprehension {
+        val s = setupScenario()
+        val seeded = seedOpenTeamEvent()
+        !MaterialService.inviteProvider(seeded.eventId, s.providerId, s.userId)
+        val day = seedTime.toLocalDate()
+        !EVENT_DAY.insert(EventDayRecord(id = UUID.randomUUID(), event = seeded.eventId, date = day, createdAt = seedTime, updatedAt = seedTime))
+
+        val later = seedTime.plusMonths(3)
+        fun request(
+            description: String,
+            status: MaterialDamageStatus,
+            from: LocalDateTime? = null,
+            until: LocalDateTime? = null,
+        ) = MaterialDamageRequest(
+            materialItem = s.itemId,
+            reportedAt = later,
+            description = description,
+            severity = MaterialDamageSeverity.MINOR,
+            status = status,
+            causedByRegistration = null,
+            outOfServiceFrom = from,
+            outOfServiceUntil = until,
+            repairedAt = if (status == MaterialDamageStatus.REPAIRED) later.plusDays(1) else null,
+        )
+        !MaterialService.addDamage(s.providerId, request("offen, spät gemeldet", MaterialDamageStatus.REPORTED), s.userId)
+        !MaterialService.addDamage(s.providerId, request("erledigt, ohne Bezug", MaterialDamageStatus.REPAIRED), s.userId)
+        !MaterialService.addDamage(
+            s.providerId,
+            request("erledigt, Ausfall am Veranstaltungstag", MaterialDamageStatus.REPAIRED, seedTime.minusDays(2), seedTime.plusHours(2)),
+            s.userId,
+        )
+
+        val page = !MaterialService.pageDamages(
+            s.providerId,
+            PaginationParameters(limit = null, offset = null, sort = null, search = null),
+            eventId = seeded.eventId,
+        )
+        assertEquals(
+            setOf("offen, spät gemeldet", "erledigt, Ausfall am Veranstaltungstag"),
+            page.data.map { it.description }.toSet(),
+        )
     }
 
     @Test

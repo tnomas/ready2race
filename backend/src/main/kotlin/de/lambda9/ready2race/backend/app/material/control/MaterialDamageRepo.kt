@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.material.control
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSort
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageViewRecord
@@ -47,9 +48,10 @@ object MaterialDamageRepo {
         listOf(MATERIAL_DAMAGE_VIEW.ITEM_LABEL, MATERIAL_DAMAGE_VIEW.MATERIAL_TYPE_NAME, MATERIAL_DAMAGE_VIEW.DESCRIPTION)
 
     /**
-     * `eventId` filtert über `caused_by_registration` -> Wettkampf -> Veranstaltung ODER über
-     * `reported_at` innerhalb der Veranstaltungstage (`event_day`; ohne Tage greift nur das erste
-     * Kriterium - Ruling Task 5.1). Ohne generisches `Table.page()`, weil die eventId-Bedingung
+     * `eventId` nimmt einen Schaden auf, wenn wenigstens eins gilt: Verursacher-Meldung gehört zur
+     * Veranstaltung (`caused_by_registration` -> Wettkampf -> Veranstaltung), der Schaden ist noch
+     * offen (`REPORTED`), `reported_at` liegt in den Veranstaltungstagen oder das Ausfallfenster
+     * berührt sie (`event_day`; ohne Tage greifen nur die ersten beiden Kriterien). Ohne generisches `Table.page()`, weil die eventId-Bedingung
      * eine eigene Vorabfrage (Zeitspanne der Veranstaltungstage) braucht.
      */
     fun page(
@@ -114,17 +116,21 @@ object MaterialDamageRepo {
                     .and(COMPETITION.EVENT.eq(eventId))
             )
 
+            // Offene Schäden der eigenen Stücke gehören immer dazu - ein Schaden, den der Anbieter
+            // hier meldet, verschwindet sonst aus der Liste, sobald sein Meldedatum außerhalb der
+            // Veranstaltungstage liegt (Aufbau, Abbau, Transport).
+            val open = MATERIAL_DAMAGE_VIEW.STATUS.eq(MaterialDamageStatus.REPORTED.name)
+
             condition = if (timespan != null) {
-                condition.and(
-                    causedByEvent.or(
-                        MATERIAL_DAMAGE_VIEW.REPORTED_AT.between(
-                            timespan.first.atStartOfDay(),
-                            timespan.second.plusDays(1).atStartOfDay(),
-                        )
-                    )
-                )
+                val start = timespan.first.atStartOfDay()
+                val end = timespan.second.plusDays(1).atStartOfDay()
+                val reportedDuringEvent = MATERIAL_DAMAGE_VIEW.REPORTED_AT.between(start, end)
+                // Ausfallfenster berührt die Veranstaltungstage (offenes Ende = noch nicht zurück).
+                val outageDuringEvent = MATERIAL_DAMAGE_VIEW.OUT_OF_SERVICE_FROM.lt(end)
+                    .and(MATERIAL_DAMAGE_VIEW.OUT_OF_SERVICE_UNTIL.isNull.or(MATERIAL_DAMAGE_VIEW.OUT_OF_SERVICE_UNTIL.ge(start)))
+                condition.and(DSL.or(causedByEvent, open, reportedDuringEvent, outageDuringEvent))
             } else {
-                condition.and(causedByEvent)
+                condition.and(causedByEvent.or(open))
             }
         }
 
