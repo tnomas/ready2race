@@ -14,6 +14,7 @@ import io.ktor.utils.io.*
 import de.lambda9.ready2race.backend.calls.responses.clientFaultStatus
 import de.lambda9.ready2race.backend.calls.responses.isClientAbort
 import kotlinx.coroutines.CancellationException
+import kotlinx.io.readByteArray
 
 /** Dateien und Formularfelder einer Multipart-Anfrage. */
 data class MultipartUpload(
@@ -28,10 +29,19 @@ data class MultipartUpload(
  *
  * Mehr Dateien als erlaubt beenden das Lesen sofort ([RequestError.File.Multiple]), eine Datei
  * ohne Namen gilt als fehlend ([RequestError.File.Missing]) statt als 500.
+ *
+ * Mit [maxFileBytes] bzw. [maxTotalBytes] liest jede Datei höchstens bis zur verbleibenden
+ * Grenze plus ein Byte; wer darüber liegt, beendet das Lesen sofort mit
+ * [RequestError.File.TooLarge] - bevor die ganze Datei oder alle Teile im Speicher liegen.
  */
-suspend fun ApplicationCall.receiveUploads(maxFiles: Int): IO<RequestError, MultipartUpload> {
+suspend fun ApplicationCall.receiveUploads(
+    maxFiles: Int,
+    maxFileBytes: Long? = null,
+    maxTotalBytes: Long? = null,
+): IO<RequestError, MultipartUpload> {
     val files = mutableListOf<File>()
     val fields = mutableMapOf<String, String>()
+    var totalBytes = 0L
     return try {
         val data = receiveMultipart()
         var error: RequestError? = null
@@ -45,8 +55,19 @@ suspend fun ApplicationCall.receiveUploads(maxFiles: Int): IO<RequestError, Mult
                             files.size >= maxFiles -> RequestError.File.Multiple
                             name == null -> RequestError.File.Missing
                             else -> {
-                                files.add(File(name, part.provider().toByteArray()))
-                                null
+                                val limit = listOfNotNull(maxFileBytes, maxTotalBytes?.minus(totalBytes)).minOrNull()
+                                val bytes = if (limit == null) {
+                                    part.provider().toByteArray()
+                                } else {
+                                    part.provider().readRemaining(limit + 1).readByteArray()
+                                }
+                                if (limit != null && bytes.size > limit) {
+                                    RequestError.File.TooLarge
+                                } else {
+                                    totalBytes += bytes.size
+                                    files.add(File(name, bytes))
+                                    null
+                                }
                             }
                         }
                     }

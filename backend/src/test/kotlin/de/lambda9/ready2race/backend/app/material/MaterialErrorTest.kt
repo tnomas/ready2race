@@ -33,6 +33,12 @@ class MaterialErrorTest {
         MaterialError.PhotoTooLarge to ErrorCode.MATERIAL_PHOTO_TOO_LARGE,
         MaterialError.PhotoInvalidType to ErrorCode.MATERIAL_PHOTO_INVALID_TYPE,
         MaterialError.InvalidOutageWindow to ErrorCode.MATERIAL_INVALID_OUTAGE_WINDOW,
+        MaterialError.RemovalRequestsClosed to ErrorCode.MATERIAL_REMOVAL_REQUESTS_CLOSED,
+        MaterialError.OfferTypeLocked to ErrorCode.MATERIAL_OFFER_TYPE_LOCKED,
+        MaterialError.ItemTypeLocked to ErrorCode.MATERIAL_ITEM_TYPE_LOCKED,
+        MaterialError.ItemHasDamages to ErrorCode.MATERIAL_ITEM_HAS_DAMAGES,
+        MaterialError.ItemRetired to ErrorCode.MATERIAL_ITEM_RETIRED,
+        MaterialError.DuplicateAssignment to ErrorCode.MATERIAL_DUPLICATE_ASSIGNMENT,
     )
 
     private val unexplained = listOf(

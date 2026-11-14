@@ -137,7 +137,9 @@
       "body": [
         "Hallo,",
         "",
-        "##club## hat die bereits bestätigte Anfrage zu ##competitions## bei der Veranstaltung '##event##' zurückgezogen.",
+        "##club## hat eine bereits bestätigte Materialanfrage bei der Veranstaltung '##event##' zurückgezogen (Wettkampf · Team · Menge und Art):",
+        "",
+        "##competitions##",
         "",
         "Bitte prüft eure Planung in Ready2Race."
       ]

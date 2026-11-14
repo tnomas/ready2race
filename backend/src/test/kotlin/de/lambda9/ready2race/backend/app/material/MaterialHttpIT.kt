@@ -205,6 +205,9 @@ class MaterialHttpIT {
         assertEquals(HttpStatusCode.NotFound, status(HttpMethod.Get, "/api/materialProvider/$own/damage/$foreignDamage"))
         assertEquals(HttpStatusCode.NotFound, status(HttpMethod.Get, "/api/materialProvider/$own/photo/$foreignPhoto"))
         assertEquals(HttpStatusCode.NotFound, status(HttpMethod.Delete, "/api/materialProvider/$own/photo/$foreignPhoto"))
+        assertEquals(HttpStatusCode.Forbidden, status(HttpMethod.Delete, "/api/materialProvider/$foreign/photo/$foreignPhoto"))
+        // Das fremde Foto hat beide Löschversuche überstanden.
+        assertEquals(foreignPhoto, (!MaterialService.getDamage(foreign, foreignDamage)).dto.photos.single().id)
         // Verwaltung bleibt GLOBAL.
         assertEquals(HttpStatusCode.Forbidden, status(HttpMethod.Get, "/api/materialProvider"))
 
@@ -224,5 +227,63 @@ class MaterialHttpIT {
         assertEquals(HttpStatusCode.Forbidden, foreignUpload.status)
         val anonymous = client.post("/api/materialProvider/$foreign/damage/$foreignDamage/photo") { setBody(upload) }
         assertEquals(HttpStatusCode.Unauthorized, anonymous.status)
+    }
+
+    /**
+     * „Zu prüfen" (d): Die Grenzen greifen schon beim Lesen - eine Datei über 10 MB und mehrere
+     * Dateien über der Gesamtgrenze enden als 400 `MATERIAL_PHOTO_TOO_LARGE`, und nichts wird
+     * gespeichert.
+     */
+    @Test
+    fun photoUploadLimitsApplyWhileReading() = testApplicationComprehension {
+        val userId = !createTestUser()
+        val providerId = (!MaterialService.addProvider(provider("Grenzen"), userId) as ApiResponse.Created).id
+        val typeBoat =
+            (!MaterialService.addType(MaterialTypeRequest("C1x", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+        val item = (
+            !MaterialService.addItem(providerId, MaterialItemRequest(typeBoat, 1, "Boot 1", null, MaterialItemStatus.ACTIVE), userId)
+                as ApiResponse.Created
+            ).id
+        val damage = (
+            !MaterialService.addDamage(
+                providerId,
+                MaterialDamageRequest(item, now, "Delle", MaterialDamageSeverity.MINOR, MaterialDamageStatus.REPORTED, null, null, null, null),
+                userId,
+            ) as ApiResponse.Created
+            ).id
+        val session = loginProvider(providerId)
+
+        fun jpegOf(size: Int) = ByteArray(size).also { jpeg.copyInto(it) }
+
+        suspend fun upload(files: List<ByteArray>): HttpResponse =
+            client.post("/api/materialProvider/$providerId/damage/$damage/photo") {
+                header("X-Api-Session", session)
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            files.forEachIndexed { i, bytes ->
+                                append("files", bytes, Headers.build {
+                                    append(HttpHeaders.ContentType, "image/jpeg")
+                                    append(HttpHeaders.ContentDisposition, "filename=\"f$i.jpg\"")
+                                })
+                            }
+                        }
+                    )
+                )
+            }
+
+        val tooLarge = upload(listOf(jpegOf(10 * 1024 * 1024 + 1)))
+        assertEquals(HttpStatusCode.BadRequest, tooLarge.status)
+        assertTrue(tooLarge.bodyAsText().contains("MATERIAL_PHOTO_TOO_LARGE"), tooLarge.bodyAsText())
+
+        val tooMuch = upload(List(6) { jpegOf(9 * 1024 * 1024) })
+        assertEquals(HttpStatusCode.BadRequest, tooMuch.status)
+        assertTrue(tooMuch.bodyAsText().contains("MATERIAL_PHOTO_TOO_LARGE"), tooMuch.bodyAsText())
+
+        assertTrue((!MaterialService.getDamage(providerId, damage)).dto.photos.isEmpty())
+
+        // Unter den Grenzen geht es weiter durch.
+        assertEquals(HttpStatusCode.NoContent, upload(listOf(jpegOf(1024), jpegOf(2048))).status)
+        assertEquals(2, (!MaterialService.getDamage(providerId, damage)).dto.photos.size)
     }
 }

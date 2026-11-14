@@ -22,20 +22,42 @@ object TeamNumberAlignment {
      * @param own Meldungen ohne Mietboot.
      * @param taken Bereits vergebene Nummern in diesem Wettkampf (bei `keepNumbers`).
      * @param random Zufallsquelle - für Tests mit festem Seed reproduzierbar.
+     * @param fixed Meldungen, denen der Anbieter schon vor der Fixierung ein Boot als
+     *   Grundzuteilung gegeben hat -> dessen Nummer. Sie bekommen genau diese Nummer, statt neu
+     *   verlost zu werden (sonst erzeugte die Angleichung selbst die Abweichung). Ist die Nummer
+     *   schon vergeben ([taken]) oder wollen zwei Meldungen dieselbe, bekommt sie die erste in
+     *   zufälliger Reihenfolge; die übrigen laufen wie eine Meldung ohne Zuteilung weiter (als
+     *   Mietteam, wenn sie in [rented] stehen, sonst wie ein eigenes Boot).
      * @return Meldung -> zugeteilte Startnummer, für jede übergebene Meldung genau ein Eintrag.
      */
-    fun align(rented: Map<UUID, List<Int>>, own: List<UUID>, taken: Set<Int>, random: Random): Map<UUID, Int> {
+    fun align(
+        rented: Map<UUID, List<Int>>,
+        own: List<UUID>,
+        taken: Set<Int>,
+        random: Random,
+        fixed: Map<UUID, Int> = emptyMap(),
+    ): Map<UUID, Int> {
         val result = mutableMapOf<UUID, Int>()
 
         // Bootsnummern-Pool: Vereinigung aller Kandidatenlisten - eigene Boote meiden auch die
         // Nummern, die ein anderes Mietteam am Ende NICHT bekommt (Spec: "sind reserviert").
-        val allBoatNumbers = rented.values.flatten().toSet()
+        val allBoatNumbers = rented.values.flatten().toSet() + fixed.values
         val usedNumbers = mutableSetOf<Int>()
         val freeBoatNumbers = (allBoatNumbers - taken).toMutableSet()
 
+        // Schritt 0: feste Nummern aus der Grundzuteilung.
+        fixed.keys.shuffled(random).forEach { team ->
+            val number = fixed.getValue(team)
+            if (number !in taken && number !in usedNumbers) {
+                result[team] = number
+                usedNumbers += number
+                freeBoatNumbers -= number
+            }
+        }
+
         // Schritt 1: Mietteams zufällig auf eine freie Nummer aus der EIGENEN Kandidatenliste.
         val overflow = mutableListOf<UUID>()
-        rented.keys.shuffled(random).forEach { team ->
+        rented.keys.filterNot { it in result }.shuffled(random).forEach { team ->
             val candidates = rented.getValue(team).filter { it in freeBoatNumbers }
             if (candidates.isEmpty()) {
                 overflow += team
@@ -49,7 +71,8 @@ object TeamNumberAlignment {
 
         // Schritt 2: eigene Boote von 1 aufwärts, keine Bootsnummer und noch nicht vergeben.
         var next = 1
-        own.shuffled(random).forEach { team ->
+        val ownLeft = own.filterNot { it in result } + fixed.keys.filterNot { it in result || it in rented }
+        ownLeft.shuffled(random).forEach { team ->
             while (next in taken || next in allBoatNumbers || next in usedNumbers) next++
             result[team] = next
             usedNumbers += next

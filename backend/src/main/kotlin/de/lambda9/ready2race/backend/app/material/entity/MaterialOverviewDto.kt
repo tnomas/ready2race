@@ -56,12 +56,15 @@ data class MaterialOverviewRequestDto(
     val competitionIdentifier: String,
     val competitionName: String,
     val teamName: String?,
-    /** Meldungsnummer aus der Fixierung - ordnet die Setzliste der ersten Runde. */
+    /**
+     * Meldungsnummer aus der Fixierung - je Wettkampf eindeutig und fest. Die Grundzuteilung
+     * paart Boot n mit Meldungsnummer n ("Nach Startnummer zuteilen", Abgleich bei der Fixierung).
+     */
     val teamNumber: Int?,
     /**
-     * Die Startnummer, unter der das Team im ersten seiner Läufe startet; ohne Lauf die
-     * Meldungsnummer. Dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren
-     * (`effective_material_for_match_team`) - "Nach Startnummer zuteilen" richtet sich danach.
+     * Die Startnummer im ersten Lauf des Teams (je Lauf ab 1, in Folgerunden der Rang); ohne
+     * Lauf die Meldungsnummer. Nur zur Anzeige - nicht eindeutig je Wettkampf, deshalb nie zum
+     * Paaren. Die Startnummer je Lauf steht in [MaterialOverviewMatchDto.teams].
      */
     val startNumber: Int?,
     val clubId: UUID,
@@ -89,4 +92,14 @@ data class MaterialOverviewMatchDto(
     val startTime: LocalDateTime?,
     val endTime: LocalDateTime?,
     val registrationIds: List<UUID>,
+    /**
+     * Je Meldung dieses Laufs die Startnummer im Lauf (`competition_match_team.start_number`) -
+     * dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+     */
+    val teams: List<MaterialOverviewMatchTeamDto>,
+)
+
+data class MaterialOverviewMatchTeamDto(
+    val competitionRegistration: UUID,
+    val startNumber: Int,
 )

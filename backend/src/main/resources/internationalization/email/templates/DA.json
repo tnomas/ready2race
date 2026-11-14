@@ -137,7 +137,9 @@
       "body": [
         "Hej,",
         "",
-        "##club## har trukket den allerede bekræftede anmodning til ##competitions## ved arrangementet \"##event##\" tilbage.",
+        "##club## har trukket en allerede bekræftet materialeanmodning ved arrangementet \"##event##\" tilbage (konkurrence · hold · antal og type):",
+        "",
+        "##competitions##",
         "",
         "Tjek venligst jeres planlægning i Ready2Race."
       ]

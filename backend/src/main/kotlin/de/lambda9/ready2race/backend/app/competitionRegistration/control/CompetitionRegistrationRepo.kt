@@ -71,18 +71,37 @@ object CompetitionRegistrationRepo {
         user: AppUserWithPrivilegesRecord,
     ) = COMPETITION_REGISTRATION.delete { ID.eq(competitionId).and(filterScope(scope, user.club)) }
 
+    /** Die Meldungen, die das Speichern der Anmeldung löscht und aus dem Formular neu anlegt. */
+    private fun replacedByEventRegistrationUpdate(eventRegistrationId: UUID, type: OpenForRegistrationType): Condition =
+        DSL.and(
+            COMPETITION_REGISTRATION.EVENT_REGISTRATION.eq(eventRegistrationId),
+            when (type) {
+                OpenForRegistrationType.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
+                OpenForRegistrationType.LATE -> COMPETITION_REGISTRATION.IS_LATE.isTrue
+                OpenForRegistrationType.CLOSED -> DSL.falseCondition()
+            },
+            competitionRgistrationReferenced().not()
+        )
+
     fun deleteForEventRegistrationUpdate(eventRegistrationId: UUID, type: OpenForRegistrationType) =
-        COMPETITION_REGISTRATION.delete {
-            DSL.and(
-                COMPETITION_REGISTRATION.EVENT_REGISTRATION.eq(eventRegistrationId),
-                when (type) {
-                    OpenForRegistrationType.REGULAR -> COMPETITION_REGISTRATION.IS_LATE.isFalse
-                    OpenForRegistrationType.LATE -> COMPETITION_REGISTRATION.IS_LATE.isTrue
-                    OpenForRegistrationType.CLOSED -> DSL.falseCondition()
-                },
-                competitionRgistrationReferenced().not()
-            )
+        COMPETITION_REGISTRATION.delete { replacedByEventRegistrationUpdate(eventRegistrationId, type) }
+
+    /** IDs genau der Meldungen, die [deleteForEventRegistrationUpdate] löschen würde. */
+    fun idsForEventRegistrationUpdate(eventRegistrationId: UUID, type: OpenForRegistrationType): JIO<List<UUID>> =
+        Jooq.query {
+            select(COMPETITION_REGISTRATION.ID)
+                .from(COMPETITION_REGISTRATION)
+                .where(replacedByEventRegistrationUpdate(eventRegistrationId, type))
+                .fetch { it.value1()!! }
         }
+
+    /** IDs aller Meldungen einer Vereinsmeldung - vor deren Löschen (Kaskade). */
+    fun idsForEventRegistration(eventRegistrationId: UUID): JIO<List<UUID>> = Jooq.query {
+        select(COMPETITION_REGISTRATION.ID)
+            .from(COMPETITION_REGISTRATION)
+            .where(COMPETITION_REGISTRATION.EVENT_REGISTRATION.eq(eventRegistrationId))
+            .fetch { it.value1()!! }
+    }
 
     fun getByCompetitionAndClub(competitionId: UUID, clubId: UUID) =
         COMPETITION_REGISTRATION.select { COMPETITION.eq(competitionId).and(CLUB.eq(clubId)) }

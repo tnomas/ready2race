@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.COMPET
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_PROPERTIES_HAS_MATERIAL_TYPE
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ITEM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_OFFER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
@@ -63,12 +64,14 @@ object MaterialRequestRepo {
 
     /**
      * Angefragte und bestätigte Mengen je Angebot einer Veranstaltung - Grundlage der Ampel
-     * (Gegenstück zu den planned_count aus [MaterialOfferRepo.forEvent]).
+     * (Gegenstück zu den planned_count aus [MaterialOfferRepo.forEvent]). Der Join auf die Meldung
+     * lässt Waisen weg (Anfrage ohne Meldung, bis der Aufräum-Trigger beim Commit greift).
      */
     fun capacityForOffers(eventId: UUID): JIO<Map<UUID, Int>> = Jooq.query {
         select(MATERIAL_REQUEST.MATERIAL_OFFER, DSL.sum(MATERIAL_REQUEST.COUNT))
             .from(MATERIAL_REQUEST)
             .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+            .join(COMPETITION_REGISTRATION).on(COMPETITION_REGISTRATION.ID.eq(MATERIAL_REQUEST.COMPETITION_REGISTRATION))
             .where(MATERIAL_OFFER.EVENT.eq(eventId))
             .and(
                 MATERIAL_REQUEST.STATUS.`in`(
@@ -84,11 +87,18 @@ object MaterialRequestRepo {
     /** Veranstaltung und Verein der Meldung - da `material_request` keinen Fremdschlüssel darauf hat, muss der Service die Existenz selbst prüfen. */
     data class RegistrationRef(val event: UUID, val club: UUID, val competition: UUID)
 
-    fun registrationRef(competitionRegistrationId: UUID): JIO<RegistrationRef?> = Jooq.query {
+    /**
+     * Mit [lock] hält die Abfrage die Meldungszeile per `FOR KEY SHARE` bis zum Commit: Ein
+     * gleichzeitiges Löschen der Meldung wartet dann, bis die neue Anfrage committet ist, und
+     * räumt sie mit seinem Trigger weg; läuft das Löschen zuerst, findet diese Abfrage die
+     * Meldung nicht mehr. So entsteht keine Anfrage, die ihre Meldung überlebt.
+     */
+    fun registrationRef(competitionRegistrationId: UUID, lock: Boolean = false): JIO<RegistrationRef?> = Jooq.query {
         select(COMPETITION.EVENT, COMPETITION_REGISTRATION.CLUB, COMPETITION_REGISTRATION.COMPETITION)
             .from(COMPETITION_REGISTRATION)
             .join(COMPETITION).on(COMPETITION.ID.eq(COMPETITION_REGISTRATION.COMPETITION))
             .where(COMPETITION_REGISTRATION.ID.eq(competitionRegistrationId))
+            .let { if (lock) it.forKeyShare().of(COMPETITION_REGISTRATION) else it }
             .fetchOne { r ->
                 RegistrationRef(
                     event = r[COMPETITION.EVENT]!!,
@@ -134,5 +144,50 @@ object MaterialRequestRepo {
             .fetch { r -> r[MATERIAL_REQUEST.COMPETITION_REGISTRATION]!! to r[MATERIAL_ITEM.NUMBER]!! }
             .groupBy({ it.first }) { it.second }
             .mapValues { (_, numbers) -> numbers.sorted() }
+    }
+
+    /**
+     * Noch offene oder vergebene Anfragen (angefragt, bestätigt, Warteliste) der genannten
+     * Meldungen - die, deren Verschwinden wie ein Rückzug zählt.
+     */
+    fun activeForRegistrations(competitionRegistrationIds: Collection<UUID>): JIO<List<MaterialRequestRecord>> =
+        Jooq.query {
+            if (competitionRegistrationIds.isEmpty()) {
+                emptyList()
+            } else {
+                selectFrom(MATERIAL_REQUEST)
+                    .where(MATERIAL_REQUEST.COMPETITION_REGISTRATION.`in`(competitionRegistrationIds))
+                    .and(MATERIAL_REQUEST.STATUS.`in`(ACTIVE_STATUSES))
+                    .fetch()
+            }
+        }
+
+    private val ACTIVE_STATUSES = listOf(
+        MaterialRequestStatus.REQUESTED.name,
+        MaterialRequestStatus.CONFIRMED.name,
+        MaterialRequestStatus.WAITLISTED.name,
+    )
+
+    /**
+     * Je Meldung die kleinste Nummer eines Stücks, das ihr als Grundzuteilung (ohne Lauf) aus
+     * einer bestätigten Boots-Anfrage zugeteilt ist - diese Meldungen bekommen bei der Fixierung
+     * mit "Startnummern nach Bootsnummern" die Nummer ihres Boots fest (RB-04), statt neu verlost
+     * zu werden. Stücke ohne Nummer zählen nicht.
+     */
+    fun baseAssignmentNumbers(eventId: UUID): JIO<Map<UUID, Int>> = Jooq.query {
+        select(MATERIAL_REQUEST.COMPETITION_REGISTRATION, DSL.min(MATERIAL_ITEM.NUMBER))
+            .from(MATERIAL_ASSIGNMENT)
+            .join(MATERIAL_REQUEST).on(MATERIAL_REQUEST.ID.eq(MATERIAL_ASSIGNMENT.MATERIAL_REQUEST))
+            .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+            .join(MATERIAL_TYPE).on(MATERIAL_TYPE.ID.eq(MATERIAL_OFFER.MATERIAL_TYPE))
+            .join(MATERIAL_ITEM).on(MATERIAL_ITEM.ID.eq(MATERIAL_ASSIGNMENT.MATERIAL_ITEM))
+            .where(MATERIAL_OFFER.EVENT.eq(eventId))
+            .and(MATERIAL_REQUEST.STATUS.eq(MaterialRequestStatus.CONFIRMED.name))
+            .and(MATERIAL_TYPE.CATEGORY.eq(MaterialCategory.BOAT.name))
+            .and(MATERIAL_ASSIGNMENT.COMPETITION_MATCH.isNull)
+            .and(MATERIAL_ITEM.NUMBER.isNotNull)
+            .groupBy(MATERIAL_REQUEST.COMPETITION_REGISTRATION)
+            .fetch { r -> r.value1()!! to r.value2()!! }
+            .toMap()
     }
 }

@@ -36,6 +36,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
+import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewDto
@@ -52,6 +53,8 @@ import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noDat
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
 import de.lambda9.ready2race.backend.csv.CSV
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
+import de.lambda9.ready2race.backend.database.selectOne
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamagePhotoDataRecord
@@ -76,6 +79,12 @@ const val MATERIAL_PHOTO_MAX_BYTES = 10L * 1024 * 1024
 
 /** Höchstzahl Fotos je Upload-Anfrage - der Schadensdialog lädt mehrere auf einmal hoch. */
 const val MATERIAL_PHOTOS_PER_UPLOAD = 20
+
+/**
+ * Obergrenze aller Fotos einer Upload-Anfrage zusammen - begrenzt den Speicher je Anfrage auf
+ * deutlich weniger als 20 x 10 MB. Das Frontend verkleinert auf etwa 2000 px (rund 1 MB je Foto).
+ */
+const val MATERIAL_PHOTOS_MAX_TOTAL_BYTES = 50L * 1024 * 1024
 
 /**
  * Die Materialvermietung: Anbieter, Materialarten, Bestand, Einladungen und Angebote je
@@ -272,6 +281,13 @@ object MaterialService {
             !KIO.failOn(numberTaken) { MaterialError.ItemNumberTaken }
         }
 
+        // RB-03: Ein zugeteiltes Stück wechselt nicht die Art - sonst hinge an der Anfrage ein
+        // Stück, das setAssignments wegen WrongItemType nie angenommen hätte.
+        if (request.materialType != item.materialType) {
+            val assigned = !MaterialItemRepo.hasAssignments(itemId).orDie()
+            !KIO.failOn(assigned) { MaterialError.ItemTypeLocked }
+        }
+
         !MaterialItemRepo.update(itemId) {
             materialType = request.materialType
             number = request.number
@@ -296,6 +312,10 @@ object MaterialService {
 
         val hasAssignments = !MaterialItemRepo.hasAssignments(itemId).orDie()
         !KIO.failOn(hasAssignments) { MaterialError.ItemInUse }
+        // RB-06: Die Schadensakte ist historisch (Verursacher, Fotos) und hinge per Kaskade am
+        // Stück - ausmustern (RETIRED) statt löschen.
+        val hasDamages = !MaterialItemRepo.hasDamages(itemId).orDie()
+        !KIO.failOn(hasDamages) { MaterialError.ItemHasDamages }
 
         val deleted = !MaterialItemRepo.delete(itemId).orDie()
         if (deleted < 1) {
@@ -422,6 +442,14 @@ object MaterialService {
         val typeTaken = !MaterialOfferRepo.existsByType(eventId, providerId, request.materialType, excludingId = offerId).orDie()
         !KIO.failOn(typeTaken) { MaterialError.OfferTypeTaken }
 
+        // RB-03: Mit Anfragen (gleich welchen Status - eine zurückgezogene kann reaktiviert werden
+        // und trüge dann Menge und Zuteilungen der alten Art) bleibt die Art fest. Preis, Menge
+        // und Wechselzeit bleiben änderbar.
+        if (request.materialType != offer.materialType) {
+            val hasRequests = !MaterialOfferRepo.hasRequests(offerId).orDie()
+            !KIO.failOn(hasRequests) { MaterialError.OfferTypeLocked }
+        }
+
         !MaterialOfferRepo.update(offerId) {
             materialType = request.materialType
             priceText = request.priceText
@@ -431,8 +459,8 @@ object MaterialService {
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.OfferNotFound }
 
-        // Die Art eines Angebots mit Anfragen kann wechseln - Mein Event zeigt sie, die
-        // Anzeigen filtern nach ihrer Kategorie.
+        // Mein Event zeigt den Preistext nicht, aber Art und Kategorie eines Angebots ohne
+        // Anfragen können wechseln; der Bump ist billig und hält die Regel "jede Angebotsänderung bumpt".
         EventChangeMarker.bump(eventId)
         noData
     }
@@ -477,7 +505,9 @@ object MaterialService {
     ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
         val (scope, club) = clubScope
 
-        val ref = !MaterialRequestRepo.registrationRef(competitionRegistrationId).orDie()
+        // Sperrt die Meldung bis zum Commit (FOR KEY SHARE) - so kann sie nicht zwischen dieser
+        // Prüfung und dem Anlegen der Anfrage verschwinden und eine Waise zurücklassen.
+        val ref = !MaterialRequestRepo.registrationRef(competitionRegistrationId, lock = true).orDie()
             .onNullFail { MaterialError.RegistrationNotFound }
         !KIO.failOn(ref.event != eventId) { MaterialError.RegistrationNotFound }
         !KIO.failOn(scope == Privilege.Scope.OWN && ref.club != club) { MaterialError.RegistrationNotFound }
@@ -621,6 +651,8 @@ object MaterialService {
                 val club = !ClubRepo.getName(clubId).orDie()
                 val event = !EventRepo.get(eventId).orDie()
                 val competition = !CompetitionRepo.getById(competitionId).orDie()
+                // Die Meldung existiert noch: Rückzug und Entfernen (RB-01) rufen vor dem Löschen.
+                val registration = !COMPETITION_REGISTRATION.selectOne { ID.eq(request.competitionRegistration) }.orDie()
 
                 val recipientAccount = !AppUserRepo.getByEmail(email).orDie()
                 val content = !EmailService.getTemplate(
@@ -630,9 +662,14 @@ object MaterialService {
                     template.toContent(
                         EmailTemplatePlaceholder.CLUB to (club ?: "-"),
                         EmailTemplatePlaceholder.EVENT to (event?.name ?: "-"),
-                        // Kein eigener Platzhalter für die Materialart - der Name kommt mit in
-                        // COMPETITIONS, wie "C4x+ (JM4x)".
-                        EmailTemplatePlaceholder.COMPETITIONS to "${type?.name ?: "?"} (${competition?.name ?: "?"})",
+                        // Kein eigener Platzhalter für Team, Art und Menge - COMPETITIONS trägt
+                        // die ganze Zeile sprachneutral: "12 JM4x · RC Nord #2 · 1 × C4x+".
+                        EmailTemplatePlaceholder.COMPETITIONS to withdrawalLine(
+                            competition = listOfNotNull(competition?.identifier, competition?.name).joinToString(" ").ifBlank { "?" },
+                            team = listOfNotNull(club, registration?.name).joinToString(" ").ifBlank { "?" },
+                            count = request.count,
+                            type = type?.name ?: "?",
+                        ),
                     )
                 }
 
@@ -640,6 +677,62 @@ object MaterialService {
             }
         }
     }
+
+    /**
+     * Für jeden Weg, auf dem Meldungen endgültig verschwinden (RB-01): Team im Meldeformular
+     * entfernt, Wettkampf abgewählt, Einzelmeldung gelöscht, ganze Vereinsmeldung gelöscht. Muss
+     * VOR dem Löschen laufen, solange die Meldungen noch lesbar sind. Behandelt aktive Anfragen
+     * (angefragt, bestätigt, Warteliste) wie einen Rückzug über [setRequestsForRegistration]:
+     *
+     * - [enforceClosed] (Wege des Vereins): Hat der Anbieter die Vergabe geschlossen, wird das
+     *   Entfernen abgewiesen ([MaterialError.RemovalRequestsClosed]). Veranstalter und Admin
+     *   dürfen löschen - sie verantworten die Meldung, nicht der Anbieter.
+     * - Bestätigte Anfragen reihen die Rückzugs-Mail an den Anbieter ein (Sprache des Kontos).
+     * - Änderungsmarker der Veranstaltung.
+     *
+     * Die Anfragen selbst räumt weiter der aufgeschobene Trigger beim Commit weg - er bleibt das
+     * Sicherheitsnetz für jeden Weg, der hier nicht vorbeikommt.
+     */
+    fun releaseRequestsOfRemovedRegistrations(
+        competitionRegistrationIds: Collection<UUID>,
+        enforceClosed: Boolean,
+    ): App<MaterialError, Unit> = KIO.comprehension {
+        val active = !MaterialRequestRepo.activeForRegistrations(competitionRegistrationIds.distinct()).orDie()
+
+        val withOffer = !active.traverse { request ->
+            MaterialOfferRepo.get(request.materialOffer).orDie().map { offer -> request to offer }
+        }.map { list -> list.mapNotNull { (request, offer) -> offer?.let { request to it } } }
+
+        if (enforceClosed) {
+            !withOffer.traverse { (_, offer) ->
+                KIO.comprehension {
+                    val invitation = !EventHasMaterialProviderRepo.get(offer.event, offer.materialProvider).orDie()
+                    !KIO.failOn(invitation?.requestsClosed == true) { MaterialError.RemovalRequestsClosed }
+                    KIO.unit
+                }
+            }
+        }
+
+        val confirmed = withOffer.filter { (request, _) -> request.status == MaterialRequestStatus.CONFIRMED.name }
+        val refs = !confirmed.traverse { (request, _) ->
+            MaterialRequestRepo.registrationRef(request.competitionRegistration).orDie()
+        }
+        !confirmed.zip(refs).traverse { (pair, ref) ->
+            val (request, offer) = pair
+            if (ref == null) {
+                KIO.unit
+            } else {
+                notifyProviderOfWithdrawal(ref.competition, ref.club, offer.event, request)
+            }
+        }
+
+        bumpAll(withOffer.map { (_, offer) -> offer.event })
+        KIO.unit
+    }
+
+    /** Die Zeile der Rückzugs-Mail: Wettkampf, Team (Verein + Meldungsname), Menge und Art. */
+    internal fun withdrawalLine(competition: String, team: String, count: Int, type: String) =
+        "$competition · $team · $count × $type"
 
     // -------------------------------------------------------------------
     // Übersicht, Entscheidung, Zuteilung
@@ -709,8 +802,15 @@ object MaterialService {
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.RequestNotFound }
 
+        // Zuteilungen gehören zu einer Bestätigung. Wer auf Warteliste oder Ablehnung zurücknimmt,
+        // gibt die Stücke frei - sonst kehrten sie bei einer späteren Bestätigung still zurück,
+        // obwohl der Anbieter sie inzwischen anders verplant haben kann.
+        if (request.status != MaterialRequestStatus.CONFIRMED) {
+            !MaterialAssignmentRepo.deleteForRequest(requestId).orDie()
+        }
+
         // Mein Event zeigt den Status; die Rücknahme einer Bestätigung nimmt das Boot von allen
-        // Anzeigen, eine Bestätigung mit bestehender Zuteilung bringt es zurück.
+        // Anzeigen.
         EventChangeMarker.bump(eventId)
         noData
     }
@@ -733,11 +833,24 @@ object MaterialService {
 
         val offer = !MaterialOfferRepo.get(materialRequest.materialOffer).orDie().onNullFail { MaterialError.RequestNotFound }
 
+        // RB-07: Der Unique-Index (Anfrage, Stück, Lauf) verbietet Dubletten - vorher als 422
+        // melden statt als 500 am Index zu scheitern.
+        val duplicate = request.assignments.groupBy { it.materialItem to it.competitionMatch }.values.any { it.size > 1 }
+        !KIO.failOn(duplicate) { MaterialError.DuplicateAssignment }
+
+        // Ein ausgemustertes Stück wird nicht neu zugeteilt; war es dieser Anfrage schon
+        // zugeteilt, darf es stehen bleiben, damit der Anbieter z. B. eine Ausnahme setzen kann,
+        // ohne erst die alte Zuteilung aufzulösen.
+        val alreadyAssigned = !MaterialAssignmentRepo.itemsOfRequest(requestId).orDie()
+
         !request.assignments.traverse { entry ->
             KIO.comprehension {
                 val item = !MaterialItemRepo.get(entry.materialItem).orDie().onNullFail { MaterialError.ItemNotOfProvider }
                 !KIO.failOn(item.materialProvider != providerId) { MaterialError.ItemNotOfProvider }
                 !KIO.failOn(item.materialType != offer.materialType) { MaterialError.WrongItemType }
+                !KIO.failOn(
+                    item.status == MaterialItemStatus.RETIRED.name && item.id !in alreadyAssigned
+                ) { MaterialError.ItemRetired }
 
                 if (entry.competitionMatch != null) {
                     val inMatch =
@@ -781,6 +894,10 @@ object MaterialService {
      */
     fun boatNumbersForRegistrations(eventId: UUID): App<Nothing, Map<UUID, List<Int>>> =
         MaterialRequestRepo.boatNumbersForRegistrations(eventId).orDie()
+
+    /** Nummer des als Grundzuteilung zugeteilten Boots je Meldung - fest bei der Fixierung (RB-04). */
+    fun baseAssignmentNumbers(eventId: UUID): App<Nothing, Map<UUID, Int>> =
+        MaterialRequestRepo.baseAssignmentNumbers(eventId).orDie()
 
     // -------------------------------------------------------------------
     // Schadensakte

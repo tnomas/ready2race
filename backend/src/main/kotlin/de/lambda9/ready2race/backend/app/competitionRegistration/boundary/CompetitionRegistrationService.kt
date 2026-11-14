@@ -23,6 +23,7 @@ import de.lambda9.ready2race.backend.app.email.boundary.EmailService
 import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplateKey
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
+import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
 import de.lambda9.ready2race.backend.app.event.boundary.EventService
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
 import de.lambda9.ready2race.backend.database.CLUB_REPRESENTATIVE_ROLE
@@ -616,6 +617,14 @@ object CompetitionRegistrationService {
             !CompetitionExecutionService.getRoundExistingForCompetition(competitionId).orDie()
                 .onTrueFail { CompetitionRegistrationError.RoundAlreadyExisting }
         }
+
+        // RB-01: Löscht der Verein selbst (OWN), gilt das wie ein Rückzug seiner Materialanfrage
+        // (gesperrt bei geschlossener Vergabe); Veranstalter (GLOBAL) dürfen löschen. In beiden
+        // Fällen erfährt ein bestätigter Anbieter es per Mail.
+        !MaterialService.releaseRequestsOfRemovedRegistrations(
+            listOf(registration.id),
+            enforceClosed = scope == Privilege.Scope.OWN,
+        )
 
         registration.delete()
 

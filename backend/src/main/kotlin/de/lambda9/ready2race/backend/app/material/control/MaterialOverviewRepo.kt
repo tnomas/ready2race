@@ -7,6 +7,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOutageDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewMatchDto
+import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewMatchTeamDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOverviewRequestDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION
@@ -168,6 +169,15 @@ object MaterialOverviewRepo {
             .asMultiset("registration_ids")
             .convertFrom { it!!.map { r -> r.value1()!! } }
 
+        val teams = DSL.select(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION, COMPETITION_MATCH_TEAM.START_NUMBER)
+            .from(COMPETITION_MATCH_TEAM)
+            .where(COMPETITION_MATCH_TEAM.COMPETITION_MATCH.eq(COMPETITION_MATCH.COMPETITION_SETUP_MATCH))
+            .orderBy(COMPETITION_MATCH_TEAM.START_NUMBER)
+            .asMultiset("teams")
+            .convertFrom {
+                it!!.map { r -> MaterialOverviewMatchTeamDto(competitionRegistration = r.value1()!!, startNumber = r.value2()!!) }
+            }
+
         select(
             COMPETITION_MATCH.COMPETITION_SETUP_MATCH,
             COMPETITION.ID,
@@ -176,6 +186,7 @@ object MaterialOverviewRepo {
             COMPETITION_MATCH.START_TIME,
             EVENT_SCHEDULE_SLOT.DURATION_MINUTES,
             registrationIds,
+            teams,
         )
             .from(COMPETITION_MATCH)
             .join(COMPETITION_SETUP_MATCH).on(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(COMPETITION_SETUP_MATCH.ID))
@@ -208,6 +219,7 @@ object MaterialOverviewRepo {
                     startTime = startTime,
                     endTime = if (startTime != null && durationMinutes != null) startTime.plusMinutes(durationMinutes.toLong()) else null,
                     registrationIds = r[registrationIds],
+                    teams = r[teams],
                 )
             }
     }

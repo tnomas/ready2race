@@ -38,4 +38,50 @@ class TeamNumberAlignmentTest {
         val r = TeamNumberAlignment.align(mapOf(a to listOf(1, 2, 3)), listOf(b), setOf(1, 4), Random(1))
         assertTrue(r[a] in setOf(2, 3)); assertEquals(5, r[b])
     }
+
+    /** RB-04: Eine Grundzuteilung legt die Nummer fest - über jeden Zufall hinweg. */
+    @Test
+    fun fixedNumbersWinOverTheLottery() {
+        repeat(20) { seed ->
+            val r = TeamNumberAlignment.align(
+                rented = mapOf(a to listOf(3, 5), b to listOf(3, 5)),
+                own = listOf(c),
+                taken = emptySet(),
+                random = Random(seed),
+                fixed = mapOf(a to 5),
+            )
+            assertEquals(5, r[a])
+            assertEquals(3, r[b])                       // b bekommt die übrige Bootsnummer
+            assertEquals(1, r[c])
+        }
+    }
+
+    /** Zwei Meldungen wollen dieselbe feste Nummer: eine bekommt sie, die andere läuft normal weiter. */
+    @Test
+    fun collidingFixedNumbersStayUnique() {
+        repeat(20) { seed ->
+            val r = TeamNumberAlignment.align(
+                rented = mapOf(a to listOf(3, 5), b to listOf(3, 5)),
+                own = emptyList(),
+                taken = emptySet(),
+                random = Random(seed),
+                fixed = mapOf(a to 5, b to 5),
+            )
+            assertEquals(setOf(3, 5), setOf(r[a], r[b]))
+        }
+    }
+
+    /** "Nummern behalten": eine schon vergebene feste Nummer wird nicht doppelt vergeben. */
+    @Test
+    fun fixedNumberAlreadyTakenFallsBack() {
+        val r = TeamNumberAlignment.align(
+            rented = emptyMap(),
+            own = emptyList(),
+            taken = setOf(5),
+            random = Random(1),
+            fixed = mapOf(a to 5),
+        )
+        assertTrue(r[a] != 5)
+        assertEquals(1, r.size)
+    }
 }

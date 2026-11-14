@@ -8,6 +8,7 @@ import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.exists
 import de.lambda9.ready2race.backend.database.findOneBy
 import de.lambda9.ready2race.backend.database.generated.tables.records.EventHasMaterialProviderRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_HAS_MATERIAL_PROVIDER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_DAMAGE
@@ -67,6 +68,9 @@ object EventHasMaterialProviderRepo {
             DSL.select(DSL.count())
                 .from(MATERIAL_REQUEST)
                 .join(MATERIAL_OFFER).on(MATERIAL_OFFER.ID.eq(MATERIAL_REQUEST.MATERIAL_OFFER))
+                // Nur Anfragen mit existierender Meldung - dieselbe Menge, die das Dashboard des
+                // Anbieters zeigt (material_request_view joint die Meldung).
+                .join(COMPETITION_REGISTRATION).on(COMPETITION_REGISTRATION.ID.eq(MATERIAL_REQUEST.COMPETITION_REGISTRATION))
                 .where(
                     MATERIAL_OFFER.EVENT.eq(eventId)
                         .and(MATERIAL_OFFER.MATERIAL_PROVIDER.eq(MATERIAL_PROVIDER.ID))

@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.database.exists
 import de.lambda9.ready2race.backend.database.generated.tables.MaterialItemView
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ASSIGNMENT
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_DAMAGE
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ITEM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ITEM_VIEW
 import de.lambda9.ready2race.backend.database.insertReturning
@@ -45,5 +46,10 @@ object MaterialItemRepo {
     /** Materialstück mit Zuteilungen kann nicht gelöscht werden. */
     fun hasAssignments(id: UUID): JIO<Boolean> = Jooq.query {
         fetchExists(MATERIAL_ASSIGNMENT, MATERIAL_ASSIGNMENT.MATERIAL_ITEM.eq(id))
+    }
+
+    /** Stück mit Schadensakte kann nicht gelöscht werden - die Akte ist historisch (RB-06). */
+    fun hasDamages(id: UUID): JIO<Boolean> = Jooq.query {
+        fetchExists(MATERIAL_DAMAGE, MATERIAL_DAMAGE.MATERIAL_ITEM.eq(id))
     }
 }

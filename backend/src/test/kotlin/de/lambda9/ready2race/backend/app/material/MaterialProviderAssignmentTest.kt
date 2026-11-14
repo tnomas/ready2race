@@ -4,6 +4,7 @@ import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.appuser.boundary.AppUserService
 import de.lambda9.ready2race.backend.app.appuser.control.AppUserHasRoleRepo
 import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
+import de.lambda9.ready2race.backend.app.appuser.entity.InviteRequest
 import de.lambda9.ready2race.backend.app.appuser.entity.UpdateAppUserRequest
 import de.lambda9.ready2race.backend.app.auth.control.PrivilegeRepo
 import de.lambda9.ready2race.backend.app.auth.entity.AuthError
@@ -206,6 +207,48 @@ class MaterialProviderAssignmentTest {
         }
         assertKIOFails(AuthError.PrivilegeMissing) {
             AppUserService.setMaterialProvider(SYSTEM_USER, providerId, admin)
+        }
+    }
+
+    /** Wechsel A→B: die Vergaberegeln gelten wieder, die Rolle steht danach genau einmal am Konto. */
+    @Test
+    fun switchingProvidersKeepsExactlyOneRole() = testComprehension {
+        val admin = userWith(Job.Admin.privileges)
+        val target = withRoles(listOf(USER_ROLE))
+        val providerA = provider("Hafen A")
+        val providerB = provider("Hafen B")
+
+        !AppUserService.setMaterialProvider(target.id!!, providerA, admin)
+        !AppUserService.setMaterialProvider(target.id!!, providerB, admin)
+
+        assertEquals(providerB, reload(target.id!!).materialProvider)
+        assertEquals(1, (!AppUserHasRoleRepo.getRoleIds(target.id!!)).count { it == MATERIAL_PROVIDER_ROLE })
+
+        // Ohne Recht auf MATERIAL OWN darf auch der Wechsel nicht laufen.
+        val staffOnly = userWith(listOf(Privilege.UpdateUserGlobal, Privilege.UpdateStaffGlobal, Privilege.ReadRoleGlobal))
+        assertKIOFails(RoleError.CannotAssignRoles(notFound = emptyList(), notAssignable = listOf(MATERIAL_PROVIDER_ROLE))) {
+            AppUserService.setMaterialProvider(target.id!!, providerA, staffOnly)
+        }
+        assertEquals(providerB, reload(target.id!!).materialProvider)
+    }
+
+    /** Die echte Einladung (nicht nur checkAssignable) weist die systemverwaltete Rolle ab. */
+    @Test
+    fun invitationWithTheProviderRoleIsRejected() = testComprehension {
+        val admin = userWith(Job.Admin.privileges)
+
+        assertKIOFails(RoleError.CannotAssignRoles(notFound = emptyList(), notAssignable = listOf(MATERIAL_PROVIDER_ROLE))) {
+            AppUserService.invite(
+                InviteRequest(
+                    email = "eingeladen-${UUID.randomUUID()}@example.org",
+                    firstname = "E",
+                    lastname = "L",
+                    language = EmailLanguage.DE,
+                    roles = listOf(MATERIAL_PROVIDER_ROLE),
+                    callbackUrl = "http://localhost:5173/invitation",
+                ),
+                admin,
+            )
         }
     }
 }

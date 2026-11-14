@@ -24,6 +24,8 @@ sealed interface RequestError : ToApiError {
         data object Missing : File
         data object Multiple : File
         data object UnsupportedType : File
+        /** Eine Datei oder alle zusammen überschreiten die Grenze des Endpunkts. */
+        data object TooLarge : File
     }
 
     data class Other(val cause: Throwable) : RequestError
@@ -114,6 +116,12 @@ sealed interface RequestError : ToApiError {
             ApiError(
                 status = HttpStatusCode.BadRequest,
                 message = "Unsupported file type"
+            )
+
+        File.TooLarge ->
+            ApiError(
+                status = HttpStatusCode.PayloadTooLarge,
+                message = "Uploaded file or files too large"
             )
 
         // Nur der Text, nicht der Klassenname der Ausnahme: Der stand bisher auch in PROD in der

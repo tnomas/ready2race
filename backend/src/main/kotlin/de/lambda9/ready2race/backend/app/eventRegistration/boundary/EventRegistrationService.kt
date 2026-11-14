@@ -208,6 +208,19 @@ object EventRegistrationService {
                 updatedBy = user.id!!
             }.orDie()
 
+            // RB-01: Was das Formular nicht mehr nennt, verschwindet endgültig (Team entfernt,
+            // Wettkampf abgewählt). Hängt daran eine Materialanfrage, gilt das als Rückzug durch
+            // den Verein - mit Sperre bei geschlossener Vergabe und Rückzugs-Mail. Der Rest wird
+            // mit derselben ID neu angelegt und behält seine Anfragen.
+            val keptIds = registrationDto.participants
+                .flatMap { p -> p.competitionsSingle?.mapNotNull { it.id } ?: emptyList() }
+                .toSet() +
+                registrationDto.competitionRegistrations
+                    .flatMap { c -> c.teams?.mapNotNull { it.id } ?: emptyList() }
+            val removedIds = (!CompetitionRegistrationRepo.idsForEventRegistrationUpdate(persistedRegistrationId, type).orDie())
+                .filterNot { it in keptIds }
+            !MaterialService.releaseRequestsOfRemovedRegistrations(removedIds, enforceClosed = true)
+
             !CompetitionRegistrationRepo.deleteForEventRegistrationUpdate(persistedRegistrationId, type).orDie()
 
             // Nur die Meldungen DIESER Veranstaltung neu durchnummerieren - früher liefen hier die
@@ -1029,7 +1042,12 @@ object EventRegistrationService {
 
     fun deleteRegistration(
         id: UUID,
-    ): App<EventRegistrationError, ApiResponse.NoData> = KIO.comprehension {
+    ): App<ServiceError, ApiResponse.NoData> = KIO.comprehension {
+        // Nur mit UPDATE REGISTRATION GLOBAL erreichbar (Veranstalter/Admin): löschen bleibt
+        // erlaubt, auch bei geschlossener Vergabe - aber bestätigte Anbieter erfahren es per Mail.
+        val registrationIds = !CompetitionRegistrationRepo.idsForEventRegistration(id).orDie()
+        !MaterialService.releaseRequestsOfRemovedRegistrations(registrationIds, enforceClosed = false)
+
         val deleted = !EventRegistrationRepo.delete(id).orDie()
 
         if (deleted < 1) {
@@ -1088,6 +1106,12 @@ object EventRegistrationService {
         } else {
             emptyMap()
         }
+        // Meldungen mit Grundzuteilung behalten die Nummer ihres Boots (RB-04).
+        val assignedNumbers = if (alignMaterialNumbers) {
+            !MaterialService.baseAssignmentNumbers(eventId)
+        } else {
+            emptyMap()
+        }
 
         registrations.groupBy { it.competition }.values.forEach { registrationsForSameComp ->
             if (alignMaterialNumbers) {
@@ -1099,10 +1123,11 @@ object EventRegistrationService {
                 val toNumber = if (keepNumbers) registrationsForSameComp.filter { it.teamNumber == null } else registrationsForSameComp
 
                 val rented = toNumber.mapNotNull { r -> boatNumbers[r.id]?.let { r.id to it } }.toMap()
-                val own = toNumber.map { it.id }.filterNot { it in rented }
+                val fixed = toNumber.mapNotNull { r -> assignedNumbers[r.id]?.let { r.id to it } }.toMap()
+                val own = toNumber.map { it.id }.filterNot { it in rented || it in fixed }
 
                 val byRegistration = toNumber.associateBy { it.id }
-                TeamNumberAlignment.align(rented, own, taken, Random).forEach { (registrationId, number) ->
+                TeamNumberAlignment.align(rented, own, taken, Random, fixed).forEach { (registrationId, number) ->
                     val record = byRegistration.getValue(registrationId)
                     record.teamNumber = number
                     record.updatedBy = userId

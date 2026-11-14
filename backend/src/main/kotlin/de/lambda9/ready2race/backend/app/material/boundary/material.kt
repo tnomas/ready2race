@@ -7,6 +7,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialAssignmentsRequ
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDecisionRequest
+import de.lambda9.ready2race.backend.app.material.entity.MaterialError
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemSort
 import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
@@ -16,6 +17,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestsUpsertR
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
 import de.lambda9.ready2race.backend.app.material.entity.SetRequestsClosedRequest
+import de.lambda9.ready2race.backend.calls.requests.RequestError
 import de.lambda9.ready2race.backend.calls.requests.authenticate
 import de.lambda9.ready2race.backend.calls.requests.authenticateAny
 import de.lambda9.ready2race.backend.calls.requests.hasPrivilege
@@ -24,6 +26,7 @@ import de.lambda9.ready2race.backend.calls.requests.pagination
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
 import de.lambda9.ready2race.backend.calls.requests.receiveUploads
+import de.lambda9.ready2race.backend.calls.responses.ToApiError
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
@@ -216,7 +219,14 @@ fun Route.material() {
                             val providerId = !pathParam("providerId", uuid)
                             !ownProviderCheck(user, scope, providerId)
                             val damageId = !pathParam("damageId", uuid)
-                            val upload = !receiveUploads(maxFiles = MATERIAL_PHOTOS_PER_UPLOAD)
+                            // Grenzen schon beim Lesen (je Datei 10 MB, je Anfrage
+                            // MATERIAL_PHOTOS_MAX_TOTAL_BYTES): Darüber endet das Lesen sofort, und
+                            // der Fehler ist derselbe wie bei der Prüfung im Service.
+                            val upload = !receiveUploads(
+                                maxFiles = MATERIAL_PHOTOS_PER_UPLOAD,
+                                maxFileBytes = MATERIAL_PHOTO_MAX_BYTES,
+                                maxTotalBytes = MATERIAL_PHOTOS_MAX_TOTAL_BYTES,
+                            ).mapError<ToApiError> { if (it == RequestError.File.TooLarge) MaterialError.PhotoTooLarge else it }
                             MaterialService.addPhotos(providerId, damageId, upload.files)
                         }
                     }

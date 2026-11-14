@@ -25,6 +25,14 @@ object MaterialAssignmentRepo {
 
     fun deleteForRequest(requestId: UUID) = MATERIAL_ASSIGNMENT.delete { MATERIAL_REQUEST.eq(requestId) }
 
+    /** Die Stücke, die dieser Anfrage schon zugeteilt sind - ein ausgemustertes darf dort bleiben. */
+    fun itemsOfRequest(requestId: UUID): JIO<Set<UUID>> = Jooq.query {
+        selectDistinct(MATERIAL_ASSIGNMENT.MATERIAL_ITEM)
+            .from(MATERIAL_ASSIGNMENT)
+            .where(MATERIAL_ASSIGNMENT.MATERIAL_REQUEST.eq(requestId))
+            .fetchSet { it.value1()!! }
+    }
+
     /**
      * Die Veranstaltungen, in denen dieses Stück zugeteilt ist - eine Änderung an Nummer,
      * Bezeichnung oder Art erreicht genau deren Anzeigen (Änderungsmarker).
