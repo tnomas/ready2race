@@ -3,6 +3,7 @@ import {Lock} from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
 import {RegistrationSummary, formatAmount} from './eventRegistrationLogic.ts'
 import {MaterialSummaryLine} from './materialChoice.ts'
+import {RemovedMaterialRequest} from './materialRegistrationLogic.ts'
 
 /**
  * Eine Materialzeile der Prüfseite: was gewählt ist und was das Absenden damit tut. Nur
@@ -51,14 +52,21 @@ const MaterialLine = ({line}: {line: MaterialSummaryLine}) => {
  */
 export const EventRegistrationSummary = ({
     summary,
+    removedMaterial = [],
     showFees,
     showLateFees,
 }: {
     summary: RegistrationSummary
+    /** Anfragen an Meldungen, die dieses Absenden entfernt (Team weg, Wettkampf abgewählt). */
+    removedMaterial?: RemovedMaterialRequest[]
     showFees: boolean
     showLateFees: boolean
 }) => {
     const {t} = useTranslation()
+    const blocked = removedMaterial.filter(r => r.blocked)
+    const released = removedMaterial.filter(r => !r.blocked)
+    const removedLabel = (r: RemovedMaterialRequest) =>
+        `${r.competitionName} · ${r.entryLabel} · ${r.typeName}`
 
     return (
         <Stack spacing={2}>
@@ -170,6 +178,38 @@ export const EventRegistrationSummary = ({
                         </>
                     )}
                 </Paper>
+            )}
+            {blocked.length > 0 && (
+                <Alert severity={'error'}>
+                    {t('material.registration.removal.blocked')}
+                    <Box component={'ul'} sx={{m: 0, mt: 0.5, pl: 2.5}}>
+                        {blocked.map(r => (
+                            <li key={`${r.registrationId}-${r.typeName}`}>
+                                {t('material.registration.removal.blockedLine', {
+                                    entry: removedLabel(r),
+                                    provider: r.providerName,
+                                })}
+                            </li>
+                        ))}
+                    </Box>
+                </Alert>
+            )}
+            {released.length > 0 && (
+                <Alert severity={'warning'}>
+                    {t('material.registration.removal.title')}
+                    <Box component={'ul'} sx={{m: 0, mt: 0.5, pl: 2.5}}>
+                        {released.map(r => (
+                            <li key={`${r.registrationId}-${r.typeName}`}>
+                                {t(
+                                    r.status === 'CONFIRMED'
+                                        ? 'material.registration.removal.confirmed'
+                                        : 'material.registration.removal.open',
+                                    {entry: removedLabel(r), provider: r.providerName},
+                                )}
+                            </li>
+                        ))}
+                    </Box>
+                </Alert>
             )}
             {summary.competitions.some(c =>
                 c.entries.some(e => e.material.some(l => l.change === 'new')),

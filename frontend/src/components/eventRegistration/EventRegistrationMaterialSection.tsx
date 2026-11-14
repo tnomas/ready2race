@@ -13,7 +13,13 @@ import {
 } from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {EventRegistrationMaterialDemandDto, MaterialRequestDto} from '../../api'
-import {activeRequestFor, buildChoices, choiceKind, MaterialDemandChoice} from './materialChoice.ts'
+import {
+    activeRequestFor,
+    buildChoices,
+    choiceKind,
+    declinedRequestFor,
+    MaterialDemandChoice,
+} from './materialChoice.ts'
 import {MaterialCapacityChip} from './MaterialCapacityChip.tsx'
 
 /**
@@ -59,6 +65,31 @@ export const EventRegistrationMaterialSection = (props: {
         return null
     }
 
+    // Festgeschriebene Meldung: keine (gesperrten) Bedienelemente ohne Inhalt, sondern lesbar, was
+    // gilt. Das Template liefert für gesperrte Meldungen keine Anfragen mit – deshalb nennt die
+    // Zeile die Anbieter dieser Materialart und wohin man sich wendet.
+    if (props.locked) {
+        return (
+            <Stack spacing={0.5}>
+                {choices.map(choice => (
+                    <Typography key={choice.materialType} variant="body2">
+                        {t('material.registration.demandLabel', {
+                            name: choice.typeName,
+                            count: choice.count,
+                        })}
+                        {choice.offers.length > 0 &&
+                            ` · ${t('material.registration.lockedProviders', {
+                                providers: choice.offers.map(o => o.providerName).join(', '),
+                            })}`}
+                    </Typography>
+                ))}
+                <Typography variant="caption" color="text.secondary">
+                    {t('material.registration.lockedHint')}
+                </Typography>
+            </Stack>
+        )
+    }
+
     return (
         <Stack spacing={1.5}>
             {choices.map(choice => {
@@ -82,6 +113,14 @@ export const EventRegistrationMaterialSection = (props: {
                 const selectedOffer = choice.offers.find(o => o.offerId === choice.selectedOfferId)
                 const willWithdraw =
                     existing !== undefined && existing.materialOffer !== choice.selectedOfferId
+                // Abgelehnt: als Chip mit Notiz zeigen; wer wieder einschaltet, fragt neu an.
+                const declined = declinedRequestFor(
+                    props.existingRequests,
+                    choice.offers.map(o => o.offerId),
+                )
+                const declinedOffer = declined
+                    ? choice.offers.find(o => o.offerId === declined.materialOffer)
+                    : undefined
 
                 return (
                     <Box key={choice.materialType}>
@@ -187,7 +226,33 @@ export const EventRegistrationMaterialSection = (props: {
                                     label={t(`material.registration.status.${existing.status}`)}
                                 />
                             )}
+                            {declined && (
+                                <Chip
+                                    size={'small'}
+                                    variant={'outlined'}
+                                    label={t('material.registration.declinedBy', {
+                                        provider: declined.providerName,
+                                    })}
+                                />
+                            )}
                         </Stack>
+                        {declined?.decisionNote && (
+                            <Typography variant="caption" color="text.secondary" component="p">
+                                {t('material.registration.decisionNote', {
+                                    note: declined.decisionNote,
+                                })}
+                            </Typography>
+                        )}
+                        {declined && choice.selectedOfferId !== null && (
+                            <Typography variant="caption" color="text.secondary" component="p">
+                                {t('material.registration.requestAgain', {
+                                    provider:
+                                        selectedOffer?.providerName ??
+                                        declinedOffer?.providerName ??
+                                        declined.providerName,
+                                })}
+                            </Typography>
+                        )}
                         {existing?.decisionNote && !willWithdraw && (
                             <Typography variant="caption" color="text.secondary" component="p">
                                 {t('material.registration.decisionNote', {

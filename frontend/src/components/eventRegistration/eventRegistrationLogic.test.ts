@@ -311,6 +311,9 @@ describe('submitErrorKey', () => {
         expect(submitErrorKey({status: {value: 422}, errorCode: 'CALLBACK_URL_NOT_ALLOWED'})).toBe(
             'event.registration.error.callbackUrlNotAllowed',
         )
+        expect(
+            submitErrorKey({status: {value: 409}, errorCode: 'MATERIAL_REMOVAL_REQUESTS_CLOSED'}),
+        ).toBe('material.error.removalRequestsClosed')
         expect(submitErrorKey({status: {value: 400}, errorCode: 'UNBEKANNT'})).toBe(
             'common.error.unexpected',
         )

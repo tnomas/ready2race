@@ -5161,7 +5161,18 @@
       },
       "willWithdraw": "Die Anfrage bei {{provider}} wird beim Absenden zurückgezogen.",
       "withdrawHowSelect": "Zum Zurückziehen „eigenes Boot\" bzw. „eigenes Material\" wählen und die Meldung absenden.",
-      "withdrawHowSwitch": "Zum Zurückziehen den Schalter ausschalten und die Meldung absenden."
+      "withdrawHowSwitch": "Zum Zurückziehen den Schalter ausschalten und die Meldung absenden.",
+      "lockedProviders": "Anbieter: {{providers}}",
+      "lockedHint": "Diese Meldung ist festgeschrieben; die Materialwahl lässt sich hier nicht mehr ändern. Den Stand der Anfrage zeigt „Mein Event“, Änderungen nur direkt über den Anbieter.",
+      "declinedBy": "Abgelehnt von {{provider}}",
+      "requestAgain": "Beim Absenden wird bei {{provider}} neu angefragt; der Anbieter entscheidet erneut.",
+      "removal": {
+        "title": "Entfernte Meldungen mit Materialanfrage – beim Absenden:",
+        "confirmed": "{{entry}}: Die Buchung bei {{provider}} wird zurückgezogen, der Anbieter wird benachrichtigt.",
+        "open": "{{entry}}: Die Anfrage bei {{provider}} wird zurückgezogen.",
+        "blocked": "So lässt sich die Meldung nicht absenden: Diese Meldungen haben eine Materialanfrage, und der Anbieter hat die Vergabe geschlossen.",
+        "blockedLine": "{{entry}} ({{provider}}) – wieder aufnehmen oder direkt mit dem Anbieter klären"
+      }
     },
     "requests": {
       "reload": "Aktualisieren",
@@ -5350,6 +5361,7 @@
       "matchNotOfRegistration": "Das Team startet in diesem Lauf nicht (mehr), vermutlich wurde die Runde neu gesetzt. Die Übersicht wurde neu geladen.",
       "invalidOutageWindow": "Das Ende des Ausfalls liegt vor seinem Beginn.",
       "removalClosed": "Die Meldung hat eine Materialanfrage, und der Anbieter hat die Vergabe geschlossen. Entfernen geht deshalb nicht – bitte direkt an den Anbieter wenden.",
+      "removalRequestsClosed": "Nicht gespeichert: Entfernt wurde eine Meldung mit Materialanfrage, deren Anbieter die Vergabe geschlossen hat ({{entries}}). Das Team bzw. den Wettkampf wieder aufnehmen und erneut absenden, oder zuerst mit dem Anbieter klären. Alle übrigen Eingaben bleiben stehen.",
       "offerTypeLocked": "Zu diesem Angebot gibt es schon Anfragen; die Materialart bleibt deshalb fest. Preis, geplante Anzahl und Wechselzeit lassen sich weiter ändern.",
       "itemTypeLocked": "Das Stück ist zugeteilt; seine Materialart bleibt deshalb fest. Erst die Zuteilungen lösen.",
       "itemHasDamages": "Zu diesem Stück gibt es eine Schadensakte; es kann nicht gelöscht werden. Stattdessen bearbeiten und „ausgemustert“ einschalten.",

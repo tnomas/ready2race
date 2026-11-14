@@ -5161,7 +5161,18 @@
       },
       "willWithdraw": "Forespørgslen hos {{provider}} trækkes tilbage ved indsendelse.",
       "withdrawHowSelect": "For at trække tilbage, vælg \"egen båd\" eller \"eget materiel\" og indsend tilmeldingen.",
-      "withdrawHowSwitch": "For at trække tilbage, slå kontakten fra og indsend tilmeldingen."
+      "withdrawHowSwitch": "For at trække tilbage, slå kontakten fra og indsend tilmeldingen.",
+      "lockedProviders": "Udlejere: {{providers}}",
+      "lockedHint": "Denne tilmelding er låst; materielvalget kan ikke længere ændres her. „Mit arrangement“ viser forespørgslens status; ændringer kun direkte via udlejeren.",
+      "declinedBy": "Afvist af {{provider}}",
+      "requestAgain": "Ved indsendelse sendes en ny forespørgsel til {{provider}}; udlejeren afgør igen.",
+      "removal": {
+        "title": "Fjernede tilmeldinger med materielforespørgsel – ved indsendelse:",
+        "confirmed": "{{entry}}: Bookingen hos {{provider}} trækkes tilbage, og udlejeren får besked.",
+        "open": "{{entry}}: Forespørgslen hos {{provider}} trækkes tilbage.",
+        "blocked": "Tilmeldingen kan ikke indsendes sådan: Disse tilmeldinger har en materielforespørgsel, og udlejeren har lukket for tildelingen.",
+        "blockedLine": "{{entry}} ({{provider}}) – tilføj igen eller afklar direkte med udlejeren"
+      }
     },
     "requests": {
       "reload": "Opdater",
@@ -5350,6 +5361,7 @@
       "matchNotOfRegistration": "Holdet starter ikke (længere) i dette heat; runden er sandsynligvis sat igen. Oversigten er genindlæst.",
       "invalidOutageWindow": "Afslutningen af udfaldet ligger før starten.",
       "removalClosed": "Tilmeldingen har en materielforespørgsel, og udlejeren har lukket for tildelingen. Den kan derfor ikke fjernes – kontakt udlejeren direkte.",
+      "removalRequestsClosed": "Ikke gemt: En tilmelding med materielforespørgsel blev fjernet, men udlejeren har lukket for tildelingen ({{entries}}). Tilføj holdet eller konkurrencen igen og indsend på ny, eller afklar det først med udlejeren. Alle øvrige indtastninger bevares.",
       "offerTypeLocked": "Der er allerede forespørgsler på dette tilbud; materieltypen ligger derfor fast. Pris, planlagt antal og skiftetid kan stadig ændres.",
       "itemTypeLocked": "Stykket er tildelt; dets materieltype ligger derfor fast. Fjern først tildelingerne.",
       "itemHasDamages": "Der findes en skadesjournal for dette stykke; det kan ikke slettes. Rediger det i stedet og slå „udrangeret“ til.",

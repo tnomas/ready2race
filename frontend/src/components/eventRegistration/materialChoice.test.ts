@@ -1,5 +1,6 @@
 import {describe, expect, test} from 'vitest'
 import {
+    declinedRequestFor,
     buildChoices,
     changesMaterial,
     choiceKind,
@@ -233,5 +234,29 @@ describe('materialSummaryLines', () => {
         })
         const [line] = materialSummaryLines([twoOffers], ['o2'], [existingRequest()])
         expect(line).toMatchObject({change: 'new', providerName: 'Süd'})
+    })
+})
+
+describe('declinedRequestFor', () => {
+    test('zeigt die jüngste Ablehnung, solange keine aktive Anfrage besteht', () => {
+        const older = existingRequest({
+            id: 'a',
+            status: 'DECLINED',
+            decidedAt: '2026-11-01T10:00:00Z',
+        })
+        const newer = existingRequest({
+            id: 'b',
+            status: 'DECLINED',
+            decidedAt: '2026-11-02T10:00:00Z',
+        })
+        expect(declinedRequestFor([older, newer], ['o1'])?.id).toBe('b')
+    })
+
+    test('keine Ablehnung anzeigen, wenn neu angefragt wurde oder das Angebot nicht passt', () => {
+        const declined = existingRequest({id: 'a', status: 'DECLINED'})
+        const active = existingRequest({id: 'c', status: 'REQUESTED'})
+        expect(declinedRequestFor([declined, active], ['o1'])).toBeUndefined()
+        expect(declinedRequestFor([declined], ['o2'])).toBeUndefined()
+        expect(declinedRequestFor(undefined, ['o1'])).toBeUndefined()
     })
 })

@@ -419,6 +419,7 @@ export type SubmitErrorKey =
     | 'event.registration.error.ageRequirementNotMet'
     | 'event.registration.error.participantDuplicateInCompetition'
     | 'event.registration.error.callbackUrlNotAllowed'
+    | 'material.error.removalRequestsClosed'
 
 const ERROR_CODE_KEYS: Record<string, SubmitErrorKey> = {
     EVENT_REGISTRATION_CLOSED: 'event.registration.error.closed',
@@ -438,6 +439,9 @@ const ERROR_CODE_KEYS: Record<string, SubmitErrorKey> = {
     // 422: Die Adresse, unter der die Seite aufgerufen wurde, steht nicht in FRONTEND_ORIGINS
     // (ADR-0106) - kein Fehler im Formular, sondern in der Aufrufadresse.
     CALLBACK_URL_NOT_ALLOWED: 'event.registration.error.callbackUrlNotAllowed',
+    // 409: Ein entferntes Team/ein abgewählter Wettkampf hat eine aktive Materialanfrage, und der
+    // Anbieter hat die Vergabe geschlossen. Die Seite nennt die betroffenen Meldungen.
+    MATERIAL_REMOVAL_REQUESTS_CLOSED: 'material.error.removalRequestsClosed',
 }
 
 /** Übersetzt die Antwort von `POST /event/{id}/register` in einen Fehlertext. */

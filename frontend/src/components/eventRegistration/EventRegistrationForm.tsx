@@ -31,6 +31,11 @@ import EventRegistrationTeamCompetitionForm from './EventRegistrationTeamCompeti
 import {EventRegistrationFeeDisplay} from '@components/eventRegistration/EventRegistrationFeeDisplay.tsx'
 import {EventRegistrationConfirmDocumentsForm} from '@components/eventRegistration/EventRegistrationConfirmDocumentsForm.tsx'
 import {EventRegistrationSummary} from '@components/eventRegistration/EventRegistrationSummary.tsx'
+import {
+    closedOfferIdsOf,
+    InitialMaterialEntry,
+    removedMaterialRequests,
+} from '@components/eventRegistration/materialRegistrationLogic.ts'
 import {RegistrationParticipantSearch} from '@components/eventRegistration/RegistrationParticipantSearch.tsx'
 import {
     EventRegistrationFormData,
@@ -82,12 +87,15 @@ const EventRegistrationForm = ({
     formContext,
     adminEdit,
     submitting = false,
+    initialMaterial,
 }: {
     stepsBefore?: EventRegistrationStep[]
     onSubmit: (data: Partial<EventRegistrationFormData>) => void
     formContext: UseFormReturn<EventRegistrationFormData>
     adminEdit?: boolean
     submitting?: boolean
+    /** Meldungen des Ausgangsstands mit aktiver Materialanfrage – für „wird zurückgezogen". */
+    initialMaterial?: InitialMaterialEntry[]
 }) => {
     const {t} = useTranslation()
     const [activeStep, setActiveStep] = React.useState(0)
@@ -126,6 +134,15 @@ const EventRegistrationForm = ({
     const summary = React.useMemo(
         () => buildRegistrationSummary({participants, competitionRegistrations}, info),
         [participants, competitionRegistrations, info],
+    )
+    const removedMaterial = React.useMemo(
+        () =>
+            removedMaterialRequests(
+                initialMaterial ?? [],
+                {participants, competitionRegistrations},
+                closedOfferIdsOf(info),
+            ),
+        [initialMaterial, participants, competitionRegistrations, info],
     )
 
     const addParticipant = () => {
@@ -203,6 +220,7 @@ const EventRegistrationForm = ({
             <Stack spacing={2}>
                 <EventRegistrationSummary
                     summary={summary}
+                    removedMaterial={removedMaterial}
                     showFees={showFees}
                     showLateFees={info?.state !== 'REGULAR'}
                 />

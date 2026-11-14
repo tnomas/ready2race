@@ -5161,7 +5161,18 @@
       },
       "willWithdraw": "The request with {{provider}} will be withdrawn on submit.",
       "withdrawHowSelect": "To withdraw, choose \"own boat\" or \"own equipment\" and submit the registration.",
-      "withdrawHowSwitch": "To withdraw, switch it off and submit the registration."
+      "withdrawHowSwitch": "To withdraw, switch it off and submit the registration.",
+      "lockedProviders": "Providers: {{providers}}",
+      "lockedHint": "This entry is fixed; the equipment choice can no longer be changed here. “My event” shows the status of the request; changes only directly via the provider.",
+      "declinedBy": "Declined by {{provider}}",
+      "requestAgain": "On submit, a new request is sent to {{provider}}; the provider decides again.",
+      "removal": {
+        "title": "Removed entries with an equipment request – on submit:",
+        "confirmed": "{{entry}}: the booking with {{provider}} is withdrawn and the provider is notified.",
+        "open": "{{entry}}: the request with {{provider}} is withdrawn.",
+        "blocked": "The registration cannot be submitted like this: these entries have an equipment request and the provider has closed requests.",
+        "blockedLine": "{{entry}} ({{provider}}) – add it again or settle it directly with the provider"
+      }
     },
     "requests": {
       "reload": "Reload",
@@ -5350,6 +5361,7 @@
       "matchNotOfRegistration": "The team no longer races in this match; the round was probably set again. The overview has been reloaded.",
       "invalidOutageWindow": "The end of the outage lies before its start.",
       "removalClosed": "The entry has an equipment request and the provider has closed requests. It therefore cannot be removed – please contact the provider directly.",
+      "removalRequestsClosed": "Not saved: an entry with an equipment request was removed, but its provider has closed requests ({{entries}}). Add the team or competition again and submit once more, or settle it with the provider first. All other inputs are kept.",
       "offerTypeLocked": "This offer already has requests, so its equipment type is fixed. Price, planned number and changeover time can still be changed.",
       "itemTypeLocked": "The item is assigned, so its equipment type is fixed. Remove the assignments first.",
       "itemHasDamages": "This item has damage records and cannot be deleted. Edit it and switch on “retired” instead.",

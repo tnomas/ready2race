@@ -8,7 +8,6 @@ import {
     EventRegistrationParticipantUpsertDto,
     EventRegistrationUpsertDto,
     getEventRegistrationTemplate,
-    MaterialRequestDto,
     setMaterialRequests,
 } from '../../api'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
@@ -32,6 +31,13 @@ import {
     RegistrationSummary,
     submitErrorKey,
 } from '@components/eventRegistration/eventRegistrationLogic.ts'
+import {
+    activeMaterialOfferIds,
+    closedOfferIdsOf,
+    initialMaterialEntries,
+    materialRequestUpdates,
+    removedMaterialRequests,
+} from '@components/eventRegistration/materialRegistrationLogic.ts'
 
 export type CompetitionRegistrationSingleFormData = CompetitionRegistrationSingleUpsertDto & {
     locked: boolean
@@ -65,28 +71,10 @@ export type EventRegistrationFormData = {
 // TODO: validate/sanitize basepath (also in routes.tsx)
 const basepath = document.getElementById('ready2race-root')!.dataset.basepath
 
-/**
- * Aus den Materialanfragen einer Meldung (Template) die Angebots-IDs der noch aktiven Anfragen -
- * zurückgezogene oder abgelehnte zählen nicht mehr. Sowohl für den Formular-Reset als auch für
- * den Vergleich beim Speichern verwendet (unverändert -> kein `setMaterialRequests`-Aufruf).
- */
-const activeMaterialOfferIds = (materialRequests?: MaterialRequestDto[]): string[] =>
-    (materialRequests ?? [])
-        .filter(r => r.status !== 'WITHDRAWN' && r.status !== 'DECLINED')
-        .map(r => r.materialOffer)
-
-/**
- * Vergleicht zwei Listen von Angebots-IDs ohne Rücksicht auf die Reihenfolge.
- */
-const sameOfferIds = (a: string[], b: string[]): boolean => {
-    if (a.length !== b.length) return false
-    const sortedA = [...a].sort()
-    const sortedB = [...b].sort()
-    return sortedA.every((id, index) => id === sortedB[index])
-}
-
 type MaterialSyncFailure = {
     competitionName: string
+    /** „Team 2" bzw. Name der Person – zwei Boote desselben Wettkampfs auseinanderhalten. */
+    entryLabel: string
     network: boolean
     /** Fachlicher Grund mit eigenem Text (Vergabe geschlossen, Art nicht im Bedarf, …). */
     reasonKey: MaterialErrorKey | null
@@ -170,12 +158,28 @@ const EventRegistrationCreatePage = () => {
         if (key !== null) {
             submittingRef.current = false
             // Eingaben bleiben stehen: Fehler beheben und erneut absenden.
+            // Entferntes Team mit Materialanfrage bei geschlossener Vergabe: sagen, welches.
+            const blockedRemovals = removedMaterialRequests(
+                initialMaterial,
+                values,
+                closedOfferIdsOf(data?.info ?? null),
+            ).filter(r => r.blocked)
             const message =
                 key === 'common.error.notFound'
                     ? t(key, {entity: t('event.event')})
                     : key === 'event.registration.error.callbackUrlNotAllowed'
                       ? t(key, {origin: window.location.origin})
-                      : t(key)
+                      : key === 'material.error.removalRequestsClosed'
+                        ? t(key, {
+                              entries:
+                                  blockedRemovals
+                                      .map(
+                                          r =>
+                                              `${r.competitionName} · ${r.entryLabel} (${r.providerName})`,
+                                      )
+                                      .join(', ') || '–',
+                          })
+                        : t(key)
             feedback.error(message)
             setSubmitError(message)
         } else {
@@ -228,6 +232,17 @@ const EventRegistrationCreatePage = () => {
         return map
     }, [data])
 
+    /** Meldungen des Ausgangsstands mit aktiver Materialanfrage (entfernt = Rückzug). */
+    const initialMaterial = useMemo(
+        () =>
+            data
+                ? initialMaterialEntries(data.upsertableRegistration, data.info, n =>
+                      t('event.registration.teamNumber', {number: n}),
+                  )
+                : [],
+        [data, t],
+    )
+
     /**
      * Schreibt je Meldung die gewählten Material-Angebote fest, wenn sie sich gegenüber dem
      * Template geändert haben. Fehlschläge unterbrechen die anderen Meldungen nicht und kommen
@@ -237,39 +252,11 @@ const EventRegistrationCreatePage = () => {
     const syncMaterialRequests = async (
         formData: EventRegistrationFormData,
     ): Promise<MaterialSyncFailure[]> => {
-        const requests: {registrationId: string; competitionName: string; offerIds: string[]}[] = []
-
-        formData.competitionRegistrations.forEach(r => {
-            const competitionName =
-                registrationInfo?.competitionsTeam.find(c => c.id === r.competitionId)?.name ?? ''
-            r.teams
-                .filter(t => !t.locked)
-                .forEach(t => {
-                    requests.push({
-                        registrationId: t.id,
-                        competitionName,
-                        offerIds: t.materialOfferIds ?? [],
-                    })
-                })
-        })
-
-        formData.participants.forEach(p => {
-            p.competitionsSingle
-                ?.filter(s => !s.locked && s.id)
-                .forEach(s => {
-                    const competitionName =
-                        registrationInfo?.competitionsSingle.find(c => c.id === s.competitionId)
-                            ?.name ?? ''
-                    requests.push({
-                        registrationId: s.id!,
-                        competitionName,
-                        offerIds: s.materialOfferIds ?? [],
-                    })
-                })
-        })
-
-        const changed = requests.filter(
-            r => !sameOfferIds(templateMaterialOfferIds.get(r.registrationId) ?? [], r.offerIds),
+        const changed = materialRequestUpdates(
+            formData,
+            templateMaterialOfferIds,
+            registrationInfo,
+            n => t('event.registration.teamNumber', {number: n}),
         )
         if (changed.length === 0) return []
 
@@ -292,6 +279,7 @@ const EventRegistrationCreatePage = () => {
             .filter(({error}) => error !== undefined)
             .map(({r, error}) => ({
                 competitionName: r.competitionName,
+                entryLabel: r.entryLabel,
                 network: isRequestNetworkError(error),
                 reasonKey: materialErrorKey(error),
             }))
@@ -447,7 +435,7 @@ const EventRegistrationCreatePage = () => {
                                     <Alert severity={'warning'} sx={{textAlign: 'left'}}>
                                         {t('material.registration.errorAfterSave', {
                                             competitions: materialFailures
-                                                .map(f => f.competitionName)
+                                                .map(f => `${f.competitionName} · ${f.entryLabel}`)
                                                 .join(', '),
                                         })}
                                         {/* Fachliche Gründe je Wettkampf: „erneut absenden“
@@ -458,7 +446,7 @@ const EventRegistrationCreatePage = () => {
                                                     .filter(f => f.reasonKey !== null)
                                                     .map((f, index) => (
                                                         <li key={index}>
-                                                            {`${f.competitionName}: ${t(f.reasonKey!)}`}
+                                                            {`${f.competitionName} · ${f.entryLabel}: ${t(f.reasonKey!)}`}
                                                         </li>
                                                     ))}
                                             </Box>
@@ -506,6 +494,7 @@ const EventRegistrationCreatePage = () => {
                             onSubmit={onSubmit}
                             formContext={formContext}
                             submitting={submitting}
+                            initialMaterial={initialMaterial}
                         />
                     </Stack>
                 )}

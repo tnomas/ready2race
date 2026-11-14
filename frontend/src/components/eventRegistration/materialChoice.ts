@@ -23,6 +23,26 @@ export const activeRequestFor = (
     existing?.find(r => r.materialOffer === offerId && ACTIVE_REQUEST_STATUSES.includes(r.status))
 
 /**
+ * Die zuletzt abgelehnte Anfrage für eines dieser Angebote – nur, wenn es keine aktive gibt. Der
+ * Verein soll eine Ablehnung samt Notiz des Anbieters sehen, statt dass der Schalter kommentarlos
+ * auf „aus" steht; die Auswahl bleibt trotzdem leer (abgelehnt ist nicht gebucht).
+ */
+export const declinedRequestFor = (
+    existing: readonly MaterialRequestDto[] | undefined,
+    offerIds: readonly string[],
+): MaterialRequestDto | undefined => {
+    const forOffers = (existing ?? []).filter(r => offerIds.includes(r.materialOffer))
+    if (forOffers.some(r => ACTIVE_REQUEST_STATUSES.includes(r.status))) return undefined
+    return forOffers
+        .filter(r => r.status === 'DECLINED')
+        .sort(
+            (a, b) =>
+                new Date(b.decidedAt ?? b.requestedAt).getTime() -
+                new Date(a.decidedAt ?? a.requestedAt).getTime(),
+        )[0]
+}
+
+/**
  * Eine Zeile im Material-Abschnitt des Anmeldeformulars: der Bedarf einer Materialart am
  * Wettkampf, dazu die Angebote der eingeladenen Anbieter und - falls die Meldung eins gewählt
  * hat - dessen ID. `selectedOfferId` ist null, wenn kein Angebot gewählt ist (eigenes
