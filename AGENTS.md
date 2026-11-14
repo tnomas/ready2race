@@ -26,13 +26,14 @@ und steuert Helfer über eine QR-basierte App.
 | Pfad | Inhalt |
 |---|---|
 | `backend/` | Kotlin 2.1 / Ktor 3.1 REST-API, PostgreSQL 17, Flyway, jOOQ (Kotlin-Generator), KIO-Effektsystem (`tailwind-kio`) |
-| `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/<domäne>/` | 58 Domänen nach Entity-Control-Boundary (`entity/`, `control/`, `boundary/`) |
+| `backend/src/main/kotlin/de/lambda9/ready2race/backend/app/<domäne>/` | 59 Domänen nach Entity-Control-Boundary (`entity/`, `control/`, `boundary/`); `material/` ist die Materialvermietung (Anbieter, Arten, Stücke, Angebote, Anfragen, Zuteilungen, Schäden; ADR-0109) |
 | `backend/src/main/resources/db/migration/` | Flyway-Migrationen `VyyyyMMddHHmm__beschreibung.sql` und `afterMigrate.sql` (alle Views) |
 | `backend/src/main/resources/openapi/documentation.yaml` | **handgepflegte** OpenAPI-3.1-Spezifikation, Quelle des Frontend-Clients |
 | `api/src/*.tsp` | TypeSpec-Beschreibung derselben API mit ausführlichen Verhaltenskommentaren; wird parallel gepflegt, aber nichts wird daraus generiert |
 | `frontend/` | React 18, Vite 6, TypeScript strikt, MUI 6, TanStack Router (code-basiert), hey-api-Client, i18next (de/en/da), Vitest |
 | `frontend/src/api/*.gen.ts` | generierter Client, eingecheckt, nie von Hand ändern |
 | `frontend/src/theme/` | MUI-Theme und Geltungsbereiche (`AdminThemeScope`, `LegacyThemeScope`), Kontrasthilfen (`readableColor`) |
+| `frontend/src/pages/material/`, `frontend/src/components/material/` | Materialvermietung: Anbieter-Dashboard (Anfragen, Zuteilung, Schäden, Einstellungen), Flotte, Verwaltung; Entscheidungslogik in `*Logic.ts`/`materialNumbers.ts`/`materialWorkplace.ts` mit Tests |
 | `frontend/src/components/ui/` | gemeinsame Seitenbausteine (`PageHeader`, `EmptyState`, `ErrorState`, `LoadingState`, Link-Varianten), Import über `@components/ui` |
 | `frontend/src/pwa/` | Helfer-App als PWA unter `/app/` (eigener Service Worker) |
 | `frontend/src/demo/` | Sprecher-Board-Demo und Livestream-Grafik-Galerie ohne Backend |
@@ -152,10 +153,18 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   - Zustände werden an genau einer Stelle abgeleitet: Laufzustand in `LiveDashboardLogic.deriveMatchState`,
     Ergebnisgruppierung in `RatingCategoryRanking.groupAndRank`, Aufstellung in
     `getActuallyParticipatingParticipants`, Zeitnahmeprofil in `TimingProfileResolveLogic`, Sequenzrechnung
-    in `TimingSequenceService.activeTiming`. Neue Oberflächen rufen diese Stellen, sie bauen keine Kopie.
+    in `TimingSequenceService.activeTiming`, wirksames Leihmaterial je Lauf-Team in der Sicht
+    `effective_material_for_match_team` (Ausnahme je Lauf vor Grundzuteilung, kleinste Stücknummer, höchstens ein
+    Stück; ADR-0111). Neue Oberflächen rufen diese Stellen, sie bauen keine Kopie.
   - Ein neuer Enum-Wert fällt still in jeden `else`-Zweig; vor dem Einführen alle `when`/`switch` auflisten.
   - Schreibt eine Mutation Daten, die öffentliche Anzeigen speisen, bumpt sie `EventChangeMarker`
-    (jede Sequenz-Mutation, Ergebnisse, Aktivierung, Slot-Änderungen); reine Konfiguration und Dry-Runs nicht.
+    (jede Sequenz-Mutation, Ergebnisse, Aktivierung, Slot-Änderungen, jede Material-Mutation, die eine
+    Anzeige ändert: Zuteilung, Entscheidung, Stück/Anbieter/Art/Angebot, Fixierung); reine Konfiguration,
+    Dry-Runs und die Schadensakte (keine Anzeige liest sie) nicht.
+  - Verschwindet eine Meldung, gibt sie ihre Materialanfragen vorher ausdrücklich frei
+    (`MaterialService.releaseRequestsOfRemovedRegistrations`: Sperre bei geschlossener Vergabe, Rückzugs-Mail,
+    Marker); der Waisen-Trigger auf `material_request` ist nur das Sicherheitsnetz (ADR-0109). Neue Löschwege
+    für Meldungen rufen die Freigabe.
   - Optionale Request-Felder mit Bedeutung: `null` heißt „unverändert", sonst setzt jedes PUT still zurück.
   - Schreiben zwei Oberflächen dieselbe Spalte, darf keine davon sie „aufräumen".
   - Externe Feeds werden ohne Redirect-Folge geholt (SSRF-Schutz).
@@ -196,6 +205,13 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   Nachbauten. Pfad-Aliase `@api/*`, `@components/*`, `@contexts/*`, `@utils/*`, `@routes` usw.
 - **Stil:** Prettier (`tabWidth 4`, keine Semikolons, `singleQuote`, `printWidth 100`). Klickbare
   Elemente bekommen `cursor-pointer`.
+- **Material-Oberflächen:** Das Anbieter-Dashboard lädt die Übersicht einmal und reicht sie an alle Reiter
+  (`useMaterialOverview`); Schreibaktionen prüft `useMaterialWrite` (GLOBAL überall, OWN beim eigenen Anbieter),
+  nach jeder Mutation lädt die Übersicht neu (`reloadGate` sperrt bis dahin). Zwei Zahlen nie vermischen:
+  „Meldungsnr. n“ (`teamNumberOf`, Grundzuteilung) und „Startnr. n“ (`startNumberInMatch`, je Lauf). Der
+  Veranstalter-Block „Materialvermietung“ ist ein Abschnitt der Einstellungen, kein eigener Bereich in
+  `eventSections.ts`. Lauftitel „Runde · Lauf“ in Material-Dialogen kommen aus `utils/roundMatchLabel.ts`
+  (keine Dopplung wie „Finale · Finale“).
 - **Sonderseiten:** Boards (`/board/$eventId/$boardId`), Stream-Szenen (`/event/$eventId/stream/$sceneId`,
   Browserquelle für Wirecast/OBS), Regie (`…/streamPanel`), Sprecher (`/speaker/…`), Helfer-App (`/app/…`).
 
@@ -271,7 +287,9 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
   Harte Kontrolle über eine Route mit `authenticate(...)`. Ohne Anmeldung liefert die API
   `registrationCount: 0`, auch in Produktion. Der System-Admin steht nicht in `app_user_with_roles`.
 - **Seeds** (`docs/superpowers/seeds/`, `docs/seeds/`): eigener UUID-Präfix je Seed, Cleanup-Block vorn,
-  Zeiten relativ zu `now()`, `applied_fingerprint` bei geseedeten Ergebnissen; Einspielen mit
+  Zeiten relativ zu `now()`, `applied_fingerprint` bei geseedeten Ergebnissen (Materialvermietung:
+  `docs/seeds/seed-material.sql`, Präfix `5eed0009`, setzt `seed-dm-coastal-2026.sql` und ein einmal
+  gestartetes Backend voraus); Einspielen mit
   `docker exec -i backend-db-1 psql -U developer -d ready2race -v ON_ERROR_STOP=1 < seed.sql`.
   Produktionsabzüge (`docs/seeds/seed-prod-*.sql`) enthalten Klarnamen und bleiben gitignored.
 - Rund 85 Wegwerf-Datenbanken `r2r_*` liegen auf 7653; ein `drop` ist unumkehrbar und passiert nur
@@ -338,4 +356,11 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 | Schiedsrichter-Dashboard (`liveDashboard`) | die mitlaufende Arbeitsansicht am Steg mit eigenem Recht `LIVE_DASHBOARD`; kein Board |
 | Stream-Szene | Livestream-Overlay als Browserquelle (`app/stream`), Server entscheidet „on air", Regie-Board mit Probemodus |
 | Helfer-App | PWA unter `/app/` für Scannen, Zeitnahme-Posten, Check-in; Scannen zuerst |
+| Materialvermietung | Vereine mieten Boote/Zubehör bei Anbietern (`app/material`); Meldung → Anfrage → Entscheidung → Zuteilung; keine Abrechnung, kein automatisches Nachrücken |
+| Anbieter (`material_provider`) | verleihende Organisation; Konten sind per Anbieter-Zuordnung verbunden und tragen die systemverwaltete Rolle „Materialanbieter“ (`…0040`, ADR-0110); OWN meint den eigenen Anbieter |
+| Materialart / Stück / Angebot | Art (Kategorie `BOAT` oder `OTHER`, Zubehör erscheint auf keiner Anzeige) / einzelnes Ding mit Nummer und Status / Art eines Anbieters je Veranstaltung mit Preis, geplanter Anzahl und Wechselzeit |
+| Anfrage (`material_request`) | Wunsch einer Meldung nach einem Angebot (`REQUESTED`, `CONFIRMED`, `WAITLISTED`, `DECLINED`, `WITHDRAWN`); ohne Fremdschlüssel auf die Meldung; Anbieter schließt die Vergabe mit „Vergabe geschlossen“ |
+| Zuteilung / Ausnahme je Lauf | Zuteilung ohne Lauf = Grundzuteilung der bestätigten Anfrage; mit Lauf = Ausnahme, die für diesen Lauf Vorrang hat (etwa Ersatz) |
+| Ausfall | Schaden mit Ausfallfenster (`material_damage`); wirkt nicht auf die Anzeigen, nur über eine Ausnahme je Lauf |
+| Meldungsnummer | `competition_registration.team_number`: je Wettkampf eindeutig, fest ab der Fixierung (Schalter „Meldungsnummern nach Bootsnummern vergeben“); mit ihr paart die Grundzuteilung. **Nicht** die Startnummer im Lauf (ADR-0111) |
 | RaceClocker | angebundener externer Zeitnahmedienst: Rennen als Zeitnahmeprofile, Ergebnis-Feed per Polling, Lauf-Team-ID in „Extra info", Bahn = Position nach Rank |

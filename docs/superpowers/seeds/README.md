@@ -28,6 +28,7 @@ liegen können, ohne sich zu stören:
 | `c4a1` | [`2026-08-06-seed-challenge.sql`](2026-08-06-seed-challenge.sql) | Challenge-Event für die Teilnahmeurkunden (G15, G16, G18, G22) |
 | `7e57` | [`2026-08-07-seed-schiedsrichter-testrennen.sql`](2026-08-07-seed-schiedsrichter-testrennen.sql) | Übungsrennen für die Schiedsrichter: Vorlauf setzen → durchführen → Progression ins Finale |
 | `71ed` | [`2026-08-30-seed-zeitnahme-livestream.sql`](2026-08-30-seed-zeitnahme-livestream.sql) | Interne Zeitnahme (Posten, Profile, Ton-Sätze, Startsequenzen, Marken, Zwischenzeiten) und Livestream-Szenen |
+| `5eed0009` | [`docs/seeds/seed-material.sql`](../../seeds/seed-material.sql) | Materialvermietung: zwei Anbieter, Flotte, Anfragen in allen Zuständen, Wettkämpfe M1 (mit Läufen), M2 (Meldeformular), M3 (ohne Angebot), Schaden, Board, Stream-Szene, Mein-Event-Code. Unterpräfix von `5eed` (der DM-Seed `docs/seeds/seed-dm-coastal-2026.sql` trägt Zeilen der `5eed000x`-Familien, u. a. `5eed0001`; er muss vorher eingespielt sein); Testkatalog `../specs/2026-11-14-materialvermietung-testkatalog.md` |
 
 Ein neuer Seed nimmt einen bisher unbenutzten Präfix und trägt sich hier ein.
 
