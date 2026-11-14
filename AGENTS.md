@@ -129,7 +129,7 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
 - **Transaktionen und Nachwirkungen:** `.transact()` aus `tailwind-kio-jooq`; Broadcasts und andere
   Effekte nach dem Commit über `calls/responses/AfterCommit.kt`.
 - **Routen:** `call.respondComprehension { val user = !authenticate(Privilege.X); val body = !receiveKIO(Req.example); Service.f(body, user.id!!) }`.
-  Hilfen in `calls/requests/Extensions.kt`: `authenticate`, `optionalAuthenticate`, `authenticateAny`,
+  Hilfen in `calls/requests/Extensions.kt`: `authenticate`, `optionalAuthenticate`, `authenticateAny`, `authenticateAll` (mehrere Privilegien zugleich),
   `pathParam`, `queryParam`, `pagination<S>()`, `checkCaptcha()`.
 - **Antworten:** `ApiResponse.NoData | Dto<T> | ETagged<T> | ListDto<T> | Page<T,S> | File | Created`.
   `ETagged` für sekündlich gepollte Endpunkte (304 via `If-None-Match`). Listen **immer** paginieren.
@@ -161,6 +161,9 @@ die `.tsp`-Dateien sind Dokumentation und Zweitbeschreibung, nicht die Quelle vo
     (jede Sequenz-Mutation, Ergebnisse, Aktivierung, Slot-Änderungen, jede Material-Mutation, die eine
     Anzeige ändert: Zuteilung, Entscheidung, Stück/Anbieter/Art/Angebot, Fixierung); reine Konfiguration,
     Dry-Runs und die Schadensakte (keine Anzeige liest sie) nicht.
+  - Das erneute Speichern der Meldung (`upsertRegistrationForEvent`) löscht und legt neu an; bestehende Meldungen behalten
+    Meldungsnummer, Namen und Anlagedaten über `ResaveCarryOver` (ADR-0109). Neue Spalten an `competition_registration`, die nicht aus
+    dem Formular kommen, gehören in den Schnappschuss.
   - Verschwindet eine Meldung, gibt sie ihre Materialanfragen vorher ausdrücklich frei
     (`MaterialService.releaseRequestsOfRemovedRegistrations`: Sperre bei geschlossener Vergabe, Rückzugs-Mail,
     Marker); der Waisen-Trigger auf `material_request` ist nur das Sicherheitsnetz (ADR-0109). Neue Löschwege
