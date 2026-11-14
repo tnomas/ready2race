@@ -6,14 +6,14 @@ type MyEventMaterialProps = {
     material: MyEventMaterialDto[]
 }
 
-// WITHDRAWN kommt vom Server nie an (siehe MyEventRepo.findMaterialRequestsForRegistrations -
-// zurückgezogene Anfragen werden dort schon herausgefiltert), die Zuordnung steht trotzdem
-// vollständig da, damit ein Statuswert nie ohne Farbe dasteht.
-const CHIP_COLOR: Record<MyEventMaterialDto['status'], 'default' | 'success' | 'warning' | 'error'> = {
+// Nur „bestätigt" ist farbig: Warteliste und Ablehnung sind Entscheidungen des Anbieters, kein
+// Alarm. WITHDRAWN kommt vom Server nie an (MyEventRepo.findMaterialRequestsForRegistrations
+// filtert zurückgezogene Anfragen), steht der Vollständigkeit halber trotzdem da.
+const CHIP_COLOR: Record<MyEventMaterialDto['status'], 'default' | 'success'> = {
     REQUESTED: 'default',
     CONFIRMED: 'success',
-    WAITLISTED: 'warning',
-    DECLINED: 'error',
+    WAITLISTED: 'default',
+    DECLINED: 'default',
     WITHDRAWN: 'default',
 }
 
@@ -57,13 +57,17 @@ export const MyEventMaterial = ({material}: MyEventMaterialProps) => {
                         alignItems="center"
                         flexWrap="wrap">
                         <Typography variant="body2" color="text.secondary">
-                            {t('myEvent.material.line', {
+                            {t('myEvent.material.lineProvider', {
                                 type: typeLabel,
-                                status: statusLabel,
                                 provider: item.providerName,
                             })}
                         </Typography>
-                        <Chip size="small" color={CHIP_COLOR[item.status]} label={statusLabel} />
+                        <Chip
+                            size="small"
+                            color={CHIP_COLOR[item.status]}
+                            variant={item.status === 'CONFIRMED' ? 'filled' : 'outlined'}
+                            label={statusLabel}
+                        />
                     </Stack>
                 )
             })}

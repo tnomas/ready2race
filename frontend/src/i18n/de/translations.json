@@ -4886,7 +4886,6 @@
     "deregistered": "Abgemeldet",
     "noMatches": "Für dich ist noch kein Lauf eingetragen.",
     "material": {
-      "line": "{{type}}: {{status}} bei {{provider}}",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "eigenes Boot",

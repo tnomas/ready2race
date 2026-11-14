@@ -1,6 +1,12 @@
 import {describe, expect, test} from 'vitest'
-import {buildChoices, choiceKind, selectedOfferIds} from './materialChoice.ts'
-import {EventRegistrationMaterialDemandDto} from '../../api'
+import {
+    buildChoices,
+    changesMaterial,
+    choiceKind,
+    materialSummaryLines,
+    selectedOfferIds,
+} from './materialChoice.ts'
+import {EventRegistrationMaterialDemandDto, MaterialRequestDto} from '../../api'
 
 const demand = (
     overrides: Partial<EventRegistrationMaterialDemandDto> = {},
@@ -161,5 +167,71 @@ describe('choiceKind', () => {
                 selectedOfferId: 'o1',
             }),
         ).toBe('rent')
+    })
+})
+
+const existingRequest = (overrides: Partial<MaterialRequestDto> = {}): MaterialRequestDto => ({
+    id: 'r1',
+    competitionRegistration: 'cr1',
+    materialOffer: 'o1',
+    materialType: 't1',
+    materialTypeName: 'C4x+',
+    category: 'BOAT',
+    providerId: 'p',
+    providerName: 'Nord',
+    count: 1,
+    status: 'CONFIRMED',
+    requestedAt: '2026-09-01T10:00:00Z',
+    ...overrides,
+})
+
+describe('materialSummaryLines', () => {
+    test('neue Wahl ohne bestehende Anfrage ist „neu"', () => {
+        const [line] = materialSummaryLines([demand()], ['o1'], [])
+        expect(line).toMatchObject({change: 'new', providerName: 'Nord', typeName: 'C4x+'})
+        expect(changesMaterial([line])).toBe(true)
+    })
+
+    test('unveränderte Wahl behält die Anfrage samt Status', () => {
+        const [line] = materialSummaryLines([demand()], ['o1'], [existingRequest()])
+        expect(line).toMatchObject({change: 'keep', status: 'CONFIRMED'})
+        expect(changesMaterial([line])).toBe(false)
+    })
+
+    test('abgewählte aktive Anfrage wird zurückgezogen', () => {
+        const [line] = materialSummaryLines(
+            [demand()],
+            [],
+            [existingRequest({status: 'WAITLISTED'})],
+        )
+        expect(line).toMatchObject({change: 'withdraw', status: 'WAITLISTED', providerName: 'Nord'})
+    })
+
+    test('erledigte Anfragen zählen nicht als bestehend', () => {
+        const [line] = materialSummaryLines([demand()], [], [existingRequest({status: 'DECLINED'})])
+        expect(line.change).toBe('none')
+        const [again] = materialSummaryLines(
+            [demand()],
+            ['o1'],
+            [existingRequest({status: 'WITHDRAWN'})],
+        )
+        expect(again.change).toBe('new')
+    })
+
+    test('Wechsel des Anbieters ist eine neue Anfrage', () => {
+        const twoOffers = demand({
+            offers: [
+                ...demand().offers,
+                {
+                    offerId: 'o2',
+                    providerId: 'p2',
+                    providerName: 'Süd',
+                    capacity: 'YELLOW',
+                    requestsClosed: false,
+                },
+            ],
+        })
+        const [line] = materialSummaryLines([twoOffers], ['o2'], [existingRequest()])
+        expect(line).toMatchObject({change: 'new', providerName: 'Süd'})
     })
 })

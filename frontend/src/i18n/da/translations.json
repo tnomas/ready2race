@@ -4886,7 +4886,6 @@
     "deregistered": "Afmeldt",
     "noMatches": "Der er endnu ikke planlagt noget løb for dig.",
     "material": {
-      "line": "{{type}}: {{status}} hos {{provider}}",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "egen båd",

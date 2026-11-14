@@ -4886,7 +4886,6 @@
     "deregistered": "Withdrawn",
     "noMatches": "No race has been scheduled for you yet.",
     "material": {
-      "line": "{{type}}: {{status}} from {{provider}}",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "own boat",

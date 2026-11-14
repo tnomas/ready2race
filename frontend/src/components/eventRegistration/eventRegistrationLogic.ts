@@ -8,6 +8,7 @@ import type {
     EventRegistrationFormData,
     EventRegistrationParticipantFormData,
 } from '../../pages/eventRegistration/EventRegistrationCreatePage.tsx'
+import {materialSummaryLines, MaterialSummaryLine} from './materialChoice.ts'
 
 /**
  * Reine Regeln des Meldeformulars (Verein meldet Teilnehmende zu Wettkämpfen): Schrittfolge,
@@ -133,6 +134,11 @@ export type RegistrationSummaryEntry = {
     locked: boolean
     amount: number
     optionalFeeLabels: string[]
+    /**
+     * Material je Bedarf des Wettkampfs mit der Wirkung des Absendens (neu, behalten,
+     * zurückziehen). Leer bei gesperrten Einträgen – die gehen nicht mit.
+     */
+    material: MaterialSummaryLine[]
 }
 
 export type RegistrationSummaryCompetition = {
@@ -195,6 +201,13 @@ export const buildRegistrationSummary = (
                 locked: single.locked,
                 amount: competitionEntryAmount(competition, single.optionalFees ?? [], late),
                 optionalFeeLabels: optionalFeeLabels(competition, single.optionalFees),
+                material: single.locked
+                    ? []
+                    : materialSummaryLines(
+                          competition.materialDemands ?? [],
+                          single.materialOfferIds ?? [],
+                          single.materialRequests,
+                      ),
             })
             count(single.locked)
         }
@@ -219,6 +232,13 @@ export const buildRegistrationSummary = (
                 locked: team.locked,
                 amount: competitionEntryAmount(competition, team.optionalFees ?? [], late),
                 optionalFeeLabels: optionalFeeLabels(competition, team.optionalFees),
+                material: team.locked
+                    ? []
+                    : materialSummaryLines(
+                          competition.materialDemands ?? [],
+                          team.materialOfferIds ?? [],
+                          team.materialRequests,
+                      ),
             }
         })
         if (entries.length > 0) competitions.push({competition, kind: 'team', entries})

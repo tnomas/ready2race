@@ -21,7 +21,7 @@ import EventRegistrationForm from '../../components/eventRegistration/EventRegis
 import EventRegistrationProvider from '@contexts/eventRegistration/EventRegistrationProvider.tsx'
 import {useBlocker, useNavigate} from '@tanstack/react-router'
 import {Alert, Box, Button, Stack} from '@mui/material'
-import {runRequest} from '@utils/request.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {shouldConfirmDiscard, shouldConfirmLeaving} from '@utils/entityDialog.ts'
 import {readSessionToken} from '@contexts/user/sessionToken.ts'
@@ -84,6 +84,8 @@ const sameOfferIds = (a: string[], b: string[]): boolean => {
     return sortedA.every((id, index) => id === sortedB[index])
 }
 
+type MaterialSyncFailure = {competitionName: string; network: boolean}
+
 const formDataToRequest = (formData: EventRegistrationFormData): EventRegistrationUpsertDto => ({
     participants: formData.participants.map(p => ({
         ...p,
@@ -128,6 +130,8 @@ const EventRegistrationCreatePage = () => {
     const submittingRef = useRef(false)
     const [submitError, setSubmitError] = useState<string | null>(null)
     const [submittedSummary, setSubmittedSummary] = useState<RegistrationSummary | null>(null)
+    // Wettkämpfe, deren Materialwahl nach dem Speichern der Meldung nicht übernommen wurde.
+    const [materialFailures, setMaterialFailures] = useState<MaterialSyncFailure[]>([])
     const confirmation = useConfirmation()
     const {eventId} = eventRegisterRoute.useParams()
 
@@ -167,12 +171,19 @@ const EventRegistrationCreatePage = () => {
         } else {
             // Die Anmeldung ist gespeichert; die Material-Anfragen hängen an ihren Meldungs-IDs
             // und werden erst danach geschrieben (Fehler melden sich je Meldung einzeln).
-            setSubmitting(true)
+            let failures: MaterialSyncFailure[] = []
             try {
-                await syncMaterialRequests(values)
+                failures = await syncMaterialRequests(values)
             } finally {
-                setSubmitting(false)
                 submittingRef.current = false
+            }
+            setMaterialFailures(failures)
+            if (failures.length > 0) {
+                feedback.error(
+                    failures.some(f => f.network)
+                        ? t('common.error.network')
+                        : t('material.registration.errorSummary', {count: failures.length}),
+                )
             }
             setSubmittedSummary(buildRegistrationSummary(values, data?.info ?? null))
             setRegistrationWasSuccessful(true)
@@ -209,11 +220,13 @@ const EventRegistrationCreatePage = () => {
 
     /**
      * Schreibt je Meldung die gewählten Material-Angebote fest, wenn sie sich gegenüber dem
-     * Template geändert haben. Ein Fehlschlag bei einer Meldung meldet sich einzeln mit
-     * Wettkampfname und unterbricht die anderen nicht - die Anmeldung selbst ist zu diesem
-     * Zeitpunkt schon gespeichert.
+     * Template geändert haben. Fehlschläge unterbrechen die anderen Meldungen nicht und kommen
+     * gesammelt zurück (Wettkampf, Netzfehler ja/nein); die Erfolgsseite listet sie, weil die
+     * Anmeldung selbst zu diesem Zeitpunkt schon gespeichert ist.
      */
-    const syncMaterialRequests = async (formData: EventRegistrationFormData) => {
+    const syncMaterialRequests = async (
+        formData: EventRegistrationFormData,
+    ): Promise<MaterialSyncFailure[]> => {
         const requests: {registrationId: string; competitionName: string; offerIds: string[]}[] = []
 
         formData.competitionRegistrations.forEach(r => {
@@ -245,27 +258,32 @@ const EventRegistrationCreatePage = () => {
                 })
         })
 
-        await Promise.all(
-            requests
-                .filter(
-                    r =>
-                        !sameOfferIds(
-                            templateMaterialOfferIds.get(r.registrationId) ?? [],
-                            r.offerIds,
-                        ),
-                )
-                .map(async r => {
-                    const {error} = await setMaterialRequests({
-                        path: {eventId: eventId, competitionRegistrationId: r.registrationId},
-                        body: {offerIds: r.offerIds},
-                    })
-                    if (error) {
-                        feedback.error(
-                            t('material.registration.error', {competition: r.competitionName}),
-                        )
-                    }
-                }),
+        const changed = requests.filter(
+            r => !sameOfferIds(templateMaterialOfferIds.get(r.registrationId) ?? [], r.offerIds),
         )
+        if (changed.length === 0) return []
+
+        // Die Sperre hält, bis alle Anfragen geschrieben sind; Netzfehler kommen als Ergebnis
+        // zurück (runRequest), nicht als Ausnahme, und brechen die übrigen Meldungen nicht ab.
+        const results = await runRequest(setSubmitting, () =>
+            Promise.all(
+                changed.map(async r => {
+                    const {error} = await runRequest(undefined, () =>
+                        setMaterialRequests({
+                            path: {eventId: eventId, competitionRegistrationId: r.registrationId},
+                            body: {offerIds: r.offerIds},
+                        }),
+                    )
+                    return {r, error}
+                }),
+            ).then(data => ({data})),
+        )
+        return (results.data ?? [])
+            .filter(({error}) => error !== undefined)
+            .map(({r, error}) => ({
+                competitionName: r.competitionName,
+                network: isRequestNetworkError(error),
+            }))
     }
 
     // Ungespeicherte Eingaben: Verlassen (Link, Zurück, Neuladen) fragt nach, wie in den Dialogen.
@@ -413,31 +431,43 @@ const EventRegistrationCreatePage = () => {
                             .filter(Boolean)
                             .join(' ')}
                         extra={
-                            // Zwei Wege statt einer Sackgasse. „Ansehen und bearbeiten" führt zurück in
-                            // dieses Formular, frisch vom Server geladen: Es ist der Ort, an dem ein
-                            // Verein seine Meldung sieht und ändert (die Meldungsliste der
-                            // Veranstaltung ist der Veranstaltung vorbehalten).
-                            <Stack
-                                direction={{xs: 'column', sm: 'row'}}
-                                spacing={1}
-                                sx={{mt: 1}}
-                                justifyContent={'center'}>
-                                <ButtonLink
-                                    to={'/event/$eventId'}
-                                    params={{eventId}}
-                                    variant={'contained'}>
-                                    {t('event.registration.success.toEvent')}
-                                </ButtonLink>
-                                <Button
-                                    variant={'outlined'}
-                                    sx={{cursor: 'pointer'}}
-                                    onClick={() => {
-                                        reload()
-                                        setSubmittedSummary(null)
-                                        setRegistrationWasSuccessful(false)
-                                    }}>
-                                    {t('event.registration.success.editRegistration')}
-                                </Button>
+                            <Stack spacing={2} alignItems={'center'}>
+                                {materialFailures.length > 0 && (
+                                    <Alert severity={'warning'} sx={{textAlign: 'left'}}>
+                                        {t('material.registration.errorAfterSave', {
+                                            competitions: materialFailures
+                                                .map(f => f.competitionName)
+                                                .join(', '),
+                                        })}
+                                    </Alert>
+                                )}
+                                {/* Zwei Wege statt einer Sackgasse. „Ansehen und bearbeiten" führt zurück in
+                                dieses Formular, frisch vom Server geladen: Es ist der Ort, an dem ein
+                                Verein seine Meldung sieht und ändert (die Meldungsliste der
+                                Veranstaltung ist der Veranstaltung vorbehalten). */}
+                                <Stack
+                                    direction={{xs: 'column', sm: 'row'}}
+                                    spacing={1}
+                                    sx={{mt: 1}}
+                                    justifyContent={'center'}>
+                                    <ButtonLink
+                                        to={'/event/$eventId'}
+                                        params={{eventId}}
+                                        variant={'contained'}>
+                                        {t('event.registration.success.toEvent')}
+                                    </ButtonLink>
+                                    <Button
+                                        variant={'outlined'}
+                                        sx={{cursor: 'pointer'}}
+                                        onClick={() => {
+                                            reload()
+                                            setSubmittedSummary(null)
+                                            setMaterialFailures([])
+                                            setRegistrationWasSuccessful(false)
+                                        }}>
+                                        {t('event.registration.success.editRegistration')}
+                                    </Button>
+                                </Stack>
                             </Stack>
                         }
                     />

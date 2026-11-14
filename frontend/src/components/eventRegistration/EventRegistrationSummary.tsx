@@ -2,6 +2,48 @@ import {Alert, Box, Chip, Divider, Paper, Stack, Typography} from '@mui/material
 import {Lock} from '@mui/icons-material'
 import {useTranslation} from 'react-i18next'
 import {RegistrationSummary, formatAmount} from './eventRegistrationLogic.ts'
+import {MaterialSummaryLine} from './materialChoice.ts'
+
+/**
+ * Eine Materialzeile der Prüfseite: was gewählt ist und was das Absenden damit tut. Nur
+ * „neu" und „zurückziehen" sind hervorgehoben, „behalten" und „eigenes Boot" bleiben ruhig.
+ */
+const MaterialLine = ({line}: {line: MaterialSummaryLine}) => {
+    const {t} = useTranslation()
+    const own = t(
+        line.category === 'BOAT'
+            ? 'material.registration.ownBoat'
+            : 'material.registration.ownMaterial',
+    )
+    const what =
+        line.change === 'none'
+            ? own
+            : line.change === 'withdraw'
+              ? t('material.registration.review.withdraw', {provider: line.providerName})
+              : t('material.registration.rentFrom', {provider: line.providerName})
+    return (
+        <Stack direction={'row'} spacing={1} alignItems={'center'} flexWrap={'wrap'} useFlexGap>
+            <Typography variant={'body2'} color={'text.secondary'}>
+                {line.typeName}: {what}
+            </Typography>
+            {line.change === 'new' && (
+                <Chip
+                    size={'small'}
+                    color={'primary'}
+                    variant={'outlined'}
+                    label={t('material.registration.review.new')}
+                />
+            )}
+            {line.change === 'keep' && line.status && (
+                <Chip
+                    size={'small'}
+                    variant={'outlined'}
+                    label={t(`material.registration.status.${line.status}`)}
+                />
+            )}
+        </Stack>
+    )
+}
 
 /**
  * Prüfansicht vor dem Absenden: wer zu welchem Wettkampf gemeldet ist, was es kostet und welche
@@ -96,6 +138,9 @@ export const EventRegistrationSummary = ({
                                                     </Typography>
                                                 )}
                                             </Stack>
+                                            {entry.material.map(line => (
+                                                <MaterialLine key={line.materialType} line={line} />
+                                            ))}
                                         </Box>
                                     ))}
                                 </Stack>
@@ -126,6 +171,9 @@ export const EventRegistrationSummary = ({
                     )}
                 </Paper>
             )}
+            {summary.competitions.some(c =>
+                c.entries.some(e => e.material.some(l => l.change === 'new')),
+            ) && <Alert severity={'info'}>{t('material.registration.review.afterSubmit')}</Alert>}
             {(summary.newParticipants.length > 0 || summary.changedParticipants.length > 0) && (
                 <Alert severity={'info'}>
                     {summary.newParticipants.length > 0 && (

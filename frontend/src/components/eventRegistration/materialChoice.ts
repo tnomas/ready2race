@@ -2,7 +2,25 @@ import {
     EventRegistrationMaterialDemandDto,
     EventRegistrationMaterialOfferDto,
     MaterialCategory,
+    MaterialRequestDto,
+    MaterialRequestStatus,
 } from '../../api'
+
+/**
+ * Anfragen in diesen Zuständen bestehen noch: sie werden beim Absenden beibehalten, und eine
+ * Vergabesperre blockiert nur neue Anfragen, nicht das Beibehalten.
+ */
+export const ACTIVE_REQUEST_STATUSES: readonly MaterialRequestStatus[] = [
+    'REQUESTED',
+    'CONFIRMED',
+    'WAITLISTED',
+]
+
+export const activeRequestFor = (
+    existing: readonly MaterialRequestDto[] | undefined,
+    offerId: string,
+): MaterialRequestDto | undefined =>
+    existing?.find(r => r.materialOffer === offerId && ACTIVE_REQUEST_STATUSES.includes(r.status))
 
 /**
  * Eine Zeile im Material-Abschnitt des Anmeldeformulars: der Bedarf einer Materialart am
@@ -56,3 +74,66 @@ export const choiceKind = (choice: MaterialDemandChoice): 'own' | 'rent' | 'noOf
     if (choice.offers.length === 0) return 'noOffer'
     return choice.selectedOfferId === null ? 'own' : 'rent'
 }
+
+/**
+ * Was mit einer Materialzeile beim Absenden passiert: neu anfragen, bestehende Anfrage behalten,
+ * bestehende Anfrage zurückziehen, oder nichts (eigenes Boot, keine Anfrage vorher).
+ */
+export type MaterialChange = 'new' | 'keep' | 'withdraw' | 'none'
+
+export type MaterialSummaryLine = {
+    materialType: string
+    typeName: string
+    category: MaterialCategory
+    count: number
+    /** Anbieter der gewählten Anfrage; bei „zurückziehen" der bisherige Anbieter. */
+    providerName?: string
+    change: MaterialChange
+    /** Stand der bestehenden Anfrage (bei „behalten" und „zurückziehen"). */
+    status?: MaterialRequestStatus
+}
+
+/**
+ * Die Materialzeilen einer Meldung für die Prüfseite: je Bedarf, was gewählt ist und was das
+ * Absenden daraus macht. Vergleichsbasis sind die bestehenden, noch aktiven Anfragen aus dem
+ * Template der Meldung.
+ */
+export const materialSummaryLines = (
+    demands: readonly EventRegistrationMaterialDemandDto[],
+    selectedOfferIds: readonly string[],
+    existing: readonly MaterialRequestDto[] | undefined,
+): MaterialSummaryLine[] =>
+    demands.map(demand => {
+        const selected = demand.offers.find(o => selectedOfferIds.includes(o.offerId))
+        const previous = demand.offers
+            .map(o => activeRequestFor(existing, o.offerId))
+            .find(r => r !== undefined)
+        const base = {
+            materialType: demand.materialType,
+            typeName: demand.name,
+            category: demand.category,
+            count: demand.count,
+        }
+        if (selected) {
+            const kept = previous?.materialOffer === selected.offerId
+            return {
+                ...base,
+                providerName: selected.providerName,
+                change: kept ? 'keep' : 'new',
+                status: kept ? previous?.status : undefined,
+            }
+        }
+        if (previous) {
+            return {
+                ...base,
+                providerName: previous.providerName,
+                change: 'withdraw',
+                status: previous.status,
+            }
+        }
+        return {...base, change: 'none'}
+    })
+
+/** Ob eine Meldung beim Absenden Materialanfragen ändert (neu oder zurückgezogen). */
+export const changesMaterial = (lines: readonly MaterialSummaryLine[]): boolean =>
+    lines.some(line => line.change === 'new' || line.change === 'withdraw')
