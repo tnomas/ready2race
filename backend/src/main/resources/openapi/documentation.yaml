@@ -13267,6 +13267,8 @@ components:
         - MATERIAL_ITEM_NUMBER_TAKEN
         - MATERIAL_OFFER_TYPE_TAKEN
         - MATERIAL_PHOTO_TOO_LARGE
+        - MATERIAL_PHOTO_INVALID_TYPE
+        - MATERIAL_PROVIDER_HAS_USERS
 
     Gender:
       type: string

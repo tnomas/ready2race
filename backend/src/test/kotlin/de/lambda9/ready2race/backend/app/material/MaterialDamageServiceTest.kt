@@ -254,7 +254,10 @@ class MaterialDamageServiceTest {
         val s = setupScenario()
         val damageId = (!MaterialService.addDamage(s.providerId, damageRequest(s), s.userId) as ApiResponse.Created).id
 
-        !MaterialService.addPhotos(s.providerId, damageId, listOf(File("riss.jpg", byteArrayOf(1, 2, 3))))
+        // Echte JPEG-Signatur: seit der Formatprüfung (MaterialPhotoType) weist der Dienst
+        // beliebige Bytes ab.
+        val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 1, 2, 3)
+        !MaterialService.addPhotos(s.providerId, damageId, listOf(File("riss.jpg", jpeg)))
 
         val result = (!MaterialService.getDamage(s.providerId, damageId)).dto
         val photo = result.photos.single()
@@ -263,7 +266,7 @@ class MaterialDamageServiceTest {
 
         val downloaded = !MaterialService.getPhoto(s.providerId, photo.id) as ApiResponse.File
         assertEquals("riss.jpg", downloaded.name)
-        assertTrue(byteArrayOf(1, 2, 3).contentEquals(downloaded.bytes))
+        assertTrue(jpeg.contentEquals(downloaded.bytes))
 
         !MaterialService.deletePhoto(s.providerId, photo.id)
         assertKIOFails(MaterialError.PhotoNotFound) {

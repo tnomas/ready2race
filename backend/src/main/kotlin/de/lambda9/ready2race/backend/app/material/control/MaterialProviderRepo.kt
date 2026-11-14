@@ -5,6 +5,7 @@ import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.exists
 import de.lambda9.ready2race.backend.database.generated.tables.MaterialProvider
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialProviderRecord
+import de.lambda9.ready2race.backend.database.generated.tables.references.APP_USER
 import de.lambda9.ready2race.backend.database.generated.tables.references.EVENT_HAS_MATERIAL_PROVIDER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ITEM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_PROVIDER
@@ -43,6 +44,14 @@ object MaterialProviderRepo {
     /** Verhindert das Löschen eines Anbieters, der noch Stücke im Bestand hat. */
     fun hasItems(id: UUID): JIO<Boolean> = Jooq.query {
         fetchExists(MATERIAL_ITEM, MATERIAL_ITEM.MATERIAL_PROVIDER.eq(id))
+    }
+
+    /**
+     * Verhindert das Löschen eines Anbieters, dem noch Konten zugeordnet sind - `on delete set
+     * null` ließe an ihnen die Materialanbieter-Rolle ohne Anbieter stehen.
+     */
+    fun hasUsers(id: UUID): JIO<Boolean> = Jooq.query {
+        fetchExists(APP_USER, APP_USER.MATERIAL_PROVIDER.eq(id))
     }
 
     /** Verhindert das Löschen eines Anbieters, der noch zu einer Veranstaltung eingeladen ist. */

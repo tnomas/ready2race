@@ -23,15 +23,12 @@ import de.lambda9.ready2race.backend.calls.requests.optionalQueryParam
 import de.lambda9.ready2race.backend.calls.requests.pagination
 import de.lambda9.ready2race.backend.calls.requests.pathParam
 import de.lambda9.ready2race.backend.calls.requests.receiveKIO
+import de.lambda9.ready2race.backend.calls.requests.receiveUploads
 import de.lambda9.ready2race.backend.calls.responses.respondComprehension
 import de.lambda9.ready2race.backend.database.generated.tables.records.AppUserWithPrivilegesRecord
-import de.lambda9.ready2race.backend.file.File
 import de.lambda9.ready2race.backend.parsing.Parser.Companion.uuid
 import de.lambda9.tailwind.core.KIO
-import io.ktor.http.content.PartData
-import io.ktor.server.request.receiveMultipart
 import io.ktor.server.routing.Route
-import io.ktor.utils.io.*
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -210,32 +207,17 @@ fun Route.material() {
                         }
                     }
 
-                    // Multipart-Route nach dem Muster aus `eventDocument.kt`: `receiveMultipart`
-                    // muss außerhalb von `respondComprehension` laufen, sonst verletzt das
-                    // Auslesen der Teile die Flow-Invariante von Ktor (siehe dort).
+                    // Erst anmelden und die Zuständigkeit prüfen, dann lesen (`receiveUploads`):
+                    // sonst landet der Körper eines anonymen oder fremden Aufrufers komplett im
+                    // Speicher, bevor er abgewiesen wird.
                     post("/photo") {
-                        val multiPartData = call.receiveMultipart()
-                        val uploads = mutableListOf<File>()
-
-                        var done = false
-                        while (!done) {
-                            val part = multiPartData.readPart()
-                            if (part == null) {
-                                done = true
-                            } else {
-                                if (part is PartData.FileItem) {
-                                    uploads.add(File(part.originalFileName ?: "foto", part.provider().toByteArray()))
-                                }
-                                part.dispose()
-                            }
-                        }
-
                         call.respondComprehension {
                             val (user, scope) = !authenticate(Privilege.Action.UPDATE, Privilege.Resource.MATERIAL)
                             val providerId = !pathParam("providerId", uuid)
                             !ownProviderCheck(user, scope, providerId)
                             val damageId = !pathParam("damageId", uuid)
-                            MaterialService.addPhotos(providerId, damageId, uploads)
+                            val upload = !receiveUploads(maxFiles = MATERIAL_PHOTOS_PER_UPLOAD)
+                            MaterialService.addPhotos(providerId, damageId, upload.files)
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.app.material.boundary
 
 import de.lambda9.ready2race.backend.app.App
+import de.lambda9.ready2race.backend.app.appuser.control.AppUserRepo
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
 import de.lambda9.ready2race.backend.app.club.control.ClubRepo
 import de.lambda9.ready2race.backend.app.competition.control.CompetitionRepo
@@ -48,7 +49,6 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeSort
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse
 import de.lambda9.ready2race.backend.calls.responses.ApiResponse.Companion.noData
-import de.lambda9.ready2race.backend.calls.responses.contentTypeForFileName
 import de.lambda9.ready2race.backend.calls.responses.createdResponse
 import de.lambda9.ready2race.backend.calls.responses.pageResponse
 import de.lambda9.ready2race.backend.csv.CSV
@@ -73,6 +73,9 @@ import java.util.UUID
 
 /** Maximale Größe je hochgeladenem Schadensfoto (Spec Abschnitt 10). */
 const val MATERIAL_PHOTO_MAX_BYTES = 10L * 1024 * 1024
+
+/** Höchstzahl Fotos je Upload-Anfrage - der Schadensdialog lädt mehrere auf einmal hoch. */
+const val MATERIAL_PHOTOS_PER_UPLOAD = 20
 
 /**
  * Die Materialvermietung: Anbieter, Materialarten, Bestand, Einladungen und Angebote je
@@ -151,6 +154,11 @@ object MaterialService {
         !KIO.failOn(hasItems) { MaterialError.ProviderInUse }
         val hasInvitations = !MaterialProviderRepo.hasEventInvitations(id).orDie()
         !KIO.failOn(hasInvitations) { MaterialError.ProviderInUse }
+        // Abweisen statt die Rolle hier zu entziehen: die Zuordnung (und damit die Rolle) ändert
+        // nur die Nutzerverwaltung, wo die Vergaberegeln greifen (UPDATE STAFF GLOBAL usw.) -
+        // dieses Löschen verlangt nur UPDATE MATERIAL GLOBAL.
+        val hasUsers = !MaterialProviderRepo.hasUsers(id).orDie()
+        !KIO.failOn(hasUsers) { MaterialError.ProviderHasUsers }
 
         val deleted = !MaterialProviderRepo.delete(id).orDie()
         if (deleted < 1) {
@@ -311,6 +319,8 @@ object MaterialService {
         userId: UUID,
     ): App<MaterialError, ApiResponse.NoData> = KIO.comprehension {
         !checkEventExisting(eventId)
+        // Sonst schlägt erst der Fremdschlüssel zu - als 500 statt als 404.
+        !MaterialProviderRepo.get(providerId).orDie().onNullFail { MaterialError.ProviderNotFound }
 
         val alreadyInvited = !EventHasMaterialProviderRepo.exists(eventId, providerId).orDie()
         if (!alreadyInvited) {
@@ -586,8 +596,9 @@ object MaterialService {
     }
 
     /**
-     * Anbieter haben kein eigenes Sprachfeld (anders als App-Nutzer über `app_user.language`) -
-     * Deutsch ist die einzige Sprache, die für sie bislang vorgesehen ist.
+     * Die Mail geht an die Kontaktadresse des Anbieters. Der Anbieter selbst hat kein Sprachfeld;
+     * gehört die Adresse aber zu einem Konto, gilt dessen Sprache (`app_user.language`, wie bei
+     * allen anderen Mails), sonst Deutsch als Vorgabe ([EmailLanguage.fromStored]).
      */
     private fun notifyProviderOfWithdrawal(
         competitionId: UUID,
@@ -611,10 +622,10 @@ object MaterialService {
                 val event = !EventRepo.get(eventId).orDie()
                 val competition = !CompetitionRepo.getById(competitionId).orDie()
 
-                // TODO: fest auf Deutsch, weil material_provider noch kein Sprachfeld hat.
+                val recipientAccount = !AppUserRepo.getByEmail(email).orDie()
                 val content = !EmailService.getTemplate(
                     EmailTemplateKey.MATERIAL_REQUEST_WITHDRAWN,
-                    EmailLanguage.DE,
+                    EmailLanguage.fromStored(recipientAccount?.language),
                 ).map { template ->
                     template.toContent(
                         EmailTemplatePlaceholder.CLUB to (club ?: "-"),
@@ -936,7 +947,12 @@ object MaterialService {
         noData
     }
 
-    /** Jede Datei einzeln gegen [MATERIAL_PHOTO_MAX_BYTES] geprüft, bevor überhaupt geschrieben wird. */
+    /**
+     * Jede Datei einzeln gegen [MATERIAL_PHOTO_MAX_BYTES] und auf ein erlaubtes Bildformat
+     * ([MaterialPhotoType], an den Bytes erkannt) geprüft, bevor überhaupt geschrieben wird. Die
+     * Fotos liegen als Bytes in `material_damage_photo_data` und gehen nur über [getPhoto] wieder
+     * hinaus - mit derselben OWN-Prüfung wie die Schadensakte und als Anhang, nie eingebettet.
+     */
     fun addPhotos(
         providerId: UUID,
         damageId: UUID,
@@ -945,17 +961,20 @@ object MaterialService {
         !damageOfProvider(providerId, damageId)
 
         !uploads.traverse { upload -> KIO.failOn(upload.bytes.size.toLong() > MATERIAL_PHOTO_MAX_BYTES) { MaterialError.PhotoTooLarge } }
+        val typed = !uploads.traverse { upload ->
+            KIO.failOnNull(MaterialPhotoType.detect(upload.bytes)) { MaterialError.PhotoInvalidType }.map { upload to it }
+        }
 
         val now = LocalDateTime.now()
-        !uploads.traverse { upload ->
+        !typed.traverse { (upload, contentType) ->
             KIO.comprehension {
                 val id = UUID.randomUUID()
                 !MaterialDamagePhotoRepo.create(
                     MaterialDamagePhotoRecord(
                         id = id,
                         materialDamage = damageId,
-                        name = upload.name,
-                        contentType = contentTypeForFileName(upload.name).toString(),
+                        name = MaterialPhotoType.normalizedName(upload.name, contentType),
+                        contentType = contentType,
                         createdAt = now,
                     )
                 ).orDie()

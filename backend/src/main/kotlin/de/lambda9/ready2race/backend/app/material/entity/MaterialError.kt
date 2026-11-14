@@ -13,6 +13,12 @@ sealed interface MaterialError : ServiceError {
     /** Anbieter mit Stücken oder Einladungen zu Veranstaltungen kann nicht gelöscht werden. */
     data object ProviderInUse : MaterialError
 
+    /**
+     * Dem Anbieter sind noch Konten zugeordnet - erst die Zuordnung über die Nutzerverwaltung
+     * lösen (dort greifen die Vergaberegeln für die Materialanbieter-Rolle), dann löschen.
+     */
+    data object ProviderHasUsers : MaterialError
+
     data object TypeNotFound : MaterialError
     data object TypeNameTaken : MaterialError
 
@@ -74,6 +80,9 @@ sealed interface MaterialError : ServiceError {
     /** Ein einzelnes Foto überschreitet MATERIAL_PHOTO_MAX_BYTES. */
     data object PhotoTooLarge : MaterialError
 
+    /** Die Datei ist keines der erlaubten Bildformate (JPEG, PNG, WebP, GIF, HEIC/HEIF). */
+    data object PhotoInvalidType : MaterialError
+
     /** Ausfallende liegt vor Ausfallbeginn. */
     data object InvalidOutageWindow : MaterialError
 
@@ -85,6 +94,11 @@ sealed interface MaterialError : ServiceError {
             errorCode = ErrorCode.MATERIAL_PROVIDER_NAME_TAKEN,
         )
         ProviderInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider is in use")
+        ProviderHasUsers -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material provider still has assigned users",
+            errorCode = ErrorCode.MATERIAL_PROVIDER_HAS_USERS,
+        )
 
         TypeNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material type not found")
         TypeNameTaken -> ApiError(
@@ -129,6 +143,11 @@ sealed interface MaterialError : ServiceError {
             status = HttpStatusCode.BadRequest,
             message = "Material damage photo is too large",
             errorCode = ErrorCode.MATERIAL_PHOTO_TOO_LARGE,
+        )
+        PhotoInvalidType -> ApiError(
+            status = HttpStatusCode.UnsupportedMediaType,
+            message = "Material damage photo must be a JPEG, PNG, WebP, GIF or HEIC image",
+            errorCode = ErrorCode.MATERIAL_PHOTO_INVALID_TYPE,
         )
         InvalidOutageWindow -> ApiError(status = HttpStatusCode.BadRequest, message = "Outage window end lies before its start")
     }
