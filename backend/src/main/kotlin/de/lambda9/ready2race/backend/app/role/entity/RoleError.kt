@@ -12,6 +12,7 @@ sealed interface RoleError : ServiceError {
     data object NotFound : RoleError
     data object JobRequired : RoleError
     data object JobUnknown : RoleError
+    data object JobNotCopyable : RoleError
     data object SelfAssignment : RoleError
     data class PrivilegeUnknown(val privileges: List<UUID>) : RoleError
     data class PrivilegesBeyondOwn(val privileges: List<UUID>) : RoleError
@@ -26,6 +27,10 @@ sealed interface RoleError : ServiceError {
             message = "A role is created as copy of a job; job is required",
         )
         JobUnknown -> ApiError(status = HttpStatusCode.BadRequest, message = "Unknown job")
+        JobNotCopyable -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "This job is assigned by the system and cannot be copied into a role",
+        )
         SelfAssignment -> ApiError(
             status = HttpStatusCode.Forbidden,
             message = "Nobody changes their own role assignments",

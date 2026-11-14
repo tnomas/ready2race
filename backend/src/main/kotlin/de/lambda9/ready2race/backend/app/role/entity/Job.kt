@@ -21,6 +21,14 @@ sealed class Job(
     val level: RoleLevel,
     val defaultName: String,
     val privileges: List<Privilege>,
+    /**
+     * Ob aus diesem Job eine eigene Rolle als Kopie entstehen darf. Nein bei einem Job, dessen
+     * Wirkung an einer Zuordnung außerhalb der Rolle hängt (Materialanbieter: OWN meint den über
+     * `app_user.material_provider` zugeordneten Anbieter) - eine Kopie wäre frei vergebbar, aber
+     * ohne Zuordnung wirkungslos bzw. mit ihr eine zweite, an der Anbieter-Zuordnung vorbei
+     * vergebene Anbieter-Rolle.
+     */
+    val copyable: Boolean = true,
 ) {
 
     data object Superadmin : Job(
@@ -58,6 +66,7 @@ sealed class Job(
     data object MaterialProvider : Job(
         "MATERIAL_PROVIDER", MATERIAL_PROVIDER_ROLE, RoleLevel.CLUB, "Material provider",
         listOf(ReadMaterialOwn, UpdateMaterialOwn),
+        copyable = false,
     )
 
     /**

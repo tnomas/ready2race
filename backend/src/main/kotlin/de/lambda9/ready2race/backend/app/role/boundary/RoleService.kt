@@ -62,11 +62,12 @@ object RoleService {
 
     /**
      * Die im Code definierten Jobs mit ihren Privilegien - die Vorlage, aus der eine eigene
-     * Rolle als Kopie entsteht.
+     * Rolle als Kopie entsteht. Nicht kopierbare Jobs ([Job.copyable]) fehlen hier, damit der
+     * Rollendialog sie gar nicht erst anbietet.
      */
     fun jobs(): App<Nothing, ApiResponse.ListDto<JobDto>> = KIO.comprehension {
         val all = !PrivilegeRepo.all().orDie()
-        val dtos = Job.entries.map { job ->
+        val dtos = Job.entries.filter { it.copyable }.map { job ->
             JobDto(
                 key = job.key,
                 level = job.level.name,
@@ -87,6 +88,7 @@ object RoleService {
     ): App<ServiceError, ApiResponse.Created> = KIO.comprehension {
         val jobKey = request.job ?: return@comprehension KIO.fail(RoleError.JobRequired)
         val job = Job.byKey(jobKey) ?: return@comprehension KIO.fail(RoleError.JobUnknown)
+        !KIO.failOn(!job.copyable) { RoleError.JobNotCopyable }
         val privileges = !resolvePrivileges(request.privileges, job.level, requester)
 
         val now = LocalDateTime.now()
