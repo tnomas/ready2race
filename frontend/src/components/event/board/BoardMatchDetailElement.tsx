@@ -16,6 +16,7 @@ import {
 } from '@api/types.gen'
 import {AthleteBoardLapTimes} from '../info/athleteBoard/AthleteBoardBoatRow'
 import {materialLabel} from '@components/material/materialLabel.ts'
+import {statusTextColor} from '../../../theme/themeColors.ts'
 import {
     finishComplete,
     formatClockTime,
@@ -203,19 +204,6 @@ const BoardMatchDetailElement = ({
                     }}>
                     {startNumber}
                 </Typography>
-                {material && (
-                    <Typography
-                        sx={{
-                            fontSize: scaled('0.65rem', '0.9vw', '1.2rem'),
-                            fontWeight: material !== 'own' && material.deviates ? 700 : 400,
-                            whiteSpace: 'nowrap',
-                        }}
-                        color={material !== 'own' && material.deviates ? 'warning.main' : 'text.secondary'}>
-                        {material === 'own'
-                            ? t('event.boards.material.own')
-                            : `· ${material.text}`}
-                    </Typography>
-                )}
             </Box>
             <Box sx={{minWidth: 0, flex: 1}}>
                 <Typography
@@ -230,6 +218,26 @@ const BoardMatchDetailElement = ({
                     }}>
                     {teamLabel(team, t, 'full')}
                 </Typography>
+                {/* Das Boot steht in der Namensspalte, nicht unter der Startnummer: Dort schob
+                    ein langer Bootsname (nowrap) die ganze Namensspalte nach rechts. */}
+                {material && (
+                    <Typography
+                        sx={{
+                            fontSize: scaled('0.75rem', '1.1vw', '1.5rem'),
+                            fontWeight: material !== 'own' && material.deviates ? 700 : 400,
+                            overflowWrap: 'anywhere',
+                            color: theme =>
+                                material !== 'own' && material.deviates
+                                    ? statusTextColor(theme, 'warning')
+                                    : theme.palette.text.secondary,
+                        }}>
+                        {material === 'own'
+                            ? t('event.boards.material.own')
+                            : material.deviates
+                              ? `${material.text} · ${t('event.boards.material.deviates')}`
+                              : material.text}
+                    </Typography>
+                )}
                 {subline && (
                     <Typography
                         sx={{fontSize: scaled('0.75rem', '1.1vw', '1.5rem')}}
