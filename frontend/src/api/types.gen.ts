@@ -1879,7 +1879,7 @@ export type EventDto = {
     registrationCount?: number
     registrationsFinalized: boolean
     /**
-     * Set by the last finalization with alignMaterialNumbers: round creation uses the team number as the start number in every race (rented boat number = start number), and the RaceClocker sync keeps start numbers instead of writing list positions. Existing races are not changed.
+     * Set by the last finalization with alignMaterialNumbers: rounds created from now on use the team number as the start number in every race (rented boat number = start number). Each race keeps the rule it was created with; the RaceClocker sync decides by that per-race stamp, so existing races are not changed.
      */
     teamNumbersAsStartNumbers: boolean
     mixedTeamTerm?: string
@@ -8251,11 +8251,11 @@ export type FinalizeRegistrationsData = {
     }
     query?: {
         /**
-         * Whether team numbers should match the rented boat's number where possible. The value is stored on the event (EventDto.teamNumbersAsStartNumbers) by every finalization: when set, every later round creation uses the team number as the start number in each race and the RaceClocker sync no longer writes list positions into start numbers. Existing races are not changed.
+         * Whether team numbers should match the rented boat's number where possible. The value is stored on the event (EventDto.teamNumbersAsStartNumbers) by every finalization: when set, every later round creation uses the team number as the start number in each race. Round creation stamps the rule on every race it creates; the RaceClocker sync decides by that stamp (no list positions written into races created with the rule), so existing races are not changed by a later finalization.
          */
         alignMaterialNumbers?: boolean
         /**
-         * Whether already set team numbers should be kept
+         * Whether already set team numbers should be kept. Registrations that already take part in at least one race always keep their team number, with or without this flag; only registrations without a race are numbered anew, avoiding the kept numbers.
          */
         keepNumbers?: boolean
     }
