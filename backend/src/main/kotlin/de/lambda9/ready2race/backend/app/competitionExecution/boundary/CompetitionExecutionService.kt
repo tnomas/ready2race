@@ -3520,6 +3520,27 @@ object CompetitionExecutionService {
                                     newLine = false,
                                 ) { "    ABGEMELDET" }
                             }
+
+                            // Boot einmal je Team, beschriftet wie die Startnummer; eine
+                            // Abweichung von der Startnummer steht ausdrücklich dabei.
+                            if (showMaterial) {
+                                materialLine(team, forceMaterial)?.let { line ->
+                                    text(
+                                        newLine = false,
+                                        fontStyle = FontStyle.BOLD,
+                                        fontSize = 11f,
+                                    ) { "      Boot / " }
+                                    text(
+                                        newLine = false,
+                                        fontSize = 9f,
+                                    ) { "Boat" }
+                                    text(
+                                        newLine = false,
+                                        fontStyle = FontStyle.BOLD,
+                                        fontSize = 12f,
+                                    ) { "  $line" }
+                                }
+                            }
                         }
 
                         block(
@@ -3575,12 +3596,7 @@ object CompetitionExecutionService {
                             column(0.2f)
                             column(0.2f)
                             column(0.1f)
-                            // Boot-Spalte nimmt sich ihre Breite vom Verein - der bleibt lesbar,
-                            // die Zeile bricht nicht auf zwei Zeilen um.
-                            column(if (showMaterial) 0.2f else 0.3f)
-                            if (showMaterial) {
-                                column(0.1f)
-                            }
+                            column(0.3f)
 
                             team.participants
                                 .sortedBy { it.role }
@@ -3605,11 +3621,6 @@ object CompetitionExecutionService {
                                         }
                                         cell {
                                             text { member.externalClubName ?: team.registeringClubName }
-                                        }
-                                        if (showMaterial) {
-                                            cell {
-                                                text { materialCell(team, forceMaterial) }
-                                            }
                                         }
                                     }
                                 }

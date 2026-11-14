@@ -33,3 +33,19 @@ fun materialCell(
         else -> "eigenes Boot"
     }
 }
+
+/**
+ * Die Boot-Angabe eines Teams für die PDF-Startliste: einmal je Team (nicht je Teilnehmerzeile),
+ * mit derselben Auswahl wie [materialCell] und einer sichtbaren Markierung, wenn die Bootsnummer
+ * von der Startnummer im Lauf abweicht. `null`, wenn für dieses Team nichts zu zeigen ist.
+ */
+fun materialLine(
+    team: CompetitionMatchData.CompetitionMatchTeam,
+    forced: Boolean,
+): String? {
+    val cell = materialCell(team, forced).ifEmpty { return null }
+    return if (team.material?.deviatesFromStartNumber == true) "$cell ($MATERIAL_DEVIATES_LABEL)" else cell
+}
+
+/** Zweisprachig wie die übrigen Beschriftungen der Startliste. */
+const val MATERIAL_DEVIATES_LABEL = "abweichend / differs"
