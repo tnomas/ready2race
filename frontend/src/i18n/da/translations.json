@@ -1275,7 +1275,8 @@
             "finishConfirm": "Afslut dette løb nu? Hvis stævnet skifter automatisk videre, aktiveres de næste løb.",
             "finishSuccess": "Løbet er afsluttet",
             "reopen": "Fortryd afslutning"
-          }
+          },
+          "materialDeviates": "afvigende"
         },
         "running": {
           "error": {

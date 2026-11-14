@@ -6,6 +6,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamagePhotoDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageSeverity
 import de.lambda9.ready2race.backend.app.material.entity.MaterialDamageStatus
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialItemStatus
@@ -14,6 +15,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialProviderRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeDto
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
+import de.lambda9.ready2race.backend.database.generated.tables.records.EffectiveMaterialForMatchTeamRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialDamageViewRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialItemViewRecord
@@ -149,3 +151,12 @@ fun MaterialOfferRequest.toRecord(eventId: UUID, providerId: UUID, userId: UUID)
         )
     }
 )
+
+/** Eine Zeile der Sicht `effective_material_for_match_team` als Anzeige-DTO (Task 6.1). */
+fun EffectiveMaterialForMatchTeamRecord.toMaterialForTeamDto(): MaterialForTeamDto =
+    MaterialForTeamDto(
+        number = number,
+        label = label!!,
+        category = MaterialCategory.valueOf(category!!),
+        deviatesFromStartNumber = deviatesFromStartNumber == true,
+    )

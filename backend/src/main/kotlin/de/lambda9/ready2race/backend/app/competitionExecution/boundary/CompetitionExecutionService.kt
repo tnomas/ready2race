@@ -1,5 +1,7 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.boundary
 
+import de.lambda9.ready2race.backend.app.material.control.MaterialAssignmentRepo
+import de.lambda9.ready2race.backend.app.material.control.toMaterialForTeamDto
 import de.lambda9.ready2race.backend.app.competition.boundary.CompetitionService
 
 import de.lambda9.ready2race.backend.app.App
@@ -487,9 +489,15 @@ object CompetitionExecutionService {
             // genau sie trägt die Ursache des Freiloses.
             val byeByMatch = !MatchByeService.byeByMatch(eventId, competitionId)
 
+            // Das zugeteilte Boot je Lauf-Team aus derselben Sicht wie alle übrigen Anzeigen -
+            // keine zweite Ableitung von Grundzuteilung und Ausnahme je Lauf.
+            val materialByMatchTeam = !MaterialAssignmentRepo.effectiveForMatchTeams(
+                sortedRounds.flatMap { round -> round.matches.flatMap { match -> match.teams.map { it.id } } }
+            ).orDie().map { rows -> rows.associate { it.competitionMatchTeam!! to it.toMaterialForTeamDto() } }
+
             sortedRounds.filter { it.matches.isNotEmpty() }.traverse { round ->
                 round.copy(matches = round.matches.map { match -> match.copy(teams = match.teams.filter { !it.out }) })
-                    .toCompetitionRoundDto(event.mixedTeamTerm, lastScanByParticipant, byeByMatch)
+                    .toCompetitionRoundDto(event.mixedTeamTerm, lastScanByParticipant, byeByMatch, materialByMatchTeam)
             }.map {
                 ApiResponse.ETagged(
                     CompetitionExecutionProgressDto(

@@ -1275,7 +1275,8 @@
             "finishConfirm": "Diesen Lauf jetzt beenden? Wenn die Veranstaltung automatisch weiterschaltet, werden dabei die nächsten Läufe aktiviert.",
             "finishSuccess": "Lauf beendet",
             "reopen": "Beenden zurücknehmen"
-          }
+          },
+          "materialDeviates": "abweichend"
         },
         "running": {
           "error": {

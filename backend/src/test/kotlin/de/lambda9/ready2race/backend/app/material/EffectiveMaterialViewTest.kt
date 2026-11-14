@@ -2,6 +2,7 @@ package de.lambda9.ready2race.backend.app.material
 
 import de.lambda9.ready2race.backend.app.JEnv
 import de.lambda9.ready2race.backend.app.auth.entity.Privilege
+import de.lambda9.ready2race.backend.app.competitionExecution.boundary.CompetitionExecutionService
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchRepo
 import de.lambda9.ready2race.backend.app.competitionExecution.control.CompetitionMatchTeamRepo
 import de.lambda9.ready2race.backend.app.competitionProperties.control.CompetitionPropertiesHasMaterialTypeRepo
@@ -37,6 +38,7 @@ import de.lambda9.ready2race.testing.testComprehension
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -169,6 +171,12 @@ class EffectiveMaterialViewTest {
         val match1 = seedMatch(seeded.propertiesId, teamId, startNumber = 7)
         val match2 = seedSecondMatch(match1.roundId, teamId, startNumber = 7)
 
+        // Durchführung vor der Zuteilung: bestätigt, aber kein Stück - das Team trägt kein Material.
+        val progressBefore = (!CompetitionExecutionService.getProgress(seeded.eventId, seeded.competitionId)).dto
+        val teamsBefore = progressBefore.rounds.flatMap { it.matches }.flatMap { it.teams }
+        assertEquals(2, teamsBefore.size)
+        teamsBefore.forEach { assertNull(it.material, "ohne Zuteilung kein Materialfeld") }
+
         // Grundzuteilung fürs Boot, Ausnahme für match2 - beides in derselben Anfrage, denn
         // setAssignments ersetzt die Liste je Anfrage immer vollständig.
         !MaterialService.setAssignments(
@@ -213,6 +221,19 @@ class EffectiveMaterialViewTest {
         assertEquals(3, row2.number)
         assertEquals("Boot 3", row2.label)
         assertTrue(row2.deviatesFromStartNumber == true)
+
+        // DTO-Pfad Durchführung (Lauf-Karte): dieselbe Sicht, Grundzuteilung in match1, Ausnahme
+        // in match2 - und die Kategorie OTHER erreicht auch dieses DTO nicht.
+        val progress = (!CompetitionExecutionService.getProgress(seeded.eventId, seeded.competitionId)).dto
+        val matchesById = progress.rounds.flatMap { it.matches }.associateBy { it.id }
+        val execMaterial1 = matchesById.getValue(match1.matchId).teams.single().material
+        val execMaterial2 = matchesById.getValue(match2.matchId).teams.single().material
+        assertEquals("Boot 7", execMaterial1?.label)
+        assertEquals(7, execMaterial1?.number)
+        assertEquals(MaterialCategory.BOAT, execMaterial1?.category)
+        assertEquals(false, execMaterial1?.deviatesFromStartNumber)
+        assertEquals("Boot 3", execMaterial2?.label)
+        assertEquals(true, execMaterial2?.deviatesFromStartNumber)
 
         // DTO-Pfad: LiveDashboardRepo.getTeams liefert dasselbe wirksame Materialstück mit.
         val liveRows = !LiveDashboardRepo.getTeams(seeded.eventId, match2.matchId)

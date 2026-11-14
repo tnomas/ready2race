@@ -2,8 +2,10 @@ package de.lambda9.ready2race.backend.app.material.control
 
 import de.lambda9.ready2race.backend.database.delete
 import de.lambda9.ready2race.backend.database.exists
+import de.lambda9.ready2race.backend.database.generated.tables.records.EffectiveMaterialForMatchTeamRecord
 import de.lambda9.ready2race.backend.database.generated.tables.records.MaterialAssignmentRecord
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_MATCH_TEAM
+import de.lambda9.ready2race.backend.database.generated.tables.references.EFFECTIVE_MATERIAL_FOR_MATCH_TEAM
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_ASSIGNMENT
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_OFFER
 import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST
@@ -40,4 +42,21 @@ object MaterialAssignmentRepo {
     fun matchContainsRegistration(matchId: UUID, registrationId: UUID) = COMPETITION_MATCH_TEAM.exists {
         COMPETITION_MATCH.eq(matchId).and(COMPETITION_REGISTRATION.eq(registrationId))
     }
+
+    /**
+     * Das wirksame Materialstück je Lauf-Team aus der Sicht `effective_material_for_match_team`
+     * (dieselbe Quelle wie Boards, Schiedsrichter-Dashboard und Startliste) - für Oberflächen, die
+     * ihre Teams nicht selbst per SQL laden (Durchführung). Teams ohne bestätigte Boots-Anfrage
+     * fehlen im Ergebnis.
+     */
+    fun effectiveForMatchTeams(matchTeamIds: Collection<UUID>): JIO<List<EffectiveMaterialForMatchTeamRecord>> =
+        Jooq.query {
+            if (matchTeamIds.isEmpty()) {
+                emptyList()
+            } else {
+                selectFrom(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM)
+                    .where(EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.COMPETITION_MATCH_TEAM.`in`(matchTeamIds))
+                    .fetch()
+            }
+        }
 }

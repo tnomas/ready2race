@@ -37,6 +37,12 @@ model CompetitionMatchDto {
 
 model CompetitionMatchTeamDto {
   // Team information
+  /**
+   * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht effective_material_for_match_team):
+   * eine Ausnahme je Lauf schlägt die Grundzuteilung. Null ohne bestätigte Boots-Anfrage. Die
+   * Lauf-Karte der Durchführung zeigt es neben dem Team und markiert Boot ≠ Startnummer.
+   */
+  material?: MaterialForTeamDto | null;
 }
 
 model CompetitionTeamPlaceDto {

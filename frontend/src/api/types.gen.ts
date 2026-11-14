@@ -1125,6 +1125,10 @@ export type CompetitionMatchTeamDto = {
      * Intermediate marks from RaceClocker, in on-course order; empty for races without split columns
      */
     laps?: Array<MatchTeamLapDto>
+    /**
+     * the effective material item of this team in this match (view effective_material_for_match_team); null without a confirmed boat request
+     */
+    material?: MaterialForTeamDto | null
 }
 
 export type CompetitionPropertiesDto = {

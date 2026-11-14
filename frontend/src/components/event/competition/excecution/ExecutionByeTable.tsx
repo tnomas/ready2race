@@ -13,6 +13,7 @@ import {
 import {useTranslation} from 'react-i18next'
 import StatusChip from '@components/event/match/StatusChip.tsx'
 import {deregisteredChip, matchStatusChip} from '@components/event/match/matchStatusChip.ts'
+import ExecutionMaterialNote from './ExecutionMaterialNote.tsx'
 
 type Props = {
     byes: CompetitionMatchDto[]
@@ -54,6 +55,8 @@ const ExecutionByeTable = ({byes, now, submitting, onToggleMustRace}: Props) => 
                                     ? match.teams[0].clubName +
                                       (match.teams[0].name ? ` ${match.teams[0].name}` : '')
                                     : ''}
+                                {/* Auch ein Freilos, das gefahren werden muss, braucht sein Boot. */}
+                                <ExecutionMaterialNote material={match.teams[0]?.material} />
                             </TableCell>
                             <TableCell width="25%">
                                 <Stack

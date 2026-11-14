@@ -3,6 +3,7 @@ package de.lambda9.ready2race.backend.app.competitionExecution.control
 import de.lambda9.ready2race.backend.singletonOrFallback
 import de.lambda9.ready2race.backend.app.competitionExecution.boundary.AutoRoundProgressionLogic
 import de.lambda9.ready2race.backend.app.competitionExecution.entity.*
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.app.matchStatus.boundary.MatchStatusLogic
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchByeDto
 import de.lambda9.ready2race.backend.app.matchStatus.entity.MatchStatusTeam
@@ -52,11 +53,16 @@ private fun List<CompetitionMatchTeamParticipant>.toNamedParticipantsDto() =
  *
  * [byeByMatch] kommt von außen, weil `getProgress` die `out`-Zeilen bereits herausgefiltert hat,
  * bevor diese Umwandlung läuft - der abgemeldete Gegner ist hier also nicht mehr zu sehen.
+ *
+ * [materialByMatchTeam] ist das wirksame Materialstück je `competition_match_team.id` aus der
+ * Sicht `effective_material_for_match_team` (`MaterialAssignmentRepo.effectiveForMatchTeams`);
+ * fehlt ein Team darin, rudert es ohne bestätigte Boots-Anfrage.
  */
 fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
     mixedTeamTerm: String?,
     lastScanByParticipant: Map<UUID, Pair<String, LocalDateTime>> = emptyMap(),
     byeByMatch: Map<UUID, MatchByeDto> = emptyMap(),
+    materialByMatchTeam: Map<UUID, MaterialForTeamDto> = emptyMap(),
 ) = run {
     val matchPairs =
         matches.map { match -> match to setupMatches.first { setupMatch -> setupMatch.id == match.competitionSetupMatch } }
@@ -120,6 +126,7 @@ fun CompetitionSetupRoundWithMatches.toCompetitionRoundDto(
                                         distanceMeters = lap.distanceMeters,
                                     )
                                 },
+                                material = materialByMatchTeam[team.id],
                             )
                         },
                         weighting = match.second.weighting,

@@ -1,5 +1,6 @@
 package de.lambda9.ready2race.backend.app.competitionExecution.entity
 
+import de.lambda9.ready2race.backend.app.material.entity.MaterialForTeamDto
 import de.lambda9.ready2race.backend.data.Timecode
 import java.time.LocalDateTime
 import java.util.UUID
@@ -33,6 +34,11 @@ data class CompetitionMatchTeamDto(
      * führt keine Split-Spalten“.
      */
     val laps: List<MatchTeamLapDto> = emptyList(),
+    /**
+     * Das wirksame Materialstück dieses Teams in diesem Lauf (Sicht
+     * `effective_material_for_match_team`) - null ohne bestätigte Boots-Anfrage.
+     */
+    val material: MaterialForTeamDto? = null,
 )
 
 /**

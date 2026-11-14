@@ -17496,6 +17496,11 @@ components:
           description: "Intermediate marks from RaceClocker, in on-course order; empty for races without split columns"
           items:
             $ref: '#/components/schemas/MatchTeamLapDto'
+        material:
+          allOf:
+            - $ref: '#/components/schemas/MaterialForTeamDto'
+          nullable: true
+          description: "the effective material item of this team in this match (view effective_material_for_match_team); null without a confirmed boat request"
 
     MatchTeamLapDto:
       type: object

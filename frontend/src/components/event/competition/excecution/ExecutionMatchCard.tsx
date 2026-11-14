@@ -33,6 +33,7 @@ import {
     MatchMoreAction,
 } from './matchCardActions.ts'
 import ExecutionMoreMenu from './ExecutionMoreMenu.tsx'
+import ExecutionMaterialNote from './ExecutionMaterialNote.tsx'
 import {executionMatchDomId} from './executionMatchDomId.ts'
 
 export type MatchCardAction = MatchCardButton | MatchMoreAction
@@ -290,6 +291,7 @@ const MatchTeamsTable = ({
                                     <Typography variant={'body2'} sx={{fontWeight: 500}}>
                                         {team.actualClubName ?? team.clubName}
                                     </Typography>
+                                    <ExecutionMaterialNote material={team.material} />
                                     <Typography variant="body2" color="textSecondary">
                                         {`${t('club.registeredBy')} ` +
                                             team.clubName +
