@@ -29,10 +29,20 @@ import {
     readMaterialGlobal,
     updateMaterialOwn,
     updateStaffGlobal,
+    updateSystemGlobal,
     updateUserGlobal,
 } from '@authorization/privileges.ts'
+import {
+    providerAssignmentBlock,
+    providerAssignmentErrorKey,
+    SYSTEM_MANAGED_JOBS,
+} from '@components/user/materialProviderAssignment.ts'
+
+/** Rollen, die ein eigener Ablauf vergibt (Konto, Vereinsfreigabe, Anbieter-Zuordnung). */
+const isManagedRole = (role: Pick<RoleDto, 'job'>) =>
+    role.job != null && SYSTEM_MANAGED_JOBS.includes(role.job)
 import RolesSelect from '@components/user/RolesSelect.tsx'
-import {UpdateAppUserRequest} from '@api/types.gen.ts'
+import {RoleDto, UpdateAppUserRequest} from '@api/types.gen.ts'
 import PendingClubRepresentativeAlert from '@components/user/PendingClubRepresentativeAlert.tsx'
 import {roleLabel} from '@authorization/roleLabels.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
@@ -81,7 +91,10 @@ const UserPage = () => {
                 formContext.reset({
                     firstname: data.firstname,
                     lastname: data.lastname,
-                    roles: data.roles.map(r => r.id),
+                    // Systemverwaltete Rollen stehen nicht in der Auswahl (RolesSelect) und
+                    // werden vom Nutzer-Update ohnehin nicht angefasst; im Formular erschienen
+                    // sie sonst als nackte IDs.
+                    roles: data.roles.filter(r => !isManagedRole(r)).map(r => r.id),
                 })
                 setMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
                 setSavedMaterialProviderId(data.materialProviderId ?? NO_PROVIDER)
@@ -104,6 +117,15 @@ const UserPage = () => {
         user.checkPrivilege(readMaterialGlobal) &&
         user.checkPrivilege(updateMaterialOwn)
 
+    const providerBlock = userData
+        ? providerAssignmentBlock({
+              requesterId: user.loggedIn ? user.id : undefined,
+              targetId: userId,
+              targetJobs: userData.roles.map(r => r.job),
+              mayUpdateSystem: user.checkPrivilege(updateSystemGlobal),
+          })
+        : null
+
     const {data: materialProviders} = useFetch(
         signal => getMaterialProviders({signal, query: {limit: 200}}),
         {
@@ -119,7 +141,10 @@ const UserPage = () => {
             }),
         )
 
-        const providerChanged = mayAssignProvider && materialProviderId !== savedMaterialProviderId
+        const providerChanged =
+            mayAssignProvider &&
+            providerBlock === null &&
+            materialProviderId !== savedMaterialProviderId
         const providerResult =
             !error && providerChanged
                 ? await runRequest(setSubmitting, () =>
@@ -152,7 +177,7 @@ const UserPage = () => {
             }
         } else if (providerResult?.error) {
             // Name und Rollen sind gespeichert, nur die Anbieter-Zuordnung nicht.
-            feedback.error(t('user.update.error'))
+            feedback.error(t(providerAssignmentErrorKey(providerResult.error)))
             setReloadUserData(!reloadUserData)
         } else {
             feedback.success(t('user.update.success'))
@@ -195,7 +220,21 @@ const UserPage = () => {
                                 />
                                 {mayEditRoles
                                     ? (data?.data.length ?? 0) > 0 && (
-                                          <RolesSelect availableRoles={data?.data} />
+                                          <Stack spacing={0.5}>
+                                              <RolesSelect availableRoles={data?.data} />
+                                              {userData.roles.some(isManagedRole) && (
+                                                  <Typography
+                                                      variant={'body2'}
+                                                      color={'text.secondary'}>
+                                                      {t('user.managedRoles', {
+                                                          roles: userData.roles
+                                                              .filter(isManagedRole)
+                                                              .map(r => roleLabel(r, t))
+                                                              .join(', '),
+                                                      })}
+                                                  </Typography>
+                                              )}
+                                          </Stack>
                                       )
                                     : userData.roles.length > 0 && (
                                           <Box>
@@ -210,27 +249,44 @@ const UserPage = () => {
                                           </Box>
                                       )}
                                 {mayAssignProvider && (
-                                    <FormControl fullWidth>
-                                        <InputLabel id={'material-provider-label'}>
-                                            {t('user.materialProvider')}
-                                        </InputLabel>
-                                        <Select
-                                            labelId={'material-provider-label'}
-                                            label={t('user.materialProvider')}
-                                            value={materialProviderId}
-                                            onChange={event =>
-                                                setMaterialProviderId(event.target.value as string)
-                                            }>
-                                            <MenuItem value={NO_PROVIDER}>
-                                                {t('user.materialProviderNone')}
-                                            </MenuItem>
-                                            {materialProviders?.data.map(provider => (
-                                                <MenuItem key={provider.id} value={provider.id}>
-                                                    {provider.name}
+                                    <Stack spacing={1}>
+                                        <FormControl fullWidth disabled={providerBlock !== null}>
+                                            <InputLabel id={'material-provider-label'}>
+                                                {t('user.materialProvider')}
+                                            </InputLabel>
+                                            <Select
+                                                labelId={'material-provider-label'}
+                                                label={t('user.materialProvider')}
+                                                value={materialProviderId}
+                                                onChange={event =>
+                                                    setMaterialProviderId(
+                                                        event.target.value as string,
+                                                    )
+                                                }>
+                                                <MenuItem value={NO_PROVIDER}>
+                                                    {t('user.materialProviderNone')}
                                                 </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                                                {materialProviders?.data.map(provider => (
+                                                    <MenuItem key={provider.id} value={provider.id}>
+                                                        {provider.name}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <Typography variant={'body2'} color={'text.secondary'}>
+                                            {providerBlock
+                                                ? t(`user.materialProviderBlocked.${providerBlock}`)
+                                                : t('user.materialProviderHint')}
+                                        </Typography>
+                                    </Stack>
+                                )}
+                                {!mayAssignProvider && userData.materialProviderName && (
+                                    <Box>
+                                        <Typography variant={'subtitle2'}>
+                                            {t('user.materialProvider')}
+                                        </Typography>
+                                        <Typography>{userData.materialProviderName}</Typography>
+                                    </Box>
                                 )}
                                 <Box>
                                     <SubmitButton

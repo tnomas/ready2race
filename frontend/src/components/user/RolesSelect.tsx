@@ -2,6 +2,7 @@ import {RoleDto} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
 import FormInputMultiselect from '@components/form/input/FormInputMultiselect.tsx'
 import {roleLabel} from '@authorization/roleLabels.ts'
+import {SYSTEM_MANAGED_JOBS} from './materialProviderAssignment.ts'
 
 type Props = {
     availableRoles?: Array<RoleDto>
@@ -16,7 +17,7 @@ type Props = {
 const RolesSelect = (props: Props) => {
     const {t} = useTranslation()
     const selectable = (props.availableRoles ?? []).filter(
-        r => r.job !== 'USER' && r.job !== 'CLUB_REPRESENTATIVE' && r.job !== 'MATERIAL_PROVIDER',
+        r => !r.job || !SYSTEM_MANAGED_JOBS.includes(r.job),
     )
     const options = selectable
         .filter(r => r.assignable)
