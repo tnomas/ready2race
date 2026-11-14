@@ -14,6 +14,8 @@ import {readRegistrationGlobal, updateEventGlobal} from '@authorization/privileg
 type Props = {
     registrationsFinalized: boolean
     eventDto: EventDto
+    /** Nach einer Fixierung: Die Veranstaltung trägt danach einen neuen Schalterstand. */
+    reloadEvent?: () => void
 }
 const EventRegistrations = (props: Props) => {
     const {t} = useTranslation()
@@ -41,6 +43,7 @@ const EventRegistrations = (props: Props) => {
                 <FinalizeRegistrations
                     registrationsFinalized={props.registrationsFinalized}
                     teamNumbersAsStartNumbers={props.eventDto.teamNumbersAsStartNumbers}
+                    onFinalized={props.reloadEvent}
                 />
             )}
             {canMail && (

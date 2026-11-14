@@ -17,6 +17,7 @@ import {
 import {useTranslation} from 'react-i18next'
 import {
     finalizeRegistrations,
+    getEventMatches,
     getEventMaterialProviders,
     getRegistrationResult,
     getRegistrationsWithoutTeamNumber,
@@ -35,13 +36,29 @@ import {Info} from '@mui/icons-material'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {runDownload} from '@utils/download.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {
+    finalizeSwitchState,
+    numbersExplanationKey,
+    ProviderListState,
+    showExistingMatchesHint,
+} from './finalizeRegistrationsLogic.ts'
 
 type Props = {
     registrationsFinalized: boolean
     /** Stand der letzten Fixierung: übernimmt die Rundenanlage die Meldungsnummer als Startnummer? */
     teamNumbersAsStartNumbers: boolean
+    /**
+     * Nach erfolgreicher Fixierung: Die Veranstaltung neu laden, damit ihr gespeicherter Schalter
+     * auch nach einem Bereichswechsel stimmt (sonst belegte ein neu eingehängter Block den Haken mit
+     * dem Stand von vor der Fixierung vor).
+     */
+    onFinalized?: () => void
 }
-const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumbers}: Props) => {
+const FinalizeRegistrations = ({
+    registrationsFinalized,
+    teamNumbersAsStartNumbers,
+    onFinalized,
+}: Props) => {
     const {t} = useTranslation()
     const feedback = useFeedback()
 
@@ -82,6 +99,7 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
             setFinalized(Date.now())
             setJustFinalized(true)
             closeDialog()
+            onFinalized?.()
         }
     }
 
@@ -116,21 +134,30 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
         })
 
     // Die Startnummern-Angleichung an Bootsnummern ergibt nur Sinn, wenn die Veranstaltung
-    // überhaupt Materialanbieter hat - sonst bleibt die Checkbox verborgen.
-    const {data: materialProviders} = useFetch(
-        signal => getEventMaterialProviders({signal, path: {eventId}}),
-        {
-            onResponse: ({error}) => {
-                if (error) {
-                    feedback.error(t('common.error.unexpected'))
-                }
-            },
-            deps: [eventId],
-        },
-    )
-    const showAlignMaterialNumbers = (materialProviders?.length ?? 0) > 0
+    // überhaupt Materialanbieter hat. Bis die Liste da ist, wird nicht fixiert: Jede Fixierung
+    // schreibt den Schalter, und ein unsichtbarer Haken hätte ihn still abgeschaltet (RS-02).
+    const {
+        data: materialProviders,
+        error: materialProvidersError,
+        reload: reloadMaterialProviders,
+    } = useFetch(signal => getEventMaterialProviders({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
+    const providerListState: ProviderListState =
+        materialProviders !== null
+            ? {kind: 'loaded', count: materialProviders.length}
+            : materialProvidersError !== null
+              ? {kind: 'error'}
+              : {kind: 'pending'}
     const openMaterialRequests =
         materialProviders?.reduce((sum, provider) => sum + provider.openRequests, 0) ?? 0
+
+    // Schon angelegte Läufe: Ihre Teams behalten beim Refinalisieren die Meldungsnummer, und die
+    // Läufe ihre Regel - der Dialog sagt das nur, wenn es welche gibt.
+    const {data: eventMatches} = useFetch(signal => getEventMatches({signal, path: {eventId}}), {
+        deps: [eventId, finalized],
+    })
+    const existingMatchesHint = showExistingMatchesHint(eventMatches?.length ?? null)
 
     const [dialogIsOpen, setDialogIsOpen] = useState(false)
     const openDialog = () => {
@@ -154,21 +181,45 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
         setAlignMaterialNumbersSelected(event.target.checked)
     }
 
-    const alignMaterialNumbersFields = showAlignMaterialNumbers && (
+    const switchState = finalizeSwitchState(
+        startNumbersFromTeamNumbers,
+        alignMaterialNumbersSelected,
+        providerListState,
+    )
+    const finalizeBlocked = switchState.blockedBy !== null
+
+    const alignMaterialNumbersFields = (
         <>
-            <FormInputLabel
-                label={t('event.action.finalizeRegistrations.alignMaterialNumbers')}
-                required={true}
-                horizontal
-                reverse>
-                <Checkbox
-                    checked={alignMaterialNumbersSelected}
-                    onChange={handleAlignMaterialNumbersChange}
-                />
-            </FormInputLabel>
-            <Alert severity={'info'}>
-                {t('event.action.finalizeRegistrations.material.numbersExplained')}
-            </Alert>
+            {switchState.blockedBy === 'error' && (
+                <Alert
+                    severity={'error'}
+                    action={
+                        <Button color={'inherit'} size={'small'} onClick={reloadMaterialProviders}>
+                            {t('common.reload')}
+                        </Button>
+                    }>
+                    {t('event.action.finalizeRegistrations.material.providersError')}
+                </Alert>
+            )}
+            {switchState.visible && (
+                <>
+                    <FormInputLabel
+                        label={t('event.action.finalizeRegistrations.alignMaterialNumbers')}
+                        required={true}
+                        horizontal
+                        reverse>
+                        <Checkbox
+                            checked={alignMaterialNumbersSelected}
+                            onChange={handleAlignMaterialNumbersChange}
+                        />
+                    </FormInputLabel>
+                    <Alert severity={'info'}>
+                        {t(
+                            `event.action.finalizeRegistrations.material.${numbersExplanationKey(alignMaterialNumbersSelected)}`,
+                        )}
+                    </Alert>
+                </>
+            )}
             {openMaterialRequests > 0 && (
                 <Alert severity={'warning'}>
                     {t('event.action.finalizeRegistrations.material.openRequestsHint', {
@@ -179,6 +230,12 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
         </>
     )
 
+    const existingMatchesAlert = existingMatchesHint && (
+        <Alert severity={'warning'}>
+            {t('event.action.finalizeRegistrations.material.existingMatches')}
+        </Alert>
+    )
+
     return (
         <Box>
             <Stack spacing={4}>
@@ -186,13 +243,12 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                     finalized === false ? (
                         <Stack spacing={2} sx={{alignItems: 'start'}}>
                             {alignMaterialNumbersFields}
+                            {existingMatchesAlert}
                             <Button
                                 variant={'contained'}
+                                disabled={finalizeBlocked}
                                 onClick={() =>
-                                    handleFinalizeRegistrations(
-                                        false,
-                                        showAlignMaterialNumbers && alignMaterialNumbersSelected,
-                                    )
+                                    handleFinalizeRegistrations(false, switchState.send)
                                 }>
                                 {t('event.action.finalizeRegistrations.finalize')}
                             </Button>
@@ -265,7 +321,7 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                                     {t('event.action.finalizeRegistrations.newRegistrations.hint')}
                                 </Alert>
                             )}
-                            {(showAlignMaterialNumbers || startNumbersFromTeamNumbers) && (
+                            {(switchState.visible || startNumbersFromTeamNumbers) && (
                                 <Alert severity={startNumbersFromTeamNumbers ? 'success' : 'info'}>
                                     {startNumbersFromTeamNumbers
                                         ? t('event.action.finalizeRegistrations.material.stateOn')
@@ -322,6 +378,7 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                                                     )}
                                                 </Alert>
                                                 {alignMaterialNumbersFields}
+                                                {existingMatchesAlert}
                                             </Stack>
                                         </DialogContent>
                                         <DialogActions>
@@ -330,11 +387,11 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                                             </Button>
                                             <Button
                                                 variant={'contained'}
+                                                disabled={finalizeBlocked}
                                                 onClick={() => {
                                                     void handleFinalizeRegistrations(
                                                         keepTeamNumbersSelected,
-                                                        showAlignMaterialNumbers &&
-                                                            alignMaterialNumbersSelected,
+                                                        switchState.send,
                                                     )
                                                     setDialogIsOpen(false)
                                                 }}>
@@ -352,6 +409,7 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                                                     )}
                                                 </Alert>
                                                 {alignMaterialNumbersFields}
+                                                {existingMatchesAlert}
                                             </Stack>
                                         </DialogContent>
                                         <DialogActions>
@@ -360,11 +418,11 @@ const FinalizeRegistrations = ({registrationsFinalized, teamNumbersAsStartNumber
                                             </Button>
                                             <Button
                                                 variant={'contained'}
+                                                disabled={finalizeBlocked}
                                                 onClick={() =>
                                                     void handleFinalizeRegistrations(
                                                         false,
-                                                        showAlignMaterialNumbers &&
-                                                            alignMaterialNumbersSelected,
+                                                        switchState.send,
                                                     )
                                                 }>
                                                 {t('event.action.finalizeRegistrations.refinalize')}

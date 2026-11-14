@@ -1613,17 +1613,20 @@
         "refinalizeRegistrations": "Meldungen refinalisieren",
         "keepTeamNumbers": {
           "keep": "Vergebene Meldungsnummern behalten",
-          "hint": "Behalten: Teams mit Meldungsnummer behalten sie; nur neu gemeldete Teams bekommen eine, höher als die bisher höchste im Wettkampf. Nicht behalten: Alle Meldungsnummern werden neu vergeben."
+          "hint": "Behalten: Teams mit Meldungsnummer behalten sie; nur neu gemeldete Teams bekommen eine, höher als die bisher höchste im Wettkampf. Nicht behalten: Alle Meldungsnummern werden neu vergeben, außer bei Teams, die schon in Läufen stehen."
         },
-        "reshuffle": "Alle Teams haben schon eine Meldungsnummer. Refinalisieren vergibt alle Meldungsnummern neu. „Behalten“ gibt es nur, solange neu gemeldete Teams ohne Nummer da sind.",
+        "reshuffle": "Alle Teams haben schon eine Meldungsnummer. Refinalisieren vergibt die Meldungsnummern neu, außer bei Teams, die schon in Läufen stehen. „Behalten“ gibt es nur, solange neu gemeldete Teams ohne Nummer da sind.",
         "success": "Meldungen finalisiert: Jedes Team hat eine Meldungsnummer.",
         "alignMaterialNumbers": "Meldungsnummern nach Bootsnummern vergeben",
         "material": {
           "openRequestsHint_one": "{{count}} Materialanfrage ist noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
           "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
-          "numbersExplained": "Mit dem Schalter bekommen Teams mit Leihboot nach Möglichkeit die Nummer ihres Boots als Meldungsnummer, und jede spätere Rundenanlage übernimmt die Meldungsnummer als Startnummer: Das Boot startet in jedem Lauf unter seiner Nummer. Ohne den Schalter vergibt die Rundenanlage die Startnummer je Lauf ab 1 (in Folgerunden den Rang); steht dort eine andere Zahl als auf dem Boot, zeigen die Anzeigen „abweichend“. Schon angelegte Läufe ändert die Fixierung nicht.",
-          "stateOn": "Startnummer = Meldungsnummer: Die Rundenanlage gibt jedem Boot in jedem Lauf seine Meldungsnummer als Startnummer. Schon angelegte Läufe bleiben, wie sie sind – zum Angleichen die Runde löschen und neu anlegen (nur ohne Ergebnisse). Ein Umsortieren in RaceClocker ändert die Startnummern nicht.",
-          "stateOff": "Die Rundenanlage vergibt die Startnummer je Lauf nach Setzposition (ab 1, in Folgerunden der Rang). Damit Leihboote in jedem Lauf ihre Nummer tragen, mit „Meldungsnummern nach Bootsnummern vergeben“ refinalisieren und die Runden danach anlegen."
+          "numbersOn": "Mit Haken: Teams mit Leihboot bekommen nach Möglichkeit die Nummer ihres Boots als Meldungsnummer, und neu angelegte Runden nehmen die Meldungsnummer als Startnummer – das Boot startet in jedem Lauf unter seiner Nummer.",
+          "numbersOff": "Ohne Haken: Neu angelegte Runden vergeben die Startnummer je Lauf ab 1 (in Folgerunden den Rang). Steht dort eine andere Zahl als auf dem Leihboot, zeigen die Anzeigen „abweichend“.",
+          "existingMatches": "Es gibt schon Läufe. Sie behalten ihre Startnummern, und ihre Teams behalten die Meldungsnummer. Läufe mit Ergebnissen lassen sich nicht angleichen; Läufe ohne Ergebnisse gleicht man an, indem man ihre Runde löscht und neu anlegt.",
+          "providersError": "Die Materialanbieter der Veranstaltung ließen sich nicht laden. Fixieren geht erst, wenn sie geladen sind.",
+          "stateOn": "Startnummer = Meldungsnummer: Neu angelegte Runden geben jedem Boot in jedem Lauf seine Meldungsnummer als Startnummer. Schon angelegte Läufe behalten ihre Regel – zum Angleichen die Runde löschen und neu anlegen (nur ohne Ergebnisse). In so angelegten Läufen ändert ein Umsortieren in RaceClocker die Startnummern nicht.",
+          "stateOff": "Neu angelegte Runden vergeben die Startnummer je Lauf nach Setzposition (ab 1, in Folgerunden der Rang). Damit Leihboote in jedem Lauf ihre Nummer tragen, mit „Meldungsnummern nach Bootsnummern vergeben“ refinalisieren und die Runden danach anlegen."
         },
         "whereNumbers": "Vergeben wurden Meldungsnummern je Wettkampf. Sie stehen bei jedem Wettkampf im Reiter „Meldungen“ („Meldungsnr. n“ beim Team) und im Meldeergebnis (PDF, Knopf oben) und ordnen die Setzliste der ersten Runde."
       }

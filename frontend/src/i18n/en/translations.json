@@ -1613,17 +1613,20 @@
         "refinalizeRegistrations": "Refinalize Registrations",
         "keepTeamNumbers": {
           "keep": "Keep assigned entry numbers",
-          "hint": "Keep: teams with an entry number keep it; only newly registered teams get one, higher than the current highest in the competition. Don't keep: all entry numbers are assigned anew."
+          "hint": "Keep: teams with an entry number keep it; only newly registered teams get one, higher than the current highest in the competition. Don't keep: all entry numbers are assigned anew, except for teams that already appear in races."
         },
-        "reshuffle": "All teams already have an entry number. Refinalizing assigns all entry numbers anew. “Keep” is only offered while newly registered teams have no number yet.",
+        "reshuffle": "All teams already have an entry number. Refinalizing assigns entry numbers anew, except for teams that already appear in races. “Keep” is only offered while newly registered teams have no number yet.",
         "success": "Registrations finalized: every team has an entry number.",
         "alignMaterialNumbers": "Assign entry numbers based on boat numbers",
         "material": {
           "openRequestsHint_one": "{{count}} material request is not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
           "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
-          "numbersExplained": "With this option, teams with a rental boat get their boat’s number as entry number where possible, and every later round creation uses the entry number as start number: the boat starts under its number in every race. Without it, round creation assigns start numbers per race from 1 (in later rounds the rank); if that differs from the number on the boat, displays show “differs”. Races that already exist are not changed by finalizing.",
-          "stateOn": "Start number = entry number: round creation gives every boat its entry number as start number in every race. Races that already exist stay as they are – to align them, delete the round and create it again (only without results). Reordering in RaceClocker does not change start numbers.",
-          "stateOff": "Round creation assigns start numbers per race by seeding position (from 1, in later rounds the rank). For rental boats to carry their number in every race, finalize again with “Assign entry numbers based on boat numbers” and create the rounds afterwards."
+          "numbersOn": "Checked: teams with a rental boat get their boat’s number as entry number where possible, and newly created rounds use the entry number as start number – the boat starts under its number in every race.",
+          "numbersOff": "Unchecked: newly created rounds assign start numbers per race from 1 (in later rounds the rank). If that differs from the number on the rental boat, displays show “differs”.",
+          "existingMatches": "Races already exist. They keep their start numbers, and their teams keep their entry numbers. Races with results cannot be aligned; to align races without results, delete their round and create it again.",
+          "providersError": "The event’s material providers could not be loaded. Finalizing is possible once they are loaded.",
+          "stateOn": "Start number = entry number: newly created rounds give every boat its entry number as start number in every race. Races that already exist keep their rule – to align them, delete the round and create it again (only without results). In races created this way, reordering in RaceClocker does not change start numbers.",
+          "stateOff": "Newly created rounds assign start numbers per race by seeding position (from 1, in later rounds the rank). For rental boats to carry their number in every race, finalize again with “Assign entry numbers based on boat numbers” and create the rounds afterwards."
         },
         "whereNumbers": "Entry numbers were assigned per competition. They are shown in each competition’s “Registrations” tab (“Entry no. n” next to the team) and in the registration result (PDF, button above), and they order the seeding of the first round."
       }

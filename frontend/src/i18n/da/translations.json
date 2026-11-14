@@ -1613,17 +1613,20 @@
         "refinalizeRegistrations": "Afslut tilmeldinger igen",
         "keepTeamNumbers": {
           "keep": "Behold tildelte tilmeldingsnumre",
-          "hint": "Behold: Hold med tilmeldingsnummer beholder det; kun nyligt tilmeldte hold får et, højere end det hidtil højeste i konkurrencen. Behold ikke: Alle tilmeldingsnumre tildeles på ny."
+          "hint": "Behold: Hold med tilmeldingsnummer beholder det; kun nyligt tilmeldte hold får et, højere end det hidtil højeste i konkurrencen. Behold ikke: Alle tilmeldingsnumre tildeles på ny, undtagen for hold, der allerede står i heats."
         },
-        "reshuffle": "Alle hold har allerede et tilmeldingsnummer. Genafslutning tildeler alle tilmeldingsnumre på ny. „Behold“ findes kun, så længe nyligt tilmeldte hold mangler et nummer.",
+        "reshuffle": "Alle hold har allerede et tilmeldingsnummer. Genafslutning tildeler tilmeldingsnumrene på ny, undtagen for hold, der allerede står i heats. „Behold“ findes kun, så længe nyligt tilmeldte hold mangler et nummer.",
         "success": "Tilmeldinger afsluttet: Hvert hold har et tilmeldingsnummer.",
         "alignMaterialNumbers": "Tildel tilmeldingsnumre efter bådnumre",
         "material": {
           "openRequestsHint_one": "{{count}} materialeanmodning er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
           "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
-          "numbersExplained": "Med denne indstilling får hold med lejet båd så vidt muligt bådens nummer som tilmeldingsnummer, og hver senere oprettelse af runder bruger tilmeldingsnummeret som startnummer: Båden starter under sit nummer i hvert heat. Uden den tildeler runde-oprettelsen startnumre pr. heat fra 1 (i senere runder placeringen); står der et andet tal end på båden, viser visningerne „afviger“. Allerede oprettede heats ændres ikke ved færdiggørelsen.",
-          "stateOn": "Startnummer = tilmeldingsnummer: Runde-oprettelsen giver hver båd sit tilmeldingsnummer som startnummer i hvert heat. Allerede oprettede heats forbliver, som de er – for at tilpasse dem slettes runden og oprettes igen (kun uden resultater). En omsortering i RaceClocker ændrer ikke startnumrene.",
-          "stateOff": "Runde-oprettelsen tildeler startnumre pr. heat efter seedningsposition (fra 1, i senere runder placeringen). For at lejede både bærer deres nummer i hvert heat: færdiggør igen med „Tildel tilmeldingsnumre efter bådnumre“ og opret runderne bagefter."
+          "numbersOn": "Med flueben: Hold med lejet båd får så vidt muligt bådens nummer som tilmeldingsnummer, og nyoprettede runder bruger tilmeldingsnummeret som startnummer – båden starter under sit nummer i hvert heat.",
+          "numbersOff": "Uden flueben: Nyoprettede runder tildeler startnumre pr. heat fra 1 (i senere runder placeringen). Står der et andet tal end på den lejede båd, viser visningerne „afviger“.",
+          "existingMatches": "Der findes allerede heats. De beholder deres startnumre, og deres hold beholder tilmeldingsnummeret. Heats med resultater kan ikke tilpasses; heats uden resultater tilpasses ved at slette runden og oprette den igen.",
+          "providersError": "Arrangementets materialeudbydere kunne ikke indlæses. Afslutning er først mulig, når de er indlæst.",
+          "stateOn": "Startnummer = tilmeldingsnummer: Nyoprettede runder giver hver båd sit tilmeldingsnummer som startnummer i hvert heat. Allerede oprettede heats beholder deres regel – for at tilpasse dem slettes runden og oprettes igen (kun uden resultater). I heats oprettet på denne måde ændrer en omsortering i RaceClocker ikke startnumrene.",
+          "stateOff": "Nyoprettede runder tildeler startnumre pr. heat efter seedningsposition (fra 1, i senere runder placeringen). For at lejede både bærer deres nummer i hvert heat: færdiggør igen med „Tildel tilmeldingsnumre efter bådnumre“ og opret runderne bagefter."
         },
         "whereNumbers": "Der er tildelt tilmeldingsnumre pr. konkurrence. De står under fanen „Tilmeldinger“ i hver konkurrence („Tilmeldingsnr. n“ ved holdet) og i tilmeldingsresultatet (PDF, knappen ovenfor) og ordner seedningen i første runde."
       }

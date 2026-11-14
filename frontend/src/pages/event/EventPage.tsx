@@ -281,6 +281,7 @@ const EventPage = () => {
                     <EventRegistrations
                         registrationsFinalized={data.registrationsFinalized}
                         eventDto={data}
+                        reloadEvent={reload}
                     />
                 )
             case 'participants':
