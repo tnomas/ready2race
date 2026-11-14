@@ -12,8 +12,9 @@ data class MaterialForTeamDto(
     val label: String,
     val category: MaterialCategory,
     /**
-     * true, wenn [number] fehlt oder von der Startnummer der Meldung abweicht - die Anzeige
-     * kann daraus einen Hinweis machen ("Boot 7 statt Startnummer 3").
+     * true, wenn [number] fehlt oder von der Startnummer des Teams in DIESEM Lauf
+     * (`competition_match_team.start_number`) abweicht - derselben Zahl, die die Anzeige neben
+     * dem Boot zeigt ("#3 · Boot 7").
      */
     val deviatesFromStartNumber: Boolean,
 )

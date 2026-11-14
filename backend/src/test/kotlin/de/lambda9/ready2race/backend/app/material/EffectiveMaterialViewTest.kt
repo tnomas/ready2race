@@ -28,6 +28,7 @@ import de.lambda9.ready2race.backend.database.generated.tables.references.COMPET
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_REGISTRATION
 import de.lambda9.ready2race.backend.database.generated.tables.references.COMPETITION_SETUP_MATCH
 import de.lambda9.ready2race.backend.database.generated.tables.references.EFFECTIVE_MATERIAL_FOR_MATCH_TEAM
+import de.lambda9.ready2race.backend.database.generated.tables.references.MATERIAL_REQUEST_VIEW
 import de.lambda9.ready2race.backend.database.insert
 import de.lambda9.ready2race.backend.database.select
 import de.lambda9.ready2race.backend.database.update
@@ -100,9 +101,9 @@ class EffectiveMaterialViewTest {
         )
         !EventRegistrationService.upsertRegistrationForEvent(seeded.eventId, dto, seeded.user)
 
-        // Startnummer der Meldung: gleich der Grundzuteilung (Boot 7), ungleich der Ausnahme
-        // (Boot 3) - Grundlage für die deviates_from_start_number-Prüfung unten.
-        !COMPETITION_REGISTRATION.update({ teamNumber = 7 }) { ID.eq(teamId) }
+        // Meldungsnummer bewusst ungleich jeder Bootsnummer: die Abweichung richtet sich nach
+        // der Startnummer im Lauf (unten 7 in beiden Läufen), nicht nach team_number.
+        !COMPETITION_REGISTRATION.update({ teamNumber = 2 }) { ID.eq(teamId) }
 
         val userId = !createTestUser()
         val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
@@ -165,8 +166,8 @@ class EffectiveMaterialViewTest {
             seeded.eventId, providerId, requestOars.id, MaterialDecisionRequest(MaterialRequestStatus.CONFIRMED, null), userId,
         )
 
-        val match1 = seedMatch(seeded.propertiesId, teamId, startNumber = 1)
-        val match2 = seedSecondMatch(match1.roundId, teamId, startNumber = 1)
+        val match1 = seedMatch(seeded.propertiesId, teamId, startNumber = 7)
+        val match2 = seedSecondMatch(match1.roundId, teamId, startNumber = 7)
 
         // Grundzuteilung fürs Boot, Ausnahme für match2 - beides in derselben Anfrage, denn
         // setAssignments ersetzt die Liste je Anfrage immer vollständig.
@@ -195,7 +196,7 @@ class EffectiveMaterialViewTest {
         val rowsMatch2 = !EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.select { COMPETITION_MATCH_TEAM.eq(matchTeam2.id) }
 
         // match1 hat keine Ausnahme - die Grundzuteilung gilt, die Nummer stimmt mit der
-        // Startnummer der Meldung überein.
+        // Startnummer im Lauf überein (die Meldungsnummer 2 spielt keine Rolle).
         assertEquals(1, rowsMatch1.size)
         val row1 = rowsMatch1.single()
         assertEquals(itemBase, row1.materialItem)
@@ -205,7 +206,7 @@ class EffectiveMaterialViewTest {
         assertEquals(false, row1.deviatesFromStartNumber)
 
         // match2 hat eine Ausnahme - sie schlägt die Grundzuteilung, und die Nummer weicht von
-        // der Startnummer der Meldung ab.
+        // der Startnummer im Lauf ab.
         assertEquals(1, rowsMatch2.size)
         val row2 = rowsMatch2.single()
         assertEquals(itemException, row2.materialItem)
@@ -321,5 +322,66 @@ class EffectiveMaterialViewTest {
         val startlist = (!CompetitionMatchRepo.getForStartList(match.matchId))!!
         val teamEntries = startlist.teams?.filterNotNull().orEmpty().filter { it.teamId == matchTeam.competitionRegistration }
         assertEquals(1, teamEntries.size, "die Startliste darf das Team nur einmal listen")
+    }
+
+    /**
+     * Startnummer-Semantik (Befund Lücke 7): Die Abweichung vergleicht die Bootsnummer mit der
+     * Startnummer im Lauf (`competition_match_team.start_number`), die jede Anzeige neben dem Boot
+     * zeigt - eine gleiche Meldungsnummer (`team_number`) hebt die Abweichung nicht auf. Die
+     * Anfrage-Sicht liefert dieselbe Zahl als `start_number` (erster Lauf), ohne Lauf die
+     * Meldungsnummer.
+     */
+    @Test
+    fun deviationFollowsTheStartNumberInTheMatchNotTheTeamNumber() = testComprehension {
+        val seeded = seedOpenTeamEvent()
+        val teamId = UUID.randomUUID()
+        !EventRegistrationService.upsertRegistrationForEvent(
+            seeded.eventId,
+            upsertDto(seeded, listOf(teamDto(teamId, seeded.namedParticipantId, listOf(seeded.participant1, seeded.participant2)))),
+            seeded.user,
+        )
+        // Meldungsnummer = Bootsnummer, wie sie "Startnummern nach Bootsnummern" setzt.
+        !COMPETITION_REGISTRATION.update({ teamNumber = 7 }) { ID.eq(teamId) }
+
+        val userId = !createTestUser()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+        val typeBoat =
+            (!MaterialService.addType(MaterialTypeRequest("C4x+", MaterialCategory.BOAT, null), userId) as ApiResponse.Created).id
+        !CompetitionPropertiesHasMaterialTypeRepo.create(
+            listOf(CompetitionPropertiesHasMaterialTypeRecord(competitionProperties = seeded.propertiesId, materialType = typeBoat, count = 1))
+        )
+        !MaterialService.inviteProvider(seeded.eventId, providerId, userId)
+        val offer = (
+            !MaterialService.addOffer(seeded.eventId, providerId, MaterialOfferRequest(typeBoat, null, 5, 30), userId)
+                as ApiResponse.Created
+            ).id
+        val boat7 = (
+            !MaterialService.addItem(providerId, MaterialItemRequest(typeBoat, 7, "Boot 7", null, MaterialItemStatus.ACTIVE), userId)
+                as ApiResponse.Created
+            ).id
+        !MaterialService.setRequestsForRegistration(seeded.eventId, teamId, Privilege.Scope.GLOBAL to null, listOf(offer), userId)
+        val requestId = (!MaterialRequestRepo.forRegistration(teamId)).single().id
+        !MaterialService.decideRequest(
+            seeded.eventId, providerId, requestId, MaterialDecisionRequest(MaterialRequestStatus.CONFIRMED, null), userId,
+        )
+        !MaterialService.setAssignments(
+            seeded.eventId, providerId, requestId, MaterialAssignmentsRequest(listOf(MaterialAssignmentEntry(boat7, null))), userId,
+        )
+
+        // Ohne Lauf: die Anfrage-Sicht fällt auf die Meldungsnummer zurück.
+        val beforeMatch = (!MATERIAL_REQUEST_VIEW.select { ID.eq(requestId) }).single()
+        assertEquals(7, beforeMatch.startNumber)
+
+        // Die Setzliste macht aus Meldungsnummer 7 die Startnummer 3 in diesem Lauf.
+        val match = seedMatch(seeded.propertiesId, teamId, startNumber = 3)
+        val matchTeam = (!CompetitionMatchTeamRepo.getByMatchAndRegistrationId(match.matchId, teamId))!!
+
+        val row = (!EFFECTIVE_MATERIAL_FOR_MATCH_TEAM.select { COMPETITION_MATCH_TEAM.eq(matchTeam.id) }).single()
+        assertEquals(7, row.number)
+        assertEquals(true, row.deviatesFromStartNumber, "#3 im Lauf, Boot 7 - das ist eine Abweichung")
+
+        val withMatch = (!MATERIAL_REQUEST_VIEW.select { ID.eq(requestId) }).single()
+        assertEquals(3, withMatch.startNumber)
+        assertEquals(7, withMatch.teamNumber)
     }
 }

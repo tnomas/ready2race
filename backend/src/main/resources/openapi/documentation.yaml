@@ -19235,7 +19235,12 @@ components:
         competitionIdentifier: {type: string}
         competitionName: {type: string}
         teamName: {type: string}
-        teamNumber: {type: integer}
+        teamNumber:
+          type: integer
+          description: Meldungsnummer aus der Fixierung (ordnet die Setzliste der ersten Runde).
+        startNumber:
+          type: integer
+          description: Startnummer des Teams in seinem ersten Lauf, ohne Lauf die Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots; "Nach Startnummer zuteilen" richtet sich danach.
         clubId: {type: string, format: uuid}
         clubName: {type: string}
         clubContactEmail: {type: string}

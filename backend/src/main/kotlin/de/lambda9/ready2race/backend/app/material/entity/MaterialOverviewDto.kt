@@ -56,7 +56,14 @@ data class MaterialOverviewRequestDto(
     val competitionIdentifier: String,
     val competitionName: String,
     val teamName: String?,
+    /** Meldungsnummer aus der Fixierung - ordnet die Setzliste der ersten Runde. */
     val teamNumber: Int?,
+    /**
+     * Die Startnummer, unter der das Team im ersten seiner Läufe startet; ohne Lauf die
+     * Meldungsnummer. Dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren
+     * (`effective_material_for_match_team`) - "Nach Startnummer zuteilen" richtet sich danach.
+     */
+    val startNumber: Int?,
     val clubId: UUID,
     val clubName: String,
     // Kontakt = E-Mail des Nutzers, der die Anmeldung angelegt hat (event_registration.created_by).

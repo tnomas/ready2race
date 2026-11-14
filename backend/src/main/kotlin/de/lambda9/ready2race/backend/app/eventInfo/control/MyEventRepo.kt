@@ -112,8 +112,9 @@ object MyEventRepo {
             COMPETITION_PROPERTIES.SHORT_NAME.`as`("competition_short_name"),
             COMPETITION_CATEGORY.NAME.`as`("category_name"),
             COMPETITION_MATCH_TEAM.START_NUMBER,
-            // Startnummer der Meldung - die Materialabweichung vergleicht die Bootsnummer mit
-            // dieser Nummer, nicht mit der Bahn (START_NUMBER oben).
+            // Meldungsnummer aus der Fixierung. Die Materialabweichung vergleicht die Bootsnummer
+            // NICHT hiermit, sondern mit der Startnummer des Laufs (START_NUMBER oben), siehe
+            // effective_material_for_match_team.
             COMPETITION_REGISTRATION.TEAM_NUMBER,
             COMPETITION_MATCH_TEAM.PLACE,
             COMPETITION_MATCH_TEAM.FAILED,

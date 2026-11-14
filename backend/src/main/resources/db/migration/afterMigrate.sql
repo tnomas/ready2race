@@ -1120,14 +1120,18 @@ group by ifer.event;
 -- BOAT-Anfragen je Lauf-Team. `distinct on (cmt.id)` zwingt die Sicht auf eine Zeile je Lauf-Team
 -- (Spec Abschnitt 11): zuerst eine Ausnahme fürs Team in diesem Lauf, sonst eine Grundzuteilung,
 -- bei mehreren Kandidaten deterministisch die kleinste Stücknummer.
+-- Die Abweichung vergleicht mit der Startnummer DIESES Laufs (competition_match_team.start_number),
+-- derselben Zahl, die jede Anzeige neben dem Boot zeigt - nicht mit der Meldungsnummer
+-- (competition_registration.team_number), die nur die Setzliste der ersten Runde ordnet und von
+-- der Startnummer im Lauf abweichen kann (Setzposition im Lauf, Rang in Folgerunden).
 create view effective_material_for_match_team as
 select distinct on (cmt.id)
-       cmt.id                                             as competition_match_team,
-       mi.id                                               as material_item,
+       cmt.id                                               as competition_match_team,
+       mi.id                                                as material_item,
        mi.number,
        mi.label,
        mt.category,
-       (mi.number is null or mi.number <> cr.team_number) as deviates_from_start_number
+       (mi.number is null or mi.number <> cmt.start_number) as deviates_from_start_number
 from competition_match_team cmt
          join competition_registration cr on cr.id = cmt.competition_registration
          join material_request mr on mr.competition_registration = cr.id and mr.status = 'CONFIRMED'
@@ -1702,6 +1706,16 @@ select mr.id,
        cp.name                                        as competition_name,
        cr.name                                        as team_name,
        cr.team_number,
+       -- Die Startnummer, unter der das Team im ersten seiner Läufe startet (frühester Lauf nach
+       -- Startzeit, ohne Startzeit nach Anlage); ohne Lauf die Meldungsnummer. Grundlage für
+       -- "Nach Startnummer zuteilen" und die Abweichung auf Anfrage-Ebene im Anbieter-Dashboard -
+       -- dieselbe Zahl wie in effective_material_for_match_team, solange es Läufe gibt.
+       coalesce((select cmt.start_number
+                 from competition_match_team cmt
+                          join competition_match cm on cm.competition_setup_match = cmt.competition_match
+                 where cmt.competition_registration = cr.id
+                 order by cm.start_time nulls last, cmt.created_at, cmt.id
+                 limit 1), cr.team_number)    as start_number,
        cl.id                                          as club_id,
        cl.name                                        as club_name,
        au.email                                       as club_contact_email
