@@ -1,6 +1,7 @@
 package de.lambda9.ready2race.backend.calls.requests
 
 import de.lambda9.ready2race.backend.calls.responses.ApiError
+import de.lambda9.ready2race.backend.calls.responses.ErrorCode
 import de.lambda9.ready2race.backend.calls.responses.ToApiError
 import de.lambda9.ready2race.backend.validation.ValidationResult
 import de.lambda9.ready2race.backend.validation.Validatable
@@ -94,6 +95,7 @@ sealed interface RequestError : ToApiError {
             ApiError(
                 status = HttpStatusCode.UnprocessableEntity,
                 message = "callbackUrl does not point to an allowed frontend origin",
+                errorCode = ErrorCode.CALLBACK_URL_NOT_ALLOWED,
             )
 
         File.Missing ->

@@ -1720,7 +1720,8 @@
         "ratingCategoryNotFound": "Wertungskategorie nicht gefunden",
         "ratingCategoryMissing": "Wertungskategorie bei Team nicht angegeben, wo sie erforderlich ist",
         "ageRequirementNotMet": "Altersanforderung einer Wertungskategorie von einem Teilnehmer nicht erfüllt",
-        "participantDuplicateInCompetition": "Teilnehmer ist in einem Wettkampf mehrfach gemeldet"
+        "participantDuplicateInCompetition": "Teilnehmer ist in einem Wettkampf mehrfach gemeldet",
+        "callbackUrlNotAllowed": "Diese Seite wurde unter einer Adresse aufgerufen, die für Anmeldungen nicht freigegeben ist ({{origin}}). Bitte die Seite über die offizielle Adresse der Veranstaltung öffnen und erneut absenden; die Eingaben bleiben stehen."
       },
       "mostRecent": "Neuste Anmeldungen",
       "teams": "Teams",
@@ -5313,6 +5314,18 @@
     "damageStatus": {
       "REPORTED": "gemeldet",
       "REPAIRED": "repariert"
+    },
+    "error": {
+      "requestsClosed": "Der Anbieter nimmt für diese Veranstaltung keine neuen Anfragen mehr an. Bestehende Anfragen bleiben bestehen; bitte direkt beim Anbieter nachfragen.",
+      "typeNotDemanded": "Diese Materialart ist für den Wettkampf nicht vorgesehen. Bitte die Seite neu laden und die Auswahl prüfen.",
+      "providerInUse": "Der Anbieter hat noch Materialstücke oder ist zu Veranstaltungen eingeladen. Bitte erst Stücke entfernen und Einladungen zurücknehmen.",
+      "typeInUse": "Die Materialart wird noch verwendet (Stücke, Bedarf eines Wettkampfs oder Angebote) und kann nicht gelöscht werden.",
+      "itemInUse": "Das Stück ist noch zugeteilt und kann nicht gelöscht werden. Stattdessen ausmustern oder erst die Zuteilung lösen.",
+      "offerInUse": "Zu diesem Angebot gibt es schon Anfragen; es kann nicht mehr gelöscht werden. Stattdessen die Vergabe schließen.",
+      "notInvited": "Der Anbieter ist zu dieser Veranstaltung nicht (mehr) eingeladen. Angebote sind erst nach einer Einladung möglich.",
+      "requestNotConfirmed": "Die Anfrage ist nicht (mehr) bestätigt – zugeteilt wird nur Bestätigtes. Die Übersicht wurde neu geladen.",
+      "matchNotOfRegistration": "Das Team startet in diesem Lauf nicht (mehr), vermutlich wurde die Runde neu gesetzt. Die Übersicht wurde neu geladen.",
+      "invalidOutageWindow": "Das Ende des Ausfalls liegt vor seinem Beginn."
     }
   }
 }

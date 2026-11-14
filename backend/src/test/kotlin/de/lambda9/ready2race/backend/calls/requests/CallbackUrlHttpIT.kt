@@ -9,6 +9,7 @@ import io.ktor.http.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /**
  * Die Prüfung der `callbackUrl` hängt an der Route. Geprüft über die öffentliche, captcha-freie
@@ -28,6 +29,9 @@ class CallbackUrlHttpIT {
             setBody("""{"token":"unbekannt","callbackUrl":"https://evil.example/r?t="}""")
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status, response.bodyAsText())
+        // Eigener Code, damit das Frontend erklären kann, dass die aufgerufene Adresse nicht
+        // freigegeben ist (statt „unerwarteter Fehler").
+        assertTrue(response.bodyAsText().contains("\"CALLBACK_URL_NOT_ALLOWED\""), response.bodyAsText())
         assertEquals(0, !Jooq.query { fetchCount(EMAIL) })
     }
 

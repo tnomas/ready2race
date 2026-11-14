@@ -23,6 +23,7 @@ import {
 } from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {itemLabel} from '@components/material/materialWorkplace.ts'
 import {effectiveAssignments} from '@components/material/effectiveAssignments.ts'
 import {affectedByOutage, replacementCandidates} from '@components/material/affectedByOutage.ts'
@@ -155,7 +156,10 @@ const MaterialOutageImpactDialog = ({
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
         } else if (error) {
-            feedback.error(t('material.damage.impact.error'))
+            const key = materialErrorKey(error)
+            feedback.error(t(key ?? 'material.damage.impact.error'))
+            // Fachlicher Konflikt = veralteter Stand: neu laden.
+            if (key) reload()
         } else {
             feedback.success(t('material.damage.impact.success'))
             setDone(prev => new Set(prev).add(row.key))

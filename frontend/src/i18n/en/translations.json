@@ -1720,7 +1720,8 @@
         "ratingCategoryNotFound": "Rating category not found",
         "ratingCategoryMissing": "Rating category not specified for team where it is required",
         "ageRequirementNotMet": "Age requirement of a rating category not met by a participant",
-        "participantDuplicateInCompetition": "Participant is registered multiple times in a competition"
+        "participantDuplicateInCompetition": "Participant is registered multiple times in a competition",
+        "callbackUrlNotAllowed": "This page was opened under an address that is not approved for registrations ({{origin}}). Please open the page via the event’s official address and submit again; your entries are kept."
       },
       "mostRecent": "Latest registrations",
       "teams": "Teams",
@@ -5313,6 +5314,18 @@
     "damageStatus": {
       "REPORTED": "reported",
       "REPAIRED": "repaired"
+    },
+    "error": {
+      "requestsClosed": "The provider no longer accepts new requests for this event. Existing requests stay in place; please contact the provider directly.",
+      "typeNotDemanded": "This material type is not part of the competition’s demand. Please reload the page and check your selection.",
+      "providerInUse": "The provider still has items or is invited to events. Remove the items and withdraw the invitations first.",
+      "typeInUse": "The material type is still in use (items, a competition’s demand or offers) and cannot be deleted.",
+      "itemInUse": "The item is still assigned and cannot be deleted. Retire it instead, or remove the assignment first.",
+      "offerInUse": "This offer already has requests and can no longer be deleted. Close requests instead.",
+      "notInvited": "The provider is not (or no longer) invited to this event. Offers require an invitation.",
+      "requestNotConfirmed": "The request is not (or no longer) confirmed – only confirmed requests can be assigned. The overview has been reloaded.",
+      "matchNotOfRegistration": "The team no longer races in this match; the round was probably set again. The overview has been reloaded.",
+      "invalidOutageWindow": "The end of the outage lies before its start."
     }
   }
 }

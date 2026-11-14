@@ -6,6 +6,7 @@ import {MaterialTypeDto} from '@api/types.gen.ts'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
 import EntityTable from '@components/EntityTable.tsx'
+import {useMaterialDeleteError} from './useMaterialDeleteError.ts'
 
 const initialPagination: GridPaginationModel = {
     page: 0,
@@ -21,6 +22,8 @@ const deleteRequest = (dto: MaterialTypeDto) => deleteMaterialType({path: {typeI
 
 const MaterialTypeTable = (props: BaseEntityTableProps<MaterialTypeDto>) => {
     const {t} = useTranslation()
+    // In Verwendung (Stücke, Bedarf, Angebote) nicht löschbar: sagen, warum.
+    const onDeleteError = useMaterialDeleteError(t('material.type.type'))
 
     const columns: GridColDef<MaterialTypeDto>[] = useMemo(
         () => [
@@ -58,6 +61,7 @@ const MaterialTypeTable = (props: BaseEntityTableProps<MaterialTypeDto>) => {
             dataRequest={dataRequest}
             entityName={t('material.type.type')}
             deleteRequest={deleteRequest}
+            onDeleteError={onDeleteError}
         />
     )
 }

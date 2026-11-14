@@ -13,6 +13,7 @@ import {
 import {setMaterialAssignments} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {EmptyState} from '@components/ui'
 import {
     MaterialConflict,
@@ -83,7 +84,11 @@ const MaterialAssignmentByTeam = ({
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
         } else if (error) {
-            feedback.error(t('material.assignment.error'))
+            const key = materialErrorKey(error)
+            feedback.error(t(key ?? 'material.assignment.error'))
+            // Ein fachlicher Konflikt heißt: der Stand hier ist veraltet (Entscheidung oder Runde
+            // inzwischen geändert) - die Übersicht neu laden, damit die Liste wieder stimmt.
+            if (key) onChanged()
         } else {
             feedback.success(t('material.assignment.success'))
             setAddOpen(prev => {

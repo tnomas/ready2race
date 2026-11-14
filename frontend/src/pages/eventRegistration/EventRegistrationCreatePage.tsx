@@ -22,6 +22,7 @@ import EventRegistrationProvider from '@contexts/eventRegistration/EventRegistra
 import {useBlocker, useNavigate} from '@tanstack/react-router'
 import {Alert, Box, Button, Stack} from '@mui/material'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {MaterialErrorKey, materialErrorKey} from '@components/material/materialErrors.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {shouldConfirmDiscard, shouldConfirmLeaving} from '@utils/entityDialog.ts'
 import {readSessionToken} from '@contexts/user/sessionToken.ts'
@@ -84,7 +85,12 @@ const sameOfferIds = (a: string[], b: string[]): boolean => {
     return sortedA.every((id, index) => id === sortedB[index])
 }
 
-type MaterialSyncFailure = {competitionName: string; network: boolean}
+type MaterialSyncFailure = {
+    competitionName: string
+    network: boolean
+    /** Fachlicher Grund mit eigenem Text (Vergabe geschlossen, Art nicht im Bedarf, …). */
+    reasonKey: MaterialErrorKey | null
+}
 
 const formDataToRequest = (formData: EventRegistrationFormData): EventRegistrationUpsertDto => ({
     participants: formData.participants.map(p => ({
@@ -165,7 +171,11 @@ const EventRegistrationCreatePage = () => {
             submittingRef.current = false
             // Eingaben bleiben stehen: Fehler beheben und erneut absenden.
             const message =
-                key === 'common.error.notFound' ? t(key, {entity: t('event.event')}) : t(key)
+                key === 'common.error.notFound'
+                    ? t(key, {entity: t('event.event')})
+                    : key === 'event.registration.error.callbackUrlNotAllowed'
+                      ? t(key, {origin: window.location.origin})
+                      : t(key)
             feedback.error(message)
             setSubmitError(message)
         } else {
@@ -283,6 +293,7 @@ const EventRegistrationCreatePage = () => {
             .map(({r, error}) => ({
                 competitionName: r.competitionName,
                 network: isRequestNetworkError(error),
+                reasonKey: materialErrorKey(error),
             }))
     }
 
@@ -439,6 +450,19 @@ const EventRegistrationCreatePage = () => {
                                                 .map(f => f.competitionName)
                                                 .join(', '),
                                         })}
+                                        {/* Fachliche Gründe je Wettkampf: „erneut absenden“
+                                            hilft bei geschlossener Vergabe nicht, das muss dastehen. */}
+                                        {materialFailures.some(f => f.reasonKey !== null) && (
+                                            <Box component={'ul'} sx={{m: 0, mt: 1, pl: 2.5}}>
+                                                {materialFailures
+                                                    .filter(f => f.reasonKey !== null)
+                                                    .map((f, index) => (
+                                                        <li key={index}>
+                                                            {`${f.competitionName}: ${t(f.reasonKey!)}`}
+                                                        </li>
+                                                    ))}
+                                            </Box>
+                                        )}
                                     </Alert>
                                 )}
                                 {/* Zwei Wege statt einer Sackgasse. „Ansehen und bearbeiten" führt zurück in

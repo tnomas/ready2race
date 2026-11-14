@@ -26,6 +26,7 @@ import {
 import {decideMaterialRequest} from '@api/sdk.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {EmptyState} from '@components/ui'
 import {offerSummaries} from '@components/material/offerSummary.ts'
 import {
@@ -134,7 +135,7 @@ const MaterialRequestsPanel = ({eventId, providerId, overview, reload}: Props) =
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
         } else if (error) {
-            feedback.error(t('material.decision.error'))
+            feedback.error(t(materialErrorKey(error) ?? 'material.decision.error'))
         } else {
             feedback.success(t('material.decision.success'))
             reload()

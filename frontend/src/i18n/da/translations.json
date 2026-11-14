@@ -1720,7 +1720,8 @@
         "ratingCategoryNotFound": "Rangeringskategori ikke fundet",
         "ratingCategoryMissing": "Rangeringskategori mangler for hold, hvor den er påkrævet",
         "ageRequirementNotMet": "Alderskrav for en rangeringskategori er ikke opfyldt af en deltager",
-        "participantDuplicateInCompetition": "Deltager er tilmeldt flere gange i samme konkurrence"
+        "participantDuplicateInCompetition": "Deltager er tilmeldt flere gange i samme konkurrence",
+        "callbackUrlNotAllowed": "Denne side blev åbnet under en adresse, der ikke er godkendt til tilmeldinger ({{origin}}). Åbn venligst siden via arrangementets officielle adresse og send igen; dine indtastninger bevares."
       },
       "mostRecent": "Nyeste tilmeldinger",
       "teams": "Hold",
@@ -5313,6 +5314,18 @@
     "damageStatus": {
       "REPORTED": "meldt",
       "REPAIRED": "repareret"
+    },
+    "error": {
+      "requestsClosed": "Udbyderen modtager ikke længere nye forespørgsler til dette arrangement. Eksisterende forespørgsler bevares; kontakt venligst udbyderen direkte.",
+      "typeNotDemanded": "Denne materialetype er ikke en del af konkurrencens behov. Genindlæs siden og kontrollér dit valg.",
+      "providerInUse": "Udbyderen har stadig materiel eller er inviteret til arrangementer. Fjern først materiellet og træk invitationerne tilbage.",
+      "typeInUse": "Materialetypen er stadig i brug (materiel, en konkurrences behov eller tilbud) og kan ikke slettes.",
+      "itemInUse": "Materiellet er stadig tildelt og kan ikke slettes. Udfas det i stedet, eller fjern først tildelingen.",
+      "offerInUse": "Der er allerede forespørgsler på dette tilbud, så det kan ikke længere slettes. Luk i stedet for forespørgsler.",
+      "notInvited": "Udbyderen er ikke (længere) inviteret til dette arrangement. Tilbud kræver en invitation.",
+      "requestNotConfirmed": "Forespørgslen er ikke (længere) bekræftet – kun bekræftede forespørgsler kan tildeles. Oversigten er genindlæst.",
+      "matchNotOfRegistration": "Holdet starter ikke (længere) i dette heat; runden er sandsynligvis sat igen. Oversigten er genindlæst.",
+      "invalidOutageWindow": "Afslutningen af udfaldet ligger før starten."
     }
   }
 }

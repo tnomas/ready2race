@@ -418,6 +418,7 @@ export type SubmitErrorKey =
     | 'event.registration.error.ratingCategoryMissing'
     | 'event.registration.error.ageRequirementNotMet'
     | 'event.registration.error.participantDuplicateInCompetition'
+    | 'event.registration.error.callbackUrlNotAllowed'
 
 const ERROR_CODE_KEYS: Record<string, SubmitErrorKey> = {
     EVENT_REGISTRATION_CLOSED: 'event.registration.error.closed',
@@ -434,6 +435,9 @@ const ERROR_CODE_KEYS: Record<string, SubmitErrorKey> = {
     EVENT_REGISTRATION_AGE_REQUIREMENT_NOT_MET: 'event.registration.error.ageRequirementNotMet',
     EVENT_REGISTRATION_PARTICIPANT_DUPLICATE_IN_COMPETITION:
         'event.registration.error.participantDuplicateInCompetition',
+    // 422: Die Adresse, unter der die Seite aufgerufen wurde, steht nicht in FRONTEND_ORIGINS
+    // (ADR-0106) - kein Fehler im Formular, sondern in der Aufrufadresse.
+    CALLBACK_URL_NOT_ALLOWED: 'event.registration.error.callbackUrlNotAllowed',
 }
 
 /** Übersetzt die Antwort von `POST /event/{id}/register` in einen Fehlertext. */

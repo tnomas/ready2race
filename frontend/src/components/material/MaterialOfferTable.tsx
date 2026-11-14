@@ -5,6 +5,7 @@ import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialOffer, getMaterialOffers} from '@api/sdk.gen.ts'
 import {ApiError, MaterialOfferDto} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
+import {useMaterialDeleteError} from './useMaterialDeleteError.ts'
 import EntityTable from '@components/EntityTable.tsx'
 import {RequestResult} from '@hey-api/client-fetch'
 
@@ -25,6 +26,8 @@ type Props = BaseEntityTableProps<MaterialOfferDto> & {
 // paginiert/sortiert lokal (gridProps unten).
 const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
     const {t} = useTranslation()
+    // Mit Anfragen nicht löschbar: sagen, warum und was stattdessen geht.
+    const onDeleteError = useMaterialDeleteError(t('material.offer.offer'))
 
     const dataRequest = (signal: AbortSignal, paginationParameters: PaginationParameters) =>
         getMaterialOffers({signal, path: {eventId, providerId}}).then(result => {
@@ -98,6 +101,7 @@ const MaterialOfferTable = ({eventId, providerId, ...props}: Props) => {
             dataRequest={dataRequest}
             entityName={t('material.offer.offer')}
             deleteRequest={deleteRequest}
+            onDeleteError={onDeleteError}
             gridProps={{paginationMode: 'client', sortingMode: 'client'}}
         />
     )

@@ -28,6 +28,7 @@ import {resizeImage} from '@utils/resizeImage.ts'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {AutocompleteOption} from '@utils/types.ts'
 import {
     addMaterialDamage,
@@ -410,7 +411,7 @@ const MaterialDamageDialog = ({
             feedback.error(
                 isRequestNetworkError(saved.error)
                     ? t('common.error.network')
-                    : t('material.damage.error'),
+                    : t(materialErrorKey(saved.error) ?? 'material.damage.error'),
             )
             return
         }

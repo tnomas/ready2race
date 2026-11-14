@@ -308,6 +308,9 @@ describe('submitErrorKey', () => {
         expect(submitErrorKey({status: {value: 400}, errorCode: 'EVENT_REGISTRATION_CLOSED'})).toBe(
             'event.registration.error.closed',
         )
+        expect(submitErrorKey({status: {value: 422}, errorCode: 'CALLBACK_URL_NOT_ALLOWED'})).toBe(
+            'event.registration.error.callbackUrlNotAllowed',
+        )
         expect(submitErrorKey({status: {value: 400}, errorCode: 'UNBEKANNT'})).toBe(
             'common.error.unexpected',
         )

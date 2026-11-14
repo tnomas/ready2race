@@ -1,7 +1,12 @@
 import {AutocompleteOption, BaseEntityDialogProps} from '@utils/types.ts'
 import {MaterialOfferDto, MaterialOfferRequest} from '@api/types.gen.ts'
 import {useTranslation} from 'react-i18next'
-import {addMaterialOffer, getMaterialOffers, getMaterialTypes, updateMaterialOffer} from '@api/sdk.gen.ts'
+import {
+    addMaterialOffer,
+    getMaterialOffers,
+    getMaterialTypes,
+    updateMaterialOffer,
+} from '@api/sdk.gen.ts'
 import {useForm} from 'react-hook-form-mui'
 import {useCallback} from 'react'
 import EntityDialog from '@components/EntityDialog.tsx'
@@ -11,6 +16,7 @@ import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {materialErrorKey} from './materialErrors.ts'
 
 type MaterialOfferForm = {
     materialType: AutocompleteOption
@@ -80,6 +86,13 @@ const MaterialOfferDialog = ({eventId, providerId, ...props}: Props) => {
             body: mapFormToRequest(formData),
         })
 
+    // Fachliche Ablehnung (z. B. Einladung inzwischen zurückgenommen) mit eigenem Text.
+    const showKnownError = (error: unknown): boolean => {
+        const key = materialErrorKey(error)
+        if (key) feedback.error(t(key))
+        return key !== null
+    }
+
     const formContext = useForm<MaterialOfferForm>()
 
     const onOpen = useCallback(() => {
@@ -92,7 +105,9 @@ const MaterialOfferDialog = ({eventId, providerId, ...props}: Props) => {
             formContext={formContext}
             onOpen={onOpen}
             addAction={addAction}
-            editAction={editAction}>
+            editAction={editAction}
+            onAddError={showKnownError}
+            onEditError={showKnownError}>
             <Stack spacing={4}>
                 <FormInputAutocomplete
                     name={'materialType'}

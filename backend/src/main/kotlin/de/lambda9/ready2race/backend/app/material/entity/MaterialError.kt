@@ -93,7 +93,11 @@ sealed interface MaterialError : ServiceError {
             message = "Material provider name already taken",
             errorCode = ErrorCode.MATERIAL_PROVIDER_NAME_TAKEN,
         )
-        ProviderInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider is in use")
+        ProviderInUse -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material provider is in use",
+            errorCode = ErrorCode.MATERIAL_PROVIDER_IN_USE,
+        )
         ProviderHasUsers -> ApiError(
             status = HttpStatusCode.Conflict,
             message = "Material provider still has assigned users",
@@ -106,7 +110,11 @@ sealed interface MaterialError : ServiceError {
             message = "Material type name already taken",
             errorCode = ErrorCode.MATERIAL_TYPE_NAME_TAKEN,
         )
-        TypeInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material type is in use")
+        TypeInUse -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material type is in use",
+            errorCode = ErrorCode.MATERIAL_TYPE_IN_USE,
+        )
 
         ItemNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material item not found")
         ItemNumberTaken -> ApiError(
@@ -114,27 +122,55 @@ sealed interface MaterialError : ServiceError {
             message = "Material item number already taken",
             errorCode = ErrorCode.MATERIAL_ITEM_NUMBER_TAKEN,
         )
-        ItemInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material item is in use")
+        ItemInUse -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material item is in use",
+            errorCode = ErrorCode.MATERIAL_ITEM_IN_USE,
+        )
 
         EventNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Event not found")
-        NotInvited -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider is not invited to this event")
+        NotInvited -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material provider is not invited to this event",
+            errorCode = ErrorCode.MATERIAL_PROVIDER_NOT_INVITED,
+        )
         OfferNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material offer not found")
         OfferTypeTaken -> ApiError(
             status = HttpStatusCode.Conflict,
             message = "Material offer for this type already exists",
             errorCode = ErrorCode.MATERIAL_OFFER_TYPE_TAKEN,
         )
-        OfferInUse -> ApiError(status = HttpStatusCode.Conflict, message = "Material offer is in use")
+        OfferInUse -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material offer is in use",
+            errorCode = ErrorCode.MATERIAL_OFFER_IN_USE,
+        )
 
         RegistrationNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Competition registration not found")
-        RequestsClosed -> ApiError(status = HttpStatusCode.Conflict, message = "Material provider has closed requests for this event")
-        TypeNotDemanded -> ApiError(status = HttpStatusCode.Conflict, message = "Material type is not demanded by this competition")
+        RequestsClosed -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material provider has closed requests for this event",
+            errorCode = ErrorCode.MATERIAL_REQUESTS_CLOSED,
+        )
+        TypeNotDemanded -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material type is not demanded by this competition",
+            errorCode = ErrorCode.MATERIAL_TYPE_NOT_DEMANDED,
+        )
         DuplicateTypeForRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "At most one offer per material type is allowed")
 
         RequestNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material request not found")
-        RequestNotConfirmed -> ApiError(status = HttpStatusCode.Conflict, message = "Material request is not confirmed")
+        RequestNotConfirmed -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Material request is not confirmed",
+            errorCode = ErrorCode.MATERIAL_REQUEST_NOT_CONFIRMED,
+        )
         WrongItemType -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not match the offer's type")
-        MatchNotOfRegistration -> ApiError(status = HttpStatusCode.Conflict, message = "Competition match does not contain this registration")
+        MatchNotOfRegistration -> ApiError(
+            status = HttpStatusCode.Conflict,
+            message = "Competition match does not contain this registration",
+            errorCode = ErrorCode.MATERIAL_MATCH_NOT_OF_REGISTRATION,
+        )
         ItemNotOfProvider -> ApiError(status = HttpStatusCode.Conflict, message = "Material item does not belong to this provider")
 
         DamageNotFound -> ApiError(status = HttpStatusCode.NotFound, message = "Material damage not found")
@@ -149,6 +185,10 @@ sealed interface MaterialError : ServiceError {
             message = "Material damage photo must be a JPEG, PNG, WebP, GIF or HEIC image",
             errorCode = ErrorCode.MATERIAL_PHOTO_INVALID_TYPE,
         )
-        InvalidOutageWindow -> ApiError(status = HttpStatusCode.BadRequest, message = "Outage window end lies before its start")
+        InvalidOutageWindow -> ApiError(
+            status = HttpStatusCode.BadRequest,
+            message = "Outage window end lies before its start",
+            errorCode = ErrorCode.MATERIAL_INVALID_OUTAGE_WINDOW,
+        )
     }
 }

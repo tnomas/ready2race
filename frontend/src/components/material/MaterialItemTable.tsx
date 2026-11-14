@@ -6,6 +6,7 @@ import {deleteMaterialItem, getMaterialItems} from '@api/sdk.gen.ts'
 import {MaterialItemDto} from '@api/types.gen.ts'
 import {BaseEntityTableProps, EntityAction} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
+import {useMaterialDeleteError} from './useMaterialDeleteError.ts'
 import EntityTable, {ExtendedGridColDef} from '@components/EntityTable.tsx'
 
 const initialPagination: GridPaginationModel = {
@@ -23,6 +24,8 @@ type Props = BaseEntityTableProps<MaterialItemDto> & {
 
 const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
     const {t} = useTranslation()
+    // Noch zugeteilt nicht löschbar: sagen, warum und was stattdessen geht.
+    const onDeleteError = useMaterialDeleteError(t('material.item.item'))
 
     // Stabil halten, sonst lädt die Tabelle bei jedem Rendern neu (ADR-0105).
     const customEntityActions = useCallback(
@@ -96,6 +99,7 @@ const MaterialItemTable = ({providerId, onReportDamage, ...props}: Props) => {
             dataRequest={dataRequest}
             entityName={t('material.item.item')}
             deleteRequest={deleteRequest}
+            onDeleteError={onDeleteError}
             customEntityActions={customEntityActions}
         />
     )

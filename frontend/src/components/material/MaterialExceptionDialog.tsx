@@ -25,6 +25,7 @@ import {
 } from '@api/types.gen.ts'
 import {useFeedback} from '@utils/hooks.ts'
 import {isRequestNetworkError, runRequest} from '@utils/request.ts'
+import {materialErrorKey} from '@components/material/materialErrors.ts'
 import {itemLabel} from '@components/material/materialWorkplace.ts'
 
 type Props = {
@@ -107,7 +108,10 @@ const MaterialExceptionDialog = ({
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
         } else if (error) {
-            feedback.error(t('material.assignment.exceptionDialog.error'))
+            const key = materialErrorKey(error)
+            feedback.error(t(key ?? 'material.assignment.exceptionDialog.error'))
+            // Fachlicher Konflikt = veralteter Stand (z. B. Runde neu gesetzt): neu laden.
+            if (key) onChanged()
         } else {
             feedback.success(t('material.assignment.exceptionDialog.success'))
             onChanged()
