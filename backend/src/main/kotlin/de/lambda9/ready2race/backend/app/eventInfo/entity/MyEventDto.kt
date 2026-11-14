@@ -26,6 +26,11 @@ data class MyEventDto(
     val upcoming: List<MyEventMatchDto>,
     val results: List<MyEventResultDto>,
     val unscheduled: List<MyEventRegistrationDto>,
+    /**
+     * Meldungen mit Lauf, die Materialanfragen tragen - der Materialblock je Meldung (Spec §11:
+     * „immer sichtbar“). Meldungen ohne Lauf tragen ihn in [unscheduled].
+     */
+    val materialRegistrations: List<MyEventRegistrationDto> = emptyList(),
     val requirements: List<MyEventRequirementDto>,
     /** Der veranstaltungsweite Hinweisbanner (z.B. Wetterwarnung); null = kein Banner. */
     val notice: EventNoticeDto? = null,

@@ -197,7 +197,27 @@ object MyEventRepo {
      * Ansage. Eine solche Abmeldung trägt noch keine Runde (`competition_setup_round` ist dann
      * null), deshalb wird hier - anders als bei den Läufen - ohne Rundenbezug geprüft.
      */
-    fun findRegistrationsWithoutMatch(eventId: UUID, participantId: UUID): JIO<List<Record>> = Jooq.query {
+    fun findRegistrationsWithoutMatch(eventId: UUID, participantId: UUID): JIO<List<Record>> =
+        findRegistrations(eventId, participantId, withMatch = false)
+
+    /**
+     * Meldungen der Person, die schon in einem Lauf stehen - nur für den Materialblock je Meldung.
+     * Ohne Abmeldefilter: eine Abmeldung gilt je Runde, die Anfrage beim Anbieter bleibt.
+     */
+    fun findRegistrationsWithMatch(eventId: UUID, participantId: UUID): JIO<List<Record>> =
+        findRegistrations(eventId, participantId, withMatch = true)
+
+    private fun findRegistrations(eventId: UUID, participantId: UUID, withMatch: Boolean): JIO<List<Record>> = Jooq.query {
+        val inMatch = DSL.exists(
+            selectOne()
+                .from(COMPETITION_MATCH_TEAM)
+                .where(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+        )
+        val notDeregistered = notExists(
+            selectOne()
+                .from(COMPETITION_DEREGISTRATION)
+                .where(COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
+        )
         select(
             COMPETITION.ID.`as`("competition_id"),
             COMPETITION_PROPERTIES.IDENTIFIER,
@@ -219,20 +239,7 @@ object MyEventRepo {
             .leftJoin(NAMED_PARTICIPANT)
             .on(NAMED_PARTICIPANT.ID.eq(COMPETITION_REGISTRATION_NAMED_PARTICIPANT.NAMED_PARTICIPANT))
             .where(COMPETITION.EVENT.eq(eventId))
-            .and(
-                notExists(
-                    selectOne()
-                        .from(COMPETITION_MATCH_TEAM)
-                        .where(COMPETITION_MATCH_TEAM.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                )
-            )
-            .and(
-                notExists(
-                    selectOne()
-                        .from(COMPETITION_DEREGISTRATION)
-                        .where(COMPETITION_DEREGISTRATION.COMPETITION_REGISTRATION.eq(COMPETITION_REGISTRATION.ID))
-                )
-            )
+            .and(if (withMatch) inMatch else DSL.not(inMatch).and(notDeregistered))
             .orderBy(COMPETITION_PROPERTIES.IDENTIFIER.asc().nullsLast())
             .fetch()
     }

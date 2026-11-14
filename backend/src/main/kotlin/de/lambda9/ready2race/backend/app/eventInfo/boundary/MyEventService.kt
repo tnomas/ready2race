@@ -124,9 +124,14 @@ object MyEventService {
             val substitutionRecords = !MyEventRepo
                 .findSubstitutionsForRegistrationRounds(registrationRounds(matchRecords)).orDie()
             val registrationRecords = !MyEventRepo.findRegistrationsWithoutMatch(eventId, participantId).orDie()
+            // Meldungen mit Lauf tragen ihren Materialblock getrennt (Spec §11: je Meldung, immer
+            // sichtbar) - die Läufe zeigen nur das wirksame Boot, nicht den Stand der Anfrage.
+            val scheduledRegistrationRecords =
+                !MyEventRepo.findRegistrationsWithMatch(eventId, participantId).orDie()
             // Die Materialanfragen dieser Meldungen in einem Rutsch statt einer Abfrage je
             // Meldung - siehe MyEventRepo.findMaterialRequestsForRegistrations.
-            val registrationIds = registrationRecords.mapNotNull { it.get("registration_id", UUID::class.java) }
+            val registrationIds = (registrationRecords + scheduledRegistrationRecords)
+                .mapNotNull { it.get("registration_id", UUID::class.java) }
             val materialByRegistration = !MyEventRepo.findMaterialRequestsForRegistrations(registrationIds).orDie()
                 .map { rows ->
                     rows.groupBy(
@@ -192,6 +197,8 @@ object MyEventService {
                 upcoming = split.upcoming,
                 results = split.results,
                 unscheduled = toRegistrations(registrationRecords, materialByRegistration),
+                materialRegistrations = toRegistrations(scheduledRegistrationRecords, materialByRegistration)
+                    .filter { it.material.isNotEmpty() },
                 requirements = requirementRecords
                     // Nur Bedingungen, die für diese Person überhaupt gelten, und davon nur die
                     // ausdrücklich freigegebenen. Die Freitext-Notiz dazu wird nicht einmal

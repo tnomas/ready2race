@@ -11,6 +11,7 @@ import de.lambda9.ready2race.backend.app.material.entity.MaterialOfferRequest
 import de.lambda9.ready2race.backend.app.material.entity.MaterialRequestStatus
 import de.lambda9.ready2race.backend.app.material.entity.MaterialTypeRequest
 import de.lambda9.ready2race.backend.app.material.provider
+import de.lambda9.ready2race.backend.app.material.seedMatch
 import de.lambda9.ready2race.backend.app.material.seedOpenTeamEvent
 import de.lambda9.ready2race.backend.app.material.teamDto
 import de.lambda9.ready2race.backend.app.material.upsertDto
@@ -110,5 +111,55 @@ class MyEventMaterialTest {
         assertEquals(MaterialRequestStatus.REQUESTED, material.status)
         assertEquals(1, material.count)
         assertTrue(registration.material.none { it.typeName == "Riemen" })
+    }
+
+    /**
+     * Steht die Meldung schon in einem Lauf, fällt sie aus `unscheduled` - ihr Materialblock
+     * kommt dann über `materialRegistrations` (Spec §11: je Meldung, immer sichtbar).
+     */
+    @Test
+    fun scheduledRegistrationKeepsItsMaterialBlock() = testComprehension {
+        val seeded = seedOpenTeamEvent()
+        val teamId = UUID.randomUUID()
+        !EventRegistrationService.upsertRegistrationForEvent(
+            seeded.eventId,
+            upsertDto(seeded, listOf(teamDto(teamId, seeded.namedParticipantId, listOf(seeded.participant1, seeded.participant2)))),
+            seeded.user,
+        )
+        val userId = !createTestUser()
+        val providerId = (!MaterialService.addProvider(provider(), userId) as ApiResponse.Created).id
+        val typeBoat = (
+            !MaterialService.addType(MaterialTypeRequest("C2x", MaterialCategory.BOAT, null), userId)
+                as ApiResponse.Created
+            ).id
+        !CompetitionPropertiesHasMaterialTypeRepo.create(
+            listOf(CompetitionPropertiesHasMaterialTypeRecord(competitionProperties = seeded.propertiesId, materialType = typeBoat, count = 1))
+        )
+        !MaterialService.inviteProvider(seeded.eventId, providerId, userId)
+        val offerBoat = (
+            !MaterialService.addOffer(seeded.eventId, providerId, MaterialOfferRequest(typeBoat, null, 5, 30), userId)
+                as ApiResponse.Created
+            ).id
+        !MaterialService.setRequestsForRegistration(
+            seeded.eventId, teamId, Privilege.Scope.GLOBAL to null, listOf(offerBoat), userId
+        )
+        seedMatch(seeded.propertiesId, teamId)
+
+        val qrCode = "mein-event-material-${UUID.randomUUID()}"
+        !QrCodeRepo.create(
+            QrCodesRecord(
+                id = UUID.randomUUID(),
+                qrCodeId = qrCode,
+                participant = seeded.participant1,
+                event = seeded.eventId,
+                createdAt = LocalDateTime.now(),
+            )
+        )
+
+        val response = (!MyEventService.getMyEvent(seeded.eventId, qrCode)).dto
+        assertTrue(response.unscheduled.none { it.competitionId == seeded.competitionId })
+        val registration = response.materialRegistrations.single()
+        assertEquals(seeded.competitionId, registration.competitionId)
+        assertEquals(MaterialRequestStatus.REQUESTED, registration.material.single().status)
     }
 }
