@@ -19,6 +19,7 @@ gekennzeichnet.
 |---|---|---|
 | `V202611140800__material_rental.sql` | 11 Tabellen der Materialvermietung, die Spalte `app_user.material_provider` und der aufgeschobene Constraint-Trigger `A0_material_request_orphan_cleanup`. Sichten stehen in `afterMigrate.sql` (u. a. `effective_material_for_match_team`, `material_request_view`). | Legt nur neu an, ändert vorhandene Daten nicht. Datenbanken, auf denen der **alte** Material-Zweig lief, tragen die Version `V202609071000__material_rental` (und die alte Rollenkennung `…0003` am Anbieter-Konto) und **lassen sich nicht hochziehen**: Flyway findet die Datei nicht mehr, die Tabellen existieren schon. Solche Datenbanken neu aufsetzen (nur Entwicklungs-/Testdatenbanken; Produktion kannte den alten Zweig nicht). |
 | `V202611140840__material_fk_indizes.sql` | Sechs Fremdschlüssel-Indizes (Schadensfotos, Einladungen, Konten, Materialarten an Stück, Angebot und Bedarf). | Ohne `concurrently` (Flyway läuft transaktional): kurze Schreibsperre; die Tabellen sind klein. Nach Datenbestand in Produktion nicht gemessen. |
+| `V202611141330__startnummer_aus_meldungsnummer.sql` | Spalte `event.team_numbers_as_start_numbers boolean not null default false`; `event_view` liest sie (`afterMigrate.sql`). | Vorgabe `false`: für jede bestehende Veranstaltung bleibt alles, wie es war, auch bei schon fixierten Meldungen nach Bootsnummern (der Schalter wurde bis dahin nicht gespeichert). Wer dort die neue Wirkung will, refinalisiert mit dem Schalter. Ändert keine Läufe. |
 
 Letzte Nummer vor diesem Zweig: `V202611132020`. Nach `git mv` einer Migration die alte Kopie unter
 `backend/target/classes/db/migration/` löschen. Der Seed `docs/seeds/seed-material.sql` setzt auf den Namen der neuen Rolle
@@ -83,21 +84,29 @@ ist keine nginx-Konfiguration eingecheckt, ob die ausgelieferte Konfiguration da
 - Warteliste und Ablehnung löschen die Zuteilungen der Anfrage. Die Art eines Angebots mit Anfragen und eines zugeteilten
   Stücks ist fest; ein Stück mit Schadensakte lässt sich nur ausmustern.
 - Die Sicht `effective_material_for_match_team` wählt deterministisch (Ausnahme vor Grundzuteilung, kleinste Nummer) und vergleicht
-  mit der Startnummer im Lauf; die Grundzuteilung paart mit der Meldungsnummer. **Offen (fachlich):** die Rundenanlage übernimmt
-  die Meldungsnummer nicht als Startnummer, die Anzeigen markieren deshalb auch nach „Meldungsnummern nach Bootsnummern“ häufig
-  „abweichend“ (ADR-0111).
+  mit der Startnummer im Lauf; die Grundzuteilung paart mit der Meldungsnummer.
+- **Startnummer aus Meldungsnummer** (ADR-0111, Abschnitt 4, Entscheidung 14.11.2026): Jede Fixierung speichert den Schalter
+  „Meldungsnummern nach Bootsnummern vergeben“ an der Veranstaltung (mit Schalter an, ohne aus). Gesetzt nimmt **jede danach
+  angelegte Runde** (erste Runde, Folgerunden, Automatik) die Meldungsnummer als Startnummer; „abweichend“ erscheint dann nur bei
+  echter Abweichung. **Bestehende Läufe ändert die Fixierung nie**, auch ohne Ergebnisse: zum Angleichen die Runde löschen und neu
+  anlegen (nur ohne Ergebnisse möglich), am besten vor dem Startlisten-Export und vor dem Verteilen an Zeitnahme-Posten.
+  Mit Schalter schreibt der **RaceClocker-Abgleich keine Listenpositionen** mehr in die Startnummern: Ein Umsortieren in RaceClocker
+  ändert in R2R nichts (Zeiten kommen weiter an). Grenzen: In Folgerunden sind Listen nach Bootsnummer statt nach Setzplatz geordnet,
+  und der Freilos-Chip einer Folgerunde zeigt „Freilos“ ohne Zahl. Wer refinalisiert, prüft den vorbelegten Haken – ohne ihn
+  nummerieren künftige Runden wieder nach Setzposition.
 - Nach Meldeschluss können Vereine über die API noch anfragen oder zurückziehen, solange der Anbieter die Vergabe offen lässt.
 
 ## 7. Vor einem Produktiveinsatz von Hand zu prüfen
 
 Nichts davon ist bisher in der laufenden App belegt, soweit der Testkatalog nicht ausdrücklich „bestanden“ sagt:
 
-1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Die Handtests H1 bis H3 und F4 sind eingetragen (66 Fälle, 0 fehlgeschlagen);
+1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Die Handtests H1 bis H3 und F4 sind eingetragen (66 Fälle, 0 fehlgeschlagen),
+   Block G (Startnummer aus Meldungsnummer, 9 Fälle) ist **offen**;
    von Hand bleiben die Fälle „nicht gelaufen“/„nicht testbar“ und der Abschnitt „Nicht belegt und offen“, vor allem die Anmeldung
    über das Login-Formular (nie getestet), Excel-Öffnen der CSV, Fotos von der Handykamera, 768 px, en/da, verdeckter Tab.
 2. Wirecast/OBS-Handtest der Stream-Grafik (die Anzeigen selbst sind im Browser gesehen).
 3. Rückzugs-Mail und Meldeformular über die **echte** Adresse (`FRONTEND_ORIGINS`, Docker-nginx, Hoster-Proxy), Foto-Upload
    mit 10 MB und 50 MB hinter dem nginx.
 4. Die Messung der Sicht und der Anzeige-Abfragen gegen Produktionsdaten (`EXPLAIN` nur am Seed-Umfang); en/da-Texte gegenlesen.
-5. Die fachliche Entscheidung zur Startnummer (ADR-0111) vor einer Regatta, bei der Gleichheit von Boot und Startnummer
-   zugesagt wird.
+5. Vor einer Regatta mit Leihbooten: mit Schalter fixieren, **dann** Runden anlegen; Block G des Testkatalogs (vor allem G7,
+   RaceClocker-Abruf nach Umsortieren) einmal gegen die echte Zeitnahme durchspielen.

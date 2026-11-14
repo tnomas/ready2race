@@ -98,7 +98,7 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 
 - [ADR-0109](0109-materialvermietung-eigene-domaene-anfragen-ohne-fremdschluessel.md) Materialvermietung als eigene Domäne: Anfragen ohne Fremdschlüssel, Freigabe durch die Meldung, Verursacher als Momentaufnahme, Ausfall nur über die Ausnahme je Lauf
 - [ADR-0110](0110-rolle-materialanbieter-systemverwaltet-an-anbieter-zuordnung.md) Die Rolle „Materialanbieter“ ist systemverwaltet (Kennung `…0040`), folgt der Anbieter-Zuordnung am Konto und ist nicht kopierbar
-- [ADR-0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker; offen: Startnummer aus der Meldungsnummer
+- [ADR-0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker; mit „Meldungsnummern nach Bootsnummern“ ist die Meldungsnummer die Startnummer (entschieden 14.11.2026)
 
 ### Dokumente, Rechnungen, Exporte
 
@@ -283,4 +283,4 @@ ADR-0001 bis ADR-0101 wurden am 2026-09-07 aus der Commit-Historie (seit 2024-12
 | [0108](0108-backend-tests-template-datenbank-committing-concurrent.md) | 2026-11-13 | Backend-Tests: Template-Datenbank statt Neumigration, `testCommittingComprehension` und `ConcurrentTx` | angenommen |
 | [0109](0109-materialvermietung-eigene-domaene-anfragen-ohne-fremdschluessel.md) | 2026-11-14 | Materialvermietung als eigene Domäne: Anfragen ohne Fremdschlüssel, Freigabe durch die Meldung, Verursacher als Momentaufnahme, Ausfall nur über die Ausnahme je Lauf | angenommen |
 | [0110](0110-rolle-materialanbieter-systemverwaltet-an-anbieter-zuordnung.md) | 2026-11-14 | Die Rolle „Materialanbieter“ ist systemverwaltet (Kennung `…0040`), folgt der Anbieter-Zuordnung am Konto und ist nicht kopierbar | angenommen |
-| [0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) | 2026-11-14 | Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker | angenommen (Teilfrage offen) |
+| [0111](0111-meldungsnummer-und-startnummer-eine-ableitung-des-wirksamen-materials.md) | 2026-11-14 | Meldungsnummer und Startnummer im Lauf sind zwei Zahlen; das wirksame Material je Lauf-Team hat genau eine Ableitung; Änderungsmarker | angenommen |

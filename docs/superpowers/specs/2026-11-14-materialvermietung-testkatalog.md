@@ -19,7 +19,8 @@ gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und 
 
 ## Übersicht
 
-66 Fälle: **42 bestanden**, **17 bestanden mit Einschränkung**, **1 nicht testbar**, **6 nicht gelaufen**.
+75 Fälle: **42 bestanden**, **17 bestanden mit Einschränkung**, **1 nicht testbar**, **6 nicht gelaufen**, **9 offen**
+(Block G, nach der Entscheidung vom 14.11.2026 gebaut, noch von keinem Tester gesehen).
 
 | Fall | Kurz | Ergebnis | Quelle |
 |---|---|---|---|
@@ -89,6 +90,15 @@ gegen den Seed. Je Fall steht in „Ergebnis 14.11.“ das konkret Gesehene und 
 | F8 neu | Anbieter-Wechsel für globale Konten | bestanden | H2 |
 | F9 neu | Meldung gibt Anfragen frei (Veranstalter-Wege) | nicht gelaufen | - |
 | F10 neu | Einladen braucht zusätzlich READ MATERIAL GLOBAL | bestanden | H3 |
+| G1 neu | Fixieren mit Schalter → Runde anlegen: Startnummer = Meldungsnummer | offen | - |
+| G2 neu | Folgerunde (Finale) behält die Meldungsnummer | offen | - |
+| G3 neu | Schalter aus: Setzposition wie bisher | offen | - |
+| G4 neu | Bestehende Läufe bleiben beim Fixieren unverändert | offen | - |
+| G5 neu | Anzeigen ohne „abweichend“ im Normalfall | offen | - |
+| G6 neu | Echte Abweichung bleibt sichtbar | offen | - |
+| G7 neu | Startlisten-Export und RaceClocker | offen | - |
+| G8 neu | Zeitnahme-Posten und Startanzeige mit großen Nummern | offen | - |
+| G9 neu | Freilos in einer Folgerunde mit Schalter | offen | - |
 
 ## Testdaten
 
@@ -117,12 +127,16 @@ DM-Veranstaltung offen und setzt sie beim Cleanup nicht zurück.
 - **Anbieter 1 Bootshaus Nord:** Flotte Boot 1/2 = C1x, Boot 3/4/5 = C2x, Boot 6/7/8 = C4x+, „Vierer 2“ =
   C4x+ mit Nummer 2, vier Skull-Paare (Art `OTHER`, ohne Nummer); eingeladen, Vergabe offen.
   **Anbieter 2 Ruderwerft Süd:** zwei C4x+, eigenes Konto, eingeladen, eigenes Angebot.
+- **Schalter an der Veranstaltung:** Der Seed setzt `event.team_numbers_as_start_numbers = true` (wie nach einer
+  Fixierung mit „Meldungsnummern nach Bootsnummern vergeben“, ADR-0111). Startnummer im Lauf = Meldungsnummer.
 - **Wettkampf „M1 Materialtest“** (CM 4x+ MT, mit Läufen, für die Anzeigen): Vorlauf 1 läuft seit dem
-  Einspielen, Vorlauf 2 in 20 min, Finale in 90 min. MT 1 (DM-Verein 1): Grundzuteilung **Boot 7**, im
-  Lauf #1, also abweichend. MT 2 (DM-Verein 2): **Vierer 2**, #2, passt. MT 3 (DM-Verein 3): Grundzuteilung
-  **Boot 6 (Totalschaden)**, im Vorlauf 2 Ersatz **Boot 8** als Ausnahme (#1), im Finale Boot 6 (#3). MT 4
-  (DM-Verein 4): eigenes Boot, offene Anfrage bei Ruderwerft Süd. Vorlauf 1 [1,2], Vorlauf 2 [1,2],
-  Finale [1,2,3,4] Startnummern. Meldungsnummern 1–4 (MT 1 bis MT 4).
+  Einspielen, Vorlauf 2 in 20 min, Finale in 90 min. MT 1 (DM-Verein 1, Meldungsnr. **7**): Grundzuteilung
+  **Boot 7**, überall #7, **passt** (Normalfall). MT 2 (DM-Verein 2, Meldungsnr. **3**): **Vierer 2**, #3,
+  **abweichend** (Stück mit anderer Nummer, „ohne Nummerngleichheit“). MT 3 (DM-Verein 3, Meldungsnr. **6**):
+  Grundzuteilung **Boot 6 (Totalschaden)**, im Vorlauf 2 Ersatz **Boot 8** als Ausnahme (#6, **abweichend**), im
+  Finale Boot 6 (#6, passt; der Ausfall ist ein Konflikt im Dashboard). MT 4 (DM-Verein 4, Meldungsnr. **1**):
+  eigenes Boot, offene Anfrage bei Ruderwerft Süd. Startnummern: Vorlauf 1 [7, 3], Vorlauf 2 [6, 1],
+  Finale [1, 3, 6, 7].
 - **Wettkampf „M2 Anmeldetest“** (CF 2x AT, ohne Läufe, **das Meldeformular für Block A**, Bedarf C2x
   und Skull-Paar): Das C2x-Angebot plant **2** Stück. DM-Verein 1 #1 **bestätigt** (Rückzug = Mail), #2
   **angefragt**; DM-Verein 2 **bestätigt**; DM-Verein 3 **Warteliste** (älteste offene Anfrage). DM-Verein 2
@@ -131,6 +145,10 @@ DM-Veranstaltung offen und setzt sie beim Cleanup nicht zurück.
   Meldungsnummer.
 - **Wettkampf „M3 Gig-Vierer ohne Angebot“:** Meldeplätze, Bedarf „Gig-Vierer“, den kein Anbieter
   anbietet.
+- **Wettkampf „M4 Rundentest“** (CM 4x+ RT, `5eed0009-0010-0000-0000-000000000004`, für Block G): Setup Vorlauf
+  (2 Läufe à 2) → Finale (4 Plätze), **ohne Läufe und ohne Meldungsnummern**, keine Meldeplätze (nicht im
+  Meldeformular). DM-Verein 1 und 2 je ein **bestätigtes** C4x+ bei Ruderwerft Süd mit Grundzuteilung **Süd 21**
+  bzw. **Süd 22**; DM-Verein 3 und 4 eigene Boote. Das Süd-Angebot plant 3 Stück.
 - **Schaden:** Boot 6, Totalschaden, Ausfallfenster offen, Verursacher als Momentaufnahme „ARV Kiel CM 4x+“.
 - **Mein Event:** QR-Code `MATERIAL-MEINEVENT-1` (Mats Boysen, MT 1), Einstieg `/results/MATERIAL-MEINEVENT-1`.
   Board `5eed0009-0040-0000-0000-000000000001`, Stream-Szene `5eed0009-0041-0000-0000-000000000001`.
@@ -723,6 +741,95 @@ aus; Anfrage und Zuteilungen sind weg; der Marker wird gebumpt.
 
 ---
 
+## Block G: Startnummer aus Meldungsnummer (Entscheidung 14.11.2026)
+
+Hintergrund: ADR-0111, Abschnitt 4. Mit dem Schalter „Meldungsnummern nach Bootsnummern vergeben“ speichert die
+Fixierung den Wunsch an der Veranstaltung; jede **danach** angelegte Runde gibt jedem Boot seine Meldungsnummer als
+Startnummer. Wettkampf **M4 Rundentest** ist dafür vorbereitet (siehe Testdaten). Vor dem Block den Seed frisch einspielen;
+Fixieren wirkt veranstaltungsweit (auch M1/M2 und die DM-Wettkämpfe bekommen neue Meldungsnummern).
+
+### G1 (neu) - Fixieren mit Schalter → Runde anlegen: Startnummer = Meldungsnummer
+
+**Vorbedingung:** Frischer Seed, Admin-Sitzung; M4 ohne Läufe.
+**Schritte:** Veranstaltung → Meldungen: Haken „Meldungsnummern nach Bootsnummern vergeben“ setzen, „Meldungen
+finalisieren“. Danach Wettkampf M4 → Meldungen (Chips „Meldungsnr. n“), dann M4 → Durchführung → „Runde anlegen“.
+**Erwartung:** Nach dem Fixieren steht im Block der Hinweis „Startnummer = Meldungsnummer …“. M4: DM-Verein 1 und 2
+haben Meldungsnr. **21** und **22** (ihre Süd-Boote), DM-Verein 3 und 4 **1** und **2**. Die Lauf-Karten des Vorlaufs zeigen
+die Meldungsnummern als Startnummern: Vorlauf 1 **#1** und **#22**, Vorlauf 2 **#2** und **#21**; „Süd 21“/„Süd 22“ ohne
+Chip „abweichend“.
+**Ergebnis 14.11.:** offen
+
+### G2 (neu) - Folgerunde (Finale) behält die Meldungsnummer
+
+**Vorbedingung:** G1.
+**Schritte:** In M4 beide Vorläufe werten (Plätze eintragen, Lauf beenden), dann „Runde anlegen“ (bzw. die Folgerunden-
+Automatik, falls eingeschaltet).
+**Erwartung:** Im Finale starten alle vier Boote unter ihrer Meldungsnummer (**#1, #2, #21, #22**), nicht unter dem Rang 1–4;
+kein „abweichend“. Die Liste ist nach Startnummer geordnet (nicht nach Setzplatz – bewusst, ADR-0111).
+**Ergebnis 14.11.:** offen
+
+### G3 (neu) - Schalter aus: Setzposition wie bisher
+
+**Vorbedingung:** Frischer Seed.
+**Schritte:** Veranstaltung → Meldungen: Haken **weg**, finalisieren. M4 → Runde anlegen.
+**Erwartung:** Hinweis im Block „Die Rundenanlage vergibt die Startnummer je Lauf nach Setzposition …“. Vorläufe mit
+Startnummern **#1/#2** je Lauf; die Süd-Boote mit Nummer ≠ Startnummer tragen den Chip „abweichend“.
+**Ergebnis 14.11.:** offen
+
+### G4 (neu) - Bestehende Läufe bleiben beim Fixieren unverändert
+
+**Vorbedingung:** Frischer Seed (M1 hat Läufe mit #7/#3/#6/#1).
+**Schritte:** Refinalisieren mit „Nummern behalten“ aus und Schalter an; danach M1 → Durchführung ansehen. Variante: G3 ausführen
+(Runde in M4 ohne Schalter), dann mit Schalter refinalisieren und M4 ansehen; Runde löschen und neu anlegen.
+**Erwartung:** Startnummern bestehender Läufe ändern sich durch das Fixieren **nicht** (M1 bleibt [7, 3], [6, 1], Finale
+[1, 3, 6, 7], auch wenn MT 2 jetzt Meldungsnr. 2 hat). In M4 gleicht erst „Runde löschen“ + „Runde anlegen“ an.
+**Ergebnis 14.11.:** offen
+
+### G5 (neu) - Anzeigen ohne „abweichend“ im Normalfall
+
+**Vorbedingung:** Frischer Seed.
+**Schritte:** M1 auf Lauf-Karte (Durchführung), Board, Schiedsrichter-Dashboard, Sprecher, Mein Event (`MATERIAL-MEINEVENT-1`),
+Stream-Szene ansehen.
+**Erwartung:** MT 1 überall „#7 · Boot 7“ **ohne** „abweichend“; MT 3 im Finale „#6 · Boot 6“ ohne „abweichend“.
+**Ergebnis 14.11.:** offen
+
+### G6 (neu) - Echte Abweichung bleibt sichtbar
+
+**Vorbedingung:** Frischer Seed.
+**Schritte:** Wie G5, dazu Anbieter-Dashboard (Bootshaus Nord) → Einteilung.
+**Erwartung:** MT 3 im Vorlauf 2 „#6 · Boot 8“ **abweichend** (Ausnahme wegen Ausfall); MT 2 „#3 · Vierer 2“ **abweichend**
+in Vorlauf 1 und Finale, im Dashboard „ohne Nummerngleichheit“. Dashboard trennt „Meldungsnr.“ und „Startnr.“.
+**Ergebnis 14.11.:** offen
+
+### G7 (neu) - Startlisten-Export und RaceClocker
+
+**Vorbedingung:** G1 (M4 mit Vorlauf), Startlisten-Konfiguration der Veranstaltung mit Spalte „Bib“; optional ein RaceClocker-
+Rennen als Zeitnahmeprofil.
+**Schritte:** Startliste (CSV und PDF) für Vorlauf 1 von M4 herunterladen. Mit RaceClocker: Liste importieren, dort zwei Boote
+umsortieren, Ergebnisse abrufen.
+**Erwartung:** CSV/PDF tragen die Meldungsnummern als Startnummer/Bib (#1, #22). Nach dem Abruf stehen in R2R weiter #1/#22
+(das Umsortieren in RaceClocker ändert keine Startnummer); Zeiten kommen an. Ohne Schalter (G3) schreibt der Abruf wie bisher
+die Listenpositionen.
+**Ergebnis 14.11.:** offen
+
+### G8 (neu) - Zeitnahme-Posten und Startanzeige mit großen Nummern
+
+**Vorbedingung:** G1; ein Zeitnahme-Posten für M4.
+**Schritte:** Posten (Helfer-App) und Startanzeige/Leitstand für Vorlauf 1 öffnen, eine Marke einem Boot zuordnen.
+**Erwartung:** Boote erscheinen als „#1“ und „#22“, nach Startnummer geordnet; Zuordnen klappt; zweistellige Nummern werden
+nicht abgeschnitten (auch Stream-Zeile).
+**Ergebnis 14.11.:** offen
+
+### G9 (neu) - Freilos in einer Folgerunde mit Schalter
+
+**Vorbedingung:** Ein Setup, in dem eine Folgerunde ein Freilos erzeugt (nicht im Seed; z. B. M4-Finale mit einem abgemeldeten
+Boot).
+**Schritte:** Folgerunde anlegen, Freilos-Chip und Laufnamen ansehen.
+**Erwartung:** Laufname „Freilos n“ stimmt; der Chip zeigt mit Schalter nur „Freilos“ ohne Zahl (bekannte Grenze, ADR-0111).
+**Ergebnis 14.11.:** offen
+
+---
+
 ## Nachtest (H3, F4)
 
 H3 hat 16 Pflichtfälle nach den Korrekturen F1 bis F3 wiederholt, F4 den Fall 17 (siehe C7). Zuordnung zu den Fällen: Nr. 1 → A6/A9,
@@ -732,9 +839,9 @@ Ausfall-Konflikt in B9, die Formularansicht bei geschlossener Vergabe (A5) und d
 
 ## Nicht belegt und offen (Endstand 14.11.2026)
 
-- **Fachliche Entscheidung** (ADR-0111): Solange die Rundenanlage die Startnummer im Lauf nach Setzliste vergibt, zeigen die
-  Anzeigen auch nach der Fixierung häufig „abweichend“; ob die Rundenanlage die Meldungsnummer übernehmen soll, ist **nicht
-  entschieden und nicht gebaut** (H1 gemessen: Verein 1 Meldungsnummer 8, Startnummer 1, Grundzuteilung Boot 7).
+- **Startnummer aus Meldungsnummer** (ADR-0111, Abschnitt 4): am 14.11.2026 entschieden und gebaut; Block G ist **offen**
+  (nur Backend-Tests und ein kurzer Blick der Entwicklung, kein Handtest). Die Fälle B6, C2, C4, E4, E5, E7 sahen noch den
+  alten Seed (Startnummer = Setzposition, MT 1 #1 mit Boot 7 abweichend); der neue Seed zeigt dort andere Zahlen.
 - **Anmeldung über das Login-Formular wurde nie getestet:** Die Seed-Passwörter passen nicht zum lokalen Pepper, „Passwort vergessen“
   verlangt ein Captcha. Alle Rollen liefen über Sitzungs-Token in `localStorage`.
 - **Nicht herstellbar im Seed (nicht belegt):** überzähliges Mietteam oberhalb des Bestands bei der Fixierung (C3), doppelte
