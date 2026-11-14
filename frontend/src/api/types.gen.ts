@@ -1798,6 +1798,12 @@ export type ErrorCode =
     | 'MATERIAL_REQUEST_NOT_CONFIRMED'
     | 'MATERIAL_MATCH_NOT_OF_REGISTRATION'
     | 'MATERIAL_INVALID_OUTAGE_WINDOW'
+    | 'MATERIAL_REMOVAL_REQUESTS_CLOSED'
+    | 'MATERIAL_OFFER_TYPE_LOCKED'
+    | 'MATERIAL_ITEM_TYPE_LOCKED'
+    | 'MATERIAL_ITEM_HAS_DAMAGES'
+    | 'MATERIAL_ITEM_RETIRED'
+    | 'MATERIAL_DUPLICATE_ASSIGNMENT'
     | 'CALLBACK_URL_NOT_ALLOWED'
 
 export type EventDayDto = {
@@ -3276,6 +3282,15 @@ export type MaterialOverviewMatchDto = {
     startTime?: string
     endTime?: string
     registrationIds: Array<string>
+    /**
+     * Je Meldung dieses Laufs die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+     */
+    teams: Array<MaterialOverviewMatchTeamDto>
+}
+
+export type MaterialOverviewMatchTeamDto = {
+    competitionRegistration: string
+    startNumber: number
 }
 
 /**
@@ -3298,11 +3313,11 @@ export type MaterialOverviewRequestDto = {
     competitionName: string
     teamName?: string
     /**
-     * Meldungsnummer aus der Fixierung (ordnet die Setzliste der ersten Runde).
+     * Meldungsnummer aus der Fixierung - je Wettkampf eindeutig und fest. Die Grundzuteilung paart Boot n mit Meldungsnummer n ("Nach Startnummer zuteilen", Abgleich bei der Fixierung).
      */
     teamNumber?: number
     /**
-     * Startnummer des Teams in seinem ersten Lauf, ohne Lauf die Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots; "Nach Startnummer zuteilen" richtet sich danach.
+     * Startnummer im ersten Lauf des Teams (je Lauf ab 1, in Folgerunden der Rang), ohne Lauf die Meldungsnummer. Nur zur Anzeige, nicht eindeutig je Wettkampf - nie zum Paaren verwenden. Die Startnummer je Lauf steht in MaterialOverviewMatchDto.teams.
      */
     startNumber?: number
     clubId: string

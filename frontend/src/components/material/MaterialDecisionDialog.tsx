@@ -21,6 +21,11 @@ type Props = {
     requestId: string | null
     /** Bestätigen braucht keine Notiz und läuft direkt in der Tabelle, ohne diesen Dialog. */
     status: 'WAITLISTED' | 'DECLINED'
+    /**
+     * Zuteilungen der Anfrage (Grund und Ausnahmen). Warteliste oder Ablehnung löschen sie im
+     * Backend; eine spätere Bestätigung beginnt ohne Stück – das sagt der Dialog vorher.
+     */
+    assignmentCount: number
     onClose: () => void
     onDecided: () => void
 }
@@ -36,6 +41,7 @@ const MaterialDecisionDialog = ({
     providerId,
     requestId,
     status,
+    assignmentCount,
     onClose,
     onDecided,
 }: Props) => {
@@ -78,6 +84,11 @@ const MaterialDecisionDialog = ({
                 <Typography variant={'body2'} color={'text.secondary'}>
                     {t(`material.decision.hint.${status}`)}
                 </Typography>
+                {assignmentCount > 0 && (
+                    <Typography variant={'body2'} sx={{mt: 1}}>
+                        {t('material.decision.removesAssignments', {count: assignmentCount})}
+                    </Typography>
+                )}
                 <TextField
                     autoFocus
                     fullWidth

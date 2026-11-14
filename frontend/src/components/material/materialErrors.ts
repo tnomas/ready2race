@@ -16,6 +16,12 @@ export type MaterialErrorKey =
     | 'material.error.requestNotConfirmed'
     | 'material.error.matchNotOfRegistration'
     | 'material.error.invalidOutageWindow'
+    | 'material.error.removalClosed'
+    | 'material.error.offerTypeLocked'
+    | 'material.error.itemTypeLocked'
+    | 'material.error.itemHasDamages'
+    | 'material.error.itemRetired'
+    | 'material.error.duplicateAssignment'
     | 'material.provider.hasUsers'
     | 'material.damage.photoTooLarge'
     | 'material.damage.photoInvalidType'
@@ -31,6 +37,12 @@ const KEYS: Partial<Record<ErrorCode, MaterialErrorKey>> = {
     MATERIAL_REQUEST_NOT_CONFIRMED: 'material.error.requestNotConfirmed',
     MATERIAL_MATCH_NOT_OF_REGISTRATION: 'material.error.matchNotOfRegistration',
     MATERIAL_INVALID_OUTAGE_WINDOW: 'material.error.invalidOutageWindow',
+    MATERIAL_REMOVAL_REQUESTS_CLOSED: 'material.error.removalClosed',
+    MATERIAL_OFFER_TYPE_LOCKED: 'material.error.offerTypeLocked',
+    MATERIAL_ITEM_TYPE_LOCKED: 'material.error.itemTypeLocked',
+    MATERIAL_ITEM_HAS_DAMAGES: 'material.error.itemHasDamages',
+    MATERIAL_ITEM_RETIRED: 'material.error.itemRetired',
+    MATERIAL_DUPLICATE_ASSIGNMENT: 'material.error.duplicateAssignment',
     MATERIAL_PROVIDER_HAS_USERS: 'material.provider.hasUsers',
     MATERIAL_PHOTO_TOO_LARGE: 'material.damage.photoTooLarge',
     MATERIAL_PHOTO_INVALID_TYPE: 'material.damage.photoInvalidType',

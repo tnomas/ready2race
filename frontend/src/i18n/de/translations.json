@@ -5211,7 +5211,9 @@
       "hint": {
         "WAITLISTED": "Die Anfrage kommt auf die Warteliste. Wird ein Platz frei, steht die älteste als Nächste oben. Die Notiz sieht der Verein bei seiner Meldung.",
         "DECLINED": "Die Anfrage wird abgelehnt. Die Notiz sieht der Verein bei seiner Meldung."
-      }
+      },
+      "removesAssignments_one": "Die Anfrage hat {{count}} Zuteilung. Sie wird dabei gelöscht; eine spätere Bestätigung beginnt ohne Stück.",
+      "removesAssignments_other": "Die Anfrage hat {{count}} Zuteilungen. Sie werden dabei gelöscht; eine spätere Bestätigung beginnt ohne Stück."
     },
     "assignment": {
       "viewByTeam": "Nach Team",
@@ -5255,7 +5257,10 @@
       "withoutNumberMatch": "ohne Nummerngleichheit",
       "withoutNumberMatchHint": "Kein aktives Stück der eigenen Flotte trägt die Meldungsnummer dieses Teams. Ein Stück mit anderer Nummer zuteilen – die Anzeigen führen es dann als abweichend.",
       "withoutNumberMatchSummary_one": "{{count}} Team ohne Nummerngleichheit: Seine Meldungsnummer trägt kein aktives Stück der Flotte.",
-      "withoutNumberMatchSummary_other": "{{count}} Teams ohne Nummerngleichheit: Ihre Meldungsnummer trägt kein aktives Stück der Flotte."
+      "withoutNumberMatchSummary_other": "{{count}} Teams ohne Nummerngleichheit: Ihre Meldungsnummer trägt kein aktives Stück der Flotte.",
+      "deviatingMatches_one": "Startnummer weicht in {{count}} Lauf ab",
+      "deviatingMatches_other": "Startnummer weicht in {{count}} Läufen ab",
+      "deviatingMatchesHint": "In diesen Läufen trägt das Boot nicht die Startnummer, unter der das Team dort startet. Boards, Schiedsrichter-Dashboard und Lauf-Karte zeigen „abweichend“. Die Startnummer im Lauf vergibt die Rundenanlage."
     },
     "conflict": {
       "OVERLAP": "Überschneidung",
@@ -5319,7 +5324,8 @@
       "photoReject": {
         "notImage": "kein Bild",
         "tooLarge": "größer als 10 MB",
-        "tooMany": "mehr als 20 Fotos auf einmal"
+        "tooMany": "mehr als 20 Fotos auf einmal",
+        "totalTooLarge": "zusammen mehr als 50 MB"
       }
     },
     "severity": {
@@ -5342,7 +5348,13 @@
       "notInvited": "Der Anbieter ist zu dieser Veranstaltung nicht (mehr) eingeladen. Angebote sind erst nach einer Einladung möglich.",
       "requestNotConfirmed": "Die Anfrage ist nicht (mehr) bestätigt – zugeteilt wird nur Bestätigtes. Die Übersicht wurde neu geladen.",
       "matchNotOfRegistration": "Das Team startet in diesem Lauf nicht (mehr), vermutlich wurde die Runde neu gesetzt. Die Übersicht wurde neu geladen.",
-      "invalidOutageWindow": "Das Ende des Ausfalls liegt vor seinem Beginn."
+      "invalidOutageWindow": "Das Ende des Ausfalls liegt vor seinem Beginn.",
+      "removalClosed": "Die Meldung hat eine Materialanfrage, und der Anbieter hat die Vergabe geschlossen. Entfernen geht deshalb nicht – bitte direkt an den Anbieter wenden.",
+      "offerTypeLocked": "Zu diesem Angebot gibt es schon Anfragen; die Materialart bleibt deshalb fest. Preis, geplante Anzahl und Wechselzeit lassen sich weiter ändern.",
+      "itemTypeLocked": "Das Stück ist zugeteilt; seine Materialart bleibt deshalb fest. Erst die Zuteilungen lösen.",
+      "itemHasDamages": "Zu diesem Stück gibt es eine Schadensakte; es kann nicht gelöscht werden. Stattdessen bearbeiten und „ausgemustert“ einschalten.",
+      "itemRetired": "Das Stück ist ausgemustert und kann nicht neu zugeteilt werden. Die Übersicht wurde neu geladen.",
+      "duplicateAssignment": "Dieses Stück steht für diesen Lauf schon in der Zuteilung. Die Übersicht wurde neu geladen."
     },
     "number": {
       "team": "Meldungsnr. {{number}}",

@@ -5211,7 +5211,9 @@
       "hint": {
         "WAITLISTED": "The request goes onto the waiting list. When a place becomes free, the oldest one is shown first. The club sees the note in its registration.",
         "DECLINED": "The request is declined. The club sees the note in its registration."
-      }
+      },
+      "removesAssignments_one": "The request has {{count}} assignment. It will be deleted; a later confirmation starts without an item.",
+      "removesAssignments_other": "The request has {{count}} assignments. They will be deleted; a later confirmation starts without an item."
     },
     "assignment": {
       "viewByTeam": "By team",
@@ -5255,7 +5257,10 @@
       "withoutNumberMatch": "no matching number",
       "withoutNumberMatchHint": "No active item of your fleet carries this team's entry number. Assign an item with another number – displays will then mark it as differing.",
       "withoutNumberMatchSummary_one": "{{count}} team without a matching number: no active item in the fleet carries its entry number.",
-      "withoutNumberMatchSummary_other": "{{count}} teams without a matching number: no active item in the fleet carries their entry number."
+      "withoutNumberMatchSummary_other": "{{count}} teams without a matching number: no active item in the fleet carries their entry number.",
+      "deviatingMatches_one": "start number differs in {{count}} race",
+      "deviatingMatches_other": "start number differs in {{count}} races",
+      "deviatingMatchesHint": "In these races the boat does not carry the start number the team starts with there. Boards, referee dashboard and race card show “differs”. The start number in the race is assigned when the rounds are set up."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5319,7 +5324,8 @@
       "photoReject": {
         "notImage": "not an image",
         "tooLarge": "larger than 10 MB",
-        "tooMany": "more than 20 photos at once"
+        "tooMany": "more than 20 photos at once",
+        "totalTooLarge": "more than 50 MB in total"
       }
     },
     "severity": {
@@ -5342,7 +5348,13 @@
       "notInvited": "The provider is not (or no longer) invited to this event. Offers require an invitation.",
       "requestNotConfirmed": "The request is not (or no longer) confirmed – only confirmed requests can be assigned. The overview has been reloaded.",
       "matchNotOfRegistration": "The team no longer races in this match; the round was probably set again. The overview has been reloaded.",
-      "invalidOutageWindow": "The end of the outage lies before its start."
+      "invalidOutageWindow": "The end of the outage lies before its start.",
+      "removalClosed": "The entry has an equipment request and the provider has closed requests. It therefore cannot be removed – please contact the provider directly.",
+      "offerTypeLocked": "This offer already has requests, so its equipment type is fixed. Price, planned number and changeover time can still be changed.",
+      "itemTypeLocked": "The item is assigned, so its equipment type is fixed. Remove the assignments first.",
+      "itemHasDamages": "This item has damage records and cannot be deleted. Edit it and switch on “retired” instead.",
+      "itemRetired": "The item is retired and cannot be newly assigned. The overview has been reloaded.",
+      "duplicateAssignment": "This item is already assigned for this race. The overview has been reloaded."
     },
     "number": {
       "team": "Entry no. {{number}}",

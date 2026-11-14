@@ -11,7 +11,8 @@ import FormInputNumber from '@components/form/input/FormInputNumber.tsx'
 import FormInputAutocomplete from '@components/form/input/FormInputAutocomplete.tsx'
 import FormInputSwitch from '@components/form/input/FormInputSwitch.tsx'
 import {takeIfNotEmpty} from '@utils/ApiUtils.ts'
-import {useFetch} from '@utils/hooks.ts'
+import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {materialErrorKey} from './materialErrors.ts'
 
 type MaterialItemForm = {
     materialType: AutocompleteOption
@@ -35,6 +36,7 @@ type Props = BaseEntityDialogProps<MaterialItemDto> & {
 
 const MaterialItemDialog = ({providerId, ...props}: Props) => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
 
     const {data: types, pending: typesPending} = useFetch(signal =>
         getMaterialTypes({signal, query: {limit: 200}}),
@@ -55,6 +57,13 @@ const MaterialItemDialog = ({providerId, ...props}: Props) => {
             body: mapFormToRequest(formData),
         })
 
+    // Art eines zugeteilten Stücks bleibt fest (409 MATERIAL_ITEM_TYPE_LOCKED): sagen, warum.
+    const showKnownError = (error: unknown): boolean => {
+        const key = materialErrorKey(error)
+        if (key) feedback.error(t(key))
+        return key !== null
+    }
+
     const formContext = useForm<MaterialItemForm>()
 
     const onOpen = useCallback(() => {
@@ -67,7 +76,9 @@ const MaterialItemDialog = ({providerId, ...props}: Props) => {
             formContext={formContext}
             onOpen={onOpen}
             addAction={addAction}
-            editAction={editAction}>
+            editAction={editAction}
+            onAddError={showKnownError}
+            onEditError={showKnownError}>
             <Stack spacing={4}>
                 <FormInputAutocomplete
                     name={'materialType'}
@@ -87,7 +98,12 @@ const MaterialItemDialog = ({providerId, ...props}: Props) => {
                     }}
                 />
                 <FormInputText name="note" label={t('material.item.note')} multiline rows={3} />
-                <FormInputSwitch name="retired" label={t('material.item.retired')} horizontal reverse />
+                <FormInputSwitch
+                    name="retired"
+                    label={t('material.item.retired')}
+                    horizontal
+                    reverse
+                />
             </Stack>
         </EntityDialog>
     )

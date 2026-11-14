@@ -21,6 +21,24 @@ describe('materialErrorKey', () => {
         expect(materialErrorKey({errorCode: 'MATERIAL_PROVIDER_HAS_USERS'})).toBe(
             'material.provider.hasUsers',
         )
+        expect(materialErrorKey({errorCode: 'MATERIAL_ITEM_HAS_DAMAGES'})).toBe(
+            'material.error.itemHasDamages',
+        )
+        expect(materialErrorKey({errorCode: 'MATERIAL_ITEM_RETIRED'})).toBe(
+            'material.error.itemRetired',
+        )
+        expect(materialErrorKey({errorCode: 'MATERIAL_DUPLICATE_ASSIGNMENT'})).toBe(
+            'material.error.duplicateAssignment',
+        )
+        expect(materialErrorKey({errorCode: 'MATERIAL_OFFER_TYPE_LOCKED'})).toBe(
+            'material.error.offerTypeLocked',
+        )
+        expect(materialErrorKey({errorCode: 'MATERIAL_ITEM_TYPE_LOCKED'})).toBe(
+            'material.error.itemTypeLocked',
+        )
+        expect(materialErrorKey({errorCode: 'MATERIAL_REMOVAL_REQUESTS_CLOSED'})).toBe(
+            'material.error.removalClosed',
+        )
     })
 
     it('bleibt bei Netzfehlern, fremden und fehlenden Codes stumm', () => {

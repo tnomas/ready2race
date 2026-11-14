@@ -31,7 +31,7 @@ import {statusTextColor} from '../../theme/themeColors.ts'
 import ExecutionMoreMenu from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
 import {AssignmentChange, assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
 import {useReloadGate} from '@components/material/reloadGate.ts'
-import {teamNumberOf} from '@components/material/materialNumbers.ts'
+import {deviatingMatchCount, teamNumberOf} from '@components/material/materialNumbers.ts'
 
 type Props = {
     eventId: string
@@ -197,6 +197,7 @@ const MaterialAssignmentByTeam = ({
                         )
                         const busy = locked
                         const teamNumber = teamNumberOf(request)
+                        const deviatingMatches = deviatingMatchCount(request, matches, items)
                         const team = request.teamName ? ` · ${request.teamName}` : ''
 
                         return (
@@ -287,6 +288,23 @@ const MaterialAssignmentByTeam = ({
                                                     }}
                                                 />
                                             )}
+                                        {deviatingMatches > 0 && (
+                                            <Chip
+                                                size={'small'}
+                                                color={'warning'}
+                                                variant={'outlined'}
+                                                label={t('material.assignment.deviatingMatches', {
+                                                    count: deviatingMatches,
+                                                })}
+                                                title={t(
+                                                    'material.assignment.deviatingMatchesHint',
+                                                )}
+                                                sx={{
+                                                    color: theme =>
+                                                        statusTextColor(theme, 'warning'),
+                                                }}
+                                            />
+                                        )}
                                         {conflictKinds.map(kind => (
                                             <Chip
                                                 key={kind}

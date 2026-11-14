@@ -5211,7 +5211,9 @@
       "hint": {
         "WAITLISTED": "Forespørgslen sættes på ventelisten. Bliver en plads ledig, vises den ældste først. Klubben ser noten ved sin tilmelding.",
         "DECLINED": "Forespørgslen afvises. Klubben ser noten ved sin tilmelding."
-      }
+      },
+      "removesAssignments_one": "Forespørgslen har {{count}} tildeling. Den slettes; en senere bekræftelse starter uden stykke.",
+      "removesAssignments_other": "Forespørgslen har {{count}} tildelinger. De slettes; en senere bekræftelse starter uden stykke."
     },
     "assignment": {
       "viewByTeam": "Efter hold",
@@ -5255,7 +5257,10 @@
       "withoutNumberMatch": "uden nummerlighed",
       "withoutNumberMatchHint": "Intet aktivt stykke i egen flåde bærer dette holds tilmeldingsnummer. Tildel et stykke med et andet nummer – visningerne markerer det så som afvigende.",
       "withoutNumberMatchSummary_one": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer dets tilmeldingsnummer.",
-      "withoutNumberMatchSummary_other": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer deres tilmeldingsnummer."
+      "withoutNumberMatchSummary_other": "{{count}} hold uden nummerlighed: Intet aktivt stykke i flåden bærer deres tilmeldingsnummer.",
+      "deviatingMatches_one": "startnummer afviger i {{count}} heat",
+      "deviatingMatches_other": "startnummer afviger i {{count}} heats",
+      "deviatingMatchesHint": "I disse heats bærer båden ikke det startnummer, holdet starter med der. Tavler, dommer-dashboard og heatkort viser „afviger“. Startnummeret i heatet tildeles ved opsætningen af runderne."
     },
     "conflict": {
       "OVERLAP": "Overlap",
@@ -5319,7 +5324,8 @@
       "photoReject": {
         "notImage": "ikke et billede",
         "tooLarge": "større end 10 MB",
-        "tooMany": "mere end 20 billeder ad gangen"
+        "tooMany": "mere end 20 billeder ad gangen",
+        "totalTooLarge": "mere end 50 MB i alt"
       }
     },
     "severity": {
@@ -5342,7 +5348,13 @@
       "notInvited": "Udbyderen er ikke (længere) inviteret til dette arrangement. Tilbud kræver en invitation.",
       "requestNotConfirmed": "Forespørgslen er ikke (længere) bekræftet – kun bekræftede forespørgsler kan tildeles. Oversigten er genindlæst.",
       "matchNotOfRegistration": "Holdet starter ikke (længere) i dette heat; runden er sandsynligvis sat igen. Oversigten er genindlæst.",
-      "invalidOutageWindow": "Afslutningen af udfaldet ligger før starten."
+      "invalidOutageWindow": "Afslutningen af udfaldet ligger før starten.",
+      "removalClosed": "Tilmeldingen har en materielforespørgsel, og udlejeren har lukket for tildelingen. Den kan derfor ikke fjernes – kontakt udlejeren direkte.",
+      "offerTypeLocked": "Der er allerede forespørgsler på dette tilbud; materieltypen ligger derfor fast. Pris, planlagt antal og skiftetid kan stadig ændres.",
+      "itemTypeLocked": "Stykket er tildelt; dets materieltype ligger derfor fast. Fjern først tildelingerne.",
+      "itemHasDamages": "Der findes en skadesjournal for dette stykke; det kan ikke slettes. Rediger det i stedet og slå „udrangeret“ til.",
+      "itemRetired": "Stykket er udrangeret og kan ikke tildeles på ny. Oversigten er genindlæst.",
+      "duplicateAssignment": "Dette stykke er allerede tildelt til dette heat. Oversigten er genindlæst."
     },
     "number": {
       "team": "Tilmeldingsnr. {{number}}",

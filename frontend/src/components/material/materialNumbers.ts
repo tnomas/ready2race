@@ -1,4 +1,8 @@
-import {MaterialOverviewItemDto, MaterialOverviewRequestDto} from '@api/types.gen.ts'
+import {
+    MaterialOverviewItemDto,
+    MaterialOverviewMatchDto,
+    MaterialOverviewRequestDto,
+} from '@api/types.gen.ts'
 
 /**
  * Die zwei Nummern eines Teams und was das Anbieter-Dashboard mit ihnen rechnet.
@@ -142,4 +146,28 @@ export const withoutNumberMatch = (
         if (!numbersByType.get(request.materialType)?.has(number)) result.add(request.id)
     }
     return result
+}
+
+/**
+ * In wie vielen Läufen das wirksame Stück einer Anfrage nicht die Startnummer des Teams in diesem
+ * Lauf trägt – also wie oft Boards, Schiedsrichter-Dashboard und Lauf-Karte „abweichend" zeigen.
+ * Ausnahmen je Lauf schlagen die Grundzuteilung, wie in `effectiveAssignments`.
+ */
+export const deviatingMatchCount = (
+    request: Pick<MaterialOverviewRequestDto, 'competitionRegistration' | 'assignments'>,
+    matches: readonly MaterialOverviewMatchDto[],
+    items: readonly MaterialOverviewItemDto[],
+): number => {
+    const base = baseItemIds(request)
+    let count = 0
+    for (const match of matches) {
+        if (!match.registrationIds.includes(request.competitionRegistration)) continue
+        const exceptions = request.assignments
+            .filter(a => a.competitionMatch === match.id)
+            .map(a => a.materialItem)
+        const effective = exceptions.length > 0 ? exceptions : base
+        const startNumber = startNumberInMatch(match, request.competitionRegistration)
+        if (deviatesInMatch(effective, startNumber, items)) count++
+    }
+    return count
 }

@@ -8,6 +8,7 @@ import {
     assignByTeamNumber,
     deviatesFromTeamNumber,
     deviatesInMatch,
+    deviatingMatchCount,
     startNumberInMatch,
     teamNumberOf,
     withoutNumberMatch,
@@ -188,5 +189,46 @@ describe('withoutNumberMatch', () => {
             request({id: 'offen', teamNumber: 9, status: 'REQUESTED'}),
         ]
         expect([...withoutNumberMatch(requests, items)]).toEqual(['ausgemustert', 'drüber'])
+    })
+})
+
+describe('deviatingMatchCount', () => {
+    const items = [
+        item({id: 'b7', number: 7}),
+        item({id: 'b8', number: 8}),
+        item({id: 'b2', number: 2}),
+    ]
+    const m = (id: string, startNumber: number, registrationIds = ['reg-1']) => ({
+        id,
+        competition: 'comp-1',
+        registrationIds,
+        teams: registrationIds.map(r => ({competitionRegistration: r, startNumber})),
+    })
+
+    test('zählt Läufe, in denen das wirksame Stück nicht die Startnummer dort trägt', () => {
+        const req = request({
+            assignments: [
+                assignment({id: 'g', materialItem: 'b7'}),
+                assignment({id: 'x', materialItem: 'b8', competitionMatch: 'vorlauf2'}),
+            ],
+        })
+        const matches = [
+            m('vorlauf1', 7),
+            m('vorlauf2', 8),
+            m('finale', 1),
+            m('fremd', 3, ['reg-9']),
+        ]
+        expect(deviatingMatchCount(req, matches, items)).toBe(1)
+    })
+
+    test('ohne Startnummern im Lauf keine Abweichung', () => {
+        const req = request({assignments: [assignment({materialItem: 'b2'})]})
+        expect(
+            deviatingMatchCount(
+                req,
+                [{id: 'm', competition: 'c', registrationIds: ['reg-1'], teams: []}],
+                items,
+            ),
+        ).toBe(0)
     })
 })

@@ -44,6 +44,14 @@ describe('preparePhotos', () => {
         ])
     })
 
+    test('mehr als 50 MB zusammen: das überzählige Foto bleibt draußen', async () => {
+        const nine = 9 * 1024 * 1024
+        const files = Array.from({length: 6}, (_, i) => file(`g${i}.jpg`, nine))
+        const result = await preparePhotos(files, async f => f)
+        expect(result.accepted).toHaveLength(5)
+        expect(result.rejected).toEqual([{name: 'g5.jpg', reason: 'totalTooLarge'}])
+    })
+
     test('HEIC ohne Typangabe des Browsers gilt als Bild', async () => {
         const result = await preparePhotos([file('IMG_1.HEIC', 5, '')], async f => f)
         expect(result.accepted).toHaveLength(1)

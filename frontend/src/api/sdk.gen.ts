@@ -1911,6 +1911,9 @@ export const updateCompetitionRegistration = <ThrowOnError extends boolean = fal
     })
 }
 
+/**
+ * Löscht eine Meldung. Mit OWN (Verein) wie ein Rückzug der Materialanfrage: bei geschlossener Vergabe 409 MATERIAL_REMOVAL_REQUESTS_CLOSED. Mit GLOBAL (Veranstalter) erlaubt. Eine bestätigte Anfrage löst in beiden Fällen die Rückzugs-Mail an den Anbieter aus.
+ */
 export const deleteCompetitionRegistration = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DeleteCompetitionRegistrationData, ThrowOnError>,
 ) => {
@@ -3226,6 +3229,9 @@ export const getEventRegistration = <ThrowOnError extends boolean = false>(
     })
 }
 
+/**
+ * Löscht die ganze Anmeldung eines Vereins (UPDATE REGISTRATION GLOBAL), auch bei geschlossener Materialvergabe; bestätigte Materialanfragen lösen die Rückzugs-Mail an den Anbieter aus.
+ */
 export const deleteEventRegistration = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DeleteEventRegistrationData, ThrowOnError>,
 ) => {
@@ -3322,6 +3328,9 @@ export const getEventRegistrationTemplate = <ThrowOnError extends boolean = fals
     })
 }
 
+/**
+ * Speichert die Anmeldung eines Vereins. Meldungen, die das Formular nicht mehr nennt (Team entfernt, Wettkampf abgewählt), verschwinden endgültig; hängt daran eine aktive Materialanfrage, gilt das als Rückzug - bei geschlossener Vergabe 409 MATERIAL_REMOVAL_REQUESTS_CLOSED, bei bestätigter Anfrage Rückzugs-Mail an den Anbieter.
+ */
 export const addEventRegistration = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<AddEventRegistrationData, ThrowOnError>,
 ) => {
@@ -3520,7 +3529,7 @@ export const addMaterialOffer = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ * Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Materialart bleibt fest, sobald das Angebot Anfragen hat (409 MATERIAL_OFFER_TYPE_LOCKED).
  */
 export const updateMaterialOffer = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<UpdateMaterialOfferData, ThrowOnError>,
@@ -3568,7 +3577,7 @@ export const getMaterialOverview = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden.
+ * Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden. Warteliste oder Ablehnung entfernen die Zuteilungen der Anfrage.
  */
 export const decideMaterialRequest = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DecideMaterialRequestData, ThrowOnError>,
@@ -3584,7 +3593,7 @@ export const decideMaterialRequest = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten.
+ * Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten. Dasselbe Paar aus Stück und Lauf zweimal ergibt 422 MATERIAL_DUPLICATE_ASSIGNMENT. Ein ausgemustertes Stück (RETIRED) wird nicht neu zugeteilt (409 MATERIAL_ITEM_RETIRED), darf aber bei dieser Anfrage stehen bleiben.
  */
 export const setMaterialAssignments = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<SetMaterialAssignmentsData, ThrowOnError>,
@@ -3744,7 +3753,7 @@ export const addMaterialItem = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ * Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Materialart bleibt fest, solange das Stück zugeteilt ist (409 MATERIAL_ITEM_TYPE_LOCKED).
  */
 export const updateMaterialItem = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<UpdateMaterialItemData, ThrowOnError>,
@@ -3760,7 +3769,7 @@ export const updateMaterialItem = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen können nicht gelöscht werden.
+ * Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen (409 MATERIAL_ITEM_IN_USE) oder Schadensakte (409 MATERIAL_ITEM_HAS_DAMAGES) können nicht gelöscht werden; ausmustern über den Status RETIRED.
  */
 export const deleteMaterialItem = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<DeleteMaterialItemData, ThrowOnError>,
@@ -3856,7 +3865,7 @@ export const updateMaterialDamage = <ThrowOnError extends boolean = false>(
 }
 
 /**
- * Lädt ein oder mehrere Fotos zu einem Schaden hoch. Jede Datei einzeln gegen die maximale Größe geprüft. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+ * Lädt ein oder mehrere Fotos zu einem Schaden hoch. Die Grenzen (10 MB je Datei, 50 MB je Anfrage, höchstens 20 Dateien) greifen schon beim Lesen; darüber 400 MATERIAL_PHOTO_TOO_LARGE, ohne dass etwas gespeichert wird. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
  */
 export const addMaterialDamagePhotos = <ThrowOnError extends boolean = false>(
     options: OptionsLegacyParser<AddMaterialDamagePhotosData, ThrowOnError>,

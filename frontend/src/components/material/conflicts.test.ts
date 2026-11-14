@@ -7,6 +7,7 @@ const match = (overrides: Partial<MaterialOverviewMatchDto> = {}): MaterialOverv
     id: 'match-1',
     competition: 'comp-1',
     registrationIds: ['reg-1'],
+    teams: [],
     ...overrides,
 })
 

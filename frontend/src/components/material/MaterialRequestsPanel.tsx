@@ -330,6 +330,9 @@ const MaterialRequestsPanel = ({eventId, providerId, overview, canWrite, reload}
                 providerId={providerId}
                 requestId={dialogRequest?.id ?? null}
                 status={dialogRequest?.status ?? 'DECLINED'}
+                assignmentCount={
+                    requests.find(r => r.id === dialogRequest?.id)?.assignments.length ?? 0
+                }
                 onClose={() => setDialogRequest(null)}
                 onDecided={() => {
                     setDialogRequest(null)
