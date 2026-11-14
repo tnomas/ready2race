@@ -19,6 +19,7 @@ const dto = (o: Partial<MyEventDto>): MyEventDto => ({
     upcoming: [],
     results: [],
     unscheduled: [],
+    materialRegistrations: [],
     requirements: [],
     ...o,
 })

@@ -540,9 +540,10 @@ values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0003-0000-0000-0000000
 
 insert into board (id, event_id, name, config, created_at, updated_at)
 values ('5eed0009-0040-0000-0000-000000000001', '5eed0001-0000-0000-0000-000000000001', 'Materialtest-Board',
-        '{"columns": 2, "showHeader": true, "tiles": [
-            {"elements": [{"type": "MATCH_LIST", "listMode": "RUNNING", "showMaterial": true, "limit": 4}]},
-            {"elements": [{"type": "MATCH_LIST", "listMode": "UPCOMING", "showMaterial": true, "limit": 4}]}
+        -- Boot-Material zeigen nur die Sprecher-Kachel (MATCH_DETAIL, einzige Kachel eines Boards)
+        -- und die Overlay-Kachel (STREAM); Listenkacheln kennen kein Material.
+        '{"columns": 1, "showHeader": true, "tiles": [
+            {"elements": [{"type": "MATCH_DETAIL", "offset": 0, "showMaterial": true}]}
         ]}'::jsonb, now(), now());
 
 insert into stream_scene (id, event, name, background, chroma_color, safe_area_percent, trial_mode,

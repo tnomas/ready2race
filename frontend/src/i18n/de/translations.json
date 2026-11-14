@@ -1441,7 +1441,7 @@
             "notConfigured": "Für diesen Wettkampf ist kein Startlisten-Preset hinterlegt. Bitte im Tab \"Zeitnahme\" eintragen."
           },
           "downloadRound": "Startliste der Runde herunterladen (CSV)",
-          "showMaterial": "Material immer zeigen"
+          "showMaterial": "Startlisten-Download (PDF/CSV je Lauf): Boot immer zeigen"
         },
         "substitution": {
           "substitutions": "Ummeldungen",
@@ -3127,7 +3127,11 @@
       "jumpLabel": "Materialvermietung",
       "uninviteNamed": "{{name}} ausladen",
       "uninviteTitle": "{{name}} ausladen?",
-      "uninviteInUse": "{{name}} hat schon Anfragen von Vereinen und kann deshalb nicht ausgeladen werden. Sollen keine neuen Anfragen mehr kommen, schließt der Anbieter in seinem Dashboard die Vergabe."
+      "uninviteInUse": "{{name}} hat schon Anfragen von Vereinen und kann deshalb nicht ausgeladen werden. Sollen keine neuen Anfragen mehr kommen, schließt der Anbieter in seinem Dashboard die Vergabe.",
+      "inviteSuccess": "Anbieter eingeladen",
+      "inviteError": "Anbieter konnte nicht eingeladen werden",
+      "uninviteSuccess": "{{name}} ausgeladen",
+      "uninviteError": "{{name}} konnte nicht ausgeladen werden"
     }
   },
   "task": {
@@ -4893,6 +4897,7 @@
     "deregistered": "Abgemeldet",
     "noMatches": "Für dich ist noch kein Lauf eingetragen.",
     "material": {
+      "title": "Leihmaterial",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "eigenes Boot",

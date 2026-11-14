@@ -91,9 +91,9 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
         if (isRequestNetworkError(error)) {
             feedback.error(t('common.error.network'))
         } else if (error) {
-            feedback.error(t('entity.add.error', {entity: t('material.provider.provider')}))
+            feedback.error(t('event.material.inviteError'))
         } else {
-            feedback.success(t('entity.add.success', {entity: t('material.provider.provider')}))
+            feedback.success(t('event.material.inviteSuccess'))
             setSelectedProviderId('')
             reload()
         }
@@ -111,13 +111,9 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
                     // 409: Es gibt schon Anfragen - Ausladen würde sie verwaisen lassen.
                     feedback.error(t('event.material.uninviteInUse', {name}))
                 } else if (error) {
-                    feedback.error(
-                        t('entity.delete.error', {entity: t('material.provider.provider')}),
-                    )
+                    feedback.error(t('event.material.uninviteError', {name}))
                 } else {
-                    feedback.success(
-                        t('entity.delete.success', {entity: t('material.provider.provider')}),
-                    )
+                    feedback.success(t('event.material.uninviteSuccess', {name}))
                     reload()
                 }
             },

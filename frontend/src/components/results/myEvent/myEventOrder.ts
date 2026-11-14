@@ -6,6 +6,7 @@ export type MyEventBlock =
     | 'matches'
     | 'results'
     | 'unscheduled'
+    | 'material'
     | 'requirements'
 
 /**
@@ -72,6 +73,8 @@ export const blockOrder = (data: MyEventDto): MyEventBlock[] => {
         blocks.push('results')
     }
 
-    blocks.push('unscheduled', 'requirements')
+    // Materialblock der Meldungen, die schon in Läufen stehen (Meldungen ohne Lauf tragen ihn in
+    // „Noch ohne Lauf“). Leer fällt er in der Ansicht weg.
+    blocks.push('unscheduled', 'material', 'requirements')
     return blocks
 }

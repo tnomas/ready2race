@@ -508,6 +508,9 @@ const BoardEditor = ({eventId, board, onSubmit, onCancel}: BoardEditorProps) => 
                         label={t('event.boards.stream.showCountdown')}
                     />
                     {booleanOption(tileIndex, elementIndex, element, 'showAdvancement', false)}
+                    {/* Die Overlay-Panels (laufend, Ergebnis, nächster Start) zeigen das Boot
+                        wie die Sprecher-Kachel; Listenkacheln kennen kein Material. */}
+                    {booleanOption(tileIndex, elementIndex, element, 'showMaterial', false)}
                 </Stack>
             )}
 

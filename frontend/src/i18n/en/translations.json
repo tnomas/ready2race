@@ -1441,7 +1441,7 @@
             "notConfigured": "No start list preset is configured for this competition. Please set one up in the \"Timing\" tab."
           },
           "downloadRound": "Download round start list (CSV)",
-          "showMaterial": "Always show material"
+          "showMaterial": "Start list download (PDF/CSV per match): always show boat"
         },
         "substitution": {
           "substitutions": "Substitutions",
@@ -3127,7 +3127,11 @@
       "jumpLabel": "Equipment rental",
       "uninviteNamed": "Uninvite {{name}}",
       "uninviteTitle": "Uninvite {{name}}?",
-      "uninviteInUse": "{{name}} already has requests from clubs and therefore cannot be uninvited. To stop new requests, the provider closes requests in its dashboard."
+      "uninviteInUse": "{{name}} already has requests from clubs and therefore cannot be uninvited. To stop new requests, the provider closes requests in its dashboard.",
+      "inviteSuccess": "Provider invited",
+      "inviteError": "Provider could not be invited",
+      "uninviteSuccess": "{{name}} uninvited",
+      "uninviteError": "{{name}} could not be uninvited"
     }
   },
   "task": {
@@ -4893,6 +4897,7 @@
     "deregistered": "Withdrawn",
     "noMatches": "No race has been scheduled for you yet.",
     "material": {
+      "title": "Rental equipment",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "own boat",

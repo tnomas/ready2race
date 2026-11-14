@@ -146,6 +146,13 @@ const MyEventContent = ({eventId, qrCode, onDisplayName, onForget}: MyEventConte
                         <MyEventUnscheduledList registrations={data.unscheduled} />
                     </Box>
                 ) : null
+            case 'material':
+                return data.materialRegistrations.length > 0 ? (
+                    <Box>
+                        <BlockHeading title={t('myEvent.material.title')} />
+                        <MyEventUnscheduledList registrations={data.materialRegistrations} />
+                    </Box>
+                ) : null
             case 'requirements':
                 return data.requirements.length > 0 ? (
                     <Box>

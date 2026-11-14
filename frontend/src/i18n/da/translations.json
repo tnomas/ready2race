@@ -1441,7 +1441,7 @@
             "notConfigured": "Der er ikke registreret et startlistepreset for denne konkurrence. Angiv det venligst under fanen \"Tidtagning\"."
           },
           "downloadRound": "Hent rundens startliste (CSV)",
-          "showMaterial": "Vis altid materiale"
+          "showMaterial": "Download af startliste (PDF/CSV pr. heat): vis altid båd"
         },
         "substitution": {
           "substitutions": "Ombytninger",
@@ -3127,7 +3127,11 @@
       "jumpLabel": "Materieludlejning",
       "uninviteNamed": "Fjern invitation for {{name}}",
       "uninviteTitle": "Fjern invitation for {{name}}?",
-      "uninviteInUse": "{{name}} har allerede forespørgsler fra klubber og kan derfor ikke fjernes. Skal der ikke komme flere forespørgsler, lukker udlejeren for tildelingen i sit dashboard."
+      "uninviteInUse": "{{name}} har allerede forespørgsler fra klubber og kan derfor ikke fjernes. Skal der ikke komme flere forespørgsler, lukker udlejeren for tildelingen i sit dashboard.",
+      "inviteSuccess": "Udbyder inviteret",
+      "inviteError": "Udbyderen kunne ikke inviteres",
+      "uninviteSuccess": "Invitationen for {{name}} er fjernet",
+      "uninviteError": "Invitationen for {{name}} kunne ikke fjernes"
     }
   },
   "task": {
@@ -4893,6 +4897,7 @@
     "deregistered": "Afmeldt",
     "noMatches": "Der er endnu ikke planlagt noget løb for dig.",
     "material": {
+      "title": "Lejet materiel",
       "otherType": "{{type}} ({{category}})",
       "countedType": "{{count}}× {{type}}",
       "ownBoat": "egen båd",
