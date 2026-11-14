@@ -52,6 +52,7 @@ class EventViewEquivalenceTest {
                    e.cross_club_registration,
                    e.notice_text,
                    e.notice_severity,
+                   e.team_numbers_as_start_numbers,
                    coalesce(array_agg(distinct er.club) filter ( where er.club is not null ), '{}') as registered_clubs,
                    max(cpcc.end_at)                                                                 as challenge_end,
                    err.event is not null                                                            as registrations_finalized,
