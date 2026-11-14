@@ -14,19 +14,32 @@ Was aus der Lückenliste (Abschnitt „Lücken nach Schwere“) erledigt ist:
 | 1 Rollen-UUID kollidiert mit Superadmin | erledigt: Rolle `…0040`, Seed angepasst | `5f575b5e`, ADR-0110 |
 | 2 Migrationsversion doppelt | erledigt: `V202611140800__material_rental.sql`, dazu `V202611140840__material_fk_indizes.sql` | `5f575b5e`, `45a0abe3` |
 | 3 Rollenvergabe umgeht STAFF, `deleteManaged` | erledigt: systemverwaltete Rolle, Zuordnung mit den drei Vergaberegeln, Job nicht kopierbar, Anbieter mit Konten nicht löschbar | `5f575b5e`, `5440a5db`, `efebf512`, `45a0abe3`, ADR-0110 |
-| 4 Alle Handtests offen | **teilweise**: Handtest H1 (Blöcke A bis C) am 14.11. gelaufen, vor den Korrekturen F1/F2; D bis F und der Nachtest stehen aus | Testkatalog `2026-11-14-materialvermietung-testkatalog.md` |
+| 4 Alle Handtests offen | **weitgehend erledigt**: H1 (A bis C), H2 (D bis F), H3 (Nachtest, 16 Fälle) und F4 am 14.11. im Browser gelaufen, 0 fehlgeschlagen; 66 Fälle im Katalog: 42 bestanden, 17 mit Einschränkung, 1 nicht testbar, 6 nicht gelaufen | Testkatalog `2026-11-14-materialvermietung-testkatalog.md` |
 | 5 Zweig nur lokal, ohne Sicherung | **offen**: weder Quell- noch Arbeitszweig liegen auf `fork` | – |
 | 6 Kein Änderungsmarker | erledigt: jede Mutation, die eine Anzeige ändert, bumpt (Schäden und Fotos bewusst nicht) | `7a911dc6`, ADR-0111 |
 | 7 Startnummer gegen Meldungsnummer | **technisch gelöst, fachlich offen**: zwei Zahlen, die Sicht rechnet gegen die Startnummer im Lauf, die Grundzuteilung paart mit der Meldungsnummer | `5436a245`, `c6b3cb8b`, `b90afce4`, `f31310bd`, `9e5afc58`, ADR-0111 |
 | 8 Eingriff in den Speicherpfad der Meldung | erledigt: Freigabe der Anfragen vor dem Löschen, `FOR KEY SHARE` gegen die Waisen-Race, Test mit echtem Formular-Payload; volle Suite grün (`Tests run: 2032, Failures: 0, Errors: 0, Skipped: 0`) | `fc1bddd2`, `b90afce4`, ADR-0109 |
 | 9 ADR, TypeSpec, Rückzugs-Mail, Testkatalog-Ort, Einladung | ADR-0109 bis 0111 (`dbeceedd`); TypeSpec für `eventRegistration`/`event` nachgezogen (`de71be2b`, nicht kompiliert); Rückzugs-Mail in der Sprache des Kontos (`45a0abe3`); Testkatalog am Konventionsort (`15dd2d73`); Pagination der Einladungen, Angebote und Übersicht bewusst nicht (ADR-0109) | – |
 
+Korrekturen nach den Handtests (alle am 14.11.2026, keine Migration):
+
+- **F3** (aus H2): Einladen braucht zusätzlich READ MATERIAL GLOBAL (`53ab7d21`); Übersicht ohne Teams fremder Anbieter (`53ab7d21`);
+  Schadensliste behält offene Schäden, CSV im Klartext mit BOM (`90671dd4`); Startliste mit Boot in der Teamkopfzeile (`be5ab9be`);
+  Mein Event: Block „Leihmaterial“ auch für Meldungen mit Lauf (`fd0417d9`); Vertrag und Client (`6ba31ee3`); Fotos einzeln,
+  „Ausfall bis“ folgt der Reparatur (`f1830a00`); lesbarer Knopf „Ausnahme entfernen“, keine ausgemusterten Stücke (`a852697e`);
+  Toasts, Board-Option, Schalterbeschriftung (`1752b3da`).
+- **F4** (aus H3): Das erneute Speichern der Meldung lässt bestehende Meldungen unverändert, Nummer und Name bleiben (`e9d466a1`); der
+  Fehler bestand schon im Stand vor der Übernahme und betraf alle Veranstaltungen. Entscheidungsdialog und „Ausfall bis“ ohne
+  Springen (`4c4ff381`).
+- Endstand der Prüfungen (F4): `Tests run: 2042, Failures: 0, Errors: 0, Skipped: 0` (Backend), HttpIT 55 grün, Frontend `Tests 2543
+  passed (2543)`, `✖ 82 problems (0 errors, 82 warnings)`.
+
 Was offen bleibt:
 
 - **Fachliche Entscheidung (Lücke 7):** Solange die Rundenanlage die Startnummer im Lauf nach Setzliste vergibt, stimmen Boot
   und angezeigte Startnummer nur in Sonderfällen überein. Die Alternative „Rundenanlage übernimmt die Meldungsnummer als
   Startnummer, wenn der Schalter gesetzt ist“ ist nicht umgesetzt (ADR-0111).
-- **Sicherung (Lücke 5)**, Handtests D bis F und der Nachtest, en/da-Texte nie gegengelesen, TypeSpec nicht kompiliert.
+- **Sicherung (Lücke 5)**; en/da-Texte nie gegengelesen; TypeSpec nicht kompiliert; Anmeldung über das Login-Formular nie getestet; Rest der „nicht belegt“-Punkte im Testkatalog (Abschnitt „Nicht belegt und offen“).
 - Die Einladung neuer Nutzer mit Anbieter-Wahl ist weiterhin nicht gebaut (Zuordnung auf der Nutzerseite).
 - Von einem Verein sieht der Anbieter weiterhin nur die Kontakt-E-Mail; eine Handynummer fehlt (kein Telefonfeld am Konto).
 - `api/src/common.tsp` fehlen weiterhin nicht-materielle Fehlercodes (`PRIVILEGES_BEYOND_OWN`, `SELF_ASSIGNMENT`,

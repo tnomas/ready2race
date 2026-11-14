@@ -35,6 +35,9 @@ und auf einen ausgeführten DM-Seed.
   vergeben ihn nicht.
 - MATERIAL GLOBAL (alle Anbieter und Materialarten) tragen nur Admin und Superadmin; neue Privilegien erreichen zunächst nur die
   Admin-Rolle (ADR-0010). Veranstalter brauchen READ MATERIAL GLOBAL, um Anbieter einzuladen.
+- **Einladen** eines Anbieters zu einer Veranstaltung verlangt UPDATE EVENT GLOBAL **und** READ MATERIAL GLOBAL (Route mit
+  `authenticateAll`); Ausladen nur UPDATE EVENT GLOBAL. Eigene Veranstalter-Rollen ohne MATERIAL GLOBAL können Anbieter nicht
+  mehr einladen (403); Rolle um READ MATERIAL GLOBAL ergänzen, wenn sie es sollen.
 - Ein Anbieter mit zugeordneten Konten lässt sich nicht löschen (409 `MATERIAL_PROVIDER_HAS_USERS`); erst die Zuordnungen lösen.
 - Rollback auf einen Stand ohne den Job: Die Rolle `…0040` bleibt in der Datenbank, Konten behalten sie; ohne Anbieter-Zuordnung
   ist sie wirkungslos.
@@ -64,6 +67,17 @@ ist keine nginx-Konfiguration eingecheckt, ob die ausgelieferte Konfiguration da
 
 ## 6. Verhaltensänderungen gegenüber dem alten Material-Zweig
 
+- **Alle CSV-Exporte der App schreiben jetzt ausdrücklich UTF-8** (`CSV.write`, vorher die Standardkodierung der JVM). Die CSV der
+  Schadensakte hat zusätzlich eine BOM (Excel erkennt Umlaute) und Klartext statt Enum-Werten; der Dateiname hat keine Leerzeichen.
+  `Content-Type` bleibt `text/csv` ohne `charset`. Excel selbst wurde nicht geöffnet.
+- **Das erneute Speichern der Meldung gilt für alle Veranstaltungen, nicht nur mit Material:** Eine bestehen bleibende Meldung behält
+  Meldungsnummer, Namen und Anlagedaten (`created_at`/`created_by`); vorher gingen sie verloren (der Fehler bestand schon vor der
+  Übernahme). Bereits geschehene Verluste lassen sich nicht rekonstruieren; ein Refinalisieren („behalten“) vergibt neue Nummern an
+  Teams ohne Nummer. Ein neues Team bekommt seine Nummer erst bei der nächsten Fixierung.
+- Die Übersicht der Anbieter nennt nur noch Teams mit einer Anfrage bei diesem Anbieter.
+- Mein Event zeigt den Block „Leihmaterial“ auch für Meldungen mit Lauf; die Startliste (PDF) zeigt das Boot einmal je Team in der
+  Kopfzeile.
+
 - Ein Verein kann eine Meldung mit aktiver Anfrage bei **geschlossener Vergabe** nicht mehr entfernen (409
   `MATERIAL_REMOVAL_REQUESTS_CLOSED`); bei offener Vergabe wird die Anfrage zurückgezogen und bei bestätigten die Mail verschickt.
 - Warteliste und Ablehnung löschen die Zuteilungen der Anfrage. Die Art eines Angebots mit Anfragen und eines zugeteilten
@@ -78,10 +92,10 @@ ist keine nginx-Konfiguration eingecheckt, ob die ausgelieferte Konfiguration da
 
 Nichts davon ist bisher in der laufenden App belegt, soweit der Testkatalog nicht ausdrücklich „bestanden“ sagt:
 
-1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Blöcke D bis F, den Nachtest der Fälle mit „nach Korrektur erneut
-   zu prüfen“ und die neu aufgenommenen Fälle (Ergebnis je Fall dort eintragen).
-2. Anzeigen mit Material in der laufenden App (Mein Event, Schiedsrichter-Dashboard, Sprecher, Boards, Startliste, Stream);
-   Wirecast/OBS-Handtest der Stream-Grafik.
+1. Testkatalog `2026-11-14-materialvermietung-testkatalog.md`: Die Handtests H1 bis H3 und F4 sind eingetragen (66 Fälle, 0 fehlgeschlagen);
+   von Hand bleiben die Fälle „nicht gelaufen“/„nicht testbar“ und der Abschnitt „Nicht belegt und offen“, vor allem die Anmeldung
+   über das Login-Formular (nie getestet), Excel-Öffnen der CSV, Fotos von der Handykamera, 768 px, en/da, verdeckter Tab.
+2. Wirecast/OBS-Handtest der Stream-Grafik (die Anzeigen selbst sind im Browser gesehen).
 3. Rückzugs-Mail und Meldeformular über die **echte** Adresse (`FRONTEND_ORIGINS`, Docker-nginx, Hoster-Proxy), Foto-Upload
    mit 10 MB und 50 MB hinter dem nginx.
 4. Die Messung der Sicht und der Anzeige-Abfragen gegen Produktionsdaten (`EXPLAIN` nur am Seed-Umfang); en/da-Texte gegenlesen.
