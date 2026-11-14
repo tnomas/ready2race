@@ -58,6 +58,12 @@ const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Pr
     const offerAdministrationProps = useEntityAdministration<MaterialOfferDto>(
         t('material.offer.offer'),
     )
+    // Angebote speisen die Übersicht (Kapazität, Ampel, Angebotsnamen in Anfragen und Zuteilung):
+    // nach jedem Anlegen, Ändern oder Löschen Tabelle UND Übersicht der Seite neu laden.
+    const reloadOffers = () => {
+        offerAdministrationProps.table.reloadData()
+        reload()
+    }
 
     return (
         <Stack spacing={4}>
@@ -85,12 +91,14 @@ const MaterialSettingsPanel = ({eventId, providerId, requestsClosed, reload}: Pr
                 eventId={eventId}
                 providerId={providerId}
                 {...offerAdministrationProps.table}
+                reloadData={reloadOffers}
                 title={t('material.offer.offers')}
             />
             <MaterialOfferDialog
                 eventId={eventId}
                 providerId={providerId}
                 {...offerAdministrationProps.dialog}
+                reloadData={reloadOffers}
             />
         </Stack>
     )
