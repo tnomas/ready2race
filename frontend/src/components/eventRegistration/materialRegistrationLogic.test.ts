@@ -118,13 +118,13 @@ describe('materialRequestUpdates', () => {
         expect(materialRequestUpdates(data, initial, info, teamLabel)).toEqual([
             {
                 registrationId: 't2',
-                competitionName: 'M2',
+                competitionName: 'm2 M2',
                 entryLabel: 'Team 2',
                 offerIds: ['offer-m2'],
             },
             {
                 registrationId: 'single-1',
-                competitionName: 'Einer',
+                competitionName: 's1 Einer',
                 entryLabel: 'Anna Beispiel',
                 offerIds: ['x'],
             },
@@ -170,7 +170,7 @@ describe('removedMaterialRequests', () => {
         expect(removedMaterialRequests(initial, data, new Set(['offer-zu']))).toEqual([
             {
                 registrationId: 't1',
-                competitionName: 'M2',
+                competitionName: 'm2 M2',
                 entryLabel: 'Team 1',
                 providerName: 'Bootshaus Nord',
                 typeName: 'C2x',
@@ -179,7 +179,7 @@ describe('removedMaterialRequests', () => {
             },
             {
                 registrationId: 't3',
-                competitionName: 'M2',
+                competitionName: 'm2 M2',
                 entryLabel: 'Team 3',
                 providerName: 'Bootshaus Nord',
                 typeName: 'C2x',

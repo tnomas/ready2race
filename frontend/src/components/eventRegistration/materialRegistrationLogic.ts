@@ -35,10 +35,14 @@ export const sameOfferIds = (a: readonly string[], b: readonly string[]): boolea
 
 type Info = Pick<EventRegistrationInfoDto, 'competitionsSingle' | 'competitionsTeam'> | null
 
+/** Kennung und Name wie im Formular („M2 Frauen-Doppelzweier"). */
 const competitionName = (
     list: readonly EventRegistrationCompetitionDto[] | undefined,
     competitionId: string,
-) => list?.find(c => c.id === competitionId)?.name ?? ''
+) => {
+    const competition = list?.find(c => c.id === competitionId)
+    return competition ? `${competition.identifier} ${competition.name}`.trim() : ''
+}
 
 const personName = (p: {firstname?: string; lastname?: string}) =>
     `${p.firstname ?? ''} ${p.lastname ?? ''}`.trim()
