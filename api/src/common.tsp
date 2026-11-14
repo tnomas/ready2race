@@ -162,6 +162,18 @@ enum ErrorCode {
   MATERIAL_REQUEST_NOT_CONFIRMED;
   MATERIAL_MATCH_NOT_OF_REGISTRATION;
   MATERIAL_INVALID_OUTAGE_WINDOW;
+  // 409: Meldung mit aktiver Materialanfrage entfernt (Meldeformular, eigenes Löschen), Vergabe geschlossen.
+  MATERIAL_REMOVAL_REQUESTS_CLOSED;
+  // 409: Artwechsel eines Angebots mit Anfragen.
+  MATERIAL_OFFER_TYPE_LOCKED;
+  // 409: Artwechsel eines zugeteilten Stücks.
+  MATERIAL_ITEM_TYPE_LOCKED;
+  // 409: Stück mit Schadensakte löschen (ausmustern statt löschen).
+  MATERIAL_ITEM_HAS_DAMAGES;
+  // 409: ausgemustertes Stück neu zuteilen.
+  MATERIAL_ITEM_RETIRED;
+  // 422: dasselbe Paar aus Stück und Lauf zweimal in einer Zuteilung.
+  MATERIAL_DUPLICATE_ASSIGNMENT;
   CALLBACK_URL_NOT_ALLOWED;
 }
 

@@ -227,12 +227,12 @@ model MaterialOverviewRequestDto {
   competitionIdentifier: string;
   competitionName: string;
   teamName?: string;
-  // Meldungsnummer aus der Fixierung - ordnet die Setzliste der ersten Runde.
+  // Meldungsnummer aus der Fixierung - je Wettkampf eindeutig und fest. Die Grundzuteilung paart
+  // Boot n mit Meldungsnummer n ("Nach Startnummer zuteilen", Abgleich bei der Fixierung).
   teamNumber?: int32;
-  // Startnummer des Teams in seinem ersten Lauf (frühester Lauf nach Startzeit), ohne Lauf die
-  // Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots
-  // (effective_material_for_match_team vergleicht je Lauf mit competition_match_team.start_number);
-  // "Nach Startnummer zuteilen" richtet sich danach.
+  // Startnummer im ersten Lauf des Teams (frühester Lauf nach Startzeit; je Lauf ab 1, in
+  // Folgerunden der Rang), ohne Lauf die Meldungsnummer. Nur zur Anzeige, nicht eindeutig je
+  // Wettkampf - nie zum Paaren. Die Startnummer je Lauf steht in MaterialOverviewMatchDto.teams.
   startNumber?: int32;
   clubId: uuid;
   clubName: string;
@@ -250,6 +250,14 @@ model MaterialOverviewMatchDto {
   startTime?: utcDateTime;
   endTime?: utcDateTime;
   registrationIds: uuid[];
+  // Je Meldung dieses Laufs die Startnummer im Lauf (competition_match_team.start_number) -
+  // dieselbe Zahl, gegen die effective_material_for_match_team die Abweichung des Boots rechnet.
+  teams: MaterialOverviewMatchTeamDto[];
+}
+
+model MaterialOverviewMatchTeamDto {
+  competitionRegistration: uuid;
+  startNumber: int32;
 }
 
 // Alles für ein Dashboard-Laden - Angebote, Flotte, Anfragen mit Zuteilungen und die Läufe dazu.
@@ -393,7 +401,8 @@ interface MaterialRoutes {
     @body request: MaterialItemRequest,
   ): uuid;
 
-  // Update material item
+  // Update material item. Die Materialart bleibt fest, solange das Stück zugeteilt ist (409,
+  // MATERIAL_ITEM_TYPE_LOCKED).
   @put
   @route("/{providerId}/item/{itemId}")
   @operationId("")
@@ -403,7 +412,8 @@ interface MaterialRoutes {
     @body request: MaterialItemRequest,
   ): void;
 
-  // Delete material item
+  // Delete material item. Nicht mit Zuteilungen (409, MATERIAL_ITEM_IN_USE) oder mit Schadensakte
+  // (409, MATERIAL_ITEM_HAS_DAMAGES) - die Akte ist historisch; ausmustern über RETIRED.
   @delete
   @route("/{providerId}/item/{itemId}")
   @operationId("")
@@ -452,10 +462,11 @@ interface MaterialRoutes {
   ): void;
 
   // Upload one or more photos for a damage record (multipart, field "files", höchstens 20 je
-  // Anfrage). Gelesen wird erst nach Anmeldung und OWN-Prüfung. Jede Datei einzeln geprüft:
-  // höchstens 10 MB (400, MATERIAL_PHOTO_TOO_LARGE) und an den ersten Bytes als JPEG, PNG, WebP,
-  // GIF oder HEIC erkannt (415, MATERIAL_PHOTO_INVALID_TYPE); der Dateiname bekommt die passende
-  // Endung. Auslieferung nur über getMaterialDamagePhoto, als Anhang.
+  // Anfrage). Gelesen wird erst nach Anmeldung und OWN-Prüfung. Die Grenzen greifen schon beim
+  // Lesen: höchstens 10 MB je Datei und 50 MB je Anfrage (400, MATERIAL_PHOTO_TOO_LARGE, nichts
+  // gespeichert); jede Datei an den ersten Bytes als JPEG, PNG, WebP, GIF oder HEIC erkannt (415,
+  // MATERIAL_PHOTO_INVALID_TYPE); der Dateiname bekommt die passende Endung. Ein Körper über der
+  // Grenze von Server oder Proxy endet als 413. Auslieferung nur über getMaterialDamagePhoto, als Anhang.
   @post
   @route("/{providerId}/damage/{damageId}/photo")
   @operationId("")
@@ -587,7 +598,8 @@ interface EventMaterialRoutes {
     @body request: MaterialOfferRequest,
   ): uuid;
 
-  // Angebot aktualisieren
+  // Angebot aktualisieren. Die Materialart bleibt fest, sobald das Angebot Anfragen hat (409,
+  // MATERIAL_OFFER_TYPE_LOCKED); Preis, geplante Anzahl und Wechselzeit bleiben änderbar.
   @put
   @route("/{providerId}/offer/{offerId}")
   @operationId("")
@@ -619,7 +631,8 @@ interface EventMaterialRoutes {
 
   // Entscheidet über eine Anfrage (bestätigen, Warteliste, ablehnen). Bumpt den Änderungsmarker der
   // Veranstaltung: Mein Event zeigt den Status, eine zurückgenommene Bestätigung nimmt das Boot
-  // von allen Anzeigen.
+  // von allen Anzeigen. Warteliste und Ablehnung entfernen die Zuteilungen der Anfrage - eine
+  // spätere Bestätigung beginnt ohne Stück.
   @put
   @route("/{providerId}/request/{requestId}/decision")
   @operationId("")
@@ -632,6 +645,8 @@ interface EventMaterialRoutes {
 
   // Ersetzt die Zuteilung einer bestätigten Anfrage vollständig (Grundzuteilung ohne Lauf,
   // Ausnahme je Lauf, Ersatzwahl nach Schaden). Bumpt den Änderungsmarker der Veranstaltung.
+  // Dasselbe Paar aus Stück und Lauf zweimal: 422 MATERIAL_DUPLICATE_ASSIGNMENT. Ein ausgemustertes
+  // Stück (RETIRED) wird nicht neu zugeteilt (409 MATERIAL_ITEM_RETIRED), darf aber stehen bleiben.
   @put
   @route("/{providerId}/request/{requestId}/assignments")
   @operationId("")

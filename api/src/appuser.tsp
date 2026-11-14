@@ -178,6 +178,8 @@ interface UserRoutes {
   // denselben Vergaberegeln wie jede Rollenvergabe: UPDATE USER GLOBAL und UPDATE STAFF GLOBAL,
   // die Rechte der Rolle selbst decken, nicht am eigenen Konto, Superadmin nur mit UPDATE SYSTEM.
   // Die normale Rollenpflege (PUT /user/{id}, Einladung) vergibt und entzieht diese Rolle nie.
+  // 409 CannotAssignRoles, wenn der Anfragende die Rechte der Rolle (READ/UPDATE MATERIAL OWN)
+  // nicht selbst deckt.
   @put
   @route("/{userId}/materialProvider")
   setUserMaterialProvider(

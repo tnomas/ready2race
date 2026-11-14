@@ -200,6 +200,8 @@ paths:
           $ref: '#/components/responses/404'
         422:
           $ref: '#/components/responses/422'
+        409:
+          $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
   /user/registration:
@@ -1389,6 +1391,10 @@ paths:
           $ref: '#/components/responses/500'
     delete:
       operationId: deleteCompetitionRegistration
+      description: >-
+        Löscht eine Meldung. Mit OWN (Verein) wie ein Rückzug der Materialanfrage: bei geschlossener
+        Vergabe 409 MATERIAL_REMOVAL_REQUESTS_CLOSED. Mit GLOBAL (Veranstalter) erlaubt. Eine
+        bestätigte Anfrage löst in beiden Fällen die Rückzugs-Mail an den Anbieter aus.
       responses:
         204:
           description: CompetitionRegistration successfully deleted
@@ -1400,6 +1406,8 @@ paths:
           $ref: '#/components/responses/403'
         404:
           $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
   /event/{eventId}/competition/{competitionId}/competitionRegistration/{competitionRegistrationId}/deregistration:
@@ -4043,6 +4051,9 @@ paths:
           $ref: '#/components/responses/500'
     delete:
       operationId: deleteEventRegistration
+      description: >-
+        Löscht die ganze Anmeldung eines Vereins (UPDATE REGISTRATION GLOBAL), auch bei geschlossener
+        Materialvergabe; bestätigte Materialanfragen lösen die Rückzugs-Mail an den Anbieter aus.
       responses:
         204:
           description: Event registration successfully deleted
@@ -4242,6 +4253,11 @@ paths:
       - $ref: '#/components/parameters/eventId'
     post:
       operationId: addEventRegistration
+      description: >-
+        Speichert die Anmeldung eines Vereins. Meldungen, die das Formular nicht mehr nennt (Team
+        entfernt, Wettkampf abgewählt), verschwinden endgültig; hängt daran eine aktive
+        Materialanfrage, gilt das als Rückzug - bei geschlossener Vergabe 409
+        MATERIAL_REMOVAL_REQUESTS_CLOSED, bei bestätigter Anfrage Rückzugs-Mail an den Anbieter.
       requestBody:
         required: true
         content:
@@ -4259,6 +4275,8 @@ paths:
           $ref: '#/components/responses/403'
         404:
           $ref: '#/components/responses/404'
+        409:
+          $ref: '#/components/responses/409'
         500:
           $ref: '#/components/responses/500'
 
@@ -4647,7 +4665,7 @@ paths:
           format: uuid
     put:
       operationId: updateMaterialOffer
-      description: Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      description: Aktualisiert ein Angebot. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Materialart bleibt fest, sobald das Angebot Anfragen hat (409 MATERIAL_OFFER_TYPE_LOCKED).
       requestBody:
         required: true
         content:
@@ -4735,7 +4753,7 @@ paths:
           format: uuid
     put:
       operationId: decideMaterialRequest
-      description: Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden.
+      description: Bestätigt, setzt auf Warteliste oder lehnt eine Anfrage ab, mit optionaler Notiz. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Eine zurückgezogene Anfrage kann nicht mehr entschieden werden. Warteliste oder Ablehnung entfernen die Zuteilungen der Anfrage.
       requestBody:
         required: true
         content:
@@ -4774,7 +4792,7 @@ paths:
           format: uuid
     put:
       operationId: setMaterialAssignments
-      description: Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten.
+      description: Ersetzt die Zuteilung einer bestätigten Anfrage vollständig. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Anfrage muss bestätigt sein, jedes Stück muss dem Anbieter und der Art des Angebots gehören, ein genannter Lauf muss die Meldung enthalten. Dasselbe Paar aus Stück und Lauf zweimal ergibt 422 MATERIAL_DUPLICATE_ASSIGNMENT. Ein ausgemustertes Stück (RETIRED) wird nicht neu zugeteilt (409 MATERIAL_ITEM_RETIRED), darf aber bei dieser Anfrage stehen bleiben.
       requestBody:
         required: true
         content:
@@ -5071,7 +5089,7 @@ paths:
           format: uuid
     put:
       operationId: updateMaterialItem
-      description: Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      description: Aktualisiert ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Die Materialart bleibt fest, solange das Stück zugeteilt ist (409 MATERIAL_ITEM_TYPE_LOCKED).
       requestBody:
         required: true
         content:
@@ -5097,7 +5115,7 @@ paths:
           $ref: '#/components/responses/500'
     delete:
       operationId: deleteMaterialItem
-      description: Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen können nicht gelöscht werden.
+      description: Löscht ein Materialstück. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter. Stücke mit Zuteilungen (409 MATERIAL_ITEM_IN_USE) oder Schadensakte (409 MATERIAL_ITEM_HAS_DAMAGES) können nicht gelöscht werden; ausmustern über den Status RETIRED.
       responses:
         204:
           description: Materialstück erfolgreich gelöscht
@@ -5292,7 +5310,7 @@ paths:
           format: uuid
     post:
       operationId: addMaterialDamagePhotos
-      description: Lädt ein oder mehrere Fotos zu einem Schaden hoch. Jede Datei einzeln gegen die maximale Größe geprüft. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
+      description: Lädt ein oder mehrere Fotos zu einem Schaden hoch. Die Grenzen (10 MB je Datei, 50 MB je Anfrage, höchstens 20 Dateien) greifen schon beim Lesen; darüber 400 MATERIAL_PHOTO_TOO_LARGE, ohne dass etwas gespeichert wird. Braucht UPDATE MATERIAL (OWN oder GLOBAL); mit OWN nur beim eigenen Anbieter.
       requestBody:
         required: true
         content:
@@ -5316,6 +5334,18 @@ paths:
           $ref: '#/components/responses/403'
         404:
           $ref: '#/components/responses/404'
+        413:
+          description: Payload Too Large - der Körper überschreitet die Grenze des Servers oder Proxys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        415:
+          description: Unsupported Media Type - eine Datei ist kein erlaubtes Bildformat (MATERIAL_PHOTO_INVALID_TYPE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         500:
           $ref: '#/components/responses/500'
   /materialProvider/{providerId}/photo/{photoId}:
@@ -13279,6 +13309,12 @@ components:
         - MATERIAL_REQUEST_NOT_CONFIRMED
         - MATERIAL_MATCH_NOT_OF_REGISTRATION
         - MATERIAL_INVALID_OUTAGE_WINDOW
+        - MATERIAL_REMOVAL_REQUESTS_CLOSED
+        - MATERIAL_OFFER_TYPE_LOCKED
+        - MATERIAL_ITEM_TYPE_LOCKED
+        - MATERIAL_ITEM_HAS_DAMAGES
+        - MATERIAL_ITEM_RETIRED
+        - MATERIAL_DUPLICATE_ASSIGNMENT
         - CALLBACK_URL_NOT_ALLOWED
 
     Gender:
@@ -19255,10 +19291,10 @@ components:
         teamName: {type: string}
         teamNumber:
           type: integer
-          description: Meldungsnummer aus der Fixierung (ordnet die Setzliste der ersten Runde).
+          description: Meldungsnummer aus der Fixierung - je Wettkampf eindeutig und fest. Die Grundzuteilung paart Boot n mit Meldungsnummer n ("Nach Startnummer zuteilen", Abgleich bei der Fixierung).
         startNumber:
           type: integer
-          description: Startnummer des Teams in seinem ersten Lauf, ohne Lauf die Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots; "Nach Startnummer zuteilen" richtet sich danach.
+          description: Startnummer im ersten Lauf des Teams (je Lauf ab 1, in Folgerunden der Rang), ohne Lauf die Meldungsnummer. Nur zur Anzeige, nicht eindeutig je Wettkampf - nie zum Paaren verwenden. Die Startnummer je Lauf steht in MaterialOverviewMatchDto.teams.
         clubId: {type: string, format: uuid}
         clubName: {type: string}
         clubContactEmail: {type: string}
@@ -19270,7 +19306,7 @@ components:
     MaterialOverviewMatchDto:
       type: object
       description: Ein Lauf, in dem eine Anfrage dieses Anbieters steht - Grundlage der Ausnahme je Lauf. id ist competition_match.competition_setup_match.
-      required: [id, competition, registrationIds]
+      required: [id, competition, registrationIds, teams]
       properties:
         id: {type: string, format: uuid}
         competition: {type: string, format: uuid}
@@ -19283,6 +19319,18 @@ components:
           items:
             type: string
             format: uuid
+        teams:
+          type: array
+          description: Je Meldung dieses Laufs die Startnummer im Lauf - dieselbe Zahl, gegen die die Anzeigen eine Abweichung des Boots markieren.
+          items:
+            $ref: '#/components/schemas/MaterialOverviewMatchTeamDto'
+
+    MaterialOverviewMatchTeamDto:
+      type: object
+      required: [competitionRegistration, startNumber]
+      properties:
+        competitionRegistration: {type: string, format: uuid}
+        startNumber: {type: integer}
 
     MaterialOverviewDto:
       type: object

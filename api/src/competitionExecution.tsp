@@ -179,6 +179,8 @@ interface CompetitionExecutionRoutes {
     @query eventId: string, // UUID - from pathParam
     @query fileType: StartListFileType,
     @query config?: string, // UUID - for CSV type
+    // Wirksames Leihboot je Team mit ausgeben (effective_material_for_match_team), Vorgabe false.
+    @query showMaterial?: boolean,
   ): bytes; // File download
 
   // Get competition places

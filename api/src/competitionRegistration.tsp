@@ -62,7 +62,11 @@ interface CompetitionRegistrationRoutes {
     @body request: CompetitionRegistrationTeamUpsertDto,
   ): CompetitionRegistrationDto;
 
-  // Delete competition registration
+  // Delete competition registration. Hängt daran eine aktive Materialanfrage, gilt das wie ein
+  // Rückzug: mit OWN (Verein) bei geschlossener Vergabe 409 MATERIAL_REMOVAL_REQUESTS_CLOSED, mit
+  // GLOBAL (Veranstalter) erlaubt; eine bestätigte Anfrage löst die Rückzugs-Mail an den Anbieter aus.
+  // Dasselbe gilt für Meldungen, die das Speichern der Anmeldung (POST /event/{eventId}/register)
+  // entfernt, und für das Löschen der ganzen Anmeldung durch den Veranstalter (dort ohne Sperre).
   @delete
   @route("/{competitionRegistrationId}")
   deleteRegistration(
