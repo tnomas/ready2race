@@ -8,8 +8,11 @@
 -- Inhalt:
 -- - Anbieter "Bootshaus Nord" mit acht Booten (C1x/C2x/C4x+), einem weiteren C4x+ mit Nummer 2
 --   ("Vierer 2") und vier Skull-Paaren, eingeladen, mit Angeboten je Materialart und Bedarf an den
---   Wettkaempfen 1-3. Vier Anfragen (REQUESTED/CONFIRMED/WAITLISTED/DECLINED) des DM-Vereins 1 bzw.
---   2, eine Grundzuteilung (Boot 7) und ein Totalschaden mit offenem Ausfallfenster (Boot 6).
+--   Wettkaempfen 1-3, eine abgelehnte Anfrage (DECLINED, ARV Kiel CF 2x) und ein Totalschaden mit
+--   offenem Ausfallfenster (Boot 6). Alle anderen Anfragen haengen an den Seed-Meldungen der
+--   Wettkaempfe M1/M2 (DM-Verein 1-4) - jede Anfrage an einer existierenden Meldung, keine Waisen.
+--   (Frueher standen hier drei Anfragen an "Bremerhaven"-Meldungen, die es im DM-Seed nicht gibt;
+--   Dashboard und Veranstalter-Zaehler zaehlten sie unterschiedlich.)
 -- - Zweiter Anbieter "Ruderwerft Sued" (Abgrenzung OWN, Testkatalog F1) mit zwei C4x+, eigenem
 --   Konto, eingeladen, eigenem Angebot und einer offenen Anfrage.
 -- - Ein eigener Wettkampf "M1 Materialtest" (CM 4x+ MT) in der DM-Veranstaltung mit Vorlauf (zwei
@@ -27,6 +30,16 @@
 -- - Ein Wettkampf "M2 Anmeldetest" (CF 2x AT, Bedarf C2x und Skull-Paar) ohne Laeufe, mit zwei
 --   Booten des DM-Vereins 1 (#1 bestaetigt, #2 angefragt) - das ist der Wettkampf fuer Block A:
 --   die DM-Wettkaempfe 1-3 haben keine Teilnehmer-Plaetze und erscheinen nicht im Meldeformular.
+--   Dazu je ein Boot von DM-Verein 2 (C2x bestaetigt) und DM-Verein 3 (C2x Warteliste, aeltere
+--   Anfrage). Das C2x-Angebot plant 2 Stueck: zwei Bestaetigungen fuellen es; zieht Verein 1 sein
+--   bestaetigtes Boot #1 zurueck (A6), wird eine Bestaetigung frei und die Warteliste von Verein 3
+--   rueckt in der Hervorhebung nach (B5).
+-- - Ein Wettkampf "M3 Kein Angebot" (Bedarf "Gig-Vierer", den kein Anbieter anbietet) mit
+--   Meldeplaetzen - das Formular zeigt nur "eigenes Boot mitbringen" (A3).
+-- - Ausgangszustand der Fixierung: Der Cleanup loescht den Meldebericht der DM-Veranstaltung
+--   (event_registration_report - der DM-Seed legt keinen an; ein Testlauf von "Fixieren" schon,
+--   danach zeigt die Meldeseite "refinalisieren"). Die Meldungsnummern der Seed-Meldungen setzt der
+--   Seed neu; die der DM-Seed-Meldungen (Wettkaempfe 1-3) stellt nur der DM-Seed wieder her.
 -- - Ein Vereinsvertreter-Konto des DM-Vereins 1; die Meldefrist der DM-Veranstaltung wird dafuer
 --   offen gestellt (gestern bis in 14 Tagen) - Anfrage/Rueckzug im Meldeformular (Block A).
 --   ACHTUNG: das veraendert eine Zeile des DM-Seeds (event.registration_available_*); der Cleanup
@@ -73,7 +86,8 @@ where material_item in (select id from material_item where material_provider::te
 
 delete from material_request
 where material_offer in (select id from material_offer where material_provider::text like '5eed0009-0001%')
-   or competition_registration::text like '5eed0009%';
+   or competition_registration::text like '5eed0009%'
+   or competition_registration in (select id from competition_registration where competition::text like '5eed0009%');
 
 delete from competition_properties_has_material_type
 where material_type in (select id from material_type where id::text like '5eed0009-0003%');
@@ -97,7 +111,9 @@ delete from event_schedule_slot where id::text like '5eed0009%';
 delete from competition_match_team where id::text like '5eed0009%' or competition_registration::text like '5eed0009%';
 delete from competition_match where competition_setup_match::text like '5eed0009%';
 delete from competition_registration_named_participant where competition_registration::text like '5eed0009%';
-delete from competition_registration where id::text like '5eed0009%';
+-- Auch Meldungen, die Handtests in den Seed-Wettkaempfen ueber das Formular angelegt haben
+-- (zufaellige IDs) - sonst scheitert das Loeschen der Wettkaempfe am Fremdschluessel.
+delete from competition_registration where id::text like '5eed0009%' or competition::text like '5eed0009%';
 delete from participant where id::text like '5eed0009%';
 update competition_setup_round set next_round = null where id::text like '5eed0009%';
 delete from competition_properties where id::text like '5eed0009%';
@@ -109,6 +125,9 @@ delete from app_user_has_role where app_user::text like '5eed0009-0002%';
 delete from app_user where id::text like '5eed0009-0002%';
 
 delete from material_provider where id::text like '5eed0009-0001%';
+
+-- Fixierung zuruecksetzen (siehe Kopfkommentar): der DM-Seed kennt keinen Meldebericht.
+delete from event_registration_report where event = '5eed0001-0000-0000-0000-000000000001';
 
 -- =========================================================================================
 -- Anbieter, Nutzer, Materialarten
@@ -145,7 +164,9 @@ insert into material_type (id, name, category, description, created_at, created_
 values ('5eed0009-0003-0000-0000-000000000001', 'C1x', 'BOAT', 'Coastal-Einer', now(), null, now(), null),
        ('5eed0009-0003-0000-0000-000000000002', 'C2x', 'BOAT', 'Coastal-Doppelzweier', now(), null, now(), null),
        ('5eed0009-0003-0000-0000-000000000003', 'C4x+', 'BOAT', 'Coastal-Doppelvierer mit Steuerperson', now(), null, now(), null),
-       ('5eed0009-0003-0000-0000-000000000004', 'Skull-Paar', 'OTHER', 'Ersatz-Skullpaar', now(), null, now(), null)
+       ('5eed0009-0003-0000-0000-000000000004', 'Skull-Paar', 'OTHER', 'Ersatz-Skullpaar', now(), null, now(), null),
+       -- Bedarf ohne Angebot (Wettkampf M3, Fall A3) - kein Anbieter fuehrt diese Art.
+       ('5eed0009-0003-0000-0000-000000000005', 'Gig-Vierer', 'BOAT', 'Gig-Vierer mit Steuerperson (ohne Angebot)', now(), null, now(), null)
 on conflict (id) do nothing;
 
 -- =========================================================================================
@@ -184,7 +205,8 @@ insert into material_offer (id, event, material_provider, material_type, price_t
                              planned_count, changeover_minutes, created_at, created_by, updated_at, updated_by)
 values
     ('5eed0009-0005-0000-0000-000000000001', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000001', '35 € pro Tag', 2, 30, now(), null, now(), null),
-    ('5eed0009-0005-0000-0000-000000000002', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000002', '55 € pro Tag', 5, 30, now(), null, now(), null),
+    -- C2x plant 2 Stueck - zwei Bestaetigungen im M2 fuellen es (B5, siehe Kopfkommentar).
+    ('5eed0009-0005-0000-0000-000000000002', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000002', '55 € pro Tag', 2, 30, now(), null, now(), null),
     ('5eed0009-0005-0000-0000-000000000003', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000003', '95 € pro Tag', 3, 30, now(), null, now(), null),
     ('5eed0009-0005-0000-0000-000000000004', '5eed0001-0000-0000-0000-000000000001', '5eed0009-0001-0000-0000-000000000001', '5eed0009-0003-0000-0000-000000000004', '15 € pro Tag', 4, 30, now(), null, now(), null)
 on conflict (event, material_provider, material_type) do nothing;
@@ -203,32 +225,16 @@ values
 on conflict (competition_properties, material_type) do nothing;
 
 -- =========================================================================================
--- Anfragen: REQUESTED (Bremerhaven CF 2x), CONFIRMED (Bremerhaven CM 4x+, spaeter mit
--- Abweichung zugeteilt), WAITLISTED (Bremerhaven CF 1x), DECLINED (ARV Kiel CF 2x)
+-- Abgelehnte Anfrage an einer DM-Seed-Meldung (ARV Kiel CF 2x, Wettkampf 1) - B3 "abgelehnt".
+-- Die frueheren Anfragen ...0001-0003 hingen an Meldungen, die der DM-Seed nicht anlegt (Waisen).
 -- =========================================================================================
 
 insert into material_request (id, competition_registration, material_offer, count, status,
                                decision_note, requested_at, decided_at, created_at, created_by, updated_at, updated_by)
 values
-    ('5eed0009-0006-0000-0000-000000000001', '5eed0001-0020-0000-0000-000000000001', '5eed0009-0005-0000-0000-000000000002', 1, 'REQUESTED',
-     null, '2026-07-20 09:00:00', null, now(), null, now(), null),
-    ('5eed0009-0006-0000-0000-000000000002', '5eed0001-0020-0000-0000-000000000007', '5eed0009-0005-0000-0000-000000000003', 1, 'CONFIRMED',
-     null, '2026-07-18 08:30:00', '2026-07-19 10:00:00', now(), null, now(), null),
-    ('5eed0009-0006-0000-0000-000000000003', '5eed0001-0020-0000-0000-00000000000d', '5eed0009-0005-0000-0000-000000000001', 1, 'WAITLISTED',
-     'Beide C1x schon vergeben, erste Absage rueckt nach.', '2026-07-21 11:15:00', '2026-07-22 09:00:00', now(), null, now(), null),
     ('5eed0009-0006-0000-0000-000000000004', '5eed0001-0020-0000-0000-000000000002', '5eed0009-0005-0000-0000-000000000002', 1, 'DECLINED',
      'Anfrage kam nach Vergabeschluss fuer diese Klasse.', '2026-07-25 14:00:00', '2026-07-26 09:30:00', now(), null, now(), null)
 on conflict (competition_registration, material_offer) do nothing;
-
--- =========================================================================================
--- Grundzuteilung mit Abweichung: Team #1 (Bremerhaven CM 4x+) bekommt Boot 7
--- =========================================================================================
-
-insert into material_assignment (id, material_request, material_item, competition_match,
-                                  created_at, created_by, updated_at, updated_by)
-values ('5eed0009-0007-0000-0000-000000000001', '5eed0009-0006-0000-0000-000000000002',
-        '5eed0009-0004-0000-0000-000000000007', null, now(), null, now(), null)
-on conflict (material_request, material_item, competition_match) do nothing;
 
 -- =========================================================================================
 -- Totalschaden an Boot 6 mit offenem Ausfallfenster (bis auf Weiteres), Verursacher als
@@ -477,7 +483,12 @@ values
     ('5eed0009-0020-0000-0000-000000000005', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000002',
      '5eed0002-0000-0000-0000-000000000001', '#1', null, now(), null, now(), null),
     ('5eed0009-0020-0000-0000-000000000006', '5eed000a-0000-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000002',
-     '5eed0002-0000-0000-0000-000000000001', '#2', null, now(), null, now(), null);
+     '5eed0002-0000-0000-0000-000000000001', '#2', null, now(), null, now(), null),
+    -- DM-Verein 2 und 3 je ein Boot (ohne Besetzung - fuer Dashboard und Warteliste genuegt die Meldung).
+    ('5eed0009-0020-0000-0000-000000000007', '5eed000a-0000-0000-0000-000000000002', '5eed0009-0010-0000-0000-000000000002',
+     '5eed0002-0000-0000-0000-000000000002', null, null, now(), null, now(), null),
+    ('5eed0009-0020-0000-0000-000000000008', '5eed000a-0000-0000-0000-000000000003', '5eed0009-0010-0000-0000-000000000002',
+     '5eed0002-0000-0000-0000-000000000003', null, null, now(), null, now(), null);
 
 insert into competition_registration_named_participant (competition_registration, named_participant, participant)
 values ('5eed0009-0020-0000-0000-000000000005', '5eed0009-0012-0000-0000-000000000001', '5eed0009-0030-0000-0000-000000000009'),
@@ -491,8 +502,37 @@ values
     ('5eed0009-0006-0000-0000-000000000015', '5eed0009-0020-0000-0000-000000000005', '5eed0009-0005-0000-0000-000000000002', 1, 'CONFIRMED',
      null, now() - interval '6 days', now() - interval '5 days', now(), null, now(), null),
     ('5eed0009-0006-0000-0000-000000000016', '5eed0009-0020-0000-0000-000000000006', '5eed0009-0005-0000-0000-000000000002', 1, 'REQUESTED',
-     null, now() - interval '2 days', null, now(), null, now(), null)
+     null, now() - interval '2 days', null, now(), null, now(), null),
+    -- DM-Verein 2: bestaetigt - zusammen mit Verein 1 #1 ist das C2x-Angebot (2 geplant) voll.
+    ('5eed0009-0006-0000-0000-000000000017', '5eed0009-0020-0000-0000-000000000007', '5eed0009-0005-0000-0000-000000000002', 1, 'CONFIRMED',
+     null, now() - interval '9 days', now() - interval '8 days', now(), null, now(), null),
+    -- DM-Verein 3: Warteliste, aelteste offene C2x-Anfrage - rueckt in der Hervorhebung nach (B5).
+    ('5eed0009-0006-0000-0000-000000000018', '5eed0009-0020-0000-0000-000000000008', '5eed0009-0005-0000-0000-000000000002', 1, 'WAITLISTED',
+     'C2x ausgebucht, rueckt bei einer Absage nach.', now() - interval '8 days', now() - interval '7 days', now(), null, now(), null)
 on conflict (competition_registration, material_offer) do nothing;
+
+-- =========================================================================================
+-- Wettkampf "M3 Kein Angebot" (Fall A3): Meldeplaetze und Bedarf "Gig-Vierer", den kein
+-- eingeladener Anbieter anbietet - das Formular zeigt nur "eigenes Boot mitbringen".
+-- =========================================================================================
+
+insert into competition (id, event, created_at, created_by, updated_at, updated_by)
+values ('5eed0009-0010-0000-0000-000000000003', '5eed0001-0000-0000-0000-000000000001', now(), null, now(), null);
+
+insert into event_day_has_competition (event_day, competition, created_at, created_by)
+values ('5eed0001-0001-0000-0000-000000000001', '5eed0009-0010-0000-0000-000000000003', now(), null);
+
+insert into competition_properties (id, competition, competition_template, identifier, name, short_name,
+                                     description, competition_category)
+values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0010-0000-0000-000000000003', null,
+        'M3', 'Gig-Vierer ohne Angebot', 'Gig 4+ KA', 'Seed der Materialvermietung (kein Angebot)', null);
+
+insert into competition_properties_has_named_participant (competition_properties, named_participant,
+                                                           count_males, count_females, count_non_binary, count_mixed)
+values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0012-0000-0000-000000000001', 0, 0, 0, 2);
+
+insert into competition_properties_has_material_type (competition_properties, material_type, count)
+values ('5eed0009-0011-0000-0000-000000000003', '5eed0009-0003-0000-0000-000000000005', 1);
 
 -- =========================================================================================
 -- Anzeigen: Board, Stream-Szene, Mein-Event-Zugang
