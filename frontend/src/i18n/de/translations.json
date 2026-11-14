@@ -1608,16 +1608,18 @@
         "refinalize": "Refinalisieren",
         "refinalizeRegistrations": "Meldungen refinalisieren",
         "keepTeamNumbers": {
-          "keep": "Gesetzte Startnummern beibehalten",
-          "hint": "Bei Beibehaltung der Startnummern erhalten nur die neuen Teams/Teilnehmer zufällige Startnummern. Diese werden höher sein als die derzeit höchste des Wettbewerbs. Wenn sie nicht beibehalten werden, werden alle Startnummern neu gemischt."
+          "keep": "Vergebene Meldungsnummern behalten",
+          "hint": "Behalten: Teams mit Meldungsnummer behalten sie; nur neu gemeldete Teams bekommen eine, höher als die bisher höchste im Wettkampf. Nicht behalten: Alle Meldungsnummern werden neu vergeben."
         },
-        "reshuffle": "Dies würfelt alle Startnummern neu aus",
-        "success": "Meldungen finalisiert",
-        "alignMaterialNumbers": "Startnummern nach Bootsnummern vergeben",
+        "reshuffle": "Alle Teams haben schon eine Meldungsnummer. Refinalisieren vergibt alle Meldungsnummern neu. „Behalten“ gibt es nur, solange neu gemeldete Teams ohne Nummer da sind.",
+        "success": "Meldungen finalisiert: Jedes Team hat eine Meldungsnummer.",
+        "alignMaterialNumbers": "Meldungsnummern nach Bootsnummern vergeben",
         "material": {
           "openRequestsHint_one": "{{count}} Materialanfrage ist noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
-          "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig."
-        }
+          "openRequestsHint_other": "{{count}} Materialanfragen sind noch nicht entschieden. Erst entscheiden, dann fixieren, sonst greift die Nummerngleichheit nur zufällig.",
+          "numbersExplained": "Die Meldungsnummer bleibt dem Team fest; Teams mit Leihboot bekommen nach Möglichkeit die Nummer ihres Boots, und der Anbieter teilt danach zu. Die Startnummer im Lauf vergibt erst die Rundenanlage (je Lauf ab 1, in Folgerunden der Rang) – steht dort eine andere Zahl als auf dem Boot, zeigen die Anzeigen „abweichend“."
+        },
+        "whereNumbers": "Vergeben wurden Meldungsnummern je Wettkampf. Sie stehen im Meldeergebnis (PDF, Knopf oben) und ordnen die Setzliste der ersten Runde."
       }
     },
     "assign": {

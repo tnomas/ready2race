@@ -1608,16 +1608,18 @@
         "refinalize": "Afslut igen",
         "refinalizeRegistrations": "Afslut tilmeldinger igen",
         "keepTeamNumbers": {
-          "keep": "Behold tildelte startnumre",
-          "hint": "Hvis startnumrene beholdes, får kun de nye hold/deltagere tilfældige startnumre. Disse vil være højere end den nuværende højeste i konkurrencen. Hvis de ikke beholdes, blandes alle startnumre på ny."
+          "keep": "Behold tildelte tilmeldingsnumre",
+          "hint": "Behold: Hold med tilmeldingsnummer beholder det; kun nyligt tilmeldte hold får et, højere end det hidtil højeste i konkurrencen. Behold ikke: Alle tilmeldingsnumre tildeles på ny."
         },
-        "reshuffle": "Dette blander alle startnumre på ny",
-        "success": "Tilmeldinger afsluttet",
-        "alignMaterialNumbers": "Tildel startnumre efter bådnumre",
+        "reshuffle": "Alle hold har allerede et tilmeldingsnummer. Genafslutning tildeler alle tilmeldingsnumre på ny. „Behold“ findes kun, så længe nyligt tilmeldte hold mangler et nummer.",
+        "success": "Tilmeldinger afsluttet: Hvert hold har et tilmeldingsnummer.",
+        "alignMaterialNumbers": "Tildel tilmeldingsnumre efter bådnumre",
         "material": {
           "openRequestsHint_one": "{{count}} materialeanmodning er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
-          "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt."
-        }
+          "openRequestsHint_other": "{{count}} materialeanmodninger er endnu ikke afgjort. Afgør først, afslut derefter, ellers rammer nummerligheden kun tilfældigt.",
+          "numbersExplained": "Tilmeldingsnummeret ligger fast for holdet; hold med lejet båd får så vidt muligt bådens nummer, og udlejeren tildeler derefter. Startnummeret i heatet tildeles først ved opsætningen af runderne (fra 1 pr. heat, i senere runder placeringen) – står der et andet tal end på båden, viser visningerne „afviger“."
+        },
+        "whereNumbers": "Der er tildelt tilmeldingsnumre pr. konkurrence. De står i tilmeldingsresultatet (PDF, knappen ovenfor) og ordner seedningen i første runde."
       }
     },
     "assign": {

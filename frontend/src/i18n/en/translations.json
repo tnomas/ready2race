@@ -1608,16 +1608,18 @@
         "refinalize": "Refinalize",
         "refinalizeRegistrations": "Refinalize Registrations",
         "keepTeamNumbers": {
-          "keep": "Keep set team numbers",
-          "hint": "When keeping the start numbers, new teams/participants will receive new random start numbers. These will be higher than the currently highest of the competition. When not kept, all the start numbers will be reshuffled."
+          "keep": "Keep assigned entry numbers",
+          "hint": "Keep: teams with an entry number keep it; only newly registered teams get one, higher than the current highest in the competition. Don't keep: all entry numbers are assigned anew."
         },
-        "reshuffle": "This will reshuffle all start numbers",
-        "success": "Registrations finalized",
-        "alignMaterialNumbers": "Assign start numbers based on boat numbers",
+        "reshuffle": "All teams already have an entry number. Refinalizing assigns all entry numbers anew. “Keep” is only offered while newly registered teams have no number yet.",
+        "success": "Registrations finalized: every team has an entry number.",
+        "alignMaterialNumbers": "Assign entry numbers based on boat numbers",
         "material": {
           "openRequestsHint_one": "{{count}} material request is not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
-          "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance."
-        }
+          "openRequestsHint_other": "{{count}} material requests are not decided yet. Decide first, then finalize, otherwise matching numbers only happen by chance.",
+          "numbersExplained": "The entry number stays fixed for the team; teams with a rental boat get their boat's number where possible, and the provider assigns accordingly. The start number in a race is only set when the rounds are created (from 1 per race, in later rounds the rank) – if it differs from the number on the boat, displays show “differs”."
+        },
+        "whereNumbers": "Entry numbers were assigned per competition. They are listed in the registration result (PDF, button above) and order the seeding of the first round."
       }
     },
     "assign": {

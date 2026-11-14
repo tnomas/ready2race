@@ -50,6 +50,8 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
     )
 
     const [finalizing, setFinalizing] = useState(false)
+    // Nach einer Fixierung in dieser Sitzung: sagen, was vergeben wurde und wo es steht.
+    const [justFinalized, setJustFinalized] = useState(false)
     const handleFinalizeRegistrations = async (keepNumbers: boolean, alignMaterialNumbers: boolean) => {
         if (finalizing) return
         const {error} = await runRequest(setFinalizing, () =>
@@ -68,6 +70,7 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
         } else {
             feedback.success(t('event.action.finalizeRegistrations.success'))
             setFinalized(Date.now())
+            setJustFinalized(true)
             closeDialog()
         }
     }
@@ -151,6 +154,9 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                     onChange={handleAlignMaterialNumbersChange}
                 />
             </FormInputLabel>
+            <Alert severity={'info'}>
+                {t('event.action.finalizeRegistrations.material.numbersExplained')}
+            </Alert>
             {openMaterialRequests > 0 && (
                 <Alert severity={'warning'}>
                     {t('event.action.finalizeRegistrations.material.openRequestsHint', {
@@ -245,6 +251,11 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
                                         </HtmlTooltip>
                                     </Box>
                                     {t('event.action.finalizeRegistrations.newRegistrations.hint')}
+                                </Alert>
+                            )}
+                            {justFinalized && (
+                                <Alert severity={'success'} onClose={() => setJustFinalized(false)}>
+                                    {t('event.action.finalizeRegistrations.whereNumbers')}
                                 </Alert>
                             )}
                             <Stack spacing={1} sx={{alignItems: 'start'}}>
