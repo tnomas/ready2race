@@ -92,8 +92,12 @@ const MaterialExceptionDialog = ({
     const relevantMatches = matches.filter(m =>
         m.registrationIds.includes(request.competitionRegistration),
     )
-    const relevantItems = [...items.filter(i => i.materialType === request.materialType)].sort(
-        (a, b) => (a.status === b.status ? 0 : a.status === 'ACTIVE' ? -1 : 1),
+    // Ausgemusterte Stücke nur, solange sie dieser Anfrage schon zugeteilt sind - neu zuteilen
+    // lehnt der Server ab (MATERIAL_ITEM_RETIRED).
+    const relevantItems = items.filter(
+        i =>
+            i.materialType === request.materialType &&
+            (i.status === 'ACTIVE' || request.assignments.some(a => a.materialItem === i.id)),
     )
 
     /** Lauf samt Startnummer des Teams dort – die Zahl, gegen die die Anzeigen prüfen. */

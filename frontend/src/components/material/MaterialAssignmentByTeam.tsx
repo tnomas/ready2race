@@ -1,5 +1,15 @@
 import {useState} from 'react'
-import {Autocomplete, Box, Chip, Divider, Paper, Stack, TextField, Typography} from '@mui/material'
+import {
+    Autocomplete,
+    Box,
+    Button,
+    Chip,
+    Divider,
+    Paper,
+    Stack,
+    TextField,
+    Typography,
+} from '@mui/material'
 import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined'
 import CancelIcon from '@mui/icons-material/Cancel'
 import {useTranslation} from 'react-i18next'
@@ -28,6 +38,7 @@ import {
 } from '@components/material/materialWorkplace.ts'
 import MaterialExceptionDialog from '@components/material/MaterialExceptionDialog.tsx'
 import {statusTextColor} from '../../theme/themeColors.ts'
+import {roundMatchLabel} from '@utils/roundMatchLabel.ts'
 import ExecutionMoreMenu from '@components/event/competition/excecution/ExecutionMoreMenu.tsx'
 import {AssignmentChange, assignmentEntriesAfter} from '@components/material/assignmentEntries.ts'
 import {useReloadGate} from '@components/material/reloadGate.ts'
@@ -179,15 +190,13 @@ const MaterialAssignmentByTeam = ({
                         const state = assignmentState(request, items)
                         const missing = baseItemIds.length < request.count
                         const showAdd = canWrite && (missing || addOpen.has(request.id))
-                        const availableItems = items
-                            .filter(
-                                i =>
-                                    i.materialType === request.materialType &&
-                                    !baseItemIds.includes(i.id),
-                            )
-                            .sort((a, b) =>
-                                a.status === b.status ? 0 : a.status === 'ACTIVE' ? -1 : 1,
-                            )
+                        // Ausgemusterte Stücke lassen sich nicht neu zuteilen (409) - nicht anbieten.
+                        const availableItems = items.filter(
+                            i =>
+                                i.materialType === request.materialType &&
+                                i.status === 'ACTIVE' &&
+                                !baseItemIds.includes(i.id),
+                        )
                         const conflictKinds = Array.from(
                             new Set(
                                 conflicts
@@ -329,20 +338,65 @@ const MaterialAssignmentByTeam = ({
                                             />
                                         )}
                                         {canWrite &&
-                                            restorableExceptions(request).map(exception => (
-                                                <Chip
-                                                    key={exception.id}
-                                                    size={'small'}
-                                                    color={'success'}
-                                                    variant={'outlined'}
-                                                    label={t('material.damage.baseAgainRemove')}
-                                                    title={t('material.damage.baseAgain')}
-                                                    disabled={busy}
-                                                    onDelete={() =>
-                                                        removeException(request, exception.id)
-                                                    }
-                                                />
-                                            ))}
+                                            restorableExceptions(request).map(exception => {
+                                                const match = matches.find(
+                                                    m => m.id === exception.competitionMatch,
+                                                )
+                                                const matchLabel = match
+                                                    ? roundMatchLabel(match.roundName, match.name)
+                                                    : ''
+                                                // Echter Knopf mit sichtbarer Erklärung: am Telefon
+                                                // muss die ganze Fläche auslösen, und die helle
+                                                // Mandantenfarbe ist auf Weiß nicht lesbar.
+                                                return (
+                                                    <Stack
+                                                        key={exception.id}
+                                                        direction={'row'}
+                                                        alignItems={'center'}
+                                                        gap={1}
+                                                        flexWrap={'wrap'}
+                                                        sx={{flexBasis: '100%'}}>
+                                                        <Typography
+                                                            variant={'body2'}
+                                                            sx={{
+                                                                color: theme =>
+                                                                    statusTextColor(
+                                                                        theme,
+                                                                        'success',
+                                                                    ),
+                                                            }}>
+                                                            {matchLabel
+                                                                ? `${matchLabel}: ${t('material.damage.baseAgain')}`
+                                                                : t('material.damage.baseAgain')}
+                                                        </Typography>
+                                                        <Button
+                                                            size={'small'}
+                                                            variant={'outlined'}
+                                                            disabled={busy}
+                                                            onClick={() =>
+                                                                removeException(
+                                                                    request,
+                                                                    exception.id,
+                                                                )
+                                                            }
+                                                            sx={{
+                                                                minHeight: 36,
+                                                                color: theme =>
+                                                                    statusTextColor(
+                                                                        theme,
+                                                                        'success',
+                                                                    ),
+                                                                borderColor: theme =>
+                                                                    statusTextColor(
+                                                                        theme,
+                                                                        'success',
+                                                                    ),
+                                                            }}>
+                                                            {t('material.damage.baseAgainRemove')}
+                                                        </Button>
+                                                    </Stack>
+                                                )
+                                            })}
                                     </Stack>
                                     {showAdd && (
                                         <Autocomplete
