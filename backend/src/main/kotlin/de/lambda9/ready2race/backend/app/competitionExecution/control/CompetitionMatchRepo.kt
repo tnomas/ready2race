@@ -34,6 +34,19 @@ object CompetitionMatchRepo {
     fun isFinished(id: UUID) =
         COMPETITION_MATCH.exists { COMPETITION_SETUP_MATCH.eq(id).and(FINISHED_AT.isNotNull) }
 
+    /**
+     * Ob der Lauf mit "Startnummer = Meldungsnummer" angelegt wurde (ADR-0111): dann ist seine
+     * Startnummer die Bootsnummer und kein Bahnplatz. Der Stempel der Rundenanlage, nicht der
+     * aktuelle Schalter der Veranstaltung - der gilt nur für neu anzulegende Runden. False, wenn es
+     * den Lauf nicht gibt.
+     */
+    fun teamNumbersAsStartNumbers(setupMatchId: UUID): JIO<Boolean> = Jooq.query {
+        select(COMPETITION_MATCH.TEAM_NUMBERS_AS_START_NUMBERS)
+            .from(COMPETITION_MATCH)
+            .where(COMPETITION_MATCH.COMPETITION_SETUP_MATCH.eq(setupMatchId))
+            .fetchOne(COMPETITION_MATCH.TEAM_NUMBERS_AS_START_NUMBERS) == true
+    }
+
     // Of the given setup match ids, returns those that have already been created during execution.
     fun getExistingSetupMatchIds(ids: Collection<UUID>) =
         COMPETITION_MATCH.select({ COMPETITION_SETUP_MATCH }) { COMPETITION_SETUP_MATCH.`in`(ids) }

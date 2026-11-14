@@ -94,6 +94,10 @@ class RaceClockerStartNumberWriteTest {
         deregistered: Set<String> = emptySet(),
         teamNumbersAsStartNumbers: Boolean = false,
         startNumbers: List<Int> = clubs.indices.map { it + 1 },
+        // Die Regel, mit der der Lauf angelegt wurde (competition_match.team_numbers_as_start_numbers).
+        // Vorgabe: wie der Schalter der Veranstaltung - getrennt setzbar für den Fall, dass die
+        // Veranstaltung nach der Rundenanlage anders refinalisiert wurde.
+        matchStamp: Boolean = teamNumbersAsStartNumbers,
     ): SeededMatch {
         val eventId = UUID.randomUUID()
         val competitionId = UUID.randomUUID()
@@ -162,6 +166,7 @@ class RaceClockerStartNumberWriteTest {
                 createdAt = now,
                 updatedAt = now,
                 activatedAt = now,
+                teamNumbersAsStartNumbers = matchStamp,
             )
         )
 
@@ -328,6 +333,63 @@ class RaceClockerStartNumberWriteTest {
 
         assertEquals(
             mapOf("Kiel" to 7, "Husum" to 22, "Sonderburg" to 3),
+            startNumbersByClub(seeded),
+        )
+    }
+
+    /**
+     * RS-01: Die Regel steht am Lauf, nicht an der Veranstaltung. Mit Schalter angelegt (#7/#22/#3),
+     * danach ohne Haken refinalisiert (Veranstaltung jetzt aus): Der Abruf schreibt weiter keine
+     * Listenpositionen in diesen Lauf.
+     */
+    @Test
+    fun aMatchCreatedWithTheSwitchKeepsItsNumbersAfterTheEventWasSwitchedOff() = testComprehension {
+        val seeded = seedMatch(
+            clubs = listOf("Kiel", "Husum", "Sonderburg"),
+            teamNumbersAsStartNumbers = false,
+            matchStamp = true,
+            startNumbers = listOf(7, 22, 3),
+        )
+
+        pull(
+            seeded,
+            listOf(
+                row(seeded.team("Sonderburg"), rank = 1),
+                row(seeded.team("Husum"), rank = 2),
+                row(seeded.team("Kiel"), rank = 3),
+            )
+        )
+
+        assertEquals(
+            mapOf("Kiel" to 7, "Husum" to 22, "Sonderburg" to 3),
+            startNumbersByClub(seeded),
+        )
+    }
+
+    /**
+     * RS-01, Gegenrichtung: Ohne Schalter angelegt (Setzposition), danach mit Haken refinalisiert
+     * (Veranstaltung jetzt an): Für diesen Positionslauf kommt ein Bahntausch aus RaceClocker
+     * weiter an.
+     */
+    @Test
+    fun aMatchCreatedWithoutTheSwitchStillTakesLanesAfterTheEventWasSwitchedOn() = testComprehension {
+        val seeded = seedMatch(
+            clubs = listOf("Kiel", "Husum", "Sonderburg"),
+            teamNumbersAsStartNumbers = true,
+            matchStamp = false,
+        )
+
+        pull(
+            seeded,
+            listOf(
+                row(seeded.team("Sonderburg"), rank = 1),
+                row(seeded.team("Husum"), rank = 2),
+                row(seeded.team("Kiel"), rank = 3),
+            )
+        )
+
+        assertEquals(
+            mapOf("Sonderburg" to 1, "Husum" to 2, "Kiel" to 3),
             startNumbersByClub(seeded),
         )
     }

@@ -98,22 +98,6 @@ object EventRepo {
 
     fun getPublished(id: UUID) = EVENT.selectOne({ PUBLISHED }) { ID.eq(id) }
 
-    /**
-     * Ob die Veranstaltung des Laufs [setupMatchId] mit "Meldungsnummern nach Bootsnummern"
-     * fixiert wurde - dann ist die Startnummer die Bootsnummer und kein Bahnplatz (ADR-0111).
-     * False, wenn es den Lauf nicht gibt.
-     */
-    fun teamNumbersAsStartNumbersForMatch(setupMatchId: UUID): JIO<Boolean> = Jooq.query {
-        select(EVENT.TEAM_NUMBERS_AS_START_NUMBERS)
-            .from(COMPETITION_SETUP_MATCH)
-            .join(COMPETITION_SETUP_ROUND).on(COMPETITION_SETUP_ROUND.ID.eq(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND))
-            .join(COMPETITION_PROPERTIES).on(COMPETITION_PROPERTIES.ID.eq(COMPETITION_SETUP_ROUND.COMPETITION_SETUP))
-            .join(COMPETITION).on(COMPETITION.ID.eq(COMPETITION_PROPERTIES.COMPETITION))
-            .join(EVENT).on(EVENT.ID.eq(COMPETITION.EVENT))
-            .where(COMPETITION_SETUP_MATCH.ID.eq(setupMatchId))
-            .fetchOne(EVENT.TEAM_NUMBERS_AS_START_NUMBERS) == true
-    }
-
     fun update(record: EventRecord, f: EventRecord.() -> Unit) = EVENT.update(record, f)
 
     fun delete(id: UUID) = EVENT.delete { ID.eq(id) }

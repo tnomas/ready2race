@@ -42,10 +42,16 @@ object MatchByeRepo {
             // genau dieser Join. Left join, weil nicht jeder Lauf Setup-Plätze hat (Erstrunden
             // werden über die Standard-Setzliste besetzt) und Startnummern nachträglich
             // umgetragen sein können (Bahnentausch) - dann bleibt die Zahl schlicht weg.
+            // Nicht für Läufe mit "Startnummer = Meldungsnummer" (Stempel am Lauf, ADR-0111): Dort
+            // ist die Startnummer die Bootsnummer, und der Join träfe einen fremden Setup-Platz
+            // ("Freilos 8" statt der echten Setzung). Eine zweite Quelle der Setzung gibt es an der
+            // Team-Zeile nicht; der Chip zeigt dann bewusst "Freilos" ohne Zahl, der Laufname
+            // (`bye_name`, aus der Rundenanlage) bleibt richtig.
             .leftJoin(COMPETITION_SETUP_PARTICIPANT)
             .on(
                 COMPETITION_SETUP_PARTICIPANT.COMPETITION_SETUP_MATCH.eq(COMPETITION_MATCH_TEAM.COMPETITION_MATCH)
                     .and(COMPETITION_SETUP_PARTICIPANT.RANKING.eq(COMPETITION_MATCH_TEAM.START_NUMBER))
+                    .and(COMPETITION_MATCH.TEAM_NUMBERS_AS_START_NUMBERS.isFalse)
             )
             .join(COMPETITION_SETUP_ROUND)
             .on(COMPETITION_SETUP_MATCH.COMPETITION_SETUP_ROUND.eq(COMPETITION_SETUP_ROUND.ID))

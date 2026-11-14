@@ -152,6 +152,10 @@ object CompetitionExecutionService {
         // Mit "Meldungsnummern nach Bootsnummern vergeben" fixiert: jedes Boot startet in jedem Lauf
         // unter seiner Meldungsnummer (ADR-0111). Ohne den Schalter bleibt es bei Setzposition bzw.
         // Rang. Einmal je Aufruf gelesen - die Automatik ruft für mehrere Runden hintereinander.
+        // Der Schalter der Veranstaltung gilt nur hier, beim Anlegen: Jeder angelegte Lauf trägt die
+        // Regel als Stempel (competition_match.team_numbers_as_start_numbers), und wer später über
+        // einen bestehenden Lauf entscheidet (RaceClocker-Abruf, Freilos-Setzungszahl), liest den
+        // Stempel - ein Refinalisieren mit anderem Haken ändert schon angelegte Läufe nicht.
         val teamNumbersAsStartNumbers =
             (!EventRepo.get(eventId).orDie())?.teamNumbersAsStartNumbers == true
         val highestTeamNumber =
@@ -235,7 +239,9 @@ object CompetitionExecutionService {
                 val matchRecords = nextRoundSetupMatches
                     .filterIndexed { index, _ -> index < sortedRegistrations.size }
                     .map {
-                        !it.applyCompetitionMatch(userId, null)
+                        (!it.applyCompetitionMatch(userId, null)).apply {
+                            this.teamNumbersAsStartNumbers = teamNumbersAsStartNumbers
+                        }
                     }
                 !CompetitionMatchRepo.create(matchRecords).orDie()
                 createdSetupMatchIds += matchRecords.map { it.competitionSetupMatch!! }
@@ -329,7 +335,9 @@ object CompetitionExecutionService {
                 val matchRecords = nextRoundSetupMatches
                     .filterIndexed { index, _ -> index < currentTeamsWithOutcome.size }
                     .map {
-                        !it.applyCompetitionMatch(userId, null)
+                        (!it.applyCompetitionMatch(userId, null)).apply {
+                            this.teamNumbersAsStartNumbers = teamNumbersAsStartNumbers
+                        }
                     }
                 !CompetitionMatchRepo.create(matchRecords).orDie()
                 createdSetupMatchIds += matchRecords.map { it.competitionSetupMatch!! }
@@ -377,8 +385,10 @@ object CompetitionExecutionService {
                 // In einer Folgerunde ist die Setzung der `seed` des Setup-Platzes, den das Boot
                 // besetzt — genau die Zahl, die MatchByeRepo später über ranking == startNumber
                 // zurückliest ("Freilos 1" auf Karte und Chip meint dann dieselbe Zahl wie hier).
-                // Mit Startnummer = Meldungsnummer findet dieser Rückweg keinen Platz mehr; der Chip
-                // zeigt dann "Freilos" ohne Zahl, der hier materialisierte Name bleibt richtig.
+                // Mit Startnummer = Meldungsnummer trägt die Startnummer keine Position mehr; der
+                // Rückweg träfe einen fremden Setup-Platz. MatchByeRepo liest für gestempelte Läufe
+                // deshalb gar keine Zahl (Chip "Freilos" ohne Zahl); der hier materialisierte Name
+                // ("Freilos <Setzung>") bleibt richtig, weil er aus dieser Rechnung stammt.
                 racingSeedsByMatch = currentTeamsToParticipantId
                     .filter { (prevTeam, _) -> !prevTeam.deregistered && !prevTeam.out && !prevTeam.failed }
                     .groupBy({ it.second!!.competitionSetupMatch!! }, { it.second!!.seed })
@@ -1737,7 +1747,10 @@ object CompetitionExecutionService {
         // Bahnplatz: Sie reist mit dem Boot wie die Bib in RaceClocker. Ein Umsortieren dort ändert
         // dann keine Startnummer - Listenpositionen hineinzuschreiben machte aus #7 wieder #1 und
         // jedes Leihboot "abweichend" (ADR-0111). Zeiten, Zwischenzeiten und Start laufen weiter.
-        if (!EventRepo.teamNumbersAsStartNumbersForMatch(matchId).orDie()) return@comprehension KIO.unit
+        // Entschieden wird am Lauf (Stempel der Rundenanlage), nicht am aktuellen Schalter der
+        // Veranstaltung: Ein Refinalisieren nach der Rundenanlage ändert die Regel bestehender Läufe
+        // nicht - sonst schriebe der nächste Takt mitten im Renntag doch wieder 1..n hinein.
+        if (!CompetitionMatchRepo.teamNumbersAsStartNumbers(matchId).orDie()) return@comprehension KIO.unit
 
         val lanes = RaceClockerFeedRow.lanesByRow(rowByRegistration)
         if (lanes.isEmpty()) return@comprehension KIO.unit
