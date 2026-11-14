@@ -1,3 +1,4 @@
+import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useEffect, useMemo, useState} from 'react'
 import {
     Avatar,
@@ -90,7 +91,7 @@ const itemOptionLabel = (item: {label: string; number?: number}) =>
     item.number != null ? `${item.label} #${item.number}` : item.label
 
 const causerLabel = (r: MaterialOverviewRequestDto) =>
-    `#${r.teamNumber ?? '–'} ${r.teamName ?? '–'} · ${r.clubName} · ${r.competitionIdentifier}`
+    `#${startNumberOf(r) ?? '–'} ${r.teamName ?? '–'} · ${r.clubName} · ${r.competitionIdentifier}`
 
 const causerOptionFromDto = (
     dto: MaterialDamageDto,
@@ -338,7 +339,12 @@ const MaterialDamageDialog = ({
                 'errorCode' in error &&
                 error.errorCode === 'MATERIAL_PHOTO_TOO_LARGE'
               ? t('material.damage.photoTooLarge')
-              : t('material.damage.photoUploadError')
+              : typeof error === 'object' &&
+                  error !== null &&
+                  'errorCode' in error &&
+                  error.errorCode === 'MATERIAL_PHOTO_INVALID_TYPE'
+                ? t('material.damage.photoInvalidType')
+                : t('material.damage.photoUploadError')
 
     const handleAddFiles = async (files: FileList) => {
         const selected = Array.from(files)

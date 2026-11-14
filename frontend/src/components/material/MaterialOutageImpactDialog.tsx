@@ -1,3 +1,4 @@
+import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useState} from 'react'
 import {
     Autocomplete,
@@ -108,7 +109,7 @@ const MaterialOutageImpactDialog = ({
                 overview.matches,
                 a.matchId,
                 item.materialType,
-                request.teamNumber,
+                startNumberOf(request),
             )
             const options: Option[] = candidates.map(c => ({
                 id: c.item.id,
@@ -117,7 +118,7 @@ const MaterialOutageImpactDialog = ({
             }))
             const time = match.startTime ? format(new Date(match.startTime), 'HH:mm') : ''
             const label =
-                `#${request.teamNumber ?? '–'} ${request.clubName} · ${request.competitionIdentifier} · ` +
+                `#${startNumberOf(request) ?? '–'} ${request.clubName} · ${request.competitionIdentifier} · ` +
                 `${matchLabel(match)} ${time}`.trim()
             return {
                 key: `${a.requestId}|${a.matchId}`,

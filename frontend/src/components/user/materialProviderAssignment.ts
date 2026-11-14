@@ -15,9 +15,6 @@ export const SYSTEM_MANAGED_JOBS: readonly string[] = [
     'MATERIAL_PROVIDER',
 ]
 
-/** Jobs, die der Rollendialog nicht als Kopiervorlage anbietet. */
-export const NOT_COPYABLE_JOBS: readonly string[] = ['MATERIAL_PROVIDER']
-
 export type ProviderAssignmentBlock = 'self' | 'system' | 'superadmin'
 
 /**

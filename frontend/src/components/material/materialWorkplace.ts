@@ -4,7 +4,7 @@ import {
     MaterialOverviewRequestDto,
     MaterialRequestStatus,
 } from '@api/types.gen.ts'
-import {deviatesFromStartNumber} from './assignByStartNumber.ts'
+import {deviatesFromStartNumber, startNumberOf} from './assignByStartNumber.ts'
 import {MaterialConflict} from './conflicts.ts'
 
 /**
@@ -164,8 +164,8 @@ export const assignmentRowsForWork = (
                 a.competitionIdentifier.localeCompare(b.competitionIdentifier, undefined, {
                     numeric: true,
                 }) ||
-                (a.teamNumber ?? Number.MAX_SAFE_INTEGER) -
-                    (b.teamNumber ?? Number.MAX_SAFE_INTEGER),
+                (startNumberOf(a) ?? Number.MAX_SAFE_INTEGER) -
+                    (startNumberOf(b) ?? Number.MAX_SAFE_INTEGER),
         )
 }
 

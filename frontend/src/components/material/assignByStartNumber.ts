@@ -5,6 +5,15 @@ export type ProposedAssignment = {
     entries: {materialItem: string; competitionMatch: null}[]
 }
 
+/**
+ * Die Startnummer, gegen die Bootsnummern verglichen werden: die im Lauf (`startNumber`, vom
+ * Backend aus dem ersten Lauf der Meldung), solange es keinen Lauf gibt die Meldungsnummer
+ * (`teamNumber`). Eine Stelle für alle Anzeigen und Regeln des Anbieter-Dashboards.
+ */
+export const startNumberOf = (
+    request: Pick<MaterialOverviewRequestDto, 'startNumber' | 'teamNumber'>,
+): number | undefined => request.startNumber ?? request.teamNumber
+
 const hasBaseAssignment = (request: MaterialOverviewRequestDto): boolean =>
     request.assignments.some(a => a.competitionMatch == null)
 
@@ -27,7 +36,7 @@ export const assignByStartNumber = (
         if (hasBaseAssignment(request)) {
             continue
         }
-        if (request.teamNumber == null) {
+        if (startNumberOf(request) == null) {
             continue
         }
 
@@ -35,11 +44,14 @@ export const assignByStartNumber = (
             item =>
                 item.status === 'ACTIVE' &&
                 item.materialType === request.materialType &&
-                item.number === request.teamNumber,
+                item.number === startNumberOf(request),
         )
 
         if (candidate != null) {
-            result.push({requestId: request.id, entries: [{materialItem: candidate.id, competitionMatch: null}]})
+            result.push({
+                requestId: request.id,
+                entries: [{materialItem: candidate.id, competitionMatch: null}],
+            })
         }
     }
 
@@ -51,12 +63,17 @@ export const assignByStartNumber = (
  * ihrer Stücke die Nummer des Teams trägt. Ohne Grundzuteilung gibt es nichts, wovon
  * abzuweichen wäre.
  */
-export const deviatesFromStartNumber = (request: MaterialOverviewRequestDto, items: MaterialOverviewItemDto[]): boolean => {
-    const baseItemIds = request.assignments.filter(a => a.competitionMatch == null).map(a => a.materialItem)
+export const deviatesFromStartNumber = (
+    request: MaterialOverviewRequestDto,
+    items: MaterialOverviewItemDto[],
+): boolean => {
+    const baseItemIds = request.assignments
+        .filter(a => a.competitionMatch == null)
+        .map(a => a.materialItem)
     if (baseItemIds.length === 0) {
         return false
     }
 
     const itemsById = new Map(items.map(i => [i.id, i]))
-    return !baseItemIds.some(id => itemsById.get(id)?.number === request.teamNumber)
+    return !baseItemIds.some(id => itemsById.get(id)?.number === startNumberOf(request))
 }

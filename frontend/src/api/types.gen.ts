@@ -1782,6 +1782,8 @@ export type ErrorCode =
     | 'MATERIAL_ITEM_NUMBER_TAKEN'
     | 'MATERIAL_OFFER_TYPE_TAKEN'
     | 'MATERIAL_PHOTO_TOO_LARGE'
+    | 'MATERIAL_PHOTO_INVALID_TYPE'
+    | 'MATERIAL_PROVIDER_HAS_USERS'
 
 export type EventDayDto = {
     id: string
@@ -3280,7 +3282,14 @@ export type MaterialOverviewRequestDto = {
     competitionIdentifier: string
     competitionName: string
     teamName?: string
+    /**
+     * Meldungsnummer aus der Fixierung (ordnet die Setzliste der ersten Runde).
+     */
     teamNumber?: number
+    /**
+     * Startnummer des Teams in seinem ersten Lauf, ohne Lauf die Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots; "Nach Startnummer zuteilen" richtet sich danach.
+     */
+    startNumber?: number
     clubId: string
     clubName: string
     clubContactEmail?: string

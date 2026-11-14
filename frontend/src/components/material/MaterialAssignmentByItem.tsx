@@ -1,3 +1,4 @@
+import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {Card, Chip, Stack, Typography} from '@mui/material'
 import {useTranslation} from 'react-i18next'
 import {format} from 'date-fns'
@@ -50,7 +51,7 @@ const MaterialAssignmentByItem = ({items, requests, matches, effective, conflict
                             matchId: e.matchId,
                             requestId: e.requestId,
                             startTime: match?.startTime ?? null,
-                            teamNumber: request?.teamNumber,
+                            teamNumber: request ? startNumberOf(request) : undefined,
                             clubName: request?.clubName ?? '',
                             competitionIdentifier: request?.competitionIdentifier ?? '',
                         }

@@ -1,3 +1,4 @@
+import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useState} from 'react'
 import {Autocomplete, Box, Chip, Divider, Paper, Stack, TextField, Typography} from '@mui/material'
 import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined'
@@ -202,8 +203,8 @@ const MaterialAssignmentByTeam = ({
                                         variant={'body1'}
                                         fontWeight={600}
                                         sx={{overflowWrap: 'anywhere'}}>
-                                        {request.teamNumber != null
-                                            ? `#${request.teamNumber} `
+                                        {startNumberOf(request) != null
+                                            ? `#${startNumberOf(request)} `
                                             : ''}
                                         {request.clubName}
                                         {team}

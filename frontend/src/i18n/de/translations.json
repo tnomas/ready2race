@@ -5035,7 +5035,8 @@
       "contactEmail": "E-Mail",
       "contactPhone": "Telefon",
       "note": "Notiz",
-      "none": "Noch keine Anbieter angelegt."
+      "none": "Noch keine Anbieter angelegt.",
+      "hasUsers": "Dem Anbieter sind noch Konten zugeordnet. Bitte erst auf den Seiten dieser Konten die Anbieter-Zuordnung lösen, dann löschen."
     },
     "type": {
       "type": "Materialart",
@@ -5299,7 +5300,8 @@
       "outOfServiceHint": "Ausfall: Solange das Stück fehlt, schlägt das System für betroffene Läufe Ersatz vor. „Bis\" leer lassen, wenn offen.",
       "outOfServiceOpen": "fällt aus ab {{from}}",
       "outOfServiceRange": "fällt aus {{from}} – {{until}}",
-      "scopeHint": "Hier stehen Schäden, die während der Veranstaltungstage gemeldet oder einer Meldung dieser Veranstaltung zugeordnet wurden."
+      "scopeHint": "Hier stehen Schäden, die während der Veranstaltungstage gemeldet oder einer Meldung dieser Veranstaltung zugeordnet wurden.",
+      "photoInvalidType": "Nur Bilder (z. B. JPEG, PNG) können als Foto hochgeladen werden."
     },
     "severity": {
       "MINOR": "leicht",

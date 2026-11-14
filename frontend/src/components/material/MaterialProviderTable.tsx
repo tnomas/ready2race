@@ -1,8 +1,9 @@
-import {useMemo} from 'react'
+import {useCallback, useMemo} from 'react'
 import {GridColDef, GridPaginationModel, GridSortModel} from '@mui/x-data-grid'
 import {PaginationParameters} from '@utils/ApiUtils.ts'
 import {deleteMaterialProvider, getMaterialProviders} from '@api/sdk.gen.ts'
-import {MaterialProviderDto} from '@api/types.gen.ts'
+import {ApiError, MaterialProviderDto} from '@api/types.gen.ts'
+import {useFeedback} from '@utils/hooks.ts'
 import {BaseEntityTableProps} from '@utils/types.ts'
 import {useTranslation} from 'react-i18next'
 import EntityTable from '@components/EntityTable.tsx'
@@ -22,6 +23,18 @@ const deleteRequest = (dto: MaterialProviderDto) =>
 
 const MaterialProviderTable = (props: BaseEntityTableProps<MaterialProviderDto>) => {
     const {t} = useTranslation()
+    const feedback = useFeedback()
+
+    // Ein Anbieter mit zugeordneten Konten lässt sich nicht löschen (409): sagen, was zu tun ist.
+    const onDeleteError = useCallback(
+        (error: ApiError) =>
+            feedback.error(
+                error.errorCode === 'MATERIAL_PROVIDER_HAS_USERS'
+                    ? t('material.provider.hasUsers')
+                    : t('entity.delete.error', {entity: t('material.provider.provider')}),
+            ),
+        [feedback, t],
+    )
 
     const columns: GridColDef<MaterialProviderDto>[] = useMemo(
         () => [
@@ -61,6 +74,7 @@ const MaterialProviderTable = (props: BaseEntityTableProps<MaterialProviderDto>)
             dataRequest={dataRequest}
             entityName={t('material.provider.provider')}
             deleteRequest={deleteRequest}
+            onDeleteError={onDeleteError}
         />
     )
 }

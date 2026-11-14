@@ -1,3 +1,4 @@
+import {startNumberOf} from '@components/material/assignByStartNumber.ts'
 import {useMemo, useState} from 'react'
 import {
     Box,
@@ -330,7 +331,10 @@ const RequestRow = ({
     const plan = requestActionPlan(request.status)
     const primary = plan.primary
     const look = REQUEST_STATUS_CHIP[request.status]
-    const team = [request.teamNumber != null ? `#${request.teamNumber}` : null, request.teamName]
+    const team = [
+        startNumberOf(request) != null ? `#${startNumberOf(request)}` : null,
+        request.teamName,
+    ]
         .filter(Boolean)
         .join(' ')
 

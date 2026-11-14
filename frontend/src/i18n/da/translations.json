@@ -5035,7 +5035,8 @@
       "contactEmail": "E-mail",
       "contactPhone": "Telefon",
       "note": "Note",
-      "none": "Ingen udbydere oprettet endnu."
+      "none": "Ingen udbydere oprettet endnu.",
+      "hasUsers": "Der er stadig konti tildelt denne udbyder. Fjern først udbydertildelingen på disse konti, og slet derefter."
     },
     "type": {
       "type": "Materieltype",
@@ -5299,7 +5300,8 @@
       "outOfServiceHint": "Udfald: Så længe enheden mangler, foreslår systemet erstatning for berørte løb. Lad \"til\" stå tomt, hvis åbent.",
       "outOfServiceOpen": "ude af drift fra {{from}}",
       "outOfServiceRange": "ude af drift {{from}} – {{until}}",
-      "scopeHint": "Her vises skader, der er meldt i arrangementets dage eller tilknyttet en tilmelding til dette arrangement."
+      "scopeHint": "Her vises skader, der er meldt i arrangementets dage eller tilknyttet en tilmelding til dette arrangement.",
+      "photoInvalidType": "Kun billeder (fx JPEG, PNG) kan uploades som foto."
     },
     "severity": {
       "MINOR": "let",

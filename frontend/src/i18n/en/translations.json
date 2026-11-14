@@ -5035,7 +5035,8 @@
       "contactEmail": "Email",
       "contactPhone": "Phone",
       "note": "Note",
-      "none": "No providers created yet."
+      "none": "No providers created yet.",
+      "hasUsers": "Accounts are still assigned to this provider. Remove the provider assignment on those accounts first, then delete."
     },
     "type": {
       "type": "Equipment type",
@@ -5299,7 +5300,8 @@
       "outOfServiceHint": "Outage: while the item is missing, the system suggests replacements for affected races. Leave \"until\" empty if open-ended.",
       "outOfServiceOpen": "out of service from {{from}}",
       "outOfServiceRange": "out of service {{from}} – {{until}}",
-      "scopeHint": "Shown are damages reported during the event days or attributed to a registration of this event."
+      "scopeHint": "Shown are damages reported during the event days or attributed to a registration of this event.",
+      "photoInvalidType": "Only images (e.g. JPEG, PNG) can be uploaded as photos."
     },
     "severity": {
       "MINOR": "minor",

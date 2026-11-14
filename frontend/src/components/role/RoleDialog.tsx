@@ -13,7 +13,6 @@ import {FormInputSelect} from '@components/form/input/FormInputSelect.tsx'
 import {deviationOf, groupPrivileges} from './privilegeGroups.ts'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {jobName} from '@authorization/roleLabels.ts'
-import {NOT_COPYABLE_JOBS} from '@components/user/materialProviderAssignment.ts'
 
 type RoleForm = {
     name: string
@@ -89,11 +88,7 @@ const RoleDialog = (props: BaseEntityDialogProps<RoleDto>) => {
                         name={'job'}
                         label={t('role.copyOf')}
                         required
-                        // Materialanbieter hängt an der Anbieter-Zuordnung; eine Kopie wäre ohne
-                        // Anbieter wirkungslos und wird deshalb nicht angeboten.
-                        options={(jobs ?? [])
-                            .filter(j => !NOT_COPYABLE_JOBS.includes(j.key))
-                            .map(j => ({id: j.key, label: jobName(j.key, t)}))}
+                        options={(jobs ?? []).map(j => ({id: j.key, label: jobName(j.key, t)}))}
                     />
                 ) : (
                     <Typography variant={'body2'}>

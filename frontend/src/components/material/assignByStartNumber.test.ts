@@ -1,6 +1,6 @@
 import {describe, expect, test} from 'vitest'
 import {MaterialAssignmentDto, MaterialOverviewItemDto, MaterialOverviewRequestDto} from '@api/types.gen.ts'
-import {assignByStartNumber, deviatesFromStartNumber} from './assignByStartNumber.ts'
+import {assignByStartNumber, deviatesFromStartNumber, startNumberOf} from './assignByStartNumber.ts'
 
 const request = (overrides: Partial<MaterialOverviewRequestDto> = {}): MaterialOverviewRequestDto => ({
     id: 'req-1',
@@ -99,5 +99,31 @@ describe('deviatesFromStartNumber', () => {
     test('nur Ausnahmen ohne Grundzuteilung zählen nicht als Grundzuteilung', () => {
         const req = request({assignments: [assignment({materialItem: 'item-1', competitionMatch: 'match-1'})]})
         expect(deviatesFromStartNumber(req, [item()])).toBe(false)
+    })
+})
+
+describe('Startnummer im Lauf', () => {
+    test('startNumberOf nimmt die Startnummer im Lauf, sonst die Meldungsnummer', () => {
+        expect(startNumberOf({startNumber: 3, teamNumber: 7})).toBe(3)
+        expect(startNumberOf({teamNumber: 7})).toBe(7)
+        expect(startNumberOf({})).toBeUndefined()
+    })
+
+    test('Zuteilung nach Startnummer folgt der Startnummer im Lauf', () => {
+        const items = [item({id: 'i3', number: 3}), item({id: 'i7', number: 7})]
+        expect(assignByStartNumber([request({startNumber: 3, teamNumber: 7})], items)).toEqual([
+            {requestId: 'req-1', entries: [{materialItem: 'i3', competitionMatch: null}]},
+        ])
+    })
+
+    test('Abweichung wird gegen die Startnummer im Lauf gerechnet', () => {
+        const items = [item({id: 'i3', number: 3}), item({id: 'i7', number: 7})]
+        const base = (id: string) => [assignment({id: `a-${id}`, materialItem: id})]
+        expect(
+            deviatesFromStartNumber(request({startNumber: 3, teamNumber: 7, assignments: base('i3')}), items),
+        ).toBe(false)
+        expect(
+            deviatesFromStartNumber(request({startNumber: 3, teamNumber: 7, assignments: base('i7')}), items),
+        ).toBe(true)
     })
 })
