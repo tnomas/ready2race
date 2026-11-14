@@ -201,6 +201,8 @@ object EventRegistrationService {
             )
         ).orDie() to false)
 
+        var carryOver = ResaveCarryOver.NONE
+
         val remainingRegistrations = if (isUpdate) {
             !EventRegistrationRepo.update(persistedRegistrationId) {
                 message = registrationDto.message
@@ -217,9 +219,11 @@ object EventRegistrationService {
                 .toSet() +
                 registrationDto.competitionRegistrations
                     .flatMap { c -> c.teams?.mapNotNull { it.id } ?: emptyList() }
-            val removedIds = (!CompetitionRegistrationRepo.idsForEventRegistrationUpdate(persistedRegistrationId, type).orDie())
-                .filterNot { it in keptIds }
+            val replacedIds = !CompetitionRegistrationRepo.idsForEventRegistrationUpdate(persistedRegistrationId, type).orDie()
+            val removedIds = replacedIds.filterNot { it in keptIds }
             !MaterialService.releaseRequestsOfRemovedRegistrations(removedIds, enforceClosed = true)
+
+            val registrationsBefore = !CompetitionRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
 
             !CompetitionRegistrationRepo.deleteForEventRegistrationUpdate(persistedRegistrationId, type).orDie()
 
@@ -227,7 +231,23 @@ object EventRegistrationService {
             // Meldungen des Vereins aus allen Jahren mit, und historische Mannschaftsnamen auf
             // Ergebnissen und Urkunden änderten sich bei jeder neuen Meldung.
             val clubRegistrations = !CompetitionRegistrationRepo.getByEventAndClub(eventId, clubId).orDie()
+
+            carryOver = ResaveCarryOver.of(
+                before = registrationsBefore,
+                replacedIds = replacedIds.toSet(),
+                remaining = clubRegistrations,
+                formIds = registrationDto.participants.flatMap { p ->
+                    p.competitionsSingle?.map { it.competitionId to it.id } ?: emptyList()
+                } + registrationDto.competitionRegistrations.flatMap { c ->
+                    c.teams?.map { c.competitionId to it.id } ?: emptyList()
+                },
+            )
+
+            // Wettkämpfe, deren Meldungen dieses Speichern nicht verändert (keine neu, keine weg),
+            // behalten ihre Namen - auch gesperrte Meldungen anderer Wettkämpfe werden nicht
+            // umbenannt. Neu durchnummeriert wird nur, wo ein Team dazukam oder wegfiel.
             val grouped = clubRegistrations.groupBy { it.competition }
+                .filterKeys { it !in carryOver.unchangedCompetitions }
 
             val compIdsWithNewRegistrations = registrationDto.participants.flatMap {
                 it.competitionsSingle?.map { it.competitionId } ?: emptyList()
@@ -254,7 +274,7 @@ object EventRegistrationService {
                     }
                 }
 
-            grouped.mapValues { (_, regs) -> regs.size }
+            clubRegistrations.groupBy { it.competition }.mapValues { (_, regs) -> regs.size }
         } else {
             null
         }
@@ -283,6 +303,7 @@ object EventRegistrationService {
                     ratingCategoryAgeRestrictions,
                     ratingCategoryExistsForEvent,
                     crossClubRegistration = event.crossClubRegistration == true,
+                    carryOver = carryOver,
                 )
 
                 if (
@@ -323,6 +344,7 @@ object EventRegistrationService {
                 remainingRegistrations,
                 ratingCategoryAgeRestrictions,
                 ratingCategoryExistsForEvent,
+                carryOver,
             )
         }
 
@@ -430,6 +452,7 @@ object EventRegistrationService {
         ratingCategoryAgeRestrictions: Map<UUID, AgeRestriction>?,
         ratingCategoryExistsForEvent: Boolean,
         crossClubRegistration: Boolean,
+        carryOver: ResaveCarryOver,
     ): App<EventRegistrationError, Pair<UUID, PersistedIdAndGender>> = KIO.comprehension {
         val persistedUserInfo = if (pDto.isNew == true) {
             !ParticipantRepo.create(!pDto.toRecord(userId, clubId)).orDie().map {
@@ -479,7 +502,10 @@ object EventRegistrationService {
                         EventRegistrationError.CompetitionNotFound(competitionRegistrationDto.competitionId)
                     }
 
-                val name = singleCompetitionMultiCounts[competitionRegistrationDto.competitionId]
+                val previous = carryOver.previous(competitionRegistrationDto.id, competitionRegistrationDto.competitionId)
+                val name = if (competitionRegistrationDto.competitionId in carryOver.unchangedCompetitions) {
+                    previous?.name
+                } else singleCompetitionMultiCounts[competitionRegistrationDto.competitionId]
                     ?.plus(1)
                     ?.let {
                         singleCompetitionMultiCounts[competitionRegistrationDto.competitionId] = it
@@ -534,10 +560,11 @@ object EventRegistrationService {
                         competitionRegistrationDto.competitionId,
                         clubId,
                         name,
+                        previous?.createdAt ?: now,
+                        if (previous != null) previous.createdBy else userId,
                         now,
                         userId,
-                        now,
-                        userId,
+                        teamNumber = previous?.teamNumber,
                         isLate = type == OpenForRegistrationType.LATE,
                         ratingCategory = competitionRegistrationDto.ratingCategory
                     )
@@ -578,6 +605,7 @@ object EventRegistrationService {
         regularRegistrations: Map<UUID, Int>?,
         ratingCategoryAgeRestrictions: Map<UUID, AgeRestriction>?,
         ratingCategoryExistsForEvent: Boolean,
+        carryOver: ResaveCarryOver,
     ): App<EventRegistrationError, Unit> = KIO.comprehension {
 
         val competition =
@@ -607,7 +635,10 @@ object EventRegistrationService {
         competitionRegistrationDto.teams?.traverse { teamDto ->
             KIO.comprehension {
 
-                val name = count
+                val previous = carryOver.previous(teamDto.id, competitionRegistrationDto.competitionId)
+                val name = if (competitionRegistrationDto.competitionId in carryOver.unchangedCompetitions) {
+                    previous?.name
+                } else count
                     ?.plus(1)
                     ?.let {
                         count = it
@@ -668,10 +699,11 @@ object EventRegistrationService {
                         competitionRegistrationDto.competitionId,
                         clubId,
                         name,
+                        previous?.createdAt ?: now,
+                        if (previous != null) previous.createdBy else userId,
                         now,
                         userId,
-                        now,
-                        userId,
+                        teamNumber = previous?.teamNumber,
                         isLate = type == OpenForRegistrationType.LATE,
                         ratingCategory = teamDto.ratingCategory
                     )
