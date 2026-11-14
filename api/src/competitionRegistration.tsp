@@ -11,7 +11,15 @@ namespace Ready2Race;
 // ============================================================================
 
 model CompetitionRegistrationDto {
-  // Competition registration information
+  // Competition registration information (übrige Felder siehe documentation.yaml)
+
+  /**
+   * Meldungsnummer im Wettkampf (`competition_registration.team_number`), je Wettkampf eindeutig.
+   * Wird bei der Fixierung der Meldungen vergeben (auf Wunsch nach Bootsnummern der
+   * Materialvermietung) und bleibt danach fest; vor der Fixierung leer. Nicht zu verwechseln mit der
+   * Startnummer im Lauf, die erst die Rundenanlage vergibt.
+   */
+  teamNumber?: int32;
 }
 
 model CompetitionRegistrationTeamDto {

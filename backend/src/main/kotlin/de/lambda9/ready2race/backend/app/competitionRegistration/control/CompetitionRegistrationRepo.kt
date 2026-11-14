@@ -242,6 +242,7 @@ object CompetitionRegistrationRepo {
             optionalFees,
             namedParticipants,
             COMPETITION_REGISTRATION.IS_LATE,
+            COMPETITION_REGISTRATION.TEAM_NUMBER,
             RATING_CATEGORY.ID,
             RATING_CATEGORY.NAME,
             RATING_CATEGORY.DESCRIPTION,
@@ -268,6 +269,7 @@ object CompetitionRegistrationRepo {
                     optionalFees = it[optionalFees],
                     namedParticipants = it[namedParticipants],
                     isLate = it[COMPETITION_REGISTRATION.IS_LATE]!!,
+                    teamNumber = it[COMPETITION_REGISTRATION.TEAM_NUMBER],
                     ratingCategory = it[RATING_CATEGORY.ID]?.run {
                         RatingCategoryDto(
                             id = this,
@@ -310,6 +312,7 @@ object CompetitionRegistrationRepo {
             optionalFees,
             namedParticipants,
             COMPETITION_REGISTRATION.IS_LATE,
+            COMPETITION_REGISTRATION.TEAM_NUMBER,
             RATING_CATEGORY.ID,
             RATING_CATEGORY.NAME,
             RATING_CATEGORY.DESCRIPTION,
@@ -339,6 +342,7 @@ object CompetitionRegistrationRepo {
                     optionalFees = it[optionalFees],
                     namedParticipants = it[namedParticipants],
                     isLate = it[COMPETITION_REGISTRATION.IS_LATE]!!,
+                    teamNumber = it[COMPETITION_REGISTRATION.TEAM_NUMBER],
                     ratingCategory = it[RATING_CATEGORY.ID]?.run {
                         RatingCategoryDto(
                             id = this,

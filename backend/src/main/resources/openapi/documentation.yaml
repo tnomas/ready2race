@@ -14874,6 +14874,10 @@ components:
             $ref: '#/components/schemas/CompetitionRegistrationNamedParticipantDto'
         isLate:
           type: boolean
+        teamNumber:
+          type: integer
+          format: int32
+          description: Meldungsnummer im Wettkampf (je Wettkampf eindeutig). Wird bei der Fixierung der Meldungen vergeben, vorher leer.
         ratingCategory:
           $ref: '#/components/schemas/RatingCategoryDto'
         updatedAt:

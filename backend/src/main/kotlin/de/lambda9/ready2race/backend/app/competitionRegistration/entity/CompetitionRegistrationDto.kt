@@ -13,6 +13,8 @@ data class CompetitionRegistrationDto(
     val optionalFees: List<CompetitionRegistrationFeeDto>,
     val namedParticipants: List<CompetitionRegistrationNamedParticipantDto>,
     val isLate: Boolean,
+    /** Meldungsnummer im Wettkampf; erst ab der Fixierung gesetzt. */
+    val teamNumber: Int?,
     val ratingCategory: RatingCategoryDto?,
     val updatedAt: LocalDateTime,
     val createdAt: LocalDateTime,
