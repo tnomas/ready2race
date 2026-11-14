@@ -51,6 +51,7 @@ import {
 import {
     causerCandidates,
     outageUntilFollowsRepair,
+    outageUntilShownForRepair,
     suggestCauser,
 } from '@components/material/damageLogic.ts'
 import {
@@ -320,15 +321,16 @@ const MaterialDamageDialog = ({
                     values.outOfServiceUntil,
                     values.repairedAt,
                 )
-            } else if (
-                name === 'repairedAt' &&
-                untilFollowsRepair.current &&
-                values.outOfServiceUntil &&
-                values.repairedAt
-            ) {
-                // Nur ein schon gesetztes Ende nachziehen; ein leeres setzt der Server beim
-                // Speichern selbst auf den Reparaturzeitpunkt.
-                formContext.setValue('outOfServiceUntil', values.repairedAt)
+            } else if (name === 'repairedAt' || name === 'status') {
+                // Gleich anzeigen, was der Server beim Speichern setzt - nicht erst danach.
+                const shown = outageUntilShownForRepair(
+                    values.status ?? 'REPORTED',
+                    values.repairedAt,
+                    untilFollowsRepair.current,
+                )
+                if (shown && shown !== values.outOfServiceUntil) {
+                    formContext.setValue('outOfServiceUntil', shown)
+                }
             }
         })
         return () => subscription.unsubscribe()

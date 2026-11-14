@@ -4,6 +4,7 @@ import {
     causerCandidates,
     needsOutageImpact,
     outageUntilFollowsRepair,
+    outageUntilShownForRepair,
     suggestCauser,
 } from './damageLogic.ts'
 
@@ -110,5 +111,19 @@ describe('outageUntilFollowsRepair', () => {
     })
     test('selbst gesetztes Ende bleibt stehen', () => {
         expect(outageUntilFollowsRepair('2026-11-03T18:00:00', '2026-11-04T10:30:00')).toBe(false)
+    })
+})
+
+describe('outageUntilShownForRepair', () => {
+    test('zeigt den Reparaturzeitpunkt sofort, solange das Feld der Reparatur folgt', () => {
+        expect(outageUntilShownForRepair('REPAIRED', '2026-08-16T09:00', true)).toBe(
+            '2026-08-16T09:00',
+        )
+    })
+    test('lässt ein eigenes Ende, ein nicht repariertes Stück und ein leeres Datum in Ruhe', () => {
+        expect(outageUntilShownForRepair('REPAIRED', '2026-08-16T09:00', false)).toBeUndefined()
+        expect(outageUntilShownForRepair('REPORTED', '2026-08-16T09:00', true)).toBeUndefined()
+        expect(outageUntilShownForRepair('REPAIRED', undefined, true)).toBeUndefined()
+        expect(outageUntilShownForRepair('REPAIRED', '', true)).toBeUndefined()
     })
 })

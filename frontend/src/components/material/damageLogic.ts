@@ -69,3 +69,15 @@ export const outageUntilFollowsRepair = (
     outOfServiceUntil: string | undefined,
     repairedAt: string | undefined,
 ): boolean => !outOfServiceUntil || outOfServiceUntil === repairedAt
+
+/**
+ * Welches „Ausfall bis“ der Dialog nach einer Änderung an Status oder „Repariert am“ zeigt -
+ * dasselbe, was der Server beim Speichern daraus macht (ein repariertes Stück fällt bis zur
+ * Reparatur aus). `undefined`: Feld bleibt, wie es ist (jemand hat ein eigenes Ende eingetragen,
+ * oder es ist nicht repariert).
+ */
+export const outageUntilShownForRepair = (
+    status: MaterialDamageStatus,
+    repairedAt: string | undefined,
+    follows: boolean,
+): string | undefined => (follows && status === 'REPAIRED' && repairedAt ? repairedAt : undefined)

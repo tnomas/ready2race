@@ -50,6 +50,13 @@ const MaterialDecisionDialog = ({
 
     const [note, setNote] = useState('')
     const [submitting, setSubmitting] = useState(false)
+    // Die Seite setzt `status` beim Schließen zurück; während der Ausblend-Animation soll der
+    // Dialog aber weiter „Auf Warteliste setzen" zeigen statt kurz auf „Anfrage ablehnen" zu
+    // springen. Deshalb gilt der Status, mit dem der Dialog zuletzt offen war.
+    const [shownStatus, setShownStatus] = useState(status)
+    if (open && status !== shownStatus) {
+        setShownStatus(status)
+    }
 
     const handleClose = () => {
         setNote('')
@@ -79,10 +86,10 @@ const MaterialDecisionDialog = ({
 
     return (
         <BaseDialog open={open} onClose={handleClose} maxWidth={'sm'}>
-            <DialogTitle>{t(`material.decision.title.${status}`)}</DialogTitle>
+            <DialogTitle>{t(`material.decision.title.${shownStatus}`)}</DialogTitle>
             <DialogContent>
                 <Typography variant={'body2'} color={'text.secondary'}>
-                    {t(`material.decision.hint.${status}`)}
+                    {t(`material.decision.hint.${shownStatus}`)}
                 </Typography>
                 {assignmentCount > 0 && (
                     <Typography variant={'body2'} sx={{mt: 1}}>
@@ -107,10 +114,10 @@ const MaterialDecisionDialog = ({
                 <Button
                     onClick={() => void handleSubmit()}
                     variant={'contained'}
-                    color={status === 'DECLINED' ? 'error' : 'primary'}
+                    color={shownStatus === 'DECLINED' ? 'error' : 'primary'}
                     disabled={submitting}
                     sx={{cursor: 'pointer'}}>
-                    {t(`material.decision.title.${status}`)}
+                    {t(`material.decision.title.${shownStatus}`)}
                 </Button>
             </DialogActions>
         </BaseDialog>
