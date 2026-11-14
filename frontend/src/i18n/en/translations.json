@@ -3111,8 +3111,6 @@
       "invite": "Invite provider",
       "uninvite": "Uninvite",
       "uninviteConfirm": "The provider will be uninvited and their offers removed. Continue?",
-      "openRequests": "Open requests",
-      "openDamages": "Open damages",
       "closed": "Closed",
       "none": "No provider invited.",
       "inviteNeedsMaterialRead": "Inviting requires the right to read providers.",

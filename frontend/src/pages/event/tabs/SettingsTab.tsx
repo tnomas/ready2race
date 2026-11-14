@@ -60,7 +60,7 @@ const SettingsTab = ({event, reloadEvent}: Props) => {
         timing: t('event.timing.title'),
         documents: t('event.document.documents'),
         requirements: t('participantRequirement.participantRequirements'),
-        material: t('event.material.providers'),
+        material: t('event.material.jumpLabel'),
     }
 
     // Beim Öffnen mit Anker (Neuladen, geteilter Link) hinspringen. Die Blöcke darüber laden ihre
@@ -177,8 +177,12 @@ const SettingsTab = ({event, reloadEvent}: Props) => {
                     ]}
                 />,
             )}
-            {/* Materialvermietung: Anbieter ein- und ausladen. Vorläufiger Platz nach der
-                Übernahme (14.11.2026), die Karte prüft ihre Rechte selbst. */}
+            {/* Materialvermietung: Anbieter ein- und ausladen, offene Anfragen und Schäden als
+                Zahl. Bewusst ein Block der Einstellungen und kein eigener Bereich: Einladen ist
+                Vorbereitung, am Renntag arbeitet der Anbieter in seinem Dashboard, und die
+                Sichtbarkeit (READ EVENT GLOBAL) ist dieselbe wie die des Bereichs. Ein elfter
+                Seitenleisten-Eintrag für zwei Zähler lohnt nicht; die Sprungleiste führt per
+                `#material` direkt hierher. */}
             {block('material', <EventMaterialProvidersCard eventId={event.id} />)}
         </Stack>
     )

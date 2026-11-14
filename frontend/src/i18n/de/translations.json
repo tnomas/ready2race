@@ -3111,8 +3111,6 @@
       "invite": "Anbieter einladen",
       "uninvite": "Ausladen",
       "uninviteConfirm": "Der Anbieter wird ausgeladen, seine Angebote fallen weg. Fortfahren?",
-      "openRequests": "Offene Anfragen",
-      "openDamages": "Offene Schäden",
       "closed": "Geschlossen",
       "none": "Kein Anbieter eingeladen.",
       "inviteNeedsMaterialRead": "Zum Einladen fehlt das Recht, Anbieter zu lesen.",

@@ -2,15 +2,13 @@ import {useState} from 'react'
 import {
     Box,
     Button,
-    Card,
     Chip,
+    Divider,
     FormControl,
     IconButton,
     InputLabel,
-    List,
-    ListItem,
-    ListItemText,
     MenuItem,
+    Paper,
     Select,
     Stack,
     Tooltip,
@@ -21,6 +19,7 @@ import {useTranslation} from 'react-i18next'
 import {useUser} from '@contexts/user/UserContext.ts'
 import {useConfirmation} from '@contexts/confirmation/ConfirmationContext.ts'
 import {useFeedback, useFetch} from '@utils/hooks.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 import {readMaterialGlobal, updateEventGlobal} from '@authorization/privileges.ts'
 import {
     getEventMaterialProviders,
@@ -28,17 +27,18 @@ import {
     inviteMaterialProvider,
     uninviteMaterialProvider,
 } from '@api/sdk.gen.ts'
-import Throbber from '@components/Throbber.tsx'
+import {EmptyState, ErrorState, LoadingState, SectionHeader} from '@components/ui'
 
 type Props = {
     eventId: string
 }
 
 /**
- * Veranstalter-Sicht auf die eingeladenen Materialanbieter: einladen (aus allen Anbietern
- * abzüglich der bereits eingeladenen), ausladen mit Bestätigung, dazu je Anbieter die Zähler
- * für offene Anfragen/Schäden und ein Hinweis, wenn der Anbieter die Vergabe geschlossen hat.
- * Die Angebote selbst pflegt der Anbieter in seinem eigenen Dashboard (Reiter „Einstellungen").
+ * Veranstalter-Sicht auf die Materialvermietung (Block „Materialanbieter" im Bereich
+ * Einstellungen): eingeladene Anbieter mit Zählern für offene Anfragen und offene Schäden,
+ * einladen und ausladen. Details sieht der Veranstalter bewusst nicht – die Arbeit macht der
+ * Anbieter in seinem Dashboard. Laden braucht READ EVENT GLOBAL (wie der Bereich selbst),
+ * ein-/ausladen UPDATE EVENT GLOBAL, die Anbieterliste zum Einladen READ MATERIAL GLOBAL.
  */
 const EventMaterialProvidersCard = ({eventId}: Props) => {
     const {t} = useTranslation()
@@ -48,27 +48,17 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
     const mayManage = user.checkPrivilege(updateEventGlobal)
     const mayInvite = mayManage && user.checkPrivilege(readMaterialGlobal)
 
-    const [lastRequested, setLastRequested] = useState(Date.now())
-    const reload = () => setLastRequested(Date.now())
-
     const [selectedProviderId, setSelectedProviderId] = useState('')
-    const [inviting, setInviting] = useState(false)
+    const [busy, setBusy] = useState(false)
 
-    const {data: invited, pending: invitedPending} = useFetch(
-        signal => getEventMaterialProviders({signal, path: {eventId}}),
-        {
-            onResponse: ({error}) => {
-                if (error) {
-                    feedback.error(
-                        t('common.load.error.multiple.short', {
-                            entity: t('event.material.providers'),
-                        }),
-                    )
-                }
-            },
-            deps: [eventId, lastRequested],
-        },
-    )
+    const {
+        data: invited,
+        pending: invitedPending,
+        error: invitedError,
+        reload,
+    } = useFetch(signal => getEventMaterialProviders({signal, path: {eventId}}), {
+        deps: [eventId],
+    })
 
     const {data: allProviders, pending: allProvidersPending} = useFetch(
         signal => getMaterialProviders({signal, query: {limit: 200}}),
@@ -83,6 +73,7 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
                     )
                 }
             },
+            deps: [mayInvite],
         },
     )
 
@@ -90,15 +81,15 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
     const availableProviders = (allProviders?.data ?? []).filter(p => !invitedIds.has(p.id))
 
     const handleInvite = async () => {
-        if (!selectedProviderId) {
+        if (!selectedProviderId || busy) {
             return
         }
-        setInviting(true)
-        const {error} = await inviteMaterialProvider({
-            path: {eventId, providerId: selectedProviderId},
-        })
-        setInviting(false)
-        if (error) {
+        const {error} = await runRequest(setBusy, () =>
+            inviteMaterialProvider({path: {eventId, providerId: selectedProviderId}}),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('entity.add.error', {entity: t('material.provider.provider')}))
         } else {
             feedback.success(t('entity.add.success', {entity: t('material.provider.provider')}))
@@ -107,14 +98,18 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
         }
     }
 
-    const handleUninvite = (providerId: string) => {
+    const handleUninvite = (providerId: string, name: string) => {
         confirmAction(
             async () => {
-                const {error} = await uninviteMaterialProvider({
-                    path: {eventId, providerId},
-                })
-                if (error) {
-                    feedback.error(t('entity.delete.error', {entity: t('material.provider.provider')}))
+                const {error} = await runRequest(setBusy, () =>
+                    uninviteMaterialProvider({path: {eventId, providerId}}),
+                )
+                if (isRequestNetworkError(error)) {
+                    feedback.error(t('common.error.network'))
+                } else if (error) {
+                    feedback.error(
+                        t('entity.delete.error', {entity: t('material.provider.provider')}),
+                    )
                 } else {
                     feedback.success(
                         t('entity.delete.success', {entity: t('material.provider.provider')}),
@@ -123,62 +118,91 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
                 }
             },
             {
+                title: t('event.material.uninviteTitle', {name}),
                 content: t('event.material.uninviteConfirm'),
                 okText: t('event.material.uninvite'),
+                destructive: true,
             },
         )
     }
 
     return (
-        <Card sx={{p: 2}}>
-            <Typography variant="h6" sx={{mb: 2}}>
-                {t('event.material.providers')}
-            </Typography>
-            {invitedPending && !invited ? (
-                <Throbber />
+        <Paper variant={'outlined'} sx={{p: {xs: 1.5, sm: 2}}}>
+            <SectionHeader
+                title={t('event.material.providers')}
+                description={t('event.material.description')}
+            />
+            {invitedError && !invited ? (
+                <ErrorState
+                    dense
+                    message={t('common.load.error.multiple.short', {
+                        entity: t('event.material.providers'),
+                    })}
+                    onRetry={reload}
+                />
+            ) : invitedPending && !invited ? (
+                <LoadingState variant={'inline'} />
             ) : (invited?.length ?? 0) > 0 ? (
-                <List>
+                <Stack divider={<Divider flexItem />}>
                     {invited?.map(provider => (
-                        <ListItem
+                        <Stack
                             key={provider.materialProvider}
-                            secondaryAction={
-                                mayManage && (
-                                    <Tooltip title={t('event.material.uninvite')}>
+                            direction={'row'}
+                            alignItems={'center'}
+                            gap={1}
+                            sx={{py: 1}}>
+                            <Box sx={{flex: 1, minWidth: 0}}>
+                                <Stack
+                                    direction={'row'}
+                                    gap={1}
+                                    alignItems={'center'}
+                                    flexWrap={'wrap'}>
+                                    <Typography fontWeight={600}>{provider.name}</Typography>
+                                    {provider.requestsClosed && (
+                                        <Chip size={'small'} label={t('event.material.closed')} />
+                                    )}
+                                </Stack>
+                                <Typography variant={'body2'} color={'text.secondary'}>
+                                    {t('event.material.counts', {
+                                        requests: provider.openRequests,
+                                        damages: provider.openDamages,
+                                    })}
+                                </Typography>
+                            </Box>
+                            {mayManage && (
+                                <Tooltip title={t('event.material.uninvite')}>
+                                    <span>
                                         <IconButton
-                                            edge="end"
+                                            aria-label={t('event.material.uninviteNamed', {
+                                                name: provider.name,
+                                            })}
+                                            disabled={busy}
                                             onClick={() =>
-                                                handleUninvite(provider.materialProvider)
-                                            }>
+                                                handleUninvite(
+                                                    provider.materialProvider,
+                                                    provider.name,
+                                                )
+                                            }
+                                            sx={{cursor: 'pointer'}}>
                                             <DeleteIcon />
                                         </IconButton>
-                                    </Tooltip>
-                                )
-                            }>
-                            <ListItemText
-                                primary={
-                                    <Stack direction="row" spacing={1} alignItems="center">
-                                        <Typography>{provider.name}</Typography>
-                                        {provider.requestsClosed && (
-                                            <Chip
-                                                size="small"
-                                                color="default"
-                                                label={t('event.material.closed')}
-                                            />
-                                        )}
-                                    </Stack>
-                                }
-                                secondary={`${t('event.material.openRequests')}: ${provider.openRequests} · ${t('event.material.openDamages')}: ${provider.openDamages}`}
-                            />
-                        </ListItem>
+                                    </span>
+                                </Tooltip>
+                            )}
+                        </Stack>
                     ))}
-                </List>
+                </Stack>
             ) : (
-                <Typography color="text.secondary">{t('event.material.none')}</Typography>
+                <EmptyState dense title={t('event.material.none')} />
             )}
             {mayManage &&
                 (mayInvite ? (
-                    <Stack direction="row" spacing={2} sx={{mt: 2, alignItems: 'center'}}>
-                        <FormControl sx={{minWidth: 260}} size="small">
+                    <Stack
+                        direction={{xs: 'column', sm: 'row'}}
+                        gap={1.5}
+                        sx={{mt: 2}}
+                        alignItems={{xs: 'stretch', sm: 'center'}}>
+                        <FormControl sx={{minWidth: {sm: 260}}} size={'small'}>
                             <InputLabel id={'event-material-provider-invite-label'}>
                                 {t('material.provider.provider')}
                             </InputLabel>
@@ -195,21 +219,20 @@ const EventMaterialProvidersCard = ({eventId}: Props) => {
                                 ))}
                             </Select>
                         </FormControl>
-                        <Box>
-                            <Button
-                                variant="contained"
-                                disabled={!selectedProviderId || inviting}
-                                onClick={handleInvite}>
-                                {t('event.material.invite')}
-                            </Button>
-                        </Box>
+                        <Button
+                            variant={'contained'}
+                            disabled={!selectedProviderId || busy}
+                            onClick={() => void handleInvite()}
+                            sx={{cursor: 'pointer'}}>
+                            {t('event.material.invite')}
+                        </Button>
                     </Stack>
                 ) : (
-                    <Typography color="text.secondary" sx={{mt: 2}}>
+                    <Typography color={'text.secondary'} sx={{mt: 2}}>
                         {t('event.material.inviteNeedsMaterialRead')}
                     </Typography>
                 ))}
-        </Card>
+        </Paper>
     )
 }
 

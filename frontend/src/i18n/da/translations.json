@@ -3111,8 +3111,6 @@
       "invite": "Inviter udbyder",
       "uninvite": "Fjern invitation",
       "uninviteConfirm": "Udbyderen fjernes fra invitationen, og deres tilbud fjernes. Fortsæt?",
-      "openRequests": "Åbne forespørgsler",
-      "openDamages": "Åbne skader",
       "closed": "Lukket",
       "none": "Ingen udbyder inviteret.",
       "inviteNeedsMaterialRead": "Invitation kræver ret til at læse udlejere.",

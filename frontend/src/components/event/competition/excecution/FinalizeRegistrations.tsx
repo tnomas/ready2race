@@ -34,7 +34,7 @@ import {HtmlTooltip} from '@components/HtmlTooltip.tsx'
 import {Info} from '@mui/icons-material'
 import BaseDialog from '@components/BaseDialog.tsx'
 import {runDownload} from '@utils/download.ts'
-import {isRequestNetworkError} from '@utils/request.ts'
+import {isRequestNetworkError, runRequest} from '@utils/request.ts'
 
 type Props = {
     registrationsFinalized: boolean
@@ -49,15 +49,21 @@ const FinalizeRegistrations = ({registrationsFinalized}: Props) => {
         registrationsFinalized ? Date.now() : false,
     )
 
+    const [finalizing, setFinalizing] = useState(false)
     const handleFinalizeRegistrations = async (keepNumbers: boolean, alignMaterialNumbers: boolean) => {
-        const {error} = await finalizeRegistrations({
-            path: {eventId},
-            query: {
-                keepNumbers: keepNumbers,
-                alignMaterialNumbers: alignMaterialNumbers,
-            },
-        })
-        if (error) {
+        if (finalizing) return
+        const {error} = await runRequest(setFinalizing, () =>
+            finalizeRegistrations({
+                path: {eventId},
+                query: {
+                    keepNumbers: keepNumbers,
+                    alignMaterialNumbers: alignMaterialNumbers,
+                },
+            }),
+        )
+        if (isRequestNetworkError(error)) {
+            feedback.error(t('common.error.network'))
+        } else if (error) {
             feedback.error(t('common.error.unexpected'))
         } else {
             feedback.success(t('event.action.finalizeRegistrations.success'))
