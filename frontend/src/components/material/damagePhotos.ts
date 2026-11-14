@@ -9,7 +9,12 @@ export const PHOTO_MAX_BYTES = 10 * 1024 * 1024
 export const PHOTOS_TOTAL_MAX_BYTES = 50 * 1024 * 1024
 export const PHOTOS_PER_UPLOAD = 20
 
-export type PhotoRejectReason = 'notImage' | 'tooLarge' | 'tooMany' | 'totalTooLarge'
+export type PhotoRejectReason =
+    | 'notImage'
+    | 'tooLarge'
+    | 'tooMany'
+    | 'totalTooLarge'
+    | 'uploadFailed'
 export type PhotoRejection = {name: string; reason: PhotoRejectReason}
 
 export type PreparedPhotos = {accepted: File[]; rejected: PhotoRejection[]}
@@ -45,4 +50,45 @@ export const preparePhotos = async (
         onProgress?.(index + 1, files.length)
     }
     return {accepted, rejected}
+}
+
+/**
+ * Lädt die Fotos einzeln hoch: Ein Foto, das der Server ablehnt (z. B. eine Textdatei mit
+ * Endung `.jpg`), nimmt die übrigen nicht mehr mit. Zurück kommen die abgelehnten Dateien mit
+ * Grund; geworfene Fehler (Netz) zählen als „Hochladen fehlgeschlagen“.
+ */
+export const uploadPhotosOneByOne = async (
+    files: readonly File[],
+    upload: (file: File) => Promise<{error?: unknown}>,
+): Promise<PhotoRejection[]> => {
+    const rejected: PhotoRejection[] = []
+    for (const file of files) {
+        let error: unknown
+        try {
+            error = (await upload(file)).error
+        } catch (e) {
+            error = e ?? 'uploadFailed'
+        }
+        if (error !== undefined && error !== null) {
+            rejected.push({name: file.name, reason: photoUploadRejectReason(error)})
+        }
+    }
+    return rejected
+}
+
+const errorCodeOf = (error: unknown): unknown =>
+    typeof error === 'object' && error !== null && 'errorCode' in error
+        ? error.errorCode
+        : undefined
+
+/** Grund einer Server-Ablehnung, in denselben Worten wie das Aussortieren vorab. */
+export const photoUploadRejectReason = (error: unknown): PhotoRejectReason => {
+    switch (errorCodeOf(error)) {
+        case 'MATERIAL_PHOTO_INVALID_TYPE':
+            return 'notImage'
+        case 'MATERIAL_PHOTO_TOO_LARGE':
+            return 'tooLarge'
+        default:
+            return 'uploadFailed'
+    }
 }

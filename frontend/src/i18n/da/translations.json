@@ -5306,7 +5306,6 @@
       "success": "Skade gemt",
       "error": "Skaden kunne ikke gemmes",
       "photoTooLarge": "Foto er for stort (maks. 10 MB)",
-      "photoUploadError": "Foto kunne ikke uploades",
       "photoDeleteError": "Foto kunne ikke slettes",
       "impact": {
         "title": "Berørte løb",
@@ -5334,7 +5333,7 @@
       "outOfServiceHint": "Udfald: Så længe enheden mangler, foreslår systemet erstatning for berørte løb. Lad \"til\" stå tomt, hvis åbent.",
       "outOfServiceOpen": "ude af drift fra {{from}}",
       "outOfServiceRange": "ude af drift {{from}} – {{until}}",
-      "scopeHint": "Her vises skader, der er meldt i arrangementets dage eller tilknyttet en tilmelding til dette arrangement.",
+      "scopeHint": "Her vises alle åbne skader på udlejerens stykker samt udbedrede, der er meldt i arrangementets dage, hvis udfald faldt i disse dage, eller som er tilknyttet en tilmelding til dette arrangement.",
       "photoInvalidType": "Kun billeder (fx JPEG, PNG) kan uploades som foto.",
       "photoProgress": "Billeder formindskes: {{done}} af {{total}}",
       "photosRejected": "Ikke uploadet: {{list}}",
@@ -5342,7 +5341,8 @@
         "notImage": "ikke et billede",
         "tooLarge": "større end 10 MB",
         "tooMany": "mere end 20 billeder ad gangen",
-        "totalTooLarge": "mere end 50 MB i alt"
+        "totalTooLarge": "mere end 50 MB i alt",
+        "uploadFailed": "upload mislykkedes"
       }
     },
     "severity": {

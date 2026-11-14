@@ -5306,7 +5306,6 @@
       "success": "Damage saved",
       "error": "Damage could not be saved",
       "photoTooLarge": "Photo is too large (max. 10 MB)",
-      "photoUploadError": "Photo could not be uploaded",
       "photoDeleteError": "Photo could not be deleted",
       "impact": {
         "title": "Affected races",
@@ -5334,7 +5333,7 @@
       "outOfServiceHint": "Outage: while the item is missing, the system suggests replacements for affected races. Leave \"until\" empty if open-ended.",
       "outOfServiceOpen": "out of service from {{from}}",
       "outOfServiceRange": "out of service {{from}} – {{until}}",
-      "scopeHint": "Shown are damages reported during the event days or attributed to a registration of this event.",
+      "scopeHint": "Shown are all open damages of the provider's items, plus repaired ones reported during the event days, whose outage fell on these days or that are attributed to a registration of this event.",
       "photoInvalidType": "Only images (e.g. JPEG, PNG) can be uploaded as photos.",
       "photoProgress": "Resizing photos: {{done}} of {{total}}",
       "photosRejected": "Not uploaded: {{list}}",
@@ -5342,7 +5341,8 @@
         "notImage": "not an image",
         "tooLarge": "larger than 10 MB",
         "tooMany": "more than 20 photos at once",
-        "totalTooLarge": "more than 50 MB in total"
+        "totalTooLarge": "more than 50 MB in total",
+        "uploadFailed": "upload failed"
       }
     },
     "severity": {

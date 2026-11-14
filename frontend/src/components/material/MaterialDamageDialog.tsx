@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import {TFunction} from 'i18next'
 import {
     Avatar,
@@ -48,8 +48,16 @@ import {
     MaterialOverviewDto,
     MaterialOverviewRequestDto,
 } from '@api/types.gen.ts'
-import {causerCandidates, suggestCauser} from '@components/material/damageLogic.ts'
-import {PhotoRejection, preparePhotos} from '@components/material/damagePhotos.ts'
+import {
+    causerCandidates,
+    outageUntilFollowsRepair,
+    suggestCauser,
+} from '@components/material/damageLogic.ts'
+import {
+    PhotoRejection,
+    preparePhotos,
+    uploadPhotosOneByOne,
+} from '@components/material/damagePhotos.ts'
 import {teamNumberOf} from '@components/material/materialNumbers.ts'
 
 type DamageForm = {
@@ -265,11 +273,16 @@ const MaterialDamageDialog = ({
     const [photoProgress, setPhotoProgress] = useState<{done: number; total: number} | null>(null)
 
     const formContext = useForm<DamageForm>({defaultValues: defaultValues()})
+    // „Ausfall bis“ folgt „Repariert am“, bis jemand es selbst ändert (H2-F5).
+    const untilFollowsRepair = useRef(true)
 
     useEffect(() => {
         if (open) {
-            formContext.reset(
-                damage ? mapDtoToForm(t, damage, overview) : defaultValues(presetItem),
+            const values = damage ? mapDtoToForm(t, damage, overview) : defaultValues(presetItem)
+            formContext.reset(values)
+            untilFollowsRepair.current = outageUntilFollowsRepair(
+                values.outOfServiceUntil,
+                values.repairedAt,
             )
             setExistingPhotos(damage?.photos ?? [])
             setPendingFiles([])
@@ -299,6 +312,27 @@ const MaterialDamageDialog = ({
     )
 
     const status = formContext.watch('status')
+
+    useEffect(() => {
+        const subscription = formContext.watch((values, {name, type}) => {
+            if (name === 'outOfServiceUntil' && type === 'change') {
+                untilFollowsRepair.current = outageUntilFollowsRepair(
+                    values.outOfServiceUntil,
+                    values.repairedAt,
+                )
+            } else if (
+                name === 'repairedAt' &&
+                untilFollowsRepair.current &&
+                values.outOfServiceUntil &&
+                values.repairedAt
+            ) {
+                // Nur ein schon gesetztes Ende nachziehen; ein leeres setzt der Server beim
+                // Speichern selbst auf den Reparaturzeitpunkt.
+                formContext.setValue('outOfServiceUntil', values.repairedAt)
+            }
+        })
+        return () => subscription.unsubscribe()
+    }, [formContext])
 
     const handleClose = () => {
         onClose()
@@ -347,20 +381,18 @@ const MaterialDamageDialog = ({
         }
     }
 
-    const photoErrorMessage = (error: unknown) =>
-        isRequestNetworkError(error)
-            ? t('common.error.network')
-            : typeof error === 'object' &&
-                error !== null &&
-                'errorCode' in error &&
-                error.errorCode === 'MATERIAL_PHOTO_TOO_LARGE'
-              ? t('material.damage.photoTooLarge')
-              : typeof error === 'object' &&
-                  error !== null &&
-                  'errorCode' in error &&
-                  error.errorCode === 'MATERIAL_PHOTO_INVALID_TYPE'
-                ? t('material.damage.photoInvalidType')
-                : t('material.damage.photoUploadError')
+    /**
+     * Lädt die Fotos einzeln hoch (H2-F3): gültige werden gespeichert, abgelehnte nennt die
+     * Meldung mit Namen und Grund.
+     */
+    const uploadPhotos = async (damageId: string, files: File[]) => {
+        const rejected = await uploadPhotosOneByOne(files, file =>
+            addMaterialDamagePhotos({path: {providerId, damageId}, body: {files: [file]}}),
+        )
+        if (rejected.length > 0) {
+            feedback.error(t('material.damage.photosRejected', {list: rejectionList(rejected)}))
+        }
+    }
 
     const handleAddFiles = async (files: FileList) => {
         const selected = Array.from(files)
@@ -369,18 +401,12 @@ const MaterialDamageDialog = ({
             return
         }
         if (uploadingPhoto) return
-        const {error} = await runRequest(setUploadingPhoto, async () => {
+        await runRequest(setUploadingPhoto, async () => {
             const resized = await prepare(selected)
-            if (resized.length === 0) return {data: undefined}
-            return addMaterialDamagePhotos({
-                path: {providerId, damageId: damage.id},
-                body: {files: resized},
-            })
+            if (resized.length > 0) await uploadPhotos(damage.id, resized)
+            return {data: undefined}
         })
-        if (error) {
-            feedback.error(photoErrorMessage(error))
-            return
-        }
+        // Auch nach Teil-Ablehnungen neu laden: die gültigen Fotos stehen schon.
         const {data: refreshed} = await runRequest(undefined, () =>
             getMaterialDamage({path: {providerId, damageId: damage.id}}),
         )
@@ -434,18 +460,13 @@ const MaterialDamageDialog = ({
         const damageId = saved.data
 
         if (!damage && pendingFiles.length > 0) {
-            const {error: photoError} = await runRequest(setSubmitting, async () => {
+            // Der Schaden steht; abgelehnte Fotos nennt die Meldung, sie lassen sich nachträglich
+            // ergänzen.
+            await runRequest(setSubmitting, async () => {
                 const resized = await prepare(pendingFiles)
-                if (resized.length === 0) return {data: undefined}
-                return addMaterialDamagePhotos({
-                    path: {providerId, damageId},
-                    body: {files: resized},
-                })
+                if (resized.length > 0) await uploadPhotos(damageId, resized)
+                return {data: undefined}
             })
-            if (photoError) {
-                // Der Schaden steht; nur die Fotos fehlen und lassen sich nachträglich ergänzen.
-                feedback.error(photoErrorMessage(photoError))
-            }
         }
 
         feedback.success(t('material.damage.success'))

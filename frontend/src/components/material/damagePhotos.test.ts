@@ -1,5 +1,10 @@
 import {describe, expect, test} from 'vitest'
-import {PHOTO_MAX_BYTES, PHOTOS_PER_UPLOAD, preparePhotos} from './damagePhotos.ts'
+import {
+    PHOTO_MAX_BYTES,
+    PHOTOS_PER_UPLOAD,
+    preparePhotos,
+    uploadPhotosOneByOne,
+} from './damagePhotos.ts'
 
 const file = (name: string, size: number, type = 'image/jpeg') =>
     new File([new Uint8Array(size)], name, {type})
@@ -55,5 +60,37 @@ describe('preparePhotos', () => {
     test('HEIC ohne Typangabe des Browsers gilt als Bild', async () => {
         const result = await preparePhotos([file('IMG_1.HEIC', 5, '')], async f => f)
         expect(result.accepted).toHaveLength(1)
+    })
+})
+
+describe('uploadPhotosOneByOne', () => {
+    test('eine abgelehnte Datei nimmt die gültigen nicht mit und wird beim Namen genannt', async () => {
+        const uploaded: string[] = []
+        const rejected = await uploadPhotosOneByOne(
+            [file('gut.jpg', 10), file('falsch.jpg', 10), file('auch-gut.jpg', 10)],
+            async f => {
+                if (f.name === 'falsch.jpg') {
+                    return {error: {errorCode: 'MATERIAL_PHOTO_INVALID_TYPE'}}
+                }
+                uploaded.push(f.name)
+                return {}
+            },
+        )
+        expect(uploaded).toEqual(['gut.jpg', 'auch-gut.jpg'])
+        expect(rejected).toEqual([{name: 'falsch.jpg', reason: 'notImage'}])
+    })
+
+    test('zu groß und Netzfehler bekommen eigene Gründe', async () => {
+        const rejected = await uploadPhotosOneByOne(
+            [file('gross.jpg', 10), file('netz.jpg', 10)],
+            async f => {
+                if (f.name === 'gross.jpg') return {error: {errorCode: 'MATERIAL_PHOTO_TOO_LARGE'}}
+                throw new TypeError('Failed to fetch')
+            },
+        )
+        expect(rejected).toEqual([
+            {name: 'gross.jpg', reason: 'tooLarge'},
+            {name: 'netz.jpg', reason: 'uploadFailed'},
+        ])
     })
 })

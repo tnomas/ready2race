@@ -5306,7 +5306,6 @@
       "success": "Schaden gespeichert",
       "error": "Schaden konnte nicht gespeichert werden",
       "photoTooLarge": "Foto ist zu groß (max. 10 MB)",
-      "photoUploadError": "Foto konnte nicht hochgeladen werden",
       "photoDeleteError": "Foto konnte nicht gelöscht werden",
       "impact": {
         "title": "Betroffene Läufe",
@@ -5334,7 +5333,7 @@
       "outOfServiceHint": "Ausfall: Solange das Stück fehlt, schlägt das System für betroffene Läufe Ersatz vor. „Bis\" leer lassen, wenn offen.",
       "outOfServiceOpen": "fällt aus ab {{from}}",
       "outOfServiceRange": "fällt aus {{from}} – {{until}}",
-      "scopeHint": "Hier stehen Schäden, die während der Veranstaltungstage gemeldet oder einer Meldung dieser Veranstaltung zugeordnet wurden.",
+      "scopeHint": "Hier stehen alle offenen Schäden der eigenen Stücke sowie erledigte, die während der Veranstaltungstage gemeldet wurden, deren Ausfall in diese Tage fiel oder die einer Meldung dieser Veranstaltung zugeordnet sind.",
       "photoInvalidType": "Nur Bilder (z. B. JPEG, PNG) können als Foto hochgeladen werden.",
       "photoProgress": "Fotos werden verkleinert: {{done}} von {{total}}",
       "photosRejected": "Nicht hochgeladen: {{list}}",
@@ -5342,7 +5341,8 @@
         "notImage": "kein Bild",
         "tooLarge": "größer als 10 MB",
         "tooMany": "mehr als 20 Fotos auf einmal",
-        "totalTooLarge": "zusammen mehr als 50 MB"
+        "totalTooLarge": "zusammen mehr als 50 MB",
+        "uploadFailed": "Hochladen fehlgeschlagen"
       }
     },
     "severity": {

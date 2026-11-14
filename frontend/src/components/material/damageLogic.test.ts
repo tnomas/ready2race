@@ -1,6 +1,11 @@
 import {describe, expect, test} from 'vitest'
 import {MaterialOverviewMatchDto, MaterialOverviewRequestDto} from '@api/types.gen.ts'
-import {causerCandidates, needsOutageImpact, suggestCauser} from './damageLogic.ts'
+import {
+    causerCandidates,
+    needsOutageImpact,
+    outageUntilFollowsRepair,
+    suggestCauser,
+} from './damageLogic.ts'
 
 const request = (
     overrides: Partial<MaterialOverviewRequestDto> = {},
@@ -92,5 +97,18 @@ describe('needsOutageImpact', () => {
             false,
         )
         expect(needsOutageImpact({status: 'REPORTED'})).toBe(false)
+    })
+})
+
+describe('outageUntilFollowsRepair', () => {
+    test('leeres Ende folgt der Reparatur', () => {
+        expect(outageUntilFollowsRepair(undefined, '2026-11-04T10:30:00')).toBe(true)
+        expect(outageUntilFollowsRepair('', undefined)).toBe(true)
+    })
+    test('vom Server übernommenes Ende (= Reparatur) folgt weiter', () => {
+        expect(outageUntilFollowsRepair('2026-11-04T10:30:00', '2026-11-04T10:30:00')).toBe(true)
+    })
+    test('selbst gesetztes Ende bleibt stehen', () => {
+        expect(outageUntilFollowsRepair('2026-11-03T18:00:00', '2026-11-04T10:30:00')).toBe(false)
     })
 })

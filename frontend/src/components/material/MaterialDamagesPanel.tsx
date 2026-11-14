@@ -135,7 +135,9 @@ const MaterialDamagesPanel = ({
         if (csvBusy) return
         const {downloaded, error} = await runDownload(
             setCsvBusy,
-            () => getMaterialDamagesCsv({path: {eventId, providerId}}),
+            // Als Blob lesen: der Textweg würde die UTF-8-Kennung (BOM) verschlucken, die Excel
+            // für die Umlaute braucht.
+            () => getMaterialDamagesCsv({path: {eventId, providerId}, parseAs: 'blob'}),
             `Schaeden-${eventId}.csv`,
         )
         if (isRequestNetworkError(error)) {

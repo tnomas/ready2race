@@ -59,3 +59,13 @@ export const needsOutageImpact = (info: {
     status: MaterialDamageStatus
     outOfServiceFrom?: string
 }): boolean => info.status === 'REPORTED' && info.outOfServiceFrom != null
+
+/**
+ * Folgt „Ausfall bis“ dem Feld „Repariert am“? Ja, solange es leer ist oder genau dem
+ * Reparaturzeitpunkt entspricht - so hat der Server es beim Speichern gesetzt (das Ausfallfenster
+ * endet mit der Reparatur). Hat jemand ein anderes Ende eingetragen, bleibt es stehen.
+ */
+export const outageUntilFollowsRepair = (
+    outOfServiceUntil: string | undefined,
+    repairedAt: string | undefined,
+): boolean => !outOfServiceUntil || outOfServiceUntil === repairedAt
