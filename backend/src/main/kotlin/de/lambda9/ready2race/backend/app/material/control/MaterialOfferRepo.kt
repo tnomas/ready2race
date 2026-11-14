@@ -37,6 +37,14 @@ object MaterialOfferRepo {
         }
     }
 
+    /** Die Veranstaltungen mit einem Angebot dieser Materialart - für den Änderungsmarker. */
+    fun eventIdsForType(typeId: UUID): JIO<List<UUID>> = Jooq.query {
+        selectDistinct(MATERIAL_OFFER.EVENT)
+            .from(MATERIAL_OFFER)
+            .where(MATERIAL_OFFER.MATERIAL_TYPE.eq(typeId))
+            .fetch { it.value1()!! }
+    }
+
     /** Verhindert das Löschen eines Angebots, für das schon Anfragen bestehen. */
     fun hasRequests(offerId: UUID): JIO<Boolean> = Jooq.query {
         fetchExists(MATERIAL_REQUEST, MATERIAL_REQUEST.MATERIAL_OFFER.eq(offerId))

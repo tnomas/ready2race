@@ -9,6 +9,7 @@ import de.lambda9.ready2race.backend.app.email.entity.EmailLanguage
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplateKey
 import de.lambda9.ready2race.backend.app.email.entity.EmailTemplatePlaceholder
 import de.lambda9.ready2race.backend.app.event.control.EventRepo
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.material.control.EventHasMaterialProviderRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialAssignmentRepo
 import de.lambda9.ready2race.backend.app.material.control.MaterialDamagePhotoDataRepo
@@ -74,10 +75,23 @@ import java.util.UUID
 const val MATERIAL_PHOTO_MAX_BYTES = 10L * 1024 * 1024
 
 /**
- * Anbieter, Materialarten und die Stücke im Bestand eines Anbieters - der Stamm der
- * Materialvermietung. Angebote, Anfragen und Schäden folgen in späteren Aufgaben.
+ * Die Materialvermietung: Anbieter, Materialarten, Bestand, Einladungen und Angebote je
+ * Veranstaltung, Anfragen der Vereine, Entscheidung und Zuteilung, Schadensakte.
+ *
+ * **Änderungsmarker.** Die öffentlichen Anzeigen (Boards, Mein Event, Live-Läufe, Startliste,
+ * Stream, Sprecher, Schiedsrichter-Dashboard) lesen das wirksame Boot je Lauf-Team aus
+ * `effective_material_for_match_team`, Mein Event zusätzlich Status, Art und Anbieter der
+ * Anfragen. Jede Mutation, die eines davon ändert, ruft [EventChangeMarker.bump] für die
+ * betroffenen Veranstaltungen (wirkt nach dem Commit). Bewusst ohne Bump: Anlegen und Löschen
+ * von Anbietern, Arten, Stücken und Angeboten (Löschen ist bei Verwendung gesperrt, Neues hat
+ * noch keine Anfrage), Einladen/Ausladen (Ausladen ist bei Anfragen gesperrt), der Schalter
+ * „Vergabe geschlossen" und die ganze Schadensakte samt Fotos - keine Anzeige liest
+ * `material_damage`; ein Ersatz wegen Schadens wirkt erst über die Ausnahme je Lauf
+ * ([setAssignments]), und die bumpt.
  */
 object MaterialService {
+
+    private fun bumpAll(eventIds: Collection<UUID>) = eventIds.distinct().forEach { EventChangeMarker.bump(it) }
 
     // -------------------------------------------------------------------
     // Anbieter
@@ -124,6 +138,9 @@ object MaterialService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.ProviderNotFound }
+
+        // Der Anbietername steht in Mein Event an jeder Anfrage.
+        bumpAll(!EventHasMaterialProviderRepo.eventIdsForProvider(id).orDie())
         noData
     }
 
@@ -179,6 +196,9 @@ object MaterialService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.TypeNotFound }
+
+        // Name (Mein Event) und Kategorie (BOAT erreicht die Anzeigen, OTHER nicht).
+        bumpAll(!MaterialOfferRepo.eventIdsForType(id).orDie())
         noData
     }
 
@@ -253,6 +273,9 @@ object MaterialService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.ItemNotFound }
+
+        // Nummer und Bezeichnung eines zugeteilten Stücks stehen auf den Anzeigen.
+        bumpAll(!MaterialAssignmentRepo.eventIdsForItem(itemId).orDie())
         noData
     }
 
@@ -397,6 +420,10 @@ object MaterialService {
             updatedAt = LocalDateTime.now()
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.OfferNotFound }
+
+        // Die Art eines Angebots mit Anfragen kann wechseln - Mein Event zeigt sie, die
+        // Anzeigen filtern nach ihrer Kategorie.
+        EventChangeMarker.bump(eventId)
         noData
     }
 
@@ -468,12 +495,13 @@ object MaterialService {
         // requests_closed gilt nur für wirklich neue Anfragen. Eine Zeile zählt auch dann als neu,
         // wenn es sie schon einmal gab, aber zurückgezogen oder abgelehnt wurde - nur eine weiterhin
         // aktive Anfrage (REQUESTED/CONFIRMED/WAITLISTED) für dasselbe Angebot ist keine neue.
-        !offers.filter {
+        val newOrReactivated = offers.filter {
             val previousStatus = existingByOffer[it.id]?.status
             previousStatus == null ||
                 previousStatus == MaterialRequestStatus.WITHDRAWN.name ||
                 previousStatus == MaterialRequestStatus.DECLINED.name
-        }.traverse { offer ->
+        }
+        !newOrReactivated.traverse { offer ->
             KIO.comprehension {
                 val invitation = !EventHasMaterialProviderRepo.get(eventId, offer.materialProvider).orDie()
                 !KIO.failOn(invitation?.requestsClosed == true) { MaterialError.RequestsClosed }
@@ -533,6 +561,12 @@ object MaterialService {
 
         if (toWithdraw.isNotEmpty()) {
             !MaterialRequestRepo.withdraw(toWithdraw.map { it.id }, now).orDie()
+        }
+
+        // Mein Event zeigt die Anfragen; ein Rückzug einer bestätigten Anfrage nimmt zudem das
+        // Boot von allen Anzeigen. Ein unveränderter Aufruf bumpt nicht.
+        if (newOrReactivated.isNotEmpty() || toWithdraw.isNotEmpty()) {
+            EventChangeMarker.bump(eventId)
         }
 
         noData
@@ -663,6 +697,10 @@ object MaterialService {
             updatedAt = now
             updatedBy = userId
         }.orDie().onNullFail { MaterialError.RequestNotFound }
+
+        // Mein Event zeigt den Status; die Rücknahme einer Bestätigung nimmt das Boot von allen
+        // Anzeigen, eine Bestätigung mit bestehender Zuteilung bringt es zurück.
+        EventChangeMarker.bump(eventId)
         noData
     }
 
@@ -721,6 +759,8 @@ object MaterialService {
             ).orDie()
         }
 
+        // Grundzuteilung, Ausnahme je Lauf und Ersatzwahl nach einem Schaden - das wirksame Boot.
+        EventChangeMarker.bump(eventId)
         noData
     }
 

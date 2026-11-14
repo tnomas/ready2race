@@ -41,6 +41,14 @@ object EventHasMaterialProviderRepo {
         EVENT.eq(eventId).and(MATERIAL_PROVIDER.eq(providerId))
     }
 
+    /** Die Veranstaltungen, zu denen dieser Anbieter eingeladen ist - für den Änderungsmarker. */
+    fun eventIdsForProvider(providerId: UUID): JIO<List<UUID>> = Jooq.query {
+        select(EVENT_HAS_MATERIAL_PROVIDER.EVENT)
+            .from(EVENT_HAS_MATERIAL_PROVIDER)
+            .where(EVENT_HAS_MATERIAL_PROVIDER.MATERIAL_PROVIDER.eq(providerId))
+            .fetch { it.value1()!! }
+    }
+
     /**
      * Anfragen, die an Angeboten dieses Anbieters für diese Veranstaltung hängen - verhindert das
      * Ausladen, obwohl die Fremdschlüsselkette selbst kaskadiert löschen würde (Anfragen sind

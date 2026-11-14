@@ -27,6 +27,7 @@ import de.lambda9.ready2race.backend.app.eventDocument.control.EventDocumentRepo
 import de.lambda9.ready2race.backend.app.eventParticipant.control.EventParticipantRepo
 import de.lambda9.ready2race.backend.app.eventRegistration.control.*
 import de.lambda9.ready2race.backend.app.eventRegistration.entity.*
+import de.lambda9.ready2race.backend.app.eventInfo.boundary.EventChangeMarker
 import de.lambda9.ready2race.backend.app.material.boundary.MaterialService
 import de.lambda9.ready2race.backend.app.material.boundary.TeamNumberAlignment
 import de.lambda9.ready2race.backend.app.material.entity.MaterialCapacityLevel
@@ -1134,6 +1135,10 @@ object EventRegistrationService {
         !EventRegistrationReportRepo.delete(eventId).orDie()
 
         !generateResultDocument(eventId)
+
+        // Die Meldungsnummern stehen auf den Anzeigen (Team ohne Namen); mit "Startnummern nach
+        // Bootsnummern" ändert sich außerdem, welche Mietboote zur Nummer passen.
+        EventChangeMarker.bump(eventId)
 
         noData
     }
