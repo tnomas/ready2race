@@ -226,7 +226,13 @@ model MaterialOverviewRequestDto {
   competitionIdentifier: string;
   competitionName: string;
   teamName?: string;
+  // Meldungsnummer aus der Fixierung - ordnet die Setzliste der ersten Runde.
   teamNumber?: int32;
+  // Startnummer des Teams in seinem ersten Lauf (frühester Lauf nach Startzeit), ohne Lauf die
+  // Meldungsnummer. Gegen diese Zahl markieren die Anzeigen eine Abweichung des Boots
+  // (effective_material_for_match_team vergleicht je Lauf mit competition_match_team.start_number);
+  // "Nach Startnummer zuteilen" richtet sich danach.
+  startNumber?: int32;
   clubId: uuid;
   clubName: string;
   // Kontakt = E-Mail des Nutzers, der die Anmeldung angelegt hat.
@@ -358,7 +364,9 @@ interface MaterialRoutes {
     @body request: MaterialProviderRequest,
   ): void;
 
-  // Delete material provider
+  // Delete material provider. Abgewiesen (409), solange der Anbieter Stücke oder Einladungen hat,
+  // und (409, MATERIAL_PROVIDER_HAS_USERS) solange ihm Konten zugeordnet sind - die Zuordnung samt
+  // Materialanbieter-Rolle löst nur die Nutzerverwaltung, wo die Vergaberegeln greifen.
   @delete
   @route("/{providerId}")
   @operationId("")
@@ -442,7 +450,11 @@ interface MaterialRoutes {
     @body request: MaterialDamageRequest,
   ): void;
 
-  // Upload one or more photos for a damage record (multipart, field "files"), checked individually against the size limit
+  // Upload one or more photos for a damage record (multipart, field "files", höchstens 20 je
+  // Anfrage). Gelesen wird erst nach Anmeldung und OWN-Prüfung. Jede Datei einzeln geprüft:
+  // höchstens 10 MB (400, MATERIAL_PHOTO_TOO_LARGE) und an den ersten Bytes als JPEG, PNG, WebP,
+  // GIF oder HEIC erkannt (415, MATERIAL_PHOTO_INVALID_TYPE); der Dateiname bekommt die passende
+  // Endung. Auslieferung nur über getMaterialDamagePhoto, als Anhang.
   @post
   @route("/{providerId}/damage/{damageId}/photo")
   @operationId("")
@@ -604,7 +616,9 @@ interface EventMaterialRoutes {
     @path providerId: string, // UUID
   ): MaterialOverviewDto;
 
-  // Entscheidet über eine Anfrage (bestätigen, Warteliste, ablehnen)
+  // Entscheidet über eine Anfrage (bestätigen, Warteliste, ablehnen). Bumpt den Änderungsmarker der
+  // Veranstaltung: Mein Event zeigt den Status, eine zurückgenommene Bestätigung nimmt das Boot
+  // von allen Anzeigen.
   @put
   @route("/{providerId}/request/{requestId}/decision")
   @operationId("")
@@ -615,7 +629,8 @@ interface EventMaterialRoutes {
     @body request: MaterialDecisionRequest,
   ): void;
 
-  // Ersetzt die Zuteilung einer bestätigten Anfrage vollständig
+  // Ersetzt die Zuteilung einer bestätigten Anfrage vollständig (Grundzuteilung ohne Lauf,
+  // Ausnahme je Lauf, Ersatzwahl nach Schaden). Bumpt den Änderungsmarker der Veranstaltung.
   @put
   @route("/{providerId}/request/{requestId}/assignments")
   @operationId("")
@@ -640,7 +655,9 @@ interface EventMaterialRoutes {
 @route("/event/{eventId}/competitionRegistration/{competitionRegistrationId}/materialRequests")
 @tag("Material")
 interface MaterialRequestRoutes {
-  // Ersetzt die gewünschten Angebote einer Meldung
+  // Ersetzt die gewünschten Angebote einer Meldung. Nicht mehr genannte werden WITHDRAWN (Mail an
+  // den Anbieter, wenn sie bestätigt waren; die Sprache folgt dem Konto mit der Kontaktadresse,
+  // sonst Deutsch), neue REQUESTED. Bumpt den Änderungsmarker nur, wenn sich etwas geändert hat.
   @put
   @operationId("")
   setMaterialRequests(
