@@ -515,7 +515,8 @@ values ('5eed0009-0042-0000-0000-000000000001', '5eed0009-0041-0000-0000-0000000
        ('5eed0009-0042-0000-0000-000000000002', '5eed0009-0041-0000-0000-000000000001', 'NEXT_UP', true,
         'BOTTOM_LEFT', 'COMPACT', '{"showMaterial": true}');
 
--- Mein Event für Mats Boysen (MT 1): /event/<eventId>/my-event/MATERIAL-MEINEVENT-1
+-- Mein Event für Mats Boysen (MT 1): Frontend /results/MATERIAL-MEINEVENT-1 (merkt sich den Code und
+-- springt auf /results/event/<eventId>?tab=my-event); API /api/event/<eventId>/info/my-event/MATERIAL-MEINEVENT-1
 insert into qr_codes (id, qr_code_id, app_user, participant, event, created_at, created_by)
 values ('5eed0009-0043-0000-0000-000000000001', 'MATERIAL-MEINEVENT-1', null,
         '5eed0009-0030-0000-0000-000000000001', '5eed0001-0000-0000-0000-000000000001', now(), null);
