@@ -13,6 +13,10 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Weiterleitungen relativ ausgeben: nginx kennt nur seinen Container-Port 80,
+    # nicht R2R_PORT oder die Adresse des äußeren Proxys.
+    absolute_redirect off;
+
     # nginx kennt die Endung des Web-App-Manifests nicht und würde es als
     # Binärdatei ausliefern; der Browser lehnt es dann ab.
     include /etc/nginx/mime.types;
@@ -73,9 +77,11 @@ server {
         add_header Cache-Control "no-cache";
     }
 
-    # Single-Page-App: unbekannte Pfade landen bei der index.html.
+    # Single-Page-App: unbekannte Pfade landen bei der index.html. Kein `$uri/`:
+    # /app/ ist ein Verzeichnis (Icons, Manifest, Service Worker) ohne eigene
+    # index.html und ergäbe sonst 403 - genau die Startadresse der Helfer-App.
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri /index.html;
         add_header Cache-Control "no-cache";
     }
 }
